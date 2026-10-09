@@ -1,6 +1,6 @@
 # Riverview~ AI Engineering Hints
 
-**Document Revision:** 1.0.1  
+**Document Revision:** 1.0.2  
 **Status:** Working agent guidance  
 **Date:** 2026-10-09  
 **Component:** ENG-AGENT-GUIDANCE  
@@ -10,7 +10,7 @@
 ## Start here — every new engineering session
 
 1. Confirm the repository is **ppow1/Riverview-** (trailing hyphen). Do not substitute `ppow1/Riverview` or the historical archive. Identify branch, commit, working-tree changes, and target runtime before editing.
-2. Read `docs/ROADMAP.md` and use its **Current cursor**: when the Steward says **“next”**, work on the earliest unfinished step and report its acceptance evidence. Read `docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md`, `docs/standards/COMPONENT_DEFINITION_OF_DONE.md`, and `docs/standards/ENGINEERING_RECORDS_STANDARD.md`. Read relevant architecture/component contracts for the task.
+2. Read `docs/ROADMAP.md` and use its **Current cursor**: when the Steward says **“go”** or **“next”**, work on the earliest unfinished step and report its acceptance evidence. Read `docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md`, `docs/standards/COMPONENT_DEFINITION_OF_DONE.md`, and `docs/standards/ENGINEERING_RECORDS_STANDARD.md`. Read relevant architecture/component contracts for the task.
 3. Inspect the **complete relevant implementation and dependencies**, not just a small code snippet. Check what already exists before proposing or writing replacements.
 4. State the task objective, scope, affected files, existing revision numbers, success criteria, and verification plan. Keep the process proportional to the actual work; do not invent infrastructure or redesign unrelated systems.
 5. Preserve each existing file's **exact predecessor bytes and SHA-256 before modifying it**. Record the predecessor location, revision, task ID, and restoration method. Confirm that the backup can be read back. Do not treat an unprotected working copy as an immutable backup.
@@ -51,6 +51,8 @@
 Before editing, briefly report: repository/branch/HEAD, applicable standards, task scope, relevant code/dependencies, predecessor-preservation plan, and tests to run. If the task is purely informational, do not modify files.
 
 ## Revision history
+
+- **1.0.2 — 2026-10-09:** Treat “go” and “next” as equivalent roadmap commands. Predecessor: `docs/history/AI_HINTS_rev1.0.1.md`.
 
 - **1.0.1 — 2026-10-09:** Link authoritative implementation roadmap and define “next” behavior. Predecessor: `docs/history/AI_HINTS_rev1.0.0.md` (original blob `78056bfebddb15ee8f8e678d5671cf4a443c0b55`).
 
