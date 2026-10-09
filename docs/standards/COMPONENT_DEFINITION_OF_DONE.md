@@ -1,4 +1,4 @@
-# Component definition of done — Riverview!
+# Component definition of done — Riverview~
 
 Every component must ship with five synchronized artifacts: (1) implementation and versioned input/output/authority contracts, (2) an operational flowchart with error/recovery branches, (3) a new-engineer troubleshooting cookbook with commands, expected results, error codes and recovery verification, (4) a live visualization bound to actual durable operational state, and (5) event schemas, notification behavior, and recovery semantics.
 
