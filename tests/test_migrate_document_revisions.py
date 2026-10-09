@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_migrate_document_revisions.py
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Verify non-destructive documentation revision migration
 # Execution Model: Request-driven tests
 # Observability: unittest results and exit status
