@@ -2,7 +2,7 @@
 
 **Status:** design, not security-verified. The longer locally authored `Riverview_Undercurrent_Boundary_Contract_v0.1.md` remains a separate source document until imported and reconciled verbatim.
 
-Undercurrent is Riverview!'s implementation of the Estate's Undercroft concept: a separate high-privacy security domain, not merely a hidden dashboard room.
+Undercurrent is Riverview~'s implementation of the Estate's Undercroft concept: a separate high-privacy security domain, not merely a hidden dashboard room.
 
 ## Invariants
 
