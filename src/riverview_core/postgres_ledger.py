@@ -17,7 +17,7 @@ class PostgresLedger:
     def __init__(self, dsn, *, schema="public"):
         if not schema.replace("_", "").isalnum() or not schema[0].isalpha():
             raise ValueError("invalid schema")
-        self.db = psycopg.connect(dsn, row_factory=dict_row)
+        self.db = psycopg.connect(dsn, row_factory=dict_row, autocommit=True)
         with self.db.transaction():
             with self.db.cursor() as cur:
                 cur.execute("SELECT set_config('search_path', %s, false)", (schema,))
