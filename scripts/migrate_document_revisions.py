@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/migrate_document_revisions.py
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Stage documentation revision migration from a preserved Git archive
 # Execution Model: Request-driven, repeatable and non-destructive
 # Observability: Machine-readable JSON report and exit status
 # Dependencies: Python 3.10+, standard library
 # Authority: Writes staging directory only, never production source
-# Changed: 2026-10-09 UTC | ENG-REV-002 | Initial documentation migration
+# Changed: 2026-10-09 UTC | ENG-REV-002 | Ensure generated headers are parser-readable
 # Contracts: docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md
 # Tests: tests/test_migrate_document_revisions.py
 # History: Git and predecessor archive
@@ -60,8 +60,8 @@ def migrate(archive, destination):
                 action = 'already_revisioned'
             else:
                 rev = '1.0.0'
-                header = ('<!-- Riverview~ Controlled Document | File: ' + member.name +
-                          ' | Revision: ' + rev + ' | Migration: ENG-REV-002 -->\n')
+                header = ('<!--\nRiverview~ Controlled Document\nFile: ' + member.name +
+                          '\nRevision: ' + rev + '\nMigration: ENG-REV-002\n-->\n')
                 new = (header + text).encode('utf-8')
                 action = 'added_revision_header'
             prior = source / rel
