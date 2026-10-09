@@ -1,3 +1,9 @@
+<!--
+Riverview~ Controlled Document
+File: docs/components/LEDGER_COOKBOOK.md
+Revision: 1.0.0
+Migration: ENG-REV-002
+-->
 # Event ledger prototype — flowchart and troubleshooting cookbook
 
 **Scope:** minimal SQLite-backed developer prototype, not production authority, PostgreSQL, CME, or independent verifier. The `verified=True` parameter is a caller assertion only; it must be replaced by a durable verifier-issued evidence reference before real execution. No authorization boundary is enforced yet. **Do not expose this module as a remotely callable service or use it to dispatch hardware.**

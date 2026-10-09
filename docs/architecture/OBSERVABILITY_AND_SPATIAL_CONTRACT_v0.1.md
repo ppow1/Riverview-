@@ -1,3 +1,9 @@
+<!--
+Riverview~ Controlled Document
+File: docs/architecture/OBSERVABILITY_AND_SPATIAL_CONTRACT_v0.1.md
+Revision: 1.0.0
+Migration: ENG-REV-002
+-->
 # Riverview~ Observability and Spatial Contract v0.1
 
 Status: proposed, not implemented. Source inspiration: user-supplied Riverview living institution, Estate founding/concept and Castle Memory System diagrams. Historical imagery is design reference, not proof of implemented behavior.

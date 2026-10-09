@@ -1,3 +1,9 @@
+<!--
+Riverview~ Controlled Document
+File: docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md
+Revision: 1.0.0
+Migration: ENG-REV-002
+-->
 # Riverview~ Event and Assignment Contract v0.1
 
 Status: proposed contract; not implemented or runtime-tested. This is a fresh core contract, not a claim about historical Riverview code.

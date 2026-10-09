@@ -1,3 +1,9 @@
+<!--
+Riverview~ Controlled Document
+File: docs/components/POSTGRES_LEDGER.md
+Revision: 1.0.0
+Migration: ENG-REV-002
+-->
 # PostgreSQL assignment ledger — component contract
 
 **Status: tested developer backend; NOT production complete.** Code: `src/riverview_core/postgres_ledger.py`; tests: `tests/test_postgres_ledger.py`. Runtime host: Camrui, PostgreSQL 16. The existing SQLite `Ledger` is a separate developer prototype.

@@ -1,3 +1,9 @@
+<!--
+Riverview~ Controlled Document
+File: README.md
+Revision: 1.0.0
+Migration: ENG-REV-002
+-->
 # Riverview~
 
 **A living, event-driven AI institution in service of the Steward's purpose.**

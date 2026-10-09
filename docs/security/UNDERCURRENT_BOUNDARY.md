@@ -1,3 +1,9 @@
+<!--
+Riverview~ Controlled Document
+File: docs/security/UNDERCURRENT_BOUNDARY.md
+Revision: 1.0.0
+Migration: ENG-REV-002
+-->
 # Undercurrent boundary — working baseline
 
 **Status:** design, not security-verified. The longer locally authored `Riverview_Undercurrent_Boundary_Contract_v0.1.md` remains a separate source document until imported and reconciled verbatim.

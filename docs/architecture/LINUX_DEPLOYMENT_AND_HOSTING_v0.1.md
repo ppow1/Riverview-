@@ -1,3 +1,9 @@
+<!--
+Riverview~ Controlled Document
+File: docs/architecture/LINUX_DEPLOYMENT_AND_HOSTING_v0.1.md
+Revision: 1.0.0
+Migration: ENG-REV-002
+-->
 # Riverview~ Linux Deployment and Hosting Contract v0.1
 
 **Status:** proposed design; no host selected, provisioned, deployed, or tested.

@@ -1,3 +1,9 @@
+<!--
+Riverview~ Controlled Document
+File: docs/components/POSTGRES_LEDGER_COOKBOOK.md
+Revision: 1.0.0
+Migration: ENG-REV-002
+-->
 # PostgreSQL ledger — operational and troubleshooting cookbook
 
 **Scope:** Camrui developer backend. Never drop the `public` schema or delete the live `riverview` database to fix a test.

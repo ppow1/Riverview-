@@ -1,3 +1,9 @@
+<!--
+Riverview~ Controlled Document
+File: docs/architecture/CORE_CONTRACT.md
+Revision: 1.0.0
+Migration: ENG-REV-002
+-->
 # Riverview~ core contract — working baseline
 
 **Status:** founding architecture baseline; not implemented or runtime-verified. The longer locally authored `Riverview_Core_Contract_v0.1.md` remains a separate source document until imported and reconciled verbatim.
