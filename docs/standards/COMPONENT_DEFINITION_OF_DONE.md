@@ -1,6 +1,6 @@
 # Riverview~ Component Definition of Done (DoD)
 
-**Revision:** Rev 1.1  
+**Revision:** Rev 1.2  
 **Status:** Active engineering standard  
 **Effective:** 2026-10-09  
 **Applies to:** every new or modified Riverview~ component, including the institutional Core, adapters, databases, workers, CME, and Steward-facing services.  
@@ -27,6 +27,16 @@
 Each component's acceptance record must include a blocker register with: `blocker_id`, type (commissioning / credential / permission / approval / escalation / dependency / fault / manual action), detection signal, owning office, authority required, timeout, durable state, alert destination, retry/resume trigger, and test evidence. Record every unresolved blocker and its operational impact.
 
 The unattended-run test must demonstrate the component's declared normal lifecycle without a human issuing follow-up commands; simulated failures and approval holds must be included where relevant. An approval hold passes only if the request, notification, wait state, authorized decision, and automatic continuation are verified end to end. Do not claim operational autonomy for a library with no running process.
+
+## Design-time autonomy audit — no artificial one-shot restrictions
+
+**This is distinct from external blocker clearance.** Inspect the actual code for restrictions introduced by the implementation itself that unnecessarily prevent repeatable, continuous, delegated operation. The institutional design assumes autonomous event-driven work is normal, not a special exception.
+
+**Prohibited without an explicit requirement and rationale:** one-shot flags that permanently disable subsequent work; hard-coded single-run counts; forced manual rearming; manual approval on routine already-authorized actions; artificial turn/conversation dependencies; execution loops that exit after one task; silent stop-on-error paths; non-durable in-memory queues as the sole work source; unexplained timeout ceilings; arbitrary model/provider restrictions; and safety stubs that pretend to implement ongoing functionality.
+
+**Required engineering behavior:** use durable work state; continuously accept and execute eligible assignments; recover/retry with bounded backoff where appropriate; resume after restart; enforce only the actual scoped authority contract; preserve required approvals for genuinely privileged actions; and make termination, pause, cancel, and emergency stop explicit, testable control operations. Never confuse legitimate safety interlocks (e.g. hardware limits or privileged authorization) with invented blanket bans on autonomous work.
+
+**Code review evidence:** search source and configuration for run-once/single-use/stop-after-N/manual-rearm patterns, approval prompts, early exits, arbitrary limits, disabled worker loops, and mock-only paths. Record each finding with file/line, operational effect, justification, disposition (remove / retain by documented requirement / replace), and regression test. Test multiple sequential assignments, repeated same-process execution, restart and resumed execution, and a previously authorized action proceeding without new approval. A component is NOT DONE if a code-imposed artificial restriction blocks its declared continuous mission.
 
 ## Cross-cutting acceptance gates
 
@@ -66,7 +76,7 @@ Purpose and owner; interfaces/dependencies; process and state diagram; events/id
 - **Cookbook:** PARTIAL — diagnostic cookbook committed; production restore drill and escalation unverified.
 - **Flowcharts:** PARTIAL — versioned transaction and lifecycle diagrams committed; full failure/notification/recovery integration not implemented.
 - **Steward view:** FAIL — read-only on-demand snapshot works, returns `not_initialized` for `public`; no live dashboard or authoritative permanent tables yet.
-- **Operational autonomy:** FAIL — no always-on process, automatic resume, approval routing, escalation or dependency recovery; permanent ledger initialization outstanding.
+- **Operational autonomy:** FAIL — no always-on process, automatic resume, approval routing, escalation or dependency recovery; permanent ledger initialization outstanding. Design-time artificial-restriction audit and repeat-execution tests have not yet been performed.
 - **Overall:** **NOT DONE**. Do not present the ledger as production-ready or the snapshot as a live dashboard.
 
 ## Revision history
@@ -76,5 +86,6 @@ Purpose and owner; interfaces/dependencies; process and state diagram; events/id
 | Unversioned | Before 2026-10-09 | Initial five synchronized artifacts and engineering acceptance principle |
 | **1.0** | **2026-10-09** | Explicit six-gate measurable DoD, Steward acceptance, release evidence, live-view and telemetry freshness requirements, cross-cutting gates, and PostgreSQL ledger baseline |
 | **1.1** | **2026-10-09** | Seventh gate: operational autonomy, explicit blocker register, unattended-run evidence, and durable approval/escalation/resumption rules |
+| **1.2** | **2026-10-09** | Explicit design-time autonomy audit: prohibit unjustified one-shot code restrictions and require continuous/repeat-execution regression tests |
 
 Future revisions must increment the revision, document what changed and why, and identify affected component acceptance records.
