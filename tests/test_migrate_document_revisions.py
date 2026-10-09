@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_migrate_document_revisions.py
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify non-destructive documentation revision migration
 # Execution Model: Request-driven tests
 # Observability: unittest results and exit status
 # Dependencies: Python 3.10+, standard library
 # Authority: Temporary directories only
-# Changed: 2026-10-09 UTC | ENG-REV-002 | Initial migration regression tests
+# Changed: 2026-10-09 UTC | ENG-REV-002 | Test heading revisions and ambiguity
 # Contracts: docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md
 # Tests: This file
 # History: Git and predecessor archive
@@ -32,17 +32,17 @@ class MigrationTests(unittest.TestCase):
         self.archive=self.root/'baseline.tar'
         with tarfile.open(self.archive,'w') as tar:
             for name,data in {'README.md':b'# README\nContent\n',
-                              'docs/old.md':b'**Revision:** Rev 1.3\nOriginal\n'}.items():
+                              'docs/old.md':b'**Revision:** Rev 1.3\nOriginal\n',\n                              'docs/heading.md':b'# Riverview~ Engineering Records Standard — Rev 1.0\nText\n'}.items():
                 info=tarfile.TarInfo(name)
                 info.size=len(data)
                 tar.addfile(info,io.BytesIO(data))
     def test_preserves_and_migrates(self):
         report=migration.migrate(self.archive,self.root/'out')
-        self.assertEqual((report['documents'],report['changed'],report['unchanged']),(2,1,1))
+        self.assertEqual((report['documents'],report['changed'],report['unchanged']),(3,1,2))
         self.assertEqual((self.root/'out/original/README.md').read_bytes(),b'# README\nContent\n')
         self.assertTrue((self.root/'out/staged/README.md').read_bytes().endswith(b'# README\nContent\n'))
         self.assertEqual((self.root/'out/staged/docs/old.md').read_bytes(),b'**Revision:** Rev 1.3\nOriginal\n')
-    def test_rejects_overwrite(self):
+    def test_heading_revision_preserved(self):\n        migration.migrate(self.archive,self.root/'out')\n        self.assertEqual((self.root/'out/staged/docs/heading.md').read_bytes(),\n                         b'# Riverview~ Engineering Records Standard — Rev 1.0\\nText\\n')\n    def test_rejects_overwrite(self):
         migration.migrate(self.archive,self.root/'out')
         with self.assertRaises(ValueError):
             migration.migrate(self.archive,self.root/'out')
