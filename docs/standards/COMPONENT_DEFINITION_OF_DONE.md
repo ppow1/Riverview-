@@ -1,6 +1,6 @@
 # Riverview~ Component Definition of Done (DoD)
 
-**Revision:** Rev 1.2  
+**Revision:** Rev 1.3  
 **Status:** Active engineering standard  
 **Effective:** 2026-10-09  
 **Applies to:** every new or modified Riverview~ component, including the institutional Core, adapters, databases, workers, CME, and Steward-facing services.  
@@ -38,11 +38,25 @@ The unattended-run test must demonstrate the component's declared normal lifecyc
 
 **Code review evidence:** search source and configuration for run-once/single-use/stop-after-N/manual-rearm patterns, approval prompts, early exits, arbitrary limits, disabled worker loops, and mock-only paths. Record each finding with file/line, operational effect, justification, disposition (remove / retain by documented requirement / replace), and regression test. Test multiple sequential assignments, repeated same-process execution, restart and resumed execution, and a previously authorized action proceeding without new approval. A component is NOT DONE if a code-imposed artificial restriction blocks its declared continuous mission.
 
+## Execution model and external observability contracts
+
+These are **explicit acceptance checks** in addition to the seven delivery gates, not optional design suggestions.
+
+### Execution model declaration and verification
+Every component declares its execution model: **event-driven, scheduled, request-driven, interactive, or a documented hybrid**. It identifies its trigger, lifecycle owner, durable work source (if any), repeatability, retry/recovery policy, and whether a human or conversation turn is needed to advance work. The model must match the component's architectural responsibility. An institutional coordinator/worker must demonstrate unattended, repeated event handling and restart/resume; a storage adapter may appropriately be request-driven. No artificial conversational-turn dependency or unjustified one-shot restriction is permitted. Test the declared behavior and record evidence.
+
+### External observability and visibility hooks
+Every operational component must define an **external, machine-readable observability contract**, either directly or via its owning service. As applicable, expose component ID/version, health/readiness, heartbeat and freshness, current assignments/workflow progress, durable event cursor and correlation IDs, failures/retries, dependency health, escalation/approval state, and recovery status. State the transport/interface (API, events, metrics, structured logs or projection), schema, authentication/authorization, retention, refresh frequency, and error semantics. A function with no independent lifecycle may rely on its parent component's hooks; justify nonapplicability explicitly.
+
+A Steward dashboard must consume authoritative state through these hooks rather than scrape internal implementation details or display invented status. CME and authorized monitoring clients must be able to distinguish healthy, stale, blocked, unavailable, and failed states. Observability interfaces must not accidentally grant control authority or leak private/Undercurrent content.
+
+**Acceptance evidence:** inspect actual hook implementations and run external-client tests proving fresh state, an induced failure, stale/unavailable state, event progression, and recovery visibility. Documentation or a one-time manual snapshot alone is not sufficient for a continuously operating component.
+
 ## Cross-cutting acceptance gates
 
 - **Institutional integrity:** one authoritative lifecycle per assignment; persistent office/occupant/implementation/state separation where applicable; no fabricated progress.
 - **Events and recovery:** durable event identities and idempotency keys, failure semantics, restart/replay proof, documented retention and recovery path. Where applicable, notification delivery and acknowledgment states must be visible.
-- **Observability:** telemetry has timestamp and freshness thresholds; unavailable or stale sources never display healthy. CME and Steward can distinguish failures from missing data.
+- **Observability:** telemetry has timestamp and freshness thresholds; unavailable or stale sources never display healthy. CME and Steward can distinguish failures from missing data. Execution model and external visibility hooks are declared and tested.
 - **Security and isolation:** explicit authority boundary and least privilege; Undercurrent/private data never exported into ordinary logs, dashboards, or diagnostics without policy approval.
 - **Spatial mapping:** stable component identity, parent/relationship metadata, and optional coordinates are independent of execution and authority. Multiple visual renderers may project the same state.
 - **Reproducibility:** test commands, target environment, version/commit, result, timestamp, and unresolved exceptions are recorded.
@@ -61,6 +75,8 @@ Record a component-specific acceptance record with:
 | Flowcharts | committed source reflecting implemented behavior | PASS / FAIL / PARTIAL |
 | Steward view | live URL/view, real-state proof, freshness/failure tests | PASS / FAIL / PARTIAL |
 | Operational autonomy | blocker register, unattended execution, approval/escalation/recovery/resume tests | PASS / FAIL / PARTIAL |
+| Execution model (cross-cutting) | declared model, trigger/lifecycle, repeated work and restart evidence | PASS / FAIL / PARTIAL / N/A justified |
+| External observability (cross-cutting) | hook/API/event contract and independent consumer verification | PASS / FAIL / PARTIAL / N/A justified |
 
 **Release rule:** all seven must be **PASS**, all cross-cutting gates applicable to the component must pass, and the Steward must explicitly accept the evidence. A component with any PARTIAL or FAIL is **NOT DONE**. Work can continue on it, but do not move to the next component while describing the current one as complete. Exceptions require an explicitly scoped, dated Steward waiver; a waiver is not a PASS.
 
@@ -77,6 +93,8 @@ Purpose and owner; interfaces/dependencies; process and state diagram; events/id
 - **Flowcharts:** PARTIAL — versioned transaction and lifecycle diagrams committed; full failure/notification/recovery integration not implemented.
 - **Steward view:** FAIL — read-only on-demand snapshot works, returns `not_initialized` for `public`; no live dashboard or authoritative permanent tables yet.
 - **Operational autonomy:** FAIL — no always-on process, automatic resume, approval routing, escalation or dependency recovery; permanent ledger initialization outstanding. Design-time artificial-restriction audit and repeat-execution tests have not yet been performed.
+- **Execution model:** PARTIAL — ledger library is appropriately request-driven and records events, but the institution's event processor does not yet exist.
+- **External observability:** PARTIAL — read-only on-demand JSON snapshot exists; no live machine-readable monitoring endpoint, freshness semantics, or independent observer tests.
 - **Overall:** **NOT DONE**. Do not present the ledger as production-ready or the snapshot as a live dashboard.
 
 ## Revision history
@@ -87,5 +105,6 @@ Purpose and owner; interfaces/dependencies; process and state diagram; events/id
 | **1.0** | **2026-10-09** | Explicit six-gate measurable DoD, Steward acceptance, release evidence, live-view and telemetry freshness requirements, cross-cutting gates, and PostgreSQL ledger baseline |
 | **1.1** | **2026-10-09** | Seventh gate: operational autonomy, explicit blocker register, unattended-run evidence, and durable approval/escalation/resumption rules |
 | **1.2** | **2026-10-09** | Explicit design-time autonomy audit: prohibit unjustified one-shot code restrictions and require continuous/repeat-execution regression tests |
+| **1.3** | **2026-10-09** | Explicit execution model declaration and external machine-readable observability contracts, with independent verification |
 
 Future revisions must increment the revision, document what changed and why, and identify affected component acceptance records.
