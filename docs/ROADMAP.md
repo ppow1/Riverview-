@@ -1,11 +1,11 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.0.0  
+**Document Revision:** 1.0.1  
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-09  
 **Component:** RV-ROADMAP  
 **Owner:** Steward  
-**Purpose:** Define the ordered implementation path and what the command **“next”** means.  
+**Purpose:** Define the ordered implementation path and what the command **“go” or “next”** means.  
 **Source contracts:** `README.md`, `docs/architecture/CORE_CONTRACT.md`, `docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md`, `docs/architecture/LINUX_DEPLOYMENT_AND_HOSTING_v0.1.md`, `docs/architecture/OBSERVABILITY_AND_SPATIAL_CONTRACT_v0.1.md`, `docs/components/POSTGRES_LEDGER.md`, `docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md`.
 
 ## Mission and first proof
@@ -16,7 +16,7 @@ Build a **persistent, event-driven, Linux-native autonomous institution** whose 
 
 ## “Next” protocol
 
-- “Next” means work on the **earliest unfinished numbered step** in the current milestone, subject to its dependencies. Do not reinterpret it as permission to begin unrelated infrastructure.
+- **“Go” and “Next” are equivalent commands:** work on the **earliest unfinished numbered step** in the current milestone, subject to its dependencies. Do not reinterpret it as permission to begin unrelated infrastructure.
 - At the start of a step: read `AI_HINTS.md` and relevant contracts; confirm actual host/repository state; identify the deliverable and a short test plan. Avoid repeated broad inventories when evidence is already current.
 - At completion: record **PASS / FAIL / BLOCKED / NOT VERIFIED**, exact artifacts, tests and host, commit/deployment identifiers, remaining limitations, and the **next step ID**.
 - Do not mark a step complete merely because files were written. On failure, repair the same step; on a real blocker, identify it and propose the smallest decisive experiment. Do not silently skip.
@@ -109,5 +109,7 @@ Deliverable: capability discovery and replaceable adapters for OctoMiner-hosted 
 The last verified engineering change before this roadmap was the AI guidance commit `c9ae126ae5e0613b3961967eb7e701cb880da043`. Recheck Git HEAD before implementation. Existing PostgreSQL evidence should be reused rather than repeating the full inventory.
 
 ## Revision history
+
+- **1.0.1 — 2026-10-09:** Recognize “go” and “next” as equivalent roadmap advancement commands. Predecessor: `docs/history/ROADMAP_rev1.0.0.md`.
 
 - **1.0.0 — 2026-10-09:** Initial ordered, test-gated roadmap grounded in current repository contracts.
