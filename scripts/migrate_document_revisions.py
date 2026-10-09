@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/migrate_document_revisions.py
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Stage documentation revision migration from a preserved Git archive
 # Execution Model: Request-driven, repeatable and non-destructive
 # Observability: Machine-readable JSON report and exit status
 # Dependencies: Python 3.10+, standard library
 # Authority: Writes staging directory only, never production source
-# Changed: 2026-10-09 UTC | ENG-REV-002 | Repair heading regex syntax
+# Changed: 2026-10-09 UTC | ENG-REV-002 | Restore actual Python source line breaks
 # Contracts: docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md
 # Tests: tests/test_migrate_document_revisions.py
 # History: Git and predecessor archive
@@ -52,7 +52,11 @@ def migrate(archive, destination):
             if len(old) != member.size:
                 raise ValueError('Incomplete archive entry: ' + member.name)
             text = old.decode('utf-8')
-            matches = [m.group(1) for m in REV.finditer(text[:12000])]\n            matches += [m.group(1) for m in HEADING_REV.finditer(text[:12000])]\n            if len(matches) > 1:\n                raise ValueError('Ambiguous revision identifiers: ' + member.name)\n            found = matches[0] if matches else None
+            matches = [m.group(1) for m in REV.finditer(text[:12000])]
+            matches += [m.group(1) for m in HEADING_REV.finditer(text[:12000])]
+            if len(matches) > 1:
+                raise ValueError('Ambiguous revision identifiers: ' + member.name)
+            found = matches[0] if matches else None
             # Existing legacy Rev X.Y metadata is preserved, not rewritten.
             if found:
                 new = old
