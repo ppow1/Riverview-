@@ -1,3 +1,19 @@
+# =============================================================================
+# RIVERVIEW~ CONTROLLED SOURCE
+# File: tests/test_postgres_ledger.py
+# Component: POSTGRES-LEDGER
+# Revision: 1.0.0
+# Purpose: Regression tests for PostgreSQL development ledger
+# Execution Model: Request-driven tests
+# Observability: unittest results and exit code
+# Dependencies: Python 3; psycopg 3; test PostgreSQL
+# Authority: Isolated test schema; test DSN required
+# Changed: 2026-10-09 UTC | ENG-REV-004 | Initial controlled header migration
+# Contracts: docs/components/POSTGRES_LEDGER.md
+# Tests: This file
+# History: Git commit 6810e00374f50a81820be5f4e7714b329965ea66 and staged predecessor manifest
+# =============================================================================
+
 """Run only when RIVERVIEW_TEST_PG_DSN is set.
 
 Uses a unique schema for each test; no production tables are modified.

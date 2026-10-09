@@ -1,3 +1,19 @@
+# =============================================================================
+# RIVERVIEW~ CONTROLLED SOURCE
+# File: scripts/postgres_ledger_steward_snapshot.py
+# Component: POSTGRES-LEDGER
+# Revision: 1.0.0
+# Purpose: Read-only Steward snapshot of PostgreSQL ledger
+# Execution Model: Request-driven CLI
+# Observability: JSON stdout and exit codes
+# Dependencies: Python 3; psycopg 3; PostgreSQL
+# Authority: Read-only queries; no schema mutations
+# Changed: 2026-10-09 UTC | ENG-REV-004 | Initial controlled header migration
+# Contracts: docs/components/POSTGRES_LEDGER.md
+# Tests: tests/test_postgres_ledger.py
+# History: Git commit 6810e00374f50a81820be5f4e7714b329965ea66 and staged predecessor manifest
+# =============================================================================
+
 """Read-only Steward-facing JSON snapshot of the PostgreSQL ledger.
 
 Requires RIVERVIEW_PG_DSN; optional RIVERVIEW_PG_SCHEMA (default public).

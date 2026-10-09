@@ -1,3 +1,19 @@
+# =============================================================================
+# RIVERVIEW~ CONTROLLED SOURCE
+# File: src/riverview_core/postgres_ledger.py
+# Component: POSTGRES-LEDGER
+# Revision: 1.0.0
+# Purpose: PostgreSQL development assignment and event ledger
+# Execution Model: Request-driven library
+# Observability: PostgreSQL events and state projection
+# Dependencies: Python 3; psycopg 3; PostgreSQL
+# Authority: Development backend; caller authorization external
+# Changed: 2026-10-09 UTC | ENG-REV-004 | Initial controlled header migration
+# Contracts: docs/components/POSTGRES_LEDGER.md
+# Tests: tests/test_postgres_ledger.py
+# History: Git commit 6810e00374f50a81820be5f4e7714b329965ea66 and staged predecessor manifest
+# =============================================================================
+
 """PostgreSQL development backend for the Riverview assignment ledger.
 
 Requires psycopg 3. Schema isolation is selected with a connection option

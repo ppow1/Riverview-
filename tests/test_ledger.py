@@ -1,3 +1,19 @@
+# =============================================================================
+# RIVERVIEW~ CONTROLLED SOURCE
+# File: tests/test_ledger.py
+# Component: CORE-LEDGER
+# Revision: 1.0.0
+# Purpose: Regression tests for SQLite development ledger
+# Execution Model: Request-driven tests
+# Observability: unittest results and exit code
+# Dependencies: Python 3; sqlite3; riverview_core
+# Authority: Temporary test databases only
+# Changed: 2026-10-09 UTC | ENG-REV-004 | Initial controlled header migration
+# Contracts: docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md
+# Tests: This file
+# History: Git commit 6810e00374f50a81820be5f4e7714b329965ea66 and staged predecessor manifest
+# =============================================================================
+
 """Run with python -m unittest discover -s tests -v (PYTHONPATH=src)."""
 import tempfile
 import unittest

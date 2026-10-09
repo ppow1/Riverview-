@@ -1,3 +1,19 @@
+# =============================================================================
+# RIVERVIEW~ CONTROLLED SOURCE
+# File: src/riverview_core/ledger.py
+# Component: CORE-LEDGER
+# Revision: 1.0.0
+# Purpose: SQLite development assignment and event ledger
+# Execution Model: Request-driven library
+# Observability: SQLite records and event queries
+# Dependencies: Python 3; sqlite3
+# Authority: Development prototype; not production authority
+# Changed: 2026-10-09 UTC | ENG-REV-004 | Initial controlled header migration
+# Contracts: docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md
+# Tests: tests/test_ledger.py
+# History: Git commit 6810e00374f50a81820be5f4e7714b329965ea66 and staged predecessor manifest
+# =============================================================================
+
 """Small executable contract prototype: durable assignments, events, status projection.
 
 SQLite is an isolated developer backend; PostgreSQL is required for the intended
