@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/revision_control.py
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.1.0
+# Revision: 1.2.0
 # Purpose: Inventory file revisions and verify preserved predecessor backups
 # Execution Model: Request-driven CLI; suitable for unattended CI and Camrui
 # Observability: JSON stdout and exit codes
 # Dependencies: Python 3.10+, Git
 # Authority: Local checkout only; never edits source or remote
-# Changed: 2026-10-09 UTC | ENG-REV-001 | Verified predecessor enforcement
+# Changed: 2026-10-09 UTC | ENG-REV-001 | Recognize legacy Rev X.Y headers
 # Contracts: docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md
 # Tests: tests/test_revision_control.py
 # History: Git and revision backup manifest
@@ -47,7 +47,7 @@ def revision(root, rel, content=None):
     return m.group(1) if m else None
 
 def inc(old, new):
-    return old is not None and new is not None and tuple(map(int,new.split('.'))) > tuple(map(int,old.split('.')))
+    return old is not None and new is not None and tuple(map(int,(new+'.0').split('.')[:3])) > tuple(map(int,(old+'.0').split('.')[:3]))
 
 def inventory(root):
     rows=[]
