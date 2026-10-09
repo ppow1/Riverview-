@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_revision_control.py
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.2.0
+# Revision: 1.2.1
 # Purpose: Regression tests for revision validation and predecessor preservation
 # Execution Model: Request-driven tests
 # Observability: unittest results and exit code
 # Dependencies: Python 3.10+, Git
 # Authority: Temporary repositories only
-# Changed: 2026-10-09 UTC | ENG-REV-001 | Verify legacy revision headers and backups
+# Changed: 2026-10-09 UTC | ENG-REV-001 | Cover bold Markdown and legacy revision headers
 # Contracts: docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md
 # Tests: This file
 # History: Git and revision backup manifest
@@ -38,6 +38,9 @@ class RevisionTests(unittest.TestCase):
         return [x['issue'] for x in rev.check(self.root,self.base)]
     def test_legacy_markdown_revision(self):
         self.file.write_text('**Revision:** Rev 1.3\n')
+        self.assertEqual(rev.revision(self.root,'sample.py'),'1.3')
+    def test_legacy_markdown_document_revision(self):
+        self.file.write_text('**Document Revision:** Rev 1.3\\n')
         self.assertEqual(rev.revision(self.root,'sample.py'),'1.3')
     def test_legacy_revision_comparison(self):
         self.assertTrue(rev.inc('1.3','1.4'))
