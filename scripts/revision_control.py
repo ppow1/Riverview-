@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/revision_control.py
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.2.0
+# Revision: 1.2.1
 # Purpose: Inventory file revisions and verify preserved predecessor backups
 # Execution Model: Request-driven CLI; suitable for unattended CI and Camrui
 # Observability: JSON stdout and exit codes
 # Dependencies: Python 3.10+, Git
 # Authority: Local checkout only; never edits source or remote
-# Changed: 2026-10-09 UTC | ENG-REV-001 | Recognize legacy Rev X.Y headers
+# Changed: 2026-10-09 UTC | ENG-REV-001 | Fix Markdown bold revision parsing
 # Contracts: docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md
 # Tests: tests/test_revision_control.py
 # History: Git and revision backup manifest
@@ -23,7 +23,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-REV = re.compile(r'(?im)^\s*(?:#|//|\*|<!--|--)?\s*(?:Document Revision|File Revision|Revision)\s*:\s*(\d+\.\d+\.\d+)\b')
+REV = re.compile(r'(?im)^\s*(?:#|//|\*|<!--|--)?\s*(?:\*\*)?\s*(?:Document Revision|File Revision|Revision)\s*(?:\*\*)?\s*:\s*(?:\*\*)?\s*(?:Rev\s+)?(\d+\.\d+(?:\.\d+)?)\b')
 EXCLUDED = {'.git', '.riverview-backups', '__pycache__', '.pytest_cache', '.venv'}
 SIDE_EXT = {'.json', '.jsonl', '.toml', '.lock', '.png', '.jpg', '.jpeg', '.gif', '.pdf', '.zip', '.bin', '.ico'}
 
