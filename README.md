@@ -1,8 +1,8 @@
-# Riverview!
+# Riverview~
 
 **A living, event-driven AI institution in service of the Steward's purpose.**
 
-This repository is the **new, clean-start implementation** of Riverview!, distinct from the historical `ppow1/Riverview` codebase. Historical Riverview and Estate artifacts are references, **not automatically inherited dependencies**.
+This repository is the **new, clean-start implementation** of Riverview~, distinct from the historical `ppow1/Riverview` codebase. Historical Riverview and Estate artifacts are references, **not automatically inherited dependencies**.
 
 ## Founding engineering requirements
 
@@ -24,7 +24,7 @@ Build from the core outward. Define contracts before adapters. Reassess historic
 
 ## Status
 
-**Specification / foundation stage.** No deployed Riverview! runtime is claimed. The original repository remains unchanged.
+**Specification / foundation stage.** No deployed Riverview~ runtime is claimed. The original repository remains unchanged.
 
 ## Initial document locations
 
