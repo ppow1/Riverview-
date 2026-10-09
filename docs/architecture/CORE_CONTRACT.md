@@ -1,4 +1,4 @@
-# Riverview! core contract — working baseline
+# Riverview~ core contract — working baseline
 
 **Status:** founding architecture baseline; not implemented or runtime-verified. The longer locally authored `Riverview_Core_Contract_v0.1.md` remains a separate source document until imported and reconciled verbatim.
 
