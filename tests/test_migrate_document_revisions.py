@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_migrate_document_revisions.py
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Verify non-destructive documentation revision migration
 # Execution Model: Request-driven tests
 # Observability: unittest results and exit status
 # Dependencies: Python 3.10+, standard library
 # Authority: Temporary directories only
-# Changed: 2026-10-09 UTC | ENG-REV-002 | Repair malformed test fixture line breaks
+# Changed: 2026-10-09 UTC | ENG-REV-002 | Encode non-ASCII heading fixture as UTF-8
 # Contracts: docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md
 # Tests: This file
 # History: Git and predecessor archive
@@ -33,7 +33,7 @@ class MigrationTests(unittest.TestCase):
         with tarfile.open(self.archive,'w') as tar:
             for name,data in {'README.md':b'# README\nContent\n',
                               'docs/old.md':b'**Revision:** Rev 1.3\nOriginal\n',
-                              'docs/heading.md':b'# Riverview~ Engineering Records Standard — Rev 1.0\nText\n'}.items():
+                              'docs/heading.md':'# Riverview~ Engineering Records Standard — Rev 1.0\nText\n'.encode('utf-8')}.items():
                 info=tarfile.TarInfo(name)
                 info.size=len(data)
                 tar.addfile(info,io.BytesIO(data))
