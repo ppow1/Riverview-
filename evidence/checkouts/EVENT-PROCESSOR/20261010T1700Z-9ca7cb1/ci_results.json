@@ -1,0 +1,11 @@
+{
+  "result_revision": "1.0.0",
+  "repository": "ppow1/Riverview-",
+  "pull_request": 5,
+  "merge_commit": "9ca7cb189d1e1f57c69395303a9367fabd979ff5",
+  "checks": [
+    {"run_id": 38069688433, "event": "push", "conclusion": "success"},
+    {"run_id": 38069691322, "event": "pull_request", "conclusion": "success"},
+    {"run_id": 38069730995, "event": "post_merge_main", "conclusion": "success"}
+  ]
+}

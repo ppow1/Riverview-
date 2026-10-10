@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.26
+**Document Revision:** 1.0.27
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -562,3 +562,12 @@ run [38068402439](https://github.com/ppow1/Riverview-/actions/runs/38068402439).
 The checks include the 67-test suite, process graph schema/synchronization, and
 revision checkout. PR #4 is open; no merge is claimed. M1.3 remains IN PROGRESS
 pending supervised service/credential deployment and operational verification.
+
+
+## 2026-10-10 UTC — RV-M1.3-002 / controlled Camrui commissioning complete
+
+PR #5 was merged at `9ca7cb189d1e1f57c69395303a9367fabd979ff5`; its push and pull-request controlled-checkout runs (38069688433, 38069691322) and post-merge main run (38069730995) passed. The exact merged tree passed 74 tests with zero failures, errors, or skips on isolated PostgreSQL 16.15. Package manifest/member/shell validation passed for SHA-256 `090d4d2965196db246b5f614d58e82cf692eb82216eea7d8f2c58acafb6d5750`.
+
+Live M1.3 migration 0002 was applied after a verified backup and restore drill. The separate event processor service completed three unattended queued-to-ready transitions with causal event pairs through cursor 6; systemd restart resumed at cursor 2; deliberate database backend loss recovered to one leadership lock at cursor 4. The M1.3 rollback/redeployment was exercised; M1.1 remained ready on deployed commit `64e8f14`. Evidence: [`M1.3 Camrui checkout`](../../evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/checkout.md), [`runtime acceptance`](../../evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json).
+
+M1.3 scoped technical commissioning is PASS; full component DoD remains OPEN. The roadmap cursor is now M1.4 isolated engineering; later dashboard, autonomy, external observability and project-wide obligations remain intact.

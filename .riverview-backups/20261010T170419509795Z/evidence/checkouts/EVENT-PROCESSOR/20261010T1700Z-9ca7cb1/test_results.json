@@ -1,0 +1,13 @@
+{
+  "result_revision": "1.0.0",
+  "source_commit": "9ca7cb189d1e1f57c69395303a9367fabd979ff5",
+  "environment": "Camrui Ubuntu 24.04.3, PostgreSQL 16.15 disposable UTF-8 cluster",
+  "command": "PYTHONPATH=src RIVERVIEW_TEST_PG_DSN=<isolated-cluster> python3 -m unittest discover -s tests -v",
+  "result": "PASS",
+  "tests_run": 74,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "output": "unittest.log",
+  "cleanup": "Suite completed against unique disposable rvtest_* schemas; isolated test cluster was stopped after the run."
+}

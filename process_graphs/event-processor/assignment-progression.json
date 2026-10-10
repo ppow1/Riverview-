@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:event-processor:assignment-progression",
-  "graph_revision": "1.0.3",
+  "graph_revision": "1.0.4",
   "component_id": "EVENT-PROCESSOR",
   "workflow_id": "assignment-progression.v1",
   "diagram_order": 1,
@@ -22,7 +22,8 @@
     "docs/development/M1.3-001_REVISION_RECORD.md"
   ],
   "verification_evidence": [
-    "evidence/checkouts/EVENT-PROCESSOR/20261010T1628Z-3fd6fd2/checkout.md"
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1628Z-3fd6fd2/checkout.md",
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json"
   ],
   "nodes": [
     {
@@ -36,7 +37,9 @@
       "documentation_references": [
         "docs/components/EVENT_PROCESSOR.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json"
+      ]
     },
     {
       "id": "rv:event-processor:assignment-progression:lease",
@@ -76,7 +79,9 @@
       "documentation_references": [
         "docs/components/EVENT_PROCESSOR_FLOW.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json"
+      ]
     },
     {
       "id": "rv:event-processor:assignment-progression:fetch",
@@ -90,7 +95,9 @@
       "documentation_references": [
         "docs/components/EVENT_PROCESSOR_FLOW.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json"
+      ]
     },
     {
       "id": "rv:event-processor:assignment-progression:created",
@@ -130,7 +137,9 @@
       "documentation_references": [
         "docs/components/EVENT_PROCESSOR.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json"
+      ]
     },
     {
       "id": "rv:event-processor:assignment-progression:skip",
@@ -156,7 +165,9 @@
       "documentation_references": [
         "docs/components/EVENT_PROCESSOR_FLOW.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json"
+      ]
     },
     {
       "id": "rv:event-processor:assignment-progression:retry",
@@ -169,7 +180,9 @@
       "documentation_references": [
         "docs/components/EVENT_PROCESSOR_COOKBOOK.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json"
+      ]
     },
     {
       "id": "rv:event-processor:assignment-progression:replay",
@@ -196,7 +209,9 @@
       "documentation_references": [
         "docs/components/EVENT_PROCESSOR_COOKBOOK.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json"
+      ]
     },
     {
       "id": "rv:event-processor:assignment-progression:startup-preflight",
