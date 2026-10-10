@@ -1,0 +1,476 @@
+controlled-checkout	Set up job	﻿2026-10-10T15:35:46.0599973Z Current runner version: '2.337.0'
+controlled-checkout	Set up job	2026-10-10T15:35:46.0685370Z ##[group]Runner Image Provisioner
+controlled-checkout	Set up job	2026-10-10T15:35:46.0687374Z Hosted Compute Agent
+controlled-checkout	Set up job	2026-10-10T15:35:46.0688560Z Version: 20261002.596
+controlled-checkout	Set up job	2026-10-10T15:35:46.0689767Z Commit: c3d12f3313a95f25162a1503be624f3b0617f8c0
+controlled-checkout	Set up job	2026-10-10T15:35:46.0691115Z Build Date: 2026-10-02T22:28:27Z
+controlled-checkout	Set up job	2026-10-10T15:35:46.0692602Z Worker ID: {e814139b-fd97-4cab-b924-5a437675a97a}
+controlled-checkout	Set up job	2026-10-10T15:35:46.0693950Z Region: westus3
+controlled-checkout	Set up job	2026-10-10T15:35:46.0695078Z Cloud: Azure
+controlled-checkout	Set up job	2026-10-10T15:35:46.0716703Z ##[endgroup]
+controlled-checkout	Set up job	2026-10-10T15:35:46.0719267Z ##[group]Operating System
+controlled-checkout	Set up job	2026-10-10T15:35:46.0720416Z Ubuntu
+controlled-checkout	Set up job	2026-10-10T15:35:46.0721336Z 24.04.5
+controlled-checkout	Set up job	2026-10-10T15:35:46.0722407Z LTS
+controlled-checkout	Set up job	2026-10-10T15:35:46.0723346Z ##[endgroup]
+controlled-checkout	Set up job	2026-10-10T15:35:46.0724254Z ##[group]Runner Image
+controlled-checkout	Set up job	2026-10-10T15:35:46.0725369Z Image: ubuntu-24.04
+controlled-checkout	Set up job	2026-10-10T15:35:46.0726659Z Version: 20261004.327.1
+controlled-checkout	Set up job	2026-10-10T15:35:46.0729237Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261004.327/images/ubuntu/Ubuntu2404-Readme.md
+controlled-checkout	Set up job	2026-10-10T15:35:46.0732300Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261004.327
+controlled-checkout	Set up job	2026-10-10T15:35:46.0734227Z ##[endgroup]
+controlled-checkout	Set up job	2026-10-10T15:35:46.0756992Z ##[group]GITHUB_TOKEN Permissions
+controlled-checkout	Set up job	2026-10-10T15:35:46.0760740Z Contents: read
+controlled-checkout	Set up job	2026-10-10T15:35:46.0761871Z Metadata: read
+controlled-checkout	Set up job	2026-10-10T15:35:46.0763099Z ##[endgroup]
+controlled-checkout	Set up job	2026-10-10T15:35:46.0766897Z Secret source: Actions
+controlled-checkout	Set up job	2026-10-10T15:35:46.0768775Z Cache mode: write
+controlled-checkout	Set up job	2026-10-10T15:35:46.0770493Z Prepare workflow directory
+controlled-checkout	Set up job	2026-10-10T15:35:46.1501736Z Prepare all required actions
+controlled-checkout	Set up job	2026-10-10T15:35:46.1573319Z Getting action download info
+controlled-checkout	Set up job	2026-10-10T15:35:46.4756693Z Download action repository 'actions/checkout@v7' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+controlled-checkout	Set up job	2026-10-10T15:35:46.5890285Z Download action repository 'actions/setup-python@v7' (SHA:5fda3b95a4ea91299a34e894583c3862153e4b97)
+controlled-checkout	Set up job	2026-10-10T15:35:46.7965838Z Complete job name: controlled-checkout
+controlled-checkout	Initialize containers	﻿2026-10-10T15:35:46.8473391Z ##[group]Checking docker version
+controlled-checkout	Initialize containers	2026-10-10T15:35:46.8486503Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+controlled-checkout	Initialize containers	2026-10-10T15:35:46.9617241Z '1.48'
+controlled-checkout	Initialize containers	2026-10-10T15:35:46.9627839Z Docker daemon API version: '1.48'
+controlled-checkout	Initialize containers	2026-10-10T15:35:46.9628669Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+controlled-checkout	Initialize containers	2026-10-10T15:35:46.9841329Z '1.48'
+controlled-checkout	Initialize containers	2026-10-10T15:35:46.9858315Z Docker client API version: '1.48'
+controlled-checkout	Initialize containers	2026-10-10T15:35:46.9866015Z ##[endgroup]
+controlled-checkout	Initialize containers	2026-10-10T15:35:46.9870157Z ##[group]Clean up resources from previous jobs
+controlled-checkout	Initialize containers	2026-10-10T15:35:46.9876883Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=3e06b6"
+controlled-checkout	Initialize containers	2026-10-10T15:35:47.0083352Z ##[command]/usr/bin/docker network prune --force --filter "label=3e06b6"
+controlled-checkout	Initialize containers	2026-10-10T15:35:47.0321832Z ##[endgroup]
+controlled-checkout	Initialize containers	2026-10-10T15:35:47.0322485Z ##[group]Create local container network
+controlled-checkout	Initialize containers	2026-10-10T15:35:47.0334346Z ##[command]/usr/bin/docker network create --label 3e06b6 github_network_412286d95c8049ba8a7458e43b2cc0a8
+controlled-checkout	Initialize containers	2026-10-10T15:35:47.1316688Z 870bcd4e8f0e8ea5a62a2dd70b5452bc110b6b49f28d26f909c1dea70838ca78
+controlled-checkout	Initialize containers	2026-10-10T15:35:47.1331082Z ##[endgroup]
+controlled-checkout	Initialize containers	2026-10-10T15:35:47.1372773Z ##[group]Starting postgres service container
+controlled-checkout	Initialize containers	2026-10-10T15:35:47.1403974Z ##[command]/usr/bin/docker pull postgres:16
+controlled-checkout	Initialize containers	2026-10-10T15:35:47.9532966Z 16: Pulling from library/postgres
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1736024Z ecc510c1e359: Pulling fs layer
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1737731Z 79faf13a8736: Pulling fs layer
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1739341Z 6456bfbf35e7: Pulling fs layer
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1740871Z b353db459ed1: Pulling fs layer
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1742415Z 99f49de4fe2b: Pulling fs layer
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1743940Z 83d1a2a3917c: Pulling fs layer
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1745498Z 715ea0948cb1: Pulling fs layer
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1747336Z 486e8305f56f: Pulling fs layer
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1748837Z e7d675f11ded: Pulling fs layer
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1750320Z c49864c27f35: Pulling fs layer
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1751813Z 770ef8b308ea: Pulling fs layer
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1753449Z 50c25daa0302: Pulling fs layer
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1755514Z 8309db3ae5b6: Pulling fs layer
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1757775Z 9731e27f2541: Pulling fs layer
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1760353Z 486e8305f56f: Waiting
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1762817Z e7d675f11ded: Waiting
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1764909Z c49864c27f35: Waiting
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1766686Z 770ef8b308ea: Waiting
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1768163Z 50c25daa0302: Waiting
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1769505Z 8309db3ae5b6: Waiting
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1771070Z 9731e27f2541: Waiting
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1773488Z b353db459ed1: Waiting
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1775284Z 99f49de4fe2b: Waiting
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1777346Z 83d1a2a3917c: Waiting
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.1779025Z 715ea0948cb1: Waiting
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.3426465Z 79faf13a8736: Verifying Checksum
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.3437866Z 79faf13a8736: Download complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.3745024Z 6456bfbf35e7: Verifying Checksum
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.3750311Z 6456bfbf35e7: Download complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.4551207Z ecc510c1e359: Verifying Checksum
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.4557035Z ecc510c1e359: Download complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.5328226Z b353db459ed1: Verifying Checksum
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.5332731Z b353db459ed1: Download complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.5952635Z 99f49de4fe2b: Verifying Checksum
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.5960175Z 99f49de4fe2b: Download complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.6791270Z 83d1a2a3917c: Verifying Checksum
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.6793353Z 83d1a2a3917c: Download complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.7288588Z 715ea0948cb1: Verifying Checksum
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.7298423Z 715ea0948cb1: Download complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.7664954Z 486e8305f56f: Verifying Checksum
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.7667023Z 486e8305f56f: Download complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.9083621Z c49864c27f35: Verifying Checksum
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.9087330Z c49864c27f35: Download complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.9844701Z 770ef8b308ea: Verifying Checksum
+controlled-checkout	Initialize containers	2026-10-10T15:35:48.9858546Z 770ef8b308ea: Download complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:49.1140691Z 50c25daa0302: Verifying Checksum
+controlled-checkout	Initialize containers	2026-10-10T15:35:49.1152523Z 50c25daa0302: Download complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:49.1651701Z 8309db3ae5b6: Verifying Checksum
+controlled-checkout	Initialize containers	2026-10-10T15:35:49.1655634Z 8309db3ae5b6: Download complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:49.2934317Z 9731e27f2541: Verifying Checksum
+controlled-checkout	Initialize containers	2026-10-10T15:35:49.2938264Z 9731e27f2541: Download complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:49.4276647Z e7d675f11ded: Verifying Checksum
+controlled-checkout	Initialize containers	2026-10-10T15:35:49.4279936Z e7d675f11ded: Download complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:50.0828709Z ecc510c1e359: Pull complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:52.8324088Z 79faf13a8736: Pull complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:53.0553460Z 6456bfbf35e7: Pull complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:53.1100904Z b353db459ed1: Pull complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:53.5165824Z 99f49de4fe2b: Pull complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:53.6088480Z 83d1a2a3917c: Pull complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:53.6183085Z 715ea0948cb1: Pull complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:53.6318625Z 486e8305f56f: Pull complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.1752848Z e7d675f11ded: Pull complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.1949607Z c49864c27f35: Pull complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.2083415Z 770ef8b308ea: Pull complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.2226067Z 50c25daa0302: Pull complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.2337295Z 8309db3ae5b6: Pull complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.2451901Z 9731e27f2541: Pull complete
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.2496905Z Digest: sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.2508854Z Status: Downloaded newer image for postgres:16
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.2528220Z docker.io/library/postgres:16
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.2601148Z ##[command]/usr/bin/docker create --name c0b4a3a2d2c64db58784b043b7c4fe00_postgres16_e83159 --label 3e06b6 --network github_network_412286d95c8049ba8a7458e43b2cc0a8 --network-alias postgres -p 5432:5432 --health-cmd "pg_isready -U riverview_test -d riverview_test" --health-interval 5s --health-timeout 5s --health-retries 10 -e "POSTGRES_DB=riverview_test" -e "POSTGRES_USER=riverview_test" -e "POSTGRES_HOST_AUTH_METHOD=trust" -e GITHUB_ACTIONS=true -e CI=true postgres:16
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.2913553Z 8abc91632508d9152fc37cc9fa125500141bb4e78a8c265ce0829610491a21f1
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.2942062Z ##[command]/usr/bin/docker start 8abc91632508d9152fc37cc9fa125500141bb4e78a8c265ce0829610491a21f1
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.5877100Z 8abc91632508d9152fc37cc9fa125500141bb4e78a8c265ce0829610491a21f1
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.5915252Z ##[command]/usr/bin/docker ps --all --filter id=8abc91632508d9152fc37cc9fa125500141bb4e78a8c265ce0829610491a21f1 --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.6118624Z 8abc91632508d9152fc37cc9fa125500141bb4e78a8c265ce0829610491a21f1 Up Less than a second (health: starting)
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.6155459Z ##[command]/usr/bin/docker port 8abc91632508d9152fc37cc9fa125500141bb4e78a8c265ce0829610491a21f1
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.6394121Z 5432/tcp -> 0.0.0.0:5432
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.6395305Z 5432/tcp -> [::]:5432
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.6470299Z ##[endgroup]
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.6483463Z ##[group]Waiting for all services to be ready
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.6502489Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 8abc91632508d9152fc37cc9fa125500141bb4e78a8c265ce0829610491a21f1
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.6720628Z starting
+controlled-checkout	Initialize containers	2026-10-10T15:35:58.6735970Z postgres service is starting, waiting 2 seconds before checking again.
+controlled-checkout	Initialize containers	2026-10-10T15:36:00.6746325Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 8abc91632508d9152fc37cc9fa125500141bb4e78a8c265ce0829610491a21f1
+controlled-checkout	Initialize containers	2026-10-10T15:36:00.6893418Z starting
+controlled-checkout	Initialize containers	2026-10-10T15:36:00.6906962Z postgres service is starting, waiting 3 seconds before checking again.
+controlled-checkout	Initialize containers	2026-10-10T15:36:04.5622665Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 8abc91632508d9152fc37cc9fa125500141bb4e78a8c265ce0829610491a21f1
+controlled-checkout	Initialize containers	2026-10-10T15:36:04.5786006Z healthy
+controlled-checkout	Initialize containers	2026-10-10T15:36:04.5809138Z postgres service is healthy.
+controlled-checkout	Initialize containers	2026-10-10T15:36:04.5810917Z ##[endgroup]
+controlled-checkout	Check out source	﻿2026-10-10T15:36:04.6135350Z ##[group]Run actions/checkout@v7
+controlled-checkout	Check out source	2026-10-10T15:36:04.6136425Z with:
+controlled-checkout	Check out source	2026-10-10T15:36:04.6136673Z   repository: ppow1/Riverview-
+controlled-checkout	Check out source	2026-10-10T15:36:04.6139345Z   token: ***
+controlled-checkout	Check out source	2026-10-10T15:36:04.6139560Z   ssh-strict: true
+controlled-checkout	Check out source	2026-10-10T15:36:04.6139773Z   ssh-user: git
+controlled-checkout	Check out source	2026-10-10T15:36:04.6139982Z   persist-credentials: true
+controlled-checkout	Check out source	2026-10-10T15:36:04.6140218Z   clean: true
+controlled-checkout	Check out source	2026-10-10T15:36:04.6140433Z   sparse-checkout-cone-mode: true
+controlled-checkout	Check out source	2026-10-10T15:36:04.6140685Z   fetch-depth: 1
+controlled-checkout	Check out source	2026-10-10T15:36:04.6140877Z   fetch-tags: false
+controlled-checkout	Check out source	2026-10-10T15:36:04.6141082Z   show-progress: true
+controlled-checkout	Check out source	2026-10-10T15:36:04.6141284Z   lfs: false
+controlled-checkout	Check out source	2026-10-10T15:36:04.6141469Z   submodules: false
+controlled-checkout	Check out source	2026-10-10T15:36:04.6141671Z   set-safe-directory: true
+controlled-checkout	Check out source	2026-10-10T15:36:04.6141913Z   allow-unsafe-pr-checkout: false
+controlled-checkout	Check out source	2026-10-10T15:36:04.6142371Z env:
+controlled-checkout	Check out source	2026-10-10T15:36:04.6142738Z   RIVERVIEW_TEST_PG_DSN: postgresql://riverview_test@127.0.0.1:5432/riverview_test
+controlled-checkout	Check out source	2026-10-10T15:36:04.6143165Z ##[endgroup]
+controlled-checkout	Check out source	2026-10-10T15:36:04.7435017Z Syncing repository: ppow1/Riverview-
+controlled-checkout	Check out source	2026-10-10T15:36:04.7437620Z ##[group]Getting Git version info
+controlled-checkout	Check out source	2026-10-10T15:36:04.7438287Z Working directory is '/home/runner/work/Riverview-/Riverview-'
+controlled-checkout	Check out source	2026-10-10T15:36:04.7439290Z [command]/usr/bin/git version
+controlled-checkout	Check out source	2026-10-10T15:36:04.7567281Z git version 2.55.0
+controlled-checkout	Check out source	2026-10-10T15:36:04.7602853Z ##[endgroup]
+controlled-checkout	Check out source	2026-10-10T15:36:04.7611466Z Temporarily overriding HOME='/home/runner/work/_temp/f4433192-16a6-4b31-8c2b-d8224ecbae29' before making global git config changes
+controlled-checkout	Check out source	2026-10-10T15:36:04.7613004Z Adding repository directory to the temporary git global config as a safe directory
+controlled-checkout	Check out source	2026-10-10T15:36:04.7616398Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Riverview-/Riverview-
+controlled-checkout	Check out source	2026-10-10T15:36:04.7698520Z Deleting the contents of '/home/runner/work/Riverview-/Riverview-'
+controlled-checkout	Check out source	2026-10-10T15:36:04.7709585Z ##[group]Determining repository object format
+controlled-checkout	Check out source	2026-10-10T15:36:04.7722842Z ##[endgroup]
+controlled-checkout	Check out source	2026-10-10T15:36:04.7723929Z ##[group]Initializing the repository
+controlled-checkout	Check out source	2026-10-10T15:36:04.7724783Z [command]/usr/bin/git init /home/runner/work/Riverview-/Riverview-
+controlled-checkout	Check out source	2026-10-10T15:36:04.7873177Z hint: Using 'master' as the name for the initial branch. This default branch name
+controlled-checkout	Check out source	2026-10-10T15:36:04.7890299Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+controlled-checkout	Check out source	2026-10-10T15:36:04.7906700Z hint: to use in all of your new repositories, which will suppress this warning,
+controlled-checkout	Check out source	2026-10-10T15:36:04.7918654Z hint: call:
+controlled-checkout	Check out source	2026-10-10T15:36:04.7919161Z hint:
+controlled-checkout	Check out source	2026-10-10T15:36:04.7919813Z hint: 	git config --global init.defaultBranch <name>
+controlled-checkout	Check out source	2026-10-10T15:36:04.7920507Z hint:
+controlled-checkout	Check out source	2026-10-10T15:36:04.7921177Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+controlled-checkout	Check out source	2026-10-10T15:36:04.7922176Z hint: 'development'. The just-created branch can be renamed via this command:
+controlled-checkout	Check out source	2026-10-10T15:36:04.7922986Z hint:
+controlled-checkout	Check out source	2026-10-10T15:36:04.7923539Z hint: 	git branch -m <name>
+controlled-checkout	Check out source	2026-10-10T15:36:04.7941867Z hint:
+controlled-checkout	Check out source	2026-10-10T15:36:04.7966675Z hint: Disable this message with "git config set advice.defaultBranchName false"
+controlled-checkout	Check out source	2026-10-10T15:36:04.7969264Z Initialized empty Git repository in /home/runner/work/Riverview-/Riverview-/.git/
+controlled-checkout	Check out source	2026-10-10T15:36:04.7971843Z [command]/usr/bin/git remote add origin https://github.com/ppow1/Riverview-
+controlled-checkout	Check out source	2026-10-10T15:36:04.8045103Z ##[endgroup]
+controlled-checkout	Check out source	2026-10-10T15:36:04.8046710Z ##[group]Disabling automatic garbage collection
+controlled-checkout	Check out source	2026-10-10T15:36:04.8047552Z [command]/usr/bin/git config --local gc.auto 0
+controlled-checkout	Check out source	2026-10-10T15:36:04.8156382Z ##[endgroup]
+controlled-checkout	Check out source	2026-10-10T15:36:04.8166730Z ##[group]Setting up auth
+controlled-checkout	Check out source	2026-10-10T15:36:04.8168122Z Removing SSH command configuration
+controlled-checkout	Check out source	2026-10-10T15:36:04.8169549Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+controlled-checkout	Check out source	2026-10-10T15:36:04.8276406Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+controlled-checkout	Check out source	2026-10-10T15:36:04.8814195Z Removing HTTP extra header
+controlled-checkout	Check out source	2026-10-10T15:36:04.8815363Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+controlled-checkout	Check out source	2026-10-10T15:36:04.8853740Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+controlled-checkout	Check out source	2026-10-10T15:36:04.9103769Z Removing includeIf entries pointing to credentials config files
+controlled-checkout	Check out source	2026-10-10T15:36:04.9110283Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+controlled-checkout	Check out source	2026-10-10T15:36:04.9152168Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+controlled-checkout	Check out source	2026-10-10T15:36:04.9421754Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-8f7b31cb-344e-49dc-97eb-d31f2e08345e.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+controlled-checkout	Check out source	2026-10-10T15:36:04.9474357Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/Riverview-/Riverview-/.git.path /home/runner/work/_temp/git-credentials-8f7b31cb-344e-49dc-97eb-d31f2e08345e.config
+controlled-checkout	Check out source	2026-10-10T15:36:04.9515175Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/Riverview-/Riverview-/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-8f7b31cb-344e-49dc-97eb-d31f2e08345e.config
+controlled-checkout	Check out source	2026-10-10T15:36:04.9562818Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-8f7b31cb-344e-49dc-97eb-d31f2e08345e.config
+controlled-checkout	Check out source	2026-10-10T15:36:04.9605242Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-8f7b31cb-344e-49dc-97eb-d31f2e08345e.config
+controlled-checkout	Check out source	2026-10-10T15:36:04.9644481Z ##[endgroup]
+controlled-checkout	Check out source	2026-10-10T15:36:04.9645473Z ##[group]Fetching the repository
+controlled-checkout	Check out source	2026-10-10T15:36:04.9654937Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +e2d7fee8baa137a6ebf16466a5a1354d04fc0c74:refs/remotes/origin/codex/m1.1-runtime-commissioning
+controlled-checkout	Check out source	2026-10-10T15:36:05.9303016Z From https://github.com/ppow1/Riverview-
+controlled-checkout	Check out source	2026-10-10T15:36:05.9306635Z  * [new ref]         e2d7fee8baa137a6ebf16466a5a1354d04fc0c74 -> origin/codex/m1.1-runtime-commissioning
+controlled-checkout	Check out source	2026-10-10T15:36:05.9320366Z [command]/usr/bin/git branch --list --remote origin/codex/m1.1-runtime-commissioning
+controlled-checkout	Check out source	2026-10-10T15:36:05.9357086Z   origin/codex/m1.1-runtime-commissioning
+controlled-checkout	Check out source	2026-10-10T15:36:05.9366589Z [command]/usr/bin/git rev-parse refs/remotes/origin/codex/m1.1-runtime-commissioning
+controlled-checkout	Check out source	2026-10-10T15:36:05.9399581Z e2d7fee8baa137a6ebf16466a5a1354d04fc0c74
+controlled-checkout	Check out source	2026-10-10T15:36:05.9426629Z ##[endgroup]
+controlled-checkout	Check out source	2026-10-10T15:36:05.9427515Z ##[group]Determining the checkout info
+controlled-checkout	Check out source	2026-10-10T15:36:05.9437452Z ##[endgroup]
+controlled-checkout	Check out source	2026-10-10T15:36:05.9442128Z [command]/usr/bin/git sparse-checkout disable
+controlled-checkout	Check out source	2026-10-10T15:36:05.9489271Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+controlled-checkout	Check out source	2026-10-10T15:36:05.9546607Z ##[group]Checking out the ref
+controlled-checkout	Check out source	2026-10-10T15:36:05.9548066Z [command]/usr/bin/git checkout --progress --force -B codex/m1.1-runtime-commissioning refs/remotes/origin/codex/m1.1-runtime-commissioning
+controlled-checkout	Check out source	2026-10-10T15:36:05.9914752Z Switched to a new branch 'codex/m1.1-runtime-commissioning'
+controlled-checkout	Check out source	2026-10-10T15:36:05.9925100Z branch 'codex/m1.1-runtime-commissioning' set up to track 'origin/codex/m1.1-runtime-commissioning'.
+controlled-checkout	Check out source	2026-10-10T15:36:05.9939503Z ##[endgroup]
+controlled-checkout	Check out source	2026-10-10T15:36:06.0007892Z [command]/usr/bin/git log -1 --format=%H
+controlled-checkout	Check out source	2026-10-10T15:36:06.0045519Z e2d7fee8baa137a6ebf16466a5a1354d04fc0c74
+controlled-checkout	Set up Python	﻿2026-10-10T15:36:06.0370502Z ##[group]Run actions/setup-python@v7
+controlled-checkout	Set up Python	2026-10-10T15:36:06.0370819Z with:
+controlled-checkout	Set up Python	2026-10-10T15:36:06.0371026Z   python-version: 3.12
+controlled-checkout	Set up Python	2026-10-10T15:36:06.0371250Z   check-latest: false
+controlled-checkout	Set up Python	2026-10-10T15:36:06.0373812Z   token: ***
+controlled-checkout	Set up Python	2026-10-10T15:36:06.0374026Z   update-environment: true
+controlled-checkout	Set up Python	2026-10-10T15:36:06.0374272Z   allow-prereleases: false
+controlled-checkout	Set up Python	2026-10-10T15:36:06.0374496Z   freethreaded: false
+controlled-checkout	Set up Python	2026-10-10T15:36:06.0374700Z env:
+controlled-checkout	Set up Python	2026-10-10T15:36:06.0375054Z   RIVERVIEW_TEST_PG_DSN: postgresql://riverview_test@127.0.0.1:5432/riverview_test
+controlled-checkout	Set up Python	2026-10-10T15:36:06.0375464Z ##[endgroup]
+controlled-checkout	Set up Python	2026-10-10T15:36:06.1726079Z ##[group]Installed versions
+controlled-checkout	Set up Python	2026-10-10T15:36:06.1825462Z Successfully set up CPython (3.12.15)
+controlled-checkout	Set up Python	2026-10-10T15:36:06.1826912Z ##[endgroup]
+controlled-checkout	Install test database driver	﻿2026-10-10T15:36:06.2036348Z ##[group]Run python -m pip install "psycopg[binary]==3.2.10"
+controlled-checkout	Install test database driver	2026-10-10T15:36:06.2037146Z [36;1mpython -m pip install "psycopg[binary]==3.2.10"[0m
+controlled-checkout	Install test database driver	2026-10-10T15:36:06.2358144Z shell: /usr/bin/bash -e {0}
+controlled-checkout	Install test database driver	2026-10-10T15:36:06.2358485Z env:
+controlled-checkout	Install test database driver	2026-10-10T15:36:06.2358856Z   RIVERVIEW_TEST_PG_DSN: postgresql://riverview_test@127.0.0.1:5432/riverview_test
+controlled-checkout	Install test database driver	2026-10-10T15:36:06.2359368Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.15/x64
+controlled-checkout	Install test database driver	2026-10-10T15:36:06.2359833Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib/pkgconfig
+controlled-checkout	Install test database driver	2026-10-10T15:36:06.2360264Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+controlled-checkout	Install test database driver	2026-10-10T15:36:06.2360643Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+controlled-checkout	Install test database driver	2026-10-10T15:36:06.2361032Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+controlled-checkout	Install test database driver	2026-10-10T15:36:06.2361424Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib
+controlled-checkout	Install test database driver	2026-10-10T15:36:06.2361792Z ##[endgroup]
+controlled-checkout	Install test database driver	2026-10-10T15:36:07.3077806Z Collecting psycopg==3.2.10 (from psycopg[binary]==3.2.10)
+controlled-checkout	Install test database driver	2026-10-10T15:36:07.3572670Z   Downloading psycopg-3.2.10-py3-none-any.whl.metadata (4.6 kB)
+controlled-checkout	Install test database driver	2026-10-10T15:36:07.3792791Z Collecting typing-extensions>=4.6 (from psycopg==3.2.10->psycopg[binary]==3.2.10)
+controlled-checkout	Install test database driver	2026-10-10T15:36:07.3827611Z   Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+controlled-checkout	Install test database driver	2026-10-10T15:36:07.5722781Z Collecting psycopg-binary==3.2.10 (from psycopg[binary]==3.2.10)
+controlled-checkout	Install test database driver	2026-10-10T15:36:07.5762496Z   Downloading psycopg_binary-3.2.10-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (3.0 kB)
+controlled-checkout	Install test database driver	2026-10-10T15:36:07.5841634Z Downloading psycopg-3.2.10-py3-none-any.whl (206 kB)
+controlled-checkout	Install test database driver	2026-10-10T15:36:07.6107077Z Downloading psycopg_binary-3.2.10-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.4 MB)
+controlled-checkout	Install test database driver	2026-10-10T15:36:07.6346882Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.4/4.4 MB 211.6 MB/s  0:00:00
+controlled-checkout	Install test database driver	2026-10-10T15:36:07.6382854Z Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+controlled-checkout	Install test database driver	2026-10-10T15:36:07.6940932Z Installing collected packages: typing-extensions, psycopg-binary, psycopg
+controlled-checkout	Install test database driver	2026-10-10T15:36:07.9703458Z 
+controlled-checkout	Install test database driver	2026-10-10T15:36:07.9727160Z Successfully installed psycopg-3.2.10 psycopg-binary-3.2.10 typing-extensions-4.16.0
+controlled-checkout	Run complete test suite	﻿2026-10-10T15:36:08.0531115Z ##[group]Run python -m unittest discover -s tests -v
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.0531570Z [36;1mpython -m unittest discover -s tests -v[0m
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.0601358Z shell: /usr/bin/bash -e {0}
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.0601684Z env:
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.0602107Z   RIVERVIEW_TEST_PG_DSN: postgresql://riverview_test@127.0.0.1:5432/riverview_test
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.0602708Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.15/x64
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.0603236Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib/pkgconfig
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.0603761Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.0604239Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.0604730Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.0605196Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.0605909Z   PYTHONPATH: src
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.0606201Z ##[endgroup]
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.4312063Z test_completion_requires_verification_flag (test_ledger.LedgerTests.test_completion_requires_verification_flag) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.4374868Z test_idempotent_event_and_illegal_transition (test_ledger.LedgerTests.test_idempotent_event_and_illegal_transition) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.4447610Z test_independent_assignments_and_reopen (test_ledger.LedgerTests.test_independent_assignments_and_reopen) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.4485928Z test_heading_revision_preserved (test_migrate_document_revisions.MigrationTests.test_heading_revision_preserved) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.4515090Z test_preserves_and_migrates (test_migrate_document_revisions.MigrationTests.test_preserves_and_migrates) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.4540283Z test_rejects_overwrite (test_migrate_document_revisions.MigrationTests.test_rejects_overwrite) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.6418975Z test_assignment_event_contract_atomicity_and_reconnect (test_postgres_ledger.PostgresLedgerTests.test_assignment_event_contract_atomicity_and_reconnect) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.7147978Z test_exact_idempotency_and_duplicate_transition_rejection (test_postgres_ledger.PostgresLedgerTests.test_exact_idempotency_and_duplicate_transition_rejection) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.8072638Z test_illegal_transition_and_failed_event_roll_back_state (test_postgres_ledger.PostgresLedgerTests.test_illegal_transition_and_failed_event_roll_back_state) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.8528163Z test_migrations_reject_missing_target_schema (test_postgres_ledger.PostgresLedgerTests.test_migrations_reject_missing_target_schema) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.9176291Z test_two_assignments_progress_independently (test_postgres_ledger.PostgresLedgerTests.test_two_assignments_progress_independently) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.9677203Z test_versioned_migration_is_idempotent_and_rejects_drift (test_postgres_ledger.PostgresLedgerTests.test_versioned_migration_is_idempotent_and_rejects_drift) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.9807673Z test_artifacts_sidecar_revision_and_checksum (test_revision_control.RevisionTests.test_artifacts_sidecar_revision_and_checksum) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.9910037Z test_backup_exact_and_logged (test_revision_control.RevisionTests.test_backup_exact_and_logged) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:08.9996792Z test_backup_rejects_traversal (test_revision_control.RevisionTests.test_backup_rejects_traversal) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.0120723Z test_bump_with_backup_passes (test_revision_control.RevisionTests.test_bump_with_backup_passes) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.0228435Z test_bump_without_backup_fails (test_revision_control.RevisionTests.test_bump_without_backup_fails) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.0338913Z test_changed_without_bump_fails (test_revision_control.RevisionTests.test_changed_without_bump_fails) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.0457549Z test_evidence_document_uses_its_file_revision_without_sidecar (test_revision_control.RevisionTests.test_evidence_document_uses_its_file_revision_without_sidecar) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.0592250Z test_inventory (test_revision_control.RevisionTests.test_inventory) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.0728279Z test_legacy_files_sidecar_revision (test_revision_control.RevisionTests.test_legacy_files_sidecar_revision) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.0853170Z test_legacy_markdown_document_revision (test_revision_control.RevisionTests.test_legacy_markdown_document_revision) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.0974448Z test_legacy_markdown_revision (test_revision_control.RevisionTests.test_legacy_markdown_revision) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.1066238Z test_legacy_revision_comparison (test_revision_control.RevisionTests.test_legacy_revision_comparison) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.1181683Z test_legacy_revision_initialization_requires_preserved_predecessor (test_revision_control.RevisionTests.test_legacy_revision_initialization_requires_preserved_predecessor) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.1276216Z test_malformed_evidence_sidecar_revision_is_rejected (test_revision_control.RevisionTests.test_malformed_evidence_sidecar_revision_is_rejected) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.1389527Z test_tampered_backup_fails (test_revision_control.RevisionTests.test_tampered_backup_fails) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.1421613Z test_installer_reuses_only_root_owned_directory_and_restores_read_access (test_runtime_baseline.CredentialTerminalTests.test_installer_reuses_only_root_owned_directory_and_restores_read_access) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.1464438Z test_password_prompt_reads_nonseekable_tty_without_echo (test_runtime_baseline.CredentialTerminalTests.test_password_prompt_reads_nonseekable_tty_without_echo) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.2337079Z test_committed_invalid_shell_bytes_fail_before_archive_creation (test_runtime_baseline.PackageShellCompatibilityTests.test_committed_invalid_shell_bytes_fail_before_archive_creation) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.2766762Z test_extracted_install_and_rollback_parse_and_execute_preamble (test_runtime_baseline.PackageShellCompatibilityTests.test_extracted_install_and_rollback_parse_and_execute_preamble) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.3264316Z test_packaged_bytes_ignore_windows_checkout_and_export_conversion (test_runtime_baseline.PackageShellCompatibilityTests.test_packaged_bytes_ignore_windows_checkout_and_export_conversion) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.3569036Z test_predecessor_windows_package_reproduces_reported_error (test_runtime_baseline.PackageShellCompatibilityTests.test_predecessor_windows_package_reproduces_reported_error) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.3593825Z test_acceptance_requires_fresh_distinct_matching_observations (test_runtime_baseline.RuntimeBaselineTests.test_acceptance_requires_fresh_distinct_matching_observations) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.3636281Z test_driver_error_is_sanitized (test_runtime_baseline.RuntimeBaselineTests.test_driver_error_is_sanitized) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.3644206Z test_installed_unit_storage_contract_matches_runtime_default (test_runtime_baseline.RuntimeBaselineTests.test_installed_unit_storage_contract_matches_runtime_default) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.3666523Z test_observer_fresh_stale_missing_and_failure (test_runtime_baseline.RuntimeBaselineTests.test_observer_fresh_stale_missing_and_failure) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.3674057Z test_observer_rejects_future_and_excess_ttl (test_runtime_baseline.RuntimeBaselineTests.test_observer_rejects_future_and_excess_ttl) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.3967059Z test_package_exact_commit_checksums_and_no_overwrite (test_runtime_baseline.RuntimeBaselineTests.test_package_exact_commit_checksums_and_no_overwrite) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.3969366Z test_pgpass_escaping_and_invalid_passwords (test_runtime_baseline.RuntimeBaselineTests.test_pgpass_escaping_and_invalid_passwords) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.3997610Z test_probe_rejects_noncontract_runtime_passfile_location (test_runtime_baseline.RuntimeBaselineTests.test_probe_rejects_noncontract_runtime_passfile_location) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.4079262Z test_repeated_requests_are_independent (test_runtime_baseline.RuntimeBaselineTests.test_repeated_requests_are_independent) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.4246598Z test_role_and_schema_fail_closed (test_runtime_baseline.RuntimeBaselineTests.test_role_and_schema_fail_closed) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.4297563Z test_root_owned_systemd_credential_is_copied_to_exclusive_private_libpq_file (test_runtime_baseline.RuntimeBaselineTests.test_root_owned_systemd_credential_is_copied_to_exclusive_private_libpq_file) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.4357763Z test_schema_owner_is_observed_without_inventing_an_ownership_migration (test_runtime_baseline.RuntimeBaselineTests.test_schema_owner_is_observed_without_inventing_an_ownership_migration) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.4376628Z test_secure_file_modes_symlink_empty_and_owner (test_runtime_baseline.RuntimeBaselineTests.test_secure_file_modes_symlink_empty_and_owner) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.4436878Z test_service_identity_and_ambient_password_rejected (test_runtime_baseline.RuntimeBaselineTests.test_service_identity_and_ambient_password_rejected) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.4447459Z test_ssh_command_and_injection_rejection (test_runtime_baseline.RuntimeBaselineTests.test_ssh_command_and_injection_rejection) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.4459930Z test_storage_path_failure_reports_reason_and_keeps_blocker_code (test_runtime_baseline.RuntimeBaselineTests.test_storage_path_failure_reports_reason_and_keeps_blocker_code) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.4471542Z test_systemd_credential_delivery_rejects_wrong_directory_and_user_writable_file (test_runtime_baseline.RuntimeBaselineTests.test_systemd_credential_delivery_rejects_wrong_directory_and_user_writable_file) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.4498339Z test_systemd_root_owned_credential_mount_is_accepted_without_relaxing_state_paths (test_runtime_baseline.RuntimeBaselineTests.test_systemd_root_owned_credential_mount_is_accepted_without_relaxing_state_paths) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.4504285Z test_unsafe_path_reports_exact_safe_predicate (test_runtime_baseline.RuntimeBaselineTests.test_unsafe_path_reports_exact_safe_predicate) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.4540492Z test_valid_baseline_is_not_institutional_health (test_runtime_baseline.RuntimeBaselineTests.test_valid_baseline_is_not_institutional_health) ... ok
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.4541785Z 
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.4542325Z ----------------------------------------------------------------------
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.4543130Z Ran 53 tests in 1.031s
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.4543550Z 
+controlled-checkout	Run complete test suite	2026-10-10T15:36:09.4543849Z OK
+controlled-checkout	Verify controlled revisions and preserved predecessors	﻿2026-10-10T15:36:09.4915218Z ##[group]Run python scripts/revision_control.py check --baseline evidence/checkouts/ENG-REVISION-CONTROL/20261010T1530Z-27a8c55/baseline-inventory.json
+controlled-checkout	Verify controlled revisions and preserved predecessors	2026-10-10T15:36:09.4916694Z [36;1mpython scripts/revision_control.py check --baseline evidence/checkouts/ENG-REVISION-CONTROL/20261010T1530Z-27a8c55/baseline-inventory.json[0m
+controlled-checkout	Verify controlled revisions and preserved predecessors	2026-10-10T15:36:09.4982166Z shell: /usr/bin/bash -e {0}
+controlled-checkout	Verify controlled revisions and preserved predecessors	2026-10-10T15:36:09.4982447Z env:
+controlled-checkout	Verify controlled revisions and preserved predecessors	2026-10-10T15:36:09.4982819Z   RIVERVIEW_TEST_PG_DSN: postgresql://riverview_test@127.0.0.1:5432/riverview_test
+controlled-checkout	Verify controlled revisions and preserved predecessors	2026-10-10T15:36:09.4983348Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.15/x64
+controlled-checkout	Verify controlled revisions and preserved predecessors	2026-10-10T15:36:09.4983805Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib/pkgconfig
+controlled-checkout	Verify controlled revisions and preserved predecessors	2026-10-10T15:36:09.4984250Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+controlled-checkout	Verify controlled revisions and preserved predecessors	2026-10-10T15:36:09.4984648Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+controlled-checkout	Verify controlled revisions and preserved predecessors	2026-10-10T15:36:09.4985046Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+controlled-checkout	Verify controlled revisions and preserved predecessors	2026-10-10T15:36:09.4985454Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib
+controlled-checkout	Verify controlled revisions and preserved predecessors	2026-10-10T15:36:09.4986182Z ##[endgroup]
+controlled-checkout	Verify controlled revisions and preserved predecessors	2026-10-10T15:36:09.5940260Z {
+controlled-checkout	Verify controlled revisions and preserved predecessors	2026-10-10T15:36:09.5940924Z   "passed": true,
+controlled-checkout	Verify controlled revisions and preserved predecessors	2026-10-10T15:36:09.5941515Z   "issues": []
+controlled-checkout	Verify controlled revisions and preserved predecessors	2026-10-10T15:36:09.5942065Z }
+controlled-checkout	Post Set up Python	﻿2026-10-10T15:36:09.6116466Z Post job cleanup.
+controlled-checkout	Post Check out source	﻿2026-10-10T15:36:09.7686014Z Post job cleanup.
+controlled-checkout	Post Check out source	2026-10-10T15:36:09.8886518Z [command]/usr/bin/git version
+controlled-checkout	Post Check out source	2026-10-10T15:36:09.8996651Z git version 2.55.0
+controlled-checkout	Post Check out source	2026-10-10T15:36:09.9183509Z Temporarily overriding HOME='/home/runner/work/_temp/f8f8a1ef-b0eb-4a92-b889-43979f5a16b3' before making global git config changes
+controlled-checkout	Post Check out source	2026-10-10T15:36:09.9185043Z Adding repository directory to the temporary git global config as a safe directory
+controlled-checkout	Post Check out source	2026-10-10T15:36:09.9208574Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Riverview-/Riverview-
+controlled-checkout	Post Check out source	2026-10-10T15:36:09.9357028Z Removing SSH command configuration
+controlled-checkout	Post Check out source	2026-10-10T15:36:09.9386474Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+controlled-checkout	Post Check out source	2026-10-10T15:36:09.9468341Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+controlled-checkout	Post Check out source	2026-10-10T15:36:09.9955218Z Removing HTTP extra header
+controlled-checkout	Post Check out source	2026-10-10T15:36:09.9986850Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.0087337Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.0896870Z Removing includeIf entries pointing to credentials config files
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.0934280Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.0975334Z includeif.gitdir:/home/runner/work/Riverview-/Riverview-/.git.path
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.0996533Z includeif.gitdir:/home/runner/work/Riverview-/Riverview-/.git/worktrees/*.path
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.1016192Z includeif.gitdir:/github/workspace/.git.path
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.1036200Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.1056714Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/Riverview-/Riverview-/.git.path
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.1101473Z /home/runner/work/_temp/git-credentials-8f7b31cb-344e-49dc-97eb-d31f2e08345e.config
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.1147115Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/Riverview-/Riverview-/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-8f7b31cb\-344e\-49dc\-97eb\-d31f2e08345e\.config
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.1301474Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/Riverview-/Riverview-/.git/worktrees/*.path
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.1375181Z /home/runner/work/_temp/git-credentials-8f7b31cb-344e-49dc-97eb-d31f2e08345e.config
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.1434002Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/Riverview-/Riverview-/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-8f7b31cb\-344e\-49dc\-97eb\-d31f2e08345e\.config
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.1499832Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.1534010Z /github/runner_temp/git-credentials-8f7b31cb-344e-49dc-97eb-d31f2e08345e.config
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.1563188Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-8f7b31cb\-344e\-49dc\-97eb\-d31f2e08345e\.config
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.1616206Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.1654968Z /github/runner_temp/git-credentials-8f7b31cb-344e-49dc-97eb-d31f2e08345e.config
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.1661340Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-8f7b31cb\-344e\-49dc\-97eb\-d31f2e08345e\.config
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.1703377Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+controlled-checkout	Post Check out source	2026-10-10T15:36:10.1958778Z Removing credentials config '/home/runner/work/_temp/git-credentials-8f7b31cb-344e-49dc-97eb-d31f2e08345e.config'
+controlled-checkout	Stop containers	﻿2026-10-10T15:36:10.2095113Z Print service container logs: c0b4a3a2d2c64db58784b043b7c4fe00_postgres16_e83159
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2100365Z ##[command]/usr/bin/docker logs --details 8abc91632508d9152fc37cc9fa125500141bb4e78a8c265ce0829610491a21f1
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2270422Z  ********************************************************************************
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2271410Z  The files belonging to this database system will be owned by user "postgres".
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2272361Z  WARNING: POSTGRES_HOST_AUTH_METHOD has been set to "trust". This will allow
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2273216Z           anyone with access to the Postgres port to access your database without
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2274008Z           a password, even if POSTGRES_PASSWORD is set. See PostgreSQL
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2274617Z           documentation about "trust":
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2275116Z           https://www.postgresql.org/docs/current/auth-trust.html
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2276105Z           In Docker's default configuration, this is effectively any other
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2277343Z           container on the same system.
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2278059Z  
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2278765Z           It is not recommended to use POSTGRES_HOST_AUTH_METHOD=trust. Replace
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2279870Z           it with "-e POSTGRES_PASSWORD=password" instead to set a password in
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2280774Z           "docker run".
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2281230Z  ********************************************************************************
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2282152Z  This user must also own the server process.
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2282665Z  
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2283163Z  The database cluster will be initialized with locale "en_US.utf8".
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2284604Z  The default database encoding has accordingly been set to "UTF8".
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2285334Z  The default text search configuration will be set to "english".
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2286171Z  
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2286493Z  Data page checksums are disabled.
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2286898Z  
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2287400Z  fixing permissions on existing directory /var/lib/postgresql/data ... ok
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2288082Z  creating subdirectories ... ok
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2288602Z  selecting dynamic shared memory implementation ... posix
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2289188Z  selecting default max_connections ... 100
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2289678Z  selecting default shared_buffers ... 128MB
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2290147Z  selecting default time zone ... Etc/UTC
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2290743Z  initdb: warning: enabling "trust" authentication for local connections
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2291860Z  initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2293419Z  2026-10-10 15:35:59.687 UTC [1] LOG:  starting PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2294661Z  2026-10-10 15:35:59.688 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2295514Z  2026-10-10 15:35:59.688 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2296578Z  2026-10-10 15:35:59.689 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2297528Z  2026-10-10 15:35:59.693 UTC [64] LOG:  database system was shut down at 2026-10-10 15:35:59 UTC
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2298335Z  2026-10-10 15:35:59.697 UTC [1] LOG:  database system is ready to accept connections
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2299033Z  2026-10-10 15:36:08.795 UTC [92] ERROR:  injected event failure
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2299809Z  2026-10-10 15:36:08.795 UTC [92] CONTEXT:  PL/pgSQL function reject_transition_event() line 3 at RAISE
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2300646Z  2026-10-10 15:36:08.795 UTC [92] STATEMENT:  INSERT INTO events
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2301303Z  	               (event_id, schema, event_type, occurred_at, recorded_at,
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2301947Z  	                assignment_id, actor_id, correlation_id, causation_id,
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2303420Z  	                idempotency_key, authority_ref, privacy_domain, payload_schema, payload)
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2304397Z  	               VALUES ($1, 'rv.event.v1', $2, $3, $4, $5, $6, $7, $8,
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2304917Z  	                       $9, $10, $11, $12, $13)
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2305369Z  creating configuration files ... ok
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2306122Z  running bootstrap script ... ok
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2306629Z  performing post-bootstrap initialization ... ok
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2307155Z  syncing data to disk ... ok
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2307534Z  
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2307815Z  
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2308190Z  Success. You can now start the database server using:
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2308704Z  
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2309088Z      pg_ctl -D /var/lib/postgresql/data -l logfile start
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2309593Z  
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2310703Z  waiting for server to start....2026-10-10 15:35:59.368 UTC [48] LOG:  starting PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2312280Z  2026-10-10 15:35:59.369 UTC [48] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2313255Z  2026-10-10 15:35:59.371 UTC [51] LOG:  database system was shut down at 2026-10-10 15:35:59 UTC
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2314148Z  2026-10-10 15:35:59.375 UTC [48] LOG:  database system is ready to accept connections
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2314786Z   done
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2314999Z  server started
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2315198Z  CREATE DATABASE
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2315385Z  
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2315549Z  
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2316305Z  /usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2316714Z  
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2316970Z  2026-10-10 15:35:59.563 UTC [48] LOG:  received fast shutdown request
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2317500Z  waiting for server to shut down....2026-10-10 15:35:59.563 UTC [48] LOG:  aborting any active transactions
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2318215Z  2026-10-10 15:35:59.565 UTC [48] LOG:  background worker "logical replication launcher" (PID 54) exited with exit code 1
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2318772Z  2026-10-10 15:35:59.567 UTC [49] LOG:  shutting down
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2319169Z  2026-10-10 15:35:59.567 UTC [49] LOG:  checkpoint starting: shutdown immediate
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2320281Z  2026-10-10 15:35:59.585 UTC [49] LOG:  checkpoint complete: wrote 926 buffers (5.7%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.015 s, sync=0.003 s, total=0.019 s; sync files=301, longest=0.001 s, average=0.001 s; distance=4273 kB, estimate=4273 kB; lsn=0/191F060, redo lsn=0/191F060
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2321354Z  2026-10-10 15:35:59.592 UTC [48] LOG:  database system is shut down
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2321680Z   done
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2321860Z  server stopped
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2322055Z  
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2322281Z  PostgreSQL init process complete; ready for start up.
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2322575Z  
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2329045Z Stop and remove container: c0b4a3a2d2c64db58784b043b7c4fe00_postgres16_e83159
+controlled-checkout	Stop containers	2026-10-10T15:36:10.2334888Z ##[command]/usr/bin/docker rm --force 8abc91632508d9152fc37cc9fa125500141bb4e78a8c265ce0829610491a21f1
+controlled-checkout	Stop containers	2026-10-10T15:36:10.4078162Z 8abc91632508d9152fc37cc9fa125500141bb4e78a8c265ce0829610491a21f1
+controlled-checkout	Stop containers	2026-10-10T15:36:10.4122414Z Remove container network: github_network_412286d95c8049ba8a7458e43b2cc0a8
+controlled-checkout	Stop containers	2026-10-10T15:36:10.4128017Z ##[command]/usr/bin/docker network rm github_network_412286d95c8049ba8a7458e43b2cc0a8
+controlled-checkout	Stop containers	2026-10-10T15:36:10.4927716Z github_network_412286d95c8049ba8a7458e43b2cc0a8
+controlled-checkout	Complete job	﻿2026-10-10T15:36:10.5009688Z Cleaning up orphan processes

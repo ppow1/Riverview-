@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/revision_control.py
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.2.1
+# Revision: 1.2.3
 # Purpose: Inventory file revisions and verify preserved predecessor backups
 # Execution Model: Request-driven CLI; suitable for unattended CI and Camrui
 # Observability: JSON stdout and exit codes
 # Dependencies: Python 3.10+, Git
 # Authority: Local checkout only; never edits source or remote
-# Changed: 2026-10-09 UTC | ENG-REV-001 | Fix Markdown bold revision parsing
+# Changed: 2026-10-10 UTC | RV-ENG-REV-003 | Validate revision syntax and use native headers in evidence records
 # Contracts: docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md
 # Tests: tests/test_revision_control.py
 # History: Git and revision backup manifest
@@ -30,6 +30,40 @@ SIDE_EXT = {'.json', '.jsonl', '.toml', '.lock', '.png', '.jpg', '.jpeg', '.gif'
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
+def valid_revision(value):
+    return isinstance(value, str) and re.fullmatch(r"\d+\.\d+(?:\.\d+)?", value) is not None
+
+def evidence_sidecar_revision(root, rel, data):
+    """Return a revision only when its evidence sidecar verifies this file."""
+    path = root / rel
+    if path.name == 'artifacts.json':
+        try:
+            manifest = json.loads(data)
+            candidate = manifest.get('manifest_revision')
+            return candidate if valid_revision(candidate) else None
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return None
+    if 'evidence' not in Path(rel).parts or 'checkouts' not in Path(rel).parts:
+        return None
+    sidecar = path.parent / 'artifacts.json'
+    if not sidecar.is_file() or sidecar.is_symlink():
+        return None
+    try:
+        manifest = json.loads(sidecar.read_text(encoding='utf-8'))
+        entries = manifest.get('artifacts', manifest.get('files', {}))
+        entry = entries.get(path.name)
+        if not isinstance(entry, dict):
+            return None
+        if entry.get('sha256') != sha(data) or entry.get('size_bytes') != len(data):
+            return None
+        recorded_path = entry.get('path')
+        if recorded_path and Path(recorded_path).name != path.name:
+            return None
+        candidate = entry.get('revision')
+        return candidate if valid_revision(candidate) else None
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, AttributeError):
+        return None
+
 def git(root, *args):
     return subprocess.run(['git', '-C', str(root), *args], capture_output=True, check=True).stdout
 
@@ -41,10 +75,21 @@ def revision(root, rel, content=None):
     if Path(rel).suffix.lower() in SIDE_EXT:
         manifest = root / '.riverview-revisions.json'
         if manifest.exists():
-            return json.loads(manifest.read_text()).get('files', {}).get(rel, {}).get('revision')
+            versioned = json.loads(manifest.read_text()).get('files', {}).get(rel, {}).get('revision')
+            if versioned:
+                return versioned
+    if 'evidence' in Path(rel).parts and 'checkouts' in Path(rel).parts:
+        try:
+            header = REV.search(data.decode('utf-8')[:12000])
+        except UnicodeDecodeError:
+            header = None
+        if header:
+            return header.group(1)
+        return evidence_sidecar_revision(root, rel, data)
+    if Path(rel).suffix.lower() in SIDE_EXT:
         return None
     m = REV.search(data.decode('utf-8', errors='replace')[:12000])
-    return m.group(1) if m else None
+    return m.group(1) if m and valid_revision(m.group(1)) else None
 
 def inc(old, new):
     return old is not None and new is not None and tuple(map(int,(new+'.0').split('.')[:3])) > tuple(map(int,(old+'.0').split('.')[:3]))
@@ -107,7 +152,8 @@ def check(root, baseline):
             issues.append({'path':rel,'issue':'missing_revision'})
         old=baseline_files.get(rel)
         if old and old['sha256']!=entry['sha256']:
-            if not inc(old['revision'],entry['revision']):
+            initializes_legacy = old['revision'] is None and entry['revision'] == '1.0.0'
+            if not initializes_legacy and not inc(old['revision'],entry['revision']):
                 issues.append({'path':rel,'issue':'revision_not_incremented','baseline':old['revision'],'current':entry['revision']})
             if not verified_predecessor(root,rel,old):
                 issues.append({'path':rel,'issue':'predecessor_backup_missing_or_invalid'})

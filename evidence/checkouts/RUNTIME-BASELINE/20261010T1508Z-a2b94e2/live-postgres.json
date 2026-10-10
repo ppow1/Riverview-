@@ -1,0 +1,6 @@
+{
+  "database": "riverview",
+  "role": "riverview_core",
+  "server_address": "127.0.0.1",
+  "transaction_read_only": "on"
+}

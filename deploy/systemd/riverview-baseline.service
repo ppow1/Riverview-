@@ -1,0 +1,43 @@
+# RIVERVIEW~ CONTROLLED CONFIGURATION
+# File: deploy/systemd/riverview-baseline.service
+# Component: RUNTIME-BASELINE
+# Revision: 1.0.1
+# Purpose: M1.1 repeatable credential delivery and read-only commissioning check
+# Execution Model: Request-driven oneshot; NOT the M1.3 processor or M2.4 CME
+# Observability: Sanitized JSON in /var/lib/riverview/baseline.json and systemd result
+# Dependencies: systemd 250+, Python/Psycopg venv, PostgreSQL
+# Authority: Unprivileged account; read-only DB; no commissioning mutations
+# Changed: 2026-10-10 UTC | RV-M1.1-010 | Create private runtime credential directory for libpq
+# Contracts: docs/components/RUNTIME_BASELINE.md
+# Tests: tests/test_runtime_baseline.py
+# History: New file; no predecessor; Git
+[Unit]
+Description=Riverview M1.1 read-only runtime baseline validation
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=riverview
+Group=riverview
+WorkingDirectory=/opt/riverview-core
+StateDirectory=riverview
+StateDirectoryMode=0700
+RuntimeDirectory=riverview-credentials
+RuntimeDirectoryMode=0700
+LoadCredential=pgpass:/etc/riverview/pgpass
+ExecStart=/opt/riverview-core/.venv/bin/python /opt/riverview-core/scripts/runtime_baseline.py --passfile /run/riverview-credentials/pgpass
+StandardOutput=truncate:/var/lib/riverview/baseline.json
+StandardError=journal
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET
+TimeoutStartSec=20

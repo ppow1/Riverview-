@@ -1,0 +1,749 @@
+{
+  "files": [
+    {
+      "path": ".gitattributes",
+      "revision": "1.0.0",
+      "sha256": "9bc4c5bed6720e3d58ac57eaee55059f0397c85c33936a7db43f0eeff975f1ca"
+    },
+    {
+      "path": ".gitignore",
+      "revision": null,
+      "sha256": "52c0c1c9ace3caef8908d7ab07d34c189fe4c877e225dd683668c96c4fd3b747"
+    },
+    {
+      "path": "AI_HINTS.md",
+      "revision": "1.0.3",
+      "sha256": "2bc94ba4a5f04b586cd1100990518daa6a2022e7f7e8315744bb31f219609a3e"
+    },
+    {
+      "path": "README.md",
+      "revision": "1.0.0",
+      "sha256": "32a36c8f838aa7a8addc8bf33095bd27ed7dab8c834765f9e2570c653a33584e"
+    },
+    {
+      "path": "deploy/install_baseline.sh",
+      "revision": "1.0.1",
+      "sha256": "677f18ab4faeb8f24076c8956607ab7fe124fe9c3c5576130bc963429ec01e5b"
+    },
+    {
+      "path": "deploy/rollback_baseline.sh",
+      "revision": "1.0.0",
+      "sha256": "6500e6696934bca4c791056047a0b51f14ee79f9373447aecb4437fc7a67ccda"
+    },
+    {
+      "path": "deploy/systemd/riverview-baseline.service",
+      "revision": "1.0.1",
+      "sha256": "dc540dda27d39ec7761d683cf38519ee16d09f7b8a26bbfa4de0c06dbe711a1f"
+    },
+    {
+      "path": "docs/CODEX_ENGINEERING_CAMPAIGN.md",
+      "revision": "1.0.1",
+      "sha256": "f8a59dca3af016ce6263e2ed10fc912d4745f963e7b37ee054b16d617ef440fd"
+    },
+    {
+      "path": "docs/ROADMAP.md",
+      "revision": "1.0.1",
+      "sha256": "81af5123bcf7674a8415441d93bffe479dc88021f8845e925a98350b52790946"
+    },
+    {
+      "path": "docs/architecture/CORE_CONTRACT.md",
+      "revision": "1.0.0",
+      "sha256": "c0d19b901817e64aa44a6d0747f1015f96d71b886dc2e6712c300868cb824208"
+    },
+    {
+      "path": "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md",
+      "revision": "1.0.0",
+      "sha256": "6867e849cdfc80bce476a6584a38115517b115f1fd40ffaa050f87191eec8893"
+    },
+    {
+      "path": "docs/architecture/LINUX_DEPLOYMENT_AND_HOSTING_v0.1.md",
+      "revision": "1.0.0",
+      "sha256": "1ae34e00708e0817bd9787bd6b67a292d1b32a18bdf5e066568839aedb520d8b"
+    },
+    {
+      "path": "docs/architecture/OBSERVABILITY_AND_SPATIAL_CONTRACT_v0.1.md",
+      "revision": "1.0.0",
+      "sha256": "8125c4b9e90f66fe734effdf308f33605100041d7df084b2d836dbd316e565be"
+    },
+    {
+      "path": "docs/components/LEDGER_COOKBOOK.md",
+      "revision": "1.0.0",
+      "sha256": "f008dc7eec1449198f70f244d0ae29d9b602942842e06769e95753e02a3d3f18"
+    },
+    {
+      "path": "docs/components/POSTGRES_LEDGER.md",
+      "revision": "1.0.0",
+      "sha256": "f9d3bde24eb89096b608284962187324ffe0522be5f997f2dc8f8e6001b43958"
+    },
+    {
+      "path": "docs/components/POSTGRES_LEDGER_COOKBOOK.md",
+      "revision": "1.0.0",
+      "sha256": "e4b7b78c6abc1e1d69b736562359e52891e457a9ef5b30a4e3a6d111946e1391"
+    },
+    {
+      "path": "docs/components/POSTGRES_LEDGER_FLOW.md",
+      "revision": "1.0.0",
+      "sha256": "5641483af9850682e6cd8ce94dee0e32165773857eee1a7db58da995c5f1f151"
+    },
+    {
+      "path": "docs/components/RUNTIME_BASELINE.md",
+      "revision": "1.0.9",
+      "sha256": "4f5cf1a7f006da07d9936401c9946f044a352b6fffe589a17fcb4bca823a6b84"
+    },
+    {
+      "path": "docs/components/RUNTIME_BASELINE_COOKBOOK.md",
+      "revision": "1.0.9",
+      "sha256": "3ec8e659f62a270629bc22617b0fb510bf7aa28b94be34b89d581be94fedd2c2"
+    },
+    {
+      "path": "docs/components/RUNTIME_BASELINE_FLOW.md",
+      "revision": "1.0.5",
+      "sha256": "efdbd7ab74b28e9b324f79a1f8e0f61103c300c7a82230a1934c057f2b6092e3"
+    },
+    {
+      "path": "docs/development/JOURNAL.md",
+      "revision": "1.0.17",
+      "sha256": "dc1c582dec415097134e4ec1f45051c8b2d97ab60dcb8b9e7362e125f268d606"
+    },
+    {
+      "path": "docs/development/M1.1-003_REVISION_RECORD.md",
+      "revision": "1.0.0",
+      "sha256": "7486d7f7b660375a8ff2dfe03b5af4eb2bc9d93f84e992386b9ef24f7e6c513c"
+    },
+    {
+      "path": "docs/development/M1.1-004_REVISION_RECORD.md",
+      "revision": "1.0.0",
+      "sha256": "5b5230b68622437e21f27a43ec3f0edbc35b207b92578f8ca9deb639d4193521"
+    },
+    {
+      "path": "docs/development/M1.1-006_REVISION_RECORD.md",
+      "revision": "1.0.0",
+      "sha256": "b1eeef810625d1c7993928faf5d30af727347a9cdae4cf1aaa3688bde87a1d25"
+    },
+    {
+      "path": "docs/development/M1.1-007_REVISION_RECORD.md",
+      "revision": "1.0.0",
+      "sha256": "4c2e5247553f1a081a578975efaa4bc2b0f374bcaa721d455b9e3a958dc90547"
+    },
+    {
+      "path": "docs/development/M1.1-008_CONTRACT_REVISION_RECORD.md",
+      "revision": "1.0.0",
+      "sha256": "0385de3777174f29318bd4fce0facaf58a6b2b0bed8b385ef78b0331d1c6b9b1"
+    },
+    {
+      "path": "docs/development/M1.1-008_REVISION_RECORD.md",
+      "revision": "1.0.0",
+      "sha256": "96acda709bbc3455acd108627da9a00b3a8d641ef251161fb498000223da8515"
+    },
+    {
+      "path": "docs/development/M1.1-009_REVISION_RECORD.md",
+      "revision": "1.0.1",
+      "sha256": "3f73cf58490f9d596df2ecc16b29eeb16fab2392e6c9dbd3ee23f4090915e209"
+    },
+    {
+      "path": "docs/development/M1.1-010_REVISION_RECORD.md",
+      "revision": "1.0.2",
+      "sha256": "382d9fff993855a4b034074f73e43c7946fcf1df061ead1bf3396525e9264da1"
+    },
+    {
+      "path": "docs/development/M1.1-011_REVISION_RECORD.md",
+      "revision": "1.0.2",
+      "sha256": "6fb7e4d024f8c1431ecb7ef81a3dc76e7e7b0d6e1106f5ee810f2e95b259271e"
+    },
+    {
+      "path": "docs/development/M1.1_ACCEPTANCE.md",
+      "revision": "1.0.4",
+      "sha256": "1efeafdf88ded9152108cefa53bfa59c2ea994d8a07d0f7a88bb0d8a22bb85ca"
+    },
+    {
+      "path": "docs/development/M1.1_PACKAGING_REVISION_RECORD.md",
+      "revision": "1.0.0",
+      "sha256": "804db6b8d803a38e9a5861f10d7b7307ddbaea0759ca1ed0efd50ad95cfe7239"
+    },
+    {
+      "path": "docs/development/M1.1_REVISION_RECORD.md",
+      "revision": "1.0.0",
+      "sha256": "2f177418b0fde94dc28fd75b064a1a863e4e946aad40af4ec2a6fef707d7b7f0"
+    },
+    {
+      "path": "docs/history/AI_HINTS_rev1.0.0.md",
+      "revision": "1.0.0",
+      "sha256": "9275b92178559afc470c40668ecc831598e1a652977fdccc50cf258fe3a8d038"
+    },
+    {
+      "path": "docs/history/AI_HINTS_rev1.0.1.md",
+      "revision": "1.0.1",
+      "sha256": "ac6758959c3989dc5eb0b4a09baf9bfa6eb40c6912ed83fa679841794cbea611"
+    },
+    {
+      "path": "docs/history/AI_HINTS_rev1.0.2.md",
+      "revision": "1.0.2",
+      "sha256": "350506fd7927e63587a39b14de630bd740d63bb45455babfc79e6fcdd8d96098"
+    },
+    {
+      "path": "docs/history/CODEX_ENGINEERING_CAMPAIGN_rev1.0.0.md",
+      "revision": "1.0.0",
+      "sha256": "c56af90b1ae6decf78bf9b42a928ce72826297651730298da99919924de53865"
+    },
+    {
+      "path": "docs/history/JOURNAL_rev1.0.0.md",
+      "revision": "1.0.0",
+      "sha256": "ee0253e2af2984bb4cbee86b66ae518e853d89ac2fb0098657f65caefa2d43fa"
+    },
+    {
+      "path": "docs/history/M1.1_ACCEPTANCE_rev1.0.0.md",
+      "revision": "1.0.0",
+      "sha256": "a5311f246454b8eca4d6ad84cbb224f504ac09f93bb6251eaa01dade78fc2820"
+    },
+    {
+      "path": "docs/history/ROADMAP_rev1.0.0.md",
+      "revision": "1.0.0",
+      "sha256": "1df72ac00193df902618e242bae0ee40866df6c4c96754a53980c71608103e06"
+    },
+    {
+      "path": "docs/history/RV-M1.1-002/rev1.0.0/docs/components/RUNTIME_BASELINE.md",
+      "revision": "1.0.0",
+      "sha256": "b499b148ba6ffcb7864390744161cd2a9b3ea66fb21f38af72c603b34d5055ca"
+    },
+    {
+      "path": "docs/history/RV-M1.1-002/rev1.0.0/docs/components/RUNTIME_BASELINE_COOKBOOK.md",
+      "revision": "1.0.0",
+      "sha256": "0825ba7520fcd9df6146adb23426a1fa0570ca5980ab07b76af2a067df1b4647"
+    },
+    {
+      "path": "docs/history/RV-M1.1-002/rev1.0.0/docs/components/RUNTIME_BASELINE_FLOW.md",
+      "revision": "1.0.0",
+      "sha256": "1a8926b4fc1ae42c4a91ab5923e70909691e0a4992b4c3b577812b35e7320d25"
+    },
+    {
+      "path": "docs/history/RV-M1.1-002/rev1.0.0/scripts/build_camrui_package.py",
+      "revision": "1.0.0",
+      "sha256": "da13c200e6c797c56d9120d56d0b6572142259a38c91e2435093879257749fc0"
+    },
+    {
+      "path": "docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py",
+      "revision": "1.0.0",
+      "sha256": "88b4c201eecf9409a479cc8c515b1044fa1ddff8e2597107e0fa03d6a1966b50"
+    },
+    {
+      "path": "docs/history/RV-M1.1-002/rev1.0.1/docs/development/JOURNAL.md",
+      "revision": "1.0.1",
+      "sha256": "d43fd19947f06e9d44f35c4e13dc99a854cbe88a6f83fe9bd3dbc4874c1a91df"
+    },
+    {
+      "path": "docs/history/RV-M1.1-002/rev1.0.1/docs/development/M1.1_ACCEPTANCE.md",
+      "revision": "1.0.1",
+      "sha256": "08c2c42a8b3bb0716a29fc2ba410b9e83aeac3595f46d76d2e0e7ed6d8ad37a0"
+    },
+    {
+      "path": "docs/history/RV-M1.1-003/JOURNAL_rev1.0.2.md",
+      "revision": "1.0.2",
+      "sha256": "7d54637c045860d073e4b9c6e1c315f56a9096e7034cbc0ec0038b1807f0b928"
+    },
+    {
+      "path": "docs/history/RV-M1.1-004/rev1.0.1/docs/components/RUNTIME_BASELINE.md",
+      "revision": "1.0.1",
+      "sha256": "3279aa0064fe526a254ee4198e01c9bff67d11c343fa6db391c051ba2392230f"
+    },
+    {
+      "path": "docs/history/RV-M1.1-004/rev1.0.1/docs/components/RUNTIME_BASELINE_COOKBOOK.md",
+      "revision": "1.0.1",
+      "sha256": "7ecfd4ededd4f295a324f57884fe19571694a6b8a13bdf6c22ec63becd9fd1ae"
+    },
+    {
+      "path": "docs/history/RV-M1.1-004/rev1.0.3/docs/development/JOURNAL.md",
+      "revision": "1.0.3",
+      "sha256": "cf3cee91bb2633e09a0725d750d5a638a96215269c892fde2798586e18fd5454"
+    },
+    {
+      "path": "docs/history/RV-M1.1-006/rev1.0.4/docs/development/JOURNAL.md",
+      "revision": "1.0.4",
+      "sha256": "b45544ec22e8bc8059a7e8c883cb0669be14115cfdf750eee62b521cb9ca2d0b"
+    },
+    {
+      "path": "docs/security/UNDERCURRENT_BOUNDARY.md",
+      "revision": "1.0.0",
+      "sha256": "09492b24af91d86de5065828ef1115cf148d8d505a5ab08bc86caa68f744f44b"
+    },
+    {
+      "path": "docs/standards/COMPONENT_DEFINITION_OF_DONE.md",
+      "revision": "1.3",
+      "sha256": "10ad6bd00d754c73356a3f3a275b2fcce81e8f52c684c66d6e78f7bd5e5c8d9e"
+    },
+    {
+      "path": "docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md",
+      "revision": "1.0.0",
+      "sha256": "5ff9d092d9f2de0562c0633650f37a23825dc5b5da00a3f3c9c89066204943e5"
+    },
+    {
+      "path": "docs/standards/ENGINEERING_RECORDS_STANDARD.md",
+      "revision": null,
+      "sha256": "a0dc4f9f8b4bd199a251dd3220c754195c917cf8c7354803a3d21ffc8e51d003"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/artifacts.json",
+      "revision": null,
+      "sha256": "f162ec863a91fc01369a75d931c221c308dd2422918a431000da39ee5d88a25d"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/checkout.md",
+      "revision": "1.0.0",
+      "sha256": "0e50a940694bea0717dd68a3dba77b71c78b24c7b46bad7b9c89da1f92a04e96"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/cleanup-check.log",
+      "revision": null,
+      "sha256": "80f2c1882e027afed03e0b8c52246f06c17298e83a3fcbba647a74f2d17f8055"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/initdb.log",
+      "revision": null,
+      "sha256": "c6b734bc9c2b40c08721839170227db04dd32c8ab2556278457aeb7fd6f388ef"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/postgres.log",
+      "revision": null,
+      "sha256": "da8749ff380c543b9cec0075a4590b6cb48d73b25cab02399f0a7e9067593da1"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/recheck-start.log",
+      "revision": null,
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/recheck-stop.log",
+      "revision": null,
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/start.log",
+      "revision": null,
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/stop.log",
+      "revision": null,
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/unittest-combined.log",
+      "revision": null,
+      "sha256": "c8d6b186a55189f1e1a8eabd77e74dba71ec4c289efa9f2ab873399aa03eb217"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T034142Z-892b489/checkout.md",
+      "revision": "1.0.0",
+      "sha256": "20c7a55354df698d9db37ad0a2f9e3a982d67df1951ad7a323f562582f6cad8e"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/artifacts.json",
+      "revision": null,
+      "sha256": "81d26b4fc25f8bd9250faef2f35184a8d1cdded4446cc01a1fcaa61728e7b8bc"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/camrui-package.tar.gz",
+      "revision": null,
+      "sha256": "bdbc71e45512698611e5c78721c28871c67bdc19042f6b5c84b0b98c5fb94cf9"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/checkout.md",
+      "revision": "1.0.0",
+      "sha256": "f7797fb620be9c75fd6c34ed76b58960b9400532f7405b3eb225acf323f78e24"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/observer.json",
+      "revision": null,
+      "sha256": "aba5978b153e6e00a954abd06c19f52e2aee393fc39930134195f63e03a00cbe"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/package-preflight.log",
+      "revision": null,
+      "sha256": "ca20a6106bed0a3633a61e19f6265918da296f1f7f880c9bc98e4bd80b8659f3"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/package-verification.json",
+      "revision": null,
+      "sha256": "76d84b1eb8c8e28012bd2238a862bfc8981312c4380225e48afc8441c57f46d7"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/runtime-probe.json",
+      "revision": null,
+      "sha256": "5f30cea3246681c85fe211276ea8a187bf706d9ce735f9e070cc60bdf39b9887"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/systemd-template-check.md",
+      "revision": "1.0.0",
+      "sha256": "5588959e15bf0ee300974533d6366d2dfe194768ea5a7900034ecc6729308df8"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/unittest-combined.log",
+      "revision": null,
+      "sha256": "687f26144c83374bf482992f59f6e65804d90fb8dd5f4bd868db69ce6fc32501"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/artifacts.json",
+      "revision": null,
+      "sha256": "4d31a70b10e61dd150654698b183d19f40d14d6ba0bd1f0ec1ec7cbd685ece8a"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/build.log",
+      "revision": null,
+      "sha256": "2ace9e5756d0e2d31f0c023330cf099c5a63cbf161de7ed3db000224fd3b26c2"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/checkout.md",
+      "revision": "1.0.0",
+      "sha256": "6d9c79eb0f803e9fb91f193626e34376149ed64be94d4ec51aee63d72207fddc"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/commissioning-failure.md",
+      "revision": "1.0.0",
+      "sha256": "c19d6586d066088a668b0d77304b99249d237814e6e76b4241dfb78ec218af61"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/package-verification.json",
+      "revision": null,
+      "sha256": "b9db216456bb46b0141437903f2e2372219c13fef110c0c4f8703af1bbba2d7e"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/riverview-M1.1-3d7e58f-20261010T131615Z.tar.gz",
+      "revision": null,
+      "sha256": "2b8dd82e9aca9618fb773d01e84e94ed9e4d49f5eadbae260d834a50154fa4f3"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/stage-checksums.log",
+      "revision": null,
+      "sha256": "0e53411c00896a6636b12b8b363ab60019cc3a396588236d9c8efdfd8ed3a0b6"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-cluster-start.log",
+      "revision": null,
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-cluster-stop.log",
+      "revision": null,
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-harness-correction.md",
+      "revision": "1.0.0",
+      "sha256": "19755a1285b5c45775237c1478f39baf7c2d38ac3b1d9966eb116fcfa7b07566"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-schema-cleanup.log",
+      "revision": null,
+      "sha256": "80f2c1882e027afed03e0b8c52246f06c17298e83a3fcbba647a74f2d17f8055"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/unittest-combined.log",
+      "revision": null,
+      "sha256": "32ec6d9455e0e4104277d3b5608b0fd546f1e18e2f0e52b07866093799fe54a3"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1419Z-0a0f1e1/campaign-execution-capability.md",
+      "revision": "1.0.0",
+      "sha256": "643547c430231eac1af5ddd54fdc71122ad5537abbbcebf51d0e0ef09b060035"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1419Z-0a0f1e1/checkout.md",
+      "revision": "1.0.0",
+      "sha256": "985703829697193b698772793ba2bf56778f469f226b6815a31cef3ce836b691"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1419Z-0a0f1e1/controlled-file-audit.md",
+      "revision": "1.0.0",
+      "sha256": "85660c8f93f55191fbad76e26a1159f5c1e80f0bf08cec5322d1a9e950d774a4"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1419Z-0a0f1e1/package-verification.md",
+      "revision": "1.0.0",
+      "sha256": "c8c8814bf2e5ac94087c148819b311cbfed4b62ec222afe80d674987c0b1d17f"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/artifacts.json",
+      "revision": null,
+      "sha256": "8a8b01a0deea8ce0943fa87e0f576fe7f98b978e9dc7223ede4b494f6cd84b9d"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/build.log",
+      "revision": null,
+      "sha256": "f70c99140350346ee75819f7f40d491432e03c7f76bbd489e8f5730dc5325760"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/package-verification.json",
+      "revision": null,
+      "sha256": "f1b3a6478130ae4f3057e6a49ace7b1829dd93d92d15730e2544608fce51b15b"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/package-verification.md",
+      "revision": "1.0.0",
+      "sha256": "e6d426e9a4123606f4ee1dc795b303c63469e8a50fdb939d2242d6bf277cf78e"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/stage-checksums.log",
+      "revision": null,
+      "sha256": "685b4719ab9b5ac3e6ac8b130cc6ee3c112baa8d304a1f33f4e76269be8879c0"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/artifacts.json",
+      "revision": null,
+      "sha256": "b235bae7d66bd565b02a564118b2cc795fbb5e68194ee008b0c8dd96a64c9da4"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/checkout.md",
+      "revision": "1.0.0",
+      "sha256": "25525cc4295b610825dd68a2969b3a14afec33e32fc09e6482f735f72386a402"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/package-verification.json",
+      "revision": null,
+      "sha256": "8202756ee22250e0cfac956b6d8a3e3b9bdc68fc1a287f804ee9760961e7c1f2"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/unittest.log",
+      "revision": null,
+      "sha256": "f91ef454e9b80ab2ea0e62081029bf70b55a0dced028fec4e7f123d928d7f93d"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/acceptance.json",
+      "revision": null,
+      "sha256": "b51398ef5ded950405cfc09790e050179402e85cf71f9b132142e28933a83920"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/artifacts.json",
+      "revision": null,
+      "sha256": "cb82288017e16d3b7645f8d6d3cc041dab0cb222c24c36f17fb463cb8e20903e"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/checkout.md",
+      "revision": "1.0.0",
+      "sha256": "c0ca39df2d542de3b0843dfc5993bc736ee6cd148f55088e5135bccd26af255c"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/git-diff-check.log",
+      "revision": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/independent-observer.json",
+      "revision": null,
+      "sha256": "951e898798585c3dccafc9cbebf57a6e162161a22c2d71ef0d45d7ef655922f9"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/live-postgres.json",
+      "revision": null,
+      "sha256": "85a853ecc580c6ec0c9b54864c91ffeb10e6747a8f7eca080c2b09925d3db6ca"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/package-verification.json",
+      "revision": null,
+      "sha256": "41d3c43a0941bc919433bb53403ea294a36f054f64a50c18509e420a9897aac0"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/postgres-isolated-unittest.log",
+      "revision": null,
+      "sha256": "dd650929e479e297469aa6a6f01eacb4d8370864b2716bb858213fd5e1a08668"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/predecessor-start.log",
+      "revision": null,
+      "sha256": "679c1f2ca7ce382560151e3076fba3209da98fbef3b89bf858dc7b40297d817a"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/pycompile.log",
+      "revision": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/redeploy.log",
+      "revision": null,
+      "sha256": "128466cb6e0e04228775497f60d4f001e50be07fc3da47972f6a56f2a7afd6d3"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/revision-check.json",
+      "revision": null,
+      "sha256": "645e7e1d3496077de3f9982d510f1679357936386c88d7795dfea736318a3482"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/riverview-M1.1-a2b94e2-20261010.tar.gz",
+      "revision": null,
+      "sha256": "069020e6e5e9a540cc7f063cc88a070b9cc54d0d27fd23ddedd01b1b8649a3eb"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/rollback-recovery.md",
+      "revision": "1.0.0",
+      "sha256": "94d13883b3f0301eea51fab5b005ca347bd51b03aa3d516ffd1603733ffbd381"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/systemd-final.json",
+      "revision": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/systemd-final.txt",
+      "revision": null,
+      "sha256": "6264f4363de2f050373778763ba62af8154b3ae0ae40492a3457f6e9d31b1643"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/systemd-unit-verify.log",
+      "revision": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1511Z-64e8f14/acceptance.json",
+      "revision": null,
+      "sha256": "af50bc0f7fa443ee9acba67cd5057dc18e4612543363c6ad1a93f5f98f2b4459"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1511Z-64e8f14/artifacts.json",
+      "revision": null,
+      "sha256": "83b9e38e801ed9f2e08f7dccbdc36af0444c05a20f3aa8ac21c6670fadfe0816"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1511Z-64e8f14/baseline.json",
+      "revision": null,
+      "sha256": "0744ba18aa6131f6b6474cc1f83ba205d5d013d6d5b3db11056c1ab9db1b812f"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1511Z-64e8f14/broker-retirement-check.txt",
+      "revision": null,
+      "sha256": "698fdeef3d2ab1f2f0c9f84f6b9d55b3ef0cec804ac367e7feeaed88d7d8c027"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1511Z-64e8f14/checkout.md",
+      "revision": "1.0.0",
+      "sha256": "590d1f32bdfe2576304d484069e4b2b6fbecf9348bd65cb110f422ef02843f51"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1511Z-64e8f14/independent-observer.json",
+      "revision": null,
+      "sha256": "0744ba18aa6131f6b6474cc1f83ba205d5d013d6d5b3db11056c1ab9db1b812f"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1511Z-64e8f14/install.log",
+      "revision": null,
+      "sha256": "030572a592b819a1a11415b9218783c4527004ff67c9be8adf904b65355d3e12"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1511Z-64e8f14/package-verification.json",
+      "revision": null,
+      "sha256": "cd2552461970ad77ca2a2f86501143ec34a00d1e1b9757ff131e6febca13e865"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1511Z-64e8f14/riverview-M1.1-64e8f14-20261010.tar.gz",
+      "revision": null,
+      "sha256": "0635519b4b3de40b5b10e6935fc370e6276ba685046dfdbc73c86e7f8a4c28a8"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1511Z-64e8f14/systemd.txt",
+      "revision": null,
+      "sha256": "6264f4363de2f050373778763ba62af8154b3ae0ae40492a3457f6e9d31b1643"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/development-validation-final.md",
+      "revision": "1.0.0",
+      "sha256": "a6d41b67d32ff4437710f4208a39b68ac120a861ca5e2a0e782a432e7903667d"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/development-validation.md",
+      "revision": "1.0.0",
+      "sha256": "ad1b12470a03555a9373022b8adb402d94d816489dbbb9089dbd82ca8dce57d3"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/packaging-repair.md",
+      "revision": "1.0.0",
+      "sha256": "1cc7530d603b70e5948531fa0976c1829b4e1cf9a9aba16910f7d6ac0332fd0b"
+    },
+    {
+      "path": "scripts/build_camrui_package.py",
+      "revision": "1.0.1",
+      "sha256": "28a2d9270a2bc41b33fd7547c4679cb384e051185fed8ee98411873edc0441cc"
+    },
+    {
+      "path": "scripts/capture_baseline_acceptance.py",
+      "revision": "1.0.0",
+      "sha256": "d8670d05b2bcbfd107b92df20013ce4505235d3743fa8c6b2c86eca810e2b97d"
+    },
+    {
+      "path": "scripts/check_camrui_baseline.py",
+      "revision": "1.0.0",
+      "sha256": "7955d43ddf780bfcc437f7166f41d67e04e6d565988cc4112934b2bbda3eabd0"
+    },
+    {
+      "path": "scripts/migrate_document_revisions.py",
+      "revision": "1.0.5",
+      "sha256": "9085a68c347ef33d4fae2dbee90bbda41fab6fdb48b6bc301927cdf665deb9a7"
+    },
+    {
+      "path": "scripts/postgres_ledger_steward_snapshot.py",
+      "revision": "1.0.0",
+      "sha256": "80f39ad7c31b1c8f2e7fab01abd4dea1103620ad1431b45a636a0690a65761f7"
+    },
+    {
+      "path": "scripts/provision_pgpass.py",
+      "revision": "1.0.1",
+      "sha256": "379be62d1bb321422d76d0a7240afcacae120e410ada2914367d062f5cf43538"
+    },
+    {
+      "path": "scripts/read_baseline_report.py",
+      "revision": "1.0.0",
+      "sha256": "9ac20095095da8fe356f1e071e8c71cbb1eadd46e3c7ace789206ce0e57300a1"
+    },
+    {
+      "path": "scripts/revision_control.py",
+      "revision": "1.2.1",
+      "sha256": "90efebc689a5682478bdc76f69e026912fb3590e98756bda553bcd7d859d12cd"
+    },
+    {
+      "path": "scripts/runtime_baseline.py",
+      "revision": "1.0.4",
+      "sha256": "5bd53347b2da6a984d88fe469469386ffd6a379da3a77f9008cd067fdaa0af06"
+    },
+    {
+      "path": "scripts/verify_camrui_package.py",
+      "revision": "1.0.0",
+      "sha256": "842f772ec62cb9f5bc86e67d00ccee0f68c8e4cca54283732e0278e9039ad4ec"
+    },
+    {
+      "path": "src/riverview_core/__init__.py",
+      "revision": "1.0.0",
+      "sha256": "0bd6522e34c1f1ad67cbf79bde8292df4a5cf96a5caa137103a37403648c859b"
+    },
+    {
+      "path": "src/riverview_core/ledger.py",
+      "revision": "1.0.0",
+      "sha256": "2f389eadfc9014b4bfb18464aabb2026a192564ea9c73fb55f5ab45d2ed2e2c3"
+    },
+    {
+      "path": "src/riverview_core/postgres_ledger.py",
+      "revision": "1.0.0",
+      "sha256": "f9111180fb1d6ab5bc3450f9ec91edc63095c11c3836a902843e17b577992d68"
+    },
+    {
+      "path": "tests/test_ledger.py",
+      "revision": "1.0.0",
+      "sha256": "1dd5e0fc7dc87464323fbf831640a8d676aa22578e35d8339e52a798cd24f323"
+    },
+    {
+      "path": "tests/test_migrate_document_revisions.py",
+      "revision": "1.0.4",
+      "sha256": "03b7dcc12460571684de61736300e6cddd3c0bc9b0dcae4d0c7ed1b36b4de267"
+    },
+    {
+      "path": "tests/test_postgres_ledger.py",
+      "revision": "1.0.0",
+      "sha256": "83dfe3aa3a4fd03ad1f4df0e10e762f8b4bffef803e3cfd2c3cdddfcabe9fe02"
+    },
+    {
+      "path": "tests/test_revision_control.py",
+      "revision": "1.2.1",
+      "sha256": "406a8c9687dfae7776a1b6ffcbb1d01f3354b52184aed04b5fc37d0dc1202bf7"
+    },
+    {
+      "path": "tests/test_runtime_baseline.py",
+      "revision": "1.0.6",
+      "sha256": "16a8490ccc42428891549cb52b5642235622c63633b80ae55128078f6a063f9a"
+    }
+  ]
+}

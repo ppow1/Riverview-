@@ -1,0 +1,8 @@
+ABSENT /usr/local/sbin/riverview-privctl
+ABSENT /etc/riverview-privctl.json
+ABSENT /var/lib/riverview-privctl
+NO_BROKER_SUDOERS_REFERENCE
+/etc/sudoers: parsed OK
+/etc/sudoers.d/90-riverview-codex: parsed OK
+/etc/sudoers.d/README: parsed OK
+0

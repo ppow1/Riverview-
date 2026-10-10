@@ -1,3 +1,12 @@
+<!--
+Riverview~ Controlled Document
+File: docs/standards/ENGINEERING_RECORDS_STANDARD.md
+Component: ENG-RECORDS
+File Revision: 1.0.0
+Purpose: Define engineering records and traceability requirements
+Authority: Governs engineering records; content status remains Proposed pending Steward acceptance
+Changed: 2026-10-10 UTC | RV-ENG-REV-003 | Establish file-level revision metadata for the existing Rev 1.0 standard
+-->
 # Riverview~ Engineering Records Standard — Rev 1.0
 
 **Status:** Proposed engineering standard, pending Steward acceptance.  

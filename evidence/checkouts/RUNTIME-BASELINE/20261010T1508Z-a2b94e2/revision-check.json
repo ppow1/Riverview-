@@ -1,0 +1,141 @@
+{
+  "passed": false,
+  "issues": [
+    {
+      "path": ".gitignore",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "docs/standards/ENGINEERING_RECORDS_STANDARD.md",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/artifacts.json",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/cleanup-check.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/initdb.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/postgres.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/recheck-start.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/recheck-stop.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/start.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/stop.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/unittest-combined.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/artifacts.json",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/camrui-package.tar.gz",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/observer.json",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/package-preflight.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/package-verification.json",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/runtime-probe.json",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/unittest-combined.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/artifacts.json",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/build.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/package-verification.json",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/riverview-M1.1-3d7e58f-20261010T131615Z.tar.gz",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/stage-checksums.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-cluster-start.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-cluster-stop.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-schema-cleanup.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/unittest-combined.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/artifacts.json",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/build.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/package-verification.json",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/stage-checksums.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/artifacts.json",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/package-verification.json",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/unittest.log",
+      "issue": "missing_revision"
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "component_id": "RUNTIME-BASELINE",
+  "files": {
+    "build.log": {
+      "revision": "1.0.0",
+      "sha256": "2ace9e5756d0e2d31f0c023330cf099c5a63cbf161de7ed3db000224fd3b26c2",
+      "size_bytes": 135
+    },
+    "checkout.md": {
+      "revision": "1.0.0",
+      "sha256": "6d9c79eb0f803e9fb91f193626e34376149ed64be94d4ec51aee63d72207fddc",
+      "size_bytes": 3395
+    },
+    "commissioning-failure.md": {
+      "revision": "1.0.0",
+      "sha256": "c19d6586d066088a668b0d77304b99249d237814e6e76b4241dfb78ec218af61",
+      "size_bytes": 1628
+    },
+    "package-verification.json": {
+      "revision": "1.0.0",
+      "sha256": "b9db216456bb46b0141437903f2e2372219c13fef110c0c4f8703af1bbba2d7e",
+      "size_bytes": 878
+    },
+    "riverview-M1.1-3d7e58f-20261010T131615Z.tar.gz": {
+      "revision": "1.0.0",
+      "sha256": "2b8dd82e9aca9618fb773d01e84e94ed9e4d49f5eadbae260d834a50154fa4f3",
+      "size_bytes": 281183
+    },
+    "stage-checksums.log": {
+      "revision": "1.0.0",
+      "sha256": "0e53411c00896a6636b12b8b363ab60019cc3a396588236d9c8efdfd8ed3a0b6",
+      "size_bytes": 5637
+    },
+    "test-cluster-start.log": {
+      "revision": "1.0.0",
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "size_bytes": 52
+    },
+    "test-cluster-stop.log": {
+      "revision": "1.0.0",
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d",
+      "size_bytes": 56
+    },
+    "test-harness-correction.md": {
+      "revision": "1.0.0",
+      "sha256": "19755a1285b5c45775237c1478f39baf7c2d38ac3b1d9966eb116fcfa7b07566",
+      "size_bytes": 683
+    },
+    "test-schema-cleanup.log": {
+      "revision": "1.0.0",
+      "sha256": "80f2c1882e027afed03e0b8c52246f06c17298e83a3fcbba647a74f2d17f8055",
+      "size_bytes": 41
+    },
+    "unittest-combined.log": {
+      "revision": "1.0.0",
+      "sha256": "32ec6d9455e0e4104277d3b5608b0fd546f1e18e2f0e52b07866093799fe54a3",
+      "size_bytes": 5248
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "source_commit": "3d7e58fc19ae38b6fd378fd0f0421ebb36fdb266",
+  "task_id": "RV-M1.1-007"
+}

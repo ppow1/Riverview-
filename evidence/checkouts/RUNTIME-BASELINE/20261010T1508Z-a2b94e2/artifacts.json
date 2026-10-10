@@ -1,0 +1,104 @@
+{
+  "artifacts": {
+    "acceptance.json": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "b51398ef5ded950405cfc09790e050179402e85cf71f9b132142e28933a83920",
+      "size_bytes": 3355
+    },
+    "checkout.md": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/checkout.md",
+      "revision": "1.0.0",
+      "sha256": "c0ca39df2d542de3b0843dfc5993bc736ee6cd148f55088e5135bccd26af255c",
+      "size_bytes": 3000
+    },
+    "git-diff-check.log": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/git-diff-check.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "independent-observer.json": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/independent-observer.json",
+      "revision": "1.0.0",
+      "sha256": "951e898798585c3dccafc9cbebf57a6e162161a22c2d71ef0d45d7ef655922f9",
+      "size_bytes": 985
+    },
+    "live-postgres.json": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/live-postgres.json",
+      "revision": "1.0.0",
+      "sha256": "85a853ecc580c6ec0c9b54864c91ffeb10e6747a8f7eca080c2b09925d3db6ca",
+      "size_bytes": 124
+    },
+    "package-verification.json": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/package-verification.json",
+      "revision": "1.0.0",
+      "sha256": "41d3c43a0941bc919433bb53403ea294a36f054f64a50c18509e420a9897aac0",
+      "size_bytes": 878
+    },
+    "postgres-isolated-unittest.log": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/postgres-isolated-unittest.log",
+      "revision": "1.0.0",
+      "sha256": "dd650929e479e297469aa6a6f01eacb4d8370864b2716bb858213fd5e1a08668",
+      "size_bytes": 6546
+    },
+    "predecessor-start.log": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/predecessor-start.log",
+      "revision": "1.0.0",
+      "sha256": "679c1f2ca7ce382560151e3076fba3209da98fbef3b89bf858dc7b40297d817a",
+      "size_bytes": 206
+    },
+    "pycompile.log": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/pycompile.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "redeploy.log": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/redeploy.log",
+      "revision": "1.0.0",
+      "sha256": "128466cb6e0e04228775497f60d4f001e50be07fc3da47972f6a56f2a7afd6d3",
+      "size_bytes": 42003
+    },
+    "revision-check.json": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/revision-check.json",
+      "revision": "1.0.0",
+      "sha256": "645e7e1d3496077de3f9982d510f1679357936386c88d7795dfea736318a3482",
+      "size_bytes": 4810
+    },
+    "riverview-M1.1-a2b94e2-20261010.tar.gz": {
+      "path": "/home/admin1/riverview-M1.1-a2b94e2-20261010.tar.gz",
+      "revision": "1.0.0",
+      "sha256": "069020e6e5e9a540cc7f063cc88a070b9cc54d0d27fd23ddedd01b1b8649a3eb",
+      "size_bytes": 741496
+    },
+    "rollback-recovery.md": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/rollback-recovery.md",
+      "revision": "1.0.0",
+      "sha256": "94d13883b3f0301eea51fab5b005ca347bd51b03aa3d516ffd1603733ffbd381",
+      "size_bytes": 1199
+    },
+    "systemd-final.json": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/systemd-final.json",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "systemd-final.txt": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/systemd-final.txt",
+      "revision": "1.0.0",
+      "sha256": "6264f4363de2f050373778763ba62af8154b3ae0ae40492a3457f6e9d31b1643",
+      "size_bytes": 101
+    },
+    "systemd-unit-verify.log": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/systemd-unit-verify.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    }
+  },
+  "component_id": "RUNTIME-BASELINE",
+  "manifest_revision": "1.0.0",
+  "source_commit": "a2b94e24715a670262859e1af31a0ea417ed37cb",
+  "task_id": "RV-M1.1-011"
+}

@@ -1,0 +1,26 @@
+{
+  "artifacts": {
+    "baseline-inventory.json": {
+      "path": "baseline-inventory.json",
+      "revision": "1.0.0",
+      "sha256": "8cc52e3d0887c0fd16974a09a8546dbeae17e41264538026f5355300c40d55ae",
+      "size_bytes": 29694
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "5312ae964d0156e8062e611863494b368e11bb597c8cfdb05f4966ff3306a663",
+      "size_bytes": 1288
+    },
+    "revision-check.json": {
+      "path": "revision-check.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    }
+  },
+  "component_id": "ENG-REVISION-CONTROL",
+  "manifest_revision": "1.0.0",
+  "source_commit": "27a8c555501588dd0fd2a5d488018ad0c295199a",
+  "task_id": "RV-ENG-REV-003"
+}

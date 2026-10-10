@@ -1,0 +1,8 @@
+{
+  "baseline_ready": false,
+  "blocker_code": "REPORT_UNAVAILABLE",
+  "component_id": "RUNTIME-BASELINE",
+  "freshness": "unavailable",
+  "projection_version": "rv.runtime-baseline.v1",
+  "status": "unavailable"
+}
