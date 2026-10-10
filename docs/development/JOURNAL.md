@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.9
+**Document Revision:** 1.0.10
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -203,3 +203,13 @@ component specification (Rev 1.0.4). The initial diagnostic package at source
 commit `e6b46c362326900c09f9e5c59d27d18137004847` predates this specification
 update and is retained unchanged; it is superseded for deployment by a newly
 built package from the next committed source. No system installation has run.
+
+Privilege-path recheck during goal continuation: `sudo -n -l` reports a
+password is required; `systemctl --no-ask-password start
+riverview-baseline.service` returns “Interactive authentication required.” No
+passwordless sudo or polkit route exists for the needed deployment. The
+commit-addressed diagnostic package and exact local install command are ready;
+an authorized interactive sudo session is the remaining external condition.
+Roadmap M1.2 is sequenced after M1.1 acceptance, so there is no independent
+numbered roadmap item to advance while M1.1 is blocked. Do not mark M1.1 DONE or
+install the superseded `e6b46c3` package.
