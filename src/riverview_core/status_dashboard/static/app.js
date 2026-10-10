@@ -1,5 +1,5 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.0.2
+// Revision: 1.0.3
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -171,10 +171,10 @@
   }
   function navigate(name) {
     const start = performance.now();
-    const view = ["overview","assignments","activity"].includes(name) ? name : "overview";
+    const view = ["overview","assignments","activity","workflows"].includes(name) ? name : "overview";
     document.querySelectorAll(".view").forEach((node) => { const active = node.id === `view-${view}`; node.hidden = !active; node.classList.toggle("active", active); });
     document.querySelectorAll(".nav-item").forEach((node) => node.classList.toggle("selected", node.dataset.view === view));
-    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",activity:"Activity"})[view];
+    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",activity:"Activity",workflows:"Process workflows"})[view];
     history.replaceState(null,"",`#${view}`);
     const duration = performance.now() - start;
     state.navSamples.push({view,ms:duration}); state.navSamples=state.navSamples.slice(-100);

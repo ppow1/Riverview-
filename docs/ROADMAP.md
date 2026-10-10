@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.3
+**Document Revision:** 1.1.4
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-09  
 **Component:** RV-ROADMAP  
@@ -69,8 +69,9 @@ Deliverable: simple, always-on, concurrent monitor for meaningful progress, dead
 ## Milestone 3 — Make actual operation visible and actionable
 
 **M3.1 — Read-only status projection and browser dashboard**  
-Deliverable: live assignment states, event cursor, workflow step, last meaningful progress, freshness/staleness, worker/CME health, diagnostics and source provenance.  
-**PASS:** dashboard reflects real events and shows stale/unavailable distinctly from healthy; no invented progress percentages.
+Deliverable: live assignment states, event cursor, workflow step, last meaningful progress, freshness/staleness, worker/CME health, diagnostics and source provenance. Diagnostic references render safely and readably; a browser workflow viewer projects the canonical process-graph JSON registry.
+
+**PASS:** dashboard reflects real events and shows stale/unavailable distinctly from healthy; no invented progress percentages; canonical workflows and decisions are navigable; process position is highlighted only when an exact durable node identity is available, otherwise shown unknown; read-only/authorization boundaries pass security checks. A controlled real worker and independent verifier can produce and accept a durable PostgreSQL result artifact visible in the projection.
 
 **M3.2 — Durable notification and decision requests**  
 Deliverable: recorded attention events, delivery/acknowledgment state, and Steward decision requests; start with one demonstrable delivery channel, then add visual/audio/SMS as specified.  
@@ -79,6 +80,29 @@ Deliverable: recorded attention events, delivery/acknowledgment state, and Stewa
 **M3.3 — First end-to-end unattended demonstration**  
 Deliverable: reproducible demo script and evidence bundle covering authorization, two concurrent assignments, worker execution, independent verification, restart/recovery, dashboard and notification.  
 **PASS:** all first-slice proofs pass on Camrui with timestamps, commands, logs, observed output, and restart evidence. **This is the first meaningful runtime milestone.**
+
+### Issue #13 milestone ownership and scope proposal
+
+The Issue #13 amendment and draft PR #15 are requirements input; PR #15 remains
+unmerged. This work keeps M3.1 read-only: readable operational documents,
+canonical graph visualization, truthful live status, and cross-component proof
+that a registered worker and distinct verifier can produce and accept a durable
+result. It adds no browser command, work-order promotion, resident chat, or
+resource mutation path.
+
+M3.2 retains durable attention/decision delivery. M3.3 retains the repeatable
+unattended first vertical slice. To preserve all Issue #13 requirements without
+mislabeling M3.1, a proposed **M3.4 — Governed Operations Console and Resident
+Conversation** should follow M4.1 identity/authority and M4.2 resident reasoning
+dependencies and precede M4.4 operational acceptance. Its acceptance criteria
+should include live browser conversation with Grace and another authorized
+resident, durable resident-separated continuity across reload/restart, explicit
+approval before specification/objective/work-order promotion, denied
+unauthorized promotion, shared browser/AI/API command contracts, and evidence
+for authorized lifecycle, denial, recovery, capability/resource and Steward
+decision actions. This is a sequencing proposal recorded for Steward review,
+not an accepted roadmap change or authorization to implement the command/chat
+system in M3.1.
 
 ## Milestone 4 — Institutional identity and AI reasoning
 
@@ -121,7 +145,7 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 **M2.4 — CME monitoring service:** Isolated technical criteria PASS at `a44091bc32e82580dd8a3350e1ecfa47b0157b36`, integrated by PR #14. The authorized shared `riverview_dev` migration chain and dedicated systemd monitor were commissioned on Camrui from `702f5db3f03669427a3625425eca04c023a0754c`. The live service reported healthy and recorded three genuine stale-assignment alerts; manual restart and systemd recovery after SIGKILL preserved those alert IDs without duplicates. Scoped operational criteria PASS. Full component DoD remains OPEN; no live worker is registered, and no unrelated live assignment progress was available to observe. See `docs/development/M2.4-001_REVISION_RECORD.md` and `evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/`.
 
-**Current step: M3.1 — Read-only status projection and browser dashboard.** Engineering began from integrated main at e9c66afabe88fe02403a35c8ede83eba54bca2e2. The canonical roadmap is revision 1.1.3; requirements from Issue #13 and draft PR #15 are design inputs and PR #15 is not merged. PR #16 remains open as draft. Live PostgreSQL/CME projections, attention recovery, browser navigation, restart and source identity have been verified on Camrui; the absence of live workers and post-migration external-browser re-observation remain explicit acceptance evidence limits.
+**Current step: M3.1 — Read-only status projection and browser dashboard.** Engineering began from integrated main at e9c66afabe88fe02403a35c8ede83eba54bca2e2. The canonical roadmap is revision 1.1.4; Issue #13 and draft PR #15 remain requirements input and PR #15 is not merged. PR #16 remains open as draft. The Steward supplied post-migration Windows-over-SSH evidence in PR comment 6103058810. A controlled PostgreSQL worker assignment has since reached independent verified completion; formatted cookbook rendering and a canonical graph viewer are now part of this M3.1 work. See the latest M3.1 revision record for evidence and gates. Full component DoD and formal acceptance remain open.
 
 **Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. M3.1 is the active milestone; its complete integration remains in progress.
 
@@ -142,3 +166,4 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 - **1.1.1 — 2026-10-10:** Record M2.4 isolated roadmap technical PASS, retain its open live-service/full-DoD obligations, and identify M3.1 as the next milestone after M2.4 integration.
 - **1.1.2 — 2026-10-10:** Reconcile M2.4 PR #14 integration on main and record M3.1 as active from the verified integrated baseline; preserve the unmerged draft PR #15 status.
 - **1.1.3 — 2026-10-10:** Record authorized shared M2.4 migrations, installed monitor health/restart recovery, and actual live dashboard integration while retaining M3.1 as active and full DoD obligations open.
+- **1.1.4 — 2026-10-10:** Include readable diagnostic documents and canonical graph visualization in M3.1 acceptance, record the Steward's external browser observation and live worker integration evidence, and propose (without accepting) M3.4 ownership for Issue #13's actionable console/resident-chat requirements.

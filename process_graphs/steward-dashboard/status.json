@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:steward-dashboard:status",
-  "graph_revision": "1.0.6",
+  "graph_revision": "1.0.7",
   "component_id": "STEWARD-DASHBOARD",
   "workflow_id": "status-projection.v1",
   "diagram_order": 1,
@@ -11,12 +11,15 @@
     "tests/test_status_dashboard.py",
     "scripts/run_status_dashboard.py",
     "scripts/runtime_baseline.py",
-    "deploy/riverview-status-dashboard.service"
+    "deploy/riverview-status-dashboard.service",
+    "src/riverview_core/status_dashboard/markdown.py",
+    "src/riverview_core/status_dashboard/static/workflow.js"
   ],
   "documentation_references": [
     "docs/components/STATUS_DASHBOARD.md",
     "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
-    "docs/components/STATUS_DASHBOARD_FLOW.md"
+    "docs/components/STATUS_DASHBOARD_FLOW.md",
+    "process_graphs/README.md"
   ],
   "verification_evidence": [
     "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/commissioning.md",
@@ -412,6 +415,139 @@
         "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-snapshot-post-recovery.json",
         "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/attention-503-diagnosis.json"
       ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:render-documentation",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render allowlisted cookbooks as safe readable HTML",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/markdown.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:documentation-unavailable",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Keep missing or unapproved documentation unavailable",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:browse-process-graphs",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Browse workflow index from canonical graph JSON",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:read-canonical-graph",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Read registered focused workflow definition",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:render-process-graph",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render nodes, typed edges and decisions in read-only SVG",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:graph-source-unavailable",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Show graph source unavailable without inferred workflow state",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:live-position-check",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Use only an exact persisted process-node identity for live highlighting",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:live-position-unknown",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Show unknown when the ledger has no process-node mapping",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
     }
   ],
   "edges": [
@@ -574,6 +710,52 @@
       "from": "rv:steward-dashboard:status:read-attention",
       "to": "rv:steward-dashboard:status:list-workers",
       "type": "runtime_transition"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-cached",
+      "to": "rv:steward-dashboard:status:browse-process-graphs",
+      "type": "runtime_transition",
+      "label": "Steward opens workflow viewer"
+    },
+    {
+      "from": "rv:steward-dashboard:status:browse-process-graphs",
+      "to": "rv:steward-dashboard:status:read-canonical-graph",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:steward-dashboard:status:read-canonical-graph",
+      "to": "rv:steward-dashboard:status:render-process-graph",
+      "type": "runtime_transition",
+      "label": "Registered graph definition returned"
+    },
+    {
+      "from": "rv:steward-dashboard:status:read-canonical-graph",
+      "to": "rv:steward-dashboard:status:graph-source-unavailable",
+      "type": "diagnostic_branch",
+      "label": "Unknown ID or graph source unavailable"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-process-graph",
+      "to": "rv:steward-dashboard:status:live-position-check",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:steward-dashboard:status:live-position-check",
+      "to": "rv:steward-dashboard:status:live-position-unknown",
+      "type": "diagnostic_branch",
+      "label": "No exact durable graph-node identity is stored; render no highlight"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-cached",
+      "to": "rv:steward-dashboard:status:render-documentation",
+      "type": "runtime_transition",
+      "label": "Steward opens a diagnostic reference"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-documentation",
+      "to": "rv:steward-dashboard:status:documentation-unavailable",
+      "type": "diagnostic_branch",
+      "label": "Missing or unapproved document"
     }
   ]
 }

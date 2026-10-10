@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.4
+File Revision: 1.0.5
 Purpose: Specify the read-only live status projection and browser foundation
 Authority: Observes institution state; no assignment or policy mutation
-Changed: 2026-10-10 UTC | RV-M3.1-002 | Define not-initialized domain responses and live CME commissioning
+Changed: 2026-10-10 UTC | RV-M3.1-003 | Add safe diagnostic-document rendering and canonical workflow visualization
 History: Git and revision/backup manifest
 -->
 # Steward status dashboard
@@ -69,6 +69,9 @@ content, credentials and private conversation content are not projected.
 | `GET /api/v1/workers?after=<id>&limit=<n>` | Bounded worker identity, active/inactive state, latest lease heartbeat health and visible active-lease count. | Default 25, max 100; keyset by worker ID. |
 | `GET /api/v1/attention?limit=<n>` | Bounded CME attention and recovery event records. | Default 25, max 100; sanitized error class only. |
 | `GET /api/v1/snapshot` | Bounded server-observed operational snapshot. | At most 50 assignments and 25 events/attention/worker rows. |
+| `GET /api/v1/graphs` | Index of registered canonical focused process graphs. | Reads versioned package registry; bounded by checked-in graph count. |
+| `GET /api/v1/graphs/<graph_id>` | Canonical nodes, typed edges, decisions, references, and execution-position state. | One registered focused workflow; no graph mutation. |
+| `GET /docs/components/<name>.md` | Safe, formatted view of an allowlisted component document. | Repository-controlled component Markdown only; raw HTML is escaped. |
 
 The status response schema identifier is `rv.dashboard.status.v1`; the summary counts healthy, stale, unknown and future-dated unverified active workers. `GET /api/v1/workers` pages individual identities; each status uses the latest recorded assignment-lease heartbeat. No heartbeat is unknown, not healthy. The overview shows worker IDs, health and lease counts. List/detail
 responses carry `status`, bounded `items`, and pagination state. Database
@@ -86,14 +89,32 @@ recorded, not inferred from browser refresh time.
 
 Machine-readable route schema: `docs/components/STATUS_DASHBOARD_API.schema.json`.
 
+### Canonical process graph and diagnostic documents
+
+The graph index and graph detail routes use the dashboard bearer token. The
+browser renders their canonical JSON response as a read-only SVG with workflow
+selection, node identities/revisions, typed edges, decisions, node references,
+and resolvable cross-workflow jump controls. There is no second maintained graph
+source. The execution-position field stays `unknown` while assignment state does
+not persist a canonical process-node identity; in that state the viewer
+highlights no node and displays the reason. It does not infer a node from prose.
+
+Component-document routes read only regular files from the package's
+`docs/components` directory. The standard-library renderer supports headings,
+paragraphs, lists, tables, code fences, and safe links. It escapes source HTML;
+only HTTPS, in-page anchors, and component-document links become anchors. No
+script is emitted, and all content remains sourced from controlled Markdown.
+
 ## Browser, refresh and later console constraints
 
 The first page shell renders before projection hydration. Overview, assignments
-and activity are client-side views in one document. Navigation switches existing
+activity, workflows, and assignments are client-side views in one document. Navigation switches existing
 DOM immediately; it does not call AI or reconstruct institutional state. Status
 refresh and event refresh are separate bounded requests; assignment detail is
 lazy-loaded. Failure of a source or worker cannot block navigation or CME.
 Refresh failures are visible and bounded in a browser-local diagnostic ring.
+Documentation links open readable HTML views. Graph fetching is isolated to the
+workflow view and does not block status refresh or CME execution.
 
 The component reserves one application origin for future authenticated resident
 conversation, context-specific commands, capability/resource registry and AI/API

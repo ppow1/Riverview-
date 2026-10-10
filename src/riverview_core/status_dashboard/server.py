@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Serve the authenticated, loopback-only status UI and versioned API
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
 # Dependencies: Python 3.10+; standard library; status_dashboard.projection
 # Authority: Authenticated GET-only interface; no command or database write routes
-# Changed: 2026-10-10 UTC | RV-M3.1-002 | Return not-initialized state as a successful domain response
+# Changed: 2026-10-10 UTC | RV-M3.1-003 | Render safe component docs and expose canonical read-only graphs
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
 # History: Git and revision/backup manifest
@@ -28,12 +28,14 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
+from .markdown import render_markdown
 from .projection import DashboardProjection, ProjectionUnavailable
 
 _TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{43,128}$")
 _LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "[::1]", "::1"}
 _MAX_THREADS = 16
 _MAX_PAGE = 100
+_DOC_NAME = re.compile(r"^[A-Za-z0-9_-]+\.md$")
 
 def _bounded_limit(value):
     try:
@@ -197,8 +199,8 @@ def make_handler():
                 except OSError:
                     self._error(503, "ui_unavailable", request_id)
                 return
-            if parsed.path in {"/assets/app.js", "/assets/app.css"}:
-                name = "app.js" if parsed.path.endswith(".js") else "app.css"
+            if parsed.path in {"/assets/app.js", "/assets/app.css", "/assets/workflow.js"}:
+                name = parsed.path.rsplit("/", 1)[-1]
                 kind = "text/javascript" if name.endswith(".js") else "text/css"
                 try:
                     self._send(200, (self.server._static_dir / name).read_bytes(),
@@ -206,16 +208,19 @@ def make_handler():
                 except OSError:
                     self._error(503, "asset_unavailable", request_id)
                 return
-            if parsed.path in {
-                "/docs/components/CME_MONITOR_COOKBOOK.md",
-                "/docs/components/STATUS_DASHBOARD_COOKBOOK.md",
-            }:
-                name = parsed.path.rsplit("/", 1)[-1]
+            doc_match = re.fullmatch(r"/docs/components/([A-Za-z0-9_-]+\.md)", unquote(parsed.path))
+            if doc_match and _DOC_NAME.fullmatch(doc_match.group(1)):
+                name = doc_match.group(1)
                 release_root = Path(__file__).resolve().parents[3]
+                doc_path = release_root / "docs" / "components" / name
                 try:
-                    body = (release_root / "docs/components" / name).read_bytes()
-                    self._send(200, body, "text/markdown; charset=utf-8", request_id)
-                except OSError:
+                    if doc_path.is_symlink() or not doc_path.is_file():
+                        raise FileNotFoundError
+                    source = doc_path.read_text(encoding="utf-8")
+                    body = render_markdown(source, document=f"docs/components/{name}",
+                                           title=name.removesuffix(".md").replace("_", " ").title())
+                    self._send(200, body, "text/html; charset=utf-8", request_id)
+                except (OSError, UnicodeError):
                     self._error(404, "diagnostic_reference_unavailable", request_id)
                 return
             if not parsed.path.startswith("/api/v1/"):
@@ -257,6 +262,48 @@ def make_handler():
                     self._json(200, page, request_id)
                 elif parsed.path == "/api/v1/snapshot":
                     self._json(200, self.server._projection.snapshot(), request_id)
+                elif parsed.path == "/api/v1/graphs":
+                    root = Path(__file__).resolve().parents[3] / "process_graphs"
+                    items = []
+                    for graph_path in sorted(root.glob("*/*.json")):
+                        if graph_path.parent.name in {"generated", "schema"} or graph_path.is_symlink():
+                            continue
+                        try:
+                            graph = json.loads(graph_path.read_text(encoding="utf-8"))
+                        except (OSError, UnicodeError, json.JSONDecodeError):
+                            continue
+                        if isinstance(graph, dict) and isinstance(graph.get("graph_id"), str):
+                            items.append({"graph_id": graph["graph_id"],
+                                          "component_id": graph.get("component_id"),
+                                          "workflow_id": graph.get("workflow_id"),
+                                          "graph_revision": graph.get("graph_revision"),
+                                          "node_count": len(graph.get("nodes", [])),
+                                          "edge_count": len(graph.get("edges", []))})
+                    self._json(200, {"schema_version": "rv.dashboard.graph-index.v1",
+                                     "status": "available", "items": items}, request_id)
+                elif parsed.path.startswith("/api/v1/graphs/"):
+                    graph_id = unquote(parsed.path.removeprefix("/api/v1/graphs/"), errors="strict")
+                    root = Path(__file__).resolve().parents[3] / "process_graphs"
+                    selected = None
+                    for graph_path in root.glob("*/*.json"):
+                        if graph_path.parent.name in {"generated", "schema"} or graph_path.is_symlink():
+                            continue
+                        try:
+                            graph = json.loads(graph_path.read_text(encoding="utf-8"))
+                        except (OSError, UnicodeError, json.JSONDecodeError):
+                            continue
+                        if isinstance(graph, dict) and graph.get("graph_id") == graph_id:
+                            selected = graph
+                            break
+                    if selected is None:
+                        self._error(404, "process_graph_not_found", request_id)
+                        return
+                    selected["execution_position"] = {
+                        "status": "unknown",
+                        "reason": "The assignment ledger does not currently persist a graph node identity; no node is highlighted.",
+                    }
+                    self._json(200, {"schema_version": "rv.dashboard.graph.v1",
+                                     "status": "available", "graph": selected}, request_id)
                 elif parsed.path.startswith("/api/v1/assignments/"):
                     assignment_id = unquote(parsed.path.removeprefix("/api/v1/assignments/"), errors="strict")
                     result = self.server._projection.assignment_detail(assignment_id)

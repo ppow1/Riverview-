@@ -1,8 +1,38 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.36
+**Document Revision:** 1.0.37
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-10 UTC — RV-M3.1-003 / dashboard usability and live worker proof
+
+Resumed the M3.1 branch at `ada58c221f086b6b31bc029f4d9c123d56c76aae`. Read
+Steward PR comments 6103058810 and 6103101551, Issue #13, roadmap, graph registry,
+and active Component DoD. Recorded the Steward's post-migration Windows-over-SSH
+observation as an attested summary; the original downloadable snapshot was not
+available in the repository, so no raw capture was reconstructed.
+
+Created one new scoped assignment without touching the three original M1.3
+assignments. A registered PostgreSQL worker executed `deterministic.sha256.v1`
+through `ContinuousWorker`, persisted a successful result artifact, and a distinct
+verifier process independently accepted all criteria. Assignment completed at
+version 5; commissioning workers were disabled and credentials removed. Evidence
+is `evidence/checkouts/M3.1-DASHBOARD-COMPLETION/20261010T231800Z-ada58c2/`.
+
+Implemented controlled Markdown-to-HTML rendering for component diagnostics and
+a read-only SVG viewer that reads the canonical process graph registry. No browser
+commands were added; node-level live highlighting remains unknown because the
+ledger does not store canonical graph node identities. Process-graph validation
+passes at 10 workflows / 196 nodes and the full isolated PostgreSQL suite passes
+118/118 with zero skips. The revision audit passes against the established
+baseline.
+
+Issue #13 ownership is recorded: keep M3.1 read-only; M3.2 owns notifications;
+M3.3 owns the repeatable first vertical slice; propose M3.4, after M4.1/M4.2 and
+before M4.4, for governed commands and resident conversations. This is a proposal
+pending Steward review, not an accepted roadmap change. PR #16 remains open/draft
+and is not merged. The newly implemented dashboard UI still requires final
+deployed browser verification before M3.1 technical readiness can be reported.
 
 ## 2026-10-10 UTC — RV-M3.1-002 / shared CME and dashboard commissioning
 

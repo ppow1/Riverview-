@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.3
+**Document Revision:** 1.0.4
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -37,6 +37,14 @@ flowchart LR
     g_rv_steward_dashboard_status_attention_relation_check_427bbb7d{"Is the optional CME attention relation initialized?"}
     g_rv_steward_dashboard_status_attention_uninitialized_00c22bed["Render not_initialized domain state and defer attention polling"]
     g_rv_steward_dashboard_status_read_attention_0d7d5751["Fetch bounded authoritative CME attention rows when the relation exists"]
+    g_rv_steward_dashboard_status_render_documentation_55221346["Render allowlisted cookbooks as safe readable HTML"]
+    g_rv_steward_dashboard_status_documentation_unavailable_85960402[["Keep missing or unapproved documentation unavailable"]]
+    g_rv_steward_dashboard_status_browse_process_graphs_5ccf18cc["Browse workflow index from canonical graph JSON"]
+    g_rv_steward_dashboard_status_read_canonical_graph_322bcdca["Read registered focused workflow definition"]
+    g_rv_steward_dashboard_status_render_process_graph_d97ae980["Render nodes, typed edges and decisions in read-only SVG"]
+    g_rv_steward_dashboard_status_graph_source_unavailable_08315b7d[["Show graph source unavailable without inferred workflow state"]]
+    g_rv_steward_dashboard_status_live_position_check_8718556a["Use only an exact persisted process-node identity for live highlighting"]
+    g_rv_steward_dashboard_status_live_position_unknown_3fc40b10["Show unknown when the ledger has no process-node mapping"]
   end
   g_rv_postgres_ledger_assignment_lifecycle_intake_c1d0abf1["Registered target<br/>rv:postgres-ledger:assignment-lifecycle"]
   g_rv_cme_progress_and_recovery_monitor_start_3c5b8496["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -69,6 +77,14 @@ flowchart LR
   g_rv_steward_dashboard_status_attention_relation_check_427bbb7d -->|Relation present| g_rv_steward_dashboard_status_read_attention_0d7d5751
   g_rv_steward_dashboard_status_attention_uninitialized_00c22bed --> g_rv_steward_dashboard_status_list_workers_fe34c745
   g_rv_steward_dashboard_status_read_attention_0d7d5751 --> g_rv_steward_dashboard_status_list_workers_fe34c745
+  g_rv_steward_dashboard_status_render_cached_529d8c25 -->|Steward opens workflow viewer| g_rv_steward_dashboard_status_browse_process_graphs_5ccf18cc
+  g_rv_steward_dashboard_status_browse_process_graphs_5ccf18cc --> g_rv_steward_dashboard_status_read_canonical_graph_322bcdca
+  g_rv_steward_dashboard_status_read_canonical_graph_322bcdca -->|Registered graph definition returned| g_rv_steward_dashboard_status_render_process_graph_d97ae980
+  g_rv_steward_dashboard_status_read_canonical_graph_322bcdca -->|diagnostic_branch: Unknown ID or graph source unavailable| g_rv_steward_dashboard_status_graph_source_unavailable_08315b7d
+  g_rv_steward_dashboard_status_render_process_graph_d97ae980 --> g_rv_steward_dashboard_status_live_position_check_8718556a
+  g_rv_steward_dashboard_status_live_position_check_8718556a -->|diagnostic_branch: No exact durable graph-node identity is stored; render no highlight| g_rv_steward_dashboard_status_live_position_unknown_3fc40b10
+  g_rv_steward_dashboard_status_render_cached_529d8c25 -->|Steward opens a diagnostic reference| g_rv_steward_dashboard_status_render_documentation_55221346
+  g_rv_steward_dashboard_status_render_documentation_55221346 -->|diagnostic_branch: Missing or unapproved document| g_rv_steward_dashboard_status_documentation_unavailable_85960402
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

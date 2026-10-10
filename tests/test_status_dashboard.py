@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL for integration class
 # Authority: Creates/drops only unique rvtest_* schemas; never accesses shared Riverview data
-# Changed: 2026-10-10 UTC | RV-M3.1-002 | Verify domain not-initialized differs from database failure
+# Changed: 2026-10-10 UTC | RV-M3.1-003 | Test safe docs rendering and canonical graph browser API
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -30,6 +30,7 @@ from uuid import uuid4
 
 from riverview_core.status_dashboard.projection import DashboardProjection
 from riverview_core.status_dashboard.server import DashboardHTTPServer, _read_token
+from riverview_core.status_dashboard.markdown import render_markdown
 
 DSN = os.environ.get("RIVERVIEW_TEST_PG_DSN")
 ROOT = Path(__file__).resolve().parents[1]
@@ -174,6 +175,55 @@ class DashboardHTTPTests(unittest.TestCase):
         status, _, body = self.request("GET", "/not-an-api", token=self.token)
         self.assertEqual(status, 404)
         self.assertNotIn(b"BaseHTTPRequestHandler", body)
+
+    def test_component_cookbook_is_rendered_as_readable_safe_html(self):
+        status, headers, body = self.request("GET", "/docs/components/CME_MONITOR_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", dict(headers)["Content-Type"])
+        self.assertIn(b"<h1", body)
+        self.assertIn(b"<table>", body)
+        self.assertIn(b"<pre><code", body)
+        self.assertNotIn(b"Riverview~ Controlled Document", body)
+        self.assertNotIn(b"<!--", body)
+        status, _, body = self.request("GET", "/docs/components/../../README.md")
+        self.assertEqual(status, 404)
+        self.assertNotIn(b"README", body)
+
+    def test_canonical_graph_api_is_authenticated_and_never_fabricates_live_position(self):
+        from urllib.parse import quote
+        status, _, _ = self.request("GET", "/api/v1/graphs")
+        self.assertEqual(status, 401)
+        status, _, body = self.request("GET", "/api/v1/graphs", token=self.token)
+        self.assertEqual(status, 200)
+        listing = json.loads(body)
+        self.assertEqual(listing["status"], "available")
+        from jsonschema import Draft202012Validator
+        contract = json.loads((ROOT / "docs/components/STATUS_DASHBOARD_API.schema.json").read_text())
+        Draft202012Validator(contract).validate(listing)
+        self.assertTrue(any(item["graph_id"] == "rv:worker-adapter:deterministic-attempt"
+                            for item in listing["items"]))
+        graph_id = quote("rv:worker-adapter:deterministic-attempt", safe="")
+        status, _, body = self.request("GET", "/api/v1/graphs/" + graph_id, token=self.token)
+        self.assertEqual(status, 200)
+        result = json.loads(body)
+        Draft202012Validator(contract).validate(result)
+        graph = result["graph"]
+        self.assertTrue(any(item["type"] == "decision" for item in graph["nodes"]))
+        self.assertTrue(any(item["type"] == "runtime_transition" for item in graph["edges"]))
+        self.assertEqual(graph["execution_position"]["status"], "unknown")
+        self.assertIn("does not currently persist", graph["execution_position"]["reason"])
+        status, _, body = self.request("GET", "/api/v1/graphs/rv%3Anot-registered%3Anone", token=self.token)
+        self.assertEqual(status, 404)
+
+    def test_markdown_renderer_escapes_html_and_rejects_unsafe_link_schemes(self):
+        html = render_markdown("# Title\n\n<script>alert(1)</script>\n\n[bad](javascript:alert(1))\n\n| A | B |\n|---|---|\n| x | y |\n\n```sh\necho safe\n```",
+                               document="docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+                               title="Cookbook")
+        self.assertIn(b"&lt;script&gt;alert(1)&lt;/script&gt;", html)
+        self.assertNotIn(b"<script>", html)
+        self.assertNotIn(b"href=\"javascript:", html)
+        self.assertIn(b"<table>", html)
+        self.assertIn(b"<pre><code class=\"language-sh\">", html)
 
     def test_not_initialized_attention_is_domain_state_not_repeated_http_503(self):
         self.projection.attention = lambda *, limit=25: {

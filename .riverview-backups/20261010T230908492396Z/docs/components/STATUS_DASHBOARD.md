@@ -1,0 +1,154 @@
+<!--
+Riverview~ Controlled Document
+File: docs/components/STATUS_DASHBOARD.md
+Component: STEWARD-DASHBOARD
+File Revision: 1.0.4
+Purpose: Specify the read-only live status projection and browser foundation
+Authority: Observes institution state; no assignment or policy mutation
+Changed: 2026-10-10 UTC | RV-M3.1-002 | Define not-initialized domain responses and live CME commissioning
+History: Git and revision/backup manifest
+-->
+# Steward status dashboard
+
+**Component:** STEWARD-DASHBOARD  
+**Milestone:** M3.1 — Read-only status projection and browser dashboard  
+**Status:** Engineering implementation; commissioning evidence recorded separately.  
+**Source baseline:** `main` at `e9c66afabe88fe02403a35c8ede83eba54bca2e2` (M2.4 PR #14).  
+**Execution model:** Request-driven browser/API service; does not participate in CME execution.  
+**Port:** `127.0.0.1:8766`, reserved to `riverview-status-dashboard.service`.
+
+## Reuse assessment
+
+The old `ppow1/Riverview` sources were cloned read-only at the then-current default
+branch for inspection. New Riverview reuses these verified design patterns, not
+legacy runtime state or dependencies:
+
+| Predecessor | Retained design | Deliberately not imported |
+| --- | --- | --- |
+| `operator/vnext_projection.py` | Pure status projection; unknown is not healthy; heartbeat age; bounded activity; state derived from authoritative evidence. | Its Riverview/ Estate/PostgreSQL models and resource topology do not match New Riverview tables. |
+| `operator/vnext.py`, `tests/test_operator_vnext.py` | Shell-first navigation, independent async hydration, resident-bound session isolation patterns for later chat, and failure-local UI updates. | Resident chat/session endpoints are not present in New Riverview; no mock provider or legacy gateway is copied. |
+| `operator/snapshot.py` | Explicit allowlist/redaction, bounded data, manifest metadata, excluding private conversation and secret material. | Legacy database reads, broad UI payload, archived runtime state and old service dependencies. |
+| `residents/gateway.py` | Keep resident identity/session API as a later distinct capability; conversation is not authority. | Existing identity/personality data or resident implementations are not copied. |
+| RV-018.6 and PL-0007 evidence | Keep named resident selection, per-resident session continuity, no silent seed/work promotion, cached shell-first navigation, localized updates and measured interaction. | Historical acceptance claims are not treated as New Riverview evidence. |
+| Legacy Operator event/correlation views | Display immutable event/correlation/causation identities with diagnostic references. | Legacy event tables and unbounded event reconstruction. |
+| Estate Office of the Steward command center and AI service/model selector records | Preserve a future contextual command surface and separate model/resource selection from institutional role and authority. | Estate command API, model catalog, runtime implementation and permissions are not imported. |
+
+Source audit paths: `/tmp/rv-old-audit` and `/tmp/estate-audit` are temporary
+read-only clones, not repository dependencies. New Riverview status uses its own
+PostgreSQL ledger and CME projections.
+
+## Read-only API contract `rv.dashboard.v1`
+
+The browser and future API/AI consumers share the same authenticated HTTP entry
+point. All current application API routes are `GET` only. A mutating HTTP method
+returns `405 read_only_method`; no browser-only business action or direct database
+write exists. Every request is authenticated with a bearer token from a protected
+systemd credential. The source file is owner-only; systemd exposes a read-only
+credential copy in its exact credential directory. Only that exact systemd
+path may use mode 0400 or 0440; ordinary files require owner-only permissions.
+Symlinks are rejected and token reads use a no-follow file descriptor.
+Comparison is constant-time. The listener accepts only the
+IPv4/IPv6 loopback literal, validates the Host header, does not enable CORS, and
+does not place credentials in URLs. Authentication is per-service bearer access,
+not resident identity or delegated authority; future command APIs must integrate
+with the common governed identity/policy service before they can mutate state.
+
+The service reads PostgreSQL in read-only transactions, with a two-second SQL
+statement timeout and short connection timeout. It uses only the configured
+schema identifier, bounded keyset/sequence pages (maximum 100), and stable
+allowlisted fields. `privacy_domain != institution` assignments/events are
+omitted. Event payloads, objective text/reference, authority grants, result
+content, credentials and private conversation content are not projected.
+
+| Route | Purpose | Parameters and limit |
+| --- | --- | --- |
+| `GET /api/v1/status` | Database/schema/migration identity, event cursor and lifecycle counts, CME heartbeat/freshness, aggregate per-worker health counts, verifier relation presence, source/deployment identity. | Fixed size. |
+| `GET /api/v1/assignments?after=<id>&limit=<n>` | Keyset page of lifecycle, owner, workflow/step, version, correlation and last persisted progress event. | Default 25, max 100. No progress percent. |
+| `GET /api/v1/assignments/<id>` | One assignment, 20 latest visible lifecycle events, 5 attempts and 5 independent-verification summaries. | Fixed limits; no event payload/evidence URI. |
+| `GET /api/v1/events?after_seq=<n>&limit=<n>` | Institution event cursor page with event/correlation/causation identity. | Default 25, max 100; no payload. |
+| `GET /api/v1/workers?after=<id>&limit=<n>` | Bounded worker identity, active/inactive state, latest lease heartbeat health and visible active-lease count. | Default 25, max 100; keyset by worker ID. |
+| `GET /api/v1/attention?limit=<n>` | Bounded CME attention and recovery event records. | Default 25, max 100; sanitized error class only. |
+| `GET /api/v1/snapshot` | Bounded server-observed operational snapshot. | At most 50 assignments and 25 events/attention/worker rows. |
+
+The status response schema identifier is `rv.dashboard.status.v1`; the summary counts healthy, stale, unknown and future-dated unverified active workers. `GET /api/v1/workers` pages individual identities; each status uses the latest recorded assignment-lease heartbeat. No heartbeat is unknown, not healthy. The overview shows worker IDs, health and lease counts. List/detail
+responses carry `status`, bounded `items`, and pagination state. Database
+unavailability returns a status projection whose `projection_status` is
+`unavailable`; HTTP query failures return 503. A reachable PostgreSQL instance
+with missing required relations returns HTTP 200 with `status=not_initialized`;
+this is a valid domain state, not a transport failure. The browser skips the
+optional attention query while its relation is absent and displays that state.
+CME values are
+`healthy`, `degraded`, `stale`, `unavailable`, or `not_initialized`; a missing
+heartbeat is unknown/not initialized, never healthy. Worker status is derived
+only from recorded assignment-lease heartbeats; no lease means `unknown`. A
+future-dated heartbeat is `unverified`. Event time/correlation is retained as
+recorded, not inferred from browser refresh time.
+
+Machine-readable route schema: `docs/components/STATUS_DASHBOARD_API.schema.json`.
+
+## Browser, refresh and later console constraints
+
+The first page shell renders before projection hydration. Overview, assignments
+and activity are client-side views in one document. Navigation switches existing
+DOM immediately; it does not call AI or reconstruct institutional state. Status
+refresh and event refresh are separate bounded requests; assignment detail is
+lazy-loaded. Failure of a source or worker cannot block navigation or CME.
+Refresh failures are visible and bounded in a browser-local diagnostic ring.
+
+The component reserves one application origin for future authenticated resident
+conversation, context-specific commands, capability/resource registry and AI/API
+clients. Those routes are not implemented in M3.1. Future chat must have
+resident-bound durable sessions independently refreshable from status views.
+Conversation must remain non-authoritative; only an explicit, authenticated,
+policy-checked approval can promote a specification to a durable objective or
+work order. Future UI buttons call the same versioned authenticated command API
+as residents/AI; they never write PostgreSQL directly. Contextual verbs must be
+derived from entity lifecycle and authority, with precondition/version,
+idempotency and correlation identifiers; pending, denied and failed commands
+must remain distinguishable. Capability discovery cannot grant permission.
+Model selection and resource scheduling remain separate from resident role and
+authority. These are architectural constraints, not delivered M3.1 features.
+
+## Snapshot contract
+
+The server snapshot reports an observed-state flag (false when the source is unavailable), observed time, source revision/deployment identity,
+projection status and freshness, CME/worker health, bounded visible assignment
+event, attention and worker summaries, stable graph/cookbook references, and explicit redaction
+metadata. The browser adds at most 20 sanitized request errors and 100 navigation
+timings from the current tab. It contains no token, headers, database DSN,
+payload body, unrestricted conversations, resident session, work-order or
+capability-registry data. Fields not implemented are named in `client_state` or
+omitted; absence is never represented as an empty healthy registry.
+
+## Runtime and deployment
+
+Port 8766 is reserved for this service, bound to `127.0.0.1`; existing
+`riverview-event-processor.service`, `riverview-cme-monitor.service`, and
+`riverview-baseline.service` are separate. The CME monitor is a read-only observer
+of assignments/leases with writes limited to CME health and attention records;
+it has no dashboard dependency. Remote access, when needed, uses an authenticated SSH
+forward rather than an internet/LAN listener. systemd runs the root-owned release
+as OS account `riverview`; systemd `LoadCredential` provides the existing
+PostgreSQL passfile and separate dashboard bearer token. The token source is
+owner-only under the Steward account. The process has no database write route or
+DDL/startup migration path. See `deploy/riverview-status-dashboard.service` and
+`docs/components/STATUS_DASHBOARD_COOKBOOK.md`.
+
+Deployment procedure copies a verified commit to a versioned root-owned
+`/opt/riverview-status-dashboard/releases/<commit>` directory, verifies the
+package hash, updates only the dashboard `current` symlink and new dedicated
+systemd unit, and captures the existing symlink/unit before first install.
+Rollback restores that symlink/unit from the recorded predecessor and restarts
+only the dashboard unit. PostgreSQL migration changes are not part of M3.1.
+
+## Verification and status
+
+Roadmap technical PASS requires real PostgreSQL rows rendered through the
+browser/API, stale/unavailable differentiation, unrelated work remaining
+independent, navigation/refresh measurements, redacted bounded snapshot, and a
+dashboard service restart/reconnection. Isolated tests, a browser screenshot or
+a successful HTTP response alone do not pass. Full Component DoD additionally
+requires Steward-visible installed unattended operation, independent external
+observer, full console/chat/command and later M3 features as applicable, blocker
+clearance, operational fault/recovery and explicit Steward acceptance. This
+document does not claim those future obligations complete.

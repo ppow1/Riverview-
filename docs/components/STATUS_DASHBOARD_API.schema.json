@@ -1,22 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://riverview.invalid/contracts/dashboard/status-v1.schema.json",
-  "title": "Riverview Status Dashboard API v1",
-  "description": "Authenticated read-only status projection; missing relations return HTTP 200 with status=not_initialized, while failed source queries return HTTP 503.",
-  "oneOf": [
-    {
-      "$ref": "#/$defs/status"
-    },
-    {
-      "$ref": "#/$defs/page"
-    },
-    {
-      "$ref": "#/$defs/workerPage"
-    },
-    {
-      "$ref": "#/$defs/snapshot"
-    }
-  ],
+  "$id": "https://riverview.invalid/contracts/dashboard/status-v1.1.schema.json",
+  "title": "Riverview Status Dashboard API v1.1",
+  "description": "Authenticated read-only status, canonical workflow projection, and component documentation renderer; workflow live position is unknown unless a durable graph node identity is supported.",
   "$defs": {
     "timestamp": {
       "type": [
@@ -378,6 +364,165 @@
         }
       },
       "additionalProperties": true
+    },
+    "graphIndex": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "status",
+        "items"
+      ],
+      "properties": {
+        "status": {
+          "const": "available"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "graph_id",
+              "component_id",
+              "workflow_id",
+              "graph_revision",
+              "node_count",
+              "edge_count"
+            ],
+            "properties": {
+              "graph_id": {
+                "type": "string"
+              },
+              "component_id": {
+                "type": "string"
+              },
+              "workflow_id": {
+                "type": "string"
+              },
+              "graph_revision": {
+                "type": "string"
+              },
+              "node_count": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "edge_count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "schema_version": {
+          "const": "rv.dashboard.graph-index.v1"
+        }
+      },
+      "additionalProperties": false
+    },
+    "graphResponse": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "status",
+        "graph"
+      ],
+      "properties": {
+        "status": {
+          "const": "available"
+        },
+        "graph": {
+          "type": "object",
+          "required": [
+            "graph_id",
+            "graph_revision",
+            "component_id",
+            "workflow_id",
+            "nodes",
+            "edges",
+            "execution_position"
+          ],
+          "properties": {
+            "graph_id": {
+              "type": "string"
+            },
+            "graph_revision": {
+              "type": "string"
+            },
+            "component_id": {
+              "type": "string"
+            },
+            "workflow_id": {
+              "type": "string"
+            },
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            "edges": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            "execution_position": {
+              "type": "object",
+              "required": [
+                "status",
+                "reason"
+              ],
+              "properties": {
+                "status": {
+                  "enum": [
+                    "unknown",
+                    "unavailable",
+                    "current"
+                  ]
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "assignment_id": {
+                  "type": "string"
+                },
+                "node_id": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": true
+        },
+        "schema_version": {
+          "const": "rv.dashboard.graph.v1"
+        }
+      },
+      "additionalProperties": false
     }
-  }
+  },
+  "anyOf": [
+    {
+      "$ref": "#/$defs/status"
+    },
+    {
+      "$ref": "#/$defs/page"
+    },
+    {
+      "$ref": "#/$defs/workerPage"
+    },
+    {
+      "$ref": "#/$defs/snapshot"
+    },
+    {
+      "$ref": "#/$defs/graphIndex"
+    },
+    {
+      "$ref": "#/$defs/graphResponse"
+    }
+  ]
 }

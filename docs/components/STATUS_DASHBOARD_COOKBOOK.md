@@ -1,10 +1,10 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.4
+File Revision: 1.0.5
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
-Changed: 2026-10-10 UTC | RV-M3.1-002 | Diagnose optional CME relation state and attention polling
+Changed: 2026-10-10 UTC | RV-M3.1-003 | Document safe cookbook rendering and canonical workflow viewer
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -12,6 +12,37 @@ History: Git and revision/backup manifest
 **Task:** RV-M3.1-001 · **Component:** STEWARD-DASHBOARD · **Execution model:** request-driven.  
 The dashboard does not own assignments, dispatch workers, mutate the ledger, or
 gate CME execution.
+
+## Readable diagnostic documents and workflow viewer
+
+Dashboard diagnostic-reference links open a formatted HTML presentation of
+controlled component Markdown. The renderer formats headings, tables and code
+blocks, hides file-metadata comments, escapes source HTML, and emits no scripts.
+Only HTTPS, in-page anchors and component-document links are clickable. The
+controlled Markdown remains the source; there is no parallel HTML document.
+
+The **Workflows** view reads authenticated `GET /api/v1/graphs` and
+`GET /api/v1/graphs/<graph_id>` projections from the deployed
+`process_graphs/*/*.json` registry. It shows graph revision, stable node IDs,
+node type, typed transitions and cross-workflow jump destinations. Selecting a
+node shows its source, documentation and evidence references. The browser is
+read-only. It highlights live execution only when the API supplies an exact
+persisted process-node identity. Assignment records do not currently store that
+identity; `unknown` with no highlighted node is expected, not a failure or an
+inferred position.
+
+An unknown graph ID returns `404 process_graph_not_found`. Source unavailability
+is displayed as unavailable, with no stale highlight. Check the canonical source
+and generated views locally:
+
+```sh
+python3 scripts/process_graph.py check
+python3 scripts/revision_control.py check --baseline evidence/checkouts/ENG-REVISION-CONTROL/20261010T1530Z-27a8c55/baseline-inventory.json
+```
+
+The service reads from its selected root-owned release. Deploy a new verified
+full-SHA release to update code and graph data together; never hot-edit the
+installation or copy an uncommitted graph.
 
 ## CME attention endpoint and 503 responses
 
