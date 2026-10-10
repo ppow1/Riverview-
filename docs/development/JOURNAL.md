@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.15
+**Document Revision:** 1.0.16
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -350,3 +350,20 @@ socket-only PostgreSQL cluster: 45 tests passed, including all PostgreSQL ledger
 integration tests; no `rvtest_%` schemas remained. The live baseline defect is
 addressed by querying `host(inet_server_addr())`; package build/deployment and
 live recovery evidence remain pending at this checkpoint.
+
+
+RV-M1.1-011 live verification completed from package source commit
+`a2b94e24715a670262859e1af31a0ea417ed37cb`. The package digest and source
+manifest passed. Full suite passed 45/45 against an isolated socket-only
+PostgreSQL cluster; installer suite passed 45 with its three DSN-dependent tests
+skipped, which the separate full run covers. Live read-only PostgreSQL reported
+`riverview_core` / `riverview` / `127.0.0.1` and transaction read-only `on`.
+The systemd service ran as `riverview`, result success/exit 0, and returned a
+fresh baseline-ready report for `riverview_dev`. Collector evidence includes two
+distinct successful observations and explicitly remains `PENDING_STEWARD`.
+Service restart passed. Rollback checksum and restoration passed, the known b40
+predessor reproduced its database identity defect, and rerunning the corrected
+package restored a2b94e2 readiness. No DB object or credential was modified.
+The installed broker, policy and registry are absent; unrestricted sudo and
+visudo checks still pass. Technical M1.1 acceptance is PASS; formal Steward
+acceptance/sequencing remains pending and M1.2 is not started.

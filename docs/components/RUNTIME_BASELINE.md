@@ -1,6 +1,6 @@
 # Riverview~ M1.1 runtime baseline commissioning
 
-**Document Revision:** 1.0.8
+**Document Revision:** 1.0.9
 **Component:** RUNTIME-BASELINE
 **Repair task:** RV-M1.1-011
 **Task:** RV-M1.1-001 / GitHub Issue #1
@@ -143,7 +143,7 @@ These values identify the rejected predicate without disclosing path contents or
 weakening validation. `heartbeat_at`, meaningful progress and event cursor are explicitly
 null: this diagnostic cannot claim an institutional heartbeat or durable progress.
 
-Authentication: local OS permissions and root-owned source. A separate remote observer may use SSH with strict host-key verification; SSH is a transport option, not a commissioning acceptance requirement. The scoped helper permits only listed Riverview operations and grants no remote API/control authority.
+Authentication: local OS permissions and root-owned source. A separate remote observer may use SSH with strict host-key verification; SSH is a transport option, not a commissioning acceptance requirement. Local administration runs through the owner-authorized Camrui administrator; this component installs no privilege broker and grants no remote API/control authority.
 Ordinary clients cannot read protected files directly. Private Undercurrent
 content is neither queried nor exported. Future CME/dashboard consumers must
 use a policy-filtered owning service, not receive this credential or scrape DB internals.
@@ -282,7 +282,8 @@ Enter the existing database password only into the non-echoed Camrui terminal
 prompt if the protected credential file is absent. Then capture live outcomes:
 
 ```bash
-sudo -n /opt/riverview-core/.venv/bin/python /opt/riverview-core/scripts/capture_baseline_acceptance.py
+sudo -n /opt/riverview-core/.venv/bin/python /opt/riverview-core/scripts/capture_baseline_acceptance.py \
+  --output /var/lib/riverview/acceptance-rv-m11-011.json
 ```
 
 The collector starts the probe twice with systemd, compares source commit and
@@ -298,6 +299,7 @@ and any explicit sequencing decision remain required before M1.2.
 ## Revision history
 
 - 1.0.6 — 2026-10-10: Document systemd source-to-libpq private passfile handling; predecessor is recorded under RV-M1.1-010 in `.riverview-backups/manifest.jsonl`.
+- 1.0.9 — 2026-10-10: Remove stale scoped-helper claim and correct collector invocation; predecessor recorded in `.riverview-backups/manifest.jsonl` under RV-M1.1-011.
 - 1.0.8 — 2026-10-10: Correct acceptance collector invocation with required output path; predecessor recorded in `.riverview-backups/manifest.jsonl` under RV-M1.1-011.
 - 1.0.7 — 2026-10-10: Remove active broker instructions and document owner-authorized Camrui deployment; predecessor recorded under RV-M1.1-011.
 - 1.0.3 — 2026-10-10: Document non-seeking hidden terminal input and safe rerun behavior for the root-owned partial release; preserve predecessor under docs/history/RV-M1.1-007/rev1.0.2/docs/components/RUNTIME_BASELINE.md.
