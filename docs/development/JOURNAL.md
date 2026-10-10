@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.8
+**Document Revision:** 1.0.9
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -197,3 +197,9 @@ with its scoped service start. Compare the service-context reason and correct
 only a demonstrated mismatch. M1.1 and all dependent roadmap milestones remain
 blocked pending root-cause repair, successful live acceptance and Steward
 disposition.
+
+Contract traceability review for RV-M1.1-008 added `path_failure_reason` to the
+component specification (Rev 1.0.4). The initial diagnostic package at source
+commit `e6b46c362326900c09f9e5c59d27d18137004847` predates this specification
+update and is retained unchanged; it is superseded for deployment by a newly
+built package from the next committed source. No system installation has run.

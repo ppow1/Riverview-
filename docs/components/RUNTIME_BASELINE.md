@@ -1,11 +1,11 @@
 # Riverview~ M1.1 runtime baseline commissioning
 
-**Document Revision:** 1.0.3
+**Document Revision:** 1.0.4
 **Component:** RUNTIME-BASELINE
-**Repair task:** RV-M1.1-007
+**Repair task:** RV-M1.1-008
 **Task:** RV-M1.1-001 / GitHub Issue #1
 **Owner:** office:operations; accepting authority: Steward
-**Status:** terminal-input and partial-release repair in progress; Camrui retry pending
+**Status:** terminal-input and partial-release repair complete; storage-path cause diagnosis in progress
 **Date:** 2026-10-10 UTC
 
 ## Responsibility and declared execution model
@@ -92,7 +92,10 @@ consumer `scripts/read_baseline_report.py`, optionally over authenticated SSH.
 Schema `rv.runtime-baseline.v1`: stable component/version, source commit, target
 host, workflow/step, observation/expiry time, freshness, baseline readiness,
 database/environment identities, blocker/error code, owner, recovery and diagnostic
-reference. `heartbeat_at`, meaningful progress and event cursor are explicitly
+reference. `path_failure_reason` is null except for `UNSAFE_PATH`; then it is one
+of `symlink_in_path`, `unexpected_file_type`, or `owner_uid_mismatch`. These fixed
+values identify the rejected path predicate without disclosing path contents or
+weakening validation. `heartbeat_at`, meaningful progress and event cursor are explicitly
 null: this diagnostic cannot claim an institutional heartbeat or durable progress.
 
 Authentication: local OS permissions and root-owned source. A separate remote observer may use SSH with strict host-key verification; SSH is a transport option, not a commissioning acceptance requirement. Operators use existing authorized sudo for the read-only report consumer;
