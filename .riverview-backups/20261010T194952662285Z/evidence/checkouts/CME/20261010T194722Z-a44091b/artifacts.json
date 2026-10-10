@@ -1,0 +1,43 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M2.4-001",
+  "source_commit": "a44091bc32e82580dd8a3350e1ecfa47b0157b36",
+  "artifacts": {
+    "checkout.md": {
+      "revision": "1.0.0",
+      "path": "checkout.md",
+      "sha256": "15ef3431ec74824c5a1ef289a2ae0a0a18f320d3ad26d23f539d74ada1ad2fd8",
+      "size_bytes": 3802
+    },
+    "failed-attempts.md": {
+      "revision": "1.0.0",
+      "path": "failed-attempts.md",
+      "sha256": "8b1433f1c67c8bf22509b3f9d07fd4d60a18ebcbfc891164b969dc534bc9bfd6",
+      "size_bytes": 2353
+    },
+    "tests.log": {
+      "revision": "1.0.0",
+      "path": "tests.log",
+      "sha256": "75df439e7a4b1c8169c936ffe4cf1929e08db1aabafc3fc15e13dcd72d18a83a",
+      "size_bytes": 15095
+    },
+    "runtime-observation.json": {
+      "revision": "1.0.0",
+      "path": "runtime-observation.json",
+      "sha256": "20bcb73bfd35c51bc3d18bcf637db3b7f7fda9dc9d491199f8f8656256db5e89",
+      "size_bytes": 3313
+    },
+    "process-graph-check.json": {
+      "revision": "1.0.0",
+      "path": "process-graph-check.json",
+      "sha256": "41f15c4b0e9699c4424e44b5523dd83556db4a430c677be8ca7a1815a8eb9ef1",
+      "size_bytes": 55
+    },
+    "revision-audit.json": {
+      "revision": "1.0.0",
+      "path": "revision-audit.json",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    }
+  }
+}

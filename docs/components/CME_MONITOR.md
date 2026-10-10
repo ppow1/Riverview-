@@ -2,17 +2,17 @@
 Riverview~ Controlled Document
 File: docs/components/CME_MONITOR.md
 Component: CME
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Specify the assignment progress and health monitoring service
 Authority: Observation and CME-owned durable event writes only
-Changed: 2026-10-10 UTC | RV-M2.4-001 | Initial M2.4 contract
+Changed: 2026-10-10 UTC | RV-M2.4-001 | Record isolated acceptance and outstanding live-service gates
 History: Git and revision/backup manifest
 -->
 # CME monitoring service
 
 **Component:** CME  
 **Milestone:** M2.4 — CME monitoring service  
-**Status:** Isolated engineering; live service commissioning and full component DoD remain open.  
+**Status:** Roadmap technical criteria PASS at `a44091bc32e82580dd8a3350e1ecfa47b0157b36`; live service commissioning and full component DoD remain open.  
 **Implementation:** `src/riverview_core/cme/monitor.py`  
 **Execution model:** Continuous scheduled polling over durable PostgreSQL assignment state.  
 **Owner:** CME; execution, assignment policy, human resources, and capacity scheduling remain in their owning components.

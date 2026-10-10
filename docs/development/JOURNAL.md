@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.32
+**Document Revision:** 1.0.34
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -642,3 +642,38 @@ recovery requests as durable records only; M2.3 remains the recovery owner. The
 monitor is designed to scan every nonterminal assignment without an assignment
 blocking another. M2.4 remains under isolated engineering verification until the
 checkout record and required gates are complete.
+
+## 2026-10-10 UTC — RV-M2.4-001 / isolated technical acceptance
+
+Commit `a44091bc32e82580dd8a3350e1ecfa47b0157b36` passed all 95 repository tests
+with zero failures, errors, or skips on a private PostgreSQL 16.15 Unix-socket
+cluster. The M2.4 subprocess restart test sent SIGKILL to a running monitor,
+started a replacement, and verified a fresh instance identity with stable alert
+event counts. A separate disposable-schema runtime probe captured one deadline
+miss, one stalled running assignment, one expired-lease recovery request, a
+stale worker health result, and an unrelated ready assignment claim; a repeated
+scan created no duplicate request. Zero `rvtest_*` schemas remained and the
+cluster was stopped. Graph validation passed (10 workflows, 161 nodes), the
+controlled revision audit had zero issues, and Python compilation passed.
+
+An existing worker knowledge-timeout test was made scheduler-load independent
+after an observed 101 ms run exceeded its 100 ms wall-clock assertion despite
+correct fail-closed behavior. The replacement uses synchronization to prove the
+worker returns while the provider remains blocked; its regression test and the
+entire suite pass. Initial fixture issues and their corrections are documented
+in the checkout's `failed-attempts.md`. See
+`evidence/checkouts/CME/20261010T194722Z-a44091b/`.
+
+M2.4 roadmap technical criteria are PASS, but the component remains IN PROGRESS
+against full DoD: no shared migration, installed service, live Steward view,
+independent live observer, long-duration unattended run, or formal component
+acceptance is claimed. M3.1 is next after integration. No merge is authorized
+by this record.
+
+## 2026-10-10 UTC — RV-M2.4-001 / branch CI
+
+GitHub Actions controlled-checkout run 38081294773 passed on exact source commit
+a44091bc32e82580dd8a3350e1ecfa47b0157b36. The workflow completed the full suite,
+canonical graph checks, and controlled revision audit. The M2.4 branch remains
+unmerged pending Steward authorization. No live service commissioning or full
+component acceptance is claimed.

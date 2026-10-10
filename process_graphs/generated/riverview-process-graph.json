@@ -272,7 +272,7 @@
     },
     {
       "graph_id": "rv:cme:progress-and-recovery",
-      "graph_revision": "1.0.1",
+      "graph_revision": "1.0.2",
       "component_id": "CME",
       "workflow_id": "progress-and-recovery.v1",
       "diagram_order": 8,
@@ -291,7 +291,11 @@
         "docs/standards/COMPONENT_DEFINITION_OF_DONE.md",
         "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
       ],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+      ],
       "nodes": [
         {
           "id": "rv:cme:progress-and-recovery:monitor-start",
@@ -310,7 +314,11 @@
             "docs/ROADMAP.md",
             "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+          ]
         },
         {
           "id": "rv:cme:progress-and-recovery:observe",
@@ -329,7 +337,11 @@
             "docs/ROADMAP.md",
             "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+          ]
         },
         {
           "id": "rv:cme:progress-and-recovery:stall-decision",
@@ -348,7 +360,11 @@
             "docs/ROADMAP.md",
             "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+          ]
         },
         {
           "id": "rv:cme:progress-and-recovery:attention",
@@ -367,7 +383,11 @@
             "docs/ROADMAP.md",
             "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+          ]
         },
         {
           "id": "rv:cme:progress-and-recovery:recovery",
@@ -386,7 +406,11 @@
             "docs/ROADMAP.md",
             "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+          ]
         },
         {
           "id": "rv:cme:progress-and-recovery:resident-feedback",
@@ -438,7 +462,11 @@
             "docs/ROADMAP.md",
             "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+          ]
         },
         {
           "id": "rv:cme:progress-and-recovery:worker-health",
@@ -457,7 +485,11 @@
             "docs/ROADMAP.md",
             "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+          ]
         },
         {
           "id": "rv:cme:progress-and-recovery:monitor-failure",
@@ -476,7 +508,9 @@
             "docs/ROADMAP.md",
             "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/failed-attempts.md"
+          ]
         },
         {
           "id": "rv:cme:progress-and-recovery:retry-backoff",
@@ -495,7 +529,11 @@
             "docs/ROADMAP.md",
             "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+            "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+          ]
         }
       ],
       "edges": [

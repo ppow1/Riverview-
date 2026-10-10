@@ -1,0 +1,87 @@
+{
+  "database_version": "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+  "deduplication": "second scan emitted zero new recovery requests; alert event keys remained unique",
+  "events": [
+    {
+      "assignment_id": "evidence-overdue-e444bb4c5e3a407bbe8a1c874dfc9a83",
+      "attention_key": "deadline:evidence-overdue-e444bb4c5e3a407bbe8a1c874dfc9a83:2026-10-10T15:47:41.658718-04:00:2026-10-10T15:47:51.673082-04:00",
+      "details": {
+        "assignment_version": 1,
+        "deadline_at": "2026-10-10T15:47:41.658718-04:00",
+        "deadline_updated_at": "2026-10-10T15:47:51.673082-04:00",
+        "last_progress_at": "2026-10-10T15:47:51.474335-04:00",
+        "state": "queued"
+      },
+      "event_type": "deadline_missed"
+    },
+    {
+      "assignment_id": "evidence-stalled-ea84fd67277f4a4d9b521caf12fc5d6a",
+      "attention_key": "stall:evidence-stalled-ea84fd67277f4a4d9b521caf12fc5d6a:6",
+      "details": {
+        "last_progress_at": "2026-10-10T15:47:41.683700-04:00",
+        "lease_expires_at": "2026-10-10T15:47:50.689502-04:00",
+        "lease_generation": 1,
+        "progress_age_seconds": 10.020263,
+        "progress_seq": 6,
+        "stall_threshold_seconds": 5.0,
+        "state": "running",
+        "worker_id": "worker:evidence-stalled-ea84fd67277f4a4d9b521caf12fc5d6a",
+        "workflow_id": "assignment.v1",
+        "workflow_step": "worker:worker:evidence-stalled-ea84fd67277f4a4d9b521caf12fc5d6a:execution"
+      },
+      "event_type": "assignment_stalled"
+    },
+    {
+      "assignment_id": "evidence-stalled-ea84fd67277f4a4d9b521caf12fc5d6a",
+      "attention_key": null,
+      "details": {
+        "lease_expires_at": "2026-10-10T15:47:50.689502-04:00",
+        "lease_generation": 1,
+        "reason": "stalled_assignment_lease_expired",
+        "worker_id": "worker:evidence-stalled-ea84fd67277f4a4d9b521caf12fc5d6a"
+      },
+      "event_type": "recovery_requested"
+    }
+  ],
+  "first_scan": {
+    "assignments_observed": 3,
+    "overdue": 1,
+    "recovery_requests": 1,
+    "stalled": 1,
+    "status": "healthy",
+    "workers_enabled": 1,
+    "workers_registered": 1
+  },
+  "monitor_status": {
+    "assignments_observed": 3,
+    "component_id": "CME",
+    "heartbeat_age_seconds": 0.04609,
+    "instance_id": "0a552e27-fc79-4388-a734-43fdc163198e",
+    "last_error": null,
+    "last_heartbeat_at": "2026-10-10T15:47:51.772257-04:00",
+    "last_scan_at": "2026-10-10T15:47:51.772257-04:00",
+    "open_attention_count": 2,
+    "service_id": "cme.monitor.v1",
+    "status": "healthy",
+    "version": "1.0.0",
+    "workers": [
+      {
+        "enabled": true,
+        "health": "stale",
+        "last_heartbeat_at": "2026-10-10T15:47:41.689501-04:00",
+        "lease_expires_at": "2026-10-10T15:47:50.689502-04:00",
+        "worker_id": "worker:evidence-stalled-ea84fd67277f4a4d9b521caf12fc5d6a"
+      }
+    ],
+    "workers_enabled": 1,
+    "workers_registered": 1
+  },
+  "result_revision": "1.0.0",
+  "schema": "rvtest_m24_evidence_d340ccf86b7842a6981d4fe0c5c4d491",
+  "schema_is_disposable": true,
+  "second_scan_recovery_requests": 0,
+  "source_commit": "a44091bc32e82580dd8a3350e1ecfa47b0157b36",
+  "stalled_assignment_state_after_monitor": "running",
+  "unrelated_assignment_claimed": "evidence-unrelated-f28023da383d4289aa3be868688d6f96",
+  "worker_health": "stale"
+}
