@@ -2736,7 +2736,7 @@
     },
     {
       "graph_id": "rv:worker-adapter:deterministic-attempt",
-      "graph_revision": "1.0.5",
+      "graph_revision": "1.0.6",
       "component_id": "WORKER-ADAPTER",
       "workflow_id": "deterministic-attempt.v1",
       "diagram_order": 7,
@@ -2761,7 +2761,8 @@
         "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
       ],
       "verification_evidence": [
-        "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+        "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json",
+        "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
       ],
       "nodes": [
         {
@@ -3109,7 +3110,7 @@
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:cycle-recovery",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "recovery",
           "label": "Reconcile expired leases after interruption with effect-aware durable recovery",
           "source_references": [
@@ -3124,7 +3125,9 @@
             "docs/development/M2.3-001_REVISION_RECORD.md",
             "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+          ]
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:steward-shutdown",
@@ -3143,7 +3146,7 @@
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:recovery-intent",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
           "label": "Persist effect class before invoking the worker action",
           "source_references": [
@@ -3155,11 +3158,13 @@
             "docs/components/WORKER_ADAPTER.md",
             "docs/development/M2.3-001_REVISION_RECORD.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+          ]
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:recovery-scan",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "measurement",
           "label": "Select expired running leases at startup or recovery poll",
           "source_references": [
@@ -3169,11 +3174,13 @@
             "docs/components/WORKER_ADAPTER.md",
             "docs/development/M2.3-001_REVISION_RECORD.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+          ]
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:recovery-policy",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "decision",
           "label": "Can this incomplete effect be safely repeated?",
           "source_references": [
@@ -3183,11 +3190,13 @@
             "docs/components/WORKER_ADAPTER.md",
             "docs/development/M2.3-001_REVISION_RECORD.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+          ]
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:recovery-retry",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "recovery",
           "label": "Fence prior generation and requeue only retry-safe work",
           "source_references": [
@@ -3197,11 +3206,13 @@
             "docs/components/WORKER_ADAPTER.md",
             "docs/development/M2.3-001_REVISION_RECORD.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+          ]
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:recovery-unknown",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "escalation",
           "label": "Hold unknown external outcome in awaiting_steward",
           "source_references": [
@@ -3211,11 +3222,13 @@
             "docs/components/WORKER_ADAPTER.md",
             "docs/development/M2.3-001_REVISION_RECORD.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+          ]
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:recovery-preserve",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "recovery",
           "label": "Preserve durable result and continue to independent verification",
           "source_references": [
@@ -3225,11 +3238,13 @@
             "docs/components/WORKER_ADAPTER.md",
             "docs/development/M2.3-001_REVISION_RECORD.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+          ]
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:recovery-audit",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "measurement",
           "label": "Persist one decision per assignment and lease generation",
           "source_references": [
@@ -3239,7 +3254,9 @@
             "docs/components/WORKER_ADAPTER.md",
             "docs/development/M2.3-001_REVISION_RECORD.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+          ]
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:verification-jump",

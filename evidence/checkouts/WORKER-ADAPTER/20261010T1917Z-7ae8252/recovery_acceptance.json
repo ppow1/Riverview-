@@ -1,0 +1,38 @@
+{
+  "result_revision": "1.0.0",
+  "source_commit": "7ae8252469612920bd07dc84a6d65ef374aa8886",
+  "postgresql_tests": 12,
+  "forced_process_terminations": 3,
+  "scenarios": [
+    {
+      "name": "retry_safe_intent",
+      "result": "PASS",
+      "evidence": "SIGKILL after PostgreSQL intent commit; recovery requeued assignment; subsequent lease generation increased"
+    },
+    {
+      "name": "external_effect_uncertainty",
+      "result": "PASS",
+      "evidence": "SIGKILL after isolated test effect commit; restart recovery moved assignment to awaiting_steward; effect row remained exactly one; unrelated assignment completed its worker cycle"
+    },
+    {
+      "name": "result_before_state_transition",
+      "result": "PASS",
+      "evidence": "SIGKILL after persisted result commit and before state transition; restart recovery moved assignment to awaiting_verification; independent verifier accepted it; later recovery pass left completed assignment terminal"
+    },
+    {
+      "name": "recovery_idempotency",
+      "result": "PASS",
+      "evidence": "one recovery record per assignment/generation; subsequent reconciliation did not emit duplicate decisions"
+    },
+    {
+      "name": "legacy_or_unclassified_action",
+      "result": "PASS",
+      "evidence": "implementation defaults missing/unknown effect classification to no blind replay and Steward wait"
+    },
+    {
+      "name": "independent_assignment_progress",
+      "result": "PASS",
+      "evidence": "unrelated work was claimable and processed in the same restarted worker cycle after recovering uncertain work"
+    }
+  ]
+}

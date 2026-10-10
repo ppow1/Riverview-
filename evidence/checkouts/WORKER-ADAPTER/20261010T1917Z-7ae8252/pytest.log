@@ -1,0 +1,4 @@
+$ PYTHONPATH=.:src RIVERVIEW_TEST_PG_DSN=host=<private-socket> port=55439 dbname=postgres user=admin1 pytest -q tests
+................................................................................ [ 80%]
+.........                                                                    [100%]
+89 passed in 24.21s

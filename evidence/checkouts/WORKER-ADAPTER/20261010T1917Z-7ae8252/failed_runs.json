@@ -1,0 +1,31 @@
+{
+  "result_revision": "1.0.0",
+  "task_id": "RV-M2.3-001",
+  "retained_failures": [
+    {
+      "command": "pytest -q tests/test_worker_adapter.py",
+      "result": "FAIL: 9 passed, 3 failed",
+      "cause": "fixture admin connection had not set search_path to disposable schema; assignment_leases was unresolved",
+      "correction": "set disposable search_path in setup"
+    },
+    {
+      "command": "pytest -q tests/test_worker_adapter.py",
+      "result": "FAIL: 9 passed, 3 failed",
+      "cause": "test expired leases before acquired_at, violating the scheduler lease table invariant",
+      "correction": "expire at acquired_at plus one microsecond"
+    },
+    {
+      "command": "pytest -q tests/test_worker_adapter.py",
+      "result": "FAIL: 11 passed, 1 failed",
+      "cause": "unrelated progress test used the wrong registered worker identity for the credential",
+      "correction": "use the worker identity associated with the credential"
+    },
+    {
+      "command": "PYTHONPATH=src pytest -q tests",
+      "result": "ERROR during collection; no tests executed",
+      "cause": "repository root omitted from import path for tests importing scripts",
+      "correction": "reran with PYTHONPATH=.:src"
+    }
+  ],
+  "later_result": "The corrected committed tree passed 89/89 with no skips; see test_results.json."
+}

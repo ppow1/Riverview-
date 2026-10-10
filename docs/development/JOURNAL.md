@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.28
+**Document Revision:** 1.0.29
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -590,3 +590,24 @@ transactional in the selected schema. Development is on a short-lived branch
 from PR #10's pinned head, with no merge or rewrite of the PR #9/#10 stack.
 Verification uses disposable `rvtest_*` schemas only. See
 [`RV-M2.3-001`](M2.3-001_REVISION_RECORD.md) and the generated worker flow.
+
+## 2026-10-10 UTC — RV-M2.3-001 / isolated recovery acceptance
+
+At source commit `7ae8252469612920bd07dc84a6d65ef374aa8886`, the full Camrui
+suite passed 89/89 with no skips on a private PostgreSQL 16.15 Unix-socket-only
+cluster. Forced subprocess termination covered retry-safe intent, a committed
+external test effect, and a committed result before assignment advancement.
+Recovery requeued only retry-safe work at a newer lease generation, held
+uncertain effects in `awaiting_steward` without replay, preserved durable output
+for independent verification, and allowed unrelated assignment progress. The
+independent verifier accepted preserved output and a later recovery pass left
+the completed assignment terminal. Post-run inspection found zero remaining
+test schemas; the temporary cluster was stopped and removed. Revision and graph
+checks passed (10 workflows, 156 nodes). Evidence and corrected failed attempts
+are retained in `evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/`.
+
+M2.3 roadmap technical criteria are PASS for isolated engineering only. This is
+not live operational commissioning: M2.1/M2.2 remain unmerged on PRs #9/#10, no
+M2.3 migration is in shared `riverview_dev`, and the full component DoD remains
+open. The roadmap cursor advances to M2.4 CME monitoring service. No PR was
+merged and no shared service/database was changed.

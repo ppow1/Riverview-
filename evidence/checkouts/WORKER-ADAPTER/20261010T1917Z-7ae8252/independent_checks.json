@@ -1,0 +1,28 @@
+{
+  "result_revision": "1.0.0",
+  "source_commit": "7ae8252469612920bd07dc84a6d65ef374aa8886",
+  "revision_audit": {
+    "command": "python3 scripts/revision_control.py check --baseline evidence/checkouts/ENG-REVISION-CONTROL/20261010T1530Z-27a8c55/baseline-inventory.json",
+    "result": "PASS",
+    "issues": 0
+  },
+  "process_graph": {
+    "validate": "PASS",
+    "synchronization": "PASS",
+    "workflows": 10,
+    "nodes": 156
+  },
+  "syntax_and_whitespace": {
+    "compileall": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "postgresql_cleanup": {
+    "version": "16.15",
+    "remaining_rvtest_schemas": 0,
+    "server_stopped": true
+  },
+  "git": {
+    "branch": "codex/m2.3-failure-recovery",
+    "commit": "7ae8252469612920bd07dc84a6d65ef374aa8886"
+  }
+}
