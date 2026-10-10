@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.25
+**Document Revision:** 1.0.26
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -550,3 +550,15 @@ confirmed `riverview_dev` has only migration 0001 (checksum
 `7f3580aacc057b977f8dd6f880584d1fed678488523b0d2ce6737c1107487492`), exactly
 three M1.2 tables, zero assignment/event rows, and no M1.3 cursor table. M1.1
 release/service and M1.2 data were not changed by isolated M1.3 verification.
+
+
+## 2026-10-10 UTC — RV-GRAPH-001 / PR #4 CI verification
+
+Commit `5be1484eee1ac23ca6f04d78aef659f200419139` was pushed to
+`codex/m1.1-runtime-commissioning` and PR #4 opened against `main`. Both GitHub
+Actions `controlled-checkout` runs passed: push run
+[38068399375](https://github.com/ppow1/Riverview-/actions/runs/38068399375) and PR
+run [38068402439](https://github.com/ppow1/Riverview-/actions/runs/38068402439).
+The checks include the 67-test suite, process graph schema/synchronization, and
+revision checkout. PR #4 is open; no merge is claimed. M1.3 remains IN PROGRESS
+pending supervised service/credential deployment and operational verification.

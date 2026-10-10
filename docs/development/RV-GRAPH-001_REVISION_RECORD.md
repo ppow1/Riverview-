@@ -1,6 +1,6 @@
 # Riverview~ RV-GRAPH-001 process graph standard record
 
-**Document Revision:** 1.0.1  
+**Document Revision:** 1.0.2  
 **Task:** RV-GRAPH-001  
 **Component:** RV-PROCESS-GRAPH  
 **Date:** 2026-10-10 UTC  
@@ -75,6 +75,6 @@ Controlled predecessors were captured in `.riverview-backups/manifest.jsonl`;
 JSON graph/schema file revisions and SHA-256 values are in
 `.riverview-revisions.json`. Existing documents have incremented native
 revisions. Exact changed paths, backup hashes, and the full checkout revision
-audit are recorded after CI completes. CI must pass before this record is
-considered verified. This task does not claim completion of M1.1/M1.2 full
+audit are recorded after CI completes. Both push and pull-request controlled-checkout CI runs passed on commit
+`5be1484`; the run IDs and evidence links are in the development journal. This task does not claim completion of M1.1/M1.2 full
 component DoD or M1.3 acceptance.
