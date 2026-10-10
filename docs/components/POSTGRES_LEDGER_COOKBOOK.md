@@ -1,7 +1,7 @@
 <!--
 Riverview~ Controlled Document
 File: docs/components/POSTGRES_LEDGER_COOKBOOK.md
-Revision: 1.0.1
+Revision: 1.0.2
 Migration: ENG-REV-002
 -->
 # PostgreSQL ledger — operational and troubleshooting cookbook
@@ -19,11 +19,22 @@ PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_postgres_ledger.py
 
 Each test creates and drops only its uniquely named `rvtest_*` schema. The suite
 checks apply/rerun, checksum drift, atomic rollback, state transition rules,
-idempotency, event causality, and reconnect persistence. Do not apply migrations
-to commissioned `riverview_dev` before M1.1 Steward acceptance and sequencing are
-recorded. Never edit an applied migration to repair it; add a reviewed numbered
+idempotency, event causality, and reconnect persistence. Before any shared-schema
+migration, verify host/database/role, schema owner and privileges, current
+relations, server compatibility, and the source migration checksum. Capture a
+root-protected full database custom-format dump outside the repository, verify its
+SHA-256 and `pg_restore --list`, and perform a test restore into a uniquely named
+disposable database before applying DDL. Stop on identity, drift, or compatibility
+mismatches. Never edit an applied migration to repair it; add a reviewed numbered
 forward migration. A checksum mismatch is an integrity failure: preserve the
 schema and investigate migration history.
+
+M1.2 migration `0001_assignment_event_ledger` is applied to shared development
+schema `riverview_dev`. The 2026-10-10 backup, restore drill, migration checksum,
+post-deployment read-only ledger check, and M1.1 service verification are recorded
+in `evidence/checkouts/POSTGRES-LEDGER/20261010T1615Z-3fd6fd2/checkout.md`. The
+backup remains root-only at the host path recorded there. No live ledger rows
+were written during commissioning.
 
 ## Known-good baseline
 Camrui PostgreSQL 16, database `riverview`, login `riverview_core`, psycopg 3 installed. Six tests passed 2026-10-09; the sixth caught and drove correction of an implicit-transaction persistence bug (commit `166f14a`). This does **not** establish production readiness.

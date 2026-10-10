@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.0.1  
+**Document Revision:** 1.0.3
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-09  
 **Component:** RV-ROADMAP  
@@ -104,12 +104,18 @@ Deliverable: capability discovery and replaceable adapters for OctoMiner-hosted 
 
 ## Current cursor
 
-**Next step: M1.1 — Camrui runtime baseline and PostgreSQL readiness.**
+**M1.1:** scoped technical commissioning accepted by the Steward against Camrui release `64e8f14`; full component DoD remains open.
 
-The last verified engineering change before this roadmap was the AI guidance commit `c9ae126ae5e0613b3961967eb7e701cb880da043`. Recheck Git HEAD before implementation. Existing PostgreSQL evidence should be reused rather than repeating the full inventory.
+**M1.2:** technical criteria verified, including isolated tests, CI/revision audit and authorized deployment of migration `0001_assignment_event_ledger` to `riverview_dev`; full component DoD remains open.
+
+**Next step: M1.3 — Always-on event processor (isolated engineering).**
+
+M1.3 engineering may proceed against isolated test databases and the verified M1.2 schema contract. Do not claim M1.3 acceptance until its persistent cursor/outbox, replay, unattended progression, restart recovery and duplicate-event criteria are executed. The M3.1 dashboard and later autonomy work remain required full-project obligations, but do not gate independent M1.3 implementation.
 
 ## Revision history
 
 - **1.0.1 — 2026-10-09:** Recognize “go” and “next” as equivalent roadmap advancement commands. Predecessor: `docs/history/ROADMAP_rev1.0.0.md`.
 
 - **1.0.0 — 2026-10-09:** Initial ordered, test-gated roadmap grounded in current repository contracts.
+- **1.0.2 — 2026-10-10:** Record scoped M1.1 Steward technical acceptance, M1.2 shared development migration verification, and M1.3 as the next eligible engineering milestone; no full component DoD waived.
+- **1.0.3 — 2026-10-10:** Record M1.3 isolated implementation and test status; milestone remains in progress pending supervised deployment and operational acceptance.

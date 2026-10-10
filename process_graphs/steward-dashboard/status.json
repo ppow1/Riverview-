@@ -1,0 +1,14 @@
+{
+  "graph_id": "rv:steward-dashboard:status",
+  "graph_revision": "1.0.0",
+  "component_id": "STEWARD-DASHBOARD",
+  "workflow_id": "status-projection.v1",
+  "diagram_order": 1,
+  "source_references": ["docs/ROADMAP.md"],
+  "documentation_references": ["docs/ROADMAP.md"],
+  "verification_evidence": [],
+  "nodes": [
+    {"id":"rv:steward-dashboard:status:ingest","node_revision":"1.0.0","type":"entry","label":"Reserved M3.1 live-state projection target (planned; not implemented)","source_references":["docs/ROADMAP.md"],"documentation_references":["docs/ROADMAP.md"],"verification_evidence":[]}
+  ],
+  "edges": []
+}

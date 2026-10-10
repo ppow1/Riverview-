@@ -1,0 +1,50 @@
+{
+  "manifest_revision": "1.0.1",
+  "files": {
+    "process_graphs/generated/riverview-process-graph.json": {
+      "revision": "1.0.1",
+      "path": "process_graphs/generated/riverview-process-graph.json",
+      "sha256": "295e23647636e1abacea2a58b5751a41dd4793fb556485a611b31b24fa6aef0c",
+      "size_bytes": 64933
+    },
+    "process_graphs/schema/riverview-process-graph.schema.json": {
+      "revision": "1.0.0",
+      "path": "process_graphs/schema/riverview-process-graph.schema.json",
+      "sha256": "217f9fc4c22f226c51b03780e46b7165e98de217c7c7dafc079298cae77afaf4",
+      "size_bytes": 3228
+    },
+    "process_graphs/postgres-ledger/assignment-lifecycle.json": {
+      "revision": "1.0.0",
+      "path": "process_graphs/postgres-ledger/assignment-lifecycle.json",
+      "sha256": "3cf4993bd5a07c8ad99cfbf2179d33b0fd606174b795624897c4f146bdc7e9bd",
+      "size_bytes": 6599
+    },
+    "process_graphs/postgres-ledger/migration.json": {
+      "revision": "1.0.0",
+      "path": "process_graphs/postgres-ledger/migration.json",
+      "sha256": "89cd9a0209bcceaf688509ff3b6ed41e12f5aed3d428287b11e85cafc099818e",
+      "size_bytes": 13553
+    },
+    "process_graphs/runtime-baseline/runtime-baseline.json": {
+      "revision": "1.0.0",
+      "path": "process_graphs/runtime-baseline/runtime-baseline.json",
+      "sha256": "028cd46437c52017c9f0e7f861c7026c59b49ea8a656b8d6da4b7848d90f0c44",
+      "size_bytes": 14418
+    },
+    "process_graphs/steward-dashboard/status.json": {
+      "revision": "1.0.0",
+      "path": "process_graphs/steward-dashboard/status.json",
+      "sha256": "c53a8f48022f8cf2c2999b189ee7388e1710dcf6b57ab9ef44db5426d89672ed",
+      "size_bytes": 619
+    },
+    ".riverview-revisions.json": {
+      "revision": "1.0.1"
+    },
+    "process_graphs/event-processor/assignment-progression.json": {
+      "revision": "1.0.0",
+      "path": "process_graphs/event-processor/assignment-progression.json",
+      "sha256": "95580ade1132809d3fb770023291dec596df8de1e1272f1a822d007863b4ca14",
+      "size_bytes": 7728
+    }
+  }
+}

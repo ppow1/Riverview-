@@ -1,6 +1,6 @@
 # Riverview~ Component Definition of Done (DoD)
 
-**Revision:** Rev 1.3  
+**Revision:** Rev 1.5
 **Status:** Active engineering standard  
 **Effective:** 2026-10-09  
 **Applies to:** every new or modified Riverview~ component, including the institutional Core, adapters, databases, workers, CME, and Steward-facing services.  
@@ -11,7 +11,7 @@
 
 **Passing tests does not mean done.** A component is done only when its code, executable evidence, documentation, troubleshooting cookbook, versioned flowcharts, and real Steward-visible operational status are complete **together**. No component may be declared done merely because a stub, mock, diagram, or snapshot exists. Report partial status plainly. The operational view must distinguish *unavailable*, *not initialized*, *stale*, *degraded*, and *healthy*.
 
-## Seven mandatory deliverables
+## Eight mandatory deliverables
 
 1. **Code and contracts.** Committed implementation, identified version/commit, accountable owner, purpose, inputs/outputs, authority and security boundaries, dependencies, configuration, event schemas, failure and recovery semantics, notification behavior, and idempotency/replay contract. No hidden control path.
 2. **Functionality demonstrated.** Deployed in the declared target environment and exercised end to end. Evidence must cover normal operations, failures, concurrency/isolation where relevant, restart/replay, persistence, and negative cases. Distinguish development tests from production readiness. Never infer success from a command being dispatched.
@@ -21,6 +21,8 @@
 6. **Steward-level live operational visualization.** Accessible Steward view bound to actual authoritative durable state, showing component identity, version, current status, heartbeat/freshness, assignments/events or equivalent domain metrics, failures, alerts, and drill-down/recovery guidance. Permission filtering applies. Static screenshots, standalone JSON, mock dashboards, or a flowchart alone do **not** satisfy this gate. A read-only diagnostic snapshot is useful evidence but not a live Steward view.
 
 7. **Operational autonomy and blocker clearance.** Prove the component performs its intended recurring work unattended after boot, restart, dependency interruption, and recovery. Inventory every one-time setup step, permission requirement, credential renewal, manual command, Steward decision, escalation, external dependency, and waiting state. For each blocker document the trigger, owner, policy, durable status, detection/timeout, notification, recovery/retry, authorization to resume, and evidence that work actually resumes. Required Steward approvals remain mandatory; automation must route, record, await, and resume on authorized decision, never bypass approval. If an approval or external dependency is unresolved, the component must visibly remain blocked with accountable ownership and escalation, not claim completion. No indefinite invisible waits or undocumented manual intervention. An explicit one-time commissioning step may be acceptable only when completed, reproducible, documented, and not required for normal restart or recovery.
+
+8. **Registered canonical process graph.** Every component and workflow has stable, globally unique process-node identities in the Riverview universal graph registry. Node identity is independent of node revision and diagram layout. Canonical structured graph data, typed runtime/dependency/diagnostic/recovery/escalation/documentation edges, resolvable cross-component jump targets, source/document/evidence references, and generated Mermaid views are validated together. Any implementation change affecting process behavior updates its canonical graph in the same change and regenerates every affected projection. See `process_graphs/README.md`; a Mermaid-only diagram or stale generated view does not pass this gate.
 
 ### Blocker register and unattended-run evidence
 
@@ -73,12 +75,13 @@ Record a component-specific acceptance record with:
 | Documentation | versioned specification and operational boundaries | PASS / FAIL / PARTIAL |
 | Cookbook | commands, expected results, failure and recovery verification | PASS / FAIL / PARTIAL |
 | Flowcharts | committed source reflecting implemented behavior | PASS / FAIL / PARTIAL |
+| Canonical process graph | globally unique IDs, valid typed references/jumps, schema check, and synchronized generated views | PASS / FAIL / PARTIAL |
 | Steward view | live URL/view, real-state proof, freshness/failure tests | PASS / FAIL / PARTIAL |
 | Operational autonomy | blocker register, unattended execution, approval/escalation/recovery/resume tests | PASS / FAIL / PARTIAL |
 | Execution model (cross-cutting) | declared model, trigger/lifecycle, repeated work and restart evidence | PASS / FAIL / PARTIAL / N/A justified |
 | External observability (cross-cutting) | hook/API/event contract and independent consumer verification | PASS / FAIL / PARTIAL / N/A justified |
 
-**Release rule:** all seven must be **PASS**, all cross-cutting gates applicable to the component must pass, and the Steward must explicitly accept the evidence. A component with any PARTIAL or FAIL is **NOT DONE**. Work can continue on it, but do not move to the next component while describing the current one as complete. Exceptions require an explicitly scoped, dated Steward waiver; a waiver is not a PASS.
+**Release rule:** all eight must be **PASS**, all cross-cutting gates applicable to the component must pass, and the Steward must explicitly accept the evidence. A component with any PARTIAL or FAIL is **NOT DONE**. Work can continue on it, but do not move to the next component while describing the current one as complete. Exceptions require an explicitly scoped, dated Steward waiver; a waiver is not a PASS.
 
 ## Component cookbook minimum contents
 
@@ -106,5 +109,7 @@ Purpose and owner; interfaces/dependencies; process and state diagram; events/id
 | **1.1** | **2026-10-09** | Seventh gate: operational autonomy, explicit blocker register, unattended-run evidence, and durable approval/escalation/resumption rules |
 | **1.2** | **2026-10-09** | Explicit design-time autonomy audit: prohibit unjustified one-shot code restrictions and require continuous/repeat-execution regression tests |
 | **1.3** | **2026-10-09** | Explicit execution model declaration and external machine-readable observability contracts, with independent verification |
+| **1.4** | **2026-10-10** | Require registered canonical process graphs and synchronized generated views; approved by the project owner acting as Steward under RV-GOV-001 |
+| **1.5** | **2026-10-10** | Remove revision-header trailing whitespace for controlled-checkout consistency |
 
 Future revisions must increment the revision, document what changed and why, and identify affected component acceptance records.
