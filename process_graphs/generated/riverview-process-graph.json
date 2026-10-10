@@ -4,7 +4,7 @@
   "graphs": [
     {
       "graph_id": "rv:assignment-scheduler:independent-claims",
-      "graph_revision": "1.0.2",
+      "graph_revision": "1.0.3",
       "component_id": "ASSIGNMENT-SCHEDULER",
       "workflow_id": "independent-assignment-claims.v1",
       "diagram_order": 6,
@@ -20,7 +20,9 @@
         "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md",
         "docs/development/M1.4-001_REVISION_RECORD.md"
       ],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+      ],
       "nodes": [
         {
           "id": "rv:assignment-scheduler:independent-claims:start",
@@ -100,7 +102,9 @@
           "documentation_references": [
             "docs/components/ASSIGNMENT_SCHEDULER.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+          ]
         },
         {
           "id": "rv:assignment-scheduler:independent-claims:expiry",
@@ -114,7 +118,9 @@
           "documentation_references": [
             "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+          ]
         },
         {
           "id": "rv:assignment-scheduler:independent-claims:reclaim",
@@ -127,7 +133,9 @@
           "documentation_references": [
             "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+          ]
         },
         {
           "id": "rv:assignment-scheduler:independent-claims:start-check",
@@ -140,7 +148,9 @@
           "documentation_references": [
             "docs/components/ASSIGNMENT_SCHEDULER.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+          ]
         },
         {
           "id": "rv:assignment-scheduler:independent-claims:stale",
@@ -153,7 +163,9 @@
           "documentation_references": [
             "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+          ]
         },
         {
           "id": "rv:assignment-scheduler:independent-claims:running",
@@ -167,7 +179,9 @@
           "documentation_references": [
             "docs/components/ASSIGNMENT_SCHEDULER.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+          ]
         },
         {
           "id": "rv:assignment-scheduler:independent-claims:ready-jump",

@@ -1,6 +1,6 @@
 # Riverview~ assignment scheduler cookbook
 
-**Document Revision:** 1.0.0
+**Document Revision:** 1.0.1
 **Component:** ASSIGNMENT-SCHEDULER
 **Task:** RV-M1.4-001
 **Status:** IN PROGRESS — isolated PostgreSQL verification only
@@ -21,7 +21,8 @@ The first integration tests cover oldest-first selection, an active stalled
 lease not blocking another assignment, simultaneous claims by separate worker
 connections, expiration and generation increment, stale heartbeat/start
 rejection, and atomic causally linked `running` transition. No worker external
-effect is executed by these tests.
+effect is executed by these tests. The exact-commit full-suite evidence and
+cleanup results are retained in the [M1.4 checkout record](../../evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/checkout.md).
 
 ## Failure diagnosis
 
