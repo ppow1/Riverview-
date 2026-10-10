@@ -1,7 +1,7 @@
 <!--
 Riverview~ Controlled Document
 File: docs/components/POSTGRES_LEDGER.md
-Revision: 1.0.2
+Revision: 1.0.3
 Migration: ENG-REV-002
 -->
 # PostgreSQL assignment ledger — component contract
@@ -34,4 +34,4 @@ Psycopg 3 uses autocommit for reads; explicit transactions group each state muta
 - Steward readout currently is an **on-demand snapshot**, not a continuously refreshed Steward dashboard.
 
 ## Evidence and acceptance
-RV-M1.2-001 ran six PostgreSQL integration tests against a disposable PostgreSQL 16 UTF-8 cluster and unique temporary schemas. Migration apply/rerun/drift and absent-schema rejection, atomic rollback on injected event failure, legal/illegal and duplicate transitions, idempotency collision, causality, reconnect persistence, and independent assignment progress passed. The cluster and test schemas were removed. These are technical M1.2 results, not Steward acceptance or full component DoD. See `POSTGRES_LEDGER_COOKBOOK.md`, `POSTGRES_LEDGER_FLOW.md`, and linked checkout evidence.
+RV-M1.2-001 ran six PostgreSQL integration tests against a disposable PostgreSQL 16 UTF-8 cluster and unique temporary schemas. Migration apply/rerun/drift and absent-schema rejection, atomic rollback on injected event failure, legal/illegal and duplicate transitions, idempotency collision, causality, reconnect persistence, and independent assignment progress passed. The cluster and test schemas were removed. These are technical M1.2 results, not Steward acceptance or full component DoD. See `POSTGRES_LEDGER_COOKBOOK.md`, `POSTGRES_LEDGER_FLOW.md`, and [committed-source checkout evidence](../../evidence/checkouts/POSTGRES-LEDGER/20261010T1529Z-27a8c55/checkout.md).

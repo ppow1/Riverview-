@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.19
+**Document Revision:** 1.0.20
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -405,3 +405,15 @@ SQL_ASCII test-harness failures were repaired and retained in the task record.
 The commissioned `riverview_dev` schema and `riverview-baseline.service` were not
 modified. M1.1 scoped Steward acceptance, M1.2 shared-schema deployment and
 acceptance, and M1.3 dependencies remain pending; no formal acceptance is claimed.
+
+2026-10-10 15:29 UTC — RV-M1.2-001 / POSTGRES-LEDGER: Commit
+`27a8c555501588dd0fd2a5d488018ad0c295199a` implements the versioned migration
+runner and contract-aligned assignment/event schema. The branch was pushed
+fast-forward to the existing PR #2 branch; `git ls-remote` and `gh pr view` both
+reported the exact commit as remote head. A post-commit isolated PostgreSQL 16
+UTF-8 run passed all 53 tests (6 PostgreSQL integration tests, 15 revision
+control tests, no skips), then stopped and removed the temporary cluster. Output
+and failure-correction history are retained under
+`evidence/checkouts/POSTGRES-LEDGER/20261010T1529Z-27a8c55/`. No M1.2 migration
+was applied to `riverview_dev`; formal M1.1/M1.2 acceptance remains with the
+Steward.

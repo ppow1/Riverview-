@@ -1,0 +1,44 @@
+{
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "c37b9b1b6e1cabba79473fba126617a610f00e96dbb156b193d445a18e1750bb",
+      "size_bytes": 1797
+    },
+    "failure-attempts.md": {
+      "path": "failure-attempts.md",
+      "revision": "1.0.0",
+      "sha256": "4e46db26cc12ee96021aae4f6e803b07ec7fb0d780b330df3231c07ecd8ef4df",
+      "size_bytes": 1620
+    },
+    "initdb.log": {
+      "path": "initdb.log",
+      "revision": "1.0.0",
+      "sha256": "958bf18845dfb245c849855f1356f782d79b373fb7bffc0435b7717ba49055cf",
+      "size_bytes": 872
+    },
+    "start.log": {
+      "path": "start.log",
+      "revision": "1.0.0",
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "size_bytes": 52
+    },
+    "stop.log": {
+      "path": "stop.log",
+      "revision": "1.0.0",
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d",
+      "size_bytes": 56
+    },
+    "unittest.log": {
+      "path": "unittest.log",
+      "revision": "1.0.0",
+      "sha256": "4cece96c52f62cc7ac161204a4194f2aa0c4b848c798e041aadd6e3fefdc1343",
+      "size_bytes": 7821
+    }
+  },
+  "component_id": "POSTGRES-LEDGER",
+  "manifest_revision": "1.0.0",
+  "source_commit": "27a8c555501588dd0fd2a5d488018ad0c295199a",
+  "task_id": "RV-M1.2-001"
+}

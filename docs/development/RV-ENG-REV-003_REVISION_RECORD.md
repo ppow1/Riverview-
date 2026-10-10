@@ -1,10 +1,10 @@
 # Riverview~ RV-ENG-REV-003 revision-checkout correction
 
-**Document Revision:** 1.0.2
+**Document Revision:** 1.0.4
 **Task:** RV-ENG-REV-003
 **Component:** ENG-REVISION-CONTROL
 **Date:** 2026-10-10 UTC
-**Status:** IMPLEMENTED — baseline checkout PASS; staged-tree checkout pending
+**Status:** COMPLETED — baseline and staged-tree checkouts PASS
 **Starting commit:** c24d7602d6d5fd411ed024a560dff42ca4427165
 
 ## Intake and finding
@@ -48,6 +48,13 @@ The original 58 findings were 56 evidence entries correctly revisioned by their
 update, a header-precedence regression temporarily classified 10 historical
 text evidence records without sidecars as missing; preserving native text
 headers ahead of sidecar lookup corrected that regression. Current tracked
-inventory contains 149 files and zero missing revisions. No evidence payload
-bytes were changed. Final staged-tree check remains pending because new M1.2
-files are not yet tracked.
+baseline inventory contained 149 files. The staged-tree check after adding M1.2
+implementation/evidence passed with zero issues across 160 files. After adding
+this task's baseline/checker evidence, the final staged-tree check again passed
+with zero issues across 164 files (exit 0). This includes the M1.2 source, task
+records, and sidecar-versioned evidence. No evidence payload bytes were changed.
+The complete 53-test checkout, including
+15 revision-control and 6 PostgreSQL tests, passed on the committed M1.2 source;
+see `evidence/checkouts/POSTGRES-LEDGER/20261010T1529Z-27a8c55/`. The baseline
+snapshot and checker result are at
+`evidence/checkouts/ENG-REVISION-CONTROL/20261010T1530Z-27a8c55/`.
