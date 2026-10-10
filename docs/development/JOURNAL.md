@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.27
+**Document Revision:** 1.0.29
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -571,3 +571,43 @@ PR #5 was merged at `9ca7cb189d1e1f57c69395303a9367fabd979ff5`; its push and pul
 Live M1.3 migration 0002 was applied after a verified backup and restore drill. The separate event processor service completed three unattended queued-to-ready transitions with causal event pairs through cursor 6; systemd restart resumed at cursor 2; deliberate database backend loss recovered to one leadership lock at cursor 4. The M1.3 rollback/redeployment was exercised; M1.1 remained ready on deployed commit `64e8f14`. Evidence: [`M1.3 Camrui checkout`](../../evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/checkout.md), [`runtime acceptance`](../../evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json).
 
 M1.3 scoped technical commissioning is PASS; full component DoD remains OPEN. The roadmap cursor is now M1.4 isolated engineering; later dashboard, autonomy, external observability and project-wide obligations remain intact.
+# 2026-10-10 UTC — RV-M2.3-001 / failure and restart recovery intake
+
+Roadmap M2.3 requires forced process/worker interruption recovery without lost
+assignments or blind duplicate external effects, with an auditable decision.
+Inspection found that M2.1 persisted worker attempts and lease fencing, but a
+`running` assignment with an expired lease was not reconciled; the existing
+incomplete-attempt test inserted a row rather than terminating a worker. The
+continuous adapter also invoked injected action code before writing an attempt,
+so an external effect could precede durable evidence of the action boundary.
+
+Decision: add a durable pre-action execution intent. The built-in deterministic
+action is retry-safe; custom actions default to external-uncertain. Recovery
+preserves a committed result, retries only explicit retry-safe work after fencing
+its prior generation, and moves all other incomplete/legacy work to
+`awaiting_steward`. The migration, state events, and recovery record are
+transactional in the selected schema. Development is on a short-lived branch
+from PR #10's pinned head, with no merge or rewrite of the PR #9/#10 stack.
+Verification uses disposable `rvtest_*` schemas only. See
+[`RV-M2.3-001`](M2.3-001_REVISION_RECORD.md) and the generated worker flow.
+
+## 2026-10-10 UTC — RV-M2.3-001 / isolated recovery acceptance
+
+At source commit `7ae8252469612920bd07dc84a6d65ef374aa8886`, the full Camrui
+suite passed 89/89 with no skips on a private PostgreSQL 16.15 Unix-socket-only
+cluster. Forced subprocess termination covered retry-safe intent, a committed
+external test effect, and a committed result before assignment advancement.
+Recovery requeued only retry-safe work at a newer lease generation, held
+uncertain effects in `awaiting_steward` without replay, preserved durable output
+for independent verification, and allowed unrelated assignment progress. The
+independent verifier accepted preserved output and a later recovery pass left
+the completed assignment terminal. Post-run inspection found zero remaining
+test schemas; the temporary cluster was stopped and removed. Revision and graph
+checks passed (10 workflows, 156 nodes). Evidence and corrected failed attempts
+are retained in `evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/`.
+
+M2.3 roadmap technical criteria are PASS for isolated engineering only. This is
+not live operational commissioning: M2.1/M2.2 remain unmerged on PRs #9/#10, no
+M2.3 migration is in shared `riverview_dev`, and the full component DoD remains
+open. The roadmap cursor advances to M2.4 CME monitoring service. No PR was
+merged and no shared service/database was changed.

@@ -2,14 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.12
+# Revision: 1.0.21
 # Purpose: Verify scoped dispatch, fail-closed knowledge, independent outcomes, and recovery
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL test database
 # Authority: Creates and drops only unique rvtest_* schemas
-# Changed: 2026-10-10 UTC | RV-M2.2-001 | Add independent outcome verification coverage
-# Contracts: docs/development/M2.1-001_REVISION_RECORD.md
+# Changed: 2026-10-10 UTC | RV-M2.3-001 | Verify forced worker termination and reconciliation
+# Contracts: docs/development/M2.3-001_REVISION_RECORD.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -26,6 +26,73 @@ from uuid import uuid4
 DSN = os.environ.get("RIVERVIEW_TEST_PG_DSN")
 
 
+def _crash_after_effect(dsn, schema, assignment_id, worker_id, credential, ready):
+    """Commit one isolated test effect, signal the parent, and await SIGKILL."""
+    import psycopg
+    from psycopg import sql
+    from riverview_core.worker_adapter import (ContinuousWorker, KnowledgeResult,
+                                                KnowledgeStatus, PostgresWorkerAdapter)
+
+    class Provider:
+        @staticmethod
+        def result():
+            return KnowledgeResult(KnowledgeStatus.VERIFIED, value="verified input",
+                source_references=("repo://test/recovery-contract",),
+                source_revision="test-1", source_sha256="b" * 64,
+                retrieval_complete=True)
+        def ground_assignment(self, assignment): return self.result()
+        def preflight_action(self, assignment, action): return self.result()
+        def reground_assignment(self, assignment, trigger): return self.result()
+        def record_learning(self, assignment, outcome): return self.result()
+
+    adapter = PostgresWorkerAdapter(dsn, schema=schema)
+    def effect(assignment, grounded):
+        with psycopg.connect(dsn, autocommit=True) as conn:
+            conn.execute(sql.SQL("INSERT INTO {} (assignment_id) VALUES (%s)")
+                         .format(sql.Identifier(schema, "recovery_test_effects")),
+                         (assignment_id,))
+        ready.send("effect_committed")
+        while True:
+            time.sleep(1)
+    try:
+        ContinuousWorker(adapter, worker_id, credential, knowledge=Provider(),
+                         lease_seconds=30, action=effect).run_once()
+    finally:
+        adapter.close()
+
+
+def _crash_after_intent(dsn, schema, assignment_id, worker_id, credential,
+                        generation, effect_class, ready):
+    from riverview_core.worker_adapter import PostgresWorkerAdapter
+    adapter = PostgresWorkerAdapter(dsn, schema=schema)
+    try:
+        intent_id = adapter.begin_execution_intent(
+            assignment_id, worker_id, credential, generation,
+            f"test-interrupted:{assignment_id}:{generation}", effect_class=effect_class)
+        ready.send(str(intent_id))
+        while True:
+            time.sleep(1)
+    finally:
+        adapter.close()
+
+
+def _crash_after_result(dsn, schema, assignment_id, worker_id, credential,
+                        generation, ready):
+    """Commit a PostgreSQL result, signal, then die before assignment transition."""
+    from riverview_core.worker_adapter import PostgresWorkerAdapter
+    adapter = PostgresWorkerAdapter(dsn, schema=schema)
+    try:
+        result = adapter.execute_sha256(
+            assignment_id, worker_id, credential, generation,
+            f"test-result-before-transition:{assignment_id}:{generation}",
+            "durable result survives process death")
+        ready.send(str(result["attempt_id"]))
+        while True:
+            time.sleep(1)
+    finally:
+        adapter.close()
+
+
 @unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")
 class WorkerAdapterTests(unittest.TestCase):
     def setUp(self):
@@ -37,6 +104,9 @@ class WorkerAdapterTests(unittest.TestCase):
         self.schema = "rvtest_" + uuid4().hex
         self.admin = psycopg.connect(DSN, autocommit=True)
         self.admin.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(self.schema)))
+        self.admin.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(self.schema)))
+        self.admin.execute(sql.SQL("CREATE TABLE {} (effect_id BIGSERIAL PRIMARY KEY, assignment_id TEXT NOT NULL)")
+                           .format(sql.Identifier(self.schema, "recovery_test_effects")))
         root = Path(__file__).resolve().parents[1] / "src/riverview_core"
         apply_migrations(DSN, schema=self.schema)
         apply_migrations(DSN, schema=self.schema,
@@ -180,6 +250,142 @@ class WorkerAdapterTests(unittest.TestCase):
         self.assertEqual(incomplete[0]["worker_id"], self.worker_id)
         self.assertEqual(incomplete[0]["assignment_id"], self.assignment)
         self.assertEqual(len(token), 43)
+
+    def _interrupt_child_after_intent(self, *, effect_class):
+        import multiprocessing
+        import os
+        import signal
+        from riverview_core.worker_adapter import PostgresRecoveryCoordinator
+
+        ctx = multiprocessing.get_context("fork")
+        parent, child = ctx.Pipe(duplex=False)
+        process = ctx.Process(target=_crash_after_intent,
+            args=(DSN, self.schema, self.assignment, self.worker_id, self.token,
+                  self.lease["generation"], effect_class, child))
+        process.start()
+        child.close()
+        try:
+            self.assertTrue(parent.poll(10), "subprocess did not persist its execution intent")
+            self.assertTrue(parent.recv())
+        finally:
+            os.kill(process.pid, signal.SIGKILL)
+            process.join(10)
+            parent.close()
+        self.assertEqual(process.exitcode, -signal.SIGKILL)
+        self.admin.execute("UPDATE assignment_leases SET expires_at=acquired_at+interval '1 microsecond' WHERE assignment_id=%s",
+                           (self.assignment,))
+        recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema)
+        try:
+            return recovery.reconcile_expired()
+        finally:
+            recovery.close()
+
+    def test_forced_worker_termination_requeues_only_durable_retry_safe_intent(self):
+        result = self._interrupt_child_after_intent(effect_class="retry_safe")
+        self.assertEqual(result, [{"assignment_id": self.assignment,
+                                   "lease_generation": self.lease["generation"],
+                                   "decision": "retry_safe", "resulting_state": "ready"}])
+        self.assertEqual(self.ledger.get(self.assignment)["state"], "ready")
+        claimed = self.worker.claim_next(self.worker_id, self.token, lease_seconds=30)
+        self.assertEqual(claimed["assignment"]["id"], self.assignment)
+        self.assertGreater(claimed["lease"]["generation"], self.lease["generation"])
+        with self.worker.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("SELECT decision FROM worker_recovery_records WHERE assignment_id=%s",
+                        (self.assignment,))
+            self.assertEqual(cur.fetchone()["decision"], "retry_safe")
+
+    def test_killed_external_action_is_not_replayed_and_unrelated_work_continues(self):
+        import multiprocessing
+        import os
+        import signal
+        from riverview_core.worker_adapter import ContinuousWorker
+
+        assignment_id = self.ready_assignment(objective="objective:external-effect")
+        worker_id = "worker-crash-" + uuid4().hex
+        credential = self.worker.register_worker(
+            worker_id, ["deterministic.sha256.v1"], self.scope)
+        ctx = multiprocessing.get_context("fork")
+        parent, child = ctx.Pipe(duplex=False)
+        process = ctx.Process(target=_crash_after_effect,
+            args=(DSN, self.schema, assignment_id, worker_id, credential, child))
+        process.start()
+        child.close()
+        try:
+            self.assertTrue(parent.poll(10), "external test action did not commit before interruption")
+            self.assertEqual(parent.recv(), "effect_committed")
+        finally:
+            os.kill(process.pid, signal.SIGKILL)
+            process.join(10)
+            parent.close()
+        self.assertEqual(process.exitcode, -signal.SIGKILL)
+        self.admin.execute("UPDATE assignment_leases SET expires_at=acquired_at+interval '1 microsecond' WHERE assignment_id=%s",
+                           (assignment_id,))
+        unrelated = self.ready_assignment(objective="objective:unrelated-after-recovery")
+        worker = ContinuousWorker(self.worker, worker_id, credential,
+                                  knowledge=self.VerifiedProvider())
+        resumed = worker.run_once()  # Restart boundary: recovery runs before the claim.
+        self.assertEqual(resumed["assignment_id"], unrelated)
+        self.assertEqual(resumed["status"], "AWAITING_VERIFICATION")
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "awaiting_steward")
+        records = self.admin.execute("SELECT decision FROM worker_recovery_records WHERE assignment_id=%s",
+                                     (assignment_id,)).fetchone()[0]
+        self.assertEqual(records, "outcome_unknown")
+        count = self.admin.execute("SELECT count(*) FROM recovery_test_effects WHERE assignment_id=%s",
+                                   (assignment_id,)).fetchone()[0]
+        self.assertEqual(count, 1)
+        count = self.admin.execute("SELECT count(*) FROM recovery_test_effects WHERE assignment_id=%s",
+                                   (assignment_id,)).fetchone()[0]
+        self.assertEqual(count, 1)
+
+    def test_durable_result_is_preserved_for_verification_after_restart(self):
+        import multiprocessing
+        import os
+        import signal
+        from riverview_core.worker_adapter import PostgresRecoveryCoordinator
+        ctx = multiprocessing.get_context("fork")
+        parent, child = ctx.Pipe(duplex=False)
+        process = ctx.Process(target=_crash_after_result,
+            args=(DSN, self.schema, self.assignment, self.worker_id, self.token,
+                  self.lease["generation"], child))
+        process.start()
+        child.close()
+        try:
+            self.assertTrue(parent.poll(10), "worker did not commit result before interruption")
+            attempt_id = parent.recv()
+        finally:
+            os.kill(process.pid, signal.SIGKILL)
+            process.join(10)
+            parent.close()
+        self.assertEqual(process.exitcode, -signal.SIGKILL)
+        self.admin.execute("UPDATE assignment_leases SET expires_at=acquired_at+interval '1 microsecond' WHERE assignment_id=%s",
+                           (self.assignment,))
+        recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema)
+        try:
+            outcomes = recovery.reconcile_expired()
+        finally:
+            recovery.close()
+        self.assertEqual(outcomes[0]["decision"], "result_preserved")
+        self.assertEqual(self.ledger.get(self.assignment)["state"], "awaiting_verification")
+        saved = self.admin.execute("SELECT result_sha256 FROM worker_results WHERE attempt_id=%s",
+                                   (attempt_id,)).fetchone()[0]
+        self.assertEqual(len(saved.strip()), 64)
+        verifier_id = "verifier-recovery-" + uuid4().hex
+        verifier_token = self.worker.register_worker(
+            verifier_id, ["assignment.verify.v1"], self.scope)
+        from riverview_core.worker_adapter import DeterministicSha256Verifier
+        decision = self.worker.verify_attempt(
+            self.assignment, attempt_id, verifier_id, verifier_token,
+            DeterministicSha256Verifier(),
+            idempotency_key="verify-after-recovery:" + uuid4().hex)
+        self.assertEqual(decision.status.value, "ACCEPTED")
+        self.assertEqual(self.ledger.get(self.assignment)["state"], "completed")
+        recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema)
+        try:
+            self.assertEqual(recovery.reconcile_expired(), [])
+        finally:
+            recovery.close()
+        self.assertEqual(self.ledger.get(self.assignment)["state"], "completed")
 
     def test_unavailable_grounding_waits_without_blocking_later_verified_assignment(self):
         from riverview_core.worker_adapter import ContinuousWorker

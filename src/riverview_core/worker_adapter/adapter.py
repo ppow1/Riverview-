@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.6
+# Revision: 1.0.8
 # Purpose: Authenticate a scoped local worker and persist deterministic attempts/results
 # Execution Model: Request-driven local task execution with PostgreSQL durability
 # Observability: Worker identity, capability, attempt outcome, and result digest
 # Dependencies: Python 3.10+; Psycopg 3; M1.2 ledger and M1.4 assignment lease
 # Authority: No arbitrary commands, shell execution, or external effects
-# Changed: 2026-10-10 UTC | RV-M2.2-001 | Persist independent verification evidence
+# Changed: 2026-10-10 UTC | RV-M2.3-001 | Persist execution intent before worker actions
 # Contracts: docs/components/WORKER_ADAPTER.md; docs/architecture/CORE_CONTRACT.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -51,6 +51,7 @@ class PostgresWorkerAdapter:
     VERIFICATION_CAPABILITY = "assignment.verify.v1"
 
     def __init__(self, dsn, *, schema="public"):
+        self.dsn = dsn
         self.ledger = PostgresLedger(dsn, schema=schema)
         self.scheduler = PostgresAssignmentScheduler(dsn, schema=schema)
         self.schema = schema
@@ -126,6 +127,68 @@ class PostgresWorkerAdapter:
                 self._authorized_worker(cur, worker_id, credential, capability,
                                         row["authority_ref"])
         return self.scheduler.start_assignment(assignment_id, worker_id, generation)
+
+    def begin_execution_intent(self, assignment_id, worker_id, credential, generation,
+                               idempotency_key, *, effect_class):
+        """Durably classify an action before invoking its execution callback.
+
+        ``retry_safe`` may be replayed after lease expiry. ``external_uncertain``
+        is never automatically replayed after an interrupted outcome.
+        """
+        if effect_class not in {"retry_safe", "external_uncertain"}:
+            raise ValueError("effect_class must be retry_safe or external_uncertain")
+        if not idempotency_key:
+            raise ValueError("idempotency_key is required")
+        db = self.ledger.db
+        with db.transaction():
+            with db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("SELECT * FROM assignments WHERE id=%s FOR UPDATE", (assignment_id,))
+                assignment = cur.fetchone()
+                if assignment is None:
+                    raise WorkerAdapterError("unknown assignment")
+                self._authorized_worker(cur, worker_id, credential,
+                                        self.SHA256_CAPABILITY, assignment["authority_ref"])
+                cur.execute("SELECT worker_id,generation,expires_at FROM assignment_leases WHERE assignment_id=%s FOR UPDATE",
+                            (assignment_id,))
+                lease = cur.fetchone()
+                cur.execute("SELECT clock_timestamp() AS now")
+                now = cur.fetchone()["now"]
+                if (assignment["state"] != "running" or lease is None or
+                        lease["worker_id"] != worker_id or lease["generation"] != generation or
+                        lease["expires_at"] <= now):
+                    raise WorkerLeaseLost("active assignment lease is required")
+                cur.execute("""SELECT intent_id,assignment_id,worker_id,lease_generation,
+                                      effect_class,status FROM worker_execution_intents
+                               WHERE idempotency_key=%s FOR UPDATE""", (idempotency_key,))
+                prior = cur.fetchone()
+                if prior:
+                    if (prior["assignment_id"] != assignment_id or
+                            prior["worker_id"] != worker_id or
+                            prior["lease_generation"] != generation or
+                            prior["effect_class"] != effect_class):
+                        raise WorkerAdapterError("execution intent idempotency collision")
+                    return prior["intent_id"]
+                cur.execute("""INSERT INTO worker_execution_intents
+                    (assignment_id,worker_id,lease_generation,capability,effect_class,
+                     idempotency_key,status)
+                    VALUES (%s,%s,%s,%s,%s,%s,'running') RETURNING intent_id""",
+                    (assignment_id, worker_id, generation, self.SHA256_CAPABILITY,
+                     effect_class, idempotency_key))
+                return cur.fetchone()["intent_id"]
+
+    def mark_execution_intent(self, intent_id, status, *, failure_class=None):
+        """Settle a caught action failure without claiming an uncertain effect succeeded."""
+        if status not in {"failed", "outcome_unknown"}:
+            raise ValueError("unsupported execution intent outcome")
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("""UPDATE worker_execution_intents
+                    SET status=%s,finished_at=clock_timestamp(),failure_class=%s
+                    WHERE intent_id=%s AND status='running' RETURNING intent_id""",
+                    (status, failure_class, intent_id))
+                return cur.fetchone() is not None
 
     def record_knowledge_observation(self, assignment_id, worker_id, operation,
                                      result, *, action=None):
@@ -223,7 +286,7 @@ class PostgresWorkerAdapter:
         return decision
 
     def execute_sha256(self, assignment_id, worker_id, credential, generation,
-                       idempotency_key, data):
+                       idempotency_key, data, *, intent_id=None):
         """Hash explicit UTF-8 input, retaining attempt/result provenance.
 
         Input text is not stored. The attempt stores only its digest. The task has
@@ -270,6 +333,15 @@ class PostgresWorkerAdapter:
                     cur.execute("SELECT result,result_sha256 FROM worker_results WHERE attempt_id=%s",
                                 (existing["attempt_id"],))
                     saved = cur.fetchone()
+                    if intent_id is not None:
+                        cur.execute("""UPDATE worker_execution_intents
+                            SET attempt_id=%s,status='succeeded',finished_at=clock_timestamp()
+                            WHERE intent_id=%s AND assignment_id=%s AND worker_id=%s
+                              AND lease_generation=%s AND status='running'""",
+                            (existing["attempt_id"], intent_id, assignment_id,
+                             worker_id, generation))
+                        if cur.rowcount != 1:
+                            raise WorkerAdapterError("execution intent is absent or no longer current")
                     return {"attempt_id": existing["attempt_id"], "status": "succeeded",
                             "result": saved["result"], "result_sha256": saved["result_sha256"]}
                 attempt_id = uuid4()
@@ -279,6 +351,13 @@ class PostgresWorkerAdapter:
                     VALUES (%s,%s,%s,%s,%s,%s,%s,'running')""",
                     (attempt_id, assignment_id, worker_id, generation, capability,
                      idempotency_key, input_digest))
+                if intent_id is not None:
+                    cur.execute("""UPDATE worker_execution_intents
+                        SET attempt_id=%s WHERE intent_id=%s AND assignment_id=%s
+                          AND worker_id=%s AND lease_generation=%s AND status='running'""",
+                        (attempt_id, intent_id, assignment_id, worker_id, generation))
+                    if cur.rowcount != 1:
+                        raise WorkerAdapterError("execution intent is absent or no longer current")
 
         # This deterministic local computation intentionally runs outside the DB
         # transaction; lease ownership is checked again before durable result commit.
@@ -304,6 +383,10 @@ class PostgresWorkerAdapter:
                                 (attempt_id, json.dumps(result, sort_keys=True), result_digest))
                     cur.execute("UPDATE worker_attempts SET status='succeeded',finished_at=clock_timestamp() WHERE attempt_id=%s AND status='running'",
                                 (attempt_id,))
+                    if intent_id is not None:
+                        cur.execute("""UPDATE worker_execution_intents
+                            SET status='succeeded',finished_at=clock_timestamp()
+                            WHERE intent_id=%s AND status='running'""", (intent_id,))
                     lost = False
         if lost:
             raise WorkerLeaseLost("lease was fenced before result commit")
@@ -318,4 +401,14 @@ class PostgresWorkerAdapter:
                                   capability,started_at
                            FROM worker_attempts WHERE status='running'
                            ORDER BY started_at,attempt_id""")
+            return cur.fetchall()
+
+    def incomplete_execution_intents(self):
+        """List unfinished action intents, including actions without attempt rows yet."""
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT intent_id,assignment_id,worker_id,lease_generation,
+                                  capability,effect_class,started_at
+                           FROM worker_execution_intents WHERE status='running'
+                           ORDER BY started_at,intent_id""")
             return cur.fetchall()

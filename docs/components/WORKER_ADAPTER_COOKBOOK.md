@@ -1,6 +1,6 @@
 # Riverview~ worker adapter cookbook
 
-**Document Revision:** 1.0.3
+**Document Revision:** 1.0.5
 **Component:** WORKER-ADAPTER
 **Task:** RV-M2.1-001
 **Status:** IN PROGRESS — disposable PostgreSQL only
@@ -61,4 +61,32 @@ kept in process memory and is not logged. Do not deploy this adapter until an
 approved secret-delivery mechanism, worker process lifecycle, and operational
 recovery procedure have been verified. An attempt left `running` is evidence of
 incomplete work, not proof of whether a future external effect occurred. The
-current deterministic task has no external side effects.
+current built-in deterministic task has no external side effects.
+
+## Failure and restart recovery (M2.3)
+
+Before a custom action runs, the worker persists an execution intent with an
+effect class. The built-in deterministic action is `retry_safe`; custom actions
+default to `external_uncertain` and must not be marked retry-safe unless their
+contract proves replay safety. An old `running` assignment with no intent is
+conservatively uncertain.
+
+`ContinuousWorker.run_once()` invokes
+`PostgresRecoveryCoordinator(dsn, schema=...).reconcile_expired()` before each
+claim, after the explicit worker-adapter migrations have been applied. The
+operation locks only expired running assignments and records the decision with
+causal state events:
+
+- A committed result is preserved and advances to `awaiting_verification`.
+- A `retry_safe` unfinished action is marked for recovery, its old attempt is
+  fenced as `lease_lost`, and the assignment passes through `blocked` to
+  `ready`. The next claim increments its lease generation.
+- An `external_uncertain` or legacy action moves to `awaiting_steward`. Never
+  replay it until authoritative evidence resolves whether the effect occurred.
+
+`worker_recovery_records` is the durable audit trail. Only assignments still in
+`running` with an expired lease are selected, so completed/verified work is not
+rewound. Review recovery records and external evidence before moving
+`awaiting_steward` work forward. The PostgreSQL integration tests kill a real
+worker subprocess after an isolated test effect commits; they do not constitute
+service deployment or live operational commissioning.

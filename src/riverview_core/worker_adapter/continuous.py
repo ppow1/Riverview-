@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/continuous.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.4
+# Revision: 1.0.6
 # Purpose: Execute isolated durable assignment cycles without global task coupling
 # Execution Model: Repeatable poll cycle; durable claims and outcomes in PostgreSQL
 # Observability: Assignment state, knowledge observations, attempts, and results
 # Dependencies: Psycopg; M1.2 ledger; M1.4 scheduler; worker-adapter contract
 # Authority: One assignment per cycle; no action without VERIFIED grounding/preflight
-# Changed: 2026-10-10 UTC | RV-M1.3-CONTINUOUS-KNOWLEDGE | Initial isolated worker cycle
+# Changed: 2026-10-10 UTC | RV-M2.3-001 | Persist effect class before invoking worker action
 # Contracts: docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -22,6 +22,7 @@ import time
 
 from .adapter import PostgresWorkerAdapter, WorkerAdapterError
 from .knowledge import KnowledgeResult, KnowledgeStatus, UnavailableKnowledgeProvider
+from .recovery import PostgresRecoveryCoordinator
 
 LOG = logging.getLogger("riverview.continuous_worker")
 
@@ -33,7 +34,8 @@ class ContinuousWorker:
 
     def __init__(self, adapter: PostgresWorkerAdapter, worker_id: str,
                  credential: str, *, knowledge=None, lease_seconds=30,
-                 action=None, poll_interval=0.5, knowledge_timeout_seconds=5.0):
+                 action=None, action_effect_class=None, poll_interval=0.5,
+                 knowledge_timeout_seconds=5.0):
         if poll_interval <= 0 or knowledge_timeout_seconds <= 0:
             raise ValueError("poll and knowledge timeout values must be positive")
         self.adapter = adapter
@@ -42,6 +44,10 @@ class ContinuousWorker:
         self.knowledge = knowledge or UnavailableKnowledgeProvider()
         self.lease_seconds = lease_seconds
         self.action = action or self._default_action
+        self.action_effect_class = (action_effect_class or
+                                    ("retry_safe" if action is None else "external_uncertain"))
+        if self.action_effect_class not in {"retry_safe", "external_uncertain"}:
+            raise ValueError("action_effect_class must be retry_safe or external_uncertain")
         self.poll_interval = poll_interval
         self.knowledge_timeout_seconds = knowledge_timeout_seconds
         self._knowledge_slots = threading.BoundedSemaphore(4)
@@ -96,7 +102,12 @@ class ContinuousWorker:
                 "operation": operation, "knowledge_status": result.status.value}
 
     def run_once(self):
-        """Process at most one assignment; a blocked assignment cannot block a later cycle."""
+        """Recover expired work, then process at most one newly claimable assignment."""
+        recovery = PostgresRecoveryCoordinator(self.adapter.dsn, schema=self.adapter.schema)
+        try:
+            recovery.reconcile_expired()
+        finally:
+            recovery.close()
         claim = self.adapter.claim_next(self.worker_id, self.credential,
                                         lease_seconds=self.lease_seconds)
         if claim is None:
@@ -130,19 +141,28 @@ class ContinuousWorker:
                     "operation": "reground_assignment",
                     "knowledge_status": regrounded.status.value}
 
+        intent_id = self.adapter.begin_execution_intent(
+            assignment["id"], self.worker_id, self.credential, lease["generation"],
+            f"continuous:{assignment['id']}:{lease['generation']}",
+            effect_class=self.action_effect_class)
         try:
             data = self.action(assignment, regrounded)
             if not isinstance(data, str):
                 raise WorkerAdapterError("worker action must return text for deterministic capability")
             outcome = self.adapter.execute_sha256(
                 assignment["id"], self.worker_id, self.credential, lease["generation"],
-                f"continuous:{assignment['id']}:{lease['generation']}", data)
+                f"continuous:{assignment['id']}:{lease['generation']}", data,
+                intent_id=intent_id)
             self.adapter.scheduler.transition_with_lease(
                 assignment["id"], "awaiting_verification", "worker_result_recorded",
                 f"continuous-result:{assignment['id']}:{lease['generation']}",
                 self.worker_id, lease["generation"])
         except Exception as exc:
             # Assignment-local action failure is durable and does not escape the poll loop.
+            intent_outcome = ("outcome_unknown" if
+                              self.action_effect_class == "external_uncertain" else "failed")
+            self.adapter.mark_execution_intent(intent_id, intent_outcome,
+                                               failure_class=type(exc).__name__)
             failure = {"failure_type": type(exc).__name__}
             latest = self.adapter.ledger.get(assignment["id"])
             if latest:
@@ -152,7 +172,9 @@ class ContinuousWorker:
             current = self.adapter.ledger.get(assignment["id"])
             if current and current["state"] == "running":
                 self.adapter.scheduler.transition_with_lease(
-                    assignment["id"], "blocked", "worker_action_failed",
+                    assignment["id"],
+                    "awaiting_steward" if intent_outcome == "outcome_unknown" else "blocked",
+                    "ACTION_OUTCOME_UNKNOWN" if intent_outcome == "outcome_unknown" else "worker_action_failed",
                     f"continuous-failure:{assignment['id']}:{lease['generation']}",
                     self.worker_id, lease["generation"])
             return {"status": "FAILED", "assignment_id": assignment["id"],

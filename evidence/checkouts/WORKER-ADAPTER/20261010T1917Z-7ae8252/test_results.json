@@ -1,0 +1,19 @@
+{
+  "result_revision": "1.0.0",
+  "task_id": "RV-M2.3-001",
+  "source_commit": "7ae8252469612920bd07dc84a6d65ef374aa8886",
+  "environment": "Camrui Ubuntu 24.04.3; PostgreSQL 16.15 private socket-only cluster; disposable schemas",
+  "command": "PYTHONPATH=.:src RIVERVIEW_TEST_PG_DSN=host=<private-socket> port=55439 dbname=postgres user=admin1 pytest -q tests",
+  "tests_run": 89,
+  "passed": 89,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "result": "PASS",
+  "output": "pytest.log",
+  "cluster_cleanup": {
+    "remaining_rvtest_schemas": 0,
+    "server_stopped": true,
+    "temporary_cluster_removed": true
+  }
+}
