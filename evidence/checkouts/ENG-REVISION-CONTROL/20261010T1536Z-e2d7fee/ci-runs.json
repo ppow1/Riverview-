@@ -1,0 +1,25 @@
+{
+  "commit": "e2d7fee8baa137a6ebf16466a5a1354d04fc0c74",
+  "failed": 0,
+  "passed": 53,
+  "revision_checkout": {
+    "issues": [],
+    "passed": true
+  },
+  "runs": [
+    {
+      "event": "push",
+      "id": 38064245175,
+      "url": "https://github.com/ppow1/Riverview-/actions/runs/38064245175"
+    },
+    {
+      "event": "pull_request",
+      "id": 38064247105,
+      "url": "https://github.com/ppow1/Riverview-/actions/runs/38064247105"
+    }
+  ],
+  "skipped": 0,
+  "status": "success",
+  "tests": 53,
+  "workflow": "Controlled checkout"
+}

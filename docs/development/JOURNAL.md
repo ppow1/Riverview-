@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.21
+**Document Revision:** 1.0.22
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -423,5 +423,16 @@ Lifecycle Standard requires repository checkout enforcement. PR #2 had no
 reported checks. Added a read-only GitHub Actions workflow to run the full suite
 against an ephemeral PostgreSQL 16 test service and execute the revision checker
 against the preserved baseline. No branch protection or approval settings were
-changed. Local YAML parse and baseline revision check pass; external Actions
-execution and its independently observed result remain pending.
+changed. Local YAML parse and baseline revision check passed; external Actions
+execution was pending at this entry's timestamp.
+
+2026-10-10 15:36 UTC — RV-ENG-REV-004 / ENG-REVISION-CONTROL: GitHub Actions
+workflow is verified on final commit `e2d7fee8baa137a6ebf16466a5a1354d04fc0c74`.
+The push run 38064245175 and PR run 38064247105 both passed all 53 tests with
+zero skips, including all PostgreSQL tests, and the revision checker returned
+zero issues. Initial successful runs exposed Node 20 and upcoming runner-image
+warnings; the workflow was revised to Node 24 action majors and Ubuntu 24.04,
+then rerun successfully. Logs, URLs, checksums, and run metadata are in
+`evidence/checkouts/ENG-REVISION-CONTROL/20261010T1536Z-e2d7fee/`. PR #2 remains
+open; no merge or branch protection change was performed. CI task is DONE.
+M1.1 Steward acceptance and M1.2 shared-schema/acceptance gates remain pending.
