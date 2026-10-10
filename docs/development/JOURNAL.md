@@ -1,8 +1,39 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.37
+**Document Revision:** 1.0.39
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-10 UTC — RV-M3.1-004 / deployed graph and documentation browser verification
+
+The first browser run exposed a missing `}` in the graph viewer's SVG class
+interpolation; the JavaScript asset did not parse, so the view stayed on its
+loading placeholder while the existing HTTP tests passed. Preserved the 1.0.0
+predecessor of `workflow.js`, incremented it to 1.0.1, corrected the expression,
+committed `008d942ea57116b0fbdead771c201d3f99305482`, built and verified its
+package (SHA-256 `e3211717073e2965ce3db0e2eb1e291acd24d8f56415324f7c6749af87f7d681`),
+and installed a new immutable release. Only the dashboard service was
+restarted. Firefox 156.0.1 then showed the live graph, safe formatted cookbook,
+healthy projection/CME, six attention records, and completed worker assignment
+with its independent verification; browser errors were zero. The graph API's
+11 edges comprised 10 local rendered edges and one cross-workflow jump edge
+whose stable target is exposed through its jump node/navigation control. Position
+remained explicitly unknown because the ledger has no node identity.
+
+Added `scripts/verify_status_dashboard_browser.py` as a reproducible read-only
+Camrui check. Local UI navigation handler measurements were 114/152/220/64 ms
+for Assignments/Activity/Overview/Workflows on one run; these are not full paint
+or refresh latency benchmarks. The complete suite against an isolated socket-
+only PostgreSQL 16 cluster passed 118 tests, zero skipped. Evidence (including
+attested prior Windows observation, live assignment data, screenshots, isolated
+suite logs, and deployment check) is in
+`evidence/checkouts/M3.1-DASHBOARD-COMPLETION/20261010T231800Z-ada58c2/`.
+The evidence sidecar is complete; graph synchronization passed for 10 workflows /
+196 nodes; the local controlled-revision audit passed with zero issues. GitHub CI
+and the evidence update on PR #16 are the remaining closeout. PR #16 remains draft and unmerged; formal
+Steward acceptance has not been claimed. The external Windows observation
+predates the new graph/cookbook views, so those new views have local browser
+verification but no post-change external Windows review.
 
 ## 2026-10-10 UTC — RV-M3.1-003 / dashboard usability and live worker proof
 

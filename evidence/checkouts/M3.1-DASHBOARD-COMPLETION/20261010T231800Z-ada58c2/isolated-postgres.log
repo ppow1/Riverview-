@@ -1,0 +1,17 @@
+2026-10-10 19:34:31.948 EDT [173599] LOG:  starting PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit
+2026-10-10 19:34:31.948 EDT [173599] LOG:  listening on Unix socket "/tmp/rv-m31-pg.Xwm1xr/socket/.s.PGSQL.55447"
+2026-10-10 19:34:31.953 EDT [173602] LOG:  database system was shut down at 2026-10-10 19:34:29 EDT
+2026-10-10 19:34:31.962 EDT [173599] LOG:  database system is ready to accept connections
+2026-10-10 19:34:36.371 EDT [173677] LOG:  could not receive data from client: Connection reset by peer
+2026-10-10 19:34:36.371 EDT [173677] LOG:  unexpected EOF on client connection with an open transaction
+2026-10-10 19:34:41.400 EDT [173807] ERROR:  injected event failure
+2026-10-10 19:34:41.400 EDT [173807] CONTEXT:  PL/pgSQL function reject_transition_event() line 3 at RAISE
+2026-10-10 19:34:41.400 EDT [173807] STATEMENT:  INSERT INTO events
+	               (event_id, schema, event_type, occurred_at, recorded_at,
+	                assignment_id, actor_id, correlation_id, causation_id,
+	                idempotency_key, authority_ref, privacy_domain, payload_schema, payload)
+	               VALUES ($1, 'rv.event.v1', $2, $3, $4, $5, $6, $7, $8,
+	                       $9, $10, $11, $12, $13)
+2026-10-10 19:34:57.648 EDT [174181] ERROR:  completion requires persisted independent verification
+2026-10-10 19:34:57.648 EDT [174181] CONTEXT:  PL/pgSQL function require_independent_verification_for_completion() line 8 at RAISE
+2026-10-10 19:34:57.648 EDT [174181] STATEMENT:  UPDATE assignments SET state='completed' WHERE id=$1

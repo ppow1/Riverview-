@@ -1,0 +1,60 @@
+{
+  "artifacts": {
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "ccd4cadcb2b5ac244dc8e23c5683f2c0a9c4a8edf25e3d6261226f81ce72fe9c",
+      "size_bytes": 1829
+    },
+    "cookbook-view.png": {
+      "path": "cookbook-view.png",
+      "revision": "1.0.0",
+      "sha256": "83cf374e15d6f30c42f4c362f6e0f398f4e70fd0f72448d30eb33c3e4bb65fbf",
+      "size_bytes": 218266
+    },
+    "deployment-check.json": {
+      "path": "deployment-check.json",
+      "revision": "1.0.0",
+      "sha256": "6c6071ee90d6be7d23e7394c40c981ba2a7d0ebba489641519cf8a9356bc9524",
+      "size_bytes": 1270
+    },
+    "external-windows-observation.json": {
+      "path": "external-windows-observation.json",
+      "revision": "1.0.0",
+      "sha256": "6a0fae87ab97b8228fff005f66ef20f3dc39c521354f0dd177fd54f9b7706ca7",
+      "size_bytes": 1168
+    },
+    "full-suite-after-graph-fix.log": {
+      "path": "full-suite-after-graph-fix.log",
+      "revision": "1.0.0",
+      "sha256": "9f038e37da7fd9a4cb1faf1953c4d955b834db0a388e3031eaa3b1fdb3138212",
+      "size_bytes": 19351
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "3f5e2dd2b9e197f71a096c49af97a6f0e4ccdeb2d3ced9e05f89b422b3515c5b",
+      "size_bytes": 19351
+    },
+    "isolated-postgres.log": {
+      "path": "isolated-postgres.log",
+      "revision": "1.0.0",
+      "sha256": "7ab9aaf903f6e8b797309d7bb4fd9c303d9955dc43c7a545954309d9cb1be1c7",
+      "size_bytes": 1631
+    },
+    "live-worker-assignment.json": {
+      "path": "live-worker-assignment.json",
+      "revision": "1.0.0",
+      "sha256": "5e451bd66eaa91c01c414fcfce064bf471bdc3b28f6f902da0228e01e1def4c7",
+      "size_bytes": 4252
+    },
+    "workflow-view.png": {
+      "path": "workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "84370d68406f0581cd5bda1a79ac0f99b7151e950ce38e88bbb55353c83ecc9c",
+      "size_bytes": 210799
+    }
+  },
+  "evidence_bundle": "RV-M3.1-001-commissioning",
+  "manifest_revision": "1.0.0"
+}

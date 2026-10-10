@@ -1,10 +1,10 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.5
+File Revision: 1.0.6
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
-Changed: 2026-10-10 UTC | RV-M3.1-003 | Document safe cookbook rendering and canonical workflow viewer
+Changed: 2026-10-10 UTC | RV-M3.1-004 | Add deployed browser acceptance and graph-viewer diagnostics
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -43,6 +43,23 @@ python3 scripts/revision_control.py check --baseline evidence/checkouts/ENG-REVI
 The service reads from its selected root-owned release. Deploy a new verified
 full-SHA release to update code and graph data together; never hot-edit the
 installation or copy an uncommitted graph.
+
+Run the reproducible, read-only Firefox commissioning check on Camrui with an
+assignment that has a completed worker attempt and independent verification:
+
+```sh
+python3 scripts/verify_status_dashboard_browser.py \
+  --assignment-id <completed-assignment-id> \
+  --output /tmp/riverview-dashboard-browser-check
+```
+
+The protected token path defaults to `/home/admin1/.config/riverview/status-dashboard.token`.
+The utility refuses a permissive token file or existing output directory, never
+prints the token, and writes a redacted JSON report and browser screenshots only
+to the requested new directory. It verifies live status/attention/assignment
+routes, browser JavaScript parseability, graph nodes/decisions/transitions/jumps,
+formatted cookbook safety, navigation, and browser errors. It does not mutate
+assignments or services.
 
 ## CME attention endpoint and 503 responses
 

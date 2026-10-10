@@ -1,0 +1,35 @@
+{
+  "archive_sha256": "e3211717073e2965ce3db0e2eb1e291acd24d8f56415324f7c6749af87f7d681",
+  "assignment_counts": {
+    "completed": 1,
+    "ready": 3
+  },
+  "attention_http": 200,
+  "attention_items": 6,
+  "attention_status": "available",
+  "captured_at_utc": "2026-10-10T23:34:18.968199+00:00",
+  "cme_health": "healthy",
+  "cme_monitor_service": {
+    "ActiveState": "active",
+    "ExecMainStatus": "0",
+    "SubState": "running"
+  },
+  "dashboard_service": {
+    "ActiveEnterTimestamp": "Sat 2026-10-10 19:30:44 EDT",
+    "ActiveState": "active",
+    "ExecMainStatus": "0",
+    "SubState": "running"
+  },
+  "deployment_id": "m3.1-camrui",
+  "evidence_type": "live_camrui_deployment_check",
+  "freshness": "current",
+  "listener": "127.0.0.1:8766",
+  "migrations": null,
+  "postgres_database": "riverview",
+  "postgres_schema": "riverview_dev",
+  "projection_status": "healthy",
+  "release_path": "/opt/riverview-status-dashboard/releases/008d942ea57116b0fbdead771c201d3f99305482",
+  "scope": "Read-only dashboard deployment and live endpoint verification; database, credentials, CME monitor, event processor, baseline, and SSH configuration were not modified by this deployment.",
+  "source_commit": "008d942ea57116b0fbdead771c201d3f99305482",
+  "status_http": 200
+}
