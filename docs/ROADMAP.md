@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.0.9
+**Document Revision:** 1.1.1
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-09  
 **Component:** RV-ROADMAP  
@@ -117,9 +117,11 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 **M1.4:** Isolated technical criteria verified at source commit `549bd08b9b1800981c6c4c006dbe59d8fed0a799`: age-ordered independent claims, an active stalled lease not blocking unrelated progress, concurrent distinct claims, expiry generation increment, stale token rejection, and idempotent start. Evidence is in the M1.4-001 engineering record. No shared-schema migration, service deployment, operational commissioning, or full component DoD is claimed.
 
-**M2.3 — Failure and restart recovery:** Isolated technical PASS at commit `7ae8252469612920bd07dc84a6d65ef374aa8886`; evidence is retained in `evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/`. The full component Definition of Done and live operational commissioning remain open. PR #9 and PR #10 remain unmerged and are prerequisites in the review stack.
+**M2.1–M2.3 — Execution, independent verification, and restart recovery:** Integrated on `main` at `4f028a138c41665239bde2c11be65b0f841f02bf` by PRs #9, #10, and #12. The combined isolated PostgreSQL 16.15 suite passed 89/89 on Camrui; graph validation and the controlled revision audit passed, and GitHub main CI passed. This confirms the integrated engineering baseline only; the M2.1–M2.3 live deployments and full component DoD remain open.
 
-**Current step: M2.4 — CME monitoring service (isolated engineering).** Begin the concurrent monitor for progress, deadlines, stalls, and recovery requests. The M2.3 recovery coordinator is invoked before each worker claim; M2.4 must observe and emit traceable attention/recovery events without governing or replacing workers. Do not claim shared deployment or full component completion.
+**M2.4 — CME monitoring service:** Isolated roadmap technical criteria PASS at commit `a44091bc32e82580dd8a3350e1ecfa47b0157b36`. The full 95-test Camrui suite passed on a private PostgreSQL 16.15 cluster; actual process restart, idempotent alert/recovery records, deadline/stall detection, worker health, and independent assignment progress are evidenced in `evidence/checkouts/CME/20261010T194722Z-a44091b/`. No shared schema migration or installed service commissioning is claimed. The full component DoD remains OPEN, including live Steward visualization and unattended installed-service evidence.
+
+**Current step: M3.1 — Read-only status projection and browser dashboard (next after M2.4 integration).** The integrated `main` baseline remains `4f028a138c41665239bde2c11be65b0f841f02bf`; M2.4 is on the short-lived `codex/m2.4-cme-monitor` branch and has not been merged. Do not stack M3.1 on an unmerged feature branch. Steward merge authorization remains outstanding; no PR merge is claimed.
 
 **Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. M2.4 is the next independent eligible engineering item.
 
@@ -136,3 +138,5 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 - **1.0.7 — 2026-10-10:** Add mandatory M4.4 Grace Operational Integration, system-level acceptance evidence and explicit dependencies; record it as not yet implemented without interrupting M2.1.
 - **1.0.8 — 2026-10-10:** Record M2.1/M2.2 verified isolated PR state and begin M2.3 failure/restart recovery; preserve non-merged status and no deployment claim.
 - **1.0.9 — 2026-10-10:** Record M2.3 isolated technical PASS and advance engineering cursor to M2.4 while preserving the open PR stack and deployment/full-DoD limitations.
+- **1.1.0 — 2026-10-10:** Record PR #9/#10/#12 integration, combined isolated baseline verification, retirement of their fully merged feature branches, and M2.4 engineering from the integrated main commit.
+- **1.1.1 — 2026-10-10:** Record M2.4 isolated roadmap technical PASS, retain its open live-service/full-DoD obligations, and identify M3.1 as the next milestone after M2.4 integration.

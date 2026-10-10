@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.28",
+  "manifest_revision": "1.1.32",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.21",
+      "revision": "1.0.23",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "65837f86aaa698491eb2d71d731af8491ef2218c4ea814936a4e3dffc2fa3ab0",
-      "size_bytes": 143038
+      "sha256": "83d7a1d5a9c979dd9fd58d63633c2cc9403566a09d597f7bcc14488b29705431",
+      "size_bytes": 152993
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 619
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.28"
+      "revision": "1.1.32"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -125,10 +125,10 @@
       "size_bytes": 1561
     },
     "process_graphs/cme/progress-and-recovery.json": {
-      "revision": "1.0.0",
+      "revision": "1.0.2",
       "path": "process_graphs/cme/progress-and-recovery.json",
-      "sha256": "f1a16e9194bf145ddd668bb3692fcb8748d91043d26be65daa15989eaca1f635",
-      "size_bytes": 4683
+      "sha256": "680d44fd58b9a16919f99843f47d51eec41144188f24577476a5c29e0f3a6b0a",
+      "size_bytes": 13548
     },
     "process_graphs/grace/operational-integration.json": {
       "revision": "1.0.1",

@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.21
+# Revision: 1.0.23
 # Purpose: Verify scoped dispatch, fail-closed knowledge, independent outcomes, and recovery
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL test database
 # Authority: Creates and drops only unique rvtest_* schemas
-# Changed: 2026-10-10 UTC | RV-M2.3-001 | Verify forced worker termination and reconciliation
+# Changed: 2026-10-10 UTC | RV-M2.4-001 | Verify knowledge timeout with synchronization instead of a brittle latency bound
 # Contracts: docs/development/M2.3-001_REVISION_RECORD.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -18,6 +18,7 @@
 import hashlib
 import json
 import os
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -472,17 +473,44 @@ class WorkerAdapterTests(unittest.TestCase):
         from riverview_core.worker_adapter import ContinuousWorker
 
         class SlowProvider(self.VerifiedProvider):
+            def __init__(self):
+                self.started = threading.Event()
+                self.release = threading.Event()
+                self.finished = threading.Event()
+
             def ground_assignment(self, assignment):
-                time.sleep(0.15)
+                self.started.set()
+                self.release.wait(timeout=5)
+                self.finished.set()
                 return self._verified()
 
         waiting_id = self.ready_assignment(objective="objective:slow-provider")
+        provider = SlowProvider()
         engine = ContinuousWorker(self.worker, self.worker_id, self.token,
-                                  knowledge=SlowProvider(), knowledge_timeout_seconds=0.01)
-        started = time.monotonic()
-        result = engine.run_once()
-        elapsed = time.monotonic() - started
-        self.assertLess(elapsed, 0.10)
+                                  knowledge=provider, knowledge_timeout_seconds=0.01)
+        result_box = []
+        errors = []
+
+        def run():
+            try:
+                result_box.append(engine.run_once())
+            except Exception as exc:
+                errors.append(exc)
+
+        execution = threading.Thread(target=run)
+        execution.start()
+        self.assertTrue(provider.started.wait(timeout=3), "provider call did not start")
+        execution.join(timeout=3)
+        provider_finished_before_release = provider.finished.is_set()
+        provider.release.set()
+        execution.join(timeout=3)
+        self.assertFalse(execution.is_alive(), "worker remained blocked on provider")
+        self.assertEqual(errors, [])
+        self.assertFalse(provider_finished_before_release,
+                         "worker waited for the provider's delayed response")
+        provider.finished.wait(timeout=1)
+        self.assertEqual(len(result_box), 1)
+        result = result_box[0]
         self.assertEqual(result["status"], "WAITING_FOR_EVIDENCE")
         self.assertEqual(result["knowledge_status"], "UNAVAILABLE")
         self.assertEqual(self.ledger.get(waiting_id)["workflow_step"], "WAITING_FOR_EVIDENCE")

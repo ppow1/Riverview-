@@ -1,0 +1,31 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M2-BASELINE-001",
+  "source_commit": "4f028a138c41665239bde2c11be65b0f841f02bf",
+  "artifacts": {
+    "checkout.md": {
+      "revision": "1.0.0",
+      "path": "checkout.md",
+      "sha256": "80e01ac524ec7ed078cf6a84f56a89e7ed66b786cf24dc7771b82456997f488c",
+      "size_bytes": 2682
+    },
+    "tests.log": {
+      "revision": "1.0.0",
+      "path": "tests.log",
+      "sha256": "ce5bb03d1488b8dc8448d2a900c8765a6bd07a15d7e58e432f4e35f0600a4424",
+      "size_bytes": 14105
+    },
+    "process-graph-check.json": {
+      "revision": "1.0.0",
+      "path": "process-graph-check.json",
+      "sha256": "049410ff2a90aacbaa37fb34a3b44742fda4b20fc17e52b75d077bac3f620282",
+      "size_bytes": 55
+    },
+    "revision-audit.json": {
+      "revision": "1.0.0",
+      "path": "revision-audit.json",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    }
+  }
+}

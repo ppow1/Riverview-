@@ -1,0 +1,3695 @@
+{
+  "graph_schema": "RiverviewProcessGraph/1.0.0",
+  "aggregate_id": "rv:riverview:all-workflows",
+  "graphs": [
+    {
+      "graph_id": "rv:assignment-scheduler:independent-claims",
+      "graph_revision": "1.0.4",
+      "component_id": "ASSIGNMENT-SCHEDULER",
+      "workflow_id": "independent-assignment-claims.v1",
+      "diagram_order": 6,
+      "source_references": [
+        "src/riverview_core/assignment_scheduler/scheduler.py",
+        "src/riverview_core/assignment_scheduler/migrations/0001_assignment_leases.sql",
+        "src/riverview_core/postgres_ledger.py",
+        "tests/test_assignment_scheduler.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_SCHEDULER_FLOW.md",
+        "docs/components/ASSIGNMENT_SCHEDULER.md",
+        "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md",
+        "docs/development/M1.4-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+        "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json"
+      ],
+      "nodes": [
+        {
+          "id": "rv:assignment-scheduler:independent-claims:start",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Scheduler claim request",
+          "source_references": [
+            "src/riverview_core/assignment_scheduler/scheduler.py"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_SCHEDULER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:assignment-scheduler:independent-claims:preflight",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Require explicitly installed M1.4 lease migration",
+          "source_references": [
+            "src/riverview_core/assignment_scheduler/scheduler.py",
+            "src/riverview_core/assignment_scheduler/migrations/0001_assignment_leases.sql"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:assignment-scheduler:independent-claims:ready-query",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Select oldest ready assignment without active lease using SKIP LOCKED",
+          "source_references": [
+            "src/riverview_core/assignment_scheduler/scheduler.py"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_SCHEDULER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:assignment-scheduler:independent-claims:candidate",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Eligible assignment found?",
+          "source_references": [
+            "src/riverview_core/assignment_scheduler/scheduler.py"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_SCHEDULER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:assignment-scheduler:independent-claims:empty",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "No eligible ready assignment",
+          "source_references": [
+            "src/riverview_core/assignment_scheduler/scheduler.py"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:assignment-scheduler:independent-claims:claim",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Persist worker lease and increment fencing generation",
+          "source_references": [
+            "src/riverview_core/assignment_scheduler/scheduler.py",
+            "src/riverview_core/assignment_scheduler/migrations/0001_assignment_leases.sql"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_SCHEDULER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:assignment-scheduler:independent-claims:expiry",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Track database-clock lease expiry and heartbeat",
+          "source_references": [
+            "src/riverview_core/assignment_scheduler/scheduler.py",
+            "src/riverview_core/assignment_scheduler/migrations/0001_assignment_leases.sql"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:assignment-scheduler:independent-claims:reclaim",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Reclaim expired lease with a strictly newer generation",
+          "source_references": [
+            "src/riverview_core/assignment_scheduler/scheduler.py"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:assignment-scheduler:independent-claims:start-check",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Check current worker, generation, and unexpired lease atomically",
+          "source_references": [
+            "src/riverview_core/assignment_scheduler/scheduler.py"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_SCHEDULER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:assignment-scheduler:independent-claims:stale",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Reject stale or expired lease token",
+          "source_references": [
+            "src/riverview_core/assignment_scheduler/scheduler.py"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:assignment-scheduler:independent-claims:running",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Atomically transition ready assignment to running with causal event",
+          "source_references": [
+            "src/riverview_core/assignment_scheduler/scheduler.py",
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_SCHEDULER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:assignment-scheduler:independent-claims:ready-jump",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "M1.3 event processor makes queued work ready",
+          "jump_target_id": "rv:event-processor:assignment-progression:advance",
+          "source_references": [
+            "src/riverview_core/event_processor.py"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_SCHEDULER.md"
+          ],
+          "verification_evidence": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:assignment-scheduler:independent-claims:start",
+          "to": "rv:assignment-scheduler:independent-claims:preflight",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:assignment-scheduler:independent-claims:preflight",
+          "to": "rv:assignment-scheduler:independent-claims:ready-query",
+          "type": "runtime_transition",
+          "label": "Lease schema available"
+        },
+        {
+          "from": "rv:assignment-scheduler:independent-claims:ready-query",
+          "to": "rv:assignment-scheduler:independent-claims:candidate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:assignment-scheduler:independent-claims:candidate",
+          "to": "rv:assignment-scheduler:independent-claims:empty",
+          "type": "runtime_transition",
+          "label": "No"
+        },
+        {
+          "from": "rv:assignment-scheduler:independent-claims:candidate",
+          "to": "rv:assignment-scheduler:independent-claims:claim",
+          "type": "runtime_transition",
+          "label": "Yes"
+        },
+        {
+          "from": "rv:assignment-scheduler:independent-claims:claim",
+          "to": "rv:assignment-scheduler:independent-claims:expiry",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:assignment-scheduler:independent-claims:expiry",
+          "to": "rv:assignment-scheduler:independent-claims:reclaim",
+          "type": "recovery_route",
+          "label": "Expired lease; generation increments"
+        },
+        {
+          "from": "rv:assignment-scheduler:independent-claims:claim",
+          "to": "rv:assignment-scheduler:independent-claims:start-check",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:assignment-scheduler:independent-claims:start-check",
+          "to": "rv:assignment-scheduler:independent-claims:stale",
+          "type": "diagnostic_branch",
+          "label": "Token no longer current"
+        },
+        {
+          "from": "rv:assignment-scheduler:independent-claims:start-check",
+          "to": "rv:assignment-scheduler:independent-claims:running",
+          "type": "runtime_transition",
+          "label": "Current lease"
+        },
+        {
+          "from": "rv:assignment-scheduler:independent-claims:ready-jump",
+          "to": "rv:event-processor:assignment-progression:advance",
+          "type": "jump",
+          "label": "Open the M1.3 ready-state producer workflow"
+        }
+      ]
+    },
+    {
+      "graph_id": "rv:cme:progress-and-recovery",
+      "graph_revision": "1.0.0",
+      "component_id": "CME",
+      "workflow_id": "progress-and-recovery.v1",
+      "diagram_order": 8,
+      "source_references": [
+        "docs/ROADMAP.md",
+        "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md",
+        "docs/architecture/CORE_CONTRACT.md"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+        "docs/ROADMAP.md",
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+      ],
+      "verification_evidence": [],
+      "nodes": [
+        {
+          "id": "rv:cme:progress-and-recovery:monitor-start",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "PLANNED — observe durable assignment and service progress",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:cme:progress-and-recovery:observe",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "PLANNED — measure progress, freshness, stalls, and recovery state",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:cme:progress-and-recovery:stall-decision",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "PLANNED — distinguish progressing, blocked, stale, and failed work",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:cme:progress-and-recovery:attention",
+          "node_revision": "1.0.0",
+          "type": "escalation",
+          "label": "PLANNED — persist attention or genuine Steward decision request",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:cme:progress-and-recovery:recovery",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "PLANNED — request bounded assignment-local recovery and preserve unrelated work",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:cme:progress-and-recovery:resident-feedback",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "PLANNED — return progress and attention evidence to Grace",
+          "jump_target_id": "rv:grace:operational-integration:evidence-review",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:cme:progress-and-recovery:monitor-start",
+          "to": "rv:cme:progress-and-recovery:observe",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:observe",
+          "to": "rv:cme:progress-and-recovery:stall-decision",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:stall-decision",
+          "to": "rv:cme:progress-and-recovery:observe",
+          "type": "runtime_transition",
+          "label": "PLANNED — progress; continue monitoring"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:stall-decision",
+          "to": "rv:cme:progress-and-recovery:attention",
+          "type": "escalation",
+          "label": "PLANNED — genuine decision or attention condition"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:stall-decision",
+          "to": "rv:cme:progress-and-recovery:recovery",
+          "type": "recovery_route",
+          "label": "PLANNED — assignment-local recovery"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:attention",
+          "to": "rv:cme:progress-and-recovery:resident-feedback",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:resident-feedback",
+          "to": "rv:grace:operational-integration:evidence-review",
+          "type": "jump"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:recovery",
+          "to": "rv:cme:progress-and-recovery:observe",
+          "type": "runtime_transition",
+          "label": "PLANNED — continue unrelated monitoring"
+        }
+      ]
+    },
+    {
+      "graph_id": "rv:event-processor:assignment-progression",
+      "graph_revision": "1.0.4",
+      "component_id": "EVENT-PROCESSOR",
+      "workflow_id": "assignment-progression.v1",
+      "diagram_order": 1,
+      "source_references": [
+        "src/riverview_core/event_processor.py",
+        "src/riverview_core/event_processor/migrations/0002_event_processor_cursor.sql",
+        "scripts/run_event_processor.py",
+        "src/riverview_core/postgres_ledger.py",
+        "scripts/runtime_baseline.py",
+        "deploy/systemd/riverview-event-processor.service",
+        "deploy/install_event_processor.sh",
+        "deploy/rollback_event_processor.sh",
+        "scripts/verify_event_processor.py"
+      ],
+      "documentation_references": [
+        "docs/components/EVENT_PROCESSOR_FLOW.md",
+        "docs/components/EVENT_PROCESSOR_COOKBOOK.md",
+        "docs/components/EVENT_PROCESSOR.md",
+        "docs/development/M1.3-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/EVENT-PROCESSOR/20261010T1628Z-3fd6fd2/checkout.md",
+        "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json"
+      ],
+      "nodes": [
+        {
+          "id": "rv:event-processor:assignment-progression:start",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Supervised event processor starts",
+          "source_references": [
+            "scripts/run_event_processor.py"
+          ],
+          "documentation_references": [
+            "docs/components/EVENT_PROCESSOR.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:event-processor:assignment-progression:lease",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Acquire PostgreSQL advisory leadership lock for this consumer",
+          "source_references": [
+            "src/riverview_core/event_processor.py"
+          ],
+          "documentation_references": [
+            "docs/components/EVENT_PROCESSOR.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:event-processor:assignment-progression:lock-failure",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Another instance holds consumer lease; refuse duplicate runner",
+          "source_references": [
+            "src/riverview_core/event_processor.py"
+          ],
+          "documentation_references": [
+            "docs/components/EVENT_PROCESSOR_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:event-processor:assignment-progression:read-cursor",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Read durable per-consumer event cursor",
+          "source_references": [
+            "src/riverview_core/event_processor.py",
+            "src/riverview_core/event_processor/migrations/0002_event_processor_cursor.sql"
+          ],
+          "documentation_references": [
+            "docs/components/EVENT_PROCESSOR_FLOW.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:event-processor:assignment-progression:fetch",
+          "node_revision": "1.0.1",
+          "type": "process",
+          "label": "Fetch commit-ordered events after the durable cursor",
+          "source_references": [
+            "src/riverview_core/event_processor.py",
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/EVENT_PROCESSOR_FLOW.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:event-processor:assignment-progression:created",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Event is assignment.created?",
+          "source_references": [
+            "src/riverview_core/event_processor.py"
+          ],
+          "documentation_references": [
+            "docs/components/EVENT_PROCESSOR_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:event-processor:assignment-progression:queued",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Assignment still queued?",
+          "source_references": [
+            "src/riverview_core/event_processor.py"
+          ],
+          "documentation_references": [
+            "docs/components/EVENT_PROCESSOR_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:event-processor:assignment-progression:advance",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Idempotently transition assignment to ready",
+          "source_references": [
+            "src/riverview_core/event_processor.py",
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/EVENT_PROCESSOR.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:event-processor:assignment-progression:skip",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Ignore unrelated or already advanced event",
+          "source_references": [
+            "src/riverview_core/event_processor.py"
+          ],
+          "documentation_references": [
+            "docs/components/EVENT_PROCESSOR_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:event-processor:assignment-progression:checkpoint",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Persist cursor only after successful handling",
+          "source_references": [
+            "src/riverview_core/event_processor.py"
+          ],
+          "documentation_references": [
+            "docs/components/EVENT_PROCESSOR_FLOW.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:event-processor:assignment-progression:retry",
+          "node_revision": "1.0.1",
+          "type": "recovery",
+          "label": "Bounded backoff; reconnect to PostgreSQL and reacquire leadership",
+          "source_references": [
+            "src/riverview_core/event_processor.py"
+          ],
+          "documentation_references": [
+            "docs/components/EVENT_PROCESSOR_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:event-processor:assignment-progression:replay",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Restart replays uncheckpointed source event safely",
+          "source_references": [
+            "src/riverview_core/event_processor.py"
+          ],
+          "documentation_references": [
+            "docs/components/EVENT_PROCESSOR_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:event-processor:assignment-progression:stop",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "SIGTERM checkpointed stop and leadership release",
+          "source_references": [
+            "scripts/run_event_processor.py",
+            "src/riverview_core/event_processor.py"
+          ],
+          "documentation_references": [
+            "docs/components/EVENT_PROCESSOR_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:event-processor:assignment-progression:startup-preflight",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Validate credential delivery and source-matched migration history",
+          "source_references": [
+            "scripts/run_event_processor.py",
+            "scripts/runtime_baseline.py",
+            "src/riverview_core/event_processor.py"
+          ],
+          "documentation_references": [
+            "docs/components/EVENT_PROCESSOR.md",
+            "docs/components/EVENT_PROCESSOR_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:event-processor:assignment-progression:preflight-failure",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Refuse event consumption on unsafe credential or schema mismatch",
+          "source_references": [
+            "scripts/run_event_processor.py",
+            "src/riverview_core/event_processor.py"
+          ],
+          "documentation_references": [
+            "docs/components/EVENT_PROCESSOR_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:event-processor:assignment-progression:baseline-jump",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "M1.1 runtime credential and host commissioning baseline",
+          "jump_target_id": "rv:runtime-baseline:commissioning:ready",
+          "source_references": [
+            "deploy/systemd/riverview-event-processor.service"
+          ],
+          "documentation_references": [
+            "docs/components/EVENT_PROCESSOR.md"
+          ],
+          "verification_evidence": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:event-processor:assignment-progression:lease",
+          "to": "rv:event-processor:assignment-progression:lock-failure",
+          "type": "diagnostic_branch",
+          "label": "Lock unavailable"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:lease",
+          "to": "rv:event-processor:assignment-progression:read-cursor",
+          "type": "runtime_transition",
+          "label": "Acquired"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:read-cursor",
+          "to": "rv:event-processor:assignment-progression:fetch",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:fetch",
+          "to": "rv:event-processor:assignment-progression:created",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:created",
+          "to": "rv:event-processor:assignment-progression:queued",
+          "type": "runtime_transition",
+          "label": "Yes"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:created",
+          "to": "rv:event-processor:assignment-progression:skip",
+          "type": "runtime_transition",
+          "label": "No"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:queued",
+          "to": "rv:event-processor:assignment-progression:advance",
+          "type": "runtime_transition",
+          "label": "Yes"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:queued",
+          "to": "rv:event-processor:assignment-progression:skip",
+          "type": "runtime_transition",
+          "label": "No"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:advance",
+          "to": "rv:event-processor:assignment-progression:checkpoint",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:skip",
+          "to": "rv:event-processor:assignment-progression:checkpoint",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:checkpoint",
+          "to": "rv:event-processor:assignment-progression:read-cursor",
+          "type": "runtime_transition",
+          "label": "Next poll"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:read-cursor",
+          "to": "rv:event-processor:assignment-progression:retry",
+          "type": "diagnostic_branch",
+          "label": "Database or handler error"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:retry",
+          "to": "rv:event-processor:assignment-progression:replay",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:replay",
+          "to": "rv:event-processor:assignment-progression:read-cursor",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:checkpoint",
+          "to": "rv:event-processor:assignment-progression:stop",
+          "type": "runtime_transition",
+          "label": "SIGTERM"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:lease",
+          "to": "rv:postgres-ledger:migration:require-schema",
+          "type": "prerequisite",
+          "label": "M1.2 migrated ledger schema; not a runtime call"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:start",
+          "to": "rv:event-processor:assignment-progression:startup-preflight",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:startup-preflight",
+          "to": "rv:event-processor:assignment-progression:preflight-failure",
+          "type": "diagnostic_branch",
+          "label": "Credential or migration contract invalid"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:startup-preflight",
+          "to": "rv:event-processor:assignment-progression:lease",
+          "type": "runtime_transition",
+          "label": "Validated"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:startup-preflight",
+          "to": "rv:event-processor:assignment-progression:baseline-jump",
+          "type": "prerequisite",
+          "label": "M1.1 host and credential contract; not a runtime call"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:baseline-jump",
+          "to": "rv:runtime-baseline:commissioning:ready",
+          "type": "jump"
+        },
+        {
+          "from": "rv:event-processor:assignment-progression:retry",
+          "to": "rv:event-processor:assignment-progression:lease",
+          "type": "recovery_route",
+          "label": "Database returned; verify source schema and reacquire the consumer lock"
+        }
+      ]
+    },
+    {
+      "graph_id": "rv:grace:operational-integration",
+      "graph_revision": "1.0.1",
+      "component_id": "RESIDENT-ORCHESTRATION",
+      "workflow_id": "grace-engineering-objective.v1",
+      "diagram_order": 9,
+      "source_references": [
+        "docs/ROADMAP.md",
+        "docs/architecture/CORE_CONTRACT.md",
+        "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md",
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+        "docs/ROADMAP.md",
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+      ],
+      "verification_evidence": [],
+      "nodes": [
+        {
+          "id": "rv:grace:operational-integration:objective-intake",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "PLANNED — receive and durably record Steward objective and authority",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:authority-check",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "PLANNED — bind objective to delegated office authority and acceptance criteria",
+          "source_references": [
+            "docs/architecture/CORE_CONTRACT.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:reason-decompose",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "PLANNED — reason about objective and decompose durable engineering plan",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:durable-plan",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "PLANNED — persist and revise plan across context and model replacement",
+          "source_references": [
+            "docs/architecture/CORE_CONTRACT.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:assignment-fanout",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "PLANNED — create multiple independently schedulable assignments",
+          "source_references": [
+            "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:worker-dispatch",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "PLANNED — delegate through CME to replaceable real engineering executors",
+          "jump_target_id": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:cme-progress",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "PLANNED — subscribe to durable progress, stall, and recovery events from CME",
+          "jump_target_id": "rv:cme:progress-and-recovery:observe",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:evidence-review",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "PLANNED — interpret execution and independent verification evidence",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:verification-feedback",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "PLANNED — consume independent verifier decision and evidence",
+          "jump_target_id": "rv:outcome-verifier:independent-result:decision",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:objective-check",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "PLANNED — determine whether objective acceptance criteria are independently met",
+          "source_references": [
+            "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:replan",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "PLANNED — revise plan and initiate follow-up work after evidence or failure",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:steward-escalation",
+          "node_revision": "1.0.0",
+          "type": "escalation",
+          "label": "PLANNED — request only genuine Steward decision or authority",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:objective-complete",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "PLANNED — objective closed only with independently verified evidence",
+          "source_references": [
+            "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:grace:operational-integration:objective-intake",
+          "to": "rv:grace:operational-integration:authority-check",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:operational-integration:authority-check",
+          "to": "rv:grace:operational-integration:reason-decompose",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:operational-integration:reason-decompose",
+          "to": "rv:grace:operational-integration:durable-plan",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:operational-integration:durable-plan",
+          "to": "rv:grace:operational-integration:assignment-fanout",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:operational-integration:assignment-fanout",
+          "to": "rv:grace:operational-integration:worker-dispatch",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:operational-integration:worker-dispatch",
+          "to": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "type": "jump"
+        },
+        {
+          "from": "rv:grace:operational-integration:assignment-fanout",
+          "to": "rv:grace:operational-integration:cme-progress",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:operational-integration:cme-progress",
+          "to": "rv:cme:progress-and-recovery:observe",
+          "type": "jump"
+        },
+        {
+          "from": "rv:grace:operational-integration:evidence-review",
+          "to": "rv:grace:operational-integration:objective-check",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:operational-integration:evidence-review",
+          "to": "rv:grace:operational-integration:verification-feedback",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:operational-integration:verification-feedback",
+          "to": "rv:outcome-verifier:independent-result:decision",
+          "type": "jump"
+        },
+        {
+          "from": "rv:grace:operational-integration:objective-check",
+          "to": "rv:grace:operational-integration:objective-complete",
+          "type": "verification",
+          "label": "PLANNED — all criteria independently verified"
+        },
+        {
+          "from": "rv:grace:operational-integration:objective-check",
+          "to": "rv:grace:operational-integration:replan",
+          "type": "recovery_route",
+          "label": "PLANNED — unmet criteria or new evidence"
+        },
+        {
+          "from": "rv:grace:operational-integration:objective-check",
+          "to": "rv:grace:operational-integration:steward-escalation",
+          "type": "escalation",
+          "label": "PLANNED — genuine decision required"
+        },
+        {
+          "from": "rv:grace:operational-integration:replan",
+          "to": "rv:grace:operational-integration:durable-plan",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:operational-integration:steward-escalation",
+          "to": "rv:grace:operational-integration:durable-plan",
+          "type": "runtime_transition",
+          "label": "PLANNED — resume after recorded decision"
+        }
+      ]
+    },
+    {
+      "graph_id": "rv:outcome-verifier:independent-result",
+      "graph_revision": "1.0.1",
+      "component_id": "OUTCOME-VERIFIER",
+      "workflow_id": "deterministic-result-verification.v1",
+      "diagram_order": 1,
+      "source_references": [
+        "src/riverview_core/worker_adapter/verifier.py",
+        "src/riverview_core/worker_adapter/adapter.py",
+        "src/riverview_core/worker_adapter/migrations/0003_independent_verification.sql",
+        "src/riverview_core/postgres_ledger.py",
+        "tests/test_worker_adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/OUTCOME_VERIFIER_FLOW.md",
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/development/M2.2-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+      ],
+      "nodes": [
+        {
+          "id": "rv:outcome-verifier:independent-result:verification-intake",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Receive a persisted worker attempt awaiting verification",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/OUTCOME_VERIFIER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:outcome-verifier:independent-result:result-jump",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "Load persisted attempt and result from M2.1 worker ledger",
+          "jump_target_id": "rv:worker-adapter:deterministic-attempt:result",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/OUTCOME_VERIFIER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:outcome-verifier:independent-result:identity-check",
+          "node_revision": "1.0.1",
+          "type": "verification",
+          "label": "Authenticate separate verifier capability and enforce authority scope",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/worker_adapter/migrations/0003_independent_verification.sql"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:outcome-verifier:independent-result:evaluate",
+          "node_revision": "1.0.1",
+          "type": "process",
+          "label": "Recompute result checks independently from executor claim",
+          "source_references": [
+            "src/riverview_core/worker_adapter/verifier.py"
+          ],
+          "documentation_references": [
+            "docs/components/OUTCOME_VERIFIER_FLOW.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:outcome-verifier:independent-result:decision",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Classify acceptance against explicit criteria and evidence",
+          "source_references": [
+            "src/riverview_core/worker_adapter/verifier.py"
+          ],
+          "documentation_references": [
+            "docs/components/OUTCOME_VERIFIER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:outcome-verifier:independent-result:accepted-record",
+          "node_revision": "1.0.1",
+          "type": "verification",
+          "label": "Persist ACCEPTED criteria, verifier provenance, and evidence",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/worker_adapter/migrations/0003_independent_verification.sql"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:outcome-verifier:independent-result:complete",
+          "node_revision": "1.0.1",
+          "type": "exit",
+          "label": "Complete only after independent ACCEPTED record exists",
+          "source_references": [
+            "src/riverview_core/postgres_ledger.py",
+            "src/riverview_core/worker_adapter/migrations/0003_independent_verification.sql"
+          ],
+          "documentation_references": [
+            "docs/components/OUTCOME_VERIFIER_FLOW.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:outcome-verifier:independent-result:reject",
+          "node_revision": "1.0.1",
+          "type": "failure",
+          "label": "Reject invalid artifact and preserve failed criteria",
+          "source_references": [
+            "src/riverview_core/worker_adapter/verifier.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:outcome-verifier:independent-result:rework",
+          "node_revision": "1.0.1",
+          "type": "recovery",
+          "label": "Route rejected result to durable rework_required assignment state",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:outcome-verifier:independent-result:inconclusive",
+          "node_revision": "1.0.0",
+          "type": "escalation",
+          "label": "Keep inconclusive result blocked for reassessment",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:outcome-verifier:independent-result:verification-intake",
+          "to": "rv:outcome-verifier:independent-result:result-jump",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:outcome-verifier:independent-result:result-jump",
+          "to": "rv:worker-adapter:deterministic-attempt:result",
+          "type": "jump"
+        },
+        {
+          "from": "rv:outcome-verifier:independent-result:verification-intake",
+          "to": "rv:outcome-verifier:independent-result:identity-check",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:outcome-verifier:independent-result:identity-check",
+          "to": "rv:outcome-verifier:independent-result:evaluate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:outcome-verifier:independent-result:evaluate",
+          "to": "rv:outcome-verifier:independent-result:decision",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:outcome-verifier:independent-result:decision",
+          "to": "rv:outcome-verifier:independent-result:accepted-record",
+          "type": "verification",
+          "label": "all required criteria pass"
+        },
+        {
+          "from": "rv:outcome-verifier:independent-result:accepted-record",
+          "to": "rv:outcome-verifier:independent-result:complete",
+          "type": "verification"
+        },
+        {
+          "from": "rv:outcome-verifier:independent-result:decision",
+          "to": "rv:outcome-verifier:independent-result:reject",
+          "type": "diagnostic_branch",
+          "label": "invalid result"
+        },
+        {
+          "from": "rv:outcome-verifier:independent-result:reject",
+          "to": "rv:outcome-verifier:independent-result:rework",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:outcome-verifier:independent-result:decision",
+          "to": "rv:outcome-verifier:independent-result:inconclusive",
+          "type": "escalation",
+          "label": "evidence does not support acceptance"
+        }
+      ]
+    },
+    {
+      "graph_id": "rv:postgres-ledger:assignment-lifecycle",
+      "graph_revision": "1.0.0",
+      "component_id": "POSTGRES-LEDGER",
+      "workflow_id": "assignment-lifecycle.v1",
+      "diagram_order": 2,
+      "source_references": [
+        "src/riverview_core/ledger.py",
+        "src/riverview_core/postgres_ledger.py"
+      ],
+      "documentation_references": [
+        "docs/components/POSTGRES_LEDGER_FLOW.md",
+        "docs/components/POSTGRES_LEDGER.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/POSTGRES-LEDGER/20261010T1529Z-27a8c55/checkout.md"
+      ],
+      "nodes": [
+        {
+          "id": "rv:postgres-ledger:assignment-lifecycle:intake",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Assignment intake",
+          "source_references": [
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:assignment-lifecycle:queued",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "queued",
+          "source_references": [
+            "src/riverview_core/ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:assignment-lifecycle:ready",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "ready",
+          "source_references": [
+            "src/riverview_core/ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:assignment-lifecycle:running",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "running",
+          "source_references": [
+            "src/riverview_core/ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:assignment-lifecycle:awaiting-verification",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "awaiting_verification",
+          "source_references": [
+            "src/riverview_core/ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:assignment-lifecycle:rework",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "rework_required",
+          "source_references": [
+            "src/riverview_core/ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:assignment-lifecycle:blocked",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "blocked",
+          "source_references": [
+            "src/riverview_core/ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:assignment-lifecycle:awaiting-steward",
+          "node_revision": "1.0.0",
+          "type": "escalation",
+          "label": "awaiting_steward",
+          "source_references": [
+            "src/riverview_core/ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:assignment-lifecycle:completed",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "completed (caller verification flag is only a claim)",
+          "source_references": [
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:assignment-lifecycle:cancelled",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "cancelled",
+          "source_references": [
+            "src/riverview_core/ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:intake",
+          "to": "rv:postgres-ledger:assignment-lifecycle:queued",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:queued",
+          "to": "rv:postgres-ledger:assignment-lifecycle:ready",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:queued",
+          "to": "rv:postgres-ledger:assignment-lifecycle:blocked",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:queued",
+          "to": "rv:postgres-ledger:assignment-lifecycle:cancelled",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:ready",
+          "to": "rv:postgres-ledger:assignment-lifecycle:running",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:ready",
+          "to": "rv:postgres-ledger:assignment-lifecycle:blocked",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:ready",
+          "to": "rv:postgres-ledger:assignment-lifecycle:cancelled",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:running",
+          "to": "rv:postgres-ledger:assignment-lifecycle:awaiting-verification",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:running",
+          "to": "rv:postgres-ledger:assignment-lifecycle:blocked",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:running",
+          "to": "rv:postgres-ledger:assignment-lifecycle:awaiting-steward",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:awaiting-verification",
+          "to": "rv:postgres-ledger:assignment-lifecycle:completed",
+          "type": "runtime_transition",
+          "label": "verified claim required; not independent proof"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:awaiting-verification",
+          "to": "rv:postgres-ledger:assignment-lifecycle:rework",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:awaiting-verification",
+          "to": "rv:postgres-ledger:assignment-lifecycle:blocked",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:rework",
+          "to": "rv:postgres-ledger:assignment-lifecycle:ready",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:rework",
+          "to": "rv:postgres-ledger:assignment-lifecycle:blocked",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:rework",
+          "to": "rv:postgres-ledger:assignment-lifecycle:cancelled",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:blocked",
+          "to": "rv:postgres-ledger:assignment-lifecycle:ready",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:blocked",
+          "to": "rv:postgres-ledger:assignment-lifecycle:cancelled",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:blocked",
+          "to": "rv:postgres-ledger:assignment-lifecycle:awaiting-steward",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:awaiting-steward",
+          "to": "rv:postgres-ledger:assignment-lifecycle:ready",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:awaiting-steward",
+          "to": "rv:postgres-ledger:assignment-lifecycle:cancelled",
+          "type": "runtime_transition"
+        }
+      ]
+    },
+    {
+      "graph_id": "rv:postgres-ledger:migration",
+      "graph_revision": "1.0.1",
+      "component_id": "POSTGRES-LEDGER",
+      "workflow_id": "postgres-migration.v1",
+      "diagram_order": 1,
+      "source_references": [
+        "src/riverview_core/postgres_migrations.py",
+        "src/riverview_core/migrations/0001_assignment_event_ledger.sql"
+      ],
+      "documentation_references": [
+        "docs/components/POSTGRES_LEDGER_FLOW.md",
+        "docs/components/POSTGRES_LEDGER_COOKBOOK.md",
+        "docs/components/POSTGRES_LEDGER.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/POSTGRES-LEDGER/20261010T1529Z-27a8c55/checkout.md"
+      ],
+      "nodes": [
+        {
+          "id": "rv:postgres-ledger:migration:preflight",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Confirm live host, database, schema owner/access, empty target and compatibility",
+          "source_references": [
+            "docs/components/POSTGRES_LEDGER_COOKBOOK.md"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/POSTGRES-LEDGER/20261010T1615Z-3fd6fd2/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:postgres-ledger:migration:preflight-clear",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Preflight safe to proceed?",
+          "source_references": [
+            "docs/components/POSTGRES_LEDGER_COOKBOOK.md"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:stop",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Stop on identity, compatibility or safety mismatch",
+          "source_references": [
+            "docs/components/POSTGRES_LEDGER_COOKBOOK.md"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:backup",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Protected full database backup; checksum and restore drill",
+          "source_references": [
+            "docs/components/POSTGRES_LEDGER_COOKBOOK.md"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/POSTGRES-LEDGER/20261010T1615Z-3fd6fd2/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:postgres-ledger:migration:backup-verified",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Recoverable backup independently restored and verified",
+          "source_references": [
+            "docs/components/POSTGRES_LEDGER_COOKBOOK.md"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/POSTGRES-LEDGER/20261010T1615Z-3fd6fd2/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:postgres-ledger:migration:apply",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Explicit migration request for selected schema",
+          "source_references": [
+            "src/riverview_core/postgres_migrations.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:check",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Stored checksum matches source?",
+          "source_references": [
+            "src/riverview_core/postgres_migrations.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:drift",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Checksum mismatch; stop without schema changes",
+          "source_references": [
+            "src/riverview_core/postgres_migrations.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:noop",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Identical applied migration is a no-op",
+          "source_references": [
+            "src/riverview_core/postgres_migrations.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:sql",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Apply versioned SQL and checksum atomically",
+          "source_references": [
+            "src/riverview_core/migrations/0001_assignment_event_ledger.sql"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:require-schema",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "PostgresLedger requires migrated target schema",
+          "source_references": [
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:caller",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Caller requests assignment create or transition",
+          "source_references": [
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:transaction",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Begin PostgreSQL transaction",
+          "source_references": [
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:lock",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Advisory lock on idempotency key",
+          "source_references": [
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:key-exists",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Existing event key?",
+          "source_references": [
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:replay",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Exact semantic replay returns current assignment",
+          "source_references": [
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:collision",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Conflicting key reuse is rejected",
+          "source_references": [
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:operation",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Create or transition?",
+          "source_references": [
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:create",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Insert assignment metadata",
+          "source_references": [
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:row-lock",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Lock assignment row FOR UPDATE",
+          "source_references": [
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:legal",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Legal state transition?",
+          "source_references": [
+            "src/riverview_core/ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:illegal",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Reject illegal transition",
+          "source_references": [
+            "src/riverview_core/ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:update",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Update state and workflow step",
+          "source_references": [
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:event",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Append event with authority and causality",
+          "source_references": [
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:commit",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Commit assignment and event atomically",
+          "source_references": [
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:read",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Read assignment and ordered events",
+          "source_references": [
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:snapshot",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "On-demand status snapshot",
+          "source_references": [
+            "scripts/postgres_ledger_steward_snapshot.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:migration:dashboard-jump",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "M3.1 live dashboard (planned; not implemented)",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_FLOW.md"
+          ],
+          "verification_evidence": [],
+          "jump_target_id": "rv:steward-dashboard:status:ingest"
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:postgres-ledger:migration:preflight",
+          "to": "rv:postgres-ledger:migration:preflight-clear",
+          "type": "verification"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:preflight-clear",
+          "to": "rv:postgres-ledger:migration:stop",
+          "type": "diagnostic_branch",
+          "label": "No"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:preflight-clear",
+          "to": "rv:postgres-ledger:migration:backup",
+          "type": "runtime_transition",
+          "label": "Yes"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:backup",
+          "to": "rv:postgres-ledger:migration:backup-verified",
+          "type": "verification"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:backup-verified",
+          "to": "rv:postgres-ledger:migration:apply",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:apply",
+          "to": "rv:postgres-ledger:migration:check",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:check",
+          "to": "rv:postgres-ledger:migration:drift",
+          "type": "diagnostic_branch",
+          "label": "Mismatch"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:check",
+          "to": "rv:postgres-ledger:migration:noop",
+          "type": "runtime_transition",
+          "label": "Already applied, identical"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:check",
+          "to": "rv:postgres-ledger:migration:sql",
+          "type": "runtime_transition",
+          "label": "New version"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:noop",
+          "to": "rv:postgres-ledger:migration:require-schema",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:sql",
+          "to": "rv:postgres-ledger:migration:require-schema",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:require-schema",
+          "to": "rv:postgres-ledger:migration:caller",
+          "type": "prerequisite",
+          "label": "Verified schema contract; not a runtime call"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:caller",
+          "to": "rv:postgres-ledger:migration:transaction",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:transaction",
+          "to": "rv:postgres-ledger:migration:lock",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:lock",
+          "to": "rv:postgres-ledger:migration:key-exists",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:key-exists",
+          "to": "rv:postgres-ledger:migration:replay",
+          "type": "runtime_transition",
+          "label": "Exact replay"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:key-exists",
+          "to": "rv:postgres-ledger:migration:collision",
+          "type": "diagnostic_branch",
+          "label": "Conflict"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:key-exists",
+          "to": "rv:postgres-ledger:migration:operation",
+          "type": "runtime_transition",
+          "label": "New key"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:operation",
+          "to": "rv:postgres-ledger:migration:create",
+          "type": "runtime_transition",
+          "label": "Create"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:operation",
+          "to": "rv:postgres-ledger:migration:row-lock",
+          "type": "runtime_transition",
+          "label": "Transition"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:row-lock",
+          "to": "rv:postgres-ledger:migration:legal",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:legal",
+          "to": "rv:postgres-ledger:migration:illegal",
+          "type": "diagnostic_branch",
+          "label": "No"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:legal",
+          "to": "rv:postgres-ledger:migration:update",
+          "type": "runtime_transition",
+          "label": "Yes"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:create",
+          "to": "rv:postgres-ledger:migration:event",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:update",
+          "to": "rv:postgres-ledger:migration:event",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:event",
+          "to": "rv:postgres-ledger:migration:commit",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:commit",
+          "to": "rv:postgres-ledger:migration:read",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:replay",
+          "to": "rv:postgres-ledger:migration:read",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:read",
+          "to": "rv:postgres-ledger:migration:snapshot",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:snapshot",
+          "to": "rv:postgres-ledger:migration:dashboard-jump",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:migration:dashboard-jump",
+          "to": "rv:steward-dashboard:status:ingest",
+          "type": "jump"
+        }
+      ]
+    },
+    {
+      "graph_id": "rv:runtime-baseline:commissioning",
+      "graph_revision": "1.0.1",
+      "component_id": "RUNTIME-BASELINE",
+      "workflow_id": "runtime-baseline.v1",
+      "diagram_order": 1,
+      "source_references": [
+        "scripts/build_camrui_package.py",
+        "deploy/install_baseline.sh",
+        "scripts/runtime_baseline.py",
+        "deploy/rollback_baseline.sh"
+      ],
+      "documentation_references": [
+        "docs/components/RUNTIME_BASELINE_FLOW.md",
+        "docs/components/RUNTIME_BASELINE_COOKBOOK.md",
+        "docs/development/M1.1_ACCEPTANCE.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RUNTIME-BASELINE/20261010T1511Z-64e8f14/acceptance.json"
+      ],
+      "nodes": [
+        {
+          "id": "rv:runtime-baseline:commissioning:source",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Committed source revision",
+          "source_references": [
+            "scripts/build_camrui_package.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:package",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Build and verify package",
+          "source_references": [
+            "scripts/build_camrui_package.py",
+            "scripts/verify_camrui_package.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:package-valid",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Archive digest, commit, manifest and safe members valid?",
+          "source_references": [
+            "scripts/verify_camrui_package.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:package-failure",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Preserve failed package; rebuild corrected source",
+          "source_references": [
+            "scripts/verify_camrui_package.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:stage",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Extract verified archive into protected staging",
+          "source_references": [
+            "scripts/verify_camrui_package.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:install",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Preserve predecessor; run fixed installer",
+          "source_references": [
+            "deploy/install_baseline.sh"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:credential-present",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Protected credential source exists?",
+          "source_references": [
+            "scripts/provision_pgpass.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:credential-entry",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Prompt on controlling TTY with echo disabled",
+          "source_references": [
+            "scripts/provision_pgpass.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:tty-failure",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Fail closed; passfile remains absent",
+          "source_references": [
+            "scripts/provision_pgpass.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:retry-install",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Check partial ownership, retry corrected installer",
+          "source_references": [
+            "deploy/install_baseline.sh"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:systemd",
+          "node_revision": "1.0.1",
+          "type": "process",
+          "label": "systemd starts unprivileged probe with LoadCredential",
+          "source_references": [
+            "deploy/systemd/riverview-baseline.service"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:credential-copy",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Validate source; copy to private mode-0600 runtime passfile",
+          "source_references": [
+            "scripts/runtime_baseline.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:identity",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Correct non-login service identity?",
+          "source_references": [
+            "scripts/runtime_baseline.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:storage",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Private service-owned state directory?",
+          "source_references": [
+            "scripts/runtime_baseline.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:credential-check",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Safe credential file and no ambient override?",
+          "source_references": [
+            "scripts/runtime_baseline.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:database",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Read-only PostgreSQL identity and privilege check",
+          "source_references": [
+            "scripts/runtime_baseline.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:schema",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "riverview_dev owner and access match?",
+          "source_references": [
+            "scripts/runtime_baseline.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:blocked",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Report accountable blocker and preserve diagnostics",
+          "source_references": [
+            "scripts/runtime_baseline.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:diagnose",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Diagnose and repair using cookbook; retry probe",
+          "source_references": [
+            "docs/components/RUNTIME_BASELINE_COOKBOOK.md"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:ready",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "Ready: baseline verified; wider institution not verified",
+          "source_references": [
+            "scripts/runtime_baseline.py"
+          ],
+          "documentation_references": [
+            "docs/development/M1.1_ACCEPTANCE.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RUNTIME-BASELINE/20261010T1511Z-64e8f14/acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:observe",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Independent observer validates revision and timestamp",
+          "source_references": [
+            "scripts/read_baseline_report.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RUNTIME-BASELINE/20261010T1511Z-64e8f14/acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:fresh",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Observation fresh and valid?",
+          "source_references": [
+            "scripts/read_baseline_report.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:stale",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Stale, missing or invalid observation is not ready",
+          "source_references": [
+            "scripts/read_baseline_report.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:accept-decision",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Steward accepts scoped M1.1 evidence and sequencing?",
+          "source_references": [
+            "docs/development/M1.1_ACCEPTANCE.md"
+          ],
+          "documentation_references": [
+            "docs/development/M1.1_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:accept-hold",
+          "node_revision": "1.0.0",
+          "type": "escalation",
+          "label": "Record acceptance hold; independent M1.2 engineering may continue",
+          "source_references": [
+            "docs/development/M1.1_ACCEPTANCE.md"
+          ],
+          "documentation_references": [
+            "docs/development/M1.1_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:acceptance",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Record scoped M1.1 technical acceptance; full DoD remains open",
+          "source_references": [
+            "docs/development/M1.1_ACCEPTANCE.md"
+          ],
+          "documentation_references": [
+            "docs/development/M1.1_ACCEPTANCE.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RUNTIME-BASELINE/20261010T1511Z-64e8f14/acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:runtime-baseline:commissioning:m12-jump",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "M1.2 shared-schema migration workflow",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/ROADMAP.md"
+          ],
+          "verification_evidence": [],
+          "jump_target_id": "rv:postgres-ledger:migration:apply"
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:runtime-baseline:commissioning:source",
+          "to": "rv:runtime-baseline:commissioning:package",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:package",
+          "to": "rv:runtime-baseline:commissioning:package-valid",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:package-valid",
+          "to": "rv:runtime-baseline:commissioning:package-failure",
+          "type": "diagnostic_branch",
+          "label": "No"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:package-failure",
+          "to": "rv:runtime-baseline:commissioning:package",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:package-valid",
+          "to": "rv:runtime-baseline:commissioning:stage",
+          "type": "runtime_transition",
+          "label": "Yes"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:stage",
+          "to": "rv:runtime-baseline:commissioning:install",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:install",
+          "to": "rv:runtime-baseline:commissioning:credential-present",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:credential-present",
+          "to": "rv:runtime-baseline:commissioning:credential-entry",
+          "type": "runtime_transition",
+          "label": "No"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:credential-entry",
+          "to": "rv:runtime-baseline:commissioning:tty-failure",
+          "type": "diagnostic_branch",
+          "label": "TTY failure"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:tty-failure",
+          "to": "rv:runtime-baseline:commissioning:retry-install",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:retry-install",
+          "to": "rv:runtime-baseline:commissioning:stage",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:credential-present",
+          "to": "rv:runtime-baseline:commissioning:systemd",
+          "type": "runtime_transition",
+          "label": "Yes"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:credential-entry",
+          "to": "rv:runtime-baseline:commissioning:systemd",
+          "type": "runtime_transition",
+          "label": "Captured"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:systemd",
+          "to": "rv:runtime-baseline:commissioning:credential-copy",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:credential-copy",
+          "to": "rv:runtime-baseline:commissioning:identity",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:identity",
+          "to": "rv:runtime-baseline:commissioning:blocked",
+          "type": "diagnostic_branch",
+          "label": "No"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:identity",
+          "to": "rv:runtime-baseline:commissioning:storage",
+          "type": "runtime_transition",
+          "label": "Yes"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:storage",
+          "to": "rv:runtime-baseline:commissioning:blocked",
+          "type": "diagnostic_branch",
+          "label": "No"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:storage",
+          "to": "rv:runtime-baseline:commissioning:credential-check",
+          "type": "runtime_transition",
+          "label": "Yes"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:credential-check",
+          "to": "rv:runtime-baseline:commissioning:blocked",
+          "type": "diagnostic_branch",
+          "label": "No"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:credential-check",
+          "to": "rv:runtime-baseline:commissioning:database",
+          "type": "runtime_transition",
+          "label": "Yes"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:database",
+          "to": "rv:runtime-baseline:commissioning:schema",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:schema",
+          "to": "rv:runtime-baseline:commissioning:blocked",
+          "type": "diagnostic_branch",
+          "label": "No"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:schema",
+          "to": "rv:runtime-baseline:commissioning:ready",
+          "type": "runtime_transition",
+          "label": "Yes"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:blocked",
+          "to": "rv:runtime-baseline:commissioning:diagnose",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:diagnose",
+          "to": "rv:runtime-baseline:commissioning:systemd",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:ready",
+          "to": "rv:runtime-baseline:commissioning:observe",
+          "type": "verification"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:observe",
+          "to": "rv:runtime-baseline:commissioning:fresh",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:fresh",
+          "to": "rv:runtime-baseline:commissioning:stale",
+          "type": "diagnostic_branch",
+          "label": "Expired/missing"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:stale",
+          "to": "rv:runtime-baseline:commissioning:systemd",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:fresh",
+          "to": "rv:runtime-baseline:commissioning:accept-decision",
+          "type": "verification",
+          "label": "Fresh"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:accept-decision",
+          "to": "rv:runtime-baseline:commissioning:accept-hold",
+          "type": "escalation",
+          "label": "No"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:accept-decision",
+          "to": "rv:runtime-baseline:commissioning:acceptance",
+          "type": "verification",
+          "label": "Yes"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:acceptance",
+          "to": "rv:runtime-baseline:commissioning:m12-jump",
+          "type": "prerequisite"
+        },
+        {
+          "from": "rv:runtime-baseline:commissioning:m12-jump",
+          "to": "rv:postgres-ledger:migration:apply",
+          "type": "jump"
+        }
+      ]
+    },
+    {
+      "graph_id": "rv:steward-dashboard:status",
+      "graph_revision": "1.0.0",
+      "component_id": "STEWARD-DASHBOARD",
+      "workflow_id": "status-projection.v1",
+      "diagram_order": 1,
+      "source_references": [
+        "docs/ROADMAP.md"
+      ],
+      "documentation_references": [
+        "docs/ROADMAP.md"
+      ],
+      "verification_evidence": [],
+      "nodes": [
+        {
+          "id": "rv:steward-dashboard:status:ingest",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Reserved M3.1 live-state projection target (planned; not implemented)",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/ROADMAP.md"
+          ],
+          "verification_evidence": []
+        }
+      ],
+      "edges": []
+    },
+    {
+      "graph_id": "rv:worker-adapter:deterministic-attempt",
+      "graph_revision": "1.0.6",
+      "component_id": "WORKER-ADAPTER",
+      "workflow_id": "deterministic-attempt.v1",
+      "diagram_order": 7,
+      "source_references": [
+        "src/riverview_core/assignment_scheduler/scheduler.py",
+        "src/riverview_core/worker_adapter/adapter.py",
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/knowledge.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
+        "src/riverview_core/worker_adapter/migrations/0001_worker_attempts.sql",
+        "src/riverview_core/worker_adapter/migrations/0002_knowledge_observations.sql",
+        "src/riverview_core/worker_adapter/migrations/0004_failure_recovery.sql",
+        "src/riverview_core/worker_adapter/recovery.py",
+        "tests/test_worker_adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER_FLOW.md",
+        "docs/development/M2.1-001_REVISION_RECORD.md",
+        "docs/development/M2.3-001_REVISION_RECORD.md",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json",
+        "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+      ],
+      "nodes": [
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:request",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Deterministic worker request",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:authenticate",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Verify random credential digest, active registration, and scope",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/worker_adapter/migrations/0001_worker_attempts.sql"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:auth-fail",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Reject invalid token, capability, or assignment authority scope",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:claim",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Claim oldest ready assignment inside authenticated scope",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/assignment_scheduler/scheduler.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:lease",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Require current M1.4 assignment fencing generation",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:lease-jump",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "Resolve lease and fencing contract in M1.4 scheduler",
+          "jump_target_id": "rv:assignment-scheduler:independent-claims:start-check",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:begin",
+          "node_revision": "1.0.1",
+          "type": "process",
+          "label": "Persist attributable attempt before deterministic result computation",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/worker_adapter/migrations/0001_worker_attempts.sql"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:compute",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Run deterministic local SHA-256 capability",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:complete-check",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Recheck current lease before durable result commit",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:lost",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Persist lease_lost attempt and reject stale result",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/worker_adapter/migrations/0001_worker_attempts.sql"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:result",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Persist result, digest, and successful attempt status",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/worker_adapter/migrations/0001_worker_attempts.sql"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:loss-query",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Expose unfinished attempts for worker-loss detection",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Continuously poll for one independently claimable assignment",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:ground",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Ground assignment against the replaceable knowledge provider",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:ground-gate",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Is assignment grounding VERIFIED and retrieval complete?",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:preflight",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Preflight the action contract before execution",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:preflight-gate",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Is the requested action preflight VERIFIED?",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:reground",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Refresh assignment context before action or on a recovery trigger",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:reground-gate",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Is the current assignment context VERIFIED?",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+          "node_revision": "1.0.0",
+          "type": "escalation",
+          "label": "Persist non-verified status and wait for evidence for this assignment only",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:action",
+          "node_revision": "1.0.1",
+          "type": "process",
+          "label": "Invoke action only after durable effect-classified intent",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:action-failure",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Record assignment-local failure and reground without stopping other polls",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:learning",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Persist learning outcome and provenance without automatic promotion",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:cycle-recovery",
+          "node_revision": "1.0.2",
+          "type": "recovery",
+          "label": "Reconcile expired leases after interruption with effect-aware durable recovery",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
+            "src/riverview_core/worker_adapter/migrations/0004_failure_recovery.sql",
+            "src/riverview_core/worker_adapter/recovery.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+            "docs/development/M2.3-001_REVISION_RECORD.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:steward-shutdown",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "Stop polling only when explicit Steward shutdown control is asserted",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:recovery-intent",
+          "node_revision": "1.0.1",
+          "type": "process",
+          "label": "Persist effect class before invoking the worker action",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/migrations/0004_failure_recovery.sql"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/development/M2.3-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:recovery-scan",
+          "node_revision": "1.0.1",
+          "type": "measurement",
+          "label": "Select expired running leases at startup or recovery poll",
+          "source_references": [
+            "src/riverview_core/worker_adapter/recovery.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/development/M2.3-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:recovery-policy",
+          "node_revision": "1.0.1",
+          "type": "decision",
+          "label": "Can this incomplete effect be safely repeated?",
+          "source_references": [
+            "src/riverview_core/worker_adapter/recovery.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/development/M2.3-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:recovery-retry",
+          "node_revision": "1.0.1",
+          "type": "recovery",
+          "label": "Fence prior generation and requeue only retry-safe work",
+          "source_references": [
+            "src/riverview_core/worker_adapter/recovery.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/development/M2.3-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:recovery-unknown",
+          "node_revision": "1.0.1",
+          "type": "escalation",
+          "label": "Hold unknown external outcome in awaiting_steward",
+          "source_references": [
+            "src/riverview_core/worker_adapter/recovery.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/development/M2.3-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:recovery-preserve",
+          "node_revision": "1.0.1",
+          "type": "recovery",
+          "label": "Preserve durable result and continue to independent verification",
+          "source_references": [
+            "src/riverview_core/worker_adapter/recovery.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/development/M2.3-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:recovery-audit",
+          "node_revision": "1.0.1",
+          "type": "measurement",
+          "label": "Persist one decision per assignment and lease generation",
+          "source_references": [
+            "src/riverview_core/worker_adapter/recovery.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/development/M2.3-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:verification-jump",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "Continue preserved results at independent verifier",
+          "source_references": [
+            "src/riverview_core/worker_adapter/recovery.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [],
+          "jump_target_id": "rv:outcome-verifier:independent-result:verification-intake"
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:request",
+          "to": "rv:worker-adapter:deterministic-attempt:authenticate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:authenticate",
+          "to": "rv:worker-adapter:deterministic-attempt:auth-fail",
+          "type": "diagnostic_branch",
+          "label": "Credential, capability, or scope rejected"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:lease",
+          "to": "rv:worker-adapter:deterministic-attempt:begin",
+          "type": "runtime_transition",
+          "label": "Current lease"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:lease-jump",
+          "to": "rv:assignment-scheduler:independent-claims:start-check",
+          "type": "jump",
+          "label": "Follow current M1.4 lease validation"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:begin",
+          "to": "rv:worker-adapter:deterministic-attempt:compute",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:compute",
+          "to": "rv:worker-adapter:deterministic-attempt:complete-check",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:complete-check",
+          "to": "rv:worker-adapter:deterministic-attempt:lost",
+          "type": "diagnostic_branch",
+          "label": "Lease expired or fenced"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:complete-check",
+          "to": "rv:worker-adapter:deterministic-attempt:result",
+          "type": "runtime_transition",
+          "label": "Current lease"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:begin",
+          "to": "rv:worker-adapter:deterministic-attempt:loss-query",
+          "type": "diagnostic_branch",
+          "label": "Process stops before result commit"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:lease",
+          "to": "rv:assignment-scheduler:independent-claims:start-check",
+          "type": "prerequisite",
+          "label": "M1.4 lease table/token contract; not a runtime call"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:authenticate",
+          "to": "rv:worker-adapter:deterministic-attempt:claim",
+          "type": "runtime_transition",
+          "label": "Credential and capability valid"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:claim",
+          "to": "rv:worker-adapter:deterministic-attempt:lease",
+          "type": "runtime_transition",
+          "label": "Exact scope match"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "to": "rv:worker-adapter:deterministic-attempt:claim",
+          "type": "runtime_transition",
+          "label": "poll"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:claim",
+          "to": "rv:worker-adapter:deterministic-attempt:ground",
+          "type": "runtime_transition",
+          "label": "claimed task"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:ground",
+          "to": "rv:worker-adapter:deterministic-attempt:ground-gate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:ground-gate",
+          "to": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+          "type": "diagnostic_branch",
+          "label": "not VERIFIED"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:ground-gate",
+          "to": "rv:worker-adapter:deterministic-attempt:preflight",
+          "type": "runtime_transition",
+          "label": "VERIFIED"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:preflight",
+          "to": "rv:worker-adapter:deterministic-attempt:preflight-gate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:preflight-gate",
+          "to": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+          "type": "diagnostic_branch",
+          "label": "not VERIFIED"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:preflight-gate",
+          "to": "rv:worker-adapter:deterministic-attempt:reground",
+          "type": "runtime_transition",
+          "label": "VERIFIED"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:reground",
+          "to": "rv:worker-adapter:deterministic-attempt:reground-gate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:reground-gate",
+          "to": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+          "type": "diagnostic_branch",
+          "label": "not VERIFIED"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:reground-gate",
+          "to": "rv:worker-adapter:deterministic-attempt:action",
+          "type": "runtime_transition",
+          "label": "VERIFIED"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:action",
+          "to": "rv:worker-adapter:deterministic-attempt:action-failure",
+          "type": "diagnostic_branch",
+          "label": "assignment-local failure"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:action-failure",
+          "to": "rv:worker-adapter:deterministic-attempt:reground",
+          "type": "recovery_route",
+          "label": "failure context"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+          "to": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "type": "runtime_transition",
+          "label": "continue unrelated work"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:learning",
+          "to": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "type": "runtime_transition",
+          "label": "next poll"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:cycle-recovery",
+          "to": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "type": "recovery_route",
+          "label": "resume polling"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "to": "rv:worker-adapter:deterministic-attempt:steward-shutdown",
+          "type": "escalation",
+          "label": "explicit Steward stop"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:reground-gate",
+          "to": "rv:worker-adapter:deterministic-attempt:recovery-intent",
+          "type": "runtime_transition",
+          "label": "VERIFIED before action"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:recovery-intent",
+          "to": "rv:worker-adapter:deterministic-attempt:action",
+          "type": "runtime_transition",
+          "label": "durable intent exists"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:cycle-recovery",
+          "to": "rv:worker-adapter:deterministic-attempt:recovery-scan",
+          "type": "recovery_route",
+          "label": "startup or recovery polling boundary"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:recovery-scan",
+          "to": "rv:worker-adapter:deterministic-attempt:recovery-policy",
+          "type": "runtime_transition",
+          "label": "expired lease locked"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:recovery-scan",
+          "to": "rv:worker-adapter:deterministic-attempt:recovery-preserve",
+          "type": "diagnostic_branch",
+          "label": "result already committed"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:recovery-preserve",
+          "to": "rv:worker-adapter:deterministic-attempt:recovery-audit",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:recovery-preserve",
+          "to": "rv:worker-adapter:deterministic-attempt:verification-jump",
+          "type": "runtime_transition",
+          "label": "awaiting_verification"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:verification-jump",
+          "to": "rv:outcome-verifier:independent-result:verification-intake",
+          "type": "jump",
+          "label": "independent evidence gate"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:recovery-policy",
+          "to": "rv:worker-adapter:deterministic-attempt:recovery-retry",
+          "type": "diagnostic_branch",
+          "label": "effect class is retry_safe"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:recovery-policy",
+          "to": "rv:worker-adapter:deterministic-attempt:recovery-unknown",
+          "type": "diagnostic_branch",
+          "label": "external or legacy outcome uncertain"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:recovery-retry",
+          "to": "rv:worker-adapter:deterministic-attempt:recovery-audit",
+          "type": "runtime_transition",
+          "label": "fenced and requeued"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:recovery-unknown",
+          "to": "rv:worker-adapter:deterministic-attempt:recovery-audit",
+          "type": "runtime_transition",
+          "label": "no blind replay"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:recovery-audit",
+          "to": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "type": "recovery_route",
+          "label": "continue unrelated work"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:action",
+          "to": "rv:worker-adapter:deterministic-attempt:begin",
+          "type": "runtime_transition",
+          "label": "action output reaches durable attempt boundary"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:result",
+          "to": "rv:worker-adapter:deterministic-attempt:learning",
+          "type": "runtime_transition",
+          "label": "durable result"
+        }
+      ]
+    }
+  ],
+  "node_registry": [
+    "rv:assignment-scheduler:independent-claims:candidate",
+    "rv:assignment-scheduler:independent-claims:claim",
+    "rv:assignment-scheduler:independent-claims:empty",
+    "rv:assignment-scheduler:independent-claims:expiry",
+    "rv:assignment-scheduler:independent-claims:preflight",
+    "rv:assignment-scheduler:independent-claims:ready-jump",
+    "rv:assignment-scheduler:independent-claims:ready-query",
+    "rv:assignment-scheduler:independent-claims:reclaim",
+    "rv:assignment-scheduler:independent-claims:running",
+    "rv:assignment-scheduler:independent-claims:stale",
+    "rv:assignment-scheduler:independent-claims:start",
+    "rv:assignment-scheduler:independent-claims:start-check",
+    "rv:cme:progress-and-recovery:attention",
+    "rv:cme:progress-and-recovery:monitor-start",
+    "rv:cme:progress-and-recovery:observe",
+    "rv:cme:progress-and-recovery:recovery",
+    "rv:cme:progress-and-recovery:resident-feedback",
+    "rv:cme:progress-and-recovery:stall-decision",
+    "rv:event-processor:assignment-progression:advance",
+    "rv:event-processor:assignment-progression:baseline-jump",
+    "rv:event-processor:assignment-progression:checkpoint",
+    "rv:event-processor:assignment-progression:created",
+    "rv:event-processor:assignment-progression:fetch",
+    "rv:event-processor:assignment-progression:lease",
+    "rv:event-processor:assignment-progression:lock-failure",
+    "rv:event-processor:assignment-progression:preflight-failure",
+    "rv:event-processor:assignment-progression:queued",
+    "rv:event-processor:assignment-progression:read-cursor",
+    "rv:event-processor:assignment-progression:replay",
+    "rv:event-processor:assignment-progression:retry",
+    "rv:event-processor:assignment-progression:skip",
+    "rv:event-processor:assignment-progression:start",
+    "rv:event-processor:assignment-progression:startup-preflight",
+    "rv:event-processor:assignment-progression:stop",
+    "rv:grace:operational-integration:assignment-fanout",
+    "rv:grace:operational-integration:authority-check",
+    "rv:grace:operational-integration:cme-progress",
+    "rv:grace:operational-integration:durable-plan",
+    "rv:grace:operational-integration:evidence-review",
+    "rv:grace:operational-integration:objective-check",
+    "rv:grace:operational-integration:objective-complete",
+    "rv:grace:operational-integration:objective-intake",
+    "rv:grace:operational-integration:reason-decompose",
+    "rv:grace:operational-integration:replan",
+    "rv:grace:operational-integration:steward-escalation",
+    "rv:grace:operational-integration:verification-feedback",
+    "rv:grace:operational-integration:worker-dispatch",
+    "rv:outcome-verifier:independent-result:accepted-record",
+    "rv:outcome-verifier:independent-result:complete",
+    "rv:outcome-verifier:independent-result:decision",
+    "rv:outcome-verifier:independent-result:evaluate",
+    "rv:outcome-verifier:independent-result:identity-check",
+    "rv:outcome-verifier:independent-result:inconclusive",
+    "rv:outcome-verifier:independent-result:reject",
+    "rv:outcome-verifier:independent-result:result-jump",
+    "rv:outcome-verifier:independent-result:rework",
+    "rv:outcome-verifier:independent-result:verification-intake",
+    "rv:postgres-ledger:assignment-lifecycle:awaiting-steward",
+    "rv:postgres-ledger:assignment-lifecycle:awaiting-verification",
+    "rv:postgres-ledger:assignment-lifecycle:blocked",
+    "rv:postgres-ledger:assignment-lifecycle:cancelled",
+    "rv:postgres-ledger:assignment-lifecycle:completed",
+    "rv:postgres-ledger:assignment-lifecycle:intake",
+    "rv:postgres-ledger:assignment-lifecycle:queued",
+    "rv:postgres-ledger:assignment-lifecycle:ready",
+    "rv:postgres-ledger:assignment-lifecycle:rework",
+    "rv:postgres-ledger:assignment-lifecycle:running",
+    "rv:postgres-ledger:migration:apply",
+    "rv:postgres-ledger:migration:backup",
+    "rv:postgres-ledger:migration:backup-verified",
+    "rv:postgres-ledger:migration:caller",
+    "rv:postgres-ledger:migration:check",
+    "rv:postgres-ledger:migration:collision",
+    "rv:postgres-ledger:migration:commit",
+    "rv:postgres-ledger:migration:create",
+    "rv:postgres-ledger:migration:dashboard-jump",
+    "rv:postgres-ledger:migration:drift",
+    "rv:postgres-ledger:migration:event",
+    "rv:postgres-ledger:migration:illegal",
+    "rv:postgres-ledger:migration:key-exists",
+    "rv:postgres-ledger:migration:legal",
+    "rv:postgres-ledger:migration:lock",
+    "rv:postgres-ledger:migration:noop",
+    "rv:postgres-ledger:migration:operation",
+    "rv:postgres-ledger:migration:preflight",
+    "rv:postgres-ledger:migration:preflight-clear",
+    "rv:postgres-ledger:migration:read",
+    "rv:postgres-ledger:migration:replay",
+    "rv:postgres-ledger:migration:require-schema",
+    "rv:postgres-ledger:migration:row-lock",
+    "rv:postgres-ledger:migration:snapshot",
+    "rv:postgres-ledger:migration:sql",
+    "rv:postgres-ledger:migration:stop",
+    "rv:postgres-ledger:migration:transaction",
+    "rv:postgres-ledger:migration:update",
+    "rv:runtime-baseline:commissioning:accept-decision",
+    "rv:runtime-baseline:commissioning:accept-hold",
+    "rv:runtime-baseline:commissioning:acceptance",
+    "rv:runtime-baseline:commissioning:blocked",
+    "rv:runtime-baseline:commissioning:credential-check",
+    "rv:runtime-baseline:commissioning:credential-copy",
+    "rv:runtime-baseline:commissioning:credential-entry",
+    "rv:runtime-baseline:commissioning:credential-present",
+    "rv:runtime-baseline:commissioning:database",
+    "rv:runtime-baseline:commissioning:diagnose",
+    "rv:runtime-baseline:commissioning:fresh",
+    "rv:runtime-baseline:commissioning:identity",
+    "rv:runtime-baseline:commissioning:install",
+    "rv:runtime-baseline:commissioning:m12-jump",
+    "rv:runtime-baseline:commissioning:observe",
+    "rv:runtime-baseline:commissioning:package",
+    "rv:runtime-baseline:commissioning:package-failure",
+    "rv:runtime-baseline:commissioning:package-valid",
+    "rv:runtime-baseline:commissioning:ready",
+    "rv:runtime-baseline:commissioning:retry-install",
+    "rv:runtime-baseline:commissioning:schema",
+    "rv:runtime-baseline:commissioning:source",
+    "rv:runtime-baseline:commissioning:stage",
+    "rv:runtime-baseline:commissioning:stale",
+    "rv:runtime-baseline:commissioning:storage",
+    "rv:runtime-baseline:commissioning:systemd",
+    "rv:runtime-baseline:commissioning:tty-failure",
+    "rv:steward-dashboard:status:ingest",
+    "rv:worker-adapter:deterministic-attempt:action",
+    "rv:worker-adapter:deterministic-attempt:action-failure",
+    "rv:worker-adapter:deterministic-attempt:auth-fail",
+    "rv:worker-adapter:deterministic-attempt:authenticate",
+    "rv:worker-adapter:deterministic-attempt:begin",
+    "rv:worker-adapter:deterministic-attempt:claim",
+    "rv:worker-adapter:deterministic-attempt:complete-check",
+    "rv:worker-adapter:deterministic-attempt:compute",
+    "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+    "rv:worker-adapter:deterministic-attempt:cycle-recovery",
+    "rv:worker-adapter:deterministic-attempt:evidence-wait",
+    "rv:worker-adapter:deterministic-attempt:ground",
+    "rv:worker-adapter:deterministic-attempt:ground-gate",
+    "rv:worker-adapter:deterministic-attempt:learning",
+    "rv:worker-adapter:deterministic-attempt:lease",
+    "rv:worker-adapter:deterministic-attempt:lease-jump",
+    "rv:worker-adapter:deterministic-attempt:loss-query",
+    "rv:worker-adapter:deterministic-attempt:lost",
+    "rv:worker-adapter:deterministic-attempt:preflight",
+    "rv:worker-adapter:deterministic-attempt:preflight-gate",
+    "rv:worker-adapter:deterministic-attempt:recovery-audit",
+    "rv:worker-adapter:deterministic-attempt:recovery-intent",
+    "rv:worker-adapter:deterministic-attempt:recovery-policy",
+    "rv:worker-adapter:deterministic-attempt:recovery-preserve",
+    "rv:worker-adapter:deterministic-attempt:recovery-retry",
+    "rv:worker-adapter:deterministic-attempt:recovery-scan",
+    "rv:worker-adapter:deterministic-attempt:recovery-unknown",
+    "rv:worker-adapter:deterministic-attempt:reground",
+    "rv:worker-adapter:deterministic-attempt:reground-gate",
+    "rv:worker-adapter:deterministic-attempt:request",
+    "rv:worker-adapter:deterministic-attempt:result",
+    "rv:worker-adapter:deterministic-attempt:steward-shutdown",
+    "rv:worker-adapter:deterministic-attempt:verification-jump"
+  ]
+}
