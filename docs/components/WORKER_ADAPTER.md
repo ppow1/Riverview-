@@ -1,6 +1,6 @@
 # Riverview~ worker adapter contract
 
-**Document Revision:** 1.0.0
+**Document Revision:** 1.0.2
 **Component:** WORKER-ADAPTER
 **Milestone:** M2.1
 **Status:** IN PROGRESS — isolated engineering; no service deployment
@@ -33,6 +33,38 @@ The M2.1 migration is separate and explicit. No schema DDL is applied at adapter
 startup and no M2.1 migration has been applied to shared `riverview_dev`. Secret
 provisioning for a deployed worker and external worker transport/authentication
 remain future operational integration work.
+
+## Continuous worker and knowledge boundary
+
+`ContinuousWorker.run_once()` consumes at most one authenticated, scope-matched
+ready assignment per poll. Multiple workers claim independently through M1.4
+`FOR UPDATE SKIP LOCKED` leases. A waiting or failed assignment is recorded as
+`blocked` with workflow step `WAITING_FOR_EVIDENCE` or a failure step; later
+claims continue. `run_forever()` is an in-process polling loop and accepts an
+explicit Steward shutdown callback. Unexpected worker/process loss leaves
+durable leases/attempts for expiry and reconciliation; the worker loop does not
+claim to make a process immortal.
+
+The stable, provider-neutral contract lives in
+[`knowledge_provider_v1`](../../src/riverview_core/worker_adapter/knowledge_provider_v1/README.md).
+Its operations are `ground_assignment(assignment)`,
+`preflight_action(assignment, action)`,
+`reground_assignment(assignment, trigger)`, and
+`record_learning(assignment, outcome)`. Grounding occurs before work, preflight
+before action, and regrounding immediately before action. Only `VERIFIED` with
+complete retrieval and at least one source reference permits progress. Missing
+provider/exception/timeout becomes `UNAVAILABLE`; unknown result objects become
+`UNVERIFIED`. Other non-verified statuses also put only that assignment in
+`WAITING_FOR_EVIDENCE`. There is no guessed-contract fallback.
+
+Lookup status, operation, action, source references, source revision/hash,
+retrieval completeness and timestamp are persisted by the explicit M2.1 worker
+migration `0002_knowledge_observations.sql`. Provider values and arbitrary
+learning payloads are not stored in that observation record. Migration 0002 is
+still applied only to isolated test schemas; no live/shared deployment is
+claimed. Learning capture records outcomes but does not auto-promote knowledge.
+The provider interface is injectable and the scheduler does not depend on its
+implementation.
 
 See the [workflow graph](WORKER_ADAPTER_FLOW.md),
 [operational cookbook](WORKER_ADAPTER_COOKBOOK.md), and

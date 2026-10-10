@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:riverview:knowledge-provider:1.0.0:outcome",
+  "title": "Knowledge Provider Learning Outcome Input",
+  "type": "object",
+  "description": "Outcome metadata only; implementations must not assume it is verified knowledge.",
+  "additionalProperties": true
+}

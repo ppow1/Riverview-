@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/assignment_scheduler/scheduler.py
 # Component: ASSIGNMENT-SCHEDULER
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Claim ready assignments fairly and fence stale lease holders
 # Execution Model: PostgreSQL transactional request interface
 # Observability: Durable lease generations and causally linked ledger events
 # Dependencies: Python 3.10+; Psycopg 3; POSTGRES-LEDGER schema and lease migration
 # Authority: Does not validate grants or independently verify worker results
-# Changed: 2026-10-10 UTC | RV-M1.4-001 | Serialize lease renewal and fence all transitions
+# Changed: 2026-10-10 UTC | RV-M2.1-001 | Add scope-filtered lease claim integration
 # Contracts: docs/development/M1.4-001_REVISION_RECORD.md
 # Tests: tests/test_assignment_scheduler.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -52,39 +52,47 @@ class PostgresAssignmentScheduler:
         if not isinstance(lease_seconds, (int, float)) or lease_seconds <= 0:
             raise ValueError("lease_seconds must be positive")
 
-    def claim_next(self, worker_id, *, lease_seconds=30):
-        """Claim the oldest unleased/expired ready assignment; return its fencing token."""
+    @staticmethod
+    def _claim_candidate(cur, worker_id, lease_seconds, *, scope_ref=None):
+        """Claim one eligible assignment in the caller's active transaction."""
+        cur.execute(
+            """SELECT a.id,l.generation
+               FROM assignments AS a
+               LEFT JOIN assignment_leases AS l ON l.assignment_id=a.id
+               WHERE a.state='ready'
+                 AND (l.assignment_id IS NULL OR l.expires_at<=clock_timestamp())
+                 AND (%s::text IS NULL OR a.authority_ref=%s)
+               ORDER BY a.updated_at,a.id
+               FOR UPDATE OF a SKIP LOCKED LIMIT 1""",
+            (scope_ref, scope_ref))
+        assignment = cur.fetchone()
+        if assignment is None:
+            return None
+        generation = (assignment["generation"] or 0) + 1
+        cur.execute(
+            """INSERT INTO assignment_leases
+                   (assignment_id,worker_id,generation,acquired_at,heartbeat_at,expires_at)
+               VALUES (%s,%s,%s,clock_timestamp(),clock_timestamp(),
+                       clock_timestamp()+(%s * interval '1 second'))
+               ON CONFLICT (assignment_id) DO UPDATE SET
+                   worker_id=EXCLUDED.worker_id,
+                   generation=EXCLUDED.generation,
+                   acquired_at=EXCLUDED.acquired_at,
+                   heartbeat_at=EXCLUDED.heartbeat_at,
+                   expires_at=EXCLUDED.expires_at
+               RETURNING assignment_id,worker_id,generation,acquired_at,heartbeat_at,expires_at""",
+            (assignment["id"], worker_id, generation, lease_seconds))
+        return cur.fetchone()
+
+    def claim_next(self, worker_id, *, lease_seconds=30, scope_ref=None):
+        """Claim oldest eligible ready work, optionally within an exact authority scope."""
         self._validate_lease(worker_id, lease_seconds)
         db = self.ledger.db
         with db.transaction():
             with db.cursor() as cur:
                 self.ledger._set_search_path(cur)
-                cur.execute(
-                    """SELECT a.id,l.generation
-                       FROM assignments AS a
-                       LEFT JOIN assignment_leases AS l ON l.assignment_id=a.id
-                       WHERE a.state='ready'
-                         AND (l.assignment_id IS NULL OR l.expires_at<=clock_timestamp())
-                       ORDER BY a.updated_at,a.id
-                       FOR UPDATE OF a SKIP LOCKED LIMIT 1""")
-                assignment = cur.fetchone()
-                if assignment is None:
-                    return None
-                generation = (assignment["generation"] or 0) + 1
-                cur.execute(
-                    """INSERT INTO assignment_leases
-                           (assignment_id,worker_id,generation,acquired_at,heartbeat_at,expires_at)
-                       VALUES (%s,%s,%s,clock_timestamp(),clock_timestamp(),
-                               clock_timestamp()+(%s * interval '1 second'))
-                       ON CONFLICT (assignment_id) DO UPDATE SET
-                           worker_id=EXCLUDED.worker_id,
-                           generation=EXCLUDED.generation,
-                           acquired_at=EXCLUDED.acquired_at,
-                           heartbeat_at=EXCLUDED.heartbeat_at,
-                           expires_at=EXCLUDED.expires_at
-                       RETURNING assignment_id,worker_id,generation,acquired_at,heartbeat_at,expires_at""",
-                    (assignment["id"], worker_id, generation, lease_seconds))
-                return cur.fetchone()
+                return self._claim_candidate(cur, worker_id, lease_seconds,
+                                             scope_ref=scope_ref)
 
     def heartbeat(self, assignment_id, worker_id, generation, *, lease_seconds=30):
         """Extend only a currently active exact worker/generation lease.

@@ -1,7 +1,7 @@
 <!--
 Riverview~ Controlled Document
 File: docs/architecture/CORE_CONTRACT.md
-Revision: 1.0.0
+Revision: 1.0.1
 Migration: ENG-REV-002
 -->
 # Riverview~ core contract — working baseline
@@ -21,6 +21,24 @@ Migration: ENG-REV-002
 - **Notifications:** day-one visual/audio/SMS delivery with acknowledgment tracking; durable decision requests; future SMS/app/voice replies flow through the same authenticated authority service.
 - **Visualization:** actual state, progress, errors, diagnostics and workflow position accessible in 2D; spatial registry supports castle/city and future 3D/VR.
 - **Undercurrent:** independent private security domain with its own events, keys, retention, purge, and approved boundary exports.
+
+## Priority-one resident: Grace
+
+Grace is the first operational AI director of engineering work. Her institutionally
+assigned role, office, and delegated authority are durable and independent from
+the replaceable occupant, model, reasoning provider, personality, voice, avatar,
+and presentation. She receives a Steward objective, reasons and revises a
+persistent plan, creates assignments through the CME, uses replaceable real
+engineering execution adapters, observes durable progress, consumes independent
+verification evidence, and initiates follow-up or replan work until verified
+completion or a genuine Steward decision point. The system must recover these
+relationships across process, context, worker, and model replacement.
+
+This is a mandatory M4.4/system-level completion requirement, not a prototype
+claim or optional future enhancement. Its required interfaces are protected
+during M2 development; this contract change does not start the full Grace
+implementation before its roadmap dependencies are ready. See M4.4 in the
+roadmap and the planned registered workflow in the canonical Grace graph.
 
 ## Canonical event progression
 

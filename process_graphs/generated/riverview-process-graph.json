@@ -271,6 +271,151 @@
       ]
     },
     {
+      "graph_id": "rv:cme:progress-and-recovery",
+      "graph_revision": "1.0.0",
+      "component_id": "CME",
+      "workflow_id": "progress-and-recovery.v1",
+      "diagram_order": 8,
+      "source_references": [
+        "docs/ROADMAP.md",
+        "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md",
+        "docs/architecture/CORE_CONTRACT.md"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+        "docs/ROADMAP.md",
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+      ],
+      "verification_evidence": [],
+      "nodes": [
+        {
+          "id": "rv:cme:progress-and-recovery:monitor-start",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "PLANNED — observe durable assignment and service progress",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:cme:progress-and-recovery:observe",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "PLANNED — measure progress, freshness, stalls, and recovery state",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:cme:progress-and-recovery:stall-decision",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "PLANNED — distinguish progressing, blocked, stale, and failed work",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:cme:progress-and-recovery:attention",
+          "node_revision": "1.0.0",
+          "type": "escalation",
+          "label": "PLANNED — persist attention or genuine Steward decision request",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:cme:progress-and-recovery:recovery",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "PLANNED — request bounded assignment-local recovery and preserve unrelated work",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:cme:progress-and-recovery:resident-feedback",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "PLANNED — return progress and attention evidence to Grace",
+          "jump_target_id": "rv:grace:operational-integration:evidence-review",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:cme:progress-and-recovery:monitor-start",
+          "to": "rv:cme:progress-and-recovery:observe",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:observe",
+          "to": "rv:cme:progress-and-recovery:stall-decision",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:stall-decision",
+          "to": "rv:cme:progress-and-recovery:observe",
+          "type": "runtime_transition",
+          "label": "PLANNED — progress; continue monitoring"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:stall-decision",
+          "to": "rv:cme:progress-and-recovery:attention",
+          "type": "escalation",
+          "label": "PLANNED — genuine decision or attention condition"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:stall-decision",
+          "to": "rv:cme:progress-and-recovery:recovery",
+          "type": "recovery_route",
+          "label": "PLANNED — assignment-local recovery"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:attention",
+          "to": "rv:cme:progress-and-recovery:resident-feedback",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:resident-feedback",
+          "to": "rv:grace:operational-integration:evidence-review",
+          "type": "jump"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:recovery",
+          "to": "rv:cme:progress-and-recovery:observe",
+          "type": "runtime_transition",
+          "label": "PLANNED — continue unrelated monitoring"
+        }
+      ]
+    },
+    {
       "graph_id": "rv:event-processor:assignment-progression",
       "graph_revision": "1.0.4",
       "component_id": "EVENT-PROCESSOR",
@@ -654,6 +799,261 @@
           "to": "rv:event-processor:assignment-progression:lease",
           "type": "recovery_route",
           "label": "Database returned; verify source schema and reacquire the consumer lock"
+        }
+      ]
+    },
+    {
+      "graph_id": "rv:grace:operational-integration",
+      "graph_revision": "1.0.0",
+      "component_id": "RESIDENT-ORCHESTRATION",
+      "workflow_id": "grace-engineering-objective.v1",
+      "diagram_order": 9,
+      "source_references": [
+        "docs/ROADMAP.md",
+        "docs/architecture/CORE_CONTRACT.md",
+        "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md",
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+        "docs/ROADMAP.md",
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+      ],
+      "verification_evidence": [],
+      "nodes": [
+        {
+          "id": "rv:grace:operational-integration:objective-intake",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "PLANNED — receive and durably record Steward objective and authority",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:authority-check",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "PLANNED — bind objective to delegated office authority and acceptance criteria",
+          "source_references": [
+            "docs/architecture/CORE_CONTRACT.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:reason-decompose",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "PLANNED — reason about objective and decompose durable engineering plan",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:durable-plan",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "PLANNED — persist and revise plan across context and model replacement",
+          "source_references": [
+            "docs/architecture/CORE_CONTRACT.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:assignment-fanout",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "PLANNED — create multiple independently schedulable assignments",
+          "source_references": [
+            "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:worker-dispatch",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "PLANNED — delegate through CME to replaceable real engineering executors",
+          "jump_target_id": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:cme-progress",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "PLANNED — subscribe to durable progress, stall, and recovery events from CME",
+          "jump_target_id": "rv:cme:progress-and-recovery:observe",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:evidence-review",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "PLANNED — interpret execution and independent verification evidence",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:objective-check",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "PLANNED — determine whether objective acceptance criteria are independently met",
+          "source_references": [
+            "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:replan",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "PLANNED — revise plan and initiate follow-up work after evidence or failure",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:steward-escalation",
+          "node_revision": "1.0.0",
+          "type": "escalation",
+          "label": "PLANNED — request only genuine Steward decision or authority",
+          "source_references": [
+            "docs/ROADMAP.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:objective-complete",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "PLANNED — objective closed only with independently verified evidence",
+          "source_references": [
+            "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+          ],
+          "verification_evidence": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:grace:operational-integration:objective-intake",
+          "to": "rv:grace:operational-integration:authority-check",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:operational-integration:authority-check",
+          "to": "rv:grace:operational-integration:reason-decompose",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:operational-integration:reason-decompose",
+          "to": "rv:grace:operational-integration:durable-plan",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:operational-integration:durable-plan",
+          "to": "rv:grace:operational-integration:assignment-fanout",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:operational-integration:assignment-fanout",
+          "to": "rv:grace:operational-integration:worker-dispatch",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:operational-integration:worker-dispatch",
+          "to": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "type": "jump"
+        },
+        {
+          "from": "rv:grace:operational-integration:assignment-fanout",
+          "to": "rv:grace:operational-integration:cme-progress",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:operational-integration:cme-progress",
+          "to": "rv:cme:progress-and-recovery:observe",
+          "type": "jump"
+        },
+        {
+          "from": "rv:grace:operational-integration:evidence-review",
+          "to": "rv:grace:operational-integration:objective-check",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:operational-integration:objective-check",
+          "to": "rv:grace:operational-integration:objective-complete",
+          "type": "verification",
+          "label": "PLANNED — all criteria independently verified"
+        },
+        {
+          "from": "rv:grace:operational-integration:objective-check",
+          "to": "rv:grace:operational-integration:replan",
+          "type": "recovery_route",
+          "label": "PLANNED — unmet criteria or new evidence"
+        },
+        {
+          "from": "rv:grace:operational-integration:objective-check",
+          "to": "rv:grace:operational-integration:steward-escalation",
+          "type": "escalation",
+          "label": "PLANNED — genuine decision required"
+        },
+        {
+          "from": "rv:grace:operational-integration:replan",
+          "to": "rv:grace:operational-integration:durable-plan",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:operational-integration:steward-escalation",
+          "to": "rv:grace:operational-integration:durable-plan",
+          "type": "runtime_transition",
+          "label": "PLANNED — resume after recorded decision"
         }
       ]
     },
@@ -2086,20 +2486,26 @@
     },
     {
       "graph_id": "rv:worker-adapter:deterministic-attempt",
-      "graph_revision": "1.0.1",
+      "graph_revision": "1.0.3",
       "component_id": "WORKER-ADAPTER",
       "workflow_id": "deterministic-attempt.v1",
       "diagram_order": 7,
       "source_references": [
         "src/riverview_core/worker_adapter/adapter.py",
+        "src/riverview_core/assignment_scheduler/scheduler.py",
         "src/riverview_core/worker_adapter/migrations/0001_worker_attempts.sql",
-        "tests/test_worker_adapter.py"
+        "tests/test_worker_adapter.py",
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/knowledge.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
+        "src/riverview_core/worker_adapter/migrations/0002_knowledge_observations.sql"
       ],
       "documentation_references": [
         "docs/components/WORKER_ADAPTER.md",
         "docs/components/WORKER_ADAPTER_FLOW.md",
         "docs/components/WORKER_ADAPTER_COOKBOOK.md",
-        "docs/development/M2.1-001_REVISION_RECORD.md"
+        "docs/development/M2.1-001_REVISION_RECORD.md",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
       ],
       "verification_evidence": [
         "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
@@ -2144,6 +2550,20 @@
           ],
           "documentation_references": [
             "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:claim",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Claim oldest ready assignment inside authenticated scope",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/assignment_scheduler/scheduler.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
           ],
           "verification_evidence": []
         },
@@ -2268,6 +2688,201 @@
           "verification_evidence": [
             "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
           ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Continuously poll for one independently claimable assignment",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:ground",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Ground assignment against the replaceable knowledge provider",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:ground-gate",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Is assignment grounding VERIFIED and retrieval complete?",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:preflight",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Preflight the action contract before execution",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:preflight-gate",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Is the requested action preflight VERIFIED?",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:reground",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Refresh assignment context before action or on a recovery trigger",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:reground-gate",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Is the current assignment context VERIFIED?",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+          "node_revision": "1.0.0",
+          "type": "escalation",
+          "label": "Persist non-verified status and wait for evidence for this assignment only",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:action",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Execute one fenced deterministic action after verified knowledge gates",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:action-failure",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Record assignment-local failure and reground without stopping other polls",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:learning",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Persist learning outcome and provenance without automatic promotion",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:cycle-recovery",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Reclaim after process loss using durable lease expiry and attempt records",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:steward-shutdown",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "Stop polling only when explicit Steward shutdown control is asserted",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+          ],
+          "verification_evidence": []
         }
       ],
       "edges": [
@@ -2281,12 +2896,6 @@
           "to": "rv:worker-adapter:deterministic-attempt:auth-fail",
           "type": "diagnostic_branch",
           "label": "Credential, capability, or scope rejected"
-        },
-        {
-          "from": "rv:worker-adapter:deterministic-attempt:authenticate",
-          "to": "rv:worker-adapter:deterministic-attempt:lease",
-          "type": "runtime_transition",
-          "label": "Authorized"
         },
         {
           "from": "rv:worker-adapter:deterministic-attempt:lease",
@@ -2333,6 +2942,123 @@
           "to": "rv:assignment-scheduler:independent-claims:start-check",
           "type": "prerequisite",
           "label": "M1.4 lease table/token contract; not a runtime call"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:authenticate",
+          "to": "rv:worker-adapter:deterministic-attempt:claim",
+          "type": "runtime_transition",
+          "label": "Credential and capability valid"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:claim",
+          "to": "rv:worker-adapter:deterministic-attempt:lease",
+          "type": "runtime_transition",
+          "label": "Exact scope match"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "to": "rv:worker-adapter:deterministic-attempt:claim",
+          "type": "runtime_transition",
+          "label": "poll"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:claim",
+          "to": "rv:worker-adapter:deterministic-attempt:ground",
+          "type": "runtime_transition",
+          "label": "claimed task"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:ground",
+          "to": "rv:worker-adapter:deterministic-attempt:ground-gate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:ground-gate",
+          "to": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+          "type": "diagnostic_branch",
+          "label": "not VERIFIED"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:ground-gate",
+          "to": "rv:worker-adapter:deterministic-attempt:preflight",
+          "type": "runtime_transition",
+          "label": "VERIFIED"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:preflight",
+          "to": "rv:worker-adapter:deterministic-attempt:preflight-gate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:preflight-gate",
+          "to": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+          "type": "diagnostic_branch",
+          "label": "not VERIFIED"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:preflight-gate",
+          "to": "rv:worker-adapter:deterministic-attempt:reground",
+          "type": "runtime_transition",
+          "label": "VERIFIED"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:reground",
+          "to": "rv:worker-adapter:deterministic-attempt:reground-gate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:reground-gate",
+          "to": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+          "type": "diagnostic_branch",
+          "label": "not VERIFIED"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:reground-gate",
+          "to": "rv:worker-adapter:deterministic-attempt:action",
+          "type": "runtime_transition",
+          "label": "VERIFIED"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:action",
+          "to": "rv:worker-adapter:deterministic-attempt:learning",
+          "type": "runtime_transition",
+          "label": "durable result"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:action",
+          "to": "rv:worker-adapter:deterministic-attempt:action-failure",
+          "type": "diagnostic_branch",
+          "label": "assignment-local failure"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:action-failure",
+          "to": "rv:worker-adapter:deterministic-attempt:reground",
+          "type": "recovery_route",
+          "label": "failure context"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+          "to": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "type": "runtime_transition",
+          "label": "continue unrelated work"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:learning",
+          "to": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "type": "runtime_transition",
+          "label": "next poll"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:cycle-recovery",
+          "to": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "type": "recovery_route",
+          "label": "resume polling"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "to": "rv:worker-adapter:deterministic-attempt:steward-shutdown",
+          "type": "escalation",
+          "label": "explicit Steward stop"
         }
       ]
     }
@@ -2350,6 +3076,12 @@
     "rv:assignment-scheduler:independent-claims:stale",
     "rv:assignment-scheduler:independent-claims:start",
     "rv:assignment-scheduler:independent-claims:start-check",
+    "rv:cme:progress-and-recovery:attention",
+    "rv:cme:progress-and-recovery:monitor-start",
+    "rv:cme:progress-and-recovery:observe",
+    "rv:cme:progress-and-recovery:recovery",
+    "rv:cme:progress-and-recovery:resident-feedback",
+    "rv:cme:progress-and-recovery:stall-decision",
     "rv:event-processor:assignment-progression:advance",
     "rv:event-processor:assignment-progression:baseline-jump",
     "rv:event-processor:assignment-progression:checkpoint",
@@ -2366,6 +3098,18 @@
     "rv:event-processor:assignment-progression:start",
     "rv:event-processor:assignment-progression:startup-preflight",
     "rv:event-processor:assignment-progression:stop",
+    "rv:grace:operational-integration:assignment-fanout",
+    "rv:grace:operational-integration:authority-check",
+    "rv:grace:operational-integration:cme-progress",
+    "rv:grace:operational-integration:durable-plan",
+    "rv:grace:operational-integration:evidence-review",
+    "rv:grace:operational-integration:objective-check",
+    "rv:grace:operational-integration:objective-complete",
+    "rv:grace:operational-integration:objective-intake",
+    "rv:grace:operational-integration:reason-decompose",
+    "rv:grace:operational-integration:replan",
+    "rv:grace:operational-integration:steward-escalation",
+    "rv:grace:operational-integration:worker-dispatch",
     "rv:postgres-ledger:assignment-lifecycle:awaiting-steward",
     "rv:postgres-ledger:assignment-lifecycle:awaiting-verification",
     "rv:postgres-ledger:assignment-lifecycle:blocked",
@@ -2432,16 +3176,30 @@
     "rv:runtime-baseline:commissioning:systemd",
     "rv:runtime-baseline:commissioning:tty-failure",
     "rv:steward-dashboard:status:ingest",
+    "rv:worker-adapter:deterministic-attempt:action",
+    "rv:worker-adapter:deterministic-attempt:action-failure",
     "rv:worker-adapter:deterministic-attempt:auth-fail",
     "rv:worker-adapter:deterministic-attempt:authenticate",
     "rv:worker-adapter:deterministic-attempt:begin",
+    "rv:worker-adapter:deterministic-attempt:claim",
     "rv:worker-adapter:deterministic-attempt:complete-check",
     "rv:worker-adapter:deterministic-attempt:compute",
+    "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+    "rv:worker-adapter:deterministic-attempt:cycle-recovery",
+    "rv:worker-adapter:deterministic-attempt:evidence-wait",
+    "rv:worker-adapter:deterministic-attempt:ground",
+    "rv:worker-adapter:deterministic-attempt:ground-gate",
+    "rv:worker-adapter:deterministic-attempt:learning",
     "rv:worker-adapter:deterministic-attempt:lease",
     "rv:worker-adapter:deterministic-attempt:lease-jump",
     "rv:worker-adapter:deterministic-attempt:loss-query",
     "rv:worker-adapter:deterministic-attempt:lost",
+    "rv:worker-adapter:deterministic-attempt:preflight",
+    "rv:worker-adapter:deterministic-attempt:preflight-gate",
+    "rv:worker-adapter:deterministic-attempt:reground",
+    "rv:worker-adapter:deterministic-attempt:reground-gate",
     "rv:worker-adapter:deterministic-attempt:request",
-    "rv:worker-adapter:deterministic-attempt:result"
+    "rv:worker-adapter:deterministic-attempt:result",
+    "rv:worker-adapter:deterministic-attempt:steward-shutdown"
   ]
 }

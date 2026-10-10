@@ -1,19 +1,25 @@
 {
   "graph_id": "rv:worker-adapter:deterministic-attempt",
-  "graph_revision": "1.0.1",
+  "graph_revision": "1.0.3",
   "component_id": "WORKER-ADAPTER",
   "workflow_id": "deterministic-attempt.v1",
   "diagram_order": 7,
   "source_references": [
     "src/riverview_core/worker_adapter/adapter.py",
+    "src/riverview_core/assignment_scheduler/scheduler.py",
     "src/riverview_core/worker_adapter/migrations/0001_worker_attempts.sql",
-    "tests/test_worker_adapter.py"
+    "tests/test_worker_adapter.py",
+    "src/riverview_core/worker_adapter/continuous.py",
+    "src/riverview_core/worker_adapter/knowledge.py",
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
+    "src/riverview_core/worker_adapter/migrations/0002_knowledge_observations.sql"
   ],
   "documentation_references": [
     "docs/components/WORKER_ADAPTER.md",
     "docs/components/WORKER_ADAPTER_FLOW.md",
     "docs/components/WORKER_ADAPTER_COOKBOOK.md",
-    "docs/development/M2.1-001_REVISION_RECORD.md"
+    "docs/development/M2.1-001_REVISION_RECORD.md",
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
   ],
   "verification_evidence": [
     "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
@@ -58,6 +64,20 @@
       ],
       "documentation_references": [
         "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:claim",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Claim oldest ready assignment inside authenticated scope",
+      "source_references": [
+        "src/riverview_core/worker_adapter/adapter.py",
+        "src/riverview_core/assignment_scheduler/scheduler.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
       ],
       "verification_evidence": []
     },
@@ -182,6 +202,201 @@
       "verification_evidence": [
         "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
       ]
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Continuously poll for one independently claimable assignment",
+      "source_references": [
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:ground",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Ground assignment against the replaceable knowledge provider",
+      "source_references": [
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:ground-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Is assignment grounding VERIFIED and retrieval complete?",
+      "source_references": [
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:preflight",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Preflight the action contract before execution",
+      "source_references": [
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:preflight-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Is the requested action preflight VERIFIED?",
+      "source_references": [
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:reground",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Refresh assignment context before action or on a recovery trigger",
+      "source_references": [
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:reground-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Is the current assignment context VERIFIED?",
+      "source_references": [
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+      "node_revision": "1.0.0",
+      "type": "escalation",
+      "label": "Persist non-verified status and wait for evidence for this assignment only",
+      "source_references": [
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:action",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Execute one fenced deterministic action after verified knowledge gates",
+      "source_references": [
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:action-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Record assignment-local failure and reground without stopping other polls",
+      "source_references": [
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:learning",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Persist learning outcome and provenance without automatic promotion",
+      "source_references": [
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:cycle-recovery",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Reclaim after process loss using durable lease expiry and attempt records",
+      "source_references": [
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:steward-shutdown",
+      "node_revision": "1.0.0",
+      "type": "exit",
+      "label": "Stop polling only when explicit Steward shutdown control is asserted",
+      "source_references": [
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
+      ],
+      "verification_evidence": []
     }
   ],
   "edges": [
@@ -195,12 +410,6 @@
       "to": "rv:worker-adapter:deterministic-attempt:auth-fail",
       "type": "diagnostic_branch",
       "label": "Credential, capability, or scope rejected"
-    },
-    {
-      "from": "rv:worker-adapter:deterministic-attempt:authenticate",
-      "to": "rv:worker-adapter:deterministic-attempt:lease",
-      "type": "runtime_transition",
-      "label": "Authorized"
     },
     {
       "from": "rv:worker-adapter:deterministic-attempt:lease",
@@ -247,6 +456,123 @@
       "to": "rv:assignment-scheduler:independent-claims:start-check",
       "type": "prerequisite",
       "label": "M1.4 lease table/token contract; not a runtime call"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:authenticate",
+      "to": "rv:worker-adapter:deterministic-attempt:claim",
+      "type": "runtime_transition",
+      "label": "Credential and capability valid"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:claim",
+      "to": "rv:worker-adapter:deterministic-attempt:lease",
+      "type": "runtime_transition",
+      "label": "Exact scope match"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+      "to": "rv:worker-adapter:deterministic-attempt:claim",
+      "type": "runtime_transition",
+      "label": "poll"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:claim",
+      "to": "rv:worker-adapter:deterministic-attempt:ground",
+      "type": "runtime_transition",
+      "label": "claimed task"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:ground",
+      "to": "rv:worker-adapter:deterministic-attempt:ground-gate",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:ground-gate",
+      "to": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+      "type": "diagnostic_branch",
+      "label": "not VERIFIED"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:ground-gate",
+      "to": "rv:worker-adapter:deterministic-attempt:preflight",
+      "type": "runtime_transition",
+      "label": "VERIFIED"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:preflight",
+      "to": "rv:worker-adapter:deterministic-attempt:preflight-gate",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:preflight-gate",
+      "to": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+      "type": "diagnostic_branch",
+      "label": "not VERIFIED"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:preflight-gate",
+      "to": "rv:worker-adapter:deterministic-attempt:reground",
+      "type": "runtime_transition",
+      "label": "VERIFIED"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:reground",
+      "to": "rv:worker-adapter:deterministic-attempt:reground-gate",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:reground-gate",
+      "to": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+      "type": "diagnostic_branch",
+      "label": "not VERIFIED"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:reground-gate",
+      "to": "rv:worker-adapter:deterministic-attempt:action",
+      "type": "runtime_transition",
+      "label": "VERIFIED"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:action",
+      "to": "rv:worker-adapter:deterministic-attempt:learning",
+      "type": "runtime_transition",
+      "label": "durable result"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:action",
+      "to": "rv:worker-adapter:deterministic-attempt:action-failure",
+      "type": "diagnostic_branch",
+      "label": "assignment-local failure"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:action-failure",
+      "to": "rv:worker-adapter:deterministic-attempt:reground",
+      "type": "recovery_route",
+      "label": "failure context"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+      "to": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+      "type": "runtime_transition",
+      "label": "continue unrelated work"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:learning",
+      "to": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+      "type": "runtime_transition",
+      "label": "next poll"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:cycle-recovery",
+      "to": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+      "type": "recovery_route",
+      "label": "resume polling"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+      "to": "rv:worker-adapter:deterministic-attempt:steward-shutdown",
+      "type": "escalation",
+      "label": "explicit Steward stop"
     }
   ]
 }

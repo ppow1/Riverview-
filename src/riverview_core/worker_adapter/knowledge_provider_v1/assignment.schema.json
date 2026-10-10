@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:riverview:knowledge-provider:1.0.0:assignment",
+  "title": "Knowledge Provider Assignment Input",
+  "type": "object",
+  "required": ["id", "authority_ref", "objective_ref"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "authority_ref": {"type": "string", "minLength": 1},
+    "objective_ref": {"type": "string", "minLength": 1},
+    "contract_ref": {"type": ["string", "null"]},
+    "workflow_id": {"type": "string"},
+    "workflow_step": {"type": "string"},
+    "state": {"type": "string"},
+    "version": {"type": "integer"}
+  },
+  "additionalProperties": true
+}

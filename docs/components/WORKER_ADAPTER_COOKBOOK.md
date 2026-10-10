@@ -1,6 +1,6 @@
 # Riverview~ worker adapter cookbook
 
-**Document Revision:** 1.0.0
+**Document Revision:** 1.0.2
 **Component:** WORKER-ADAPTER
 **Task:** RV-M2.1-001
 **Status:** IN PROGRESS — disposable PostgreSQL only
@@ -15,9 +15,32 @@ and drops only that schema. Never point it at shared `riverview_dev`.
 PYTHONPATH=src RIVERVIEW_TEST_PG_DSN='<disposable PostgreSQL DSN>' python3 -m unittest tests.test_worker_adapter -v
 ```
 
-The tests verify token authentication, capability and assignment-scope checks,
-credential digest storage, deterministic result persistence and replay, input
-collision rejection, and visibility of an unfinished attempt.
+The tests verify authenticated scope-filtered dispatch and start,
+token/capability/scope rejection, credential digest storage, deterministic
+result persistence and replay, input collision rejection, unfinished-attempt
+visibility, independent concurrent cycles, fail-closed evidence waiting,
+timeout behavior, and durable grounding/preflight provenance.
+
+Run the provider contract suite without PostgreSQL:
+
+```bash
+PYTHONPATH=src python3 -m unittest \
+  riverview_core.worker_adapter.knowledge_provider_v1.test_contract -v
+```
+
+The default provider is unavailable and never authorizes a task. To test a fake
+replacement, inject an object implementing all four methods from the versioned
+[provider contract](../../src/riverview_core/worker_adapter/knowledge_provider_v1/README.md).
+Only return `VERIFIED` with complete retrieval and source references. Otherwise
+the worker records the result and sets that assignment's workflow step to
+`WAITING_FOR_EVIDENCE`; the next `run_once()` can claim unrelated work.
+
+The worker waits at most five seconds per provider call by default (configurable
+per worker), caps in-flight provider calls at four per worker, discards late
+results, and records timeout as `UNAVAILABLE`. Python cannot forcibly cancel an
+in-process provider thread; a provider must use its own bounded network/storage
+timeouts and tolerate concurrency. The interface has no fallback to invented
+commands or contracts.
 
 ## Operational boundaries
 
