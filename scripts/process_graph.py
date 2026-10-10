@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/process_graph.py
 # Component: RV-PROCESS-GRAPH
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Validate canonical workflow graphs and generate synchronized views
 # Execution Model: Request-driven developer utility and CI check
 # Observability: Structured validation errors and generated graph inventory
 # Dependencies: Python 3.10+; jsonschema 4.10.3
 # Authority: Reads repository graph data; writes only registered generated views
-# Changed: 2026-10-10 UTC | RV-GRAPH-001 | Initial canonical graph pipeline
+# Changed: 2026-10-10 UTC | RV-M2.3-001 | Avoid trailing whitespace in generated graph heading
 # Contracts: process_graphs/README.md; process_graphs/schema/riverview-process-graph.schema.json
 # Tests: tests/test_process_graph.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -301,7 +301,7 @@ def generate(check=False):
     master_revision = current_revision.group(1) if current_revision else "1.0.0"
     master = (
         "# Riverview aggregate process graph\n\n"
-        f"**Document Revision:** {master_revision}  \n"
+        f"**Document Revision:** {master_revision}\n"
         "**Generated from:** canonical workflow JSON; do not edit this projection by hand.  \n"
         "**Source:** `python3 scripts/process_graph.py generate`  \n\n"
         "The graph is complete across registered workflows. Use focused component flow documents for detailed reading. "

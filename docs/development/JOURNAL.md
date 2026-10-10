@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.27
+**Document Revision:** 1.0.28
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -571,3 +571,22 @@ PR #5 was merged at `9ca7cb189d1e1f57c69395303a9367fabd979ff5`; its push and pul
 Live M1.3 migration 0002 was applied after a verified backup and restore drill. The separate event processor service completed three unattended queued-to-ready transitions with causal event pairs through cursor 6; systemd restart resumed at cursor 2; deliberate database backend loss recovered to one leadership lock at cursor 4. The M1.3 rollback/redeployment was exercised; M1.1 remained ready on deployed commit `64e8f14`. Evidence: [`M1.3 Camrui checkout`](../../evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/checkout.md), [`runtime acceptance`](../../evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json).
 
 M1.3 scoped technical commissioning is PASS; full component DoD remains OPEN. The roadmap cursor is now M1.4 isolated engineering; later dashboard, autonomy, external observability and project-wide obligations remain intact.
+# 2026-10-10 UTC — RV-M2.3-001 / failure and restart recovery intake
+
+Roadmap M2.3 requires forced process/worker interruption recovery without lost
+assignments or blind duplicate external effects, with an auditable decision.
+Inspection found that M2.1 persisted worker attempts and lease fencing, but a
+`running` assignment with an expired lease was not reconciled; the existing
+incomplete-attempt test inserted a row rather than terminating a worker. The
+continuous adapter also invoked injected action code before writing an attempt,
+so an external effect could precede durable evidence of the action boundary.
+
+Decision: add a durable pre-action execution intent. The built-in deterministic
+action is retry-safe; custom actions default to external-uncertain. Recovery
+preserves a committed result, retries only explicit retry-safe work after fencing
+its prior generation, and moves all other incomplete/legacy work to
+`awaiting_steward`. The migration, state events, and recovery record are
+transactional in the selected schema. Development is on a short-lived branch
+from PR #10's pinned head, with no merge or rewrite of the PR #9/#10 stack.
+Verification uses disposable `rvtest_*` schemas only. See
+[`RV-M2.3-001`](M2.3-001_REVISION_RECORD.md) and the generated worker flow.

@@ -1,9 +1,9 @@
 # Riverview~ worker adapter contract
 
-**Document Revision:** 1.0.3
+**Document Revision:** 1.0.5
 **Component:** WORKER-ADAPTER
-**Milestone:** M2.1
-**Status:** IN PROGRESS — isolated engineering; no service deployment
+**Milestone:** M2.1–M2.3
+**Status:** M2.3 IN PROGRESS — isolated engineering; no service deployment
 **Implementation:** `src/riverview_core/worker_adapter/adapter.py`
 
 ## Scope and trust boundaries
@@ -91,3 +91,25 @@ Migration 0003 remains isolated to disposable test schemas and is not deployed.
 
 See [the M2.2 verification workflow](OUTCOME_VERIFIER_FLOW.md) and
 [RV-M2.2-001 engineering record](../development/M2.2-001_REVISION_RECORD.md).
+
+## Failure and restart recovery (M2.3)
+
+The continuous worker persists an execution intent before invoking an action.
+The built-in deterministic action is `retry_safe`; a caller-supplied action
+defaults to `external_uncertain` unless its contract explicitly classifies it
+otherwise. On expired lease, a committed result advances to
+`awaiting_verification` without rerunning; a `retry_safe` incomplete intent is
+fenced and requeued; and an unknown external outcome moves to
+`awaiting_steward`. The recovery record and assignment events commit atomically.
+Legacy `running` assignments without an intent are treated as uncertain because
+older code did not persist the action boundary.
+
+Migration `0004_failure_recovery.sql` adds durable execution-intent and recovery
+tables. Apply it explicitly to a selected schema; the adapter never applies DDL
+at startup. `ContinuousWorker.run_once()` invokes
+`PostgresRecoveryCoordinator.reconcile_expired()` before each new claim. It scans
+only expired `running` assignments, preserves persisted results for independent
+verification, and does not inspect external systems or claim that an uncertain
+action did not take effect. Uncertain work requires authoritative reconciliation
+before it can be resumed. See the [M2.3 cookbook](WORKER_ADAPTER_COOKBOOK.md)
+and [RV-M2.3-001 record](../development/M2.3-001_REVISION_RECORD.md).

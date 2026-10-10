@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.0.7
+**Document Revision:** 1.0.8
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-09  
 **Component:** RV-ROADMAP  
@@ -117,7 +117,7 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 **M1.4:** Isolated technical criteria verified at source commit `549bd08b9b1800981c6c4c006dbe59d8fed0a799`: age-ordered independent claims, an active stalled lease not blocking unrelated progress, concurrent distinct claims, expiry generation increment, stale token rejection, and idempotent start. Evidence is in the M1.4-001 engineering record. No shared-schema migration, service deployment, operational commissioning, or full component DoD is claimed.
 
-**Current step: M2.1 — Minimal registered worker adapter (isolated engineering).** Begin with a deterministic local task and capability registration against the lease/fencing interface. Do not integrate GPU hardware. Preserve M1.1/M1.2/M1.3 live operation; M1.4 shared-schema commissioning remains a separate controlled deployment task.
+**Current step: M2.3 — Failure and restart recovery (isolated engineering).** M2.1 and M2.2 have isolated implementation and verification evidence on their open PR stack; neither PR has been merged or operationally commissioned. M2.3 adds durable execution intents, expiry reconciliation, fencing, and conservative external-effect uncertainty handling. No shared schema or service deployment is authorized by this checkpoint.
 
 **Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. Current M2.1 work continues without beginning the full Grace implementation.
 
@@ -132,3 +132,4 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 - **1.0.5 — 2026-10-10:** Record scoped M1.3 technical commissioning PASS and advance the engineering cursor to isolated M1.4 work; full component DoD remains open.
 - **1.0.6 — 2026-10-10:** Record M1.4 isolated roadmap technical criteria as verified and start M2.1 isolated worker-adapter engineering; M1.4 deployment and full component DoD remain open.
 - **1.0.7 — 2026-10-10:** Add mandatory M4.4 Grace Operational Integration, system-level acceptance evidence and explicit dependencies; record it as not yet implemented without interrupting M2.1.
+- **1.0.8 — 2026-10-10:** Record M2.1/M2.2 verified isolated PR state and begin M2.3 failure/restart recovery; preserve non-merged status and no deployment claim.
