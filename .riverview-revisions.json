@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.0",
+  "manifest_revision": "1.1.4",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.6",
+      "revision": "1.0.8",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "90e5774ec740916930cfabe271592147f3ba6afee06a3ee268d00ee051c69db9",
-      "size_bytes": 69456
+      "sha256": "846828802eefd1e02a2d30c56ec1c667e0eee1323a2de20f7b261bd10c7eeaa5",
+      "size_bytes": 79822
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 619
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.0"
+      "revision": "1.1.4"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -69,6 +69,12 @@
       "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/test_results.json",
       "sha256": "6d6ef80a5252415c7113309ac64ed8d889e83ead00e89266081583926b0d04d5",
       "size_bytes": 548
+    },
+    "process_graphs/assignment-scheduler/independent-claims.json": {
+      "revision": "1.0.2",
+      "path": "process_graphs/assignment-scheduler/independent-claims.json",
+      "sha256": "6ed1ac555a73021fc323310489de82543528c8074ad33632fe644060d42d925c",
+      "size_bytes": 8675
     }
   }
 }
