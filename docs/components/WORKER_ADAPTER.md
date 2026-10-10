@@ -1,6 +1,6 @@
 # Riverview~ worker adapter contract
 
-**Document Revision:** 1.0.2
+**Document Revision:** 1.0.3
 **Component:** WORKER-ADAPTER
 **Milestone:** M2.1
 **Status:** IN PROGRESS — isolated engineering; no service deployment
@@ -69,3 +69,25 @@ implementation.
 See the [workflow graph](WORKER_ADAPTER_FLOW.md),
 [operational cookbook](WORKER_ADAPTER_COOKBOOK.md), and
 [RV-M2.1-001 record](../development/M2.1-001_REVISION_RECORD.md).
+
+## Independent result verification (M2.2)
+
+The worker leaves successful artifacts in `awaiting_verification`. A separately
+registered verifier with `assignment.verify.v1`, matching authority scope, and a
+different worker identity evaluates the stored attempt and result. The initial
+`DeterministicSha256Verifier` independently checks the recorded input digest,
+result shape, and canonical result digest. It records criterion-level decisions,
+the attempt, verifier identity and revision, and evidence references in
+`verification_records`.
+
+Accepted evidence permits the transition to `completed`; rejected evidence
+routes the assignment to `rework_required`; inconclusive evidence blocks it for
+reassessment. A database trigger rejects direct completion in schemas with M2.2
+migration `0003_independent_verification.sql` unless an ACCEPTED record exists.
+Verification requests are idempotent and can resume the state transition after
+a process interruption. This verifier covers the deterministic M2.1 artifact
+contract only; it is not a general code review or software acceptance service.
+Migration 0003 remains isolated to disposable test schemas and is not deployed.
+
+See [the M2.2 verification workflow](OUTCOME_VERIFIER_FLOW.md) and
+[RV-M2.2-001 engineering record](../development/M2.2-001_REVISION_RECORD.md).

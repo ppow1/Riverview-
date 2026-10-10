@@ -1,0 +1,76 @@
+# Grace Operational Integration
+
+**Document Revision:** 1.0.1  
+**Status:** PLANNED — mandatory M4.4 deliverable; not implemented or operationally verified.  
+**Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.  
+**Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
+
+This planned flow registers the objective intake, authority binding, reasoning,
+durable plan, assignment fanout, CME observation, artifact verification, follow-up,
+and genuine Steward escalation required by M4.4. It is a design registration only.
+
+Stable jump points connect Grace delegation to
+`rv:worker-adapter:deterministic-attempt:continuous-cycle`, CME progress to
+`rv:cme:progress-and-recovery:observe`, and CME attention feedback to
+`rv:grace:operational-integration:evidence-review`.
+
+```mermaid
+flowchart LR
+  subgraph g_rv_cme_progress_and_recovery["CME / progress-and-recovery.v1"]
+    g_rv_cme_progress_and_recovery_monitor_start_3c5b8496(["PLANNED — observe durable assignment and service progress"])
+    g_rv_cme_progress_and_recovery_observe_428defda["PLANNED — measure progress, freshness, stalls, and recovery state"]
+    g_rv_cme_progress_and_recovery_stall_decision_e8a6e869{"PLANNED — distinguish progressing, blocked, stale, and failed work"}
+    g_rv_cme_progress_and_recovery_attention_845fe834[["PLANNED — persist attention or genuine Steward decision request"]]
+    g_rv_cme_progress_and_recovery_recovery_22db97e3["PLANNED — request bounded assignment-local recovery and preserve unrelated work"]
+    g_rv_cme_progress_and_recovery_resident_feedback_ff3dbee2["PLANNED — return progress and attention evidence to Grace"]
+  end
+  g_rv_grace_operational_integration_evidence_review_600fe7b4["Registered target<br/>rv:grace:operational-integration"]
+  g_rv_cme_progress_and_recovery_monitor_start_3c5b8496 --> g_rv_cme_progress_and_recovery_observe_428defda
+  g_rv_cme_progress_and_recovery_observe_428defda --> g_rv_cme_progress_and_recovery_stall_decision_e8a6e869
+  g_rv_cme_progress_and_recovery_stall_decision_e8a6e869 -->|PLANNED — progress; continue monitoring| g_rv_cme_progress_and_recovery_observe_428defda
+  g_rv_cme_progress_and_recovery_stall_decision_e8a6e869 -->|escalation: PLANNED — genuine decision or attention condition| g_rv_cme_progress_and_recovery_attention_845fe834
+  g_rv_cme_progress_and_recovery_stall_decision_e8a6e869 -->|recovery_route: PLANNED — assignment-local recovery| g_rv_cme_progress_and_recovery_recovery_22db97e3
+  g_rv_cme_progress_and_recovery_attention_845fe834 --> g_rv_cme_progress_and_recovery_resident_feedback_ff3dbee2
+  g_rv_cme_progress_and_recovery_resident_feedback_ff3dbee2 -->|jump| g_rv_grace_operational_integration_evidence_review_600fe7b4
+  g_rv_cme_progress_and_recovery_recovery_22db97e3 -->|PLANNED — continue unrelated monitoring| g_rv_cme_progress_and_recovery_observe_428defda
+  classDef failure fill:#fee,stroke:#b00,stroke-width:2px
+```
+
+## CME progress and recovery view
+
+```mermaid
+flowchart LR
+  subgraph g_rv_grace_operational_integration["RESIDENT-ORCHESTRATION / grace-engineering-objective.v1"]
+    g_rv_grace_operational_integration_objective_intake_55567c14(["PLANNED — receive and durably record Steward objective and authority"])
+    g_rv_grace_operational_integration_authority_check_71ce44bf["PLANNED — bind objective to delegated office authority and acceptance criteria"]
+    g_rv_grace_operational_integration_reason_decompose_d48619ca["PLANNED — reason about objective and decompose durable engineering plan"]
+    g_rv_grace_operational_integration_durable_plan_26bc431c["PLANNED — persist and revise plan across context and model replacement"]
+    g_rv_grace_operational_integration_assignment_fanout_81ca8043["PLANNED — create multiple independently schedulable assignments"]
+    g_rv_grace_operational_integration_worker_dispatch_20506b72["PLANNED — delegate through CME to replaceable real engineering executors"]
+    g_rv_grace_operational_integration_cme_progress_68f6775b["PLANNED — subscribe to durable progress, stall, and recovery events from CME"]
+    g_rv_grace_operational_integration_evidence_review_600fe7b4["PLANNED — interpret execution and independent verification evidence"]
+    g_rv_grace_operational_integration_objective_check_1e4d916a{"PLANNED — determine whether objective acceptance criteria are independently met"}
+    g_rv_grace_operational_integration_replan_58351ccd["PLANNED — revise plan and initiate follow-up work after evidence or failure"]
+    g_rv_grace_operational_integration_steward_escalation_ca57acbb[["PLANNED — request only genuine Steward decision or authority"]]
+    g_rv_grace_operational_integration_objective_complete_a6f22d23(["PLANNED — objective closed only with independently verified evidence"])
+  end
+  g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
+  g_rv_cme_progress_and_recovery_observe_428defda["Registered target<br/>rv:cme:progress-and-recovery"]
+  g_rv_grace_operational_integration_objective_intake_55567c14 --> g_rv_grace_operational_integration_authority_check_71ce44bf
+  g_rv_grace_operational_integration_authority_check_71ce44bf --> g_rv_grace_operational_integration_reason_decompose_d48619ca
+  g_rv_grace_operational_integration_reason_decompose_d48619ca --> g_rv_grace_operational_integration_durable_plan_26bc431c
+  g_rv_grace_operational_integration_durable_plan_26bc431c --> g_rv_grace_operational_integration_assignment_fanout_81ca8043
+  g_rv_grace_operational_integration_assignment_fanout_81ca8043 --> g_rv_grace_operational_integration_worker_dispatch_20506b72
+  g_rv_grace_operational_integration_worker_dispatch_20506b72 -->|jump| g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4
+  g_rv_grace_operational_integration_assignment_fanout_81ca8043 --> g_rv_grace_operational_integration_cme_progress_68f6775b
+  g_rv_grace_operational_integration_cme_progress_68f6775b -->|jump| g_rv_cme_progress_and_recovery_observe_428defda
+  g_rv_grace_operational_integration_evidence_review_600fe7b4 --> g_rv_grace_operational_integration_objective_check_1e4d916a
+  g_rv_grace_operational_integration_objective_check_1e4d916a -->|verification: PLANNED — all criteria independently verified| g_rv_grace_operational_integration_objective_complete_a6f22d23
+  g_rv_grace_operational_integration_objective_check_1e4d916a -->|recovery_route: PLANNED — unmet criteria or new evidence| g_rv_grace_operational_integration_replan_58351ccd
+  g_rv_grace_operational_integration_objective_check_1e4d916a -->|escalation: PLANNED — genuine decision required| g_rv_grace_operational_integration_steward_escalation_ca57acbb
+  g_rv_grace_operational_integration_replan_58351ccd --> g_rv_grace_operational_integration_durable_plan_26bc431c
+  g_rv_grace_operational_integration_steward_escalation_ca57acbb -->|PLANNED — resume after recorded decision| g_rv_grace_operational_integration_durable_plan_26bc431c
+  classDef failure fill:#fee,stroke:#b00,stroke-width:2px
+```
+
+Revision history: 1.0.0 — initial planned M4.4 view; canonical views are generated.

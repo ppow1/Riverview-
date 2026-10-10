@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/postgres_ledger.py
 # Component: POSTGRES-LEDGER
-# Revision: 1.1.2
+# Revision: 1.1.3
 # Purpose: Persist contract-aligned assignments and causally linked events
 # Execution Model: Request-driven library
 # Observability: PostgreSQL assignment/event queries and schema version
 # Dependencies: Python 3.10+; Psycopg 3; PostgreSQL 16; versioned migrations
 # Authority: Persistence only; authority references are recorded, not validated
-# Changed: 2026-10-10 UTC | RV-M1.3-002 | Serialize event sequence allocation through transaction commit
+# Changed: 2026-10-10 UTC | RV-M2.2-001 | Preserve verified acceptance provenance in event
 # Contracts: docs/components/POSTGRES_LEDGER.md; docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md
 # Tests: tests/test_postgres_ledger.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -185,6 +185,14 @@ class PostgresLedger:
                 payload = {"from": row["state"], "to": to_state, "step": step,
                            "actor_id": actor_id, "verified_claim": bool(verified),
                            "privacy_domain": privacy_domain}
+                if to_state == "completed":
+                    cur.execute("SELECT to_regclass('verification_records') AS present")
+                    if cur.fetchone()["present"] is not None:
+                        cur.execute("""SELECT 1 FROM verification_records
+                                       WHERE assignment_id=%s AND decision='ACCEPTED'
+                                       LIMIT 1""", (assignment_id,))
+                        if cur.fetchone() is None:
+                            raise TransitionError("completion requires persisted independent verification")
                 now = self._timestamp()
                 cur.execute(
                     "UPDATE assignments SET state=%s,workflow_step=%s,updated_at=%s,version=version+1 WHERE id=%s",
