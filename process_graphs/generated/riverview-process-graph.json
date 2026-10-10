@@ -2086,7 +2086,7 @@
     },
     {
       "graph_id": "rv:worker-adapter:deterministic-attempt",
-      "graph_revision": "1.0.0",
+      "graph_revision": "1.0.1",
       "component_id": "WORKER-ADAPTER",
       "workflow_id": "deterministic-attempt.v1",
       "diagram_order": 7,
@@ -2101,7 +2101,9 @@
         "docs/components/WORKER_ADAPTER_COOKBOOK.md",
         "docs/development/M2.1-001_REVISION_RECORD.md"
       ],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+      ],
       "nodes": [
         {
           "id": "rv:worker-adapter:deterministic-attempt:request",
@@ -2128,7 +2130,9 @@
           "documentation_references": [
             "docs/components/WORKER_ADAPTER.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:auth-fail",
@@ -2154,7 +2158,9 @@
           "documentation_references": [
             "docs/components/WORKER_ADAPTER.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:lease-jump",
@@ -2182,7 +2188,9 @@
           "documentation_references": [
             "docs/components/WORKER_ADAPTER.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:compute",
@@ -2195,7 +2203,9 @@
           "documentation_references": [
             "docs/components/WORKER_ADAPTER.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:complete-check",
@@ -2208,7 +2218,9 @@
           "documentation_references": [
             "docs/components/WORKER_ADAPTER.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:lost",
@@ -2222,7 +2234,9 @@
           "documentation_references": [
             "docs/components/WORKER_ADAPTER_COOKBOOK.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:result",
@@ -2236,7 +2250,9 @@
           "documentation_references": [
             "docs/components/WORKER_ADAPTER.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:loss-query",
@@ -2249,7 +2265,9 @@
           "documentation_references": [
             "docs/components/WORKER_ADAPTER_COOKBOOK.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
         }
       ],
       "edges": [
