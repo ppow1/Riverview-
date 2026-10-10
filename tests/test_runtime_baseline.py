@@ -1,13 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_runtime_baseline.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Identity/credential security, DB contract, observer and package regression tests
 # Execution Model: Request-driven tests; simulated DB explicitly distinct from live proof
 # Observability: unittest counts and failures
 # Dependencies: Python 3.10+, Git, Linux
 # Authority: Temporary fixtures only; no live DB or credentials
-# Changed: 2026-10-10 UTC | RV-M1.1-010 | Cover root-owned systemd source and private libpq passfile copy
+# Changed: 2026-10-10 UTC | RV-M1.1-011 | Regress PostgreSQL inet host identity formatting
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: This file
 # History: docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py
@@ -72,6 +72,7 @@ class RuntimeBaselineTests(unittest.TestCase):
         self.assertNotIn("password", kwargs)
         for call in cur.execute.call_args_list:
             self.assertTrue(call.args[0].startswith(("SHOW", "SELECT")))
+        self.assertIn("host(inet_server_addr())", cur.execute.call_args_list[1].args[0])
 
     def test_schema_owner_is_observed_without_inventing_an_ownership_migration(self):
         report, code, _, _ = self.run_probe(rows=[("on",), ("riverview_core", "riverview", "127.0.0.1"),

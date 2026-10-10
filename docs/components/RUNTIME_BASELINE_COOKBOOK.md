@@ -1,11 +1,11 @@
 # Riverview~ runtime baseline troubleshooting and recovery
 
-**Document Revision:** 1.0.6
+**Document Revision:** 1.0.9
 **Component:** RUNTIME-BASELINE
-**Repair task:** RV-M1.1-010
+**Repair task:** RV-M1.1-011
 **Task:** RV-M1.1-001
 **Owner:** office:operations
-**Status:** systemd credential ownership cause corrected; live commissioning and rollback NOT VERIFIED
+**Status:** libpq credential and loopback address checks corrected; live acceptance in progress
 
 ## Consolidated read-only diagnostic
 
@@ -13,12 +13,12 @@ On Camrui, inspect only the selected unit properties and sanitized JSON. Run the
 
 ```bash
 systemctl show riverview-baseline.service --property=User,Group,LoadState,Result,ExecMainStatus
-sudo -n /usr/local/sbin/riverview-privctl report
-sudo -n /usr/local/sbin/riverview-privctl service status
+sudo -n cat /var/lib/riverview/baseline.json
+sudo -n systemctl status --no-pager riverview-baseline.service
 ```
 
-The report operation invokes the fixed sanitized reader from the root-owned
-active release. Never invoke a checkout/staging script through sudo.
+The report is a sanitized fixed-schema projection. Do not display database
+credential files, connection strings, or full process environments.
 
 Optional remote diagnostic from a connected authorized development machine with a known SSH host key and noninteractive approved sudo for the reader (not a milestone acceptance requirement):
 
@@ -26,15 +26,23 @@ Optional remote diagnostic from a connected authorized development machine with 
 python scripts/check_camrui_baseline.py camrui
 ```
 
-The optional runner is bounded to 30 seconds, uses BatchMode and strict host-key checking, rejects shell syntax in destinations and preserves remote failure status. A remote connection failure is not a Camrui commissioning failure when local execution is available. Do not weaken host-key checking or add broad sudo rights to make the optional path pass.
+The optional runner is bounded to 30 seconds, uses BatchMode and strict host-key checking, rejects shell syntax in destinations and preserves remote failure status. A remote connection failure is not a Camrui commissioning failure when local execution is available. Do not weaken host-key checking to make the optional path pass. Camrui local commissioning uses the owner-authorized administrator directly.
 An expired report is intentionally stale: a request-driven baseline check does
-not provide continuous health. Refresh only with `sudo -n
-/usr/local/sbin/riverview-privctl service start`; no institution is dispatched.
+not provide continuous health. Refresh with `sudo -n systemctl start
+riverview-baseline.service`; no institution is dispatched.
 
-M1.1 acceptance is based on local execution on Camrui: after authorized
-installation, `sudo -n /usr/local/sbin/riverview-privctl accept` runs the unit
-twice and retains sanitized results. SSH only transports a request from another
-machine; it does not provide an independent database or runtime verification gate.
+M1.1 acceptance is based on local execution on Camrui. Run the fixed collector
+from the verified active release; it starts the unit twice and retains sanitized
+results:
+
+```bash
+sudo -n /opt/riverview-core/.venv/bin/python \
+  /opt/riverview-core/scripts/capture_baseline_acceptance.py \
+  --output /var/lib/riverview/acceptance-rv-m11-011.json
+```
+
+SSH only transports a request from another machine; it does not provide an
+independent database or runtime verification gate.
 
 ## Node-to-fault mapping
 
@@ -104,14 +112,14 @@ corrected committed package; do not edit files after manifest verification.
 
 ## Verified-predecessor rollback procedure
 
-Use the exact root-owned backup directory printed by the installer. The helper
-checks the saved unit SHA-256 before restoring it, serializes against installation,
+Use the exact root-owned backup directory printed by the installer. The rollback
+script checks the saved unit SHA-256 before restoring it, serializes against installation,
 stops only this diagnostic, restores the prior code link/unit (or removes those
 introduced by a first install), and reloads systemd. It retains accounts,
 credentials, releases, state and backups; never touches PostgreSQL.
 
 ```bash
-sudo -n /usr/local/sbin/riverview-privctl rollback riverview-baseline.XXXXXXXX
+sudo -n /bin/sh /opt/riverview-core/deploy/rollback_baseline.sh /var/backups/riverview-baseline.XXXXXXXX
 ```
 
 If a prior baseline unit existed, explicitly start it and inspect its result.
@@ -136,6 +144,9 @@ does not substitute for them.
 ## Revision history
 
 - 1.0.5: Record proven systemd credential ownership mismatch, safe predicate split and scoped broker usage; predecessor `.riverview-backups/20261010T142904528427Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md`.
+- 1.0.9: Repair collector command formatting and include the required output argument; predecessor recorded in `.riverview-backups/manifest.jsonl` under RV-M1.1-011.
+- 1.0.8: Document required collector output argument and align optional SSH note with owner-authorized local administration; predecessor recorded in `.riverview-backups/manifest.jsonl` under RV-M1.1-011.
+- 1.0.7: Retire broker-specific diagnostics and recovery commands in favor of owner-authorized local administration; predecessor recorded under RV-M1.1-011.
 - 1.0.6: Document libpq mode-0600 requirement and isolated runtime copy; predecessor is recorded under RV-M1.1-010 in `.riverview-backups/manifest.jsonl`.
 
 - 1.0.3: Explain non-seeking hidden TTY capture and validated partial-install retry; predecessor under docs/history/RV-M1.1-007/rev1.0.2/docs/components/RUNTIME_BASELINE_COOKBOOK.md.

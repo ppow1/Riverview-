@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.13
+**Document Revision:** 1.0.15
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -317,3 +317,36 @@ Next: commit this source/docs/test increment, build and inspect its exact packag
 bootstrap the hash-pinned helper and narrow the existing project sudoers rule,
 then deploy and verify fresh live baseline/acceptance plus recovery. The package
 is not yet approved or installed; M1.1 remains IN PROGRESS.
+
+## 2026-10-10 UTC — RV-M1.1-011 / privilege broker retirement and PostgreSQL inet diagnosis
+
+The owner restored unrestricted passwordless sudo. Verified `sudo -n id` and a
+separate root operation returned UID 0; `sudo -n -l` confirmed `(ALL : ALL)
+NOPASSWD: ALL`. `visudo -c` parsed `/etc/sudoers.d/90-riverview-codex` successfully.
+This authorization file remains intact.
+
+Before removing active broker state, preserved checksummed copies of the
+root-owned helper, private policy and package registry under
+`/var/backups/riverview-privctl-retired-20261010T150152068992Z`. Removed their
+active copies; no broker-specific sudoers rule remained, and root access still
+passed independent verification. Historical task records, predecessor copies,
+and rollback records are retained.
+
+Deployed the exact verified b40c77f package into its immutable release. The
+private systemd passfile copy succeeded. A live read-only DB query showed the
+identity check failed because `inet_server_addr()::text` yields
+`127.0.0.1/32`; the configured endpoint and database role were correct. RV-M1.1-011
+changes that projection to `host(inet_server_addr())` and adds regression coverage.
+M1.1 remains IN PROGRESS pending corrected deployment, fresh acceptance evidence,
+recovery verification, and Steward decision. M1.2 remains gated.
+
+
+Correction to the superseded RV-M1.1-010 next-step note above: the owner has
+restored unrestricted passwordless Camrui administration. No privilege broker
+bootstrap or sudoers narrowing is authorized or required. RV-M1.1-011 retires
+the broker and proceeds using the owner-authorized administrator. The full
+source suite was executed with the documented `PYTHONPATH=src` and an isolated
+socket-only PostgreSQL cluster: 45 tests passed, including all PostgreSQL ledger
+integration tests; no `rvtest_%` schemas remained. The live baseline defect is
+addressed by querying `host(inet_server_addr())`; package build/deployment and
+live recovery evidence remain pending at this checkpoint.

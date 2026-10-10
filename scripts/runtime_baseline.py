@@ -1,13 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/runtime_baseline.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Read-only M1.1 identity, credential and PostgreSQL commissioning probe
 # Execution Model: Request-driven diagnostic; no institutional work loop
 # Observability: rv.runtime-baseline.v1 JSON stdout; freshness expires after 60s
 # Dependencies: Python 3.10+, Psycopg 3, Linux, PostgreSQL
 # Authority: Read-only; never provisions, changes passwords or initializes tables
-# Changed: 2026-10-10 UTC | RV-M1.1-010 | Copy systemd credential into private libpq-compatible runtime storage
+# Changed: 2026-10-10 UTC | RV-M1.1-011 | Normalize PostgreSQL inet host text for loopback identity check
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: tests/test_runtime_baseline.py
 # History: New file; no predecessor; Git
@@ -144,7 +144,9 @@ def check_database(connect, passfile):
             cur.execute("SHOW transaction_read_only")
             if cur.fetchone()[0] != "on":
                 raise BaselineError("READ_ONLY_REQUIRED", "database")
-            cur.execute("SELECT current_user, current_database(), inet_server_addr()::text")
+            # inet::text includes the subnet mask (127.0.0.1/32); host() gives
+            # the stable address representation required by this endpoint check.
+            cur.execute("SELECT current_user, current_database(), host(inet_server_addr())")
             role, database, address = cur.fetchone()
             if (role, database, address) != ("riverview_core", "riverview", "127.0.0.1"):
                 raise BaselineError("DATABASE_IDENTITY_MISMATCH", "database")

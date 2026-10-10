@@ -1,21 +1,20 @@
 # Riverview~ runtime baseline process map
 
-**Document Revision:** 1.0.4
+**Document Revision:** 1.0.5
 **Component:** RUNTIME-BASELINE
-**Repair task:** RV-M1.1-010
+**Repair task:** RV-M1.1-011
 **Workflow:** runtime-baseline.v1
 **Task:** RV-M1.1-001
-**Status:** scoped privilege broker and credential-path correction implemented; live acceptance NOT VERIFIED
+**Status:** credential and loopback identity corrections implemented; live acceptance in progress
 
 ```mermaid
 flowchart TD
-  P[One-time hash-pinned bootstrap] --> B0[Root-owned fixed-operation broker and package policy]
-  B0 --> P0[Deploy registered package ID only]
-  P0 --> F{package hash, commit, manifest and safe members valid?}
+  P[Committed source revision] --> P0[Build and verify package]
+  P0 --> F{archive hash, commit, manifest and safe members valid?}
   F -- No --> X[Preserve failed package; rebuild corrected source]
   X --> F
-  F -- Yes --> C[Preserve unit and prior release; validate or stage root-owned release]
-  C --> M[Normalize release files readable and directories traversable; remove group/other writes]
+  F -- Yes --> C[Extract verified archive into root-owned non-writable staging]
+  C --> M[Preserve unit and prior release; run fixed installer]
   M --> G{Credential source exists?}
   G -- No --> T[Prompt on controlling TTY with echo disabled; create passfile exclusively]
   T -- TTY failure --> Q[Fail closed; passfile remains absent; retain partial release]
@@ -47,12 +46,14 @@ flowchart TD
   E --> A{Steward accepts and resolves sequencing?}
   A -- No --> H[Record acceptance hold; remain at M1.1]
   A -- Yes --> N[Next engineering step M1.2]
-  R -- Bad deployment --> K[Broker validates record ID; restore predecessor]
+  R -- Bad deployment --> K[Rollback script validates and restores exact predecessor record]
   K --> S
 ```
 
-`package_bytes` is enforced by the root-owned broker before host mutation; it
-checks the exact approved archive digest, source commit, manifest and safe members.
+Package verification checks the exact archive digest, source commit, checksum
+manifest, Linux shell compatibility, and safe archive members before host
+installation. Camrui's owner-authorized administrator performs the local
+deployment; no project privilege broker is installed.
 
 Stable probe step IDs `identity`, `storage`, `credential`, `database`, `schema`,
 `ready` are emitted in JSON on failure/success and map directly to the
@@ -72,6 +73,7 @@ the latest report is replaced and immutable acceptance artifacts remain retained
 
 - 1.0.3: Add hash-pinned broker flow and corrected systemd credential ownership contract; predecessor `.riverview-backups/20261010T142904684465Z/docs/components/RUNTIME_BASELINE_FLOW.md`.
 - 1.0.4: Add private runtime passfile copy required by libpq; predecessor is recorded under RV-M1.1-010 in `.riverview-backups/manifest.jsonl`.
+- 1.0.5: Retire the broker flow and record the corrected PostgreSQL inet host check; predecessor recorded under RV-M1.1-011.
 
 - 1.0.2: Add hidden-TTY credential capture and safe retained-release retry branches; predecessor under docs/history/RV-M1.1-007/rev1.0.1/docs/components/RUNTIME_BASELINE_FLOW.md.
 
