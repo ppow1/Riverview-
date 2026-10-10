@@ -1,0 +1,80 @@
+{
+  "manifest_revision": "1.1.2",
+  "files": {
+    "process_graphs/generated/riverview-process-graph.json": {
+      "revision": "1.0.6",
+      "path": "process_graphs/generated/riverview-process-graph.json",
+      "sha256": "90e5774ec740916930cfabe271592147f3ba6afee06a3ee268d00ee051c69db9",
+      "size_bytes": 69456
+    },
+    "process_graphs/schema/riverview-process-graph.schema.json": {
+      "revision": "1.0.1",
+      "path": "process_graphs/schema/riverview-process-graph.schema.json",
+      "sha256": "0c03d29216d6d3cb08e58ab7bff12b545211f78fbdffb0767118553b52025da7",
+      "size_bytes": 3203
+    },
+    "process_graphs/postgres-ledger/assignment-lifecycle.json": {
+      "revision": "1.0.0",
+      "path": "process_graphs/postgres-ledger/assignment-lifecycle.json",
+      "sha256": "3cf4993bd5a07c8ad99cfbf2179d33b0fd606174b795624897c4f146bdc7e9bd",
+      "size_bytes": 6599
+    },
+    "process_graphs/postgres-ledger/migration.json": {
+      "revision": "1.0.1",
+      "path": "process_graphs/postgres-ledger/migration.json",
+      "sha256": "4fe10b7583e6c6b2fdd01afee4da4f3b7ffd083a3c609ed36fc7fd015e215093",
+      "size_bytes": 13553
+    },
+    "process_graphs/runtime-baseline/runtime-baseline.json": {
+      "revision": "1.0.1",
+      "path": "process_graphs/runtime-baseline/runtime-baseline.json",
+      "sha256": "29385a4a5958e7ba21248cd9b5ccdef4c990cb0b2a59ad36e7ca0f2f6522547c",
+      "size_bytes": 14418
+    },
+    "process_graphs/steward-dashboard/status.json": {
+      "revision": "1.0.0",
+      "path": "process_graphs/steward-dashboard/status.json",
+      "sha256": "c53a8f48022f8cf2c2999b189ee7388e1710dcf6b57ab9ef44db5426d89672ed",
+      "size_bytes": 619
+    },
+    ".riverview-revisions.json": {
+      "revision": "1.1.2"
+    },
+    "process_graphs/event-processor/assignment-progression.json": {
+      "revision": "1.0.4",
+      "path": "process_graphs/event-processor/assignment-progression.json",
+      "sha256": "aeeae994795fefdecabfcc6defb1b845450231ef073463547c4406c5ed734aa5",
+      "size_bytes": 13511
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/ci_results.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/ci_results.json",
+      "sha256": "104994ab8fb87720074406e662f59cb5f2353f9ef6ee87b90768e4f515b1c9fe",
+      "size_bytes": 402
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/package_verification.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/package_verification.json",
+      "sha256": "18442844fb52bda3c838b208f993a2cb0875fd5533105441d4e7d41ca43946ce",
+      "size_bytes": 878
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json": {
+      "revision": "1.0.2",
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json",
+      "sha256": "6f6e3ca0fab7eefcebe1fe3b35b2b8a568878154b216c6c93d83c57edd8e8458",
+      "size_bytes": 6034
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/test_results.json": {
+      "revision": "1.0.1",
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/test_results.json",
+      "sha256": "6d6ef80a5252415c7113309ac64ed8d889e83ead00e89266081583926b0d04d5",
+      "size_bytes": 548
+    },
+    "process_graphs/assignment-scheduler/independent-claims.json": {
+      "revision": "1.0.1",
+      "path": "process_graphs/assignment-scheduler/independent-claims.json",
+      "sha256": "06b839c7df31290746632899bc28a26568898dd7a0d3101d23048836a6af29fe",
+      "size_bytes": 8623
+    }
+  }
+}

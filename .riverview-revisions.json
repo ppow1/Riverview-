@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.0",
+  "manifest_revision": "1.1.6",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.6",
+      "revision": "1.0.10",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "90e5774ec740916930cfabe271592147f3ba6afee06a3ee268d00ee051c69db9",
-      "size_bytes": 69456
+      "sha256": "17cd6e807ae10cbe8bbd1917493e977eca805ca51ccd94669f5d5f6cb32085f6",
+      "size_bytes": 81224
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 619
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.0"
+      "revision": "1.1.6"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -69,6 +69,24 @@
       "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/test_results.json",
       "sha256": "6d6ef80a5252415c7113309ac64ed8d889e83ead00e89266081583926b0d04d5",
       "size_bytes": 548
+    },
+    "process_graphs/assignment-scheduler/independent-claims.json": {
+      "revision": "1.0.4",
+      "path": "process_graphs/assignment-scheduler/independent-claims.json",
+      "sha256": "9f587540e540e056653239c0faf60e98108cc4c0d5d71546ae1e1a5d34e41144",
+      "size_bytes": 9993
+    },
+    "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+      "sha256": "0f74190e28f0604cda6e4df8394f3cbacee0c3f7c9c7bd72bbe2de97fffd029a",
+      "size_bytes": 553
+    },
+    "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json",
+      "sha256": "9eb7c69d0aefaf2da23b24fda7c8e5d3614f6703fbbd1816cab398d46d194313",
+      "size_bytes": 724
     }
   }
 }

@@ -1,0 +1,23 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "checkout.md": {
+      "path": "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/checkout.md",
+      "revision": "1.0.0",
+      "size_bytes": 2354,
+      "sha256": "9b2a5edf93c83faa8fcc115f69eca8d857195db267f4bcd3616c4db323529a2f"
+    },
+    "test_results.json": {
+      "path": "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json",
+      "revision": "1.0.0",
+      "size_bytes": 724,
+      "sha256": "9eb7c69d0aefaf2da23b24fda7c8e5d3614f6703fbbd1816cab398d46d194313"
+    },
+    "unittest.log": {
+      "path": "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/unittest.log",
+      "revision": "1.0.0",
+      "size_bytes": 11948,
+      "sha256": "df9d31e9b3d3f89069bd2dd96aed76c97613b4f7f515c0ab46d7d9a0ca7b0b3b"
+    }
+  }
+}
