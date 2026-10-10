@@ -1,0 +1,26 @@
+{
+  "artifacts": {
+    "package-verification.json": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/package-verification.json",
+      "revision": "1.0.0",
+      "sha256": "8202756ee22250e0cfac956b6d8a3e3b9bdc68fc1a287f804ee9760961e7c1f2",
+      "size_bytes": 878
+    },
+    "riverview-M1.1-b40c77f-20261010T145025Z.tar.gz": {
+      "path": "/home/admin1/riverview-M1.1-b40c77f-20261010T145025Z.tar.gz",
+      "revision": "1.0.0",
+      "sha256": "bedf5f94e0ae0cb107fb7d2ce69eab37f8eb9cc709b0fa05d0933fe79e7025ab",
+      "size_bytes": 683119
+    },
+    "unittest.log": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/unittest.log",
+      "revision": "1.0.0",
+      "sha256": "f91ef454e9b80ab2ea0e62081029bf70b55a0dced028fec4e7f123d928d7f93d",
+      "size_bytes": 7709
+    }
+  },
+  "component_id": "RUNTIME-BASELINE",
+  "manifest_revision": "1.0.0",
+  "source_commit": "b40c77fdca48c556af9d25a8cd25e7ca192b9748",
+  "task_id": "RV-M1.1-010"
+}

@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.12
+**Document Revision:** 1.0.13
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -277,8 +277,19 @@ coverage checks the root-owned source contract, installed unit paths, exclusive
 copy, owner/mode and symlink refusal. The focused runtime suite passed (26 tests).
 The full suite passed (52 tests, zero failures/skips) against a temporary
 socket-only PostgreSQL cluster, with zero leftover test schemas; cluster/data
-were removed. M1.1-010 remains IN PROGRESS pending package build, narrowly
-approved root-policy update, live service and recovery tests.
+were removed. At this checkpoint M1.1-010 remained IN PROGRESS pending package
+and live deployment verification.
+
+Checkout was repeated against commit b40c77fdca48c556af9d25a8cd25e7ca192b9748:
+52 tests passed, including PostgreSQL integration; no schemas remained. The
+exact package SHA-256 is
+`bedf5f94e0ae0cb107fb7d2ce69eab37f8eb9cc709b0fa05d0933fe79e7025ab`, and
+manifest/shell verification passed. Evidence is retained in
+`evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/`. The installed
+root-owned broker remains constrained to its original `initial-m11` package;
+updating its allowlist requires authenticated sudo, which is not available
+noninteractively in this execution context. Live deployment and rollback remain
+pending that one bootstrap action.
 The current package registry is still pinned to a25aa71. Steward acceptance
 remains pending; M1.2 is not eligible.
 
