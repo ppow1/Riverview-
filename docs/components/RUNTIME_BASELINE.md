@@ -1,6 +1,6 @@
 # Riverview~ M1.1 runtime baseline commissioning
 
-**Document Revision:** 1.0.1
+**Document Revision:** 1.0.2
 **Component:** RUNTIME-BASELINE
 **Repair task:** RV-M1.1-002
 **Task:** RV-M1.1-001 / GitHub Issue #1
@@ -29,7 +29,7 @@ No roadmap or architecture requirement is waived by this package.
 | Resource | Declared owner / placement |
 | --- | --- |
 | Existing development checkout | admin1; `/home/admin1/riverview-core`; left untouched by installation |
-| Windows transport | existing `camrui` SSH alias; `admin1@192.168.1.155` |
+| Optional Windows transport | existing `camrui` SSH alias; `admin1@192.168.1.155`; not used when commissioning directly on Camrui |
 | Runtime OS account | `riverview`, system account, nologin shell, no sudo grant |
 | Versioned runtime code | root-owned `/opt/riverview/releases/<full-source-commit>` |
 | Active code reference | root-controlled `/opt/riverview-core` symlink |
@@ -91,8 +91,7 @@ database/environment identities, blocker/error code, owner, recovery and diagnos
 reference. `heartbeat_at`, meaningful progress and event cursor are explicitly
 null: this diagnostic cannot claim an institutional heartbeat or durable progress.
 
-Authentication: OS permissions, root-owned source and SSH host-key verification.
-Operators use existing authorized sudo for the read-only report consumer;
+Authentication: local OS permissions and root-owned source. A separate remote observer may use SSH with strict host-key verification; SSH is a transport option, not a commissioning acceptance requirement. Operators use existing authorized sudo for the read-only report consumer;
 the package adds no sudoers entry and grants no remote API/control authority.
 Ordinary clients cannot read protected files directly. Private Undercurrent
 content is neither queried nor exported. Future CME/dashboard consumers must
@@ -110,6 +109,45 @@ not a parallel status database.
 Probe exits: 0 baseline verified; 1 database unavailable; 2 configuration/security
 blocker. Observer exits: 0 fresh ready; 1 fresh non-ready; 2 unavailable; 3 stale.
 No driver exception text is exported because it can contain credentials.
+
+## Local Camrui commissioning
+
+The SSH alias is a Windows-side transport convenience. It is not required when the repository checkout and package builder are already running on Camrui. The installer, systemd probe and acceptance collector execute locally; using SSH to reconnect to the same host adds no acceptance evidence. The remote observer in `scripts/check_camrui_baseline.py` is optional and still requires strict host-key verification when used.
+
+From a clean, committed engineering checkout on Camrui, build and verify the exact committed package, then extract it into a unique staging directory. Keep the archive outside the checkout; the builder refuses an existing output and uncommitted tracked changes.
+
+```bash
+cd /home/admin1/projects/Riverview-New-Core
+stamp=$(date -u +%Y%m%dT%H%M%SZ)
+commit=$(git rev-parse --short HEAD)
+archive="/home/admin1/riverview-M1.1-$commit-$stamp.tar.gz"
+python3 scripts/build_camrui_package.py "$archive"
+python3 scripts/verify_camrui_package.py "$archive"
+stage=$(mktemp -d /home/admin1/riverview-M1.1.XXXXXXXX)
+tar -xzf "$archive" -C "$stage"
+(cd "$stage" && sha256sum --check --strict PACKAGE_SHA256SUMS && \
+ python3 scripts/verify_camrui_package.py "$archive" && \
+ sh -n deploy/install_baseline.sh && sh -n deploy/rollback_baseline.sh)
+```
+
+Installation is a privileged host change. Only after explicit authorization, run this exact command from the verified staging package:
+
+```bash
+sudo sh "$stage/deploy/install_baseline.sh"
+```
+
+It requires root to create/use the `riverview` system identity, root-owned release and credential paths, persistent state ownership, and the systemd unit; it may install the pinned Python dependency and start the diagnostic unit. It does not reset the database password or initialize/alter database schemas. If `/etc/riverview/pgpass` is absent, the authorized root terminal prompts for the existing password without echo and creates that file exclusively.
+
+After authorized installation, capture two fresh local service observations with the acceptance collector:
+
+```bash
+cd /opt/riverview-core
+stamp=$(date -u +%Y%m%dT%H%M%SZ)
+sudo python3 scripts/capture_baseline_acceptance.py --output "/var/lib/riverview/acceptance-$stamp.json"
+sudo cat "/var/lib/riverview/acceptance-$stamp.json"
+```
+
+The collector requires root to start the local systemd unit and write the mode-0600 evidence file under root-protected state. Its probe makes only read-only PostgreSQL queries. The resulting sanitized report is local Camrui evidence; neither an SSH round-trip nor the collector itself constitutes Steward acceptance.
 
 ## Windows-to-Camrui installation
 
@@ -203,5 +241,6 @@ and any explicit sequencing decision remain required before M1.2.
 
 ## Revision history
 
+- 1.0.2: Add direct local Camrui packaging/commissioning path and clarify SSH is optional transport, not an acceptance gate; predecessor under docs/history/RV-M1.1-004/rev1.0.1/docs/components/RUNTIME_BASELINE.md.
 - 1.0.1: Raw-blob packaging, archive-byte verification and preserved failure/new-path retry procedure; predecessor under docs/history/RV-M1.1-002/rev1.0.0.
 - 1.0.0: Initial M1.1 commissioning package; all files newly introduced.

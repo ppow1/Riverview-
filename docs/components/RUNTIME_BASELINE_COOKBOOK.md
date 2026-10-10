@@ -1,6 +1,6 @@
 # Riverview~ runtime baseline troubleshooting and recovery
 
-**Document Revision:** 1.0.1
+**Document Revision:** 1.0.2
 **Component:** RUNTIME-BASELINE
 **Repair task:** RV-M1.1-002
 **Task:** RV-M1.1-001
@@ -9,27 +9,25 @@
 
 ## Consolidated read-only diagnostic
 
-On Camrui, inspect only the selected unit properties and sanitized JSON:
+On Camrui, inspect only the selected unit properties and sanitized JSON. Run these commands in a local Camrui terminal; an SSH session is unnecessary when already on the host:
 
 ```bash
 systemctl show riverview-baseline.service --property=User,Group,LoadState,Result,ExecMainStatus
 sudo python3 /opt/riverview-core/scripts/read_baseline_report.py
 ```
 
-From a connected authorized development machine with known SSH host key and
-noninteractive approved sudo for the reader:
+Optional remote diagnostic from a connected authorized development machine with a known SSH host key and noninteractive approved sudo for the reader (not a milestone acceptance requirement):
 
 ```bash
 python scripts/check_camrui_baseline.py camrui
 ```
 
-The runner is bounded to 30 seconds, uses BatchMode and strict host-key checking,
-rejects shell syntax in destinations and preserves remote failure status. Without
-noninteractive sudo, use the existing `ssh -tt camrui` connection and run the
-read-only commands on Camrui. Do not add broad sudo rights to make this pass.
+The optional runner is bounded to 30 seconds, uses BatchMode and strict host-key checking, rejects shell syntax in destinations and preserves remote failure status. A remote connection failure is not a Camrui commissioning failure when local execution is available. Do not weaken host-key checking or add broad sudo rights to make the optional path pass.
 An expired report is intentionally stale: a request-driven baseline check does
 not provide continuous health. Refresh only the diagnostic with authorized
 `sudo systemctl start riverview-baseline.service`; no institution is dispatched.
+
+M1.1 acceptance is based on local execution on Camrui: after authorized installation, `sudo python3 /opt/riverview-core/scripts/capture_baseline_acceptance.py --output "/var/lib/riverview/acceptance-<UTC-stamp>.json"` runs the unit twice and retains the sanitized results. SSH only transports a request from another machine; it does not provide an independent database or runtime verification gate.
 
 ## Node-to-fault mapping
 
@@ -97,5 +95,6 @@ does not substitute for them.
 
 ## Revision history
 
+- 1.0.2: Document local Camrui diagnostics and distinguish optional SSH transport from milestone acceptance; predecessor under docs/history/RV-M1.1-004/rev1.0.1/docs/components/RUNTIME_BASELINE_COOKBOOK.md.
 - 1.0.1: Add artifact-byte diagnosis and package preflight; preserve original under docs/history/RV-M1.1-002/rev1.0.0.
 - 1.0.0: Initial node diagnostics, recovery, bounded waits and preserved rollback.
