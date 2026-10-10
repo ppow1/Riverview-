@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Specify the read-only live status projection and browser foundation
 Authority: Observes institution state; no assignment or policy mutation
-Changed: 2026-10-10 UTC | RV-M3.1-001 | Initial dashboard contract and integration boundaries
+Changed: 2026-10-10 UTC | RV-M3.1-001 | Document systemd read-only credential permissions and commissioning corrections
 History: Git and revision/backup manifest
 -->
 # Steward status dashboard
@@ -43,7 +43,11 @@ The browser and future API/AI consumers share the same authenticated HTTP entry
 point. All current application API routes are `GET` only. A mutating HTTP method
 returns `405 read_only_method`; no browser-only business action or direct database
 write exists. Every request is authenticated with a bearer token from a protected
-systemd credential. Comparison is constant-time. The listener accepts only the
+systemd credential. The source file is owner-only; systemd exposes a read-only
+credential copy in its exact credential directory. Only that exact systemd
+path may use mode 0400 or 0440; ordinary files require owner-only permissions.
+Symlinks are rejected and token reads use a no-follow file descriptor.
+Comparison is constant-time. The listener accepts only the
 IPv4/IPv6 loopback literal, validates the Host header, does not enable CORS, and
 does not place credentials in URLs. Authentication is per-service bearer access,
 not resident identity or delegated authority; future command APIs must integrate

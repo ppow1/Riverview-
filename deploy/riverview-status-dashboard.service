@@ -1,5 +1,5 @@
 # Riverview~ controlled systemd unit; component STEWARD-DASHBOARD.
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Provision as a new unit; do not alter CME or runtime-baseline units.
 [Unit]
 Description=Riverview read-only Steward status dashboard

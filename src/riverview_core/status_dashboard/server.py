@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Serve the authenticated, loopback-only status UI and versioned API
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
 # Dependencies: Python 3.10+; standard library; status_dashboard.projection
 # Authority: Authenticated GET-only interface; no command or database write routes
-# Changed: 2026-10-10 UTC | RV-M3.1-001 | Add bounded authenticated HTTP service
+# Changed: 2026-10-10 UTC | RV-M3.1-001 | Permit read-only systemd credential mode in credential directory
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
 # History: Git and revision/backup manifest
@@ -22,6 +22,7 @@ import json
 import os
 import re
 import secrets
+import stat
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -45,10 +46,27 @@ def _read_token(path: str | Path) -> str:
     token_path = Path(path)
     if token_path.is_symlink():
         raise RuntimeError("dashboard token must not be a symbolic link")
-    metadata = token_path.stat()
-    if not token_path.is_file() or token_path.is_symlink() or metadata.st_mode & 0o077:
-        raise RuntimeError("dashboard token must be a regular, owner-only credential")
-    token = token_path.read_text(encoding="ascii").strip()
+    credential_dir = os.environ.get("CREDENTIALS_DIRECTORY")
+    systemd_credential = (credential_dir is not None and
+                          token_path.parent.resolve() == Path(credential_dir).resolve() and
+                          token_path.name == "dashboard-token")
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(token_path, flags)
+    except OSError:
+        raise RuntimeError("dashboard token must be a regular protected credential") from None
+    with os.fdopen(descriptor, "r", encoding="ascii") as terminal:
+        metadata = os.fstat(terminal.fileno())
+        mode = metadata.st_mode & 0o777
+        if not stat.S_ISREG(metadata.st_mode):
+            raise RuntimeError("dashboard token must be a regular protected credential")
+        if systemd_credential:
+            secure_mode = mode in {0o400, 0o440}
+        else:
+            secure_mode = (mode & 0o077) == 0
+        if not secure_mode:
+            raise RuntimeError("dashboard token must be a regular owner-only or non-writable protected credential")
+        token = terminal.read().strip()
     if not _TOKEN_PATTERN.fullmatch(token):
         raise RuntimeError("dashboard token credential has invalid format")
     return token
@@ -269,6 +287,11 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                          projection=projection, static_dir=static_dir)
 
 
+def _release_commit() -> str:
+    release_root = Path(__file__).resolve().parents[3]
+    return release_root.name if re.fullmatch(r"[0-9a-f]{40,64}", release_root.name) else "unknown"
+
+
 def main():
     token_path = os.environ.get("CREDENTIALS_DIRECTORY", "")
     if not token_path:
@@ -279,7 +302,7 @@ def main():
         raise SystemExit("RIVERVIEW_DATABASE_DSN is required")
     projection = DashboardProjection(
         dsn, schema=os.environ.get("RIVERVIEW_DATABASE_SCHEMA", "riverview_dev"),
-        source_commit=os.environ.get("RIVERVIEW_SOURCE_COMMIT", "unknown"),
+        source_commit=os.environ.get("RIVERVIEW_SOURCE_COMMIT", _release_commit()),
         deployment_id=os.environ.get("RIVERVIEW_DEPLOYMENT_ID", "unconfigured"),
         heartbeat_stale_seconds=int(os.environ.get("RIVERVIEW_STALE_AFTER_SECONDS", "30")))
     host = os.environ.get("RIVERVIEW_DASHBOARD_HOST", "127.0.0.1")

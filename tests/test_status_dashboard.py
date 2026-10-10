@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL for integration class
 # Authority: Creates/drops only unique rvtest_* schemas; never accesses shared Riverview data
-# Changed: 2026-10-10 UTC | RV-M3.1-001 | Initial M3.1 API, security and PostgreSQL integration tests
+# Changed: 2026-10-10 UTC | RV-M3.1-001 | Verify systemd credential mode, API security and PostgreSQL projections
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -21,6 +21,7 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest import mock
 from datetime import datetime, timedelta, timezone
 from http.client import HTTPConnection
 from pathlib import Path
@@ -141,6 +142,16 @@ class DashboardHTTPTests(unittest.TestCase):
             _read_token(self.token_path)
         self.token_path.chmod(0o600)
         self.assertEqual(_read_token(self.token_path), self.token)
+        credential_dir = Path(self.temp.name) / "credentials"
+        credential_dir.mkdir()
+        credential = credential_dir / "dashboard-token"
+        credential.write_text(self.token)
+        credential.chmod(0o440)
+        with mock.patch.dict(os.environ, {"CREDENTIALS_DIRECTORY": str(credential_dir)}):
+            self.assertEqual(_read_token(credential), self.token)
+            credential.chmod(0o460)
+            with self.assertRaisesRegex(RuntimeError, "non-writable protected"):
+                _read_token(credential)
         linked = Path(self.temp.name) / "token-link"
         linked.symlink_to(self.token_path)
         with self.assertRaisesRegex(RuntimeError, "symbolic link"):
