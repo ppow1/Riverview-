@@ -1,0 +1,38 @@
+{
+  "component_id": "RUNTIME-BASELINE",
+  "files": {
+    "camrui-package.tar.gz": {
+      "revision": "1.0.0",
+      "sha256": "bdbc71e45512698611e5c78721c28871c67bdc19042f6b5c84b0b98c5fb94cf9",
+      "size_bytes": 119070
+    },
+    "observer.json": {
+      "revision": "1.0.0",
+      "sha256": "aba5978b153e6e00a954abd06c19f52e2aee393fc39930134195f63e03a00cbe",
+      "size_bytes": 215
+    },
+    "package-preflight.log": {
+      "revision": "1.0.0",
+      "sha256": "ca20a6106bed0a3633a61e19f6265918da296f1f7f880c9bc98e4bd80b8659f3",
+      "size_bytes": 3255
+    },
+    "package-verification.json": {
+      "revision": "1.0.0",
+      "sha256": "76d84b1eb8c8e28012bd2238a862bfc8981312c4380225e48afc8441c57f46d7",
+      "size_bytes": 878
+    },
+    "runtime-probe.json": {
+      "revision": "1.0.0",
+      "sha256": "5f30cea3246681c85fe211276ea8a187bf706d9ce735f9e070cc60bdf39b9887",
+      "size_bytes": 882
+    },
+    "unittest-combined.log": {
+      "revision": "1.0.0",
+      "sha256": "687f26144c83374bf482992f59f6e65804d90fb8dd5f4bd868db69ce6fc32501",
+      "size_bytes": 5024
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "source_commit": "b15b093642f65f6de36c1b977571ae2b79f04850",
+  "task_id": "RV-M1.1-004"
+}
