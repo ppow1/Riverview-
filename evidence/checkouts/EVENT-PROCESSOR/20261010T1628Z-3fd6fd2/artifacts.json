@@ -1,0 +1,17 @@
+{
+  "manifest_revision": "1.0.1",
+  "artifacts": {
+    "checkout.md": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1628Z-3fd6fd2/checkout.md",
+      "revision": "1.0.1",
+      "size_bytes": 1643,
+      "sha256": "ebbaa5ea33550db6a584b35296b0c86b9249241d5ff7d19c1acc6623113517c8"
+    },
+    "test_results.json": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1628Z-3fd6fd2/test_results.json",
+      "revision": "1.0.1",
+      "size_bytes": 10824,
+      "sha256": "cbcf8d84bdb894578c10e52934aa6f30bcca00a4fd4d933e3931c3d1db2dfc67"
+    }
+  }
+}

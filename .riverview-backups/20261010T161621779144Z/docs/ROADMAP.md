@@ -1,0 +1,115 @@
+# Riverview~ Implementation Roadmap
+
+**Document Revision:** 1.0.1  
+**Status:** Active planning baseline — execution gates require evidence  
+**Date:** 2026-10-09  
+**Component:** RV-ROADMAP  
+**Owner:** Steward  
+**Purpose:** Define the ordered implementation path and what the command **“go” or “next”** means.  
+**Source contracts:** `README.md`, `docs/architecture/CORE_CONTRACT.md`, `docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md`, `docs/architecture/LINUX_DEPLOYMENT_AND_HOSTING_v0.1.md`, `docs/architecture/OBSERVABILITY_AND_SPATIAL_CONTRACT_v0.1.md`, `docs/components/POSTGRES_LEDGER.md`, `docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md`.
+
+## Mission and first proof
+
+Build a **persistent, event-driven, Linux-native autonomous institution** whose assignments progress without chat turns; work is durable, concurrent, independently verified, observable, and recoverable. Camrui is the current development control-plane host; OctoMiner and other compute providers are replaceable execution resources.
+
+**First vertical-slice proof:** An authorized assignment executes unattended; two assignments progress independently; an interruption is recovered without blindly duplicating external effects; results are independently verified; true state and diagnostics appear on a dashboard; and an attention condition produces a tracked notification. These are *acceptance criteria*, not claims of existing behavior.
+
+## “Next” protocol
+
+- **“Go” and “Next” are equivalent commands:** work on the **earliest unfinished numbered step** in the current milestone, subject to its dependencies. Do not reinterpret it as permission to begin unrelated infrastructure.
+- At the start of a step: read `AI_HINTS.md` and relevant contracts; confirm actual host/repository state; identify the deliverable and a short test plan. Avoid repeated broad inventories when evidence is already current.
+- At completion: record **PASS / FAIL / BLOCKED / NOT VERIFIED**, exact artifacts, tests and host, commit/deployment identifiers, remaining limitations, and the **next step ID**.
+- Do not mark a step complete merely because files were written. On failure, repair the same step; on a real blocker, identify it and propose the smallest decisive experiment. Do not silently skip.
+- Roadmap revisions require a file revision increment and preserved predecessor under the Development Lifecycle Standard. This roadmap controls sequencing; it does not override architecture contracts or create artificial runtime approvals.
+
+## Completed foundation (historical evidence, not live-runtime acceptance)
+
+- **F-01 — Clean-start repository and architecture:** `ppow1/Riverview-` established with core, event, Linux, observability, privacy and component contracts. **DOCUMENTED**.
+- **F-02 — Developer ledger prototypes:** SQLite and PostgreSQL assignment/event ledger libraries and tests exist; PostgreSQL integration tests were previously reported passing on Camrui. These are **developer components, not autonomous services**.
+- **F-03 — Controlled revisions:** 13 Markdown documents and 10 Python files inventoried; missing headers migrated in Groups 1 and 2. Group 2 commit `6ad9f63f618886bb3ae6d2d99c255ce5921e9ae2`. **COMPLETE for that migration scope**, not a full repository enforcement claim.
+- **F-04 — Engineering guidance:** `AI_HINTS.md` Rev 1.0.0 and Development Lifecycle Standard Rev 1.0.0 established. **DOCUMENTED**.
+- **F-05 — This roadmap:** planning artifact only. Does not prove a runtime.
+
+## Milestone 1 — Make the durable control plane real
+
+**M1.1 — Camrui runtime baseline and PostgreSQL readiness**  
+Deliverable: verified host/service configuration, database connectivity and isolated development schema, exact deployment path, persistent storage ownership and service identity. Reuse existing evidence; verify only what changed.  
+**PASS:** reproducible connection and schema test on Camrui; report identifies database and environment without leaking credentials.
+
+**M1.2 — Durable assignment and event schema contract implemented**  
+Deliverable: versioned PostgreSQL migrations and durable assignment/event storage aligned with the event contract; explicit authority reference, causality, idempotency and workflow metadata as required by the first slice. Existing `PostgresLedger` is the starting point, not automatically production-complete.  
+**PASS:** schema creation/migration and atomic transition tests; rejected illegal and duplicate transitions; durable state survives reconnection.
+
+**M1.3 — Always-on event processor**  
+Deliverable: Linux-supervised service with durable outbox/inbox or equivalent persisted cursor, event replay, and resumable assignment progression.  
+**PASS:** new assignment advances with no chat/UI turn; process restart resumes unfinished work; duplicate events are idempotent.
+
+**M1.4 — Independent assignment scheduling**  
+Deliverable: multiple concurrent assignments, fair dispatch, leases and stale-worker fencing appropriate to first-slice work.  
+**PASS:** two assignments progress independently; a stalled assignment does not stop another; stale lease cannot commit as current.
+
+## Milestone 2 — Execute, verify and recover real work
+
+**M2.1 — Minimal registered worker adapter**  
+Deliverable: one capability-registered worker with authenticated scope and durable attempt/result records. Use a deterministic local task first, not GPU integration.  
+**PASS:** dispatch and results are attributable, repeatable and visible; worker loss is detectable.
+
+**M2.2 — Independent outcome verification**  
+Deliverable: verifier separate from the executor; evidence and acceptance criteria stored against the assignment. Do not equate caller `verified=True` with verification.  
+**PASS:** invalid output is rejected and routed to rework; valid output reaches completed only with verifier evidence.
+
+**M2.3 — Failure and restart recovery**  
+Deliverable: retry/reconciliation policy, fenced attempts, restart behavior, and explicit external-effect uncertainty handling.  
+**PASS:** forced process/worker interruption does not lose assignments or blindly duplicate effects; recovery outcome is auditable.
+
+**M2.4 — CME monitoring service**  
+Deliverable: simple, always-on, concurrent monitor for meaningful progress, deadlines, stalls and recovery requests. CME observes; it does not govern or replace workers.  
+**PASS:** identifies a stalled assignment while unrelated work continues; emits a traceable recovery/attention event.
+
+## Milestone 3 — Make actual operation visible and actionable
+
+**M3.1 — Read-only status projection and browser dashboard**  
+Deliverable: live assignment states, event cursor, workflow step, last meaningful progress, freshness/staleness, worker/CME health, diagnostics and source provenance.  
+**PASS:** dashboard reflects real events and shows stale/unavailable distinctly from healthy; no invented progress percentages.
+
+**M3.2 — Durable notification and decision requests**  
+Deliverable: recorded attention events, delivery/acknowledgment state, and Steward decision requests; start with one demonstrable delivery channel, then add visual/audio/SMS as specified.  
+**PASS:** defined attention condition delivers via the tested channel and records success/failure/acknowledgment truthfully.
+
+**M3.3 — First end-to-end unattended demonstration**  
+Deliverable: reproducible demo script and evidence bundle covering authorization, two concurrent assignments, worker execution, independent verification, restart/recovery, dashboard and notification.  
+**PASS:** all first-slice proofs pass on Camrui with timestamps, commands, logs, observed output, and restart evidence. **This is the first meaningful runtime milestone.**
+
+## Milestone 4 — Institutional identity and AI reasoning
+
+**M4.1 — Office, occupant, implementation and state separation**  
+Deliverable: persistent institutional identities, grants and delegated authority; occupant/model replacement without losing assignment or office continuity.  
+**PASS:** identity and authority survive restart and occupant replacement; unauthorized actions are rejected.
+
+**M4.2 — Resident regrounding and reasoning routing**  
+Deliverable: residents load current rules and assignment state at consequential boundaries; provider-independent reasoning escalation, budgets and fallback.  
+**PASS:** an interrupted resident resumes from authoritative state; a configured provider can be swapped without changing assignment authority.
+
+**M4.3 — Local AI worker integration**  
+Deliverable: capability discovery and replaceable adapters for OctoMiner-hosted models; support concurrent jobs with measurable queueing and failures.  
+**PASS:** at least one actual local inference task completes through the durable worker contract and its results are independently checked. BIOS/GPU expansion is a separate hardware campaign, not a prerequisite for the deterministic first slice.
+
+## Milestone 5 — Institutional completeness and expansion
+
+**M5.1 — Durable authority-aware interfaces and notification channels:** authenticate actions and responses across browser, visual/audio/SMS and later app/voice paths.  
+**M5.2 — Spatial registry and castle/city view:** stable object IDs and policy-filtered projection shared with the dashboard; future 3D/VR reuses the same contract.  
+**M5.3 — Undercurrent private trust domain:** separately designed keys, events, storage, exports, retention and purge, with tested non-leakage. No private payload enters ordinary projections by default.  
+**M5.4 — Operations hardening:** migrations, database backup/restore, host recovery and fencing, diagnostic cookbooks, deployment rollback and Component Definition of Done evidence.  
+**PASS:** each substep has its own contract-specific acceptance tests; no broad “production-ready” claim without operational evidence.
+
+## Current cursor
+
+**Next step: M1.1 — Camrui runtime baseline and PostgreSQL readiness.**
+
+The last verified engineering change before this roadmap was the AI guidance commit `c9ae126ae5e0613b3961967eb7e701cb880da043`. Recheck Git HEAD before implementation. Existing PostgreSQL evidence should be reused rather than repeating the full inventory.
+
+## Revision history
+
+- **1.0.1 — 2026-10-09:** Recognize “go” and “next” as equivalent roadmap advancement commands. Predecessor: `docs/history/ROADMAP_rev1.0.0.md`.
+
+- **1.0.0 — 2026-10-09:** Initial ordered, test-gated roadmap grounded in current repository contracts.

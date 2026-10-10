@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.22
+**Document Revision:** 1.0.25
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -436,3 +436,117 @@ then rerun successfully. Logs, URLs, checksums, and run metadata are in
 `evidence/checkouts/ENG-REVISION-CONTROL/20261010T1536Z-e2d7fee/`. PR #2 remains
 open; no merge or branch protection change was performed. CI task is DONE.
 M1.1 Steward acceptance and M1.2 shared-schema/acceptance gates remain pending.
+
+## 2026-10-10 UTC — RV-GOV-001 / Steward authority, M1.1–M1.2 checkpoint and graph standard
+
+Actor: Codex recording the project owner's directive as Riverview's Steward.
+Decision: project owner is the Steward; no separate Steward approval mechanism
+is required. Preserve the proposed/pending-acceptance status of the Development
+Lifecycle Standard; this authority decision does not falsely mark that standard
+accepted. The Component Definition of Done Rev 1.4 is updated with the Steward's
+explicit universal process graph requirement.
+
+M1.1 scoped technical commissioning is accepted by the Steward against verified
+Camrui deployed commit `64e8f14ad6d71102a864755739a1c8a61506235c`. The full
+component DoD remains NOT DONE, with M3.1 live dashboard, autonomous processor,
+independent verification and later obligations open. Historical acceptance
+collector JSON retains its original PENDING_STEWARD value and is linked, not
+rewritten.
+
+M1.2 isolated technical engineering is verified on the six PostgreSQL integration
+tests, 53/53 suite with zero skips, passing CI, and clean revision audit. PR #2
+was synchronized at `29b085b0e95d789914f5f33c8e6ea8dedc959654`; both visible
+controlled-checkout runs passed, merge commit was enabled in repository metadata,
+and the PR was merged as `3fd6fd291d27157697752e7fd02896e514c7388a`.
+
+The explicitly authorized migration passed preflight: Camrui Ubuntu 24.04.3,
+PostgreSQL 16.15, database `riverview`, role/schema owner `riverview_core`,
+required USAGE/CREATE, empty `riverview_dev`, and compatible migration source.
+Full database backup `/var/backups/riverview/M1.2-20261010T161521Z/riverview-before-m12.dump`
+is root:root 0600 in root:root 0700 directory; SHA-256
+`e0f3d6126c7f10cc584b4844637904d7a28dc8ad89886f171b372fe25edb4491`. Archive
+listing and a full restore into a disposable database passed; temporary restore
+database and copy were removed. Migration 0001 was applied, checksum recorded,
+rerun no-op verified, and the empty PostgresLedger connection passed. The M1.1
+service remained success/exit 0 and freshly reported ready at deployed commit
+64e8f14. No live assignment/event rows, credentials, system service definitions,
+or M1.1 release bytes were changed. Exact evidence is in
+`evidence/checkouts/POSTGRES-LEDGER/20261010T1615Z-3fd6fd2/checkout.md`.
+
+Established RV-PROCESS-GRAPH Rev 1.0.0 before regenerating component views.
+Canonical files cover M1.1 commissioning, M1.2 migrations and assignment
+lifecycle, plus an explicitly planned M3.1 jump destination. Four graph records,
+66 nodes and typed edges are validated; the two existing component Mermaid views
+are regenerated from canonical JSON. Future diagnosis/evidence/escalation
+extension points are documented but not implemented. M1.3 is the next eligible
+milestone and begins as isolated engineering; no M1.2 or M1.3 full component DoD
+claim is made.
+
+Evidence qualification: an initial restore invocation as the postgres OS user
+could not read the root-only backup; the exact backup was copied under a
+postgres-owned 0600 temporary path, restored successfully, and the copy removed.
+An initial post-migration read-only verification snippet used a nonexistent
+context-manager interface; corrected to `close()` in `finally`, after which
+ledger reads passed. These failed snippets did not modify the live target.
+
+## 2026-10-10 UTC — RV-GRAPH-001 / process graph design and implementation
+
+Design decision: workflow JSON files are canonical, with immutable node IDs of
+the form `rv:<component>:<workflow>:<semantic-node>` and independent node and
+graph revisions. Built-in and namespaced extension node/edge types are schema
+validated. Runtime transitions are local/observed; prerequisites remain a
+separate edge type. Typed cross-component jump targets must resolve in the
+aggregate registry. `scripts/process_graph.py` validates every source/document/
+evidence reference, uniqueness, graph/schema consistency and jump/edge rules,
+then regenerates the aggregate JSON and Mermaid fences in the existing flow
+documents. CI fails on invalid graphs or stale generated views. M1.1/M1.2 diagrams
+and cookbook links are retained and mapped; M1.3 is the first native graph.
+
+Verification is pending the complete test and CI run for this change. The graph
+record reserves links for cookbook diagnostics, fault isolation, persistent
+troubleshooting evidence, verification loops, variable pass limits, escalation
+hierarchy and institutional learning without implementing that future system.
+
+## 2026-10-10 UTC — RV-GRAPH-001 / verification and RV-M1.3-001 isolated start
+
+Correction to the preceding pending-verification entry: the final complete local
+suite passed **66 tests, 0 failures, 0 errors, 0 skips** on the Camrui development
+host using a disposable PostgreSQL 16.15 cluster restricted to a Unix socket.
+All temporary `rvtest_*` schemas were absent after the suite; the cluster was
+stopped and removed. Graph validation and generated-view synchronization passed;
+the final revision audit will be recorded with the commit/CI result. Detailed test
+names/output are retained in
+`evidence/checkouts/EVENT-PROCESSOR/20261010T1628Z-3fd6fd2/`.
+
+M1.3 isolated engineering began after M1.2 shared-schema deployment verification.
+The implemented consumer uses a durable cursor, ordered replay, idempotent
+assignment progression, error retry, and advisory leadership. Thread-based
+continuous and stop/restart tests passed. M1.3 remains IN PROGRESS because no
+systemd unit with secure credential delivery has been installed or exercised;
+there is no M1.3 live deployment/acceptance claim. The full component DoD remains
+open.
+
+PR #2 was merged after the visible branch checks passed and repository metadata
+allowed merge commits. GitHub's branch-protection API returned 403 because the
+private repository plan does not expose that endpoint; the merge itself was
+accepted by GitHub with the PR in CLEAN/MERGEABLE state. This limitation is
+recorded rather than interpreted as a failed check.
+
+
+## 2026-10-10 UTC — RV-GRAPH-001 / final 67-test verification and live baseline preservation
+
+After reducing the generated aggregate Mermaid to a compact workflow map with
+typed jump/prerequisite links, graph checks passed 10/10. The final complete
+repository suite passed **67 tests, 0 failures, 0 errors, 0 skips** on a fresh
+disposable PostgreSQL 16.15 cluster. All unique `rvtest_*` schemas were removed,
+the cluster stopped and deleted, and the exact suite output is in
+`evidence/checkouts/EVENT-PROCESSOR/20261010T1628Z-3fd6fd2/`.
+
+At `2026-10-10T16:30:18Z`, `sudo -n id` still returned root UID 0. A fresh
+`riverview-baseline.service` run returned success/exit 0; its report was ready
+with no blocker at deployed commit
+`64e8f14ad6d71102a864755739a1c8a61506235c`. Read-only shared database checks
+confirmed `riverview_dev` has only migration 0001 (checksum
+`7f3580aacc057b977f8dd6f880584d1fed678488523b0d2ce6737c1107487492`), exactly
+three M1.2 tables, zero assignment/event rows, and no M1.3 cursor table. M1.1
+release/service and M1.2 data were not changed by isolated M1.3 verification.

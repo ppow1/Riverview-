@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED CONFIGURATION
 # File: .github/workflows/controlled-checkout.yml
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Enforce full tests and file revision/backup checkout on GitHub changes
 # Execution Model: Event-driven on pull_request and push
 # Observability: GitHub Actions job result and test output
 # Dependencies: GitHub-hosted Ubuntu; Python 3.12; PostgreSQL 16 service
 # Authority: Read-only repository checkout; ephemeral test database only
-# Changed: 2026-10-10 UTC | RV-ENG-REV-004 | Pin Ubuntu 24.04 and Node 24 compatible action majors
+# Changed: 2026-10-10 UTC | RV-GRAPH-001 | Install graph schema validator and enforce generated graph synchronization
 # Contracts: docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md
 # Tests: Full unittest discovery and revision-control checkout
 # History: Git and .riverview-backups/manifest.jsonl
@@ -50,12 +50,14 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - name: Install test database driver
-        run: python -m pip install "psycopg[binary]==3.2.10"
+      - name: Install test and graph validation dependencies
+        run: python -m pip install "psycopg[binary]==3.2.10" "jsonschema==4.10.3"
       - name: Run complete test suite
         env:
           PYTHONPATH: src
         run: python -m unittest discover -s tests -v
+      - name: Verify canonical process graphs and generated views
+        run: python scripts/process_graph.py check
       - name: Verify controlled revisions and preserved predecessors
         run: >-
           python scripts/revision_control.py check

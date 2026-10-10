@@ -1,0 +1,26 @@
+{
+  "manifest_revision": "1.0.0",
+  "files": {
+    "process_graphs/generated/riverview-process-graph.json": {
+      "revision": "1.0.0"
+    },
+    "process_graphs/schema/riverview-process-graph.schema.json": {
+      "revision": "1.0.0"
+    },
+    "process_graphs/postgres-ledger/assignment-lifecycle.json": {
+      "revision": "1.0.0"
+    },
+    "process_graphs/postgres-ledger/migration.json": {
+      "revision": "1.0.0"
+    },
+    "process_graphs/runtime-baseline/runtime-baseline.json": {
+      "revision": "1.0.0"
+    },
+    "process_graphs/steward-dashboard/status.json": {
+      "revision": "1.0.0"
+    },
+    ".riverview-revisions.json": {
+      "revision": "1.0.0"
+    }
+  }
+}

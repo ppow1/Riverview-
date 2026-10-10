@@ -1,12 +1,12 @@
 <!--
 Riverview~ Controlled Document
 File: docs/components/POSTGRES_LEDGER.md
-Revision: 1.0.3
+Revision: 1.0.4
 Migration: ENG-REV-002
 -->
 # PostgreSQL assignment ledger — component contract
 
-**Status: tested developer backend; NOT production complete.** Code: `src/riverview_core/postgres_ledger.py`; tests: `tests/test_postgres_ledger.py`. Runtime host: Camrui, PostgreSQL 16. The existing SQLite `Ledger` is a separate developer prototype.
+**Status: M1.2 development schema deployed and technically verified; component NOT production complete.** Code: `src/riverview_core/postgres_ledger.py`; tests: `tests/test_postgres_ledger.py`. Runtime host: Camrui, PostgreSQL 16. The existing SQLite `Ledger` is a separate developer prototype.
 
 ## Purpose and boundaries
 PostgresLedger records assignment state and append-only event records in the same PostgreSQL transaction. It is a library, **not** an always-on service, worker dispatcher, authorization gateway, independent verifier, CME agent, or durable outbox.
@@ -28,8 +28,8 @@ Psycopg 3 uses autocommit for reads; explicit transactions group each state muta
 
 ## Limitations and open work
 - `verified=True` is only an untrusted caller assertion, **not independent verification**. Never expose this API to untrusted callers or connect it directly to hardware dispatch.
-- No authentication or authorization layer, authority grant validation, independent verifier, audit of readers, connection pooling, automatic reconnect, backups/restore drills, outbox, worker, service, or health endpoint.
-- Migration DDL is not yet applied to shared `riverview_dev`; deployment there and M1.2 acceptance remain gated by M1.1 Steward acceptance.
+- No authentication or authorization layer, authority grant validation, independent verifier, audit of readers, connection pooling, automatic reconnect, continuous backups, outbox, worker, service, or health endpoint. The one-time pre-migration backup restore drill passed; automated operational backups remain M5.4 work.
+- Migration `0001_assignment_event_ledger` is applied to shared development schema `riverview_dev`; its authorized preflight, backup/restore drill, checksum, idempotent rerun, empty-ledger connection and preserved M1.1 baseline are recorded in [live migration evidence](../../evidence/checkouts/POSTGRES-LEDGER/20261010T1615Z-3fd6fd2/checkout.md). M1.2 technical criteria are verified. This does not complete the component DoD: no event processor, live Steward dashboard, independent verifier, or end-to-end autonomous operation exists yet.
 - `list_assignments()` and `events()` are unbounded and intended for small development datasets; use pagination for real dashboard use.
 - Steward readout currently is an **on-demand snapshot**, not a continuously refreshed Steward dashboard.
 

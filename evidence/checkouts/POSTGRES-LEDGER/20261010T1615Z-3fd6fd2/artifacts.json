@@ -1,0 +1,11 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "checkout.md": {
+      "path": "evidence/checkouts/POSTGRES-LEDGER/20261010T1615Z-3fd6fd2/checkout.md",
+      "revision": "1.0.0",
+      "size_bytes": 3457,
+      "sha256": "6e8c63a72c183a8f9984104bb3b212ccb6440710600b27426062517b47f6d1c9"
+    }
+  }
+}

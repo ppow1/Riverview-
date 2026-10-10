@@ -1,6 +1,6 @@
 # Riverview~ runtime baseline process map
 
-**Document Revision:** 1.0.5
+**Document Revision:** 1.0.7
 **Component:** RUNTIME-BASELINE
 **Repair task:** RV-M1.1-011
 **Workflow:** runtime-baseline.v1
@@ -8,46 +8,73 @@
 **Status:** credential and loopback identity corrections implemented; live acceptance in progress
 
 ```mermaid
-flowchart TD
-  P[Committed source revision] --> P0[Build and verify package]
-  P0 --> F{archive hash, commit, manifest and safe members valid?}
-  F -- No --> X[Preserve failed package; rebuild corrected source]
-  X --> F
-  F -- Yes --> C[Extract verified archive into root-owned non-writable staging]
-  C --> M[Preserve unit and prior release; run fixed installer]
-  M --> G{Credential source exists?}
-  G -- No --> T[Prompt on controlling TTY with echo disabled; create passfile exclusively]
-  T -- TTY failure --> Q[Fail closed; passfile remains absent; retain partial release]
-  Q --> R[Retry corrected installer after read-only ownership checks]
-  R --> C
-  G -- Yes --> S[systemd starts unprivileged probe and supplies root-owned credential]
-  S --> CP[Validate source; exclusive no-follow copy to private mode-0600 runtime passfile]
-  T -- Captured --> S
-  CP --> identity{identity: correct non-login account?}
-  identity -- No --> B[blocked: accountable configuration error]
-  identity -- Yes --> storage{storage: private owned directory?}
-  storage -- No --> B
-  storage -- Yes --> credential{credential: safe readable file and no override?}
-  credential -- No --> B
-  credential -- Yes --> database{database: read-only TCP and least-privilege role?}
-  database -- Unreachable --> U[unavailable: dependency interruption]
-  database -- Wrong identity or privilege --> B
-  database -- Yes --> schema{schema: riverview_dev ownership and access?}
-  schema -- No --> B
-  schema -- Yes --> ready[ready: baseline verified; institution NOT VERIFIED]
-  B --> R[Authorized diagnosis and repair from cookbook]
-  U --> R
-  R --> S
-  ready --> O[Independent observer checks revision and timestamp]
-  O -- Expired --> T[stale; not ready]
-  O -- Missing or invalid --> U
-  O -- Fresh --> E[Preserve acceptance report from two distinct invocations]
-  T --> S
-  E --> A{Steward accepts and resolves sequencing?}
-  A -- No --> H[Record acceptance hold; remain at M1.1]
-  A -- Yes --> N[Next engineering step M1.2]
-  R -- Bad deployment --> K[Rollback script validates and restores exact predecessor record]
-  K --> S
+flowchart LR
+  subgraph g_rv_runtime_baseline_commissioning["RUNTIME-BASELINE / runtime-baseline.v1"]
+    g_rv_runtime_baseline_commissioning_source_140689b5(["Committed source revision"])
+    g_rv_runtime_baseline_commissioning_package_3cd1d388["Build and verify package"]
+    g_rv_runtime_baseline_commissioning_package_valid_6bba7611{"Archive digest, commit, manifest and safe members valid?"}
+    g_rv_runtime_baseline_commissioning_package_failure_60e040f5[["Preserve failed package; rebuild corrected source"]]
+    g_rv_runtime_baseline_commissioning_stage_a440a82c["Extract verified archive into protected staging"]
+    g_rv_runtime_baseline_commissioning_install_eb630d88["Preserve predecessor; run fixed installer"]
+    g_rv_runtime_baseline_commissioning_credential_present_2a998cb6{"Protected credential source exists?"}
+    g_rv_runtime_baseline_commissioning_credential_entry_69efc5a8(["Prompt on controlling TTY with echo disabled"])
+    g_rv_runtime_baseline_commissioning_tty_failure_9f7ff773[["Fail closed; passfile remains absent"]]
+    g_rv_runtime_baseline_commissioning_retry_install_b5c16e8f["Check partial ownership, retry corrected installer"]
+    g_rv_runtime_baseline_commissioning_systemd_94650c30["systemd starts unprivileged probe with LoadCredential"]
+    g_rv_runtime_baseline_commissioning_credential_copy_0e7104be["Validate source; copy to private mode-0600 runtime passfile"]
+    g_rv_runtime_baseline_commissioning_identity_f18d12d8{"Correct non-login service identity?"}
+    g_rv_runtime_baseline_commissioning_storage_55ff245b{"Private service-owned state directory?"}
+    g_rv_runtime_baseline_commissioning_credential_check_4afa1b6b{"Safe credential file and no ambient override?"}
+    g_rv_runtime_baseline_commissioning_database_af2ea5fc["Read-only PostgreSQL identity and privilege check"]
+    g_rv_runtime_baseline_commissioning_schema_4b3917f9{"riverview_dev owner and access match?"}
+    g_rv_runtime_baseline_commissioning_blocked_f632b2f4[["Report accountable blocker and preserve diagnostics"]]
+    g_rv_runtime_baseline_commissioning_diagnose_3ea935df["Diagnose and repair using cookbook; retry probe"]
+    g_rv_runtime_baseline_commissioning_ready_1e7806fe(["Ready: baseline verified; wider institution not verified"])
+    g_rv_runtime_baseline_commissioning_observe_de37d88a["Independent observer validates revision and timestamp"]
+    g_rv_runtime_baseline_commissioning_fresh_13eb70ab{"Observation fresh and valid?"}
+    g_rv_runtime_baseline_commissioning_stale_cf5d29be[["Stale, missing or invalid observation is not ready"]]
+    g_rv_runtime_baseline_commissioning_accept_decision_b7391255{"Steward accepts scoped M1.1 evidence and sequencing?"}
+    g_rv_runtime_baseline_commissioning_accept_hold_47cf9721[["Record acceptance hold; independent M1.2 engineering may continue"]]
+    g_rv_runtime_baseline_commissioning_acceptance_e02b3dea["Record scoped M1.1 technical acceptance; full DoD remains open"]
+    g_rv_runtime_baseline_commissioning_m12_jump_d59d1f04["M1.2 shared-schema migration workflow"]
+  end
+  g_rv_postgres_ledger_migration_apply_0f7d74d6["Registered target<br/>rv:postgres-ledger:migration"]
+  g_rv_runtime_baseline_commissioning_source_140689b5 --> g_rv_runtime_baseline_commissioning_package_3cd1d388
+  g_rv_runtime_baseline_commissioning_package_3cd1d388 --> g_rv_runtime_baseline_commissioning_package_valid_6bba7611
+  g_rv_runtime_baseline_commissioning_package_valid_6bba7611 -->|diagnostic_branch: No| g_rv_runtime_baseline_commissioning_package_failure_60e040f5
+  g_rv_runtime_baseline_commissioning_package_failure_60e040f5 -->|recovery_route| g_rv_runtime_baseline_commissioning_package_3cd1d388
+  g_rv_runtime_baseline_commissioning_package_valid_6bba7611 -->|Yes| g_rv_runtime_baseline_commissioning_stage_a440a82c
+  g_rv_runtime_baseline_commissioning_stage_a440a82c --> g_rv_runtime_baseline_commissioning_install_eb630d88
+  g_rv_runtime_baseline_commissioning_install_eb630d88 --> g_rv_runtime_baseline_commissioning_credential_present_2a998cb6
+  g_rv_runtime_baseline_commissioning_credential_present_2a998cb6 -->|No| g_rv_runtime_baseline_commissioning_credential_entry_69efc5a8
+  g_rv_runtime_baseline_commissioning_credential_entry_69efc5a8 -->|diagnostic_branch: TTY failure| g_rv_runtime_baseline_commissioning_tty_failure_9f7ff773
+  g_rv_runtime_baseline_commissioning_tty_failure_9f7ff773 -->|recovery_route| g_rv_runtime_baseline_commissioning_retry_install_b5c16e8f
+  g_rv_runtime_baseline_commissioning_retry_install_b5c16e8f -->|recovery_route| g_rv_runtime_baseline_commissioning_stage_a440a82c
+  g_rv_runtime_baseline_commissioning_credential_present_2a998cb6 -->|Yes| g_rv_runtime_baseline_commissioning_systemd_94650c30
+  g_rv_runtime_baseline_commissioning_credential_entry_69efc5a8 -->|Captured| g_rv_runtime_baseline_commissioning_systemd_94650c30
+  g_rv_runtime_baseline_commissioning_systemd_94650c30 --> g_rv_runtime_baseline_commissioning_credential_copy_0e7104be
+  g_rv_runtime_baseline_commissioning_credential_copy_0e7104be --> g_rv_runtime_baseline_commissioning_identity_f18d12d8
+  g_rv_runtime_baseline_commissioning_identity_f18d12d8 -->|diagnostic_branch: No| g_rv_runtime_baseline_commissioning_blocked_f632b2f4
+  g_rv_runtime_baseline_commissioning_identity_f18d12d8 -->|Yes| g_rv_runtime_baseline_commissioning_storage_55ff245b
+  g_rv_runtime_baseline_commissioning_storage_55ff245b -->|diagnostic_branch: No| g_rv_runtime_baseline_commissioning_blocked_f632b2f4
+  g_rv_runtime_baseline_commissioning_storage_55ff245b -->|Yes| g_rv_runtime_baseline_commissioning_credential_check_4afa1b6b
+  g_rv_runtime_baseline_commissioning_credential_check_4afa1b6b -->|diagnostic_branch: No| g_rv_runtime_baseline_commissioning_blocked_f632b2f4
+  g_rv_runtime_baseline_commissioning_credential_check_4afa1b6b -->|Yes| g_rv_runtime_baseline_commissioning_database_af2ea5fc
+  g_rv_runtime_baseline_commissioning_database_af2ea5fc --> g_rv_runtime_baseline_commissioning_schema_4b3917f9
+  g_rv_runtime_baseline_commissioning_schema_4b3917f9 -->|diagnostic_branch: No| g_rv_runtime_baseline_commissioning_blocked_f632b2f4
+  g_rv_runtime_baseline_commissioning_schema_4b3917f9 -->|Yes| g_rv_runtime_baseline_commissioning_ready_1e7806fe
+  g_rv_runtime_baseline_commissioning_blocked_f632b2f4 -->|recovery_route| g_rv_runtime_baseline_commissioning_diagnose_3ea935df
+  g_rv_runtime_baseline_commissioning_diagnose_3ea935df -->|recovery_route| g_rv_runtime_baseline_commissioning_systemd_94650c30
+  g_rv_runtime_baseline_commissioning_ready_1e7806fe -->|verification| g_rv_runtime_baseline_commissioning_observe_de37d88a
+  g_rv_runtime_baseline_commissioning_observe_de37d88a --> g_rv_runtime_baseline_commissioning_fresh_13eb70ab
+  g_rv_runtime_baseline_commissioning_fresh_13eb70ab -->|diagnostic_branch: Expired/missing| g_rv_runtime_baseline_commissioning_stale_cf5d29be
+  g_rv_runtime_baseline_commissioning_stale_cf5d29be -->|recovery_route| g_rv_runtime_baseline_commissioning_systemd_94650c30
+  g_rv_runtime_baseline_commissioning_fresh_13eb70ab -->|verification: Fresh| g_rv_runtime_baseline_commissioning_accept_decision_b7391255
+  g_rv_runtime_baseline_commissioning_accept_decision_b7391255 -->|escalation: No| g_rv_runtime_baseline_commissioning_accept_hold_47cf9721
+  g_rv_runtime_baseline_commissioning_accept_decision_b7391255 -->|verification: Yes| g_rv_runtime_baseline_commissioning_acceptance_e02b3dea
+  g_rv_runtime_baseline_commissioning_acceptance_e02b3dea -->|prerequisite| g_rv_runtime_baseline_commissioning_m12_jump_d59d1f04
+  g_rv_runtime_baseline_commissioning_m12_jump_d59d1f04 -->|jump| g_rv_postgres_ledger_migration_apply_0f7d74d6
+  classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 
 Package verification checks the exact archive digest, source commit, checksum
