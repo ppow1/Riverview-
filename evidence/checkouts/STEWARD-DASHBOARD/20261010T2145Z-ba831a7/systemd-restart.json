@@ -1,0 +1,7 @@
+{
+  "restart_to_healthy_authenticated_status_ms": 956.69,
+  "recovered": true,
+  "source_commit": "ba831a7339e1f4491cf1296eeac271b246409664",
+  "event_cursor": 6,
+  "assignment_total": 3
+}

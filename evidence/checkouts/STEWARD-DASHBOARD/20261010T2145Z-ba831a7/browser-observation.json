@@ -1,0 +1,44 @@
+{
+  "observed_at_local": "2026-10-10T17:36:23-0400",
+  "browser": "Firefox 156.0.1",
+  "source_commit": "ba831a7339e1f4491cf1296eeac271b246409664",
+  "deployment_id": "m3.1-camrui",
+  "shell_document_load_ms": 650.25,
+  "navigation_js_ms": {
+    "count": 100,
+    "median": 2.0,
+    "p95": 5.0,
+    "max": 143.0
+  },
+  "navigation_during_delayed_status_api_ms": 1.0,
+  "delayed_status_api_ms": 1500,
+  "api_resource_samples": 13,
+  "api_resource_duration_ms": {
+    "median": 96,
+    "max": 219
+  },
+  "api_routes_observed": [
+    "/api/v1/assignments",
+    "/api/v1/attention",
+    "/api/v1/events",
+    "/api/v1/snapshot",
+    "/api/v1/status"
+  ],
+  "rendered_assignment_rows": 3,
+  "visible_health_banner": "Connected to authoritative state",
+  "visible_cme_status": "NOT INITIALIZED",
+  "snapshot_bytes": 14978,
+  "snapshot_sha256": "23f0b69a662be468aeaed7e7ab73a6efc88904df10c0500fae3e85ba84378527",
+  "snapshot_observed_state": true,
+  "snapshot_projection_status": "healthy",
+  "snapshot_assignments": 3,
+  "snapshot_events": 6,
+  "snapshot_browser_fields": [
+    "active_view",
+    "captured_at",
+    "navigation_samples",
+    "recent_ui_errors"
+  ],
+  "snapshot_credentials_absent": true,
+  "snapshot_under_128k": true
+}

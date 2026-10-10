@@ -1,0 +1,32 @@
+{
+  "units": {
+    "riverview-status-dashboard.service": {
+      "NRestarts": "0",
+      "LoadState": "loaded",
+      "ActiveState": "active",
+      "SubState": "running"
+    },
+    "riverview-event-processor.service": {
+      "NRestarts": "0",
+      "LoadState": "loaded",
+      "ActiveState": "active",
+      "SubState": "running"
+    },
+    "riverview-baseline.service": {
+      "NRestarts": "0",
+      "LoadState": "loaded",
+      "ActiveState": "inactive",
+      "SubState": "dead"
+    },
+    "riverview-cme-monitor.service": {
+      "NRestarts": "0",
+      "LoadState": "not-found",
+      "ActiveState": "inactive",
+      "SubState": "dead"
+    }
+  },
+  "dashboard_listener": [
+    "LISTEN 0      64         127.0.0.1:8766      0.0.0.0:*    users:((\"python3\",pid=124848,fd=4))"
+  ],
+  "dashboard_private_pgpass_mode_owner": "600 riverview:riverview"
+}

@@ -1,0 +1,30 @@
+{
+  "observed_at_utc": "2026-10-10T21:42:56.384844+00:00",
+  "deployment_id": "m3.1-camrui",
+  "source_commit": "ba831a7339e1f4491cf1296eeac271b246409664",
+  "status_http": 200,
+  "projection_status": "healthy",
+  "freshness": "current",
+  "database": "riverview",
+  "schema": "riverview_dev",
+  "latest_migration": "0002_event_processor_cursor",
+  "event_cursor": 6,
+  "assignment_total": 3,
+  "assignment_rows_returned": 3,
+  "assignment_counts": {
+    "ready": 3
+  },
+  "events_http": 200,
+  "event_rows_returned": 6,
+  "events_with_correlation": 6,
+  "attention_http": 503,
+  "attention_status": "not_initialized",
+  "cme_status": "not_initialized",
+  "worker_status": "not_initialized",
+  "snapshot_http": 200,
+  "snapshot_projection_status": "healthy",
+  "snapshot_observed_state": true,
+  "snapshot_bytes": 6477,
+  "snapshot_sha256": "85c5b523c63dbf076e57c2427904fd35c56a9e9d87d065ee584a12ba8dceb06b",
+  "credential_values_recorded": false
+}
