@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_assignment_scheduler.py
 # Component: ASSIGNMENT-SCHEDULER
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Verify fair independent claims, lease expiry, and stale fencing
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: unittest results and durable assignment/lease/event records
@@ -66,6 +66,9 @@ class AssignmentSchedulerTests(unittest.TestCase):
         second = self.scheduler.claim_next("worker:available", lease_seconds=60)
         self.assertEqual(first["assignment_id"], "a-oldest")
         self.assertEqual(second["assignment_id"], "b-next")
+        progressed = self.scheduler.start_assignment("b-next", "worker:available", second["generation"])
+        self.assertEqual(progressed["state"], "running")
+        self.assertEqual(self.ledger.get("a-oldest")["state"], "ready")
         self.assertIsNone(self.scheduler.claim_next("worker:empty"))
 
     def test_expiry_reclaim_increments_generation_and_fences_old_worker(self):
