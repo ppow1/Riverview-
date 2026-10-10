@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.0
+**Document Revision:** 1.0.1
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -42,3 +42,17 @@ is used for structural validation and reported distinctly.
 Next: build exact committed package, provide evidence and PR when API access
 permits. Execute Camrui commissioning via existing Windows SSH, capture outcomes,
 resolve dependent DoD/Steward acceptance; keep roadmap cursor at M1.1.
+
+## 2026-10-10 UTC — RV-M1.1-001 / resolved GitHub access and delivery
+
+Append-only correction to the initial blocker: GitHub API access subsequently
+worked. Issue #1 was read in full and matches the scoped implementation and
+Steward sequencing. Commit f76507801c7f438ad50f8b507ca5e49db9556a4b was pushed
+to codex/m1.1-runtime-commissioning, and draft PR #2 was created and confirmed:
+https://github.com/ppow1/Riverview-/pull/2. No merge or deployment was performed.
+The first committed package extracted cleanly, all 50 manifest checksums passed,
+and both extracted shell scripts passed syntax checks. Documentation updates
+record resolved access and preserve exact predecessor bytes/hashes in docs/history
+and M1.1_REVISION_RECORD.md before incrementing each file to 1.0.1. Rebuild the
+final package from the updated committed PR head; SOURCE_COMMIT is authoritative.
+Camrui commissioning, credential delivery and rollback remain NOT VERIFIED.
