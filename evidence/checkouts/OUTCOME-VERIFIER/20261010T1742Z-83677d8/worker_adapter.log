@@ -1,0 +1,14 @@
+test_concurrent_scoped_worker_cycles_progress_independently (tests.test_worker_adapter.WorkerAdapterTests.test_concurrent_scoped_worker_cycles_progress_independently) ... ok
+test_executor_identity_cannot_verify_its_own_attempt (tests.test_worker_adapter.WorkerAdapterTests.test_executor_identity_cannot_verify_its_own_attempt) ... ok
+test_independent_verifier_accepts_valid_result_and_gates_completion (tests.test_worker_adapter.WorkerAdapterTests.test_independent_verifier_accepts_valid_result_and_gates_completion) ... ok
+test_interrupted_attempt_is_durably_visible_for_worker_loss_detection (tests.test_worker_adapter.WorkerAdapterTests.test_interrupted_attempt_is_durably_visible_for_worker_loss_detection) ... ok
+test_provider_timeout_is_unavailable_and_does_not_hold_assignment_loop (tests.test_worker_adapter.WorkerAdapterTests.test_provider_timeout_is_unavailable_and_does_not_hold_assignment_loop) ... ok
+test_scoped_authenticated_execution_persists_attributed_idempotent_result (tests.test_worker_adapter.WorkerAdapterTests.test_scoped_authenticated_execution_persists_attributed_idempotent_result) ... ok
+test_tampered_result_is_rejected_and_routed_to_rework (tests.test_worker_adapter.WorkerAdapterTests.test_tampered_result_is_rejected_and_routed_to_rework) ... ok
+test_unavailable_grounding_waits_without_blocking_later_verified_assignment (tests.test_worker_adapter.WorkerAdapterTests.test_unavailable_grounding_waits_without_blocking_later_verified_assignment) ... ok
+test_wrong_credential_capability_and_scope_are_rejected (tests.test_worker_adapter.WorkerAdapterTests.test_wrong_credential_capability_and_scope_are_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 9.082s
+
+OK

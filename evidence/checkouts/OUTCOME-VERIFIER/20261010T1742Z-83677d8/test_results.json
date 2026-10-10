@@ -1,0 +1,41 @@
+{
+  "result_revision": "1.0.0",
+  "source_commit": "83677d86cdb736e318e467feee35093dc4be7fb3",
+  "environment": "Camrui Ubuntu 24.04.3; PostgreSQL 16.15; disposable rvtest_* schemas",
+  "full_suite": {
+    "command": "pytest -q tests",
+    "tests_run": 86,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "result": "PASS",
+    "output": "pytest.log"
+  },
+  "worker_postgres_suite": {
+    "command": "python3 -m unittest tests.test_worker_adapter -v",
+    "tests_run": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "result": "PASS",
+    "output": "worker_adapter.log"
+  },
+  "graph": {
+    "workflows": 10,
+    "nodes": 148,
+    "validate": "PASS",
+    "synchronization": "PASS"
+  },
+  "revision_audit": {
+    "baseline": "evidence/checkouts/ENG-REVISION-CONTROL/20261010T1530Z-27a8c55/baseline-inventory.json",
+    "issues": 0,
+    "result": "PASS"
+  },
+  "cleanup": {
+    "remaining_rvtest_schemas": 0
+  },
+  "limitations": [
+    "isolated tests only; no shared schema migration or M2.2 service deployment",
+    "remote CI and M2.2 milestone acceptance pending"
+  ]
+}

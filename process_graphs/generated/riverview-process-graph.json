@@ -1083,7 +1083,7 @@
     },
     {
       "graph_id": "rv:outcome-verifier:independent-result",
-      "graph_revision": "1.0.0",
+      "graph_revision": "1.0.1",
       "component_id": "OUTCOME-VERIFIER",
       "workflow_id": "deterministic-result-verification.v1",
       "diagram_order": 1,
@@ -1100,7 +1100,9 @@
         "docs/components/WORKER_ADAPTER_COOKBOOK.md",
         "docs/development/M2.2-001_REVISION_RECORD.md"
       ],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+      ],
       "nodes": [
         {
           "id": "rv:outcome-verifier:independent-result:verification-intake",
@@ -1131,7 +1133,7 @@
         },
         {
           "id": "rv:outcome-verifier:independent-result:identity-check",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "verification",
           "label": "Authenticate separate verifier capability and enforce authority scope",
           "source_references": [
@@ -1141,11 +1143,13 @@
           "documentation_references": [
             "docs/components/WORKER_ADAPTER.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+          ]
         },
         {
           "id": "rv:outcome-verifier:independent-result:evaluate",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
           "label": "Recompute result checks independently from executor claim",
           "source_references": [
@@ -1154,7 +1158,9 @@
           "documentation_references": [
             "docs/components/OUTCOME_VERIFIER_FLOW.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+          ]
         },
         {
           "id": "rv:outcome-verifier:independent-result:decision",
@@ -1171,7 +1177,7 @@
         },
         {
           "id": "rv:outcome-verifier:independent-result:accepted-record",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "verification",
           "label": "Persist ACCEPTED criteria, verifier provenance, and evidence",
           "source_references": [
@@ -1181,11 +1187,13 @@
           "documentation_references": [
             "docs/components/WORKER_ADAPTER.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+          ]
         },
         {
           "id": "rv:outcome-verifier:independent-result:complete",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "exit",
           "label": "Complete only after independent ACCEPTED record exists",
           "source_references": [
@@ -1195,11 +1203,13 @@
           "documentation_references": [
             "docs/components/OUTCOME_VERIFIER_FLOW.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+          ]
         },
         {
           "id": "rv:outcome-verifier:independent-result:reject",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "failure",
           "label": "Reject invalid artifact and preserve failed criteria",
           "source_references": [
@@ -1208,11 +1218,13 @@
           "documentation_references": [
             "docs/components/WORKER_ADAPTER_COOKBOOK.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+          ]
         },
         {
           "id": "rv:outcome-verifier:independent-result:rework",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "recovery",
           "label": "Route rejected result to durable rework_required assignment state",
           "source_references": [
@@ -1221,7 +1233,9 @@
           "documentation_references": [
             "docs/components/WORKER_ADAPTER.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+          ]
         },
         {
           "id": "rv:outcome-verifier:independent-result:inconclusive",
