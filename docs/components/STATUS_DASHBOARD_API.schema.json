@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://riverview.invalid/contracts/dashboard/status-v1.schema.json",
+  "title": "Riverview Status Dashboard API v1",
+  "description": "Authenticated read-only status projection; unavailable states are explicit.",
+  "oneOf": [
+    {"$ref": "#/$defs/status"},
+    {"$ref": "#/$defs/page"},
+    {"$ref": "#/$defs/snapshot"}
+  ],
+  "$defs": {
+    "timestamp": {"type": ["string", "null"], "format": "date-time"},
+    "status": {
+      "type": "object", "required": ["schema_version", "component_id", "component_version", "observed_at", "projection_status", "freshness", "source", "cme", "workers"],
+      "properties": {
+        "schema_version": {"const": "rv.dashboard.status.v1"},
+        "component_id": {"const": "STEWARD-DASHBOARD"},
+        "component_version": {"type": "string"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "projection_status": {"enum": ["healthy", "not_initialized", "unavailable", "degraded"]},
+        "freshness": {"enum": ["current", "stale", "unknown", "unavailable"]},
+        "source": {"type": "object", "required": ["kind", "schema", "source_commit", "deployment_id"], "properties": {"kind": {"const": "postgresql"}, "database": {"type": "string"}, "schema": {"type": "string"}, "source_commit": {"type": "string"}, "deployment_id": {"type": "string"}, "latest_migration": {"type": ["string", "null"]}}, "additionalProperties": true},
+        "event_cursor": {"type": ["integer", "null"], "minimum": 0},
+        "assignment_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+        "assignments_total": {"type": "integer", "minimum": 0},
+        "cme": {"type": "object"}, "workers": {"type": "object"}, "verification": {"type": "object"},
+        "relations": {"type": "object", "additionalProperties": {"type": "boolean"}},
+        "diagnostics": {"type": "object"}, "unavailable_reason": {"type": "string"}
+      }, "additionalProperties": true
+    },
+    "page": {"type": "object", "required": ["status", "items"], "properties": {"status": {"enum": ["available", "not_initialized"]}, "items": {"type": "array", "maxItems": 100}, "next_cursor": {"type": ["string", "integer", "null"]}, "older_cursor": {"type": ["integer", "null"]}, "newer_cursor": {"type": ["integer", "null"]}, "page_limit": {"type": "integer", "maximum": 100}, "truncated": {"type": "boolean"}}, "additionalProperties": true},
+    "snapshot": {"type": "object", "required": ["schema_version", "captured_at", "observed_state", "source", "projection", "redaction"], "properties": {"schema_version": {"const": "rv.dashboard.snapshot.v1"}, "captured_at": {"type": "string", "format": "date-time"}, "observed_state": {"type": "boolean"}, "source": {"type": "object"}, "projection": {"$ref": "#/$defs/status"}, "assignments": {"$ref": "#/$defs/page"}, "events": {"$ref": "#/$defs/page"}, "attention": {"type": "object"}, "references": {"type": "object"}, "redaction": {"type": "object"}, "client_state": {"type": "object"}}, "additionalProperties": true}
+  }
+}

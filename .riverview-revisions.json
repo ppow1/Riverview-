@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.32",
+  "manifest_revision": "1.1.33",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.23",
+      "revision": "1.0.24",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "83d7a1d5a9c979dd9fd58d63633c2cc9403566a09d597f7bcc14488b29705431",
-      "size_bytes": 152993
+      "sha256": "fc6ab73f1fe4415eb58424202ebd879581cd923ac0b0c28a1062a63b9b6b55a5",
+      "size_bytes": 166050
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -32,13 +32,13 @@
       "size_bytes": 14418
     },
     "process_graphs/steward-dashboard/status.json": {
-      "revision": "1.0.0",
+      "revision": "1.0.1",
       "path": "process_graphs/steward-dashboard/status.json",
-      "sha256": "c53a8f48022f8cf2c2999b189ee7388e1710dcf6b57ab9ef44db5426d89672ed",
-      "size_bytes": 619
+      "sha256": "34707a37493975989808ad2bec20bfef1771f9392f91e9265bd4e8945e273505",
+      "size_bytes": 11696
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.32"
+      "revision": "1.1.33"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -147,6 +147,12 @@
       "path": "process_graphs/outcome-verifier/independent-result.json",
       "sha256": "bf19b95dab879205cc03e3042bda57ad363d98fc8946fe570fca771ded8ceeeb",
       "size_bytes": 8028
+    },
+    "docs/components/STATUS_DASHBOARD_API.schema.json": {
+      "revision": "1.0.0",
+      "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
+      "sha256": "2ce1d18122530b61a8dc9070a77b21cf5f8bbbadd6ccddeb0e388e522709c992",
+      "size_bytes": 3102
     }
   }
 }

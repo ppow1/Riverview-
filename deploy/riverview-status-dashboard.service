@@ -1,0 +1,44 @@
+# Riverview~ controlled systemd unit; component STEWARD-DASHBOARD.
+# Revision: 1.0.0
+# Provision as a new unit; do not alter CME or runtime-baseline units.
+[Unit]
+Description=Riverview read-only Steward status dashboard
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=riverview
+Group=riverview
+WorkingDirectory=/opt/riverview-status-dashboard/current
+Environment=PYTHONPATH=/opt/riverview-status-dashboard/current/src
+Environment="RIVERVIEW_DATABASE_DSN=host=127.0.0.1 port=5432 dbname=riverview user=riverview_core application_name=riverview-status-dashboard"
+Environment=RIVERVIEW_DATABASE_SCHEMA=riverview_dev
+Environment=RIVERVIEW_DASHBOARD_HOST=127.0.0.1
+Environment=RIVERVIEW_DASHBOARD_PORT=8766
+Environment=RIVERVIEW_STALE_AFTER_SECONDS=30
+Environment=RIVERVIEW_DEPLOYMENT_ID=m3.1-camrui
+Environment=PGPASSFILE=%d/pgpass
+LoadCredential=pgpass:/etc/riverview/pgpass
+LoadCredential=dashboard-token:/home/admin1/.config/riverview/status-dashboard.token
+ExecStart=/usr/bin/python3 -m riverview_core.status_dashboard
+Restart=on-failure
+RestartSec=3s
+TimeoutStopSec=10s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_UNIX
+CapabilityBoundingSet=
+LockPersonality=true
+MemoryDenyWriteExecute=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
