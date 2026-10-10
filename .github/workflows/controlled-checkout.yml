@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED CONFIGURATION
 # File: .github/workflows/controlled-checkout.yml
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Enforce full tests and file revision/backup checkout on GitHub changes
 # Execution Model: Event-driven on pull_request and push
 # Observability: GitHub Actions job result and test output
 # Dependencies: GitHub-hosted Ubuntu; Python 3.12; PostgreSQL 16 service
 # Authority: Read-only repository checkout; ephemeral test database only
-# Changed: 2026-10-10 UTC | RV-ENG-REV-004 | Initial controlled-file CI gate
+# Changed: 2026-10-10 UTC | RV-ENG-REV-004 | Use current Node 24 compatible action majors
 # Contracts: docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md
 # Tests: Full unittest discovery and revision-control checkout
 # History: Git and .riverview-backups/manifest.jsonl
@@ -45,9 +45,9 @@ jobs:
       RIVERVIEW_TEST_PG_DSN: postgresql://riverview_test@127.0.0.1:5432/riverview_test
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install test database driver
