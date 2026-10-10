@@ -1,7 +1,7 @@
 {
-  "manifest_revision": "1.0.1",
+  "manifest_revision": "1.0.2",
   "contract_version": "1.0.0",
-  "source_commit": "PENDING_FIRST_PUBLICATION_COMMIT",
+  "source_commit": "ad75dc4bccb1b36575cbe1be9ee59818f125429b",
   "dependencies": {
     "python": ">=3.10",
     "runtime": [],
