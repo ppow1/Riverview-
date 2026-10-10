@@ -1,7 +1,8 @@
 # Riverview~ runtime baseline troubleshooting and recovery
 
-**Document Revision:** 1.0.0
+**Document Revision:** 1.0.1
 **Component:** RUNTIME-BASELINE
+**Repair task:** RV-M1.1-002
 **Task:** RV-M1.1-001
 **Owner:** office:operations
 **Status:** procedure implemented; live commissioning and rollback NOT VERIFIED
@@ -35,6 +36,7 @@ not provide continuous health. Refresh only the diagnostic with authorized
 | Step | Expected input / action / evidence | Failure code or signal | First read-only diagnostic | Recovery / resume |
 | --- | --- | --- | --- | --- |
 | Package | Exact committed revision; checksums match | Dirty tree, unsafe archive path, checksum mismatch | Compare builder source SHA/archive SHA and `sha256sum -c PACKAGE_SHA256SUMS` | Rebuild from intended commit; never override checksums; restart package stage |
+| Shell preflight | LF-only exact blob bytes and Linux syntax | `set: Illegal option -`, CRLF/BOM/NUL or shell parse error | `python3 scripts/verify_camrui_package.py <archive>` and `sh -n` for both scripts | Keep failed artifact; update PR branch and rebuild with repaired builder; new staging directory, no host text edits |
 | Commissioning | Authorized root, new immutable release, backups readable | Existing non-symlink deployment, lock held, partial release | `readlink /opt/riverview-core`; inspect root-only rollback record/checksums | Resolve existing deployment ownership; preserve partial artifacts; retry installer after diagnosis |
 | identity | OS riverview, nonroot, nologin, systemd User=riverview | IDENTITY_MISSING / IDENTITY_MISMATCH / INTERACTIVE_SERVICE_ACCOUNT | `getent passwd riverview`; selected unit properties | Correct authorized commissioning; never run institution as root; restart probe |
 | storage | Private directory owned by runtime account | PATH_UNAVAILABLE / UNSAFE_PATH / UNSAFE_MODE | `stat -c '%U:%G %a %F' /var/lib/riverview` | Identify existing owner before repair; no deletion; restart probe |
@@ -49,6 +51,18 @@ Database exceptions deliberately expose no raw text. If authentication needs
 deeper inspection, use an approved DBA channel on Camrui, not chat or ordinary
 logs. Do not print pgpass, dump environments, collect full credential-bearing
 unit environments, delete WAL or modify assignments to make diagnostics pass.
+
+## Failed Windows package diagnosis
+
+A manifest PASS proves agreement with archived bytes, not Linux compatibility.
+The old builder called `git archive`, which converts LF blobs to CRLF under
+`core.autocrlf=true`. `set -eu\r\n` makes dash interpret CR as an invalid option.
+Read actual archived bytes with `scripts/verify_camrui_package.py` on Windows or
+Linux; it reports manifest status separately from shell compatibility and prints
+line 15 in hex. Expected `set -eu` with LF: `736574202d65750a`; the reproduced
+failure is `736574202d65750d0a`. Both installer and rollback are affected by the
+old packaging path. Do not run rollback from a known-invalid package. Rebuild the
+corrected committed package; do not edit files after manifest verification.
 
 ## Verified-predecessor rollback procedure
 
@@ -83,4 +97,5 @@ does not substitute for them.
 
 ## Revision history
 
+- 1.0.1: Add artifact-byte diagnosis and package preflight; preserve original under docs/history/RV-M1.1-002/rev1.0.0.
 - 1.0.0: Initial node diagnostics, recovery, bounded waits and preserved rollback.

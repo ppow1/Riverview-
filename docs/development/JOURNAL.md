@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.1
+**Document Revision:** 1.0.2
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -56,3 +56,23 @@ record resolved access and preserve exact predecessor bytes/hashes in docs/histo
 and M1.1_REVISION_RECORD.md before incrementing each file to 1.0.1. Rebuild the
 final package from the updated committed PR head; SOURCE_COMMIT is authoritative.
 Camrui commissioning, credential delivery and rollback remain NOT VERIFIED.
+
+## 2026-10-10 UTC — RV-M1.1-002 / Windows archive repair
+
+Read PR comment 6091930352: actual installation failed at set -eu, exit 2,
+following successful SSH/sudo/commit/manifest checks; no acceptance ran. Original
+Windows archive is not available in cloud (user confirmed), so do not claim its
+bytes were inspected. Executed preserved old builder under core.autocrlf=true:
+both packaged shell files acquire CRLF while their committed blobs are LF.
+Linux /bin/sh executing line 15 reproduces the exact Illegal option error.
+Manifest still passes because it hashes converted bytes. This demonstrates the
+packaging defect independently of any conjectured transfer problem.
+
+Decision: read immutable Git blob bytes in one cat-file batch, add LF Git
+attributes for deployment files, reject unsafe shell bytes before output, and
+provide read-only archive-byte verifier. Keep install/rollback source unchanged;
+test actual tarball bytes, manifest agreement, Linux syntax and guarded execution
+for both. Preserve predecessors before all revisions; retain failed attempt and
+old builder as executable regression fixture. New uniquely named Windows archive
+and fresh staging preserve failed artifacts. No manual host edits or database
+changes. M1.1 remains NOT DONE, live retry and Steward acceptance pending.

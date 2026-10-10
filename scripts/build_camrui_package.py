@@ -1,16 +1,16 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/build_camrui_package.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Build a self-contained package from an exact committed Git revision
 # Execution Model: Request-driven engineering utility
 # Observability: Source commit, file checksums and archive SHA-256
 # Dependencies: Python 3, Git
 # Authority: Writes an absent output outside checkout; excludes credentials and Git metadata
-# Changed: 2026-10-10 UTC | RV-M1.1-001 | Initial implementation
+# Changed: 2026-10-10 UTC | RV-M1.1-002 | Package raw blobs; reject unsafe Linux shell bytes
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: tests/test_runtime_baseline.py
-# History: New file; no predecessor; Git
+# History: docs/history/RV-M1.1-002/rev1.0.0/scripts/build_camrui_package.py
 import argparse
 import hashlib
 import io
@@ -19,25 +19,61 @@ import subprocess
 import tarfile
 
 
+def validate_shell(name, content):
+    """Never silently convert controlled source or hash an unusable shell file."""
+    if name.endswith(".sh"):
+        if (not content.startswith(b"#!/bin/sh\n") or not content.endswith(b"\n")
+                or b"\r" in content or b"\x00" in content):
+            raise ValueError("Linux shell requires an LF-only /bin/sh script without BOM/NUL: " + name)
+
+
+def committed_files(root, commit):
+    # git archive uses convert_to_working_tree(), including core.autocrlf on
+    # Windows. Read blob objects instead: neither checkout settings nor export
+    # attributes may change the bytes associated with SOURCE_COMMIT.
+    tree = subprocess.check_output(["git", "-C", str(root), "ls-tree", "-r", "-z", "--full-tree", commit])
+    entries = []
+    for record in tree.split(b"\x00"):
+        if not record:
+            continue
+        metadata, name_bytes = record.split(b"\t", 1)
+        mode, kind, oid = metadata.split()
+        name = name_bytes.decode("utf-8")
+        if mode not in (b"100644", b"100755") or kind != b"blob":
+            raise ValueError("Only regular committed files may be packaged: " + name)
+        if Path(name).is_absolute() or ".." in Path(name).parts or "\n" in name or "\r" in name or "\\" in name:
+            raise ValueError("Unsupported manifest filename")
+        if name in ("SOURCE_COMMIT", "PACKAGE_SHA256SUMS"):
+            raise ValueError("Reserved package metadata filename")
+        entries.append((name, oid, int(mode, 8) & 0o777))
+    # One batch keeps this practical on Windows while retaining exact blob bytes.
+    blobs = subprocess.check_output(["git", "-C", str(root), "cat-file", "--batch"],
+                                    input=b"".join(oid + b"\n" for _, oid, _ in entries))
+    stream = io.BytesIO(blobs)
+    files = []
+    for name, oid, mode in entries:
+        header = stream.readline().split()
+        if len(header) != 3 or header[:2] != [oid, b"blob"]:
+            raise ValueError("Unexpected Git blob response")
+        size = int(header[2])
+        content = stream.read(size)
+        if len(content) != size or stream.read(1) != b"\n":
+            raise ValueError("Truncated Git blob response")
+        validate_shell(name, content)
+        files.append((name, content, mode))
+    if stream.read():
+        raise ValueError("Unexpected trailing Git blob data")
+    return files
+
+
 def build(root, output):
     root, output = root.resolve(), output.resolve()
     if output.is_relative_to(root):
         raise ValueError("Package output must be outside the checkout")
     subprocess.run(["git", "-C", str(root), "diff", "--exit-code", "HEAD"], check=True, capture_output=True)
     commit = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
-    raw = subprocess.check_output(["git", "-C", str(root), "archive", "--format=tar", commit])
     checksums = []
-    files = []
-    with tarfile.open(fileobj=io.BytesIO(raw)) as source:
-        for member in source:
-            if member.isdir():
-                continue
-            if not member.isfile() or Path(member.name).is_absolute() or ".." in Path(member.name).parts:
-                raise ValueError("Only regular relative files may be packaged")
-            if "\n" in member.name or "\\" in member.name:
-                raise ValueError("Unsupported manifest filename")
-            content = source.extractfile(member).read()
-            files.append((member.name, content, member.mode))
+    files = committed_files(root, commit)
     files.append(("SOURCE_COMMIT", (commit + "\n").encode(), 0o644))
     for name, content, _ in files:
         checksums.append(hashlib.sha256(content).hexdigest() + "  " + name)

@@ -1,14 +1,18 @@
 # Riverview~ runtime baseline process map
 
-**Document Revision:** 1.0.0
+**Document Revision:** 1.0.1
 **Component:** RUNTIME-BASELINE
+**Repair task:** RV-M1.1-002
 **Workflow:** runtime-baseline.v1
 **Task:** RV-M1.1-001
 **Status:** implemented diagnostic flow; Camrui execution NOT VERIFIED
 
 ```mermaid
 flowchart TD
-  P[Authorized one-time commissioning] --> C[Preserve unit and prior release; install credential source]
+  P[Authorized one-time commissioning] --> F{package_bytes: checksum and LF-only shells?}
+  F -- No --> X[Preserve failed package; rebuild corrected source]
+  X --> F
+  F -- Yes --> C[Preserve unit and prior release; install credential source]
   C --> S[systemd starts unprivileged probe and supplies credential]
   S --> identity{identity: correct non-login account?}
   identity -- No --> B[blocked: accountable configuration error]
@@ -37,6 +41,9 @@ flowchart TD
   K --> S
 ```
 
+`package_bytes` is an engineering preflight reported by rv.package-verification.v1,
+not an institutional workflow event. It checks both scripts before host mutation.
+
 Stable probe step IDs `identity`, `storage`, `credential`, `database`, `schema`,
 `ready` are emitted in JSON on failure/success and map directly to the
 [cookbook](RUNTIME_BASELINE_COOKBOOK.md). The database/schema subchecks are
@@ -50,4 +57,5 @@ the latest report is replaced and immutable acceptance artifacts remain retained
 
 ## Revision history
 
+- 1.0.1: Add actual archive-byte preflight and failed-package rebuild path; preserved predecessor under docs/history/RV-M1.1-002/rev1.0.0.
 - 1.0.0: Initial flow with errors, repeat invocation, rollback and acceptance hold.

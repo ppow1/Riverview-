@@ -1,10 +1,11 @@
 # Riverview~ M1.1 runtime baseline commissioning
 
-**Document Revision:** 1.0.0
+**Document Revision:** 1.0.1
 **Component:** RUNTIME-BASELINE
+**Repair task:** RV-M1.1-002
 **Task:** RV-M1.1-001 / GitHub Issue #1
 **Owner:** office:operations; accepting authority: Steward
-**Status:** implemented and development-tested; Camrui commissioning NOT VERIFIED
+**Status:** packaging repair development-tested; prior Camrui installation FAILED; retry pending
 **Date:** 2026-10-10 UTC
 
 ## Responsibility and declared execution model
@@ -118,7 +119,9 @@ sudo authority. If venv is absent, an authorized operator installs `python3-venv
 do not disable TLS verification. Installation requires PyPI package access on Camrui.
 
 Build from the engineering branch's exact committed revision on Windows. Python
-and Git must be available. The builder packages committed regular files only,
+and Git must be available. The builder reads exact committed regular-file blobs with `git cat-file`, bypassing
+Windows checkout/`git archive` conversion. It rejects CRLF, BOM, NUL or invalid
+shebang/final-newline bytes in `.sh` files before creating an archive. The package contains committed regular files only,
 excluding untracked secrets and Git metadata, refuses a dirty tracked worktree or
 existing output and emits the archive checksum. The package is self-contained in
 code/docs/tests; it is not offline dependency distribution.
@@ -126,23 +129,55 @@ code/docs/tests; it is not offline dependency distribution.
 ```powershell
 Clear-Host
 Set-Location A:\Riverview-New-Core
-python scripts/build_camrui_package.py A:\riverview-M1.1.tar.gz
+git fetch origin
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-scp A:\riverview-M1.1.tar.gz camrui:/home/admin1/riverview-M1.1.tar.gz
+git switch codex/m1.1-runtime-commissioning
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$sourceCommit = (git rev-parse HEAD).Trim()
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$artifactStamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$deploymentOutput = Join-Path $env:USERPROFILE "Downloads\Riverview-M1.1-$artifactStamp"
+New-Item -ItemType Directory -Path $deploymentOutput -ErrorAction Stop | Out-Null
+$archiveName = "riverview-M1.1-$sourceCommit-$artifactStamp.tar.gz"
+$archivePath = Join-Path $deploymentOutput $archiveName
+python scripts/build_camrui_package.py $archivePath
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$verificationReport = python scripts/verify_camrui_package.py $archivePath
+$verificationExit = $LASTEXITCODE
+$verificationReport | Set-Content (Join-Path $deploymentOutput 'package-verification.json') -Encoding UTF8
+$verificationReport | Write-Output
+Set-Clipboard -Value ($verificationReport -join [Environment]::NewLine)
+if ($verificationExit -ne 0) { exit $verificationExit }
+$remoteArchive = "/home/admin1/$archiveName"
+scp $archivePath "camrui:$remoteArchive"
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+Write-Output "Camrui archive: $remoteArchive"
 ssh -tt camrui
 ```
 
-On Camrui, use a newly created staging directory; do not extract over the existing
+Confirm `source_commit` equals the corrected PR commit, `manifest` and
+`shell_compatibility` both PASS, and both `cr_bytes` are zero before transferring.
+No global Git settings or manual host line-ending edits are required. Never use
+PowerShell text pipelines to write tarballs or deployment scripts. The failed
+Windows archive and `/home/admin1/riverview-M1.1.pyDz8Jfi` staging directory remain
+untouched; do not overwrite `/home/admin1/riverview-M1.1.tar.gz`.
+
+On Camrui, use the exact new archive path printed above and a newly created staging directory; do not extract over the existing
 development checkout. Compare archive SHA-256 to the builder output before running
 code. Record the unique staging path and rollback path printed by the installer.
 
 ```bash
-sha256sum /home/admin1/riverview-M1.1.tar.gz
+archive=/home/admin1/<new-archive-name-printed-by-Windows>
+sha256sum "$archive"
 stage=$(mktemp -d /home/admin1/riverview-M1.1.XXXXXXXX)
-tar -xzf /home/admin1/riverview-M1.1.tar.gz -C "$stage"
+tar -xzf "$archive" -C "$stage"
 cd "$stage"
 sha256sum --check --strict PACKAGE_SHA256SUMS
+python3 scripts/verify_camrui_package.py "$archive"
+sh -n deploy/install_baseline.sh
+sh -n deploy/rollback_baseline.sh
 sudo sh deploy/install_baseline.sh
 ```
 
@@ -168,4 +203,5 @@ and any explicit sequencing decision remain required before M1.2.
 
 ## Revision history
 
+- 1.0.1: Raw-blob packaging, archive-byte verification and preserved failure/new-path retry procedure; predecessor under docs/history/RV-M1.1-002/rev1.0.0.
 - 1.0.0: Initial M1.1 commissioning package; all files newly introduced.
