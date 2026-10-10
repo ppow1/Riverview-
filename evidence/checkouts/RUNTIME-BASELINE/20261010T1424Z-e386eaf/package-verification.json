@@ -1,0 +1,29 @@
+{
+  "archive_sha256": "0baa2cf8ae02ec8ae49eb64f0600f0f16b2759c11fdf624df6b2236ca6eeb145",
+  "manifest": "PASS",
+  "projection_version": "rv.package-verification.v1",
+  "shell_compatibility": "PASS",
+  "shells": [
+    {
+      "compatible": true,
+      "cr_bytes": 0,
+      "crlf_pairs": 0,
+      "line_15_hex": "736574202d65750a",
+      "nul_bytes": 0,
+      "path": "deploy/install_baseline.sh",
+      "sha256": "677f18ab4faeb8f24076c8956607ab7fe124fe9c3c5576130bc963429ec01e5b",
+      "utf8_bom": false
+    },
+    {
+      "compatible": true,
+      "cr_bytes": 0,
+      "crlf_pairs": 0,
+      "line_15_hex": "736574202d65750a",
+      "nul_bytes": 0,
+      "path": "deploy/rollback_baseline.sh",
+      "sha256": "6500e6696934bca4c791056047a0b51f14ee79f9373447aecb4437fc7a67ccda",
+      "utf8_bom": false
+    }
+  ],
+  "source_commit": "e386eaf8b573ba0f8a3d0ecf1f0cfc7df825a98f"
+}
