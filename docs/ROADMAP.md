@@ -1,8 +1,8 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.1
+**Document Revision:** 1.2.0
 **Status:** Active planning baseline — execution gates require evidence  
-**Date:** 2026-10-09  
+**Date:** 2026-10-10  
 **Component:** RV-ROADMAP  
 **Owner:** Steward  
 **Purpose:** Define the ordered implementation path and what the command **“go” or “next”** means.  
@@ -107,6 +107,24 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 **M5.4 — Operations hardening:** migrations, database backup/restore, host recovery and fencing, diagnostic cookbooks, deployment rollback and Component Definition of Done evidence.  
 **PASS:** each substep has its own contract-specific acceptance tests; no broad “production-ready” claim without operational evidence.
 
+## Steward amendment — operational execution and interactive dashboard (Issue #13)
+
+**Status:** Mandatory roadmap scope and acceptance gates, not an implementation/commissioning claim. All new components must satisfy existing full Component Definition of Done: AI hooks, authenticated/versioned API hooks, live truthful visibility, canonical process flowcharts (including denial/failure/recovery), diagnostics and troubleshooting, Ingrid-governed authority, durable state/restart recovery, source revision controls, evidence, independent tests, deployment and rollback. No mock-only operational acceptance.
+
+**M3.1 remains a read-only technical foundation ONLY.** A read-only billboard is not the finished dashboard. Add the following explicitly sequenced deliverables, integrated with M3.1/M3.2/M5.1 and mandatory before M4.4 operational acceptance:
+
+- **M3.1A — Actionable Institutional Operations Console:** status + diagnosis + permitted context-sensitive verbs for work orders (inspect, pause, resume, retry, reassign, escalate, cancel), capability/tool registry (discover, test, register, disable, provision request), and Steward decisions (approve, reject, amend, request information). Browser and authorized AI residents use the SAME versioned command APIs, with authentication, Ingrid authorization, idempotency, precondition/version checking, correlation IDs, audit events, clear pending/failed/denied states and visible feedback. No browser-only authority or direct privileged DB writes. Test real browser and API action, unauthorized denial, failure/recovery, concurrent conflict and restart.
+- **M3.1B — Resident chat in dashboard:** first-class, interactive Steward conversations with Grace and every authorized resident, with resident picker, resident-bound session IDs, durable threads/continuity, typed/dictated composer, send/pending/error/response states, identity/role and provenance. Conversation develops proposals/specifications; only explicit Steward-approved promotion creates governed objectives and Engineering work orders. Show linked work orders, progress, evidence, approvals and corrective actions in chat. Test real Grace conversation, second resident, tab switching, restart, denied unauthorized promotion, and approved objective-to-work transition. Inspect OLD `ppow1/Riverview` resident gateway, browser/operator, RV-018.6 resident parity audit, Riverview Comms, Estate resident gateway/Open WebUI before implementing; reuse proven contracts without importing old credentials/runtime. Multi-resident rooms can follow initial one-to-one acceptance.
+- **M3.1C — Responsive UI and stable ingress:** prefer old Riverview **vNext** as measured reuse reference for chat consistency and lightweight refresh; retain older Operator's correlation/event diagnostics. Steward reports legacy Operator tab changes stalled 5 seconds to 2 minutes, unacceptable as normal operation. Tab changes must not reload the institution, block on inference, lose chat drafts or duplicate commands. Incremental refresh, pagination, lazy diagnostics, explicit freshness, isolation of slow providers and browser performance regression tests are mandatory. Establish measured and Steward-approved numeric latency budgets; do not invent performance claims. **Port selection:** old operator/vNext used localhost **18082**; Interim Assistant used **8765**. Prefer evaluating **8700–8799** for New Riverview, but do not hardcode an arbitrary port. Inventory real listeners, services, existing bindings, firewall and host/network access on Camrui and dev machine, select a collision-free reserved port, record ownership in canonical config/registry, verify restart stability, and expose dashboard/chat/status/command APIs through one authenticated application entry point where practical. Never displace an existing service without authorization.
+
+**M4.4 prerequisite additions — work execution infrastructure:**
+- **Engineering work orders:** durable, versioned PostgreSQL work-order lifecycle distinct from objective, specification, assignment, attempt and outbox message; explicit scope, dependencies, required capabilities, allowed actions/paths, authority, acceptance criteria, evidence, lineage, retries, cancellation and recovery.
+- **Capability, tool, worker and resource registry:** related records for abstract capabilities, installed Hermes tools/adapters, workers/providers, compute hosts/CPU/GPU/RAM/storage, external/outsourced providers and physical equipment. Record actual schemas, versions, health, verification/provenance, availability/freshness, capacity, ownership, costs and policy. Discovery never grants execution authority. Reconcile changes and periodic inventory; live heartbeats/TTL for dynamic availability.
+- **Placement/provisioning:** Engineering specifies requirements; Helen provisions missing workers; scheduler selects and reserves qualified available resources (protect Camrui control plane and OctoMiner CPU); Ingrid evaluates actor/tool/target/action grants; CME dispatches through approved adapters and verifies results. Explicit recovery when unavailable, stale, denied or overcommitted.
+- **Early real-artifact smoke test and M4.4 full acceptance:** authorized Steward chat → Grace specification → explicit promotion → Engineering work order → registry lookup → authorized placement → real Codex/Hermes file write → independent verification → corrective work/replan, including restart and concurrent work. No deterministic-only proof can close operational milestone.
+
+**Integration instructions:** Audit existing M1.4, M2.x, M3.x, M4.x and M5.x coverage, sequence work without creating a competing roadmap, update canonical process graphs, AI hints, component/API/UI specifications, troubleshooting and acceptance tests in implementation PRs. Preserve already-integrated work and evidence. M2.4 merge PR #14 is complete; do not retain the stale assertion that it is unmerged. Do not mark new requirements PASS until tested and accepted. No deployment or merge without appropriate Steward authorization.
+
 ## Current cursor
 
 **M1.1:** scoped technical commissioning accepted by the Steward against Camrui release `64e8f14`; full component DoD remains open.
@@ -121,11 +139,14 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 **M2.4 — CME monitoring service:** Isolated roadmap technical criteria PASS at commit `a44091bc32e82580dd8a3350e1ecfa47b0157b36`. The full 95-test Camrui suite passed on a private PostgreSQL 16.15 cluster; actual process restart, idempotent alert/recovery records, deadline/stall detection, worker health, and independent assignment progress are evidenced in `evidence/checkouts/CME/20261010T194722Z-a44091b/`. No shared schema migration or installed service commissioning is claimed. The full component DoD remains OPEN, including live Steward visualization and unattended installed-service evidence.
 
-**Current step: M3.1 — Read-only status projection and browser dashboard (next after M2.4 integration).** The integrated `main` baseline remains `4f028a138c41665239bde2c11be65b0f841f02bf`; M2.4 is on the short-lived `codex/m2.4-cme-monitor` branch and has not been merged. Do not stack M3.1 on an unmerged feature branch. Steward merge authorization remains outstanding; no PR merge is claimed.
+**Current step: M3.1 — Read-only status projection and browser dashboard (next after M2.4 integration).** M2.4 PR #14 was merged into `main` at `e9c66afabe88fe02403a35c8ede83eba54bca2e2`. The M3.1 work must branch from integrated `main`; the new Steward requirements above are design/acceptance gates, not claims of live commissioning.
 
 **Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. M2.4 is the next independent eligible engineering item.
 
 ## Revision history
+
+- **1.2.0 — 2026-10-10:** Steward-directed Issue #13 amendment: executable work orders, capability/resource/tool registry, Helen/Ingrid scheduling authority, actionable resident chat console, vNext responsive-refresh requirement, and collision-free 8700-range candidate port assessment. Preserve predecessor at `docs/history/ROADMAP_rev1.1.1.md`; no implementation/commissioning claimed.
+
 
 - **1.0.1 — 2026-10-09:** Recognize “go” and “next” as equivalent roadmap advancement commands. Predecessor: `docs/history/ROADMAP_rev1.0.0.md`.
 
