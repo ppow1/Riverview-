@@ -1,0 +1,226 @@
+{
+  "graph_id": "rv:outcome-verifier:independent-result",
+  "graph_revision": "1.0.1",
+  "component_id": "OUTCOME-VERIFIER",
+  "workflow_id": "deterministic-result-verification.v1",
+  "diagram_order": 1,
+  "source_references": [
+    "src/riverview_core/worker_adapter/verifier.py",
+    "src/riverview_core/worker_adapter/adapter.py",
+    "src/riverview_core/worker_adapter/migrations/0003_independent_verification.sql",
+    "src/riverview_core/postgres_ledger.py",
+    "tests/test_worker_adapter.py"
+  ],
+  "documentation_references": [
+    "docs/components/OUTCOME_VERIFIER_FLOW.md",
+    "docs/components/WORKER_ADAPTER.md",
+    "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+    "docs/development/M2.2-001_REVISION_RECORD.md"
+  ],
+  "verification_evidence": [
+    "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+  ],
+  "nodes": [
+    {
+      "id": "rv:outcome-verifier:independent-result:verification-intake",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Receive a persisted worker attempt awaiting verification",
+      "source_references": [
+        "src/riverview_core/worker_adapter/adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/OUTCOME_VERIFIER_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:outcome-verifier:independent-result:result-jump",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "Load persisted attempt and result from M2.1 worker ledger",
+      "jump_target_id": "rv:worker-adapter:deterministic-attempt:result",
+      "source_references": [
+        "src/riverview_core/worker_adapter/adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/OUTCOME_VERIFIER_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:outcome-verifier:independent-result:identity-check",
+      "node_revision": "1.0.1",
+      "type": "verification",
+      "label": "Authenticate separate verifier capability and enforce authority scope",
+      "source_references": [
+        "src/riverview_core/worker_adapter/adapter.py",
+        "src/riverview_core/worker_adapter/migrations/0003_independent_verification.sql"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+      ]
+    },
+    {
+      "id": "rv:outcome-verifier:independent-result:evaluate",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Recompute result checks independently from executor claim",
+      "source_references": [
+        "src/riverview_core/worker_adapter/verifier.py"
+      ],
+      "documentation_references": [
+        "docs/components/OUTCOME_VERIFIER_FLOW.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+      ]
+    },
+    {
+      "id": "rv:outcome-verifier:independent-result:decision",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Classify acceptance against explicit criteria and evidence",
+      "source_references": [
+        "src/riverview_core/worker_adapter/verifier.py"
+      ],
+      "documentation_references": [
+        "docs/components/OUTCOME_VERIFIER_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:outcome-verifier:independent-result:accepted-record",
+      "node_revision": "1.0.1",
+      "type": "verification",
+      "label": "Persist ACCEPTED criteria, verifier provenance, and evidence",
+      "source_references": [
+        "src/riverview_core/worker_adapter/adapter.py",
+        "src/riverview_core/worker_adapter/migrations/0003_independent_verification.sql"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+      ]
+    },
+    {
+      "id": "rv:outcome-verifier:independent-result:complete",
+      "node_revision": "1.0.1",
+      "type": "exit",
+      "label": "Complete only after independent ACCEPTED record exists",
+      "source_references": [
+        "src/riverview_core/postgres_ledger.py",
+        "src/riverview_core/worker_adapter/migrations/0003_independent_verification.sql"
+      ],
+      "documentation_references": [
+        "docs/components/OUTCOME_VERIFIER_FLOW.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+      ]
+    },
+    {
+      "id": "rv:outcome-verifier:independent-result:reject",
+      "node_revision": "1.0.1",
+      "type": "failure",
+      "label": "Reject invalid artifact and preserve failed criteria",
+      "source_references": [
+        "src/riverview_core/worker_adapter/verifier.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+      ]
+    },
+    {
+      "id": "rv:outcome-verifier:independent-result:rework",
+      "node_revision": "1.0.1",
+      "type": "recovery",
+      "label": "Route rejected result to durable rework_required assignment state",
+      "source_references": [
+        "src/riverview_core/worker_adapter/adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/OUTCOME-VERIFIER/20261010T1742Z-83677d8/test_results.json"
+      ]
+    },
+    {
+      "id": "rv:outcome-verifier:independent-result:inconclusive",
+      "node_revision": "1.0.0",
+      "type": "escalation",
+      "label": "Keep inconclusive result blocked for reassessment",
+      "source_references": [
+        "src/riverview_core/worker_adapter/adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:outcome-verifier:independent-result:verification-intake",
+      "to": "rv:outcome-verifier:independent-result:result-jump",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:outcome-verifier:independent-result:result-jump",
+      "to": "rv:worker-adapter:deterministic-attempt:result",
+      "type": "jump"
+    },
+    {
+      "from": "rv:outcome-verifier:independent-result:verification-intake",
+      "to": "rv:outcome-verifier:independent-result:identity-check",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:outcome-verifier:independent-result:identity-check",
+      "to": "rv:outcome-verifier:independent-result:evaluate",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:outcome-verifier:independent-result:evaluate",
+      "to": "rv:outcome-verifier:independent-result:decision",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:outcome-verifier:independent-result:decision",
+      "to": "rv:outcome-verifier:independent-result:accepted-record",
+      "type": "verification",
+      "label": "all required criteria pass"
+    },
+    {
+      "from": "rv:outcome-verifier:independent-result:accepted-record",
+      "to": "rv:outcome-verifier:independent-result:complete",
+      "type": "verification"
+    },
+    {
+      "from": "rv:outcome-verifier:independent-result:decision",
+      "to": "rv:outcome-verifier:independent-result:reject",
+      "type": "diagnostic_branch",
+      "label": "invalid result"
+    },
+    {
+      "from": "rv:outcome-verifier:independent-result:reject",
+      "to": "rv:outcome-verifier:independent-result:rework",
+      "type": "recovery_route"
+    },
+    {
+      "from": "rv:outcome-verifier:independent-result:decision",
+      "to": "rv:outcome-verifier:independent-result:inconclusive",
+      "type": "escalation",
+      "label": "evidence does not support acceptance"
+    }
+  ]
+}

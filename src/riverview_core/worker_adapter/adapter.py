@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.4
+# Revision: 1.0.6
 # Purpose: Authenticate a scoped local worker and persist deterministic attempts/results
 # Execution Model: Request-driven local task execution with PostgreSQL durability
 # Observability: Worker identity, capability, attempt outcome, and result digest
 # Dependencies: Python 3.10+; Psycopg 3; M1.2 ledger and M1.4 assignment lease
 # Authority: No arbitrary commands, shell execution, or external effects
-# Changed: 2026-10-10 UTC | RV-M1.3-CONTINUOUS-KNOWLEDGE | Persist grounding and preflight provenance
+# Changed: 2026-10-10 UTC | RV-M2.2-001 | Persist independent verification evidence
 # Contracts: docs/components/WORKER_ADAPTER.md; docs/architecture/CORE_CONTRACT.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -25,6 +25,7 @@ from psycopg.rows import dict_row
 
 from ..postgres_ledger import PostgresLedger
 from ..assignment_scheduler import PostgresAssignmentScheduler
+from .verifier import VerificationResult, VerificationStatus
 
 
 class WorkerAdapterError(RuntimeError):
@@ -47,6 +48,7 @@ class PostgresWorkerAdapter:
     """
 
     SHA256_CAPABILITY = "deterministic.sha256.v1"
+    VERIFICATION_CAPABILITY = "assignment.verify.v1"
 
     def __init__(self, dsn, *, schema="public"):
         self.ledger = PostgresLedger(dsn, schema=schema)
@@ -145,6 +147,80 @@ class PostgresWorkerAdapter:
                      json.dumps(list(result.source_references)), result.source_revision,
                      result.source_sha256, result.retrieval_complete))
                 return cur.fetchone()["observation_id"]
+
+    def verify_attempt(self, assignment_id, attempt_id, verifier_id, credential,
+                       verifier, *, idempotency_key):
+        """Persist independent evidence, then advance only through the decision."""
+        if not idempotency_key:
+            raise ValueError("verification idempotency key is required")
+        db = self.ledger.db
+        with db.transaction():
+            with db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("SELECT * FROM assignments WHERE id=%s FOR UPDATE",
+                            (assignment_id,))
+                assignment = cur.fetchone()
+                if assignment is None:
+                    raise WorkerAdapterError("unknown assignment")
+                self._authorized_worker(cur, verifier_id, credential,
+                                        self.VERIFICATION_CAPABILITY,
+                                        assignment["authority_ref"])
+                cur.execute("""SELECT verification_id,assignment_id,attempt_id,executor_id,
+                                      decision,criteria,evidence_references,verifier_id,
+                                      verifier_revision,summary FROM verification_records
+                               WHERE idempotency_key=%s""", (idempotency_key,))
+                existing = cur.fetchone()
+                if existing:
+                    if (existing["assignment_id"] != assignment_id or
+                            existing["attempt_id"] != attempt_id or
+                            existing["verifier_id"] != verifier_id or
+                            existing["executor_id"] == verifier_id):
+                        raise WorkerAdapterError("verification idempotency key collision")
+                    decision = VerificationResult(
+                        VerificationStatus(existing["decision"]), existing["criteria"],
+                        tuple(existing["evidence_references"]),
+                        existing["verifier_revision"], existing["summary"])
+                else:
+                    if assignment["state"] != "awaiting_verification":
+                        raise WorkerAdapterError("assignment is not awaiting verification")
+                    decision = None
+                if existing is None:
+                    cur.execute("""SELECT a.attempt_id,a.assignment_id,a.worker_id,a.status,
+                                          a.input_sha256,r.result,r.result_sha256
+                                   FROM worker_attempts a JOIN worker_results r USING(attempt_id)
+                                   WHERE a.attempt_id=%s AND a.assignment_id=%s FOR UPDATE OF a""",
+                                (attempt_id, assignment_id))
+                    attempt = cur.fetchone()
+                    if attempt is None:
+                        raise WorkerAdapterError("attempt result is missing")
+                    if attempt["worker_id"] == verifier_id:
+                        raise WorkerAuthorizationError("executor cannot verify its own attempt")
+                    decision = verifier.verify(dict(assignment), dict(attempt), attempt["result"])
+                    if not isinstance(decision, VerificationResult):
+                        raise WorkerAdapterError("verifier returned an unsupported result")
+                    cur.execute("""INSERT INTO verification_records
+                        (verification_id,assignment_id,attempt_id,executor_id,verifier_id,
+                         verifier_revision,decision,criteria,evidence_references,summary,
+                         idempotency_key)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                        (attempt_id, assignment_id, attempt_id, attempt["worker_id"],
+                         verifier_id, decision.verifier_revision, decision.status.value,
+                         json.dumps(dict(decision.criteria), sort_keys=True),
+                         json.dumps(list(decision.evidence_references)), decision.summary,
+                         idempotency_key))
+        if decision.status is VerificationStatus.ACCEPTED:
+            self.ledger.transition(assignment_id, "completed", "independent_verification",
+                                   f"verification-transition:{idempotency_key}",
+                                   actor_id=f"verifier:{verifier_id}", verified=True)
+        elif decision.status is VerificationStatus.REJECTED:
+            self.ledger.transition(assignment_id, "rework_required", "verification_rejected",
+                                   f"verification-transition:{idempotency_key}",
+                                   actor_id=f"verifier:{verifier_id}")
+        else:
+            self.ledger.transition(assignment_id, "blocked", "verification_inconclusive",
+                                   f"verification-transition:{idempotency_key}",
+                                   actor_id=f"verifier:{verifier_id}")
+        return decision
 
     def execute_sha256(self, assignment_id, worker_id, credential, generation,
                        idempotency_key, data):

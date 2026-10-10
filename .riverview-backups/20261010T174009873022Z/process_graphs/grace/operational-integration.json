@@ -1,0 +1,40 @@
+{
+  "graph_id": "rv:grace:operational-integration",
+  "graph_revision": "1.0.0",
+  "component_id": "RESIDENT-ORCHESTRATION",
+  "workflow_id": "grace-engineering-objective.v1",
+  "diagram_order": 9,
+  "source_references": ["docs/ROADMAP.md", "docs/architecture/CORE_CONTRACT.md", "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md", "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"],
+  "documentation_references": ["docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md", "docs/ROADMAP.md", "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"],
+  "verification_evidence": [],
+  "nodes": [
+    {"id": "rv:grace:operational-integration:objective-intake", "node_revision": "1.0.0", "type": "entry", "label": "PLANNED — receive and durably record Steward objective and authority", "source_references": ["docs/ROADMAP.md"], "documentation_references": ["docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"], "verification_evidence": []},
+    {"id": "rv:grace:operational-integration:authority-check", "node_revision": "1.0.0", "type": "verification", "label": "PLANNED — bind objective to delegated office authority and acceptance criteria", "source_references": ["docs/architecture/CORE_CONTRACT.md"], "documentation_references": ["docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"], "verification_evidence": []},
+    {"id": "rv:grace:operational-integration:reason-decompose", "node_revision": "1.0.0", "type": "process", "label": "PLANNED — reason about objective and decompose durable engineering plan", "source_references": ["docs/ROADMAP.md"], "documentation_references": ["docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"], "verification_evidence": []},
+    {"id": "rv:grace:operational-integration:durable-plan", "node_revision": "1.0.0", "type": "process", "label": "PLANNED — persist and revise plan across context and model replacement", "source_references": ["docs/architecture/CORE_CONTRACT.md"], "documentation_references": ["docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"], "verification_evidence": []},
+    {"id": "rv:grace:operational-integration:assignment-fanout", "node_revision": "1.0.0", "type": "process", "label": "PLANNED — create multiple independently schedulable assignments", "source_references": ["docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md"], "documentation_references": ["docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"], "verification_evidence": []},
+    {"id": "rv:grace:operational-integration:worker-dispatch", "node_revision": "1.0.0", "type": "jump", "label": "PLANNED — delegate through CME to replaceable real engineering executors", "jump_target_id": "rv:worker-adapter:deterministic-attempt:continuous-cycle", "source_references": ["docs/ROADMAP.md"], "documentation_references": ["docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"], "verification_evidence": []},
+    {"id": "rv:grace:operational-integration:cme-progress", "node_revision": "1.0.0", "type": "jump", "label": "PLANNED — subscribe to durable progress, stall, and recovery events from CME", "jump_target_id": "rv:cme:progress-and-recovery:observe", "source_references": ["docs/ROADMAP.md"], "documentation_references": ["docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"], "verification_evidence": []},
+    {"id": "rv:grace:operational-integration:evidence-review", "node_revision": "1.0.0", "type": "measurement", "label": "PLANNED — interpret execution and independent verification evidence", "source_references": ["docs/ROADMAP.md"], "documentation_references": ["docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"], "verification_evidence": []},
+    {"id": "rv:grace:operational-integration:objective-check", "node_revision": "1.0.0", "type": "decision", "label": "PLANNED — determine whether objective acceptance criteria are independently met", "source_references": ["docs/standards/COMPONENT_DEFINITION_OF_DONE.md"], "documentation_references": ["docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"], "verification_evidence": []},
+    {"id": "rv:grace:operational-integration:replan", "node_revision": "1.0.0", "type": "recovery", "label": "PLANNED — revise plan and initiate follow-up work after evidence or failure", "source_references": ["docs/ROADMAP.md"], "documentation_references": ["docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"], "verification_evidence": []},
+    {"id": "rv:grace:operational-integration:steward-escalation", "node_revision": "1.0.0", "type": "escalation", "label": "PLANNED — request only genuine Steward decision or authority", "source_references": ["docs/ROADMAP.md"], "documentation_references": ["docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"], "verification_evidence": []},
+    {"id": "rv:grace:operational-integration:objective-complete", "node_revision": "1.0.0", "type": "exit", "label": "PLANNED — objective closed only with independently verified evidence", "source_references": ["docs/standards/COMPONENT_DEFINITION_OF_DONE.md"], "documentation_references": ["docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"], "verification_evidence": []}
+  ],
+  "edges": [
+    {"from": "rv:grace:operational-integration:objective-intake", "to": "rv:grace:operational-integration:authority-check", "type": "runtime_transition"},
+    {"from": "rv:grace:operational-integration:authority-check", "to": "rv:grace:operational-integration:reason-decompose", "type": "runtime_transition"},
+    {"from": "rv:grace:operational-integration:reason-decompose", "to": "rv:grace:operational-integration:durable-plan", "type": "runtime_transition"},
+    {"from": "rv:grace:operational-integration:durable-plan", "to": "rv:grace:operational-integration:assignment-fanout", "type": "runtime_transition"},
+    {"from": "rv:grace:operational-integration:assignment-fanout", "to": "rv:grace:operational-integration:worker-dispatch", "type": "runtime_transition"},
+    {"from": "rv:grace:operational-integration:worker-dispatch", "to": "rv:worker-adapter:deterministic-attempt:continuous-cycle", "type": "jump"},
+    {"from": "rv:grace:operational-integration:assignment-fanout", "to": "rv:grace:operational-integration:cme-progress", "type": "runtime_transition"},
+    {"from": "rv:grace:operational-integration:cme-progress", "to": "rv:cme:progress-and-recovery:observe", "type": "jump"},
+    {"from": "rv:grace:operational-integration:evidence-review", "to": "rv:grace:operational-integration:objective-check", "type": "runtime_transition"},
+    {"from": "rv:grace:operational-integration:objective-check", "to": "rv:grace:operational-integration:objective-complete", "type": "verification", "label": "PLANNED — all criteria independently verified"},
+    {"from": "rv:grace:operational-integration:objective-check", "to": "rv:grace:operational-integration:replan", "type": "recovery_route", "label": "PLANNED — unmet criteria or new evidence"},
+    {"from": "rv:grace:operational-integration:objective-check", "to": "rv:grace:operational-integration:steward-escalation", "type": "escalation", "label": "PLANNED — genuine decision required"},
+    {"from": "rv:grace:operational-integration:replan", "to": "rv:grace:operational-integration:durable-plan", "type": "runtime_transition"},
+    {"from": "rv:grace:operational-integration:steward-escalation", "to": "rv:grace:operational-integration:durable-plan", "type": "runtime_transition", "label": "PLANNED — resume after recorded decision"}
+  ]
+}

@@ -1,6 +1,6 @@
 # Riverview~ worker adapter cookbook
 
-**Document Revision:** 1.0.2
+**Document Revision:** 1.0.3
 **Component:** WORKER-ADAPTER
 **Task:** RV-M2.1-001
 **Status:** IN PROGRESS — disposable PostgreSQL only
@@ -41,6 +41,18 @@ results, and records timeout as `UNAVAILABLE`. Python cannot forcibly cancel an
 in-process provider thread; a provider must use its own bounded network/storage
 timeouts and tolerate concurrency. The interface has no fallback to invented
 commands or contracts.
+
+## Independent outcome verification
+
+M2.2 verification tests apply migration 0003 only in the fixture's unique
+`rvtest_*` schema. A separate worker-registry identity must have
+`assignment.verify.v1` and the same authority scope; the executor identity is
+rejected. `DeterministicSha256Verifier` checks the attempt state and artifact
+against its recorded input and result digests. ACCEPTED evidence is stored
+before the state transition, so a restart can safely retry the idempotent
+transition. REJECTED results become `rework_required`; INCONCLUSIVE results
+become blocked. The schema trigger prevents direct completion without accepted
+evidence. The fixture drops the disposable schema after each test.
 
 ## Operational boundaries
 

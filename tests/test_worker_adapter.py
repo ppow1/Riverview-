@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.6
-# Purpose: Verify scoped dispatch, fail-closed knowledge, durable work cycles, and recovery
+# Revision: 1.0.12
+# Purpose: Verify scoped dispatch, fail-closed knowledge, independent outcomes, and recovery
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL test database
 # Authority: Creates and drops only unique rvtest_* schemas
-# Changed: 2026-10-10 UTC | RV-M1.3-CONTINUOUS-KNOWLEDGE | Add continuous knowledge-gated cycles
+# Changed: 2026-10-10 UTC | RV-M2.2-001 | Add independent outcome verification coverage
 # Contracts: docs/development/M2.1-001_REVISION_RECORD.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -280,3 +280,83 @@ class WorkerAdapterTests(unittest.TestCase):
         self.assertEqual(result["status"], "WAITING_FOR_EVIDENCE")
         self.assertEqual(result["knowledge_status"], "UNAVAILABLE")
         self.assertEqual(self.ledger.get(waiting_id)["workflow_step"], "WAITING_FOR_EVIDENCE")
+
+    def _execute_to_verification(self, payload="independent verification target"):
+        outcome = self.worker.execute_sha256(
+            self.assignment, self.worker_id, self.token, self.lease["generation"],
+            "verify:" + uuid4().hex, payload)
+        self.ledger.transition(self.assignment, "awaiting_verification", "worker_result",
+                               "await-verification:" + uuid4().hex,
+                               actor_id=f"worker:{self.worker_id}")
+        verifier_id = "verifier-" + uuid4().hex
+        credential = self.worker.register_worker(
+            verifier_id, ["assignment.verify.v1"], self.scope)
+        from riverview_core.worker_adapter.verifier import DeterministicSha256Verifier
+        return outcome, verifier_id, credential, DeterministicSha256Verifier()
+
+    def test_independent_verifier_accepts_valid_result_and_gates_completion(self):
+        import psycopg
+        from riverview_core.ledger import TransitionError
+        outcome, verifier_id, credential, verifier = self._execute_to_verification()
+        with self.assertRaises(psycopg.Error):
+            with self.worker.ledger.db.transaction():
+                with self.worker.ledger.db.cursor() as cur:
+                    self.ledger._set_search_path(cur)
+                    cur.execute("UPDATE assignments SET state='completed' WHERE id=%s",
+                                (self.assignment,))
+        with self.assertRaisesRegex(TransitionError, "persisted independent verification"):
+            self.ledger.transition(self.assignment, "completed", "claimed-success",
+                                   "complete-without-evidence", actor_id="caller", verified=True)
+        verification_key = "verify-valid:" + uuid4().hex
+        result = self.worker.verify_attempt(
+            self.assignment, outcome["attempt_id"], verifier_id, credential, verifier,
+            idempotency_key=verification_key)
+        self.assertEqual(result.status.value, "ACCEPTED")
+        self.assertEqual(self.ledger.get(self.assignment)["state"], "completed")
+        replay = self.worker.verify_attempt(
+            self.assignment, outcome["attempt_id"], verifier_id, credential, verifier,
+            idempotency_key=verification_key)
+        self.assertEqual(replay.status.value, "ACCEPTED")
+        with self.worker.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT decision,executor_id,verifier_id,criteria,evidence_references
+                           FROM verification_records WHERE attempt_id=%s""",
+                        (outcome["attempt_id"],))
+            row = cur.fetchone()
+        self.assertEqual(row["decision"], "ACCEPTED")
+        self.assertEqual(row["executor_id"], self.worker_id)
+        self.assertEqual(row["verifier_id"], verifier_id)
+        self.assertTrue(all(row["criteria"].values()))
+        self.assertGreaterEqual(len(row["evidence_references"]), 1)
+
+    def test_tampered_result_is_rejected_and_routed_to_rework(self):
+        outcome, verifier_id, credential, verifier = self._execute_to_verification()
+        with self.worker.ledger.db.transaction():
+            with self.worker.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("UPDATE worker_results SET result=jsonb_set(result,'{sha256}',to_jsonb(%s::text)) WHERE attempt_id=%s",
+                            ("0" * 64, outcome["attempt_id"]))
+        decision = self.worker.verify_attempt(
+            self.assignment, outcome["attempt_id"], verifier_id, credential, verifier,
+            idempotency_key="verify-tampered:" + uuid4().hex)
+        self.assertEqual(decision.status.value, "REJECTED")
+        self.assertEqual(self.ledger.get(self.assignment)["state"], "rework_required")
+
+    def test_executor_identity_cannot_verify_its_own_attempt(self):
+        from riverview_core.worker_adapter import WorkerAuthorizationError
+        outcome = self.worker.execute_sha256(
+            self.assignment, self.worker_id, self.token, self.lease["generation"],
+            "verify-self:" + uuid4().hex, "self verification")
+        self.ledger.transition(self.assignment, "awaiting_verification", "worker_result",
+                               "await-self:" + uuid4().hex,
+                               actor_id=f"worker:{self.worker_id}")
+        with self.worker.ledger.db.transaction():
+            with self.worker.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("UPDATE worker_registry SET capabilities=capabilities || '[\"assignment.verify.v1\"]'::jsonb WHERE worker_id=%s",
+                            (self.worker_id,))
+        from riverview_core.worker_adapter.verifier import DeterministicSha256Verifier
+        with self.assertRaisesRegex(WorkerAuthorizationError, "cannot verify its own"):
+            self.worker.verify_attempt(
+                self.assignment, outcome["attempt_id"], self.worker_id, self.token,
+                DeterministicSha256Verifier(), idempotency_key="verify-self-result")
