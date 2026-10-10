@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL for integration class
 # Authority: Creates/drops only unique rvtest_* schemas; never accesses shared Riverview data
-# Changed: 2026-10-10 UTC | RV-M3.1-001 | Verify systemd credential mode, API security and PostgreSQL projections
+# Changed: 2026-10-10 UTC | RV-M3.1-001 | Test the credential launcher, systemd modes, API and PostgreSQL projections
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -18,6 +18,7 @@
 import json
 import os
 import tempfile
+import sys
 import threading
 import time
 import unittest
@@ -60,6 +61,37 @@ class _FakeProjection:
 
     def assignment_detail(self, assignment_id):
         return None
+
+
+class DashboardDeploymentContractTests(unittest.TestCase):
+    def test_unit_uses_private_runtime_pgpass_delivery(self):
+        unit = (ROOT / "deploy/riverview-status-dashboard.service").read_text()
+        launcher = (ROOT / "scripts/run_status_dashboard.py").read_text()
+        self.assertIn("RuntimeDirectory=riverview-status-dashboard", unit)
+        self.assertIn("LoadCredential=pgpass:/etc/riverview/pgpass", unit)
+        self.assertIn("scripts/run_status_dashboard.py", unit)
+        self.assertIn("copy_systemd_credential(source, PASSFILE, identity.pw_uid)", launcher)
+        self.assertNotIn("Environment=PGPASSFILE=%d/pgpass", unit)
+
+    def test_launcher_validates_service_credential_and_runtime_identity(self):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import run_status_dashboard
+        from types import SimpleNamespace
+        credential_dir = "/run/credentials/riverview-status-dashboard.service"
+        with mock.patch.dict(os.environ, {"CREDENTIALS_DIRECTORY": credential_dir}, clear=False):
+            for name in ("PGPASSWORD", "PGSERVICE", "PGSERVICEFILE", "PGOPTIONS"):
+                os.environ.pop(name, None)
+            with mock.patch.object(run_status_dashboard, "systemd_credential_path") as validate:
+                with mock.patch.object(run_status_dashboard, "copy_systemd_credential") as copy:
+                    with mock.patch.object(run_status_dashboard.pwd, "getpwnam",
+                                            return_value=SimpleNamespace(pw_uid=1234)):
+                        with mock.patch.object(run_status_dashboard.os, "geteuid", return_value=1234):
+                            run_status_dashboard.prepare_runtime_credential()
+            validate.assert_called_once_with(Path(credential_dir) / "pgpass",
+                                             service_unit="riverview-status-dashboard.service")
+            copy.assert_called_once_with(Path(credential_dir) / "pgpass",
+                                         run_status_dashboard.PASSFILE, 1234)
+            self.assertEqual(os.environ["PGPASSFILE"], str(run_status_dashboard.PASSFILE))
 
 
 class DashboardHTTPTests(unittest.TestCase):

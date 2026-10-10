@@ -2914,7 +2914,7 @@
     },
     {
       "graph_id": "rv:steward-dashboard:status",
-      "graph_revision": "1.0.1",
+      "graph_revision": "1.0.2",
       "component_id": "STEWARD-DASHBOARD",
       "workflow_id": "status-projection.v1",
       "diagram_order": 1,
@@ -2922,7 +2922,10 @@
         "src/riverview_core/status_dashboard/projection.py",
         "src/riverview_core/status_dashboard/server.py",
         "src/riverview_core/status_dashboard/static/app.js",
-        "tests/test_status_dashboard.py"
+        "tests/test_status_dashboard.py",
+        "scripts/run_status_dashboard.py",
+        "scripts/runtime_baseline.py",
+        "deploy/riverview-status-dashboard.service"
       ],
       "documentation_references": [
         "docs/components/STATUS_DASHBOARD.md",
@@ -3162,6 +3165,48 @@
             "docs/components/CME_MONITOR.md"
           ],
           "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:status:service-start",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "systemd starts the dashboard service",
+          "source_references": [
+            "deploy/riverview-status-dashboard.service"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:status:prepare-passfile",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Validate systemd pgpass and copy to private runtime storage",
+          "source_references": [
+            "scripts/run_status_dashboard.py",
+            "scripts/runtime_baseline.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:status:credential-failure",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Reject unsafe or unavailable runtime credential",
+          "source_references": [
+            "scripts/run_status_dashboard.py",
+            "scripts/runtime_baseline.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": []
         }
       ],
       "edges": [
@@ -3268,6 +3313,23 @@
           "from": "rv:steward-dashboard:status:source-health",
           "to": "rv:steward-dashboard:status:jump-cme",
           "type": "documentation"
+        },
+        {
+          "from": "rv:steward-dashboard:status:service-start",
+          "to": "rv:steward-dashboard:status:prepare-passfile",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:steward-dashboard:status:prepare-passfile",
+          "to": "rv:steward-dashboard:status:credential-failure",
+          "type": "diagnostic_branch",
+          "label": "Credential validation or private copy failed"
+        },
+        {
+          "from": "rv:steward-dashboard:status:prepare-passfile",
+          "to": "rv:steward-dashboard:status:ingest",
+          "type": "prerequisite",
+          "label": "Runtime credential available before requests"
         }
       ]
     },
@@ -4200,6 +4262,7 @@
     "rv:runtime-baseline:commissioning:systemd",
     "rv:runtime-baseline:commissioning:tty-failure",
     "rv:steward-dashboard:status:authenticate",
+    "rv:steward-dashboard:status:credential-failure",
     "rv:steward-dashboard:status:database-failure",
     "rv:steward-dashboard:status:deny-request",
     "rv:steward-dashboard:status:export-snapshot",
@@ -4209,10 +4272,12 @@
     "rv:steward-dashboard:status:jump-ledger",
     "rv:steward-dashboard:status:navigate",
     "rv:steward-dashboard:status:page-events",
+    "rv:steward-dashboard:status:prepare-passfile",
     "rv:steward-dashboard:status:privacy-filter",
     "rv:steward-dashboard:status:read-ledger",
     "rv:steward-dashboard:status:reconnect",
     "rv:steward-dashboard:status:render-cached",
+    "rv:steward-dashboard:status:service-start",
     "rv:steward-dashboard:status:source-available",
     "rv:steward-dashboard:status:source-failure",
     "rv:steward-dashboard:status:source-health",

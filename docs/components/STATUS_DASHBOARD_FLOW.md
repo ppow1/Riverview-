@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.0
+**Document Revision:** 1.0.1
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -29,6 +29,9 @@ flowchart LR
     g_rv_steward_dashboard_status_reconnect_71d9d56c["Retry read after service or database recovery"]
     g_rv_steward_dashboard_status_jump_ledger_c6cfb39d["Authoritative assignment and event ledger"]
     g_rv_steward_dashboard_status_jump_cme_36e2d25f["CME monitoring, health and attention source"]
+    g_rv_steward_dashboard_status_service_start_ebd3f698(["systemd starts the dashboard service"])
+    g_rv_steward_dashboard_status_prepare_passfile_2eebe68e["Validate systemd pgpass and copy to private runtime storage"]
+    g_rv_steward_dashboard_status_credential_failure_69b3e373[["Reject unsafe or unavailable runtime credential"]]
   end
   g_rv_postgres_ledger_assignment_lifecycle_intake_c1d0abf1["Registered target<br/>rv:postgres-ledger:assignment-lifecycle"]
   g_rv_cme_progress_and_recovery_monitor_start_3c5b8496["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -51,6 +54,9 @@ flowchart LR
   g_rv_steward_dashboard_status_jump_cme_36e2d25f -->|jump| g_rv_cme_progress_and_recovery_monitor_start_3c5b8496
   g_rv_steward_dashboard_status_read_ledger_6f000d0e -->|documentation| g_rv_steward_dashboard_status_jump_ledger_c6cfb39d
   g_rv_steward_dashboard_status_source_health_3cc042e8 -->|documentation| g_rv_steward_dashboard_status_jump_cme_36e2d25f
+  g_rv_steward_dashboard_status_service_start_ebd3f698 --> g_rv_steward_dashboard_status_prepare_passfile_2eebe68e
+  g_rv_steward_dashboard_status_prepare_passfile_2eebe68e -->|diagnostic_branch: Credential validation or private copy failed| g_rv_steward_dashboard_status_credential_failure_69b3e373
+  g_rv_steward_dashboard_status_prepare_passfile_2eebe68e -->|prerequisite: Runtime credential available before requests| g_rv_steward_dashboard_status_ingest_66a3387a
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

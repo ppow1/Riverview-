@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.1
+File Revision: 1.0.2
 Purpose: Specify the read-only live status projection and browser foundation
 Authority: Observes institution state; no assignment or policy mutation
-Changed: 2026-10-10 UTC | RV-M3.1-001 | Document systemd read-only credential permissions and commissioning corrections
+Changed: 2026-10-10 UTC | RV-M3.1-001 | Document dashboard architecture and verified runtime credential delivery
 History: Git and revision/backup manifest
 -->
 # Steward status dashboard

@@ -1,10 +1,10 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.1
+File Revision: 1.0.2
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
-Changed: 2026-10-10 UTC | RV-M3.1-001 | Document systemd credential requirements and observed deployment repair
+Changed: 2026-10-10 UTC | RV-M3.1-001 | Record isolated deployment and credential troubleshooting
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -12,6 +12,14 @@ History: Git and revision/backup manifest
 **Task:** RV-M3.1-001 · **Component:** STEWARD-DASHBOARD · **Execution model:** request-driven.  
 The dashboard does not own assignments, dispatch workers, mutate the ledger, or
 gate CME execution.
+
+## Credential delivery
+
+The unit loads pgpass with systemd LoadCredential. Its root-owned read-only
+0440 mount is validated with runtime_baseline.systemd_credential_path, then
+copied with copy_systemd_credential to /run/riverview-status-dashboard/pgpass
+inside the service-owned 0700 RuntimeDirectory. This produces the 0600 passfile
+required by libpq. The token remains a separate credential and is never logged.
 
 ## Fast read-only checks
 
