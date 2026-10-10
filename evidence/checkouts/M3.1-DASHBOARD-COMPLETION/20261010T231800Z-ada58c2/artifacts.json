@@ -36,6 +36,12 @@
       "sha256": "3f5e2dd2b9e197f71a096c49af97a6f0e4ccdeb2d3ced9e05f89b422b3515c5b",
       "size_bytes": 19351
     },
+    "github-ci.json": {
+      "path": "github-ci.json",
+      "revision": "1.0.0",
+      "sha256": "91a46e4c82b50e843d932a09cf19fc53983360d8223eee00006d061575503b54",
+      "size_bytes": 769
+    },
     "isolated-postgres.log": {
       "path": "isolated-postgres.log",
       "revision": "1.0.0",
@@ -56,5 +62,5 @@
     }
   },
   "evidence_bundle": "RV-M3.1-001-commissioning",
-  "manifest_revision": "1.0.0"
+  "manifest_revision": "1.0.1"
 }
