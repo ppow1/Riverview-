@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.10
+**Document Revision:** 1.0.11
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -213,3 +213,68 @@ an authorized interactive sudo session is the remaining external condition.
 Roadmap M1.2 is sequenced after M1.1 acceptance, so there is no independent
 numbered roadmap item to advance while M1.1 is blocked. Do not mark M1.1 DONE or
 install the superseded `e6b46c3` package.
+
+## 2026-10-10 UTC — RV-M1.1-009 / RUNTIME-BASELINE privileged path and UNSAFE_PATH
+
+Actor: Codex on Camrui. The owner explicitly authorized root-level New
+Riverview development operations; `sudo -n id` returned uid 0. Repository at
+task intake was `3e60476` on `codex/m1.1-runtime-commissioning`, clean. The
+deployed unit failed with `UNSAFE_PATH`, step `storage`, source `3d7e58f`.
+
+Experiment: inspected the actual sanitized report, unit, host path metadata and
+the deployed source predicate. `/var/lib/riverview` passed its service-context
+private-state check. A transient unit reproducing the deployed systemd sandbox
+showed PID 1 creates `CREDENTIALS_DIRECTORY` as root:root 0550 and `pgpass` as
+root:root 0440, both readable/traversable to `riverview`. The probe incorrectly
+reused its runtime-owned-directory validator on this systemd-managed parent;
+it emitted `UNSAFE_PATH` with a misleading storage step. This is an ownership
+contract mismatch, not a symlink or state-directory defect. The correction
+validates the fixed systemd credential location, no symlink traversal, root
+ownership, exact non-writable delivery modes and effective service read access,
+while retaining the stricter runtime ownership/mode checks on state.
+
+Decision: introduce a root-owned fixed-operation broker. It admits only an
+exact registered package ID, fixed service actions, sanitized report, acceptance
+capture, or a constrained rollback record ID. Its root policy pins the archive
+digest and Git source commit. It rejects arbitrary paths/commands, unsafe tar
+members and mutable/incorrect release content; only the exact hash-verified
+archive is extracted root-owned, then its fixed installer is invoked. New
+release digests need an explicit root-policy update. No user checkout script is
+run as root. Bootstrap, installation and recovery are within the user's explicit
+Camrui authorization; no credentials were read or changed.
+
+Verification: privilege/runtime focused suite currently passes 28 tests; a
+fixed-command construction test was added afterward and is pending rerun. Full
+checkout suite and root deployment remain pending. The installed service failure
+was reproduced. Transient systemd checks confirmed path metadata without
+printing passfile contents. Prior M1.1 completion evidence, PostgreSQL checks,
+optional SSH status, rollback and Steward gates remain unchanged. Next: rerun
+verification, commit, build the exact package, bootstrap the broker, redeploy,
+verify live database acceptance and rollback, then evaluate full M1.1 DoD.
+Status remains IN PROGRESS; Steward acceptance and later live dashboard/autonomy
+gates remain required.
+
+## 2026-10-10 UTC — RV-M1.1-009 / predeployment checkout closure
+
+After adding regression coverage for the four expected Python virtualenv
+symlinks, the final checkout run executed 50 tests: 50 passed, zero failed,
+zero skipped. The three PostgreSQL ledger integration tests ran against a fresh
+PostgreSQL 16 cluster under a mode-0700 temporary directory, Unix socket only,
+no TCP listener. All generated rvtest schemas were dropped; post-run count was
+0; the temporary cluster was stopped and its directory removed. The live
+commissioned PostgreSQL cluster and riverview database were not used.
+
+Targeted runtime/broker tests: 31 passed; py_compile and git diff --check passed.
+The changed-file revision subset passed: six existing controlled files each
+incremented monotonically with an independently verified predecessor backup;
+three new controlled files have revision 1.0.0. The repository-wide validator
+still reports 30 unchanged legacy files with missing revisions, including
+.gitignore, the unversioned Engineering Records Standard, and prior generated
+evidence; it reports no changed-file revision or backup defect. Preserve that
+FAIL as a pre-existing repository governance gap rather than modifying unrelated
+files or claiming global checkout compliance.
+
+Next: commit this source/docs/test increment, build and inspect its exact package,
+bootstrap the hash-pinned helper and narrow the existing project sudoers rule,
+then deploy and verify fresh live baseline/acceptance plus recovery. The package
+is not yet approved or installed; M1.1 remains IN PROGRESS.

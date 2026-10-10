@@ -1,11 +1,11 @@
 # Riverview~ runtime baseline troubleshooting and recovery
 
-**Document Revision:** 1.0.4
+**Document Revision:** 1.0.5
 **Component:** RUNTIME-BASELINE
-**Repair task:** RV-M1.1-008
+**Repair task:** RV-M1.1-009
 **Task:** RV-M1.1-001
 **Owner:** office:operations
-**Status:** path-failure diagnostics added; live commissioning and rollback NOT VERIFIED
+**Status:** systemd credential ownership cause corrected; live commissioning and rollback NOT VERIFIED
 
 ## Consolidated read-only diagnostic
 
@@ -13,8 +13,12 @@ On Camrui, inspect only the selected unit properties and sanitized JSON. Run the
 
 ```bash
 systemctl show riverview-baseline.service --property=User,Group,LoadState,Result,ExecMainStatus
-sudo python3 /opt/riverview-core/scripts/read_baseline_report.py
+sudo -n /usr/local/sbin/riverview-privctl report
+sudo -n /usr/local/sbin/riverview-privctl service status
 ```
+
+The report operation invokes the fixed sanitized reader from the root-owned
+active release. Never invoke a checkout/staging script through sudo.
 
 Optional remote diagnostic from a connected authorized development machine with a known SSH host key and noninteractive approved sudo for the reader (not a milestone acceptance requirement):
 
@@ -24,10 +28,13 @@ python scripts/check_camrui_baseline.py camrui
 
 The optional runner is bounded to 30 seconds, uses BatchMode and strict host-key checking, rejects shell syntax in destinations and preserves remote failure status. A remote connection failure is not a Camrui commissioning failure when local execution is available. Do not weaken host-key checking or add broad sudo rights to make the optional path pass.
 An expired report is intentionally stale: a request-driven baseline check does
-not provide continuous health. Refresh only the diagnostic with authorized
-`sudo systemctl start riverview-baseline.service`; no institution is dispatched.
+not provide continuous health. Refresh only with `sudo -n
+/usr/local/sbin/riverview-privctl service start`; no institution is dispatched.
 
-M1.1 acceptance is based on local execution on Camrui: after authorized installation, `sudo python3 /opt/riverview-core/scripts/capture_baseline_acceptance.py --output "/var/lib/riverview/acceptance-<UTC-stamp>.json"` runs the unit twice and retains the sanitized results. SSH only transports a request from another machine; it does not provide an independent database or runtime verification gate.
+M1.1 acceptance is based on local execution on Camrui: after authorized
+installation, `sudo -n /usr/local/sbin/riverview-privctl accept` runs the unit
+twice and retains sanitized results. SSH only transports a request from another
+machine; it does not provide an independent database or runtime verification gate.
 
 ## Node-to-fault mapping
 
@@ -38,7 +45,7 @@ M1.1 acceptance is based on local execution on Camrui: after authorized installa
 | Commissioning | Authorized root; exact package manifest; reusable release root-owned and service-readable | Existing non-symlink deployment, lock held, non-root-owned/invalid partial release | Inspect active link and root-only rollback record/checksums; stat the release path without reading credentials | Preserve invalid/untrusted release; do not delete it automatically. For a verified root-owned release, use the corrected installer to normalize read/traverse permissions and continue; it retains file bytes and rejects ownership mismatch |
 | identity | OS riverview, nonroot, nologin, systemd User=riverview | IDENTITY_MISSING / IDENTITY_MISMATCH / INTERACTIVE_SERVICE_ACCOUNT | `getent passwd riverview`; selected unit properties | Correct authorized commissioning; never run institution as root; restart probe |
 | storage | Private directory owned by runtime account | PATH_UNAVAILABLE / UNSAFE_PATH / UNSAFE_MODE; sanitized `path_failure_reason` distinguishes `symlink_in_path`, `unexpected_file_type`, and `owner_uid_mismatch` | `stat -c '%U:%G %a %F' /var/lib/riverview`; compare with the fresh probe report from inside the service unit | Do not infer the failing predicate from host metadata alone. Compare the service-context reason with systemd's `User`, `Group`, `StateDirectory`, and `StateDirectoryMode`; repair only the demonstrated mismatch, preserve path checks, then rerun |
-| credential | Fresh systemd credential from protected root source; absent passfile is captured through getpass controlling TTY with echo disabled | CREDENTIAL_MISSING / CREDENTIAL_UNREADABLE / UNSAFE_PATH / UNSAFE_MODE / AMBIENT_DATABASE_OVERRIDE; TTY I/O error fails before file creation | stat only owner/mode/path; never read credential contents | Provision only an absent passfile through hidden terminal input; rerun after correcting TTY access; O_EXCL prevents overwrite |
+| credential | Fresh systemd credential from protected root source; absent passfile is captured through getpass controlling TTY with echo disabled | CREDENTIAL_MISSING / CREDENTIAL_UNREADABLE / UNSAFE_PATH / UNSAFE_MODE / AMBIENT_DATABASE_OVERRIDE; TTY I/O error fails before file creation | Stat only metadata; never read credential contents | Validate the PID 1 credential directory/file as root-owned, non-writable, path-stable, and service-readable; provision only an absent source passfile |
 | database | Read-only TCP connection, expected DB/role and scoped privileges | DATABASE_UNAVAILABLE / DATABASE_IDENTITY_MISMATCH / EXCESS_DATABASE_PRIVILEGE / READ_ONLY_REQUIRED / DEPENDENCY_MISSING | `systemctl is-active postgresql`; `pg_lsclusters`; `.venv/bin/python -c 'import psycopg; print(psycopg.__version__)'` | Restore dependency or reviewed permissions; no password resets or public schema changes; restart probe |
 | schema | Existing riverview_dev owner and USAGE/CREATE | SCHEMA_MISSING / SCHEMA_AUTHORITY_MISMATCH | Authorized DBA queries pg_namespace/has_schema_privilege; do not initialize via PostgresLedger constructor | Reconcile with prior baseline evidence; reviewed schema repair only; restart probe |
 | ready / observer | Fresh rv.runtime-baseline.v1 with observed/expiry time | REPORT_UNAVAILABLE / stale / nonzero probe | Independent report consumer; check clock and unit result | Diagnose missing/partial report, then refresh probe; never call expired evidence healthy |
@@ -53,6 +60,24 @@ unit environments, delete WAL or modify assignments to make diagnostics pass.
 ## Failed terminal prompt and safe commissioning retry
 
 RV-M1.1-007 reproduced io.UnsupportedOperation: File or stream is not seekable when a text wrapper was opened on /dev/tty and passed as getpass output. The helper now calls getpass.getpass() without a caller-supplied stream; Python opens and controls the terminal directly. GetPassWarning is treated as an error, so input never falls back to echoed stdin. A failed prompt occurs before exclusive passfile creation; do not inspect or print credential contents.
+
+## UNSAFE_PATH root cause and correction
+
+The persisted `UNSAFE_PATH` / `step_id=storage` report was misleading about which
+path had failed. The service-owned `/var/lib/riverview` passed its exact lstat,
+resolve, owner, type and mode checks inside the service sandbox. The later call
+checked `CREDENTIALS_DIRECTORY`'s parent using the same runtime-UID directory
+rule. On this host PID 1 creates that directory root-owned mode 0550 and the
+credential file root-owned mode 0440; systemd grants the service read/traverse
+access. The generic directory helper therefore rejected the expected owner.
+
+The corrected implementation keeps private state UID/mode checks unchanged and
+uses a separate systemd-credential validator: fixed credential location, no
+symlinked path, root-owned directory mode 0550, root-owned regular file mode
+0440, nonempty content, and actual service read access. It does not read or log
+credential bytes. Regression tests cover the observed ownership contract and
+reject an unexpected credential location. Host execution must still verify the
+real unit and database result before M1.1 acceptance.
 
 A retry after that prompt failure is safe when read-only inspection confirms the known partial state: the riverview system account exists with a non-login shell; /etc/riverview is root-owned mode 0700; /etc/riverview/pgpass is absent; the attempted versioned release is a root-owned directory; /var/lib/riverview, /opt/riverview-core, and the service unit are absent. Use a fresh, verified package and rerun the installer. It reuses the account and exact release, rejects a symlink/non-directory or non-root-owned release, makes files readable and directories traversable for the service, and strips group/other write access before continuing. It does not overwrite an existing passfile. Never edit the failed staged package or delete the partial release. If ownership differs, stop and retain it for diagnosis.
 
@@ -79,7 +104,7 @@ introduced by a first install), and reloads systemd. It retains accounts,
 credentials, releases, state and backups; never touches PostgreSQL.
 
 ```bash
-sudo sh /opt/riverview-core/deploy/rollback_baseline.sh /var/backups/riverview-baseline.XXXXXXXX
+sudo -n /usr/local/sbin/riverview-privctl rollback riverview-baseline.XXXXXXXX
 ```
 
 If a prior baseline unit existed, explicitly start it and inspect its result.
@@ -102,6 +127,8 @@ continuous monitoring and notification/resume contracts; this commissioning CLI
 does not substitute for them.
 
 ## Revision history
+
+- 1.0.5: Record proven systemd credential ownership mismatch, safe predicate split and scoped broker usage; predecessor `.riverview-backups/20261010T142904528427Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md`.
 
 - 1.0.3: Explain non-seeking hidden TTY capture and validated partial-install retry; predecessor under docs/history/RV-M1.1-007/rev1.0.2/docs/components/RUNTIME_BASELINE_COOKBOOK.md.
 

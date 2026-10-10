@@ -1,13 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_runtime_baseline.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Identity/credential security, DB contract, observer and package regression tests
 # Execution Model: Request-driven tests; simulated DB explicitly distinct from live proof
 # Observability: unittest counts and failures
 # Dependencies: Python 3.10+, Git, Linux
 # Authority: Temporary fixtures only; no live DB or credentials
-# Changed: 2026-10-10 UTC | RV-M1.1-008 | Cover installed unit storage contract and path rejection reasons
+# Changed: 2026-10-10 UTC | RV-M1.1-009 | Reproduce and validate systemd credential mount ownership
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: This file
 # History: docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py
@@ -19,6 +19,7 @@ import os
 import pty
 import secrets
 import select
+import stat
 from pathlib import Path
 import subprocess
 import sys
@@ -52,6 +53,7 @@ class RuntimeBaselineTests(unittest.TestCase):
         with patch.object(baseline.pwd, "getpwnam", return_value=account), \
              patch.object(baseline.os, "geteuid", return_value=12345), \
              patch.object(baseline, "private_path"), \
+             patch.object(baseline, "systemd_credential_path"), \
              patch.dict(os.environ, environ or {}, clear=True):
             report, code = baseline.probe(passfile=Path("/credentials/pgpass"),
                                           state_dir=Path("/var/lib/riverview"), connect=connect)
@@ -161,6 +163,23 @@ class RuntimeBaselineTests(unittest.TestCase):
             state = Path(folder) / "riverview"
             state.mkdir(mode=0o700)
             baseline.private_path(state, os.getuid(), directory=True)
+
+    def test_systemd_root_owned_credential_mount_is_accepted_without_relaxing_state_paths(self):
+        expected_dir = Path("/run/credentials/riverview-baseline.service")
+        expected_file = expected_dir / "pgpass"
+        dir_stat = SimpleNamespace(st_mode=stat.S_IFDIR | 0o550, st_uid=0)
+        file_stat = SimpleNamespace(st_mode=stat.S_IFREG | 0o440, st_uid=0, st_size=16)
+        with patch.dict(os.environ, {"CREDENTIALS_DIRECTORY": str(expected_dir)}), \
+             patch.object(Path, "lstat", autospec=True,
+                          side_effect=lambda p: dir_stat if p == expected_dir else file_stat), \
+             patch.object(Path, "resolve", autospec=True, side_effect=lambda p, **kw: p.absolute()), \
+             patch.object(baseline.os, "access", return_value=True):
+            baseline.systemd_credential_path(expected_file)
+
+    def test_systemd_credential_delivery_rejects_wrong_directory_and_user_writable_file(self):
+        with patch.dict(os.environ, {"CREDENTIALS_DIRECTORY": "/tmp/user-controlled"}):
+            with self.assertRaisesRegex(baseline.BaselineError, "unexpected_credential_location"):
+                baseline.systemd_credential_path(Path("/tmp/user-controlled/pgpass"))
 
     def test_storage_path_failure_reports_reason_and_keeps_blocker_code(self):
         identity = SimpleNamespace(pw_uid=12345, pw_shell="/usr/sbin/nologin")

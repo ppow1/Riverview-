@@ -1,11 +1,11 @@
 # Riverview~ M1.1 runtime baseline commissioning
 
-**Document Revision:** 1.0.4
+**Document Revision:** 1.0.5
 **Component:** RUNTIME-BASELINE
-**Repair task:** RV-M1.1-008
+**Repair task:** RV-M1.1-009
 **Task:** RV-M1.1-001 / GitHub Issue #1
 **Owner:** office:operations; accepting authority: Steward
-**Status:** terminal-input and partial-release repair complete; storage-path cause diagnosis in progress
+**Status:** security-contract repair and privileged deployment broker implemented; live commissioning in progress
 **Date:** 2026-10-10 UTC
 
 ## Responsibility and declared execution model
@@ -36,7 +36,7 @@ No roadmap or architecture requirement is waived by this package.
 | Runtime Python | release-local `.venv`, Psycopg binary 3.2.10; root installs dependencies with TLS verification |
 | State / diagnostic storage | `/var/lib/riverview`, riverview-owned mode 0700; no institutional state is stored here |
 | Persistent credential source | `/etc/riverview/pgpass`, root:root mode 0600; parent mode 0700 |
-| Runtime credential | systemd `LoadCredential=pgpass`; temporary, service-readable file in `CREDENTIALS_DIRECTORY` |
+| Runtime credential | systemd `LoadCredential=pgpass`; temporary, service-readable root-owned file in `CREDENTIALS_DIRECTORY` (observed file 0440, directory 0550) |
 | Database | existing PostgreSQL 16, `riverview`, role `riverview_core`, TCP `127.0.0.1:5432` |
 | Isolated schema | existing `riverview_dev`, actual owner reported, riverview_core USAGE/CREATE rights checked without DDL |
 | Database files | PostgreSQL-managed storage; prior readiness evidence reused; new ownership inspection NOT VERIFIED |
@@ -57,6 +57,48 @@ the restrictive top-directory mode copied from a private staging directory.
 Do not delete these until an explicitly approved retention decision; preserve a
 second protected backup off-host before changing a critical deployed predecessor.
 First-install rollback retains accounts, credentials and empty state directories.
+
+## Privileged deployment boundary
+
+The privileged entry point is `/usr/local/sbin/riverview-privctl`, installed
+`root:root` mode 0755 in root-controlled parent directories. The project-specific
+`/etc/sudoers.d/90-riverview-codex` rule is preserved and replaced with exact
+helper invocations; it no longer grants `NOPASSWD: ALL`. The helper accepts only `deploy
+<registered-package-id>`, `service {start|stop|restart|status}`, `report`, `accept`, and
+`rollback <validated-installer-record-id>`. It rejects shell strings, arbitrary
+paths, extra arguments, unit names, and unregistered packages. The initial
+policy pins one package archive SHA-256 and its 40-character Git source commit;
+policy and package bytes are root-owned, with policy mode 0600 and archive mode
+0400. A new package requires a separately reviewed root-policy update; Codex
+cannot authorize its own new root-executed code.
+
+Before deployment the helper verifies the exact archive digest, embedded source
+commit, file checksum manifest, required component files, archive bounds, and
+safe regular-file-only member paths. It extracts into a root-owned release and
+refuses package symlinks/hardlinks, conflicting partial files, writable release
+content, and unsafe ownership. In the resulting tree it permits only the four
+fixed Python virtual-environment links, each constrained to the release's lib
+directory or system `/usr/bin/python3` target. Only then does it execute the
+fixed installer path from that checked root-owned release. No user-writable checkout or staging script is
+executed as root. Project operations target one service, acceptance output uses
+a generated protected-state path, and rollback identifiers resolve only below
+`/var/backups`. OS configuration outside the Riverview-specific paths is outside
+the helper's authority.
+
+The one-time bootstrap preserves a checksummed copy of the prior project
+sudoers file, validates pinned helper and package hashes, installs the
+root-owned helper, package and policy, validates the constrained sudoers file
+with `visudo`, and enables NOPASSWD only for enumerated helper operations. This is not a
+passwordless root shell: the helper enforces its command grammar and performs
+root-side validation. No database credentials are included in package, policy,
+helper arguments, or evidence.
+
+The runtime diagnostic validates private state as service-owned. It validates
+systemd credential delivery separately: PID 1 creates
+`/run/credentials/riverview-baseline.service` as root-owned mode 0550 and
+`pgpass` as root-owned mode 0440, with service read/traverse access. Requiring
+these systemd-managed objects to be owned by the runtime UID was a contract bug;
+their root ownership and non-writable modes are security requirements.
 
 ## Credential delivery and configuration
 
@@ -92,14 +134,15 @@ consumer `scripts/read_baseline_report.py`, optionally over authenticated SSH.
 Schema `rv.runtime-baseline.v1`: stable component/version, source commit, target
 host, workflow/step, observation/expiry time, freshness, baseline readiness,
 database/environment identities, blocker/error code, owner, recovery and diagnostic
-reference. `path_failure_reason` is null except for `UNSAFE_PATH`; then it is one
-of `symlink_in_path`, `unexpected_file_type`, or `owner_uid_mismatch`. These fixed
-values identify the rejected path predicate without disclosing path contents or
+reference. `path_failure_reason` is null except for `UNSAFE_PATH`; then it is a
+fixed value such as `symlink_in_path`, `unexpected_file_type`,
+`owner_uid_mismatch`, `unexpected_credential_location`,
+`credential_directory_owner_mismatch`, or `credential_file_owner_mismatch`.
+These values identify the rejected predicate without disclosing path contents or
 weakening validation. `heartbeat_at`, meaningful progress and event cursor are explicitly
 null: this diagnostic cannot claim an institutional heartbeat or durable progress.
 
-Authentication: local OS permissions and root-owned source. A separate remote observer may use SSH with strict host-key verification; SSH is a transport option, not a commissioning acceptance requirement. Operators use existing authorized sudo for the read-only report consumer;
-the package adds no sudoers entry and grants no remote API/control authority.
+Authentication: local OS permissions and root-owned source. A separate remote observer may use SSH with strict host-key verification; SSH is a transport option, not a commissioning acceptance requirement. The scoped helper permits only listed Riverview operations and grants no remote API/control authority.
 Ordinary clients cannot read protected files directly. Private Undercurrent
 content is neither queried nor exported. Future CME/dashboard consumers must
 use a policy-filtered owning service, not receive this credential or scrape DB internals.
@@ -137,24 +180,29 @@ tar -xzf "$archive" -C "$stage"
  sh -n deploy/install_baseline.sh && sh -n deploy/rollback_baseline.sh)
 ```
 
-Installation is a privileged host change. Only after explicit authorization, run this exact command from the verified staging package:
+The one-time bootstrap pins and installs the reviewed helper and exact package
+digest. Subsequent deployment uses the registered immutable package ID. Never
+invoke an untrusted checkout or staging installer through sudo.
 
 ```bash
-sudo sh "$stage/deploy/install_baseline.sh"
+sudo -n /usr/local/sbin/riverview-privctl deploy initial-m11
 ```
 
-It requires root to create/use the riverview system identity, root-owned release and credential paths, persistent state ownership, and the systemd unit; it may install the pinned Python dependency and start the diagnostic unit. It does not reset the database password or initialize/alter database schemas. If /etc/riverview/pgpass is absent, Python getpass reads from its controlling terminal with echo disabled and creates that file exclusively. It does not wrap /dev/tty in a seekable text stream; environments that cannot disable echo fail closed instead of falling back to visible input. A failed prompt leaves the passfile absent, so rerun with a newly verified package after correcting the cause; the installer reuses the root-owned account/release and normalizes release access safely.
+The approved immutable installer may create/use the Riverview identity, release,
+credential and state paths, and one systemd unit; it may install the pinned
+Python dependency. It does not reset the database password or initialize/alter
+database schemas. If the passfile is absent, hidden terminal capture is used and
+fails closed if echo cannot be disabled.
 
 After authorized installation, capture two fresh local service observations with the acceptance collector:
 
 ```bash
 cd /opt/riverview-core
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
-sudo python3 scripts/capture_baseline_acceptance.py --output "/var/lib/riverview/acceptance-$stamp.json"
-sudo cat "/var/lib/riverview/acceptance-$stamp.json"
+sudo -n /usr/local/sbin/riverview-privctl accept
 ```
 
-The collector requires root to start the local systemd unit and write the mode-0600 evidence file under root-protected state. Its probe makes only read-only PostgreSQL queries. The resulting sanitized report is local Camrui evidence; neither an SSH round-trip nor the collector itself constitutes Steward acceptance.
+The broker runs the fixed collector from the root-owned active release, starts only the local unit, and writes a mode-0600 report under protected state. Its probe makes only read-only PostgreSQL queries. The sanitized report is local Camrui evidence; neither an SSH round-trip nor the collector itself constitutes Steward acceptance.
 
 ## Windows-to-Camrui installation
 
@@ -209,9 +257,13 @@ PowerShell text pipelines to write tarballs or deployment scripts. The failed
 Windows archive and `/home/admin1/riverview-M1.1.pyDz8Jfi` staging directory remain
 untouched; do not overwrite `/home/admin1/riverview-M1.1.tar.gz`.
 
-On Camrui, use the exact new archive path printed above and a newly created staging directory; do not extract over the existing
-development checkout. Compare archive SHA-256 to the builder output before running
-code. Record the unique staging path and rollback path printed by the installer.
+On Camrui, use the exact new archive path printed above and a newly created
+staging directory; do not extract over the existing development checkout. Compare
+archive SHA-256 to the builder output. Whether the engineer is already on Camrui
+or connects from Windows, host-side operations are local to Camrui. Windows SSH
+is only a transport to that host; it is unnecessary when execution is native.
+After the one-time root-owned broker bootstrap, package verification and
+deployment use the broker-registered package ID.
 
 ```bash
 archive=/home/admin1/<new-archive-name-printed-by-Windows>
@@ -219,21 +271,17 @@ sha256sum "$archive"
 stage=$(mktemp -d /home/admin1/riverview-M1.1.XXXXXXXX)
 tar -xzf "$archive" -C "$stage"
 cd "$stage"
-sha256sum --check --strict PACKAGE_SHA256SUMS
 python3 scripts/verify_camrui_package.py "$archive"
 sh -n deploy/install_baseline.sh
 sh -n deploy/rollback_baseline.sh
-sudo sh deploy/install_baseline.sh
+sudo -n /usr/local/sbin/riverview-privctl deploy initial-m11
 ```
 
 Enter the existing database password only into the non-echoed Camrui terminal
 prompt if the protected credential file is absent. Then capture live outcomes:
 
 ```bash
-cd /opt/riverview-core
-stamp=$(date -u +%Y%m%dT%H%M%SZ)
-sudo python3 scripts/capture_baseline_acceptance.py --output "/var/lib/riverview/acceptance-$stamp.json"
-sudo cat "/var/lib/riverview/acceptance-$stamp.json"
+sudo -n /usr/local/sbin/riverview-privctl accept
 ```
 
 The collector starts the probe twice with systemd, compares source commit and
@@ -249,6 +297,7 @@ and any explicit sequencing decision remain required before M1.2.
 ## Revision history
 
 - 1.0.3 — 2026-10-10: Document non-seeking hidden terminal input and safe rerun behavior for the root-owned partial release; preserve predecessor under docs/history/RV-M1.1-007/rev1.0.2/docs/components/RUNTIME_BASELINE.md.
+- 1.0.5 — 2026-10-10: Pin the scoped root broker and correct the systemd credential-directory ownership contract; predecessor `.riverview-backups/20261010T142904371319Z/docs/components/RUNTIME_BASELINE.md`.
 
 - 1.0.2: Add direct local Camrui packaging/commissioning path and clarify SSH is optional transport, not an acceptance gate; predecessor under docs/history/RV-M1.1-004/rev1.0.1/docs/components/RUNTIME_BASELINE.md.
 - 1.0.1: Raw-blob packaging, archive-byte verification and preserved failure/new-path retry procedure; predecessor under docs/history/RV-M1.1-002/rev1.0.0.

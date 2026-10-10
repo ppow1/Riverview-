@@ -1,13 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/runtime_baseline.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Read-only M1.1 identity, credential and PostgreSQL commissioning probe
 # Execution Model: Request-driven diagnostic; no institutional work loop
 # Observability: rv.runtime-baseline.v1 JSON stdout; freshness expires after 60s
 # Dependencies: Python 3.10+, Psycopg 3, Linux, PostgreSQL
 # Authority: Read-only; never provisions, changes passwords or initializes tables
-# Changed: 2026-10-10 UTC | RV-M1.1-008 | Classify rejected-path predicates without weakening checks
+# Changed: 2026-10-10 UTC | RV-M1.1-009 | Validate systemd root-owned credential delivery separately
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: tests/test_runtime_baseline.py
 # History: New file; no predecessor; Git
@@ -46,6 +46,43 @@ def private_path(path, uid, *, directory=False):
             raise BaselineError("CREDENTIAL_UNREADABLE", "credential")
     except OSError:
         raise BaselineError("PATH_UNAVAILABLE", "credential" if not directory else "storage") from None
+
+
+def systemd_credential_path(path):
+    """Validate systemd's root-owned, read-only credential mount and its file.
+
+    The credential is copied by PID 1 into /run/credentials/<unit>. That
+    directory and file are intentionally root-owned; systemd grants the service
+    read/traverse access. Runtime-owned state uses private_path() instead.
+    """
+    step = "credential"
+    try:
+        expected_dir = Path("/run/credentials/riverview-baseline.service")
+        configured_dir = os.environ.get("CREDENTIALS_DIRECTORY")
+        parent = path.parent
+        if (configured_dir is None or Path(configured_dir) != expected_dir or
+                parent != expected_dir or path.name != "pgpass"):
+            raise BaselineError("UNSAFE_PATH", step, "unexpected_credential_location")
+        if expected_dir.resolve() != expected_dir.absolute() or path.resolve() != path.absolute():
+            raise BaselineError("UNSAFE_PATH", step, "symlink_in_path")
+        directory_info = expected_dir.lstat()
+        if not stat.S_ISDIR(directory_info.st_mode):
+            raise BaselineError("UNSAFE_PATH", step, "unexpected_file_type")
+        if directory_info.st_uid != 0:
+            raise BaselineError("UNSAFE_PATH", step, "credential_directory_owner_mismatch")
+        if stat.S_IMODE(directory_info.st_mode) != 0o550 or not os.access(expected_dir, os.X_OK, effective_ids=True):
+            raise BaselineError("UNSAFE_MODE", step, "unsafe_credential_directory_mode")
+        info = path.lstat()
+        if not stat.S_ISREG(info.st_mode):
+            raise BaselineError("UNSAFE_PATH", step, "unexpected_file_type")
+        if info.st_uid != 0:
+            raise BaselineError("UNSAFE_PATH", step, "credential_file_owner_mismatch")
+        if stat.S_IMODE(info.st_mode) != 0o440 or info.st_size == 0:
+            raise BaselineError("UNSAFE_MODE", step, "unsafe_credential_file_mode")
+        if not os.access(path, os.R_OK, effective_ids=True):
+            raise BaselineError("CREDENTIAL_UNREADABLE", step, "credential_not_readable")
+    except OSError:
+        raise BaselineError("PATH_UNAVAILABLE", step) from None
 
 
 def check_database(connect, passfile):
@@ -110,8 +147,7 @@ def probe(*, passfile, state_dir, account="riverview", connect=None):
         result["step_id"] = "credential"
         if passfile is None:
             raise BaselineError("CREDENTIAL_MISSING", "credential")
-        private_path(passfile.parent, identity.pw_uid, directory=True)
-        private_path(passfile, identity.pw_uid)
+        systemd_credential_path(passfile)
         if any(os.environ.get(name) for name in ("PGPASSWORD", "PGSERVICE", "PGSERVICEFILE", "PGOPTIONS")):
             raise BaselineError("AMBIENT_DATABASE_OVERRIDE", "credential")
         result["step_id"] = "database"

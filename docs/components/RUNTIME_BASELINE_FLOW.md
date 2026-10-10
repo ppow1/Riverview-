@@ -1,15 +1,17 @@
 # Riverview~ runtime baseline process map
 
-**Document Revision:** 1.0.2
+**Document Revision:** 1.0.3
 **Component:** RUNTIME-BASELINE
-**Repair task:** RV-M1.1-007
+**Repair task:** RV-M1.1-009
 **Workflow:** runtime-baseline.v1
 **Task:** RV-M1.1-001
-**Status:** TTY and retry flow corrected in source; Camrui execution NOT VERIFIED
+**Status:** scoped privilege broker and credential-path correction implemented; live acceptance NOT VERIFIED
 
 ```mermaid
 flowchart TD
-  P[Authorized one-time commissioning] --> F{package_bytes: checksum and LF-only shells?}
+  P[One-time hash-pinned bootstrap] --> B0[Root-owned fixed-operation broker and package policy]
+  B0 --> P0[Deploy registered package ID only]
+  P0 --> F{package hash, commit, manifest and safe members valid?}
   F -- No --> X[Preserve failed package; rebuild corrected source]
   X --> F
   F -- Yes --> C[Preserve unit and prior release; validate or stage root-owned release]
@@ -44,12 +46,12 @@ flowchart TD
   E --> A{Steward accepts and resolves sequencing?}
   A -- No --> H[Record acceptance hold; remain at M1.1]
   A -- Yes --> N[Next engineering step M1.2]
-  R -- Bad deployment --> K[Restore verified unit and release predecessor]
+  R -- Bad deployment --> K[Broker validates record ID; restore predecessor]
   K --> S
 ```
 
-`package_bytes` is an engineering preflight reported by rv.package-verification.v1,
-not an institutional workflow event. It checks both scripts before host mutation.
+`package_bytes` is enforced by the root-owned broker before host mutation; it
+checks the exact approved archive digest, source commit, manifest and safe members.
 
 Stable probe step IDs `identity`, `storage`, `credential`, `database`, `schema`,
 `ready` are emitted in JSON on failure/success and map directly to the
@@ -57,12 +59,15 @@ Stable probe step IDs `identity`, `storage`, `credential`, `database`, `schema`,
 read-only; no assignment events, recovery authority, worker or CME loops are
 claimed here. Notifications are operator-visible exit codes/reports; automated
 durable notification remains M3.2. The acceptance hold governs engineering
-sequencing, not ongoing authorized institutional execution.
+sequencing, not ongoing authorized institutional execution. PID 1's root-owned
+read-only credential mount is validated separately from runtime-owned state.
 
 Restart means a new systemd diagnostic invocation and fresh credential delivery;
 the latest report is replaced and immutable acceptance artifacts remain retained.
 
 ## Revision history
+
+- 1.0.3: Add hash-pinned broker flow and corrected systemd credential ownership contract; predecessor `.riverview-backups/20261010T142904684465Z/docs/components/RUNTIME_BASELINE_FLOW.md`.
 
 - 1.0.2: Add hidden-TTY credential capture and safe retained-release retry branches; predecessor under docs/history/RV-M1.1-007/rev1.0.1/docs/components/RUNTIME_BASELINE_FLOW.md.
 
