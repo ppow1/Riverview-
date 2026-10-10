@@ -1,6 +1,6 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
 // File: src/riverview_core/status_dashboard/static/workflow.js
-// Revision: 1.0.0
+// Revision: 1.0.1
 // Purpose: Render a read-only SVG view from the canonical process graph API.
 // Execution Model: Browser request-driven; loaded only by the authenticated workflow view.
 // Observability: Displays graph revision, node identities, references and explicit live-position state.
@@ -81,7 +81,7 @@
     }
     svg.append(edgeLayer);
     for (const item of nodes) {
-      const pos=xy.get(item.id), group=node("g",{class:`graph-node graph-${item.type}${position?.status==="current"&&position.node_id===item.id?" graph-live-current":"",tabindex:0,role:"button","aria-label":`${item.type}: ${item.label}`});
+      const pos=xy.get(item.id), group=node("g",{class:`graph-node graph-${item.type}${position?.status==="current"&&position.node_id===item.id?" graph-live-current":""}`,tabindex:0,role:"button","aria-label":`${item.type}: ${item.label}`});
       const rectAttrs={x:pos.x,y:pos.y,width:cardW,height:cardH,rx:12,class:"graph-node-shape"};
       if (item.type === "decision") {
         group.append(node("polygon",{points:`${pos.x+cardW/2},${pos.y} ${pos.x+cardW},${pos.y+cardH/2} ${pos.x+cardW/2},${pos.y+cardH} ${pos.x},${pos.y+cardH/2}`,class:"graph-node-shape"}));
