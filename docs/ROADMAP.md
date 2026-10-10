@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.0.5
+**Document Revision:** 1.0.6
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-09  
 **Component:** RV-ROADMAP  
@@ -110,7 +110,9 @@ Deliverable: capability discovery and replaceable adapters for OctoMiner-hosted 
 
 **M1.3:** Scoped technical commissioning PASS on Camrui at source commit `9ca7cb189d1e1f57c69395303a9367fabd979ff5`. Migration 0002, unattended event progression, causal ordering, durable cursor, restart, PostgreSQL session-loss recovery, rollback/redeployment, and M1.1 preservation are verified. The full component DoD remains OPEN; this is not a claim that the later dashboard, autonomy, external observability, or project completion criteria are satisfied.
 
-**Current step: M1.4 — Independent assignment scheduling (isolated engineering).** Begin contract review and isolated design/tests. M1.4 must implement concurrent independent progress, fair dispatch, leases and stale-worker fencing. Do not deploy shared-schema changes before the M1.4 controlled commissioning and recovery preflight; preserve M1.1/M1.2/M1.3 operation.
+**M1.4:** Isolated technical criteria verified at source commit `549bd08b9b1800981c6c4c006dbe59d8fed0a799`: age-ordered independent claims, an active stalled lease not blocking unrelated progress, concurrent distinct claims, expiry generation increment, stale token rejection, and idempotent start. Evidence is in the M1.4-001 engineering record. No shared-schema migration, service deployment, operational commissioning, or full component DoD is claimed.
+
+**Current step: M2.1 — Minimal registered worker adapter (isolated engineering).** Begin with a deterministic local task and capability registration against the lease/fencing interface. Do not integrate GPU hardware. Preserve M1.1/M1.2/M1.3 live operation; M1.4 shared-schema commissioning remains a separate controlled deployment task.
 
 ## Revision history
 
@@ -121,3 +123,4 @@ Deliverable: capability discovery and replaceable adapters for OctoMiner-hosted 
 - **1.0.3 — 2026-10-10:** Record M1.3 isolated implementation and test status; milestone remains in progress pending supervised deployment and operational acceptance.
 - **1.0.4 — 2026-10-10:** Record M1.3 controlled commissioning, event-ordering correction, credential-delivery contract and recovery workflow; keep milestone active pending executed Camrui evidence.
 - **1.0.5 — 2026-10-10:** Record scoped M1.3 technical commissioning PASS and advance the engineering cursor to isolated M1.4 work; full component DoD remains open.
+- **1.0.6 — 2026-10-10:** Record M1.4 isolated roadmap technical criteria as verified and start M2.1 isolated worker-adapter engineering; M1.4 deployment and full component DoD remain open.

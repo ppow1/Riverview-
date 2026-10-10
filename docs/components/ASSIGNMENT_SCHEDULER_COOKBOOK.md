@@ -1,9 +1,9 @@
 # Riverview~ assignment scheduler cookbook
 
-**Document Revision:** 1.0.1
+**Document Revision:** 1.0.2
 **Component:** ASSIGNMENT-SCHEDULER
 **Task:** RV-M1.4-001
-**Status:** IN PROGRESS — isolated PostgreSQL verification only
+**Status:** Isolated technical criteria verified; no shared-schema migration or runtime deployment
 
 ## Isolated schema verification
 

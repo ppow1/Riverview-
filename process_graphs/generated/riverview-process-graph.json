@@ -4,7 +4,7 @@
   "graphs": [
     {
       "graph_id": "rv:assignment-scheduler:independent-claims",
-      "graph_revision": "1.0.3",
+      "graph_revision": "1.0.4",
       "component_id": "ASSIGNMENT-SCHEDULER",
       "workflow_id": "independent-assignment-claims.v1",
       "diagram_order": 6,
@@ -21,7 +21,8 @@
         "docs/development/M1.4-001_REVISION_RECORD.md"
       ],
       "verification_evidence": [
-        "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+        "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+        "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json"
       ],
       "nodes": [
         {
@@ -103,7 +104,8 @@
             "docs/components/ASSIGNMENT_SCHEDULER.md"
           ],
           "verification_evidence": [
-            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json"
           ]
         },
         {
@@ -119,7 +121,8 @@
             "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md"
           ],
           "verification_evidence": [
-            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json"
           ]
         },
         {
@@ -134,7 +137,8 @@
             "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md"
           ],
           "verification_evidence": [
-            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json"
           ]
         },
         {
@@ -149,7 +153,8 @@
             "docs/components/ASSIGNMENT_SCHEDULER.md"
           ],
           "verification_evidence": [
-            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json"
           ]
         },
         {
@@ -164,7 +169,8 @@
             "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md"
           ],
           "verification_evidence": [
-            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json"
           ]
         },
         {
@@ -180,7 +186,8 @@
             "docs/components/ASSIGNMENT_SCHEDULER.md"
           ],
           "verification_evidence": [
-            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+            "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json"
           ]
         },
         {

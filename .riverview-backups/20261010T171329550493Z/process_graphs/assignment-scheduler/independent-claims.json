@@ -1,0 +1,261 @@
+{
+  "graph_id": "rv:assignment-scheduler:independent-claims",
+  "graph_revision": "1.0.3",
+  "component_id": "ASSIGNMENT-SCHEDULER",
+  "workflow_id": "independent-assignment-claims.v1",
+  "diagram_order": 6,
+  "source_references": [
+    "src/riverview_core/assignment_scheduler/scheduler.py",
+    "src/riverview_core/assignment_scheduler/migrations/0001_assignment_leases.sql",
+    "src/riverview_core/postgres_ledger.py",
+    "tests/test_assignment_scheduler.py"
+  ],
+  "documentation_references": [
+    "docs/components/ASSIGNMENT_SCHEDULER_FLOW.md",
+    "docs/components/ASSIGNMENT_SCHEDULER.md",
+    "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md",
+    "docs/development/M1.4-001_REVISION_RECORD.md"
+  ],
+  "verification_evidence": [
+    "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+  ],
+  "nodes": [
+    {
+      "id": "rv:assignment-scheduler:independent-claims:start",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Scheduler claim request",
+      "source_references": [
+        "src/riverview_core/assignment_scheduler/scheduler.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_SCHEDULER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:assignment-scheduler:independent-claims:preflight",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Require explicitly installed M1.4 lease migration",
+      "source_references": [
+        "src/riverview_core/assignment_scheduler/scheduler.py",
+        "src/riverview_core/assignment_scheduler/migrations/0001_assignment_leases.sql"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:assignment-scheduler:independent-claims:ready-query",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Select oldest ready assignment without active lease using SKIP LOCKED",
+      "source_references": [
+        "src/riverview_core/assignment_scheduler/scheduler.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_SCHEDULER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:assignment-scheduler:independent-claims:candidate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Eligible assignment found?",
+      "source_references": [
+        "src/riverview_core/assignment_scheduler/scheduler.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_SCHEDULER_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:assignment-scheduler:independent-claims:empty",
+      "node_revision": "1.0.0",
+      "type": "exit",
+      "label": "No eligible ready assignment",
+      "source_references": [
+        "src/riverview_core/assignment_scheduler/scheduler.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:assignment-scheduler:independent-claims:claim",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Persist worker lease and increment fencing generation",
+      "source_references": [
+        "src/riverview_core/assignment_scheduler/scheduler.py",
+        "src/riverview_core/assignment_scheduler/migrations/0001_assignment_leases.sql"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_SCHEDULER.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+      ]
+    },
+    {
+      "id": "rv:assignment-scheduler:independent-claims:expiry",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Track database-clock lease expiry and heartbeat",
+      "source_references": [
+        "src/riverview_core/assignment_scheduler/scheduler.py",
+        "src/riverview_core/assignment_scheduler/migrations/0001_assignment_leases.sql"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+      ]
+    },
+    {
+      "id": "rv:assignment-scheduler:independent-claims:reclaim",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Reclaim expired lease with a strictly newer generation",
+      "source_references": [
+        "src/riverview_core/assignment_scheduler/scheduler.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+      ]
+    },
+    {
+      "id": "rv:assignment-scheduler:independent-claims:start-check",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Check current worker, generation, and unexpired lease atomically",
+      "source_references": [
+        "src/riverview_core/assignment_scheduler/scheduler.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_SCHEDULER.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+      ]
+    },
+    {
+      "id": "rv:assignment-scheduler:independent-claims:stale",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject stale or expired lease token",
+      "source_references": [
+        "src/riverview_core/assignment_scheduler/scheduler.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+      ]
+    },
+    {
+      "id": "rv:assignment-scheduler:independent-claims:running",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Atomically transition ready assignment to running with causal event",
+      "source_references": [
+        "src/riverview_core/assignment_scheduler/scheduler.py",
+        "src/riverview_core/postgres_ledger.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_SCHEDULER.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json"
+      ]
+    },
+    {
+      "id": "rv:assignment-scheduler:independent-claims:ready-jump",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "M1.3 event processor makes queued work ready",
+      "jump_target_id": "rv:event-processor:assignment-progression:advance",
+      "source_references": [
+        "src/riverview_core/event_processor.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_SCHEDULER.md"
+      ],
+      "verification_evidence": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:assignment-scheduler:independent-claims:start",
+      "to": "rv:assignment-scheduler:independent-claims:preflight",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:assignment-scheduler:independent-claims:preflight",
+      "to": "rv:assignment-scheduler:independent-claims:ready-query",
+      "type": "runtime_transition",
+      "label": "Lease schema available"
+    },
+    {
+      "from": "rv:assignment-scheduler:independent-claims:ready-query",
+      "to": "rv:assignment-scheduler:independent-claims:candidate",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:assignment-scheduler:independent-claims:candidate",
+      "to": "rv:assignment-scheduler:independent-claims:empty",
+      "type": "runtime_transition",
+      "label": "No"
+    },
+    {
+      "from": "rv:assignment-scheduler:independent-claims:candidate",
+      "to": "rv:assignment-scheduler:independent-claims:claim",
+      "type": "runtime_transition",
+      "label": "Yes"
+    },
+    {
+      "from": "rv:assignment-scheduler:independent-claims:claim",
+      "to": "rv:assignment-scheduler:independent-claims:expiry",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:assignment-scheduler:independent-claims:expiry",
+      "to": "rv:assignment-scheduler:independent-claims:reclaim",
+      "type": "recovery_route",
+      "label": "Expired lease; generation increments"
+    },
+    {
+      "from": "rv:assignment-scheduler:independent-claims:claim",
+      "to": "rv:assignment-scheduler:independent-claims:start-check",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:assignment-scheduler:independent-claims:start-check",
+      "to": "rv:assignment-scheduler:independent-claims:stale",
+      "type": "diagnostic_branch",
+      "label": "Token no longer current"
+    },
+    {
+      "from": "rv:assignment-scheduler:independent-claims:start-check",
+      "to": "rv:assignment-scheduler:independent-claims:running",
+      "type": "runtime_transition",
+      "label": "Current lease"
+    },
+    {
+      "from": "rv:assignment-scheduler:independent-claims:ready-jump",
+      "to": "rv:event-processor:assignment-progression:advance",
+      "type": "jump",
+      "label": "Open the M1.3 ready-state producer workflow"
+    }
+  ]
+}

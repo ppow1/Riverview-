@@ -1,9 +1,9 @@
 # Riverview~ assignment scheduler contract
 
-**Document Revision:** 1.0.1
+**Document Revision:** 1.0.2
 **Component:** ASSIGNMENT-SCHEDULER
 **Milestone:** M1.4
-**Status:** IN PROGRESS — isolated engineering; not commissioned
+**Status:** Isolated technical criteria verified; no operational commissioning; full component DoD OPEN
 **Implementation:** `src/riverview_core/assignment_scheduler/scheduler.py`
 
 ## Purpose and boundary
