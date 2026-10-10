@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.20
+**Document Revision:** 1.0.21
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -417,3 +417,11 @@ and failure-correction history are retained under
 `evidence/checkouts/POSTGRES-LEDGER/20261010T1529Z-27a8c55/`. No M1.2 migration
 was applied to `riverview_dev`; formal M1.1/M1.2 acceptance remains with the
 Steward.
+
+2026-10-10 15:32 UTC — RV-ENG-REV-004 / ENG-REVISION-CONTROL: The Development
+Lifecycle Standard requires repository checkout enforcement. PR #2 had no
+reported checks. Added a read-only GitHub Actions workflow to run the full suite
+against an ephemeral PostgreSQL 16 test service and execute the revision checker
+against the preserved baseline. No branch protection or approval settings were
+changed. Local YAML parse and baseline revision check pass; external Actions
+execution and its independently observed result remain pending.
