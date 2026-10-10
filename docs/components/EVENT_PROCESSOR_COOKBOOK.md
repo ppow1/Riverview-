@@ -1,9 +1,9 @@
 # Riverview~ event processor cookbook
 
-**Document Revision:** 1.0.1
-**Component:** EVENT-PROCESSOR  
-**Task:** RV-M1.3-001  
-**Status:** IN PROGRESS; controlled Camrui commissioning  
+**Document Revision:** 1.0.2
+**Component:** EVENT-PROCESSOR
+**Task:** RV-M1.3-001
+**Status:** Scoped technical commissioning PASS; full component DoD OPEN
 **Authority:** Development schema `riverview_dev`; M1.1 runtime configuration is independent.
 
 ## Isolated schema setup and migration
@@ -37,7 +37,7 @@ skipping any cursor. Never advance the cursor manually to hide a poison event.
 
 ## Camrui commissioning and recovery
 
-The M1.3 service is isolated from `riverview-baseline.service` and uses the
+The commissioned M1.3 service is isolated from `riverview-baseline.service` and uses the
 root-owned deployment link `/opt/riverview-event-processor` to a commit-named,
 root-owned release under `/opt/riverview/releases/`. Its unit is
 `riverview-event-processor.service`; it uses the existing
@@ -80,9 +80,17 @@ by a new `processor_started`. Verify there is again exactly one granted consumer
 lock and the service remains active. Never terminate unrelated database
 backends. M1.1 and PostgreSQL are not restarted for this fault injection.
 
-## Current status
+## Commissioned runtime reference
 
-M1.3 technical commissioning status and time-bounded unattended observations are
-maintained in revisioned acceptance and evidence records. Full component DoD
-items such as the live dashboard and later autonomy integrations remain
-outstanding independently.
+At 2026-10-10T16:59:49Z, service commit `9ca7cb189d1e1f57c69395303a9367fabd979ff5`
+was enabled and active; migration 0002 checksum matched and idempotent rerun
+returned no pending migrations. Three unattended assignments advanced with event
+sequence pairs 1/2, 3/4 and 5/6, each causally linked. Restart resumed cursor 2;
+PostgreSQL session loss caused a sanitized retry and leadership reacquisition at
+cursor 4. Rollback and redeployment were both exercised, and the M1.1 baseline
+remained ready. Detailed identifiers, hashes, backup/restore evidence and exact
+results are in
+[`runtime_acceptance.json`](../../evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json).
+
+The scoped technical commissioning is PASS. Full component DoD remains open; the
+live dashboard and later autonomy integrations are outstanding independently.

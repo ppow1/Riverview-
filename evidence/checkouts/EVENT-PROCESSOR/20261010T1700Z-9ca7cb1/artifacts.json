@@ -1,0 +1,53 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "checkout.md": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/checkout.md",
+      "revision": "1.0.2",
+      "size_bytes": 4189,
+      "sha256": "3e63cbcc1455ebfb6a596e71b4465b9f9fc6048210513123ba1c265586e8bcef"
+    },
+    "ci_results.json": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/ci_results.json",
+      "revision": "1.0.0",
+      "size_bytes": 402,
+      "sha256": "104994ab8fb87720074406e662f59cb5f2353f9ef6ee87b90768e4f515b1c9fe"
+    },
+    "package_verification.json": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/package_verification.json",
+      "revision": "1.0.0",
+      "size_bytes": 878,
+      "sha256": "18442844fb52bda3c838b208f993a2cb0875fd5533105441d4e7d41ca43946ce"
+    },
+    "riverview-m13-9ca7cb1.tar.gz": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/riverview-m13-9ca7cb1.tar.gz",
+      "revision": "1.0.2",
+      "size_bytes": 3496635,
+      "sha256": "090d4d2965196db246b5f614d58e82cf692eb82216eea7d8f2c58acafb6d5750"
+    },
+    "runtime_acceptance.json": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json",
+      "revision": "1.0.2",
+      "size_bytes": 6034,
+      "sha256": "6f6e3ca0fab7eefcebe1fe3b35b2b8a568878154b216c6c93d83c57edd8e8458"
+    },
+    "test_results.json": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/test_results.json",
+      "revision": "1.0.1",
+      "size_bytes": 548,
+      "sha256": "6d6ef80a5252415c7113309ac64ed8d889e83ead00e89266081583926b0d04d5"
+    },
+    "unittest-precommissioning.log": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/unittest-precommissioning.log",
+      "revision": "1.0.0",
+      "size_bytes": 11418,
+      "sha256": "d2c5fc961633a6d3e2542141ce19da1a2e64f0b53468f7987987a21ca88148ad"
+    },
+    "unittest.log": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/unittest.log",
+      "revision": "1.0.0",
+      "size_bytes": 11418,
+      "sha256": "ac046eb496bb89980a7083cdcfb9052768d890650688a43a6bc2df3dd6081b5b"
+    }
+  }
+}

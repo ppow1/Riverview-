@@ -1,0 +1,372 @@
+{
+  "graph_id": "rv:event-processor:assignment-progression",
+  "graph_revision": "1.0.3",
+  "component_id": "EVENT-PROCESSOR",
+  "workflow_id": "assignment-progression.v1",
+  "diagram_order": 1,
+  "source_references": [
+    "src/riverview_core/event_processor.py",
+    "src/riverview_core/event_processor/migrations/0002_event_processor_cursor.sql",
+    "scripts/run_event_processor.py",
+    "src/riverview_core/postgres_ledger.py",
+    "scripts/runtime_baseline.py",
+    "deploy/systemd/riverview-event-processor.service",
+    "deploy/install_event_processor.sh",
+    "deploy/rollback_event_processor.sh",
+    "scripts/verify_event_processor.py"
+  ],
+  "documentation_references": [
+    "docs/components/EVENT_PROCESSOR_FLOW.md",
+    "docs/components/EVENT_PROCESSOR_COOKBOOK.md",
+    "docs/components/EVENT_PROCESSOR.md",
+    "docs/development/M1.3-001_REVISION_RECORD.md"
+  ],
+  "verification_evidence": [
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1628Z-3fd6fd2/checkout.md"
+  ],
+  "nodes": [
+    {
+      "id": "rv:event-processor:assignment-progression:start",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Supervised event processor starts",
+      "source_references": [
+        "scripts/run_event_processor.py"
+      ],
+      "documentation_references": [
+        "docs/components/EVENT_PROCESSOR.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:event-processor:assignment-progression:lease",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Acquire PostgreSQL advisory leadership lock for this consumer",
+      "source_references": [
+        "src/riverview_core/event_processor.py"
+      ],
+      "documentation_references": [
+        "docs/components/EVENT_PROCESSOR.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:event-processor:assignment-progression:lock-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Another instance holds consumer lease; refuse duplicate runner",
+      "source_references": [
+        "src/riverview_core/event_processor.py"
+      ],
+      "documentation_references": [
+        "docs/components/EVENT_PROCESSOR_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:event-processor:assignment-progression:read-cursor",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Read durable per-consumer event cursor",
+      "source_references": [
+        "src/riverview_core/event_processor.py",
+        "src/riverview_core/event_processor/migrations/0002_event_processor_cursor.sql"
+      ],
+      "documentation_references": [
+        "docs/components/EVENT_PROCESSOR_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:event-processor:assignment-progression:fetch",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Fetch commit-ordered events after the durable cursor",
+      "source_references": [
+        "src/riverview_core/event_processor.py",
+        "src/riverview_core/postgres_ledger.py"
+      ],
+      "documentation_references": [
+        "docs/components/EVENT_PROCESSOR_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:event-processor:assignment-progression:created",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Event is assignment.created?",
+      "source_references": [
+        "src/riverview_core/event_processor.py"
+      ],
+      "documentation_references": [
+        "docs/components/EVENT_PROCESSOR_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:event-processor:assignment-progression:queued",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Assignment still queued?",
+      "source_references": [
+        "src/riverview_core/event_processor.py"
+      ],
+      "documentation_references": [
+        "docs/components/EVENT_PROCESSOR_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:event-processor:assignment-progression:advance",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Idempotently transition assignment to ready",
+      "source_references": [
+        "src/riverview_core/event_processor.py",
+        "src/riverview_core/postgres_ledger.py"
+      ],
+      "documentation_references": [
+        "docs/components/EVENT_PROCESSOR.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:event-processor:assignment-progression:skip",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Ignore unrelated or already advanced event",
+      "source_references": [
+        "src/riverview_core/event_processor.py"
+      ],
+      "documentation_references": [
+        "docs/components/EVENT_PROCESSOR_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:event-processor:assignment-progression:checkpoint",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Persist cursor only after successful handling",
+      "source_references": [
+        "src/riverview_core/event_processor.py"
+      ],
+      "documentation_references": [
+        "docs/components/EVENT_PROCESSOR_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:event-processor:assignment-progression:retry",
+      "node_revision": "1.0.1",
+      "type": "recovery",
+      "label": "Bounded backoff; reconnect to PostgreSQL and reacquire leadership",
+      "source_references": [
+        "src/riverview_core/event_processor.py"
+      ],
+      "documentation_references": [
+        "docs/components/EVENT_PROCESSOR_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:event-processor:assignment-progression:replay",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Restart replays uncheckpointed source event safely",
+      "source_references": [
+        "src/riverview_core/event_processor.py"
+      ],
+      "documentation_references": [
+        "docs/components/EVENT_PROCESSOR_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:event-processor:assignment-progression:stop",
+      "node_revision": "1.0.0",
+      "type": "exit",
+      "label": "SIGTERM checkpointed stop and leadership release",
+      "source_references": [
+        "scripts/run_event_processor.py",
+        "src/riverview_core/event_processor.py"
+      ],
+      "documentation_references": [
+        "docs/components/EVENT_PROCESSOR_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:event-processor:assignment-progression:startup-preflight",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Validate credential delivery and source-matched migration history",
+      "source_references": [
+        "scripts/run_event_processor.py",
+        "scripts/runtime_baseline.py",
+        "src/riverview_core/event_processor.py"
+      ],
+      "documentation_references": [
+        "docs/components/EVENT_PROCESSOR.md",
+        "docs/components/EVENT_PROCESSOR_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:event-processor:assignment-progression:preflight-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Refuse event consumption on unsafe credential or schema mismatch",
+      "source_references": [
+        "scripts/run_event_processor.py",
+        "src/riverview_core/event_processor.py"
+      ],
+      "documentation_references": [
+        "docs/components/EVENT_PROCESSOR_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:event-processor:assignment-progression:baseline-jump",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "M1.1 runtime credential and host commissioning baseline",
+      "jump_target_id": "rv:runtime-baseline:commissioning:ready",
+      "source_references": [
+        "deploy/systemd/riverview-event-processor.service"
+      ],
+      "documentation_references": [
+        "docs/components/EVENT_PROCESSOR.md"
+      ],
+      "verification_evidence": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:event-processor:assignment-progression:lease",
+      "to": "rv:event-processor:assignment-progression:lock-failure",
+      "type": "diagnostic_branch",
+      "label": "Lock unavailable"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:lease",
+      "to": "rv:event-processor:assignment-progression:read-cursor",
+      "type": "runtime_transition",
+      "label": "Acquired"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:read-cursor",
+      "to": "rv:event-processor:assignment-progression:fetch",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:fetch",
+      "to": "rv:event-processor:assignment-progression:created",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:created",
+      "to": "rv:event-processor:assignment-progression:queued",
+      "type": "runtime_transition",
+      "label": "Yes"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:created",
+      "to": "rv:event-processor:assignment-progression:skip",
+      "type": "runtime_transition",
+      "label": "No"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:queued",
+      "to": "rv:event-processor:assignment-progression:advance",
+      "type": "runtime_transition",
+      "label": "Yes"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:queued",
+      "to": "rv:event-processor:assignment-progression:skip",
+      "type": "runtime_transition",
+      "label": "No"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:advance",
+      "to": "rv:event-processor:assignment-progression:checkpoint",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:skip",
+      "to": "rv:event-processor:assignment-progression:checkpoint",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:checkpoint",
+      "to": "rv:event-processor:assignment-progression:read-cursor",
+      "type": "runtime_transition",
+      "label": "Next poll"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:read-cursor",
+      "to": "rv:event-processor:assignment-progression:retry",
+      "type": "diagnostic_branch",
+      "label": "Database or handler error"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:retry",
+      "to": "rv:event-processor:assignment-progression:replay",
+      "type": "recovery_route"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:replay",
+      "to": "rv:event-processor:assignment-progression:read-cursor",
+      "type": "recovery_route"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:checkpoint",
+      "to": "rv:event-processor:assignment-progression:stop",
+      "type": "runtime_transition",
+      "label": "SIGTERM"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:lease",
+      "to": "rv:postgres-ledger:migration:require-schema",
+      "type": "prerequisite",
+      "label": "M1.2 migrated ledger schema; not a runtime call"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:start",
+      "to": "rv:event-processor:assignment-progression:startup-preflight",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:startup-preflight",
+      "to": "rv:event-processor:assignment-progression:preflight-failure",
+      "type": "diagnostic_branch",
+      "label": "Credential or migration contract invalid"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:startup-preflight",
+      "to": "rv:event-processor:assignment-progression:lease",
+      "type": "runtime_transition",
+      "label": "Validated"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:startup-preflight",
+      "to": "rv:event-processor:assignment-progression:baseline-jump",
+      "type": "prerequisite",
+      "label": "M1.1 host and credential contract; not a runtime call"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:baseline-jump",
+      "to": "rv:runtime-baseline:commissioning:ready",
+      "type": "jump"
+    },
+    {
+      "from": "rv:event-processor:assignment-progression:retry",
+      "to": "rv:event-processor:assignment-progression:lease",
+      "type": "recovery_route",
+      "label": "Database returned; verify source schema and reacquire the consumer lock"
+    }
+  ]
+}

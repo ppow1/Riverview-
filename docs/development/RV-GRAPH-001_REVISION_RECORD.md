@@ -1,9 +1,9 @@
 # Riverview~ RV-GRAPH-001 process graph standard record
 
-**Document Revision:** 1.0.2  
-**Task:** RV-GRAPH-001  
-**Component:** RV-PROCESS-GRAPH  
-**Date:** 2026-10-10 UTC  
+**Document Revision:** 1.0.3
+**Task:** RV-GRAPH-001
+**Component:** RV-PROCESS-GRAPH
+**Date:** 2026-10-10 UTC
 **Status:** STANDARD IMPLEMENTED; M1.1/M1.2 INTEGRATIONS VERIFIED
 
 ## Authority and requirements
@@ -51,20 +51,17 @@ aggregate content and Mermaid synchronization. CI runs this check.
 Schema: `process_graphs/schema/riverview-process-graph.schema.json`. Canonical
 graphs: `process_graphs/runtime-baseline/runtime-baseline.json`, the two
 `process_graphs/postgres-ledger/*.json` workflows, and the M3.1 planned target.
-M1.3 native graph is `process_graphs/event-processor/assignment-progression.json`.
+M1.3 native graph is `process_graphs/event-processor/assignment-progression.json`; its commissioning nodes reference the exact live verification evidence and its generated flow remains synchronized.
 Aggregate: `process_graphs/generated/riverview-process-graph.json`; aggregate
 visual: `process_graphs/generated/RIVERVIEW_PROCESS_GRAPH.md`.
 
-The M1.1 and M1.2 flow diagrams are regenerated from canonical JSON. The M1.1
-cookbook and existing M1.2 cookbook references remain preserved. The M3.1
-dashboard target remains explicitly planned. RV-M1.3-001 introduces an event
-processor graph with pending systemd deployment gates.
+The M1.1 and M1.2 flow diagrams are regenerated from canonical JSON. The M1.1 cookbook and existing M1.2 cookbook references remain preserved. The M3.1 dashboard target remains explicitly planned. RV-M1.3-001 introduced the event processor workflow natively; RV-M1.3-002 adds live deployment, migration, failure and recovery evidence without changing stable node identities.
 
 Validation tests cover JSON Schema conformance, stable/global IDs, missing
 references, invalid edge types, runtime/dependency separation, jump resolution,
 extension compatibility, sidecar checksum enforcement, exact generated view
 synchronization and compact aggregate-map behavior. Current graph inventory is
-five workflows and 79 nodes. The final complete test execution passed 67 tests,
+five workflows and 82 nodes. The final complete test execution passed 67 tests,
 including all six M1.2 and four M1.3 PostgreSQL tests with zero skips; graph tests
 passed 10/10. Evidence:
 `evidence/checkouts/EVENT-PROCESSOR/20261010T1628Z-3fd6fd2/checkout.md`.
@@ -76,5 +73,4 @@ JSON graph/schema file revisions and SHA-256 values are in
 `.riverview-revisions.json`. Existing documents have incremented native
 revisions. Exact changed paths, backup hashes, and the full checkout revision
 audit are recorded after CI completes. Both push and pull-request controlled-checkout CI runs passed on commit
-`5be1484`; the run IDs and evidence links are in the development journal. This task does not claim completion of M1.1/M1.2 full
-component DoD or M1.3 acceptance.
+`5be1484`; the run IDs and evidence links are in the development journal. This task does not claim completion of M1.1/M1.2 full component DoD or the full M1.3 component DoD. Scoped M1.3 technical commissioning is recorded independently in RV-M1.3-002.

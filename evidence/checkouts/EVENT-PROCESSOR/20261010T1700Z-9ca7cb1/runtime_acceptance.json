@@ -1,0 +1,170 @@
+{
+  "result_revision": "1.0.2",
+  "task_id": "RV-M1.3-002",
+  "component_id": "EVENT-PROCESSOR",
+  "observed_at_utc": "2026-10-10T16:59:49Z",
+  "host": "admin1-Default-string",
+  "os": "Ubuntu 24.04.3",
+  "postgresql": "16.15",
+  "source_commit": "9ca7cb189d1e1f57c69395303a9367fabd979ff5",
+  "package": {
+    "path": "riverview-m13-9ca7cb1.tar.gz",
+    "sha256": "090d4d2965196db246b5f614d58e82cf692eb82216eea7d8f2c58acafb6d5750",
+    "manifest": "PASS",
+    "archive_member_validation": "PASS",
+    "shell_compatibility": "PASS"
+  },
+  "m11_preservation": {
+    "baseline_ready": true,
+    "blocker_code": null,
+    "service_result": "success",
+    "service_exit_code": 0,
+    "observed_at_utc": "2026-10-10T16:59:49.864141Z",
+    "source_commit": "64e8f14ad6d71102a864755739a1c8a61506235c",
+    "database": "riverview",
+    "schema": "riverview_dev",
+    "schema_owner": "riverview_core"
+  },
+  "m12_preflight": {
+    "schema_owner": "riverview_core",
+    "postgresql_major": 16,
+    "migration_0001_checksum": "7f3580aacc057b977f8dd6f880584d1fed678488523b0d2ce6737c1107487492",
+    "assignments_before": 0,
+    "events_before": 0,
+    "cursor_table_before": false,
+    "runtime_role_schema_usage": true,
+    "runtime_role_schema_create": true,
+    "active_riverview_core_sessions_before_migration": 0
+  },
+  "backup_and_restore": {
+    "backup_path": "/var/backups/riverview/M1.3-20261010T165756Z/riverview-before-m13.dump",
+    "backup_sha256": "4bf7be54f98727855fadcdd4060ca9a71b670831a089f35488060ade7e7a8592",
+    "owner": "root:root",
+    "mode": "0600",
+    "parent_mode": "0700",
+    "pg_restore_list": "PASS",
+    "restore_drill_database": "rv_m13_restore_20261010165756",
+    "restore_drill": "PASS",
+    "restore_schema_owner": "riverview_core",
+    "restore_migration_0001_checksum": "7f3580aacc057b977f8dd6f880584d1fed678488523b0d2ce6737c1107487492",
+    "restore_assignments": 0,
+    "restore_events": 0,
+    "restore_cursor_table_present": false,
+    "restore_drill_database_dropped": true
+  },
+  "m13_migration": {
+    "applied": [
+      "0002_event_processor_cursor"
+    ],
+    "checksum": "356c473027044429f403ca55da7a13fda86a4bfacc606d0727dc23ee98eafa3b",
+    "owner": "riverview_core",
+    "idempotent_rerun": []
+  },
+  "credential_delivery": {
+    "source": "/etc/riverview/pgpass",
+    "method": "systemd LoadCredential",
+    "systemd_mount_directory": "root:root 0550",
+    "systemd_mount_file": "root:root 0440",
+    "private_passfile": "/run/riverview-event-processor/pgpass",
+    "private_passfile_owner_mode": "riverview:riverview 0600",
+    "secret_contents_recorded": false
+  },
+  "service": {
+    "unit": "riverview-event-processor.service",
+    "enabled": true,
+    "active_state": "active",
+    "sub_state": "running",
+    "result": "success",
+    "exit_code": 0,
+    "runtime_account": "riverview",
+    "release_path": "/opt/riverview/releases/9ca7cb189d1e1f57c69395303a9367fabd979ff5",
+    "deployment_link": "/opt/riverview-event-processor",
+    "systemd_analyze_verify": "PASS"
+  },
+  "unattended_assignments": [
+    {
+      "assignment_id": "m13-commission-9dafc320b20c41ceadbacc4a9303eb3c",
+      "state": "ready",
+      "created_event_id": "78396e37-eefc-48a9-850d-b8be6a4a6f71",
+      "transition_event_id": "e86689ca-f0f0-4082-a0f0-3ec9c4ac2d1e",
+      "created_seq": 1,
+      "transition_seq": 2,
+      "causation_matches": true
+    },
+    {
+      "assignment_id": "m13-commission-8a83084a3c33451db9d69190a78e564d",
+      "state": "ready",
+      "created_event_id": "91121d28-3ab1-4532-9185-3e3d2200822e",
+      "transition_event_id": "65dee920-e9ca-4d6f-8904-9da777223b5d",
+      "created_seq": 3,
+      "transition_seq": 4,
+      "causation_matches": true
+    },
+    {
+      "assignment_id": "m13-commission-a820836d0160467197fd9fa3e2877477",
+      "state": "ready",
+      "created_event_id": "34c5d97e-5e78-4045-bf54-1be9af8fa5b5",
+      "transition_event_id": "a4c2564c-f07d-4705-a7b5-e9a625ca3460",
+      "created_seq": 5,
+      "transition_seq": 6,
+      "causation_matches": true
+    }
+  ],
+  "restart_recovery": {
+    "first_process_pid": 61241,
+    "restarted_process_pid": 61326,
+    "stopped_cursor": 2,
+    "resumed_cursor": 2,
+    "subsequent_assignment_sequences": [
+      3,
+      4
+    ],
+    "result": "PASS"
+  },
+  "database_session_recovery": {
+    "terminated_backend_pid": 61330,
+    "identified_by": "sole granted advisory lock for application_name riverview-event-processor",
+    "termination_confirmed": true,
+    "sanitized_failure_type": "AdminShutdown",
+    "service_remained_active": true,
+    "reacquired_backend_pid": 61389,
+    "cursor_after_recovery": 4,
+    "granted_consumer_locks_after_recovery": 1,
+    "result": "PASS"
+  },
+  "rollback_and_redeployment": {
+    "rollback_record": "/var/backups/riverview-event-processor.BSWcGGIZ",
+    "prior_m13_service_state": "absent and disabled",
+    "rollback_result": "PASS; removed only M1.3 service/link and retained cursor table/data",
+    "cursor_after_rollback": 4,
+    "m11_baseline_after_rollback": "baseline_ready at 64e8f14",
+    "redeployment_record": "/var/backups/riverview-event-processor.bc0jKiTv",
+    "migration_rerun_after_redeployment": [],
+    "service_active_after_redeployment": true,
+    "cursor_after_final_acceptance": 6
+  },
+  "final_database_state": {
+    "schema_migrations": [
+      {
+        "version": "0001_assignment_event_ledger",
+        "checksum": "7f3580aacc057b977f8dd6f880584d1fed678488523b0d2ce6737c1107487492"
+      },
+      {
+        "version": "0002_event_processor_cursor",
+        "checksum": "356c473027044429f403ca55da7a13fda86a4bfacc606d0727dc23ee98eafa3b"
+      }
+    ],
+    "commissioning_assignments_ready": 3,
+    "commissioning_events": 6,
+    "consumer_id": "assignment-intake.v1",
+    "cursor": 6,
+    "active_advisory_locks": 1
+  },
+  "scoped_technical_commissioning": "PASS",
+  "full_component_definition_of_done": "OPEN",
+  "isolated_test_cleanup": {
+    "rvtest_schema_count_after_suite": 0,
+    "test_cluster_stopped": true,
+    "result": "PASS"
+  }
+}

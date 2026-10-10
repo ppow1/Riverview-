@@ -1,10 +1,10 @@
 # Riverview~ M1.3 event processor contract
 
-**Document Revision:** 1.0.1
-**Component:** EVENT-PROCESSOR  
-**Task:** RV-M1.3-001  
-**Status:** IN PROGRESS — controlled Camrui commissioning  
-**Execution model:** event-driven continuous service  
+**Document Revision:** 1.0.2
+**Component:** EVENT-PROCESSOR
+**Task:** RV-M1.3-001
+**Status:** Scoped technical commissioning PASS; full component DoD OPEN
+**Execution model:** event-driven continuous service
 **Owner:** office:operations
 
 ## Purpose and boundary
@@ -36,9 +36,11 @@ a database-session loss.
 
 The cursor schema addition is migration
 `src/riverview_core/event_processor/migrations/0002_event_processor_cursor.sql`.
-It is separate from the M1.2 migration directory and has **not** been applied to
-the shared `riverview_dev` schema. Applying migrations requires an explicit
-deployment task with the standard preflight, backup and verification procedure.
+It is separate from M1.2 migration 0001. It was applied to `riverview_dev` only
+after checksum preflight, root-only backup, and successful restore drill. The
+M1.3 service is commissioned on Camrui at source commit
+`9ca7cb189d1e1f57c69395303a9367fabd979ff5`; the exact outcomes and retained
+evidence are in [M1.3-002](../development/M1.3-002_REVISION_RECORD.md).
 
 ## Configuration and observability
 
@@ -71,4 +73,6 @@ the durable cursor, commit-order races, migration drift rejection, database
 session-loss recovery, and credential delivery. See the
 [canonical process graph](EVENT_PROCESSOR_FLOW.md),
 [cookbook](EVENT_PROCESSOR_COOKBOOK.md), and
-[engineering record](../development/M1.3-001_REVISION_RECORD.md).
+[commissioning record](../development/M1.3-002_REVISION_RECORD.md). The full
+component DoD remains open for later obligations, including the M3.1 live
+dashboard, external status projection and subsequent autonomy integrations.

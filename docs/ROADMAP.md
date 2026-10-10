@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.0.4
+**Document Revision:** 1.0.5
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-09  
 **Component:** RV-ROADMAP  
@@ -108,9 +108,9 @@ Deliverable: capability discovery and replaceable adapters for OctoMiner-hosted 
 
 **M1.2:** technical criteria verified, including isolated tests, CI/revision audit and authorized deployment of migration `0001_assignment_event_ledger` to `riverview_dev`; full component DoD remains open.
 
-**Current step: M1.3 — Always-on event processor (controlled Camrui commissioning).**
+**M1.3:** Scoped technical commissioning PASS on Camrui at source commit `9ca7cb189d1e1f57c69395303a9367fabd979ff5`. Migration 0002, unattended event progression, causal ordering, durable cursor, restart, PostgreSQL session-loss recovery, rollback/redeployment, and M1.1 preservation are verified. The full component DoD remains OPEN; this is not a claim that the later dashboard, autonomy, external observability, or project completion criteria are satisfied.
 
-The isolated M1.3 implementation passed its CI and disposable-database gates. Controlled commissioning is underway against the verified M1.2 schema; do not advance the cursor or claim technical commissioning until migration backup/restore, service operation, persistence, replay, unattended progression, restart recovery and dependency-session recovery are demonstrated. M3.1 dashboard and later autonomy remain full-project obligations, not gates to this independent work.
+**Current step: M1.4 — Independent assignment scheduling (isolated engineering).** Begin contract review and isolated design/tests. M1.4 must implement concurrent independent progress, fair dispatch, leases and stale-worker fencing. Do not deploy shared-schema changes before the M1.4 controlled commissioning and recovery preflight; preserve M1.1/M1.2/M1.3 operation.
 
 ## Revision history
 
@@ -120,3 +120,4 @@ The isolated M1.3 implementation passed its CI and disposable-database gates. Co
 - **1.0.2 — 2026-10-10:** Record scoped M1.1 Steward technical acceptance, M1.2 shared development migration verification, and M1.3 as the next eligible engineering milestone; no full component DoD waived.
 - **1.0.3 — 2026-10-10:** Record M1.3 isolated implementation and test status; milestone remains in progress pending supervised deployment and operational acceptance.
 - **1.0.4 — 2026-10-10:** Record M1.3 controlled commissioning, event-ordering correction, credential-delivery contract and recovery workflow; keep milestone active pending executed Camrui evidence.
+- **1.0.5 — 2026-10-10:** Record scoped M1.3 technical commissioning PASS and advance the engineering cursor to isolated M1.4 work; full component DoD remains open.
