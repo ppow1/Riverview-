@@ -1,0 +1,19 @@
+{
+  "result_revision": "1.0.0",
+  "provider": "GitHub Actions",
+  "repository": "ppow1/Riverview-",
+  "workflow": "Controlled checkout",
+  "run_id": 38079091522,
+  "run_url": "https://github.com/ppow1/Riverview-/actions/runs/38079091522",
+  "pull_request": 12,
+  "pull_request_url": "https://github.com/ppow1/Riverview-/pull/12",
+  "branch": "codex/m2.3-failure-recovery",
+  "base_branch": "codex/m2.2-independent-verification",
+  "head_commit": "61a6e9c22b553fc0eacf1864450d12956aac840a",
+  "status": "PASS",
+  "checks": [
+    "complete test suite",
+    "canonical process graph validation and synchronization",
+    "controlled revisions and preserved predecessors"
+  ]
+}

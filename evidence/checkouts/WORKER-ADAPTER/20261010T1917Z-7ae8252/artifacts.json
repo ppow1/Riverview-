@@ -1,5 +1,5 @@
 {
-  "manifest_revision": "1.0.0",
+  "manifest_revision": "1.0.1",
   "artifacts": {
     "checkout.md": {
       "path": "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/checkout.md",
@@ -36,6 +36,12 @@
       "revision": "1.0.0",
       "sha256": "35a6774fe92e9a32a0c183747628ab70af53e6ba1a4851c9586ddc7e15437f22",
       "size_bytes": 1332
+    },
+    "ci_results.json": {
+      "path": "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/ci_results.json",
+      "revision": "1.0.0",
+      "sha256": "51d03760e525541604c76a59322a0494cde7f1665a8e9c802d2b63bbb9cfb8c6",
+      "size_bytes": 673
     }
   }
 }
