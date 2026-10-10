@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.2
+**Document Revision:** 1.1.3
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-09  
 **Component:** RV-ROADMAP  
@@ -119,9 +119,9 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 **M2.1–M2.3 — Execution, independent verification, and restart recovery:** Integrated on `main` at `4f028a138c41665239bde2c11be65b0f841f02bf` by PRs #9, #10, and #12. The combined isolated PostgreSQL 16.15 suite passed 89/89 on Camrui; graph validation and the controlled revision audit passed, and GitHub main CI passed. This confirms the integrated engineering baseline only; the M2.1–M2.3 live deployments and full component DoD remain open.
 
-**M2.4 — CME monitoring service:** Isolated roadmap technical criteria PASS at commit a44091bc32e82580dd8a3350e1ecfa47b0157b36. PR #14 integrated M2.4 into main at e9c66afabe88fe02403a35c8ede83eba54bca2e2. The full component DoD remains OPEN: the shared Camrui schema has not had the M2.4 monitor migrations applied and no installed monitor service is claimed.
+**M2.4 — CME monitoring service:** Isolated technical criteria PASS at `a44091bc32e82580dd8a3350e1ecfa47b0157b36`, integrated by PR #14. The authorized shared `riverview_dev` migration chain and dedicated systemd monitor were commissioned on Camrui from `702f5db3f03669427a3625425eca04c023a0754c`. The live service reported healthy and recorded three genuine stale-assignment alerts; manual restart and systemd recovery after SIGKILL preserved those alert IDs without duplicates. Scoped operational criteria PASS. Full component DoD remains OPEN; no live worker is registered, and no unrelated live assignment progress was available to observe. See `docs/development/M2.4-001_REVISION_RECORD.md` and `evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/`.
 
-**Current step: M3.1 — Read-only status projection and browser dashboard.** Engineering begins from integrated main at e9c66afabe88fe02403a35c8ede83eba54bca2e2. The canonical roadmap remains revision 1.1.2; requirements from Issue #13 and draft PR #15 are design inputs and PR #15 is not merged. M3.1 is in progress until its applicable technical acceptance criteria and gates are verified.
+**Current step: M3.1 — Read-only status projection and browser dashboard.** Engineering began from integrated main at e9c66afabe88fe02403a35c8ede83eba54bca2e2. The canonical roadmap is revision 1.1.3; requirements from Issue #13 and draft PR #15 are design inputs and PR #15 is not merged. PR #16 remains open as draft. Live PostgreSQL/CME projections, attention recovery, browser navigation, restart and source identity have been verified on Camrui; the absence of live workers and post-migration external-browser re-observation remain explicit acceptance evidence limits.
 
 **Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. M3.1 is the active milestone; its complete integration remains in progress.
 
@@ -141,3 +141,4 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 - **1.1.0 — 2026-10-10:** Record PR #9/#10/#12 integration, combined isolated baseline verification, retirement of their fully merged feature branches, and M2.4 engineering from the integrated main commit.
 - **1.1.1 — 2026-10-10:** Record M2.4 isolated roadmap technical PASS, retain its open live-service/full-DoD obligations, and identify M3.1 as the next milestone after M2.4 integration.
 - **1.1.2 — 2026-10-10:** Reconcile M2.4 PR #14 integration on main and record M3.1 as active from the verified integrated baseline; preserve the unmerged draft PR #15 status.
+- **1.1.3 — 2026-10-10:** Record authorized shared M2.4 migrations, installed monitor health/restart recovery, and actual live dashboard integration while retaining M3.1 as active and full DoD obligations open.

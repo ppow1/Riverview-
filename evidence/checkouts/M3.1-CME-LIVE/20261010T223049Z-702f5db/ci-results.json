@@ -1,0 +1,12 @@
+{
+  "source_commit": "702f5db3f03669427a3625425eca04c023a0754c",
+  "pull_request": "https://github.com/ppow1/Riverview-/pull/16",
+  "pull_request_state": "OPEN",
+  "draft": true,
+  "merged": false,
+  "checks": [
+    {"run_id": "38091527456", "name": "controlled-checkout", "conclusion": "SUCCESS"},
+    {"run_id": "38091531540", "name": "controlled-checkout", "conclusion": "SUCCESS"}
+  ],
+  "note": "These checks validate the implementation commit; evidence and final regression updates are pushed in a subsequent commit and require their own checks."
+}

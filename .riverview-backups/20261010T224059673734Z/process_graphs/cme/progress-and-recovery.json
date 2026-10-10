@@ -1,0 +1,423 @@
+{
+  "graph_id": "rv:cme:progress-and-recovery",
+  "graph_revision": "1.0.3",
+  "component_id": "CME",
+  "workflow_id": "progress-and-recovery.v1",
+  "diagram_order": 8,
+  "source_references": [
+    "src/riverview_core/cme/monitor.py",
+    "src/riverview_core/cme/migrations/0005_cme_monitoring.sql",
+    "tests/test_cme_monitor.py",
+    "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md",
+    "docs/architecture/CORE_CONTRACT.md",
+    "scripts/run_cme_monitor.py",
+    "deploy/systemd/riverview-cme-monitor.service"
+  ],
+  "documentation_references": [
+    "docs/components/CME_MONITOR.md",
+    "docs/components/CME_MONITOR_COOKBOOK.md",
+    "docs/components/CME_MONITOR_FLOW.md",
+    "docs/ROADMAP.md",
+    "docs/standards/COMPONENT_DEFINITION_OF_DONE.md",
+    "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+  ],
+  "verification_evidence": [
+    "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+    "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+    "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+  ],
+  "nodes": [
+    {
+      "id": "rv:cme:progress-and-recovery:monitor-start",
+      "node_revision": "1.0.2",
+      "type": "entry",
+      "label": "Acquire the CME PostgreSQL advisory lease and begin repeated scans",
+      "source_references": [
+        "src/riverview_core/cme/monitor.py",
+        "src/riverview_core/cme/migrations/0005_cme_monitoring.sql",
+        "tests/test_cme_monitor.py"
+      ],
+      "documentation_references": [
+        "docs/components/CME_MONITOR.md",
+        "docs/components/CME_MONITOR_COOKBOOK.md",
+        "docs/components/CME_MONITOR_FLOW.md",
+        "docs/ROADMAP.md",
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+      ]
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:observe",
+      "node_revision": "1.0.1",
+      "type": "measurement",
+      "label": "Read all nonterminal assignments, durable progress events, deadlines, and leases",
+      "source_references": [
+        "src/riverview_core/cme/monitor.py",
+        "src/riverview_core/cme/migrations/0005_cme_monitoring.sql",
+        "tests/test_cme_monitor.py"
+      ],
+      "documentation_references": [
+        "docs/components/CME_MONITOR.md",
+        "docs/components/CME_MONITOR_COOKBOOK.md",
+        "docs/components/CME_MONITOR_FLOW.md",
+        "docs/ROADMAP.md",
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+      ]
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:stall-decision",
+      "node_revision": "1.0.1",
+      "type": "decision",
+      "label": "Compare progress age and deadlines with explicit thresholds; preserve assignment isolation",
+      "source_references": [
+        "src/riverview_core/cme/monitor.py",
+        "src/riverview_core/cme/migrations/0005_cme_monitoring.sql",
+        "tests/test_cme_monitor.py"
+      ],
+      "documentation_references": [
+        "docs/components/CME_MONITOR.md",
+        "docs/components/CME_MONITOR_COOKBOOK.md",
+        "docs/components/CME_MONITOR_FLOW.md",
+        "docs/ROADMAP.md",
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+      ]
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:attention",
+      "node_revision": "1.0.1",
+      "type": "escalation",
+      "label": "Append idempotent attention events for stalled, overdue, blocked, or waiting assignments",
+      "source_references": [
+        "src/riverview_core/cme/monitor.py",
+        "src/riverview_core/cme/migrations/0005_cme_monitoring.sql",
+        "tests/test_cme_monitor.py"
+      ],
+      "documentation_references": [
+        "docs/components/CME_MONITOR.md",
+        "docs/components/CME_MONITOR_COOKBOOK.md",
+        "docs/components/CME_MONITOR_FLOW.md",
+        "docs/ROADMAP.md",
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+      ]
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:recovery",
+      "node_revision": "1.0.1",
+      "type": "recovery",
+      "label": "Append one traceable recovery request for a stalled expired lease; CME does not execute it",
+      "source_references": [
+        "src/riverview_core/cme/monitor.py",
+        "src/riverview_core/cme/migrations/0005_cme_monitoring.sql",
+        "tests/test_cme_monitor.py"
+      ],
+      "documentation_references": [
+        "docs/components/CME_MONITOR.md",
+        "docs/components/CME_MONITOR_COOKBOOK.md",
+        "docs/components/CME_MONITOR_FLOW.md",
+        "docs/ROADMAP.md",
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+      ]
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:resident-feedback",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "PLANNED — return progress and attention evidence to Grace",
+      "jump_target_id": "rv:grace:operational-integration:evidence-review",
+      "source_references": [
+        "docs/ROADMAP.md"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:service-lock",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Is this instance the sole holder of the CME service lease?",
+      "source_references": [
+        "src/riverview_core/cme/monitor.py",
+        "src/riverview_core/cme/migrations/0005_cme_monitoring.sql",
+        "tests/test_cme_monitor.py"
+      ],
+      "documentation_references": [
+        "docs/components/CME_MONITOR.md",
+        "docs/components/CME_MONITOR_COOKBOOK.md",
+        "docs/components/CME_MONITOR_FLOW.md",
+        "docs/ROADMAP.md",
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:deadline-measurement",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Measure configured UTC deadline and durable progress age",
+      "source_references": [
+        "src/riverview_core/cme/monitor.py",
+        "src/riverview_core/cme/migrations/0005_cme_monitoring.sql",
+        "tests/test_cme_monitor.py"
+      ],
+      "documentation_references": [
+        "docs/components/CME_MONITOR.md",
+        "docs/components/CME_MONITOR_COOKBOOK.md",
+        "docs/components/CME_MONITOR_FLOW.md",
+        "docs/ROADMAP.md",
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+      ]
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:worker-health",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Report workers healthy only from fresh unexpired lease heartbeats",
+      "source_references": [
+        "src/riverview_core/cme/monitor.py",
+        "src/riverview_core/cme/migrations/0005_cme_monitoring.sql",
+        "tests/test_cme_monitor.py"
+      ],
+      "documentation_references": [
+        "docs/components/CME_MONITOR.md",
+        "docs/components/CME_MONITOR_COOKBOOK.md",
+        "docs/components/CME_MONITOR_FLOW.md",
+        "docs/ROADMAP.md",
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+      ]
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:monitor-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Persist sanitized scan failure when PostgreSQL remains reachable",
+      "source_references": [
+        "src/riverview_core/cme/monitor.py",
+        "src/riverview_core/cme/migrations/0005_cme_monitoring.sql",
+        "tests/test_cme_monitor.py"
+      ],
+      "documentation_references": [
+        "docs/components/CME_MONITOR.md",
+        "docs/components/CME_MONITOR_COOKBOOK.md",
+        "docs/components/CME_MONITOR_FLOW.md",
+        "docs/ROADMAP.md",
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/failed-attempts.md"
+      ]
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:retry-backoff",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Retry database observation with bounded exponential backoff",
+      "source_references": [
+        "src/riverview_core/cme/monitor.py",
+        "src/riverview_core/cme/migrations/0005_cme_monitoring.sql",
+        "tests/test_cme_monitor.py"
+      ],
+      "documentation_references": [
+        "docs/components/CME_MONITOR.md",
+        "docs/components/CME_MONITOR_COOKBOOK.md",
+        "docs/components/CME_MONITOR_FLOW.md",
+        "docs/ROADMAP.md",
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+      ]
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:systemd-launch",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "systemd starts the isolated CME monitor service",
+      "source_references": [
+        "deploy/systemd/riverview-cme-monitor.service"
+      ],
+      "documentation_references": [
+        "docs/components/CME_MONITOR.md",
+        "docs/components/CME_MONITOR_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:credential-validation",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Validate exact systemd credential, DSN, and non-root runtime identity",
+      "source_references": [
+        "scripts/run_cme_monitor.py",
+        "scripts/runtime_baseline.py",
+        "deploy/systemd/riverview-cme-monitor.service",
+        "tests/test_cme_monitor_service.py"
+      ],
+      "documentation_references": [
+        "docs/components/CME_MONITOR.md",
+        "docs/components/CME_MONITOR_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:credential-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject invalid monitor credential or runtime configuration without exposing secrets",
+      "source_references": [
+        "scripts/run_cme_monitor.py",
+        "tests/test_cme_monitor_service.py"
+      ],
+      "documentation_references": [
+        "docs/components/CME_MONITOR_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:cme:progress-and-recovery:monitor-start",
+      "to": "rv:cme:progress-and-recovery:service-lock",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:service-lock",
+      "to": "rv:cme:progress-and-recovery:observe",
+      "type": "runtime_transition",
+      "label": "single active monitor instance"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:service-lock",
+      "to": "rv:cme:progress-and-recovery:monitor-failure",
+      "type": "diagnostic_branch",
+      "label": "database unavailable or service lease held"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:observe",
+      "to": "rv:cme:progress-and-recovery:deadline-measurement",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:deadline-measurement",
+      "to": "rv:cme:progress-and-recovery:worker-health",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:worker-health",
+      "to": "rv:cme:progress-and-recovery:stall-decision",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:stall-decision",
+      "to": "rv:cme:progress-and-recovery:observe",
+      "type": "runtime_transition",
+      "label": "No overdue, stalled, blocked, or waiting condition; continue scan"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:stall-decision",
+      "to": "rv:cme:progress-and-recovery:attention",
+      "type": "escalation",
+      "label": "Durable attention required"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:stall-decision",
+      "to": "rv:cme:progress-and-recovery:monitor-failure",
+      "type": "diagnostic_branch",
+      "label": "Query or persistence failure"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:attention",
+      "to": "rv:cme:progress-and-recovery:recovery",
+      "type": "recovery_route",
+      "label": "Stalled running assignment has expired lease"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:attention",
+      "to": "rv:cme:progress-and-recovery:resident-feedback",
+      "type": "documentation",
+      "label": "Future Grace integration reads authoritative attention events"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:resident-feedback",
+      "to": "rv:grace:operational-integration:evidence-review",
+      "type": "jump"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:recovery",
+      "to": "rv:cme:progress-and-recovery:observe",
+      "type": "runtime_transition",
+      "label": "Request recorded; monitor continues unrelated work"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:monitor-failure",
+      "to": "rv:cme:progress-and-recovery:retry-backoff",
+      "type": "recovery_route"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:retry-backoff",
+      "to": "rv:cme:progress-and-recovery:monitor-start",
+      "type": "recovery_route",
+      "label": "Reacquire service lease and rescan durable state"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:systemd-launch",
+      "to": "rv:cme:progress-and-recovery:credential-validation",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:credential-validation",
+      "to": "rv:cme:progress-and-recovery:monitor-start",
+      "type": "runtime_transition",
+      "label": "Credential and runtime identity valid"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:credential-validation",
+      "to": "rv:cme:progress-and-recovery:credential-failure",
+      "type": "diagnostic_branch",
+      "label": "Missing, unsafe, or overridden credential/configuration"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:credential-failure",
+      "to": "rv:cme:progress-and-recovery:systemd-launch",
+      "type": "recovery_route",
+      "label": "Correct protected configuration; systemd restart policy retries bounded failures"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "browser": "Firefox 156.0.1",
+  "observed_at_utc": "2026-10-10T22:39:27Z",
+  "source_commit": "Source 702f5db3f03669427a3625425eca04c023a0754c \u00b7 m3.1-camrui",
+  "projection_status": "healthy",
+  "cme_status": "healthy",
+  "attention_status": "available",
+  "attention_types": [
+    "monitor_started",
+    "monitor_started",
+    "assignment_stalled",
+    "assignment_stalled",
+    "assignment_stalled",
+    "monitor_started"
+  ],
+  "browser_errors": [],
+  "navigation_samples": [
+    {
+      "view": "activity",
+      "ms": 12.0
+    },
+    {
+      "view": "overview",
+      "ms": 6.0
+    }
+  ],
+  "snapshot_redaction": {
+    "credentials": "excluded",
+    "private_events": "excluded",
+    "payload_bodies": "excluded",
+    "conversation_content": "not collected"
+  }
+}

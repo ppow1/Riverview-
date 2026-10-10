@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:cme:progress-and-recovery",
-  "graph_revision": "1.0.3",
+  "graph_revision": "1.0.4",
   "component_id": "CME",
   "workflow_id": "progress-and-recovery.v1",
   "diagram_order": 8,
@@ -24,7 +24,11 @@
   "verification_evidence": [
     "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
     "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
-    "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+    "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-state.json",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/service-recovery.json",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/full-test-suite.log"
   ],
   "nodes": [
     {
@@ -277,7 +281,12 @@
         "docs/components/CME_MONITOR.md",
         "docs/components/CME_MONITOR_COOKBOOK.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-state.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/service-recovery.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/full-test-suite.log"
+      ]
     },
     {
       "id": "rv:cme:progress-and-recovery:credential-validation",
@@ -294,7 +303,12 @@
         "docs/components/CME_MONITOR.md",
         "docs/components/CME_MONITOR_COOKBOOK.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-state.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/service-recovery.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/full-test-suite.log"
+      ]
     },
     {
       "id": "rv:cme:progress-and-recovery:credential-failure",

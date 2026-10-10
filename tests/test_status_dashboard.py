@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL for integration class
 # Authority: Creates/drops only unique rvtest_* schemas; never accesses shared Riverview data
-# Changed: 2026-10-10 UTC | RV-M3.1-002 | Verify not-initialized routes preserve domain status without HTTP failures
+# Changed: 2026-10-10 UTC | RV-M3.1-002 | Verify domain not-initialized differs from database failure
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -181,6 +181,13 @@ class DashboardHTTPTests(unittest.TestCase):
         status, _, body = self.request("GET", "/api/v1/attention?limit=10", token=self.token)
         self.assertEqual(status, 200)
         self.assertEqual(json.loads(body)["status"], "not_initialized")
+
+    def test_attention_query_failure_remains_http_503(self):
+        from riverview_core.status_dashboard.projection import ProjectionUnavailable
+        self.projection.attention = mock.Mock(side_effect=ProjectionUnavailable("OperationalError"))
+        status, _, body = self.request("GET", "/api/v1/attention?limit=10", token=self.token)
+        self.assertEqual(status, 503)
+        self.assertEqual(json.loads(body)["error"], "projection_unavailable")
 
     def test_not_initialized_worker_and_ledger_pages_remain_explicit_http_200(self):
         self.projection.workers = lambda *, after=None, limit=25: {

@@ -1,0 +1,10 @@
+{
+  "database": "riverview",
+  "schema": "riverview_dev",
+  "backup_path": "/var/backups/riverview-m31-m24-20261010T222218Z/riverview.full.dump",
+  "backup_sha256": "b4d152d8db77506c5780289b55ee1a5ec40d9cf11ebfd30a5fb19ce489bb0277",
+  "size_bytes": 10878,
+  "permissions": "root:root 0600; parent directory root:root 0700",
+  "restore_drill": "PASS: restored disposable database, verified 3 assignments/6 events, applied dependency migrations, then removed disposable database and temporary copy",
+  "rollback_performed": false
+}

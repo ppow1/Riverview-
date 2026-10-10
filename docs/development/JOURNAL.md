@@ -1,8 +1,51 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.34
+**Document Revision:** 1.0.36
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-10 UTC — RV-M3.1-002 / shared CME and dashboard commissioning
+
+Actor: Codex. Resumed PR #16 branch `codex/m3.1-status-dashboard` at
+`6d64b23becac008733790d51ebb51b95c07f61bf`; clean tree; PR #16 open/draft and
+PR #15 left unmerged. Read the Steward's PR #16 instruction (comment 6102785527).
+It confirmed prior Windows-over-SSH access and a live snapshot but explicitly
+said its JSON file was not in the repository.
+
+Diagnosed repeated `/api/v1/attention` 503s from the route translating the
+projection's valid `not_initialized` state to an HTTP failure while the client
+polled every five seconds. Added truthful HTTP 200 domain-state handling,
+optional-relation polling suppression, and regression tests. Added a separate
+systemd CME unit/launcher using protected `LoadCredential`, validated
+non-root runtime identity, private mode-0600 pgpass copy, and the existing CME
+monitor only. Added service contract tests, operator guidance, and graph nodes.
+
+Took and validated a root-only custom PostgreSQL backup; a restore drill into a
+disposable database applied the full dependency migration chain and preserved
+3 assignments/6 events. Applied the same chain to shared `riverview_dev` as
+`riverview_core`; reruns were empty and pre-existing rows remained 3/6. Deployed
+the full-SHA commit `702f5db3f03669427a3625425eca04c023a0754c` to a root-owned
+dashboard release and installed only `riverview-cme-monitor.service`. The live
+monitor observed 3 stale READY assignments, 0 workers and 0 verification rows,
+and persisted 3 deduplicated stall alerts without mutating assignment states or
+institution events. Both graceful restart and actual SIGKILL/systemd recovery
+created new healthy instances with alert IDs unchanged. Dashboard, event
+processor, PostgreSQL and SSH stayed active. M1.1 baseline probe still reports
+ready.
+
+Firefox 156.0.1 exercised the live post-migration dashboard and client snapshot;
+6 tab transitions measured 5–46 ms (median 11.5 ms), snapshot size was 8,611
+bytes, redaction flags excluded credentials/private payloads/conversations, and
+client UI errors were zero. The final isolated PostgreSQL suite passed 115/115
+with zero skips, including both HTTP statuses for missing optional relations vs.
+real projection failures; it removed all test schemas and stopped its private cluster.
+Graph validation passed at 10 workflows/188 nodes; systemd unit validation and
+controlled revision audit passed. The actual database state has no live worker,
+so unrelated live assignment progress cannot be evidenced without changing
+shared work; existing isolated PostgreSQL tests verify concurrent independent
+claim/progress. Current source has no transferred external post-migration
+Windows snapshot; no formal component acceptance or merge is claimed. See
+`evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/`.
 
 ## 2026-10-10 UTC — RV-M1.1-001 / RUNTIME-BASELINE
 

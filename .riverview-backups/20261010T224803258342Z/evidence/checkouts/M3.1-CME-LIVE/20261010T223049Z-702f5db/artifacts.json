@@ -1,0 +1,111 @@
+{
+  "manifest_revision": "1.0.1",
+  "task_id": "RV-M3.1-002",
+  "component_id": "STEWARD-DASHBOARD / CME",
+  "source_commit": "702f5db3f03669427a3625425eca04c023a0754c",
+  "deployment_id": "m3.1-camrui",
+  "files": {
+    "attention-503-diagnosis.json": {
+      "revision": "1.0.0",
+      "path": "attention-503-diagnosis.json",
+      "sha256": "6f5202eaaf941542103f2992a179dddff0cb09c0fba11833caadd720d4b08065",
+      "size_bytes": 913
+    },
+    "backup-restore.json": {
+      "revision": "1.0.0",
+      "path": "backup-restore.json",
+      "sha256": "3d2bb09370fe365602a2f3dfa50f204e0efe3fe46ec81a0fa4d5b6685f95a74e",
+      "size_bytes": 530
+    },
+    "browser-observation.json": {
+      "revision": "1.0.0",
+      "path": "browser-observation.json",
+      "sha256": "da43cda30156e8db27e6f9a17e09d8b13910d9a8a70873b33b507cbf9a7bbc46",
+      "size_bytes": 1467
+    },
+    "browser-recovery.json": {
+      "revision": "1.0.0",
+      "path": "browser-recovery.json",
+      "sha256": "8a688b20f80973085020d5d7c2660ee4bfc4acbf20cc39273db8c5d3468f5fa4",
+      "size_bytes": 778
+    },
+    "ci-results.json": {
+      "revision": "1.0.0",
+      "path": "ci-results.json",
+      "sha256": "3c48d82ef265b92c3fa2fd5ab8bf01f5f847c2783ba47448e706b03b1b7413be",
+      "size_bytes": 555
+    },
+    "commissioning.md": {
+      "revision": "1.0.1",
+      "path": "commissioning.md",
+      "sha256": "73fe80322f6d48d98a6e3c4bb96cfafc0d94d138adb55aadcbea6b6ebd8d3c86",
+      "size_bytes": 8072
+    },
+    "dashboard-live-post-migration.png": {
+      "revision": "1.0.0",
+      "path": "dashboard-live-post-migration.png",
+      "sha256": "c74a0ddf4da93d78323b8d8be80e26a60d16404a58882779bdcddf6233d39372",
+      "size_bytes": 225946
+    },
+    "dashboard-reconnected-after-monitor-crash.png": {
+      "revision": "1.0.0",
+      "path": "dashboard-reconnected-after-monitor-crash.png",
+      "sha256": "9d3234b82cc01de438f6407d5efc1270300b221f5891b3bd001a9d74b6081651",
+      "size_bytes": 221487
+    },
+    "full-test-suite-final.log": {
+      "revision": "1.0.0",
+      "path": "full-test-suite-final.log",
+      "sha256": "4cf94f7c455997f3fe90d4f619c3115398741937c2185b987ab5151aa40b3082",
+      "size_bytes": 18795
+    },
+    "full-test-suite.log": {
+      "revision": "1.0.0",
+      "path": "full-test-suite.log",
+      "sha256": "edb9fd2e3cfdf04dd41a31d0e59230dd0713c73141e7db5c0f81a3020165e0f1",
+      "size_bytes": 18653
+    },
+    "live-snapshot-post-recovery.json": {
+      "revision": "1.0.0",
+      "path": "live-snapshot-post-recovery.json",
+      "sha256": "c03edd8c5400fc0a59b57e08f09d034ca460f3ac232a9c8fd01a60c27b131d2a",
+      "size_bytes": 10892
+    },
+    "live-snapshot.json": {
+      "revision": "1.0.0",
+      "path": "live-snapshot.json",
+      "sha256": "c33821aa4a9628c428faa07d698f184ca967526113028503a564ea6a9e69a037",
+      "size_bytes": 11159
+    },
+    "live-state.json": {
+      "revision": "1.0.0",
+      "path": "live-state.json",
+      "sha256": "4e971005b6d66acb2b705f2575c8b90ece90cc15ecb8159a0cfa40aa40188d31",
+      "size_bytes": 5648
+    },
+    "process-graph-validation.json": {
+      "revision": "1.0.0",
+      "path": "process-graph-validation.json",
+      "sha256": "879f0756da0f0e402fd649377f7eaae158f722386a93d08f356333b5eb099d65",
+      "size_bytes": 222
+    },
+    "service-recovery.json": {
+      "revision": "1.0.0",
+      "path": "service-recovery.json",
+      "sha256": "48966f8660e36873dfac2653683c5fb949956f729795ccd0395f791273d5780f",
+      "size_bytes": 2912
+    },
+    "systemd-validation.json": {
+      "revision": "1.0.0",
+      "path": "systemd-validation.json",
+      "sha256": "ee4b1eb5b171f65b742b7a1afc5eab27a820d3f8466e7675ee4c4e098df745d6",
+      "size_bytes": 217
+    },
+    "revision-audit.json": {
+      "revision": "1.0.0",
+      "path": "revision-audit.json",
+      "sha256": "6d025803d012ebabaa99ecc4dd760405a81fc7cbd238373ea8b4f6367d2d5c56",
+      "size_bytes": 470
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:steward-dashboard:status",
-  "graph_revision": "1.0.5",
+  "graph_revision": "1.0.6",
   "component_id": "STEWARD-DASHBOARD",
   "workflow_id": "status-projection.v1",
   "diagram_order": 1,
@@ -26,7 +26,12 @@
     "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/systemd-restart.json",
     "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/process-graph-validation.json",
     "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/revision-audit.json",
-    "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/artifacts.json"
+    "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/artifacts.json",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-observation.json",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-recovery.json",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-snapshot-post-recovery.json",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/attention-503-diagnosis.json"
   ],
   "nodes": [
     {
@@ -365,7 +370,13 @@
         "docs/components/STATUS_DASHBOARD.md",
         "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-observation.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-recovery.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-snapshot-post-recovery.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/attention-503-diagnosis.json"
+      ]
     },
     {
       "id": "rv:steward-dashboard:status:attention-uninitialized",
@@ -394,7 +405,13 @@
       "documentation_references": [
         "docs/components/STATUS_DASHBOARD.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-observation.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-recovery.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-snapshot-post-recovery.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/attention-503-diagnosis.json"
+      ]
     }
   ],
   "edges": [

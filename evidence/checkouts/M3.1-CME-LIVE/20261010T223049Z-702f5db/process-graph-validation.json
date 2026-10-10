@@ -1,0 +1,7 @@
+{
+  "command": "python3 scripts/process_graph.py check",
+  "status": "PASS",
+  "graphs": 10,
+  "nodes": 188,
+  "scope": "canonical JSON validation, global IDs, resolvable jumps, refs, and generated view synchronization"
+}

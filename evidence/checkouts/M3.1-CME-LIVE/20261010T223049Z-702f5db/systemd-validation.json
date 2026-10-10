@@ -1,0 +1,6 @@
+{
+  "command": "systemd-analyze verify deploy/systemd/riverview-cme-monitor.service",
+  "source_unit_status": "PASS",
+  "installed_unit_status": "PASS",
+  "source_commit": "702f5db3f03669427a3625425eca04c023a0754c"
+}

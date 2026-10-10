@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/CME_MONITOR.md
 Component: CME
-File Revision: 1.0.3
+File Revision: 1.0.4
 Purpose: Specify the assignment progress and health monitoring service
 Authority: Observation and CME-owned durable event writes only
-Changed: 2026-10-10 UTC | RV-M2.4-002 | Document controlled Camrui service operations and correct monitoring scope
+Changed: 2026-10-10 UTC | RV-M2.4-002 | Record final full-suite commissioning verification
 History: Git and revision/backup manifest
 -->
 # CME monitoring service

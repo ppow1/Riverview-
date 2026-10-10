@@ -1,0 +1,75 @@
+{
+  "captured_at_utc": "2026-10-10T22:38:52.457669+00:00",
+  "graceful_restart": {
+    "before": {
+      "instance_id": "eb992f25-b3a3-452c-b709-a0fe8e5c2323",
+      "status": "healthy",
+      "assignments_observed": 3,
+      "workers_registered": 0,
+      "last_heartbeat_at": "2026-10-10 18:30:35.173365-04:00",
+      "stalled_count": 3,
+      "stalled_event_hashes": [
+        "403db07706e6fd15bab3faeec3ed5d0e0ad08d9b7033e1267660eb840cabd50a",
+        "4195e5124a31b1b57f77b63ce94357f035763020bc08f46dd1eb14f27fb35494",
+        "5186df26416f5d9607016eb5273294c5adad6b418f926af86eaa9cf9cb0e9e00"
+      ],
+      "attention_key_hashes": [
+        "626e109dbfb31c901cd51c9e5d805612939fd3c90b0807f6977a360e44a885d9",
+        "9b08296af2e17140d65484dec6acf4393edad080ce319c72a2bdb9a4dde09e1d",
+        "ba7569698b003d4a0ccb9f29361bf35a653007845e3c9fc3b0f09f15a0ed3e9e"
+      ]
+    },
+    "after": {
+      "instance_id": "2b69dc83-0f66-447b-b196-da414364c42d",
+      "status": "healthy",
+      "assignments_observed": 3,
+      "workers_registered": 0,
+      "last_heartbeat_at": "2026-10-10 18:30:42.559436-04:00",
+      "stalled_count": 3,
+      "stalled_event_hashes": [
+        "403db07706e6fd15bab3faeec3ed5d0e0ad08d9b7033e1267660eb840cabd50a",
+        "4195e5124a31b1b57f77b63ce94357f035763020bc08f46dd1eb14f27fb35494",
+        "5186df26416f5d9607016eb5273294c5adad6b418f926af86eaa9cf9cb0e9e00"
+      ],
+      "attention_key_hashes": [
+        "626e109dbfb31c901cd51c9e5d805612939fd3c90b0807f6977a360e44a885d9",
+        "9b08296af2e17140d65484dec6acf4393edad080ce319c72a2bdb9a4dde09e1d",
+        "ba7569698b003d4a0ccb9f29361bf35a653007845e3c9fc3b0f09f15a0ed3e9e"
+      ],
+      "new_instance_after_restart": true,
+      "stalled_events_preserved_without_duplicates": true
+    }
+  },
+  "sigkill_recovery": {
+    "before": {
+      "instance_id": "2b69dc83-0f66-447b-b196-da414364c42d",
+      "status": "healthy",
+      "stalled_count": 3,
+      "event_hashes": [
+        "403db07706e6fd15bab3faeec3ed5d0e0ad08d9b7033e1267660eb840cabd50a",
+        "4195e5124a31b1b57f77b63ce94357f035763020bc08f46dd1eb14f27fb35494",
+        "5186df26416f5d9607016eb5273294c5adad6b418f926af86eaa9cf9cb0e9e00"
+      ]
+    },
+    "after": {
+      "instance_id": "5e5916da-a47d-4e4f-84ab-e9209a8050b0",
+      "status": "healthy",
+      "stalled_count": 3,
+      "event_hashes": [
+        "403db07706e6fd15bab3faeec3ed5d0e0ad08d9b7033e1267660eb840cabd50a",
+        "4195e5124a31b1b57f77b63ce94357f035763020bc08f46dd1eb14f27fb35494",
+        "5186df26416f5d9607016eb5273294c5adad6b418f926af86eaa9cf9cb0e9e00"
+      ],
+      "systemd_recovered": true,
+      "alerts_preserved": true
+    }
+  },
+  "systemd_nrestarts": 1,
+  "units": {
+    "riverview-cme-monitor.service": "active",
+    "riverview-status-dashboard.service": "active",
+    "riverview-event-processor.service": "active",
+    "postgresql": "active",
+    "ssh": "active"
+  }
+}

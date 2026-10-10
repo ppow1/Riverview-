@@ -272,7 +272,7 @@
     },
     {
       "graph_id": "rv:cme:progress-and-recovery",
-      "graph_revision": "1.0.3",
+      "graph_revision": "1.0.4",
       "component_id": "CME",
       "workflow_id": "progress-and-recovery.v1",
       "diagram_order": 8,
@@ -296,7 +296,11 @@
       "verification_evidence": [
         "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
         "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
-        "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+        "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-state.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/service-recovery.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/full-test-suite.log"
       ],
       "nodes": [
         {
@@ -549,7 +553,12 @@
             "docs/components/CME_MONITOR.md",
             "docs/components/CME_MONITOR_COOKBOOK.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-state.json",
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/service-recovery.json",
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/full-test-suite.log"
+          ]
         },
         {
           "id": "rv:cme:progress-and-recovery:credential-validation",
@@ -566,7 +575,12 @@
             "docs/components/CME_MONITOR.md",
             "docs/components/CME_MONITOR_COOKBOOK.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-state.json",
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/service-recovery.json",
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/full-test-suite.log"
+          ]
         },
         {
           "id": "rv:cme:progress-and-recovery:credential-failure",
@@ -2984,7 +2998,7 @@
     },
     {
       "graph_id": "rv:steward-dashboard:status",
-      "graph_revision": "1.0.5",
+      "graph_revision": "1.0.6",
       "component_id": "STEWARD-DASHBOARD",
       "workflow_id": "status-projection.v1",
       "diagram_order": 1,
@@ -3010,7 +3024,12 @@
         "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/systemd-restart.json",
         "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/process-graph-validation.json",
         "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/revision-audit.json",
-        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/artifacts.json"
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/artifacts.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-observation.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-recovery.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-snapshot-post-recovery.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/attention-503-diagnosis.json"
       ],
       "nodes": [
         {
@@ -3349,7 +3368,13 @@
             "docs/components/STATUS_DASHBOARD.md",
             "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-observation.json",
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-recovery.json",
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-snapshot-post-recovery.json",
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/attention-503-diagnosis.json"
+          ]
         },
         {
           "id": "rv:steward-dashboard:status:attention-uninitialized",
@@ -3378,7 +3403,13 @@
           "documentation_references": [
             "docs/components/STATUS_DASHBOARD.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-observation.json",
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-recovery.json",
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-snapshot-post-recovery.json",
+            "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/attention-503-diagnosis.json"
+          ]
         }
       ],
       "edges": [

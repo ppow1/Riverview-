@@ -1,10 +1,10 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.3
+File Revision: 1.0.4
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
-Changed: 2026-10-10 UTC | RV-M3.1-001 | Record worker health and credential troubleshooting
+Changed: 2026-10-10 UTC | RV-M3.1-002 | Diagnose optional CME relation state and attention polling
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -12,6 +12,28 @@ History: Git and revision/backup manifest
 **Task:** RV-M3.1-001 · **Component:** STEWARD-DASHBOARD · **Execution model:** request-driven.  
 The dashboard does not own assignments, dispatch workers, mutate the ledger, or
 gate CME execution.
+
+## CME attention endpoint and 503 responses
+
+Before the M2.4 migration, `/api/v1/attention` returned HTTP 503 when the
+`cme_monitor_events` relation was absent. The projection correctly reported
+`status=not_initialized`, but the HTTP status caused the browser to record a
+request error on each refresh interval. A missing optional relation is now
+returned as HTTP 200 with the explicit `not_initialized` domain status, and the
+browser skips polling that endpoint until the status projection confirms the
+relation exists. An actual database/query failure still returns HTTP 503.
+
+Check relation and service state before diagnosing repeated errors:
+
+```sql
+SELECT to_regclass('riverview_dev.cme_monitor_events') AS attention_relation;
+SELECT service_id,status,last_heartbeat_at,last_scan_at
+FROM riverview_dev.cme_monitor_health;
+```
+
+Use `/api/v1/status` to distinguish a missing relation from an unavailable
+source. Do not interpret HTTP success with `status=not_initialized` as evidence
+that CME monitoring is operational.
 
 ## Credential delivery
 
