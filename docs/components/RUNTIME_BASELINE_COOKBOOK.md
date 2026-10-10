@@ -1,11 +1,11 @@
 # Riverview~ runtime baseline troubleshooting and recovery
 
-**Document Revision:** 1.0.3
+**Document Revision:** 1.0.4
 **Component:** RUNTIME-BASELINE
-**Repair task:** RV-M1.1-007
+**Repair task:** RV-M1.1-008
 **Task:** RV-M1.1-001
 **Owner:** office:operations
-**Status:** terminal prompt and partial-release retry repaired; live commissioning and rollback NOT VERIFIED
+**Status:** path-failure diagnostics added; live commissioning and rollback NOT VERIFIED
 
 ## Consolidated read-only diagnostic
 
@@ -37,7 +37,7 @@ M1.1 acceptance is based on local execution on Camrui: after authorized installa
 | Shell preflight | LF-only exact blob bytes and Linux syntax | `set: Illegal option -`, CRLF/BOM/NUL or shell parse error | `python3 scripts/verify_camrui_package.py <archive>` and `sh -n` for both scripts | Keep failed artifact; update PR branch and rebuild with repaired builder; new staging directory, no host text edits |
 | Commissioning | Authorized root; exact package manifest; reusable release root-owned and service-readable | Existing non-symlink deployment, lock held, non-root-owned/invalid partial release | Inspect active link and root-only rollback record/checksums; stat the release path without reading credentials | Preserve invalid/untrusted release; do not delete it automatically. For a verified root-owned release, use the corrected installer to normalize read/traverse permissions and continue; it retains file bytes and rejects ownership mismatch |
 | identity | OS riverview, nonroot, nologin, systemd User=riverview | IDENTITY_MISSING / IDENTITY_MISMATCH / INTERACTIVE_SERVICE_ACCOUNT | `getent passwd riverview`; selected unit properties | Correct authorized commissioning; never run institution as root; restart probe |
-| storage | Private directory owned by runtime account | PATH_UNAVAILABLE / UNSAFE_PATH / UNSAFE_MODE | `stat -c '%U:%G %a %F' /var/lib/riverview` | Identify existing owner before repair; no deletion; restart probe |
+| storage | Private directory owned by runtime account | PATH_UNAVAILABLE / UNSAFE_PATH / UNSAFE_MODE; sanitized `path_failure_reason` distinguishes `symlink_in_path`, `unexpected_file_type`, and `owner_uid_mismatch` | `stat -c '%U:%G %a %F' /var/lib/riverview`; compare with the fresh probe report from inside the service unit | Do not infer the failing predicate from host metadata alone. Compare the service-context reason with systemd's `User`, `Group`, `StateDirectory`, and `StateDirectoryMode`; repair only the demonstrated mismatch, preserve path checks, then rerun |
 | credential | Fresh systemd credential from protected root source; absent passfile is captured through getpass controlling TTY with echo disabled | CREDENTIAL_MISSING / CREDENTIAL_UNREADABLE / UNSAFE_PATH / UNSAFE_MODE / AMBIENT_DATABASE_OVERRIDE; TTY I/O error fails before file creation | stat only owner/mode/path; never read credential contents | Provision only an absent passfile through hidden terminal input; rerun after correcting TTY access; O_EXCL prevents overwrite |
 | database | Read-only TCP connection, expected DB/role and scoped privileges | DATABASE_UNAVAILABLE / DATABASE_IDENTITY_MISMATCH / EXCESS_DATABASE_PRIVILEGE / READ_ONLY_REQUIRED / DEPENDENCY_MISSING | `systemctl is-active postgresql`; `pg_lsclusters`; `.venv/bin/python -c 'import psycopg; print(psycopg.__version__)'` | Restore dependency or reviewed permissions; no password resets or public schema changes; restart probe |
 | schema | Existing riverview_dev owner and USAGE/CREATE | SCHEMA_MISSING / SCHEMA_AUTHORITY_MISMATCH | Authorized DBA queries pg_namespace/has_schema_privilege; do not initialize via PostgresLedger constructor | Reconcile with prior baseline evidence; reviewed schema repair only; restart probe |

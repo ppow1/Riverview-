@@ -1,13 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/runtime_baseline.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Read-only M1.1 identity, credential and PostgreSQL commissioning probe
 # Execution Model: Request-driven diagnostic; no institutional work loop
 # Observability: rv.runtime-baseline.v1 JSON stdout; freshness expires after 60s
 # Dependencies: Python 3.10+, Psycopg 3, Linux, PostgreSQL
 # Authority: Read-only; never provisions, changes passwords or initializes tables
-# Changed: 2026-10-10 UTC | RV-M1.1-001 | Initial implementation
+# Changed: 2026-10-10 UTC | RV-M1.1-008 | Classify rejected-path predicates without weakening checks
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: tests/test_runtime_baseline.py
 # History: New file; no predecessor; Git
@@ -24,8 +24,8 @@ import sys
 
 
 class BaselineError(Exception):
-    def __init__(self, code, step):
-        self.code, self.step = code, step
+    def __init__(self, code, step, detail=None):
+        self.code, self.step, self.detail = code, step, detail
 
 
 def private_path(path, uid, *, directory=False):
@@ -33,8 +33,13 @@ def private_path(path, uid, *, directory=False):
     try:
         info = path.lstat()
         kind_ok = stat.S_ISDIR(info.st_mode) if directory else stat.S_ISREG(info.st_mode)
-        if path.resolve() != path.absolute() or not kind_ok or info.st_uid != uid:
-            raise BaselineError("UNSAFE_PATH", "credential" if not directory else "storage")
+        step = "credential" if not directory else "storage"
+        if path.resolve() != path.absolute():
+            raise BaselineError("UNSAFE_PATH", step, "symlink_in_path")
+        if not kind_ok:
+            raise BaselineError("UNSAFE_PATH", step, "unexpected_file_type")
+        if info.st_uid != uid:
+            raise BaselineError("UNSAFE_PATH", step, "owner_uid_mismatch")
         if stat.S_IMODE(info.st_mode) & 0o077:
             raise BaselineError("UNSAFE_MODE", "credential" if not directory else "storage")
         if not directory and (info.st_size == 0 or not os.access(path, os.R_OK)):
@@ -84,7 +89,8 @@ def probe(*, passfile, state_dir, account="riverview", connect=None):
                   database="riverview", schema="riverview_dev", database_role="riverview_core",
                   runtime_account=account, blocker_code=None, recovery_status="required",
                   diagnostic_ref="docs/components/RUNTIME_BASELINE_COOKBOOK.md",
-                  responsible_office_id="office:operations", target_host=os.uname().nodename, source_commit=None)
+                  responsible_office_id="office:operations", target_host=os.uname().nodename, source_commit=None,
+                  path_failure_reason=None)
     commit_file = Path(__file__).resolve().parents[1] / "SOURCE_COMMIT"
     if commit_file.is_file():
         candidate = commit_file.read_text().strip()
@@ -121,6 +127,8 @@ def probe(*, passfile, state_dir, account="riverview", connect=None):
         return result, 0
     except BaselineError as exc:
         result.update(step_id=exc.step, blocker_code=exc.code)
+        if exc.code == "UNSAFE_PATH":
+            result["path_failure_reason"] = exc.detail
         return result, 2
     except Exception:
         # Driver errors can contain passwords/DSNs; expose only a stable code.

@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.6
+**Document Revision:** 1.0.8
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -155,3 +155,45 @@ Update the component contract, cookbook and flowchart with retry/error behavior.
 Verification: the first pseudo-terminal test iteration found the harness assumed LF-only terminal output; PTY canonical mode emitted CRLF. The assertion now normalizes captured line endings. The focused runtime suite passed (19 tests); the full suite against the isolated local PostgreSQL cluster passed (38 tests, 0 failures, 0 skips), including all three PostgreSQL ledger tests. The temporary test schemas were absent after cleanup (`16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)||0`); the test cluster was stopped. Test, cleanup and lifecycle logs are retained in the RV-M1.1-007 checkout evidence.
 
 Next: commit the corrected source and records, build and verify a new uniquely named package from that commit, then retry commissioning through the corrected package. The failed staged package remains untouched. M1.1 remains IN PROGRESS/BLOCKED pending live acceptance evidence and Steward acceptance; no M1.2 or later dependent milestone is claimed complete.
+
+## 2026-10-10 UTC — RV-M1.1-008 / deployed storage-path failure diagnosis
+
+Actor: Codex on Camrui (`admin1-Default-string`, Ubuntu 24.04.3). The active unit
+is loaded from `/etc/systemd/system/riverview-baseline.service`, runs as static
+`riverview` (UID 997/GID 984), sets `StateDirectory=riverview` and mode 0700,
+`DynamicUser=no`, `ProtectSystem=strict`, `ProtectHome=yes`, and `PrivateTmp=yes`.
+The active release source is commit `3d7e58fc19ae38b6fd378fd0f0421ebb36fdb266`;
+the installed `runtime_baseline.py` SHA-256 matches this checkout's source.
+Host-context checks show `/var/lib/riverview` is a non-symlink directory owned
+997:984 with mode 0700; `Path.absolute()` and `Path.resolve()` both produce the
+same path. `/opt/riverview-core` is a symlink to the versioned release, but the
+storage check receives the fixed `/var/lib/riverview` default, so that symlink
+is not itself evidence of the storage failure.
+
+The installed sanitized report cannot be read by `admin1`; the unit journal
+contains only status 2. `sudo -n -l` reports that a password is required, so no
+service-context rerun or privileged state/configuration change was performed.
+The precise source condition is one of `path.resolve() != path.absolute()`,
+non-directory `lstat` type, or owner UID mismatch. Host-context evidence rules
+out the latter two and the resolution mismatch on the host, but not within the
+unit's mount namespace. The change adds safe `path_failure_reason` diagnostics
+and tests for those predicates plus the deployed unit/storage contract; it does
+not relax path validation. Live root-authorized confirmation and repair remain
+open. No credential or database content was read; no services/configuration
+were modified.
+
+Verification: the focused runtime-baseline suite passed 22 tests. The full
+checkout suite passed 41 tests: 38 passed, 3 PostgreSQL integration tests
+skipped because `RIVERVIEW_TEST_PG_DSN` is unset. The three integration tests
+were previously executed successfully against a disposable local PostgreSQL
+cluster under RV-M1.1-006; this source-only path-diagnostic change does not
+affect that database code. `sudo -n -l` confirmed no passwordless privilege, so
+the protected live report and the new service-context predicate have not been
+verified. No installation or service restart was attempted.
+
+Next: record and commit this diagnostic change, build and verify a uniquely
+named package from that commit, then arrange one authorized package install
+with its scoped service start. Compare the service-context reason and correct
+only a demonstrated mismatch. M1.1 and all dependent roadmap milestones remain
+blocked pending root-cause repair, successful live acceptance and Steward
+disposition.

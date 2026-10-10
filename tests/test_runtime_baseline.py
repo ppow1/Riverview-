@@ -1,13 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_runtime_baseline.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Identity/credential security, DB contract, observer and package regression tests
 # Execution Model: Request-driven tests; simulated DB explicitly distinct from live proof
 # Observability: unittest counts and failures
 # Dependencies: Python 3.10+, Git, Linux
 # Authority: Temporary fixtures only; no live DB or credentials
-# Changed: 2026-10-10 UTC | RV-M1.1-007 | Cover hidden TTY prompt and safe partial-release permissions
+# Changed: 2026-10-10 UTC | RV-M1.1-008 | Cover installed unit storage contract and path rejection reasons
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: This file
 # History: docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py
@@ -126,11 +126,55 @@ class RuntimeBaselineTests(unittest.TestCase):
                 baseline.private_path(path, os.getuid() + 1)
             link = Path(folder) / "link"
             link.symlink_to(path)
-            with self.assertRaises(baseline.BaselineError):
+            with self.assertRaises(baseline.BaselineError) as caught:
                 baseline.private_path(link, os.getuid())
+            self.assertEqual(caught.exception.detail, "symlink_in_path")
             path.write_text("")
             with self.assertRaises(baseline.BaselineError):
                 baseline.private_path(path, os.getuid())
+
+    def test_unsafe_path_reports_exact_safe_predicate(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            file_path = root / "not-a-directory"
+            file_path.write_text("fixture")
+            with self.assertRaises(baseline.BaselineError) as caught:
+                baseline.private_path(file_path, os.getuid(), directory=True)
+            self.assertEqual(caught.exception.detail, "unexpected_file_type")
+            directory = root / "state"
+            directory.mkdir(mode=0o700)
+            with self.assertRaises(baseline.BaselineError) as caught:
+                baseline.private_path(directory, os.getuid() + 1, directory=True)
+            self.assertEqual(caught.exception.detail, "owner_uid_mismatch")
+
+    def test_installed_unit_storage_contract_matches_runtime_default(self):
+        repo = Path(__file__).resolve().parents[1]
+        unit = (repo / "deploy/systemd/riverview-baseline.service").read_text()
+        self.assertIn("User=riverview\n", unit)
+        self.assertIn("Group=riverview\n", unit)
+        self.assertIn("StateDirectory=riverview\n", unit)
+        self.assertIn("StateDirectoryMode=0700\n", unit)
+        self.assertNotIn("DynamicUser=yes", unit)
+        self.assertIn('default=Path("/var/lib/riverview")',
+                      (repo / "scripts/runtime_baseline.py").read_text())
+        with tempfile.TemporaryDirectory() as folder:
+            state = Path(folder) / "riverview"
+            state.mkdir(mode=0o700)
+            baseline.private_path(state, os.getuid(), directory=True)
+
+    def test_storage_path_failure_reports_reason_and_keeps_blocker_code(self):
+        identity = SimpleNamespace(pw_uid=12345, pw_shell="/usr/sbin/nologin")
+        with tempfile.TemporaryDirectory() as folder:
+            state = Path(folder) / "state"
+            state.mkdir(mode=0o700)
+            with patch.object(baseline.pwd, "getpwnam", return_value=identity), \
+                 patch.object(baseline.os, "geteuid", return_value=12345), \
+                 patch.dict(os.environ, {}, clear=True):
+                report, code = baseline.probe(passfile=None, state_dir=state, connect=MagicMock())
+        self.assertEqual(code, 2)
+        self.assertEqual(report["step_id"], "storage")
+        self.assertEqual(report["blocker_code"], "UNSAFE_PATH")
+        self.assertEqual(report["path_failure_reason"], "owner_uid_mismatch")
 
     def test_pgpass_escaping_and_invalid_passwords(self):
         self.assertEqual(pgpass_line("a:b\\c"), "127.0.0.1:5432:riverview:riverview_core:a\\:b\\\\c\n")
