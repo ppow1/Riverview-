@@ -1,13 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_runtime_baseline.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.6
+# Revision: 1.0.7
 # Purpose: Identity/credential security, DB contract, observer and package regression tests
 # Execution Model: Request-driven tests; simulated DB explicitly distinct from live proof
 # Observability: unittest counts and failures
 # Dependencies: Python 3.10+, Git, Linux
 # Authority: Temporary fixtures only; no live DB or credentials
-# Changed: 2026-10-10 UTC | RV-M1.1-011 | Regress PostgreSQL inet host identity formatting
+# Changed: 2026-10-10 UTC | RV-M1.3-002 | Validate exact second service credential directory without changing M1.1 default
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: This file
 # History: docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py
@@ -186,6 +186,22 @@ class RuntimeBaselineTests(unittest.TestCase):
         with patch.dict(os.environ, {"CREDENTIALS_DIRECTORY": "/tmp/user-controlled"}):
             with self.assertRaisesRegex(baseline.BaselineError, "unexpected_credential_location"):
                 baseline.systemd_credential_path(Path("/tmp/user-controlled/pgpass"))
+
+    def test_systemd_credential_validator_accepts_only_requested_processor_unit(self):
+        expected_dir = Path("/run/credentials/riverview-event-processor.service")
+        expected_file = expected_dir / "pgpass"
+        dir_stat = SimpleNamespace(st_mode=stat.S_IFDIR | 0o550, st_uid=0)
+        file_stat = SimpleNamespace(st_mode=stat.S_IFREG | 0o440, st_uid=0, st_size=16)
+        with patch.dict(os.environ, {"CREDENTIALS_DIRECTORY": str(expected_dir)}), \
+             patch.object(Path, "lstat", autospec=True,
+                          side_effect=lambda p: dir_stat if p == expected_dir else file_stat), \
+             patch.object(Path, "resolve", autospec=True, side_effect=lambda p, **kw: p.absolute()), \
+             patch.object(baseline.os, "access", return_value=True):
+            baseline.systemd_credential_path(
+                expected_file, service_unit="riverview-event-processor.service")
+            with self.assertRaisesRegex(baseline.BaselineError, "unexpected_credential_location"):
+                baseline.systemd_credential_path(
+                    expected_file, service_unit="riverview-baseline.service")
 
     def test_probe_rejects_noncontract_runtime_passfile_location(self):
         report, code, connect, _ = self.run_probe(passfile=Path("/tmp/pgpass"))

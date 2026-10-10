@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/event_processor.py
 # Component: EVENT-PROCESSOR
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Replay durable assignment events and checkpoint resumable progression
 # Execution Model: Event-driven continuous service with repeatable polling
 # Observability: Structured lifecycle logs, event cursor, failures and retry state
 # Dependencies: Python 3.10+; Psycopg 3; PostgreSQL 16; POSTGRES-LEDGER
 # Authority: Advances queued assignments to ready; performs no external effects
-# Changed: 2026-10-10 UTC | RV-M1.3-001 | Initial persistent event consumer
+# Changed: 2026-10-10 UTC | RV-M1.3-002 | Verify deployed migration contract before event consumption
 # Contracts: docs/development/M1.3-001_REVISION_RECORD.md; docs/components/POSTGRES_LEDGER.md
 # Tests: tests/test_event_processor.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -16,10 +16,12 @@
 """A durable, at-least-once PostgreSQL event consumer for assignment intake."""
 
 import json
+import hashlib
 import logging
 import re
 import threading
 import time
+from pathlib import Path
 
 import psycopg
 from psycopg.rows import dict_row
@@ -33,6 +35,10 @@ _SCHEMA = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 
 class ProcessorError(RuntimeError):
     """Processor startup or durable-state contract failure."""
+
+
+class ProcessorLeaseError(ProcessorError):
+    """Another process already owns this consumer identity."""
 
 
 class PostgresEventProcessor:
@@ -56,6 +62,27 @@ class PostgresEventProcessor:
 
     def _connection(self):
         return psycopg.connect(self.dsn, autocommit=True, row_factory=dict_row)
+
+    def verify_schema(self):
+        """Fail closed unless the deployed base and cursor migrations match source."""
+        repo = Path(__file__).resolve().parent
+        expected = {
+            "0001_assignment_event_ledger": repo / "migrations/0001_assignment_event_ledger.sql",
+            "0002_event_processor_cursor": repo / "event_processor/migrations/0002_event_processor_cursor.sql",
+        }
+        checksums = {name: hashlib.sha256(path.read_bytes()).hexdigest()
+                     for name, path in expected.items()}
+        with self._connection() as db, db.cursor() as cur:
+            cur.execute("SELECT set_config('search_path', %s, false)", (self.schema,))
+            cur.execute("SELECT version, checksum FROM schema_migrations WHERE version = ANY(%s)",
+                        (list(checksums),))
+            found = {row["version"]: row["checksum"] for row in cur.fetchall()}
+            if found != checksums:
+                raise ProcessorError("required migration history is missing or differs from source")
+            cur.execute("SELECT to_regclass('event_processor_cursors') AS cursor_table")
+            if cur.fetchone()["cursor_table"] is None:
+                raise ProcessorError("event processor cursor table is missing")
+        return checksums
 
     def cursor_position(self):
         with self._connection() as db, db.cursor() as cur:
@@ -113,33 +140,60 @@ class PostgresEventProcessor:
         return processed
 
     def run_forever(self, stop_event=None):
-        """Poll until stopped; retry dependency failures with bounded backoff."""
+        """Poll until stopped; reconnect and reacquire leadership after DB recovery."""
         stop_event = stop_event or threading.Event()
         backoff = self.poll_interval
+        while not stop_event.is_set():
+            try:
+                self.verify_schema()
+                self._run_as_leader(stop_event)
+                return
+            except ProcessorLeaseError:
+                raise
+            except psycopg.Error as exc:
+                LOG.error(json.dumps({"event":"processor_dependency_retry",
+                                      "consumer_id":self.consumer_id,
+                                      "failure_type":type(exc).__name__,
+                                      "backoff_seconds":backoff}, sort_keys=True))
+                stop_event.wait(backoff)
+                backoff = min(self.max_backoff, backoff * 2)
+
+    def _run_as_leader(self, stop_event):
+        lock_key = f"riverview-event-processor:{self.schema}:{self.consumer_id}"
         with self._connection() as lock_db, lock_db.cursor() as cur:
             cur.execute("SELECT pg_try_advisory_lock(hashtextextended(%s,0)) AS acquired",
-                        (f"riverview-event-processor:{self.schema}:{self.consumer_id}",))
+                        (lock_key,))
             if not cur.fetchone()["acquired"]:
-                raise ProcessorError("another processor holds this consumer lease")
+                raise ProcessorLeaseError("another processor holds this consumer lease")
             LOG.info(json.dumps({"event":"processor_started","consumer_id":self.consumer_id,
                                  "schema":self.schema,"cursor":self.cursor_position()}, sort_keys=True))
+            backoff = self.poll_interval
             try:
                 while not stop_event.is_set():
                     try:
                         processed = self.run_once()
+                        # The held session owns the advisory lock. A lightweight
+                        # ping makes an administrator or PostgreSQL restart visible
+                        # before another instance could process under a lost lease.
+                        cur.execute("SELECT 1")
                         backoff = self.poll_interval
                         delay = 0 if processed else self.poll_interval
-                    except (psycopg.Error, ProcessorError, TransitionError) as exc:
-                        LOG.error(json.dumps({"event":"processor_retry","consumer_id":self.consumer_id,
-                                              "failure_type":type(exc).__name__,"backoff_seconds":backoff}, sort_keys=True))
+                    except (ProcessorError, TransitionError) as exc:
+                        LOG.error(json.dumps({"event":"processor_retry",
+                                              "consumer_id":self.consumer_id,
+                                              "failure_type":type(exc).__name__,
+                                              "backoff_seconds":backoff}, sort_keys=True))
                         delay = backoff
                         backoff = min(self.max_backoff, backoff * 2)
                     stop_event.wait(delay)
             finally:
-                cur.execute("SELECT pg_advisory_unlock(hashtextextended(%s,0))",
-                            (f"riverview-event-processor:{self.schema}:{self.consumer_id}",))
+                try:
+                    cur.execute("SELECT pg_advisory_unlock(hashtextextended(%s,0))", (lock_key,))
+                    cursor = self.cursor_position()
+                except psycopg.Error:
+                    cursor = None
                 LOG.info(json.dumps({"event":"processor_stopped","consumer_id":self.consumer_id,
-                                     "cursor":self.cursor_position()}, sort_keys=True))
+                                     "cursor":cursor}, sort_keys=True))
 
     def close(self):
         self._closed = True

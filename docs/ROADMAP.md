@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.0.3
+**Document Revision:** 1.0.4
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-09  
 **Component:** RV-ROADMAP  
@@ -108,9 +108,9 @@ Deliverable: capability discovery and replaceable adapters for OctoMiner-hosted 
 
 **M1.2:** technical criteria verified, including isolated tests, CI/revision audit and authorized deployment of migration `0001_assignment_event_ledger` to `riverview_dev`; full component DoD remains open.
 
-**Next step: M1.3 — Always-on event processor (isolated engineering).**
+**Current step: M1.3 — Always-on event processor (controlled Camrui commissioning).**
 
-M1.3 engineering may proceed against isolated test databases and the verified M1.2 schema contract. Do not claim M1.3 acceptance until its persistent cursor/outbox, replay, unattended progression, restart recovery and duplicate-event criteria are executed. The M3.1 dashboard and later autonomy work remain required full-project obligations, but do not gate independent M1.3 implementation.
+The isolated M1.3 implementation passed its CI and disposable-database gates. Controlled commissioning is underway against the verified M1.2 schema; do not advance the cursor or claim technical commissioning until migration backup/restore, service operation, persistence, replay, unattended progression, restart recovery and dependency-session recovery are demonstrated. M3.1 dashboard and later autonomy remain full-project obligations, not gates to this independent work.
 
 ## Revision history
 
@@ -119,3 +119,4 @@ M1.3 engineering may proceed against isolated test databases and the verified M1
 - **1.0.0 — 2026-10-09:** Initial ordered, test-gated roadmap grounded in current repository contracts.
 - **1.0.2 — 2026-10-10:** Record scoped M1.1 Steward technical acceptance, M1.2 shared development migration verification, and M1.3 as the next eligible engineering milestone; no full component DoD waived.
 - **1.0.3 — 2026-10-10:** Record M1.3 isolated implementation and test status; milestone remains in progress pending supervised deployment and operational acceptance.
+- **1.0.4 — 2026-10-10:** Record M1.3 controlled commissioning, event-ordering correction, credential-delivery contract and recovery workflow; keep milestone active pending executed Camrui evidence.

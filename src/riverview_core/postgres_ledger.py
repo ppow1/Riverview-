@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/postgres_ledger.py
 # Component: POSTGRES-LEDGER
-# Revision: 1.1.1
+# Revision: 1.1.2
 # Purpose: Persist contract-aligned assignments and causally linked events
 # Execution Model: Request-driven library
 # Observability: PostgreSQL assignment/event queries and schema version
 # Dependencies: Python 3.10+; Psycopg 3; PostgreSQL 16; versioned migrations
 # Authority: Persistence only; authority references are recorded, not validated
-# Changed: 2026-10-10 UTC | RV-M1.2-001 | Require migration-managed schema and full event metadata
+# Changed: 2026-10-10 UTC | RV-M1.3-002 | Serialize event sequence allocation through transaction commit
 # Contracts: docs/components/POSTGRES_LEDGER.md; docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md
 # Tests: tests/test_postgres_ledger.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -64,6 +64,11 @@ class PostgresLedger:
     def _append_event(self, cur, *, assignment_id, event_type, idempotency_key,
                       actor_id, authority_ref, correlation_id, causation_id,
                       payload_schema, payload, privacy_domain="institution"):
+        # Identity sequence values are allocated before transaction commit. Serialize
+        # event inserts through commit so a cursor consumer cannot observe a higher
+        # sequence while a lower sequence remains uncommitted and later skip it.
+        cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+                    ("riverview:ledger:event-sequence",))
         event_id = uuid4()
         cur.execute(
             """INSERT INTO events

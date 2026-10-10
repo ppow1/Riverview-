@@ -1,13 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/runtime_baseline.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Read-only M1.1 identity, credential and PostgreSQL commissioning probe
 # Execution Model: Request-driven diagnostic; no institutional work loop
 # Observability: rv.runtime-baseline.v1 JSON stdout; freshness expires after 60s
 # Dependencies: Python 3.10+, Psycopg 3, Linux, PostgreSQL
 # Authority: Read-only; never provisions, changes passwords or initializes tables
-# Changed: 2026-10-10 UTC | RV-M1.1-011 | Normalize PostgreSQL inet host text for loopback identity check
+# Changed: 2026-10-10 UTC | RV-M1.3-002 | Allow exact unit identity when validating systemd credential mount
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: tests/test_runtime_baseline.py
 # History: New file; no predecessor; Git
@@ -48,7 +48,7 @@ def private_path(path, uid, *, directory=False):
         raise BaselineError("PATH_UNAVAILABLE", "credential" if not directory else "storage") from None
 
 
-def systemd_credential_path(path):
+def systemd_credential_path(path, service_unit="riverview-baseline.service"):
     """Validate systemd's root-owned, read-only credential mount and its file.
 
     The credential is copied by PID 1 into /run/credentials/<unit>. That
@@ -57,7 +57,9 @@ def systemd_credential_path(path):
     """
     step = "credential"
     try:
-        expected_dir = Path("/run/credentials/riverview-baseline.service")
+        if not re.fullmatch(r"[a-z0-9][a-z0-9_.@-]*\.service", service_unit):
+            raise BaselineError("UNSAFE_PATH", step, "invalid_credential_unit")
+        expected_dir = Path("/run/credentials") / service_unit
         configured_dir = os.environ.get("CREDENTIALS_DIRECTORY")
         parent = path.parent
         if (configured_dir is None or Path(configured_dir) != expected_dir or

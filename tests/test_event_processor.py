@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_event_processor.py
 # Component: EVENT-PROCESSOR
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Verify durable cursor, no-turn progression, restart and replay idempotency
 # Execution Model: Request-driven PostgreSQL tests using isolated schemas
 # Observability: unittest outcomes; durable assignment/event/cursor assertions
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL test database
 # Authority: Creates and drops only unique rvtest_* schemas
-# Changed: 2026-10-10 UTC | RV-M1.3-001 | Initial event processor acceptance tests
+# Changed: 2026-10-10 UTC | RV-M1.3-002 | Test commit-ordered event intake and deployed schema/credentials
 # Contracts: docs/development/M1.3-001_REVISION_RECORD.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -16,6 +16,8 @@
 """PostgreSQL integration tests for the M1.3 persistent event consumer."""
 
 import os
+import sys
+import subprocess
 import threading
 import time
 import unittest
@@ -29,6 +31,9 @@ from psycopg import sql
 from riverview_core.event_processor import PostgresEventProcessor, ProcessorError
 from riverview_core.postgres_ledger import PostgresLedger
 from riverview_core.postgres_migrations import apply_migrations
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+import run_event_processor
 
 DSN = os.environ.get("RIVERVIEW_TEST_PG_DSN")
 PROCESSOR_MIGRATIONS = (Path(__file__).resolve().parents[1]
@@ -145,6 +150,148 @@ class EventProcessorTests(unittest.TestCase):
             self.assertEqual(self.ledger.get("failed-handler")["state"], "ready")
         finally:
             processor.close()
+
+    def test_event_sequence_cannot_overtake_an_uncommitted_lower_sequence(self):
+        first = PostgresLedger(DSN, schema=self.schema)
+        inserted = threading.Event()
+        release = threading.Event()
+        second_done = threading.Event()
+        failures = []
+        original_append = first._append_event
+
+        def hold_first_commit(*args, **kwargs):
+            result = original_append(*args, **kwargs)
+            inserted.set()
+            if not release.wait(3):
+                raise TimeoutError("test did not release first event transaction")
+            return result
+
+        def create_first():
+            try:
+                with patch.object(first, "_append_event", side_effect=hold_first_commit):
+                    first.create("ordered-one", "engineering", "ordered-one", **self._metadata())
+            except BaseException as exc:
+                failures.append(exc)
+
+        def create_second():
+            ledger = PostgresLedger(DSN, schema=self.schema)
+            try:
+                ledger.create("ordered-two", "engineering", "ordered-two", **self._metadata())
+            except BaseException as exc:
+                failures.append(exc)
+            finally:
+                ledger.close()
+                second_done.set()
+
+        first_thread = threading.Thread(target=create_first, daemon=True)
+        second_thread = threading.Thread(target=create_second, daemon=True)
+        first_thread.start()
+        try:
+            self.assertTrue(inserted.wait(2))
+            second_thread.start()
+            self.assertFalse(second_done.wait(0.2), "later event committed before the held lower sequence")
+        finally:
+            release.set()
+            first_thread.join(3)
+            if second_thread.ident is not None:
+                second_thread.join(3)
+            first.close()
+        self.assertFalse(first_thread.is_alive())
+        self.assertFalse(second_thread.is_alive())
+        self.assertEqual(failures, [])
+        events = self.ledger.events()
+        self.assertEqual([(event["seq"], event["assignment_id"]) for event in events],
+                         [(1, "ordered-one"), (2, "ordered-two")])
+        processor = self.processor(consumer_id="ordered-test")
+        try:
+            self.assertEqual(processor.run_once(), 2)
+            self.assertEqual(processor.cursor_position(), 2)
+            self.assertEqual(self.ledger.get("ordered-one")["state"], "ready")
+            self.assertEqual(self.ledger.get("ordered-two")["state"], "ready")
+        finally:
+            processor.close()
+
+    @staticmethod
+    def _metadata():
+        return dict(authority_ref="grant:test", objective_ref="objective:test",
+                    actor_id="resident:test", workflow_id="workflow:test",
+                    workflow_step="intake")
+
+    def test_processor_requires_matching_source_migration_checksums(self):
+        processor = self.processor(consumer_id="schema-check-test")
+        try:
+            checksums = processor.verify_schema()
+            self.assertEqual(set(checksums), {"0001_assignment_event_ledger",
+                                              "0002_event_processor_cursor"})
+            self.admin.execute(
+                sql.SQL("UPDATE {}.schema_migrations SET checksum=%s WHERE version=%s")
+                .format(sql.Identifier(self.schema)),
+                ("0" * 64, "0002_event_processor_cursor"))
+            with self.assertRaisesRegex(ProcessorError, "migration history"):
+                processor.verify_schema()
+        finally:
+            processor.close()
+
+    def test_lost_postgresql_leadership_session_is_reacquired_after_dependency_recovers(self):
+        processor = self.processor(consumer_id="connection-recovery-test")
+        attempts = []
+        stop = threading.Event()
+
+        def leader_cycle(stop_event):
+            attempts.append(True)
+            if len(attempts) == 1:
+                raise psycopg.OperationalError("injected server restart")
+            stop_event.set()
+
+        try:
+            with patch.object(processor, "verify_schema") as verify, \
+                 patch.object(processor, "_run_as_leader", side_effect=leader_cycle):
+                processor.run_forever(stop)
+            self.assertEqual(len(attempts), 2)
+            self.assertEqual(verify.call_count, 2)
+            self.assertTrue(stop.is_set())
+        finally:
+            processor.close()
+
+
+class RuntimeCredentialTests(unittest.TestCase):
+    def test_processor_uses_its_exact_systemd_credential_and_private_runtime_path(self):
+        with patch.dict(os.environ, {"CREDENTIALS_DIRECTORY":
+                                     "/run/credentials/riverview-event-processor.service"},
+                        clear=True), \
+             patch.object(run_event_processor, "systemd_credential_path") as validate, \
+             patch.object(run_event_processor, "copy_systemd_credential") as copy, \
+             patch.object(run_event_processor.pwd, "getpwnam",
+                          return_value=type("Identity", (), {"pw_uid": 1234})()), \
+             patch.object(run_event_processor.os, "geteuid", return_value=1234):
+            run_event_processor.prepare_runtime_credential()
+            self.assertEqual(os.environ["PGPASSFILE"], "/run/riverview-event-processor/pgpass")
+        validate.assert_called_once_with(
+            Path("/run/credentials/riverview-event-processor.service/pgpass"),
+            service_unit="riverview-event-processor.service")
+        copy.assert_called_once_with(
+            Path("/run/credentials/riverview-event-processor.service/pgpass"),
+            Path("/run/riverview-event-processor/pgpass"), 1234)
+
+    def test_processor_rejects_ambient_password_without_reading_or_logging_it(self):
+        with patch.dict(os.environ, {"PGPASSWORD": "secret-fixture"}, clear=True):
+            with self.assertRaises(run_event_processor.BaselineError) as raised:
+                run_event_processor.prepare_runtime_credential()
+            self.assertEqual(raised.exception.code, "AMBIENT_DATABASE_OVERRIDE")
+            self.assertNotIn("secret-fixture", str(raised.exception))
+
+    def test_unit_and_deployment_scripts_keep_m13_isolated_and_recoverable(self):
+        repo = Path(__file__).resolve().parents[1]
+        unit = (repo / "deploy/systemd/riverview-event-processor.service").read_text()
+        self.assertIn("User=riverview\n", unit)
+        self.assertIn("RuntimeDirectoryMode=0700\n", unit)
+        self.assertIn("LoadCredential=pgpass:/etc/riverview/pgpass\n", unit)
+        self.assertIn("Restart=on-failure\n", unit)
+        self.assertIn("ProtectSystem=strict\n", unit)
+        self.assertNotIn("riverview-baseline.service", unit)
+        for name in ("install_event_processor.sh", "rollback_event_processor.sh"):
+            script = repo / "deploy" / name
+            subprocess.run(["sh", "-n", str(script)], check=True)
 
 
 if __name__ == "__main__":
