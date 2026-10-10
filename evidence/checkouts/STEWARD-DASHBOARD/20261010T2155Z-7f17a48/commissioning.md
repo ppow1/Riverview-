@@ -2,10 +2,10 @@
 Riverview~ Controlled Evidence
 File: commissioning.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.0
+File Revision: 1.0.2
 Purpose: Record M3.1 isolated, local operational commissioning evidence
 Authority: Read-only dashboard observations; not Steward acceptance
-Changed: 2026-10-10 UTC | RV-M3.1-001 | Capture worker health UI, full suite and latest Camrui deployment
+Changed: 2026-10-10 UTC | RV-M3.1-001 | Capture worker health UI, full suite, Camrui deployment and PR CI
 History: Git and artifact sidecar manifest
 -->
 # M3.1 commissioning checkpoint
@@ -33,10 +33,12 @@ A restart of only `riverview-status-dashboard.service` recovered authenticated P
 - Full suite: 109 tests passed, 0 failures/errors/skips, on isolated PostgreSQL 16.15 at private socket `/tmp/rv-m31-pgsocket:55432`; unique disposable schemas were cleaned by tests. Command: `PYTHONPATH=.:src RIVERVIEW_TEST_PG_DSN='host=/tmp/rv-m31-pgsocket port=55432 dbname=postgres user=admin1' python3 -m unittest discover -s tests -v`.
 - Process graph: 10 graphs, 182 nodes; schema/reference validation and generated-view synchronization passed. Canonical file `process_graphs/steward-dashboard/status.json`; generated aggregate view retained.
 - Controlled revisions/backups: audit passed against baseline inventory of deployed predecessor commit `ba831a7339e1f4491cf1296eeac271b246409664`. The retained inventory file carried an earlier `e56` filename; its `.riverview-revisions.json` entry matches ba831a7's exact SHA and revision. This record uses the verified deployed baseline identity.
-- `systemd-analyze verify deploy/riverview-status-dashboard.service`, Python compileall, and source `git diff --check` passed. The full suite is isolated integration evidence; the live browser/systemd/PostgreSQL observations are local Camrui commissioning, not independent external verification.
+- `systemd-analyze verify deploy/riverview-status-dashboard.service`, Python compileall, and source `git diff --check` passed. GitHub PR #16 controlled-checkout runs 38089528144 and 38089536901 passed on exact head `f5b35cdc7492b6688477a857ca6dc179b368c5dc`, including the full suite, graph synchronization/validation, and controlled revision/predecessor checks. The full suite is isolated integration evidence; the live browser/systemd/PostgreSQL observations are local Camrui commissioning, not independent external verification.
 
 ## Acceptance state
 
 **PASS:** read-only authenticated dashboard, live base PostgreSQL assignments/events, freshness/unavailable distinctions, bounded pages/snapshot, privacy behavior, local browser navigation and slow-request isolation, loopback port ownership, systemd restart recovery, process graph synchronization, local test suite.
+
+**PR state:** https://github.com/ppow1/Riverview-/pull/16 is an unmerged draft; no merge is authorized by this commissioning record.
 
 **NOT VERIFIED / OPEN:** live M2.4 CME/worker/attention/verification relations and event display require authorized M2.4 shared-schema/service commissioning; external browser/observer verification is unavailable; resident chat, work-order promotion, capability/resource registry, AI/API/browser parity, sustained unattended operational cycle, and full Steward acceptance remain later roadmap/full Definition of Done work. No M3.1 DONE or formal Steward acceptance is claimed.
