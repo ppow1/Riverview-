@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.1
+# Revision: 1.0.4
 # Purpose: Authenticate a scoped local worker and persist deterministic attempts/results
 # Execution Model: Request-driven local task execution with PostgreSQL durability
 # Observability: Worker identity, capability, attempt outcome, and result digest
 # Dependencies: Python 3.10+; Psycopg 3; M1.2 ledger and M1.4 assignment lease
 # Authority: No arbitrary commands, shell execution, or external effects
-# Changed: 2026-10-10 UTC | RV-M2.1-001 | Reject idempotency-key input collisions
+# Changed: 2026-10-10 UTC | RV-M1.3-CONTINUOUS-KNOWLEDGE | Persist grounding and preflight provenance
 # Contracts: docs/components/WORKER_ADAPTER.md; docs/architecture/CORE_CONTRACT.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -24,6 +24,7 @@ from uuid import uuid4
 from psycopg.rows import dict_row
 
 from ..postgres_ledger import PostgresLedger
+from ..assignment_scheduler import PostgresAssignmentScheduler
 
 
 class WorkerAdapterError(RuntimeError):
@@ -49,9 +50,11 @@ class PostgresWorkerAdapter:
 
     def __init__(self, dsn, *, schema="public"):
         self.ledger = PostgresLedger(dsn, schema=schema)
+        self.scheduler = PostgresAssignmentScheduler(dsn, schema=schema)
         self.schema = schema
 
     def close(self):
+        self.scheduler.close()
         self.ledger.close()
 
     def register_worker(self, worker_id, capabilities, scope_ref):
@@ -72,10 +75,10 @@ class PostgresWorkerAdapter:
                     (worker_id, digest, json.dumps(caps), scope_ref))
         return token
 
-    def _authorized_worker(self, cur, worker_id, credential, capability, authority_ref):
+    def _authenticated_worker(self, cur, worker_id, credential, capability):
         if not isinstance(credential, str) or not credential:
             raise WorkerAuthorizationError("worker authentication failed")
-        cur.execute("SELECT credential_sha256,capabilities,scope_ref,active FROM worker_registry WHERE worker_id=%s",
+        cur.execute("SELECT credential_sha256,capabilities,scope_ref,active FROM worker_registry WHERE worker_id=%s FOR SHARE",
                     (worker_id,))
         row = cur.fetchone()
         candidate = hashlib.sha256(credential.encode("utf-8")).digest()
@@ -85,8 +88,63 @@ class PostgresWorkerAdapter:
             raise WorkerAuthorizationError("worker is inactive")
         if capability not in row["capabilities"]:
             raise WorkerAuthorizationError("worker capability is not registered")
-        if row["scope_ref"] != authority_ref:
+        return row["scope_ref"]
+
+    def _authorized_worker(self, cur, worker_id, credential, capability, authority_ref):
+        scope_ref = self._authenticated_worker(cur, worker_id, credential, capability)
+        if scope_ref != authority_ref:
             raise WorkerAuthorizationError("worker scope does not match assignment authority")
+
+    def claim_next(self, worker_id, credential, *, capability=None, lease_seconds=30):
+        """Authenticate and claim only ready work inside the worker's scope."""
+        capability = capability or self.SHA256_CAPABILITY
+        self.scheduler._validate_lease(worker_id, lease_seconds)
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                scope_ref = self._authenticated_worker(cur, worker_id, credential, capability)
+                lease = self.scheduler._claim_candidate(
+                    cur, worker_id, lease_seconds, scope_ref=scope_ref)
+                if lease is None:
+                    return None
+                cur.execute("SELECT * FROM assignments WHERE id=%s", (lease["assignment_id"],))
+                return {"lease": lease, "assignment": cur.fetchone()}
+
+    def start_assignment(self, assignment_id, worker_id, credential, generation,
+                         *, capability=None):
+        """Authenticate scope before using the M1.4 fenced start transition."""
+        capability = capability or self.SHA256_CAPABILITY
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("SELECT authority_ref FROM assignments WHERE id=%s", (assignment_id,))
+                row = cur.fetchone()
+                if row is None:
+                    raise WorkerAdapterError("unknown assignment")
+                self._authorized_worker(cur, worker_id, credential, capability,
+                                        row["authority_ref"])
+        return self.scheduler.start_assignment(assignment_id, worker_id, generation)
+
+    def record_knowledge_observation(self, assignment_id, worker_id, operation,
+                                     result, *, action=None):
+        """Persist knowledge status and provenance, never provider payload/secrets."""
+        from .knowledge import KnowledgeResult
+        if not isinstance(result, KnowledgeResult):
+            raise TypeError("result must be a KnowledgeResult")
+        if operation not in {"ground_assignment", "preflight_action",
+                             "reground_assignment", "record_learning"}:
+            raise ValueError("unknown knowledge operation")
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("""INSERT INTO knowledge_observations
+                    (assignment_id,worker_id,operation,status,action,source_references,
+                     source_revision,source_sha256,retrieval_complete)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING observation_id""",
+                    (assignment_id, worker_id, operation, result.status.value, action,
+                     json.dumps(list(result.source_references)), result.source_revision,
+                     result.source_sha256, result.retrieval_complete))
+                return cur.fetchone()["observation_id"]
 
     def execute_sha256(self, assignment_id, worker_id, credential, generation,
                        idempotency_key, data):

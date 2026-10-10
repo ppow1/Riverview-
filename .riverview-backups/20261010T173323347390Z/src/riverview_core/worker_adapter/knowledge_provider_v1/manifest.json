@@ -1,0 +1,55 @@
+{
+  "manifest_revision": "1.0.0",
+  "contract_version": "1.0.0",
+  "source_commit": "PENDING_FIRST_PUBLICATION_COMMIT",
+  "dependencies": {
+    "python": ">=3.10",
+    "runtime": [],
+    "test": [
+      "Python standard library only"
+    ]
+  },
+  "test_command": "python3 -m unittest test_contract -v",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "0db22709803e391a164533c992566adfad3d7526b04d078f1a46b31bac8b41bb",
+      "size_bytes": 6968
+    },
+    {
+      "path": "__init__.py",
+      "sha256": "ab8f52d60041846bf67f5354c38990f7126f1006ff92539066da9fc3928c06e8",
+      "size_bytes": 1059
+    },
+    {
+      "path": "assignment.schema.json",
+      "sha256": "6a5cb8ebb1aa4c996e88c9d4ebfa12a39eea9d58adcf64c780a46cb338596028",
+      "size_bytes": 665
+    },
+    {
+      "path": "contract.py",
+      "sha256": "9bcb1aabad76eff44098b08d62f3de2901466c6a3b1d5ebfb439be333414bc06",
+      "size_bytes": 4498
+    },
+    {
+      "path": "mock_provider.py",
+      "sha256": "8f0f7592032fe0f73e256c62814bd15a5b038c69356f0ccc2d6b13d8674b7154",
+      "size_bytes": 1824
+    },
+    {
+      "path": "outcome.schema.json",
+      "sha256": "c31e979b148bd840e065636f93698a05c72796d47fce870cb578a58a272439f8",
+      "size_bytes": 332
+    },
+    {
+      "path": "schema.json",
+      "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
+      "size_bytes": 1226
+    },
+    {
+      "path": "test_contract.py",
+      "sha256": "4be459ef1595563b3f8b63aee3d84d13a2f07a224e13a1dc952fc37b4f0368d6",
+      "size_bytes": 3583
+    }
+  ]
+}

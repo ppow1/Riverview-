@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.0.6
+**Document Revision:** 1.0.7
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-09  
 **Component:** RV-ROADMAP  
@@ -94,6 +94,11 @@ Deliverable: residents load current rules and assignment state at consequential 
 Deliverable: capability discovery and replaceable adapters for OctoMiner-hosted models; support concurrent jobs with measurable queueing and failures.  
 **PASS:** at least one actual local inference task completes through the durable worker contract and its results are independently checked. BIOS/GPU expansion is a separate hardware campaign, not a prerequisite for the deterministic first slice.
 
+**M4.4 — Grace Operational Integration (mandatory system-level deliverable)**  
+Deliverable: Grace is the first operational AI director of engineering work. She accepts a Steward objective; reasons and revises a durable plan; creates persistent assignments; delegates through the CME to real engineering execution capabilities; consumes progress and independent verification evidence; and autonomously replans or follows up until verified completion or a genuine Steward decision point. Persist objective, authority, plan, assignment relationships and progress across context/model/worker/process replacement. Keep office role and authority separate from occupant, model, personality, voice and avatar. The interface must permit additional residents, offices and specialist groups without redesigning the CME.  
+Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recovery; M2.4 CME monitoring; M3.1 live status projection; M3.2 durable attention/decision delivery; M4.1 institutional identity and authority; M4.2 reasoning and regrounding. Personality and presentation work are separate and do not gate operational Grace.  
+**PASS:** sustained repeated objective-to-artifact-to-independent-verification-to-follow-up cycles on Camrui, including multiple concurrent assignments, actual coding-tool output, failure/wait isolation, restart and resident/model replacement recovery, live progress/evidence consumption, and automatic replanning, with durable logs and no routine turn-by-turn Steward prompting. A mock-only, scripted single run, or recommendation-only response does not pass.
+
 ## Milestone 5 — Institutional completeness and expansion
 
 **M5.1 — Durable authority-aware interfaces and notification channels:** authenticate actions and responses across browser, visual/audio/SMS and later app/voice paths.  
@@ -114,6 +119,8 @@ Deliverable: capability discovery and replaceable adapters for OctoMiner-hosted 
 
 **Current step: M2.1 — Minimal registered worker adapter (isolated engineering).** Begin with a deterministic local task and capability registration against the lease/fencing interface. Do not integrate GPU hardware. Preserve M1.1/M1.2/M1.3 live operation; M1.4 shared-schema commissioning remains a separate controlled deployment task.
 
+**Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. Current M2.1 work continues without beginning the full Grace implementation.
+
 ## Revision history
 
 - **1.0.1 — 2026-10-09:** Recognize “go” and “next” as equivalent roadmap advancement commands. Predecessor: `docs/history/ROADMAP_rev1.0.0.md`.
@@ -124,3 +131,4 @@ Deliverable: capability discovery and replaceable adapters for OctoMiner-hosted 
 - **1.0.4 — 2026-10-10:** Record M1.3 controlled commissioning, event-ordering correction, credential-delivery contract and recovery workflow; keep milestone active pending executed Camrui evidence.
 - **1.0.5 — 2026-10-10:** Record scoped M1.3 technical commissioning PASS and advance the engineering cursor to isolated M1.4 work; full component DoD remains open.
 - **1.0.6 — 2026-10-10:** Record M1.4 isolated roadmap technical criteria as verified and start M2.1 isolated worker-adapter engineering; M1.4 deployment and full component DoD remain open.
+- **1.0.7 — 2026-10-10:** Add mandatory M4.4 Grace Operational Integration, system-level acceptance evidence and explicit dependencies; record it as not yet implemented without interrupting M2.1.

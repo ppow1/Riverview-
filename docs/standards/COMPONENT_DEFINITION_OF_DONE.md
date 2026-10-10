@@ -1,6 +1,6 @@
 # Riverview~ Component Definition of Done (DoD)
 
-**Revision:** Rev 1.5
+**Revision:** Rev 1.6
 **Status:** Active engineering standard  
 **Effective:** 2026-10-09  
 **Applies to:** every new or modified Riverview~ component, including the institutional Core, adapters, databases, workers, CME, and Steward-facing services.  
@@ -87,6 +87,49 @@ Record a component-specific acceptance record with:
 
 Purpose and owner; interfaces/dependencies; process and state diagram; events/idempotency; health signals/freshness/failure codes; read-only diagnostics; authorized recovery and verification; test evidence; known limitations; Steward and spatial view mapping.
 
+## Mandatory system-level DoD — Grace Operational Integration
+
+New Riverview as a whole is **NOT DONE** until Grace operates as its first fully
+functional AI director of engineering work and passes roadmap M4.4. This is a
+system-level gate in addition to each component's eight deliverables; it does
+not make an unimplemented later capability a reason to stop independent current
+roadmap work.
+
+Retained evidence must prove repeatedly and unattended between genuine Steward
+decision points that Grace:
+
+1. Receives a genuine Steward engineering objective and persists authority,
+   plan, assignment relationships, progress and recovery state.
+2. Reasons about and decomposes the objective, revises a durable execution plan,
+   and creates assignments delegated through the CME.
+3. Uses at least one real execution capability (Codex or equivalent coding
+   tool, engineering-group resident, or local AI worker) to create actual code,
+   tests, configuration, investigations, or other engineering artifacts.
+4. Sends artifacts and criteria to an independent verifier, consumes durable
+   evidence, and distinguishes verified success from worker-reported success.
+5. Initiates further assignments or replanning from progress, evidence, failure,
+   waiting, escalation, or missing knowledge without a new routine Steward
+   prompt.
+6. Runs multiple assignments independently; one blocked, failed, waiting, or
+   escalated assignment cannot halt unrelated eligible work or the CME.
+7. Recovers objective and execution state after process/infrastructure restart,
+   context compaction, and worker or model replacement without blindly repeating
+   external effects.
+8. Maintains authority and institutional role separately from resident
+   occupant, model implementation, personality, voice, avatar and presentation.
+9. Demonstrates the complete objective-to-output-to-verification-to-follow-up
+   cycle over repeated unattended runs with timestamps, provenance, failure and
+   recovery results, and independent operational evidence.
+
+A scripted demonstration, mock-only worker, one successful run, chat response,
+or isolated component tests cannot satisfy this gate. Each run must retain
+actual inputs, assignments, execution records, output hashes, independent
+verification, follow-up decisions, restart/replacement details and outstanding
+Steward decisions. Grace's personality and user-facing presentation are
+separate work and are not technical prerequisites for operational Grace.
+Institutional identity, reasoning, execution, verification, observability,
+recovery and CME integration remain mandatory.
+
 ## PostgreSQL ledger acceptance baseline (2026-10-09)
 
 - **Code:** PASS — `src/riverview_core/postgres_ledger.py` committed.
@@ -111,5 +154,6 @@ Purpose and owner; interfaces/dependencies; process and state diagram; events/id
 | **1.3** | **2026-10-09** | Explicit execution model declaration and external machine-readable observability contracts, with independent verification |
 | **1.4** | **2026-10-10** | Require registered canonical process graphs and synchronized generated views; approved by the project owner acting as Steward under RV-GOV-001 |
 | **1.5** | **2026-10-10** | Remove revision-header trailing whitespace for controlled-checkout consistency |
+| **1.6** | **2026-10-10** | Add mandatory system-level Grace Operational Integration acceptance and sustained objective-to-artifact evidence |
 
 Future revisions must increment the revision, document what changed and why, and identify affected component acceptance records.

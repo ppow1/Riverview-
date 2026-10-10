@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:riverview:knowledge-provider:1.0.0",
+  "title": "Riverview Knowledge Provider v1 Result",
+  "type": "object",
+  "required": ["status", "source_references"],
+  "properties": {
+    "status": {"enum": ["VERIFIED", "NO_MATCH", "UNAVAILABLE", "INCOMPLETE", "CONTRADICTORY", "UNVERIFIED"]},
+    "value": {},
+    "source_references": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "source_revision": {"type": ["string", "null"]},
+    "source_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+  },
+  "allOf": [{"if": {"properties": {"status": {"const": "VERIFIED"}}, "required": ["status"]}, "then": {"properties": {"source_references": {"minItems": 1}}}}],
+  "additionalProperties": false
+}

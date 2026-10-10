@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.8",
+  "manifest_revision": "1.1.13",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.12",
+      "revision": "1.0.15",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "1462efcbb35f05f2ad96e2338dfb1426bbf146f7ae562c57c6a0b13d9fe798f7",
-      "size_bytes": 91729
+      "sha256": "549d944d0f50683b3e0fa4e2b0a1b5f681c9d5872841f2553209929947df49e7",
+      "size_bytes": 122506
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 619
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.8"
+      "revision": "1.1.13"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -89,16 +89,52 @@
       "size_bytes": 724
     },
     "process_graphs/worker-adapter/deterministic-attempt.json": {
-      "revision": "1.0.1",
+      "revision": "1.0.3",
       "path": "process_graphs/worker-adapter/deterministic-attempt.json",
-      "sha256": "345987bbbafa6ad3453bf18182d44071be64f8c3a62242a67bab392b73dcfa61",
-      "size_bytes": 8879
+      "sha256": "3d5880a143c954caca9eff1db8960b040ec9671ba0a926fc57adff4c32a407af",
+      "size_bytes": 21491
     },
     "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json": {
       "revision": "1.0.0",
       "path": "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json",
       "sha256": "4be125b6c9cbc7c1a213effdd34fb4dd7ac586cd196f2c9b9d9e7cf1546ade03",
       "size_bytes": 753
+    },
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/schema.json": {
+      "revision": "1.0.0",
+      "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/schema.json",
+      "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
+      "size_bytes": 1226
+    },
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json": {
+      "revision": "1.0.0",
+      "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json",
+      "sha256": "6a5cb8ebb1aa4c996e88c9d4ebfa12a39eea9d58adcf64c780a46cb338596028",
+      "size_bytes": 665
+    },
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/outcome.schema.json": {
+      "revision": "1.0.0",
+      "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/outcome.schema.json",
+      "sha256": "c31e979b148bd840e065636f93698a05c72796d47fce870cb578a58a272439f8",
+      "size_bytes": 332
+    },
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/manifest.json": {
+      "revision": "1.0.0",
+      "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/manifest.json",
+      "sha256": "434d07d798f779fe099e4fbf194847b94585855734df05c84c35e5097530121e",
+      "size_bytes": 1553
+    },
+    "process_graphs/cme/progress-and-recovery.json": {
+      "revision": "1.0.0",
+      "path": "process_graphs/cme/progress-and-recovery.json",
+      "sha256": "f1a16e9194bf145ddd668bb3692fcb8748d91043d26be65daa15989eaca1f635",
+      "size_bytes": 4683
+    },
+    "process_graphs/grace/operational-integration.json": {
+      "revision": "1.0.0",
+      "path": "process_graphs/grace/operational-integration.json",
+      "sha256": "8e68a4cb63655ea11a6929be598280e83184d7aafd35ef575d830b7b6ad172a1",
+      "size_bytes": 7426
     }
   }
 }
