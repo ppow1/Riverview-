@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: deploy/install_baseline.sh
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Commission versioned code, OS identity and systemd credential delivery
 # Execution Model: Explicit one-time operational installation; repeatable
 # Observability: Checksums, retained root-only rollback records and baseline JSON
 # Dependencies: Root, systemd 250+, Python 3/venv/pip, sha256sum, packaged release
 # Authority: OS commissioning only; no DB writes/password reset/public-schema change
-# Changed: 2026-10-10 UTC | RV-M1.1-001 | Initial implementation
+# Changed: 2026-10-10 UTC | RV-M1.1-007 | Recover partial releases and normalize read access
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: tests/test_runtime_baseline.py; Camrui commissioning NOT VERIFIED
 # History: New file; no predecessor; Git; deployed unit backups below /var/backups
@@ -36,10 +36,21 @@ if [ ! -e "$release" ]; then
     install -d -m 0755 "$release"
     cp -a "$source_dir/." "$release/"
     chown -R root:root "$release"
-    chmod -R go-w "$release"
+fi
+[ -d "$release" ] && [ ! -L "$release" ] || { echo 'Refuse a non-directory or symlink release' >&2; exit 2; }
+[ "$(stat -c '%u' "$release")" = 0 ] || { echo 'Refuse a non-root-owned release' >&2; exit 2; }
+if find "$release" ! -user root -print -quit | grep -q .; then
+    echo 'Refuse release content not owned by root' >&2
+    exit 2
 fi
 cd "$release"
 sha256sum --check --strict PACKAGE_SHA256SUMS
+# cp -a of a mode-0700 staging root also applies that mode to the release root.
+# After validating package bytes, make files readable and directories traversable
+# by the service, then remove group/other write access. This also repairs the same
+# safe partial release on rerun without changing package bytes or ownership.
+chmod -R a+rX "$release"
+chmod -R go-w "$release"
 if [ ! -x .venv/bin/python ]; then
     python3 -m venv .venv
 fi

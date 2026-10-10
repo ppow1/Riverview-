@@ -1,11 +1,11 @@
 # Riverview~ runtime baseline troubleshooting and recovery
 
-**Document Revision:** 1.0.2
+**Document Revision:** 1.0.3
 **Component:** RUNTIME-BASELINE
-**Repair task:** RV-M1.1-002
+**Repair task:** RV-M1.1-007
 **Task:** RV-M1.1-001
 **Owner:** office:operations
-**Status:** procedure implemented; live commissioning and rollback NOT VERIFIED
+**Status:** terminal prompt and partial-release retry repaired; live commissioning and rollback NOT VERIFIED
 
 ## Consolidated read-only diagnostic
 
@@ -35,10 +35,10 @@ M1.1 acceptance is based on local execution on Camrui: after authorized installa
 | --- | --- | --- | --- | --- |
 | Package | Exact committed revision; checksums match | Dirty tree, unsafe archive path, checksum mismatch | Compare builder source SHA/archive SHA and `sha256sum -c PACKAGE_SHA256SUMS` | Rebuild from intended commit; never override checksums; restart package stage |
 | Shell preflight | LF-only exact blob bytes and Linux syntax | `set: Illegal option -`, CRLF/BOM/NUL or shell parse error | `python3 scripts/verify_camrui_package.py <archive>` and `sh -n` for both scripts | Keep failed artifact; update PR branch and rebuild with repaired builder; new staging directory, no host text edits |
-| Commissioning | Authorized root, new immutable release, backups readable | Existing non-symlink deployment, lock held, partial release | `readlink /opt/riverview-core`; inspect root-only rollback record/checksums | Resolve existing deployment ownership; preserve partial artifacts; retry installer after diagnosis |
+| Commissioning | Authorized root; exact package manifest; reusable release root-owned and service-readable | Existing non-symlink deployment, lock held, non-root-owned/invalid partial release | Inspect active link and root-only rollback record/checksums; stat the release path without reading credentials | Preserve invalid/untrusted release; do not delete it automatically. For a verified root-owned release, use the corrected installer to normalize read/traverse permissions and continue; it retains file bytes and rejects ownership mismatch |
 | identity | OS riverview, nonroot, nologin, systemd User=riverview | IDENTITY_MISSING / IDENTITY_MISMATCH / INTERACTIVE_SERVICE_ACCOUNT | `getent passwd riverview`; selected unit properties | Correct authorized commissioning; never run institution as root; restart probe |
 | storage | Private directory owned by runtime account | PATH_UNAVAILABLE / UNSAFE_PATH / UNSAFE_MODE | `stat -c '%U:%G %a %F' /var/lib/riverview` | Identify existing owner before repair; no deletion; restart probe |
-| credential | Fresh systemd credential from protected root source | CREDENTIAL_MISSING / CREDENTIAL_UNREADABLE / UNSAFE_PATH / UNSAFE_MODE / AMBIENT_DATABASE_OVERRIDE | `sudo stat -c '%U:%G %a %F' /etc/riverview /etc/riverview/pgpass`; `systemctl cat riverview-baseline.service` (no credential contents) | Correct path/owner/mode under existing authority; provision only an absent file using secure terminal helper; clear conflicting environment; restart probe |
+| credential | Fresh systemd credential from protected root source; absent passfile is captured through getpass controlling TTY with echo disabled | CREDENTIAL_MISSING / CREDENTIAL_UNREADABLE / UNSAFE_PATH / UNSAFE_MODE / AMBIENT_DATABASE_OVERRIDE; TTY I/O error fails before file creation | stat only owner/mode/path; never read credential contents | Provision only an absent passfile through hidden terminal input; rerun after correcting TTY access; O_EXCL prevents overwrite |
 | database | Read-only TCP connection, expected DB/role and scoped privileges | DATABASE_UNAVAILABLE / DATABASE_IDENTITY_MISMATCH / EXCESS_DATABASE_PRIVILEGE / READ_ONLY_REQUIRED / DEPENDENCY_MISSING | `systemctl is-active postgresql`; `pg_lsclusters`; `.venv/bin/python -c 'import psycopg; print(psycopg.__version__)'` | Restore dependency or reviewed permissions; no password resets or public schema changes; restart probe |
 | schema | Existing riverview_dev owner and USAGE/CREATE | SCHEMA_MISSING / SCHEMA_AUTHORITY_MISMATCH | Authorized DBA queries pg_namespace/has_schema_privilege; do not initialize via PostgresLedger constructor | Reconcile with prior baseline evidence; reviewed schema repair only; restart probe |
 | ready / observer | Fresh rv.runtime-baseline.v1 with observed/expiry time | REPORT_UNAVAILABLE / stale / nonzero probe | Independent report consumer; check clock and unit result | Diagnose missing/partial report, then refresh probe; never call expired evidence healthy |
@@ -49,6 +49,14 @@ Database exceptions deliberately expose no raw text. If authentication needs
 deeper inspection, use an approved DBA channel on Camrui, not chat or ordinary
 logs. Do not print pgpass, dump environments, collect full credential-bearing
 unit environments, delete WAL or modify assignments to make diagnostics pass.
+
+## Failed terminal prompt and safe commissioning retry
+
+RV-M1.1-007 reproduced io.UnsupportedOperation: File or stream is not seekable when a text wrapper was opened on /dev/tty and passed as getpass output. The helper now calls getpass.getpass() without a caller-supplied stream; Python opens and controls the terminal directly. GetPassWarning is treated as an error, so input never falls back to echoed stdin. A failed prompt occurs before exclusive passfile creation; do not inspect or print credential contents.
+
+A retry after that prompt failure is safe when read-only inspection confirms the known partial state: the riverview system account exists with a non-login shell; /etc/riverview is root-owned mode 0700; /etc/riverview/pgpass is absent; the attempted versioned release is a root-owned directory; /var/lib/riverview, /opt/riverview-core, and the service unit are absent. Use a fresh, verified package and rerun the installer. It reuses the account and exact release, rejects a symlink/non-directory or non-root-owned release, makes files readable and directories traversable for the service, and strips group/other write access before continuing. It does not overwrite an existing passfile. Never edit the failed staged package or delete the partial release. If ownership differs, stop and retain it for diagnosis.
+
+The installer creates the state directory, unit, active symlink and rollback record only after credential provisioning succeeds. If a later service start fails, retain the emitted rollback record and use the documented verified-predecessor recovery procedure; a new authorized run will preserve the current unit/link as its rollback predecessor.
 
 ## Failed Windows package diagnosis
 
@@ -94,6 +102,8 @@ continuous monitoring and notification/resume contracts; this commissioning CLI
 does not substitute for them.
 
 ## Revision history
+
+- 1.0.3: Explain non-seeking hidden TTY capture and validated partial-install retry; predecessor under docs/history/RV-M1.1-007/rev1.0.2/docs/components/RUNTIME_BASELINE_COOKBOOK.md.
 
 - 1.0.2: Document local Camrui diagnostics and distinguish optional SSH transport from milestone acceptance; predecessor under docs/history/RV-M1.1-004/rev1.0.1/docs/components/RUNTIME_BASELINE_COOKBOOK.md.
 - 1.0.1: Add artifact-byte diagnosis and package preflight; preserve original under docs/history/RV-M1.1-002/rev1.0.0.

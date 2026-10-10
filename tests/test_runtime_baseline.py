@@ -1,13 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_runtime_baseline.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Identity/credential security, DB contract, observer and package regression tests
 # Execution Model: Request-driven tests; simulated DB explicitly distinct from live proof
 # Observability: unittest counts and failures
 # Dependencies: Python 3.10+, Git, Linux
 # Authority: Temporary fixtures only; no live DB or credentials
-# Changed: 2026-10-10 UTC | RV-M1.1-002 | Exercise packaged Linux shells under Windows Git settings
+# Changed: 2026-10-10 UTC | RV-M1.1-007 | Cover hidden TTY prompt and safe partial-release permissions
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: This file
 # History: docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py
@@ -16,9 +16,13 @@ import hashlib
 import importlib.util
 import json
 import os
+import pty
+import secrets
+import select
 from pathlib import Path
 import subprocess
 import sys
+import time
 import shutil
 import tarfile
 import tempfile
@@ -31,7 +35,7 @@ import runtime_baseline as baseline
 from capture_baseline_acceptance import capture
 from build_camrui_package import build
 from check_camrui_baseline import command
-from provision_pgpass import pgpass_line
+from provision_pgpass import pgpass_line, read_existing_password
 from read_baseline_report import read_report
 from verify_camrui_package import verify
 
@@ -212,6 +216,78 @@ class RuntimeBaselineTests(unittest.TestCase):
             (root / "code.py").write_text("changed")
             with self.assertRaises(subprocess.CalledProcessError):
                 build(root, Path(folder) / "dirty.tar.gz")
+
+
+
+class CredentialTerminalTests(unittest.TestCase):
+    @unittest.skipUnless(sys.platform.startswith("linux") and hasattr(pty, "fork"),
+                         "Linux controlling pseudo-terminal required")
+    def test_password_prompt_reads_nonseekable_tty_without_echo(self):
+        expected = secrets.token_urlsafe(24)
+        pid, master = pty.fork()
+        if pid == 0:
+            try:
+                supplied = read_existing_password()
+                marker = b"RV_PROMPT_MATCH\n" if supplied == expected else b"RV_PROMPT_MISMATCH\n"
+                os.write(1, marker)
+                os._exit(0)
+            except BaseException:
+                os.write(2, b"RV_PROMPT_ERROR\n")
+                os._exit(1)
+
+        output = bytearray()
+        deadline = time.monotonic() + 8
+        sent = False
+        status = None
+        try:
+            while time.monotonic() < deadline:
+                ready, _, _ = select.select([master], [], [], 0.2)
+                if ready:
+                    try:
+                        output.extend(os.read(master, 4096))
+                    except OSError:
+                        break
+                if not sent and b"Existing riverview_core database password" in output:
+                    os.write(master, expected.encode() + b"\n")
+                    sent = True
+                if b"RV_PROMPT_MATCH\n" in output or b"RV_PROMPT_MISMATCH\n" in output or b"RV_PROMPT_ERROR\n" in output:
+                    break
+            self.assertTrue(sent, "prompt was not displayed on the controlling terminal")
+            normalized = output.replace(b"\r\n", b"\n")
+            self.assertIn(b"RV_PROMPT_MATCH\n", normalized)
+            self.assertNotIn(expected.encode(), output, "terminal echoed the generated test secret")
+            _, status = os.waitpid(pid, 0)
+            self.assertEqual(os.waitstatus_to_exitcode(status), 0)
+        finally:
+            if status is None:
+                try:
+                    os.kill(pid, 9)
+                except ProcessLookupError:
+                    pass
+                try:
+                    os.waitpid(pid, 0)
+                except ChildProcessError:
+                    pass
+            os.close(master)
+
+    def test_installer_reuses_only_root_owned_directory_and_restores_read_access(self):
+        project = Path(__file__).resolve().parents[1]
+        script = (project / "deploy/install_baseline.sh").read_text()
+        self.assertIn('[ -d "$release" ] && [ ! -L "$release" ]', script)
+        self.assertIn('find "$release" ! -user root -print -quit', script)
+        self.assertIn('chmod -R a+rX "$release"', script)
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / "release"
+            nested = root / "scripts"
+            nested.mkdir(parents=True)
+            (nested / "runtime.py").write_text("pass\n")
+            root.chmod(0o700)
+            nested.chmod(0o700)
+            subprocess.run(["chmod", "-R", "a+rX", str(root)], check=True)
+            subprocess.run(["chmod", "-R", "go-w", str(root)], check=True)
+            self.assertEqual(root.stat().st_mode & 0o777, 0o755)
+            self.assertEqual(nested.stat().st_mode & 0o777, 0o755)
+            self.assertEqual((nested / "runtime.py").stat().st_mode & 0o777, 0o644)
 
 
 class PackageShellCompatibilityTests(unittest.TestCase):

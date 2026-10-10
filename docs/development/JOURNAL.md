@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.5
+**Document Revision:** 1.0.6
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -120,3 +120,38 @@ PROGRESS/BLOCKED on the local privileged commissioning step and access to the
 existing `riverview_core` database credential, then independent Steward acceptance.
 No M1.2 work is started. Journal predecessor bytes were preserved and verified;
 `M1.1-006_REVISION_RECORD.md` records the revision change.
+
+## 2026-10-10 UTC — RV-M1.1-007 / hidden credential TTY and partial install repair
+
+Actor: Codex on Camrui. Source commit `0cab252eb4aae6736433d71e154ea1e26b1426c5`,
+branch `codex/m1.1-runtime-commissioning`. User reported the authorized M1.1
+installer passed package verification and dependency installation, then failed in
+`scripts/provision_pgpass.py` at `open("/dev/tty", "r+")` with
+`io.UnsupportedOperation: File or stream is not seekable`. Reproduced this exact
+failure locally in a pseudo-terminal with `open("/dev/tty", "r+")`; Python
+3.12.3 raises the same exception.
+
+Read-only host inspection found the `riverview` nologin account, root-owned
+`/etc/riverview` mode 0700, and root-owned release directory
+`/opt/riverview/releases/b15b093642f65f6de36c1b977571ae2b79f04850` mode 0700.
+`/etc/riverview/pgpass`, `/var/lib/riverview`, `/opt/riverview-core`, and the
+systemd unit are absent. PostgreSQL 16/main is online. No credential contents
+were read. This state is safely rerunnable: the installer reuses the account
+and versioned release; provisioning fails before creating the passfile, state
+directory, active link, unit, or rollback record. Inspection also found that
+`cp -a` copied the private staging root's 0700 mode onto the release root,
+blocking the service account from traversing the code.
+
+Implementation: call `getpass.getpass()` without a caller-supplied TTY stream,
+and convert `GetPassWarning` to an error to fail closed if hidden input is not
+available. Add a pseudo-terminal regression test that generates a runtime-only
+sentinel, confirms the input is returned, and verifies it is not echoed. On
+rerun, require an existing release to be a real root-owned directory with
+root-owned contents; normalize files to readable and directories to traversable
+while removing group/other write permission. This repairs the retained partial
+release without changing file bytes or ownership and refuses an unsafe release.
+Update the component contract, cookbook and flowchart with retry/error behavior.
+
+Verification: the first pseudo-terminal test iteration found the harness assumed LF-only terminal output; PTY canonical mode emitted CRLF. The assertion now normalizes captured line endings. The focused runtime suite passed (19 tests); the full suite against the isolated local PostgreSQL cluster passed (38 tests, 0 failures, 0 skips), including all three PostgreSQL ledger tests. The temporary test schemas were absent after cleanup (`16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)||0`); the test cluster was stopped. Test, cleanup and lifecycle logs are retained in the RV-M1.1-007 checkout evidence.
+
+Next: commit the corrected source and records, build and verify a new uniquely named package from that commit, then retry commissioning through the corrected package. The failed staged package remains untouched. M1.1 remains IN PROGRESS/BLOCKED pending live acceptance evidence and Steward acceptance; no M1.2 or later dependent milestone is claimed complete.

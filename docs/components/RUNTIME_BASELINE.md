@@ -1,11 +1,11 @@
 # Riverview~ M1.1 runtime baseline commissioning
 
-**Document Revision:** 1.0.2
+**Document Revision:** 1.0.3
 **Component:** RUNTIME-BASELINE
-**Repair task:** RV-M1.1-002
+**Repair task:** RV-M1.1-007
 **Task:** RV-M1.1-001 / GitHub Issue #1
 **Owner:** office:operations; accepting authority: Steward
-**Status:** packaging repair development-tested; prior Camrui installation FAILED; retry pending
+**Status:** terminal-input and partial-release repair in progress; Camrui retry pending
 **Date:** 2026-10-10 UTC
 
 ## Responsibility and declared execution model
@@ -31,7 +31,7 @@ No roadmap or architecture requirement is waived by this package.
 | Existing development checkout | admin1; `/home/admin1/riverview-core`; left untouched by installation |
 | Optional Windows transport | existing `camrui` SSH alias; `admin1@192.168.1.155`; not used when commissioning directly on Camrui |
 | Runtime OS account | `riverview`, system account, nologin shell, no sudo grant |
-| Versioned runtime code | root-owned `/opt/riverview/releases/<full-source-commit>` |
+| Versioned runtime code | root-owned, service-readable /opt/riverview/releases/<full-source-commit>; directories traversable/read-only to the service |
 | Active code reference | root-controlled `/opt/riverview-core` symlink |
 | Runtime Python | release-local `.venv`, Psycopg binary 3.2.10; root installs dependencies with TLS verification |
 | State / diagnostic storage | `/var/lib/riverview`, riverview-owned mode 0700; no institutional state is stored here |
@@ -49,7 +49,11 @@ creating permanent ledger tables. Database credentials and `public` are unchange
 
 The installer refuses an existing non-symlink deployment, unsafe credential or
 state permissions, interactive/root runtime identity, overlapping commissioning,
-or checksum mismatch. It preserves old releases, unit bytes and rollback records.
+a non-directory/symlink release, non-root-owned release content, or checksum
+mismatch. It preserves old releases, unit bytes and rollback records. On a
+verified root-owned release, every run enforces service-readable files and
+traversable directories while removing group/other write access; this also repairs
+the restrictive top-directory mode copied from a private staging directory.
 Do not delete these until an explicitly approved retention decision; preserve a
 second protected backup off-host before changing a critical deployed predecessor.
 First-install rollback retains accounts, credentials and empty state directories.
@@ -136,7 +140,7 @@ Installation is a privileged host change. Only after explicit authorization, run
 sudo sh "$stage/deploy/install_baseline.sh"
 ```
 
-It requires root to create/use the `riverview` system identity, root-owned release and credential paths, persistent state ownership, and the systemd unit; it may install the pinned Python dependency and start the diagnostic unit. It does not reset the database password or initialize/alter database schemas. If `/etc/riverview/pgpass` is absent, the authorized root terminal prompts for the existing password without echo and creates that file exclusively.
+It requires root to create/use the riverview system identity, root-owned release and credential paths, persistent state ownership, and the systemd unit; it may install the pinned Python dependency and start the diagnostic unit. It does not reset the database password or initialize/alter database schemas. If /etc/riverview/pgpass is absent, Python getpass reads from its controlling terminal with echo disabled and creates that file exclusively. It does not wrap /dev/tty in a seekable text stream; environments that cannot disable echo fail closed instead of falling back to visible input. A failed prompt leaves the passfile absent, so rerun with a newly verified package after correcting the cause; the installer reuses the root-owned account/release and normalizes release access safely.
 
 After authorized installation, capture two fresh local service observations with the acceptance collector:
 
@@ -240,6 +244,8 @@ and [development evidence](../development/M1.1_ACCEPTANCE.md). Steward acceptanc
 and any explicit sequencing decision remain required before M1.2.
 
 ## Revision history
+
+- 1.0.3 — 2026-10-10: Document non-seeking hidden terminal input and safe rerun behavior for the root-owned partial release; preserve predecessor under docs/history/RV-M1.1-007/rev1.0.2/docs/components/RUNTIME_BASELINE.md.
 
 - 1.0.2: Add direct local Camrui packaging/commissioning path and clarify SSH is optional transport, not an acceptance gate; predecessor under docs/history/RV-M1.1-004/rev1.0.1/docs/components/RUNTIME_BASELINE.md.
 - 1.0.1: Raw-blob packaging, archive-byte verification and preserved failure/new-path retry procedure; predecessor under docs/history/RV-M1.1-002/rev1.0.0.
