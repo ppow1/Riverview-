@@ -1,0 +1,104 @@
+{
+  "commands": [
+    {
+      "command": [
+        "systemctl",
+        "start",
+        "riverview-baseline.service"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "command": [
+        "systemctl",
+        "start",
+        "riverview-baseline.service"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": ""
+    }
+  ],
+  "commissioning_checks": "PASS",
+  "component_id": "RUNTIME-BASELINE",
+  "dependencies": {
+    "CME": "M2.4",
+    "live_dashboard": "M3.1",
+    "persistent_processor": "M1.3"
+  },
+  "full_component_dod": "NOT_DONE",
+  "milestone": "M1.1",
+  "observations": [
+    {
+      "exit_code": 0,
+      "snapshot": {
+        "baseline_ready": true,
+        "blocker_code": null,
+        "component_id": "RUNTIME-BASELINE",
+        "component_version": "1.0.0",
+        "database": "riverview",
+        "database_role": "riverview_core",
+        "diagnostic_ref": "docs/components/RUNTIME_BASELINE_COOKBOOK.md",
+        "event_cursor": null,
+        "expires_at": "2026-10-10T15:12:14.245852+00:00",
+        "freshness": "current",
+        "heartbeat_at": null,
+        "institutional_readiness": "not_verified",
+        "last_meaningful_progress_at": null,
+        "observed_at": "2026-10-10T15:11:14.245852+00:00",
+        "path_failure_reason": null,
+        "projection_version": "rv.runtime-baseline.v1",
+        "recovery_status": "baseline_verified",
+        "responsible_office_id": "office:operations",
+        "runtime_account": "riverview",
+        "schema": "riverview_dev",
+        "schema_owner": "riverview_core",
+        "source_commit": "64e8f14ad6d71102a864755739a1c8a61506235c",
+        "status": "baseline_ready",
+        "step_id": "ready",
+        "target_host": "admin1-Default-string",
+        "workflow_id": "runtime-baseline.v1"
+      }
+    },
+    {
+      "exit_code": 0,
+      "snapshot": {
+        "baseline_ready": true,
+        "blocker_code": null,
+        "component_id": "RUNTIME-BASELINE",
+        "component_version": "1.0.0",
+        "database": "riverview",
+        "database_role": "riverview_core",
+        "diagnostic_ref": "docs/components/RUNTIME_BASELINE_COOKBOOK.md",
+        "event_cursor": null,
+        "expires_at": "2026-10-10T15:12:15.113905+00:00",
+        "freshness": "current",
+        "heartbeat_at": null,
+        "institutional_readiness": "not_verified",
+        "last_meaningful_progress_at": null,
+        "observed_at": "2026-10-10T15:11:15.113905+00:00",
+        "path_failure_reason": null,
+        "projection_version": "rv.runtime-baseline.v1",
+        "recovery_status": "baseline_verified",
+        "responsible_office_id": "office:operations",
+        "runtime_account": "riverview",
+        "schema": "riverview_dev",
+        "schema_owner": "riverview_core",
+        "source_commit": "64e8f14ad6d71102a864755739a1c8a61506235c",
+        "status": "baseline_ready",
+        "step_id": "ready",
+        "target_host": "admin1-Default-string",
+        "workflow_id": "runtime-baseline.v1"
+      }
+    }
+  ],
+  "observed_at": "2026-10-10T15:11:14.000364+00:00",
+  "projection_version": "rv.baseline-acceptance.v1",
+  "source_commit": "64e8f14ad6d71102a864755739a1c8a61506235c",
+  "step_acceptance": "PENDING_STEWARD",
+  "steward_acceptance": "pending",
+  "target_host": "admin1-Default-string",
+  "task_id": "RV-M1.1-001"
+}

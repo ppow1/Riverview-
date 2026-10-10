@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.16
+**Document Revision:** 1.0.17
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -367,3 +367,14 @@ package restored a2b94e2 readiness. No DB object or credential was modified.
 The installed broker, policy and registry are absent; unrestricted sudo and
 visudo checks still pass. Technical M1.1 acceptance is PASS; formal Steward
 acceptance/sequencing remains pending and M1.2 is not started.
+
+
+Final RV-M1.1-011 release was rebuilt from committed source
+`64e8f14ad6d71102a864755739a1c8a61506235c` (archive SHA-256
+`0635519b4b3de40b5b10e6935fc370e6276ba685046dfdbc73c86e7f8a4c28a8`). This
+package includes the broker-retirement clarification in the installed component
+contract. Deployment to immutable release `64e8f14ad6d71102a864755739a1c8a61506235c`
+returned systemd success/exit 0. The live report is current and ready, collector
+again produced two distinct ready observations with `PENDING_STEWARD`, and the
+active broker paths remain absent. Evidence: `evidence/checkouts/RUNTIME-BASELINE/
+20261010T1511Z-64e8f14/`.

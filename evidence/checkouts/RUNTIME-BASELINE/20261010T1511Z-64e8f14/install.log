@@ -1,0 +1,669 @@
+.gitattributes: OK
+.gitignore: OK
+.riverview-backups/20261010T123157674615Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T131252752053Z/deploy/install_baseline.sh: OK
+.riverview-backups/20261010T131252913115Z/scripts/provision_pgpass.py: OK
+.riverview-backups/20261010T131253070544Z/tests/test_runtime_baseline.py: OK
+.riverview-backups/20261010T131253229434Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T131253387445Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T131253545408Z/docs/components/RUNTIME_BASELINE_FLOW.md: OK
+.riverview-backups/20261010T131253703864Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T141752435423Z/scripts/runtime_baseline.py: OK
+.riverview-backups/20261010T141752590800Z/tests/test_runtime_baseline.py: OK
+.riverview-backups/20261010T141752747304Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T141752911820Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T141851163418Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T142216085663Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T142223574980Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T142519180641Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T142904214543Z/tests/test_runtime_baseline.py: OK
+.riverview-backups/20261010T142904371319Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T142904528427Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T142904684465Z/docs/components/RUNTIME_BASELINE_FLOW.md: OK
+.riverview-backups/20261010T142904858229Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T143106755086Z/scripts/runtime_baseline.py: OK
+.riverview-backups/20261010T144158471533Z/docs/development/M1.1-009_REVISION_RECORD.md: OK
+.riverview-backups/20261010T144607835530Z/scripts/runtime_baseline.py: OK
+.riverview-backups/20261010T144607993069Z/deploy/systemd/riverview-baseline.service: OK
+.riverview-backups/20261010T144608148267Z/tests/test_runtime_baseline.py: OK
+.riverview-backups/20261010T144608304777Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T144608462875Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T144608620989Z/docs/components/RUNTIME_BASELINE_FLOW.md: OK
+.riverview-backups/20261010T144608782600Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T144912036230Z/docs/development/M1.1-010_REVISION_RECORD.md: OK
+.riverview-backups/20261010T145102367673Z/docs/development/M1.1-010_REVISION_RECORD.md: OK
+.riverview-backups/20261010T145102528292Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T145128669553Z/docs/development/M1.1-010_REVISION_RECORD.md: OK
+.riverview-backups/20261010T145128833118Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T1452Z/evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/artifacts.json: OK
+.riverview-backups/20261010T150311765305Z/scripts/runtime_baseline.py: OK
+.riverview-backups/20261010T150311767976Z/tests/test_runtime_baseline.py: OK
+.riverview-backups/20261010T150311770706Z/scripts/riverview_privctl.py: OK
+.riverview-backups/20261010T150311772513Z/tests/test_privctl.py: OK
+.riverview-backups/20261010T150311774251Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T150311776370Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T150311778276Z/docs/components/RUNTIME_BASELINE_FLOW.md: OK
+.riverview-backups/20261010T150311780158Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T150622940131Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T150623099872Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T150630981967Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T150650521748Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T150851063124Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T150851221609Z/docs/development/M1.1_ACCEPTANCE.md: OK
+.riverview-backups/20261010T150851378783Z/docs/development/M1.1-011_REVISION_RECORD.md: OK
+.riverview-backups/20261010T150851551615Z/docs/development/JOURNAL.md: OK
+.riverview-backups/manifest.jsonl: OK
+AI_HINTS.md: OK
+README.md: OK
+deploy/install_baseline.sh: OK
+deploy/rollback_baseline.sh: OK
+deploy/systemd/riverview-baseline.service: OK
+docs/CODEX_ENGINEERING_CAMPAIGN.md: OK
+docs/ROADMAP.md: OK
+docs/architecture/CORE_CONTRACT.md: OK
+docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md: OK
+docs/architecture/LINUX_DEPLOYMENT_AND_HOSTING_v0.1.md: OK
+docs/architecture/OBSERVABILITY_AND_SPATIAL_CONTRACT_v0.1.md: OK
+docs/components/LEDGER_COOKBOOK.md: OK
+docs/components/POSTGRES_LEDGER.md: OK
+docs/components/POSTGRES_LEDGER_COOKBOOK.md: OK
+docs/components/POSTGRES_LEDGER_FLOW.md: OK
+docs/components/RUNTIME_BASELINE.md: OK
+docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+docs/components/RUNTIME_BASELINE_FLOW.md: OK
+docs/development/JOURNAL.md: OK
+docs/development/M1.1-003_REVISION_RECORD.md: OK
+docs/development/M1.1-004_REVISION_RECORD.md: OK
+docs/development/M1.1-006_REVISION_RECORD.md: OK
+docs/development/M1.1-007_REVISION_RECORD.md: OK
+docs/development/M1.1-008_CONTRACT_REVISION_RECORD.md: OK
+docs/development/M1.1-008_REVISION_RECORD.md: OK
+docs/development/M1.1-009_REVISION_RECORD.md: OK
+docs/development/M1.1-010_REVISION_RECORD.md: OK
+docs/development/M1.1-011_REVISION_RECORD.md: OK
+docs/development/M1.1_ACCEPTANCE.md: OK
+docs/development/M1.1_PACKAGING_REVISION_RECORD.md: OK
+docs/development/M1.1_REVISION_RECORD.md: OK
+docs/history/AI_HINTS_rev1.0.0.md: OK
+docs/history/AI_HINTS_rev1.0.1.md: OK
+docs/history/AI_HINTS_rev1.0.2.md: OK
+docs/history/CODEX_ENGINEERING_CAMPAIGN_rev1.0.0.md: OK
+docs/history/JOURNAL_rev1.0.0.md: OK
+docs/history/M1.1_ACCEPTANCE_rev1.0.0.md: OK
+docs/history/ROADMAP_rev1.0.0.md: OK
+docs/history/RV-M1.1-002/rev1.0.0/docs/components/RUNTIME_BASELINE.md: OK
+docs/history/RV-M1.1-002/rev1.0.0/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+docs/history/RV-M1.1-002/rev1.0.0/docs/components/RUNTIME_BASELINE_FLOW.md: OK
+docs/history/RV-M1.1-002/rev1.0.0/scripts/build_camrui_package.py: OK
+docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py: OK
+docs/history/RV-M1.1-002/rev1.0.1/docs/development/JOURNAL.md: OK
+docs/history/RV-M1.1-002/rev1.0.1/docs/development/M1.1_ACCEPTANCE.md: OK
+docs/history/RV-M1.1-003/JOURNAL_rev1.0.2.md: OK
+docs/history/RV-M1.1-004/rev1.0.1/docs/components/RUNTIME_BASELINE.md: OK
+docs/history/RV-M1.1-004/rev1.0.1/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+docs/history/RV-M1.1-004/rev1.0.3/docs/development/JOURNAL.md: OK
+docs/history/RV-M1.1-006/rev1.0.4/docs/development/JOURNAL.md: OK
+docs/security/UNDERCURRENT_BOUNDARY.md: OK
+docs/standards/COMPONENT_DEFINITION_OF_DONE.md: OK
+docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md: OK
+docs/standards/ENGINEERING_RECORDS_STANDARD.md: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/artifacts.json: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/checkout.md: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/cleanup-check.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/initdb.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/postgres.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/recheck-start.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/recheck-stop.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/start.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/stop.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/unittest-combined.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T034142Z-892b489/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/artifacts.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/camrui-package.tar.gz: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/observer.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/package-preflight.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/package-verification.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/runtime-probe.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/systemd-template-check.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/unittest-combined.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/artifacts.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/build.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/commissioning-failure.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/package-verification.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/riverview-M1.1-3d7e58f-20261010T131615Z.tar.gz: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/stage-checksums.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-cluster-start.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-cluster-stop.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-harness-correction.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-schema-cleanup.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/unittest-combined.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1419Z-0a0f1e1/campaign-execution-capability.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1419Z-0a0f1e1/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1419Z-0a0f1e1/controlled-file-audit.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1419Z-0a0f1e1/package-verification.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/artifacts.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/build.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/package-verification.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/package-verification.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/stage-checksums.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/artifacts.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/package-verification.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/unittest.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/acceptance.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/artifacts.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/git-diff-check.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/independent-observer.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/live-postgres.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/package-verification.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/postgres-isolated-unittest.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/predecessor-start.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/pycompile.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/redeploy.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/revision-check.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/riverview-M1.1-a2b94e2-20261010.tar.gz: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/rollback-recovery.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/systemd-final.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/systemd-final.txt: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/systemd-unit-verify.log: OK
+evidence/checkouts/RUNTIME-BASELINE/development-validation-final.md: OK
+evidence/checkouts/RUNTIME-BASELINE/development-validation.md: OK
+evidence/checkouts/RUNTIME-BASELINE/packaging-repair.md: OK
+scripts/build_camrui_package.py: OK
+scripts/capture_baseline_acceptance.py: OK
+scripts/check_camrui_baseline.py: OK
+scripts/migrate_document_revisions.py: OK
+scripts/postgres_ledger_steward_snapshot.py: OK
+scripts/provision_pgpass.py: OK
+scripts/read_baseline_report.py: OK
+scripts/revision_control.py: OK
+scripts/runtime_baseline.py: OK
+scripts/verify_camrui_package.py: OK
+src/riverview_core/__init__.py: OK
+src/riverview_core/ledger.py: OK
+src/riverview_core/postgres_ledger.py: OK
+tests/test_ledger.py: OK
+tests/test_migrate_document_revisions.py: OK
+tests/test_postgres_ledger.py: OK
+tests/test_revision_control.py: OK
+tests/test_runtime_baseline.py: OK
+SOURCE_COMMIT: OK
+.gitattributes: OK
+.gitignore: OK
+.riverview-backups/20261010T123157674615Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T131252752053Z/deploy/install_baseline.sh: OK
+.riverview-backups/20261010T131252913115Z/scripts/provision_pgpass.py: OK
+.riverview-backups/20261010T131253070544Z/tests/test_runtime_baseline.py: OK
+.riverview-backups/20261010T131253229434Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T131253387445Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T131253545408Z/docs/components/RUNTIME_BASELINE_FLOW.md: OK
+.riverview-backups/20261010T131253703864Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T141752435423Z/scripts/runtime_baseline.py: OK
+.riverview-backups/20261010T141752590800Z/tests/test_runtime_baseline.py: OK
+.riverview-backups/20261010T141752747304Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T141752911820Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T141851163418Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T142216085663Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T142223574980Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T142519180641Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T142904214543Z/tests/test_runtime_baseline.py: OK
+.riverview-backups/20261010T142904371319Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T142904528427Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T142904684465Z/docs/components/RUNTIME_BASELINE_FLOW.md: OK
+.riverview-backups/20261010T142904858229Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T143106755086Z/scripts/runtime_baseline.py: OK
+.riverview-backups/20261010T144158471533Z/docs/development/M1.1-009_REVISION_RECORD.md: OK
+.riverview-backups/20261010T144607835530Z/scripts/runtime_baseline.py: OK
+.riverview-backups/20261010T144607993069Z/deploy/systemd/riverview-baseline.service: OK
+.riverview-backups/20261010T144608148267Z/tests/test_runtime_baseline.py: OK
+.riverview-backups/20261010T144608304777Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T144608462875Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T144608620989Z/docs/components/RUNTIME_BASELINE_FLOW.md: OK
+.riverview-backups/20261010T144608782600Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T144912036230Z/docs/development/M1.1-010_REVISION_RECORD.md: OK
+.riverview-backups/20261010T145102367673Z/docs/development/M1.1-010_REVISION_RECORD.md: OK
+.riverview-backups/20261010T145102528292Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T145128669553Z/docs/development/M1.1-010_REVISION_RECORD.md: OK
+.riverview-backups/20261010T145128833118Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T1452Z/evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/artifacts.json: OK
+.riverview-backups/20261010T150311765305Z/scripts/runtime_baseline.py: OK
+.riverview-backups/20261010T150311767976Z/tests/test_runtime_baseline.py: OK
+.riverview-backups/20261010T150311770706Z/scripts/riverview_privctl.py: OK
+.riverview-backups/20261010T150311772513Z/tests/test_privctl.py: OK
+.riverview-backups/20261010T150311774251Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T150311776370Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T150311778276Z/docs/components/RUNTIME_BASELINE_FLOW.md: OK
+.riverview-backups/20261010T150311780158Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T150622940131Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T150623099872Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T150630981967Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T150650521748Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T150851063124Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T150851221609Z/docs/development/M1.1_ACCEPTANCE.md: OK
+.riverview-backups/20261010T150851378783Z/docs/development/M1.1-011_REVISION_RECORD.md: OK
+.riverview-backups/20261010T150851551615Z/docs/development/JOURNAL.md: OK
+.riverview-backups/manifest.jsonl: OK
+AI_HINTS.md: OK
+README.md: OK
+deploy/install_baseline.sh: OK
+deploy/rollback_baseline.sh: OK
+deploy/systemd/riverview-baseline.service: OK
+docs/CODEX_ENGINEERING_CAMPAIGN.md: OK
+docs/ROADMAP.md: OK
+docs/architecture/CORE_CONTRACT.md: OK
+docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md: OK
+docs/architecture/LINUX_DEPLOYMENT_AND_HOSTING_v0.1.md: OK
+docs/architecture/OBSERVABILITY_AND_SPATIAL_CONTRACT_v0.1.md: OK
+docs/components/LEDGER_COOKBOOK.md: OK
+docs/components/POSTGRES_LEDGER.md: OK
+docs/components/POSTGRES_LEDGER_COOKBOOK.md: OK
+docs/components/POSTGRES_LEDGER_FLOW.md: OK
+docs/components/RUNTIME_BASELINE.md: OK
+docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+docs/components/RUNTIME_BASELINE_FLOW.md: OK
+docs/development/JOURNAL.md: OK
+docs/development/M1.1-003_REVISION_RECORD.md: OK
+docs/development/M1.1-004_REVISION_RECORD.md: OK
+docs/development/M1.1-006_REVISION_RECORD.md: OK
+docs/development/M1.1-007_REVISION_RECORD.md: OK
+docs/development/M1.1-008_CONTRACT_REVISION_RECORD.md: OK
+docs/development/M1.1-008_REVISION_RECORD.md: OK
+docs/development/M1.1-009_REVISION_RECORD.md: OK
+docs/development/M1.1-010_REVISION_RECORD.md: OK
+docs/development/M1.1-011_REVISION_RECORD.md: OK
+docs/development/M1.1_ACCEPTANCE.md: OK
+docs/development/M1.1_PACKAGING_REVISION_RECORD.md: OK
+docs/development/M1.1_REVISION_RECORD.md: OK
+docs/history/AI_HINTS_rev1.0.0.md: OK
+docs/history/AI_HINTS_rev1.0.1.md: OK
+docs/history/AI_HINTS_rev1.0.2.md: OK
+docs/history/CODEX_ENGINEERING_CAMPAIGN_rev1.0.0.md: OK
+docs/history/JOURNAL_rev1.0.0.md: OK
+docs/history/M1.1_ACCEPTANCE_rev1.0.0.md: OK
+docs/history/ROADMAP_rev1.0.0.md: OK
+docs/history/RV-M1.1-002/rev1.0.0/docs/components/RUNTIME_BASELINE.md: OK
+docs/history/RV-M1.1-002/rev1.0.0/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+docs/history/RV-M1.1-002/rev1.0.0/docs/components/RUNTIME_BASELINE_FLOW.md: OK
+docs/history/RV-M1.1-002/rev1.0.0/scripts/build_camrui_package.py: OK
+docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py: OK
+docs/history/RV-M1.1-002/rev1.0.1/docs/development/JOURNAL.md: OK
+docs/history/RV-M1.1-002/rev1.0.1/docs/development/M1.1_ACCEPTANCE.md: OK
+docs/history/RV-M1.1-003/JOURNAL_rev1.0.2.md: OK
+docs/history/RV-M1.1-004/rev1.0.1/docs/components/RUNTIME_BASELINE.md: OK
+docs/history/RV-M1.1-004/rev1.0.1/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+docs/history/RV-M1.1-004/rev1.0.3/docs/development/JOURNAL.md: OK
+docs/history/RV-M1.1-006/rev1.0.4/docs/development/JOURNAL.md: OK
+docs/security/UNDERCURRENT_BOUNDARY.md: OK
+docs/standards/COMPONENT_DEFINITION_OF_DONE.md: OK
+docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md: OK
+docs/standards/ENGINEERING_RECORDS_STANDARD.md: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/artifacts.json: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/checkout.md: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/cleanup-check.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/initdb.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/postgres.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/recheck-start.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/recheck-stop.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/start.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/stop.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/unittest-combined.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T034142Z-892b489/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/artifacts.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/camrui-package.tar.gz: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/observer.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/package-preflight.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/package-verification.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/runtime-probe.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/systemd-template-check.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/unittest-combined.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/artifacts.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/build.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/commissioning-failure.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/package-verification.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/riverview-M1.1-3d7e58f-20261010T131615Z.tar.gz: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/stage-checksums.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-cluster-start.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-cluster-stop.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-harness-correction.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-schema-cleanup.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/unittest-combined.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1419Z-0a0f1e1/campaign-execution-capability.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1419Z-0a0f1e1/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1419Z-0a0f1e1/controlled-file-audit.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1419Z-0a0f1e1/package-verification.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/artifacts.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/build.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/package-verification.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/package-verification.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/stage-checksums.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/artifacts.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/package-verification.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/unittest.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/acceptance.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/artifacts.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/git-diff-check.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/independent-observer.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/live-postgres.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/package-verification.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/postgres-isolated-unittest.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/predecessor-start.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/pycompile.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/redeploy.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/revision-check.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/riverview-M1.1-a2b94e2-20261010.tar.gz: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/rollback-recovery.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/systemd-final.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/systemd-final.txt: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/systemd-unit-verify.log: OK
+evidence/checkouts/RUNTIME-BASELINE/development-validation-final.md: OK
+evidence/checkouts/RUNTIME-BASELINE/development-validation.md: OK
+evidence/checkouts/RUNTIME-BASELINE/packaging-repair.md: OK
+scripts/build_camrui_package.py: OK
+scripts/capture_baseline_acceptance.py: OK
+scripts/check_camrui_baseline.py: OK
+scripts/migrate_document_revisions.py: OK
+scripts/postgres_ledger_steward_snapshot.py: OK
+scripts/provision_pgpass.py: OK
+scripts/read_baseline_report.py: OK
+scripts/revision_control.py: OK
+scripts/runtime_baseline.py: OK
+scripts/verify_camrui_package.py: OK
+src/riverview_core/__init__.py: OK
+src/riverview_core/ledger.py: OK
+src/riverview_core/postgres_ledger.py: OK
+tests/test_ledger.py: OK
+tests/test_migrate_document_revisions.py: OK
+tests/test_postgres_ledger.py: OK
+tests/test_revision_control.py: OK
+tests/test_runtime_baseline.py: OK
+SOURCE_COMMIT: OK
+.gitattributes: OK
+.gitignore: OK
+.riverview-backups/20261010T123157674615Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T131252752053Z/deploy/install_baseline.sh: OK
+.riverview-backups/20261010T131252913115Z/scripts/provision_pgpass.py: OK
+.riverview-backups/20261010T131253070544Z/tests/test_runtime_baseline.py: OK
+.riverview-backups/20261010T131253229434Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T131253387445Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T131253545408Z/docs/components/RUNTIME_BASELINE_FLOW.md: OK
+.riverview-backups/20261010T131253703864Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T141752435423Z/scripts/runtime_baseline.py: OK
+.riverview-backups/20261010T141752590800Z/tests/test_runtime_baseline.py: OK
+.riverview-backups/20261010T141752747304Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T141752911820Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T141851163418Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T142216085663Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T142223574980Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T142519180641Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T142904214543Z/tests/test_runtime_baseline.py: OK
+.riverview-backups/20261010T142904371319Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T142904528427Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T142904684465Z/docs/components/RUNTIME_BASELINE_FLOW.md: OK
+.riverview-backups/20261010T142904858229Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T143106755086Z/scripts/runtime_baseline.py: OK
+.riverview-backups/20261010T144158471533Z/docs/development/M1.1-009_REVISION_RECORD.md: OK
+.riverview-backups/20261010T144607835530Z/scripts/runtime_baseline.py: OK
+.riverview-backups/20261010T144607993069Z/deploy/systemd/riverview-baseline.service: OK
+.riverview-backups/20261010T144608148267Z/tests/test_runtime_baseline.py: OK
+.riverview-backups/20261010T144608304777Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T144608462875Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T144608620989Z/docs/components/RUNTIME_BASELINE_FLOW.md: OK
+.riverview-backups/20261010T144608782600Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T144912036230Z/docs/development/M1.1-010_REVISION_RECORD.md: OK
+.riverview-backups/20261010T145102367673Z/docs/development/M1.1-010_REVISION_RECORD.md: OK
+.riverview-backups/20261010T145102528292Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T145128669553Z/docs/development/M1.1-010_REVISION_RECORD.md: OK
+.riverview-backups/20261010T145128833118Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T1452Z/evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/artifacts.json: OK
+.riverview-backups/20261010T150311765305Z/scripts/runtime_baseline.py: OK
+.riverview-backups/20261010T150311767976Z/tests/test_runtime_baseline.py: OK
+.riverview-backups/20261010T150311770706Z/scripts/riverview_privctl.py: OK
+.riverview-backups/20261010T150311772513Z/tests/test_privctl.py: OK
+.riverview-backups/20261010T150311774251Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T150311776370Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T150311778276Z/docs/components/RUNTIME_BASELINE_FLOW.md: OK
+.riverview-backups/20261010T150311780158Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T150622940131Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T150623099872Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T150630981967Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+.riverview-backups/20261010T150650521748Z/docs/development/JOURNAL.md: OK
+.riverview-backups/20261010T150851063124Z/docs/components/RUNTIME_BASELINE.md: OK
+.riverview-backups/20261010T150851221609Z/docs/development/M1.1_ACCEPTANCE.md: OK
+.riverview-backups/20261010T150851378783Z/docs/development/M1.1-011_REVISION_RECORD.md: OK
+.riverview-backups/20261010T150851551615Z/docs/development/JOURNAL.md: OK
+.riverview-backups/manifest.jsonl: OK
+AI_HINTS.md: OK
+README.md: OK
+deploy/install_baseline.sh: OK
+deploy/rollback_baseline.sh: OK
+deploy/systemd/riverview-baseline.service: OK
+docs/CODEX_ENGINEERING_CAMPAIGN.md: OK
+docs/ROADMAP.md: OK
+docs/architecture/CORE_CONTRACT.md: OK
+docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md: OK
+docs/architecture/LINUX_DEPLOYMENT_AND_HOSTING_v0.1.md: OK
+docs/architecture/OBSERVABILITY_AND_SPATIAL_CONTRACT_v0.1.md: OK
+docs/components/LEDGER_COOKBOOK.md: OK
+docs/components/POSTGRES_LEDGER.md: OK
+docs/components/POSTGRES_LEDGER_COOKBOOK.md: OK
+docs/components/POSTGRES_LEDGER_FLOW.md: OK
+docs/components/RUNTIME_BASELINE.md: OK
+docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+docs/components/RUNTIME_BASELINE_FLOW.md: OK
+docs/development/JOURNAL.md: OK
+docs/development/M1.1-003_REVISION_RECORD.md: OK
+docs/development/M1.1-004_REVISION_RECORD.md: OK
+docs/development/M1.1-006_REVISION_RECORD.md: OK
+docs/development/M1.1-007_REVISION_RECORD.md: OK
+docs/development/M1.1-008_CONTRACT_REVISION_RECORD.md: OK
+docs/development/M1.1-008_REVISION_RECORD.md: OK
+docs/development/M1.1-009_REVISION_RECORD.md: OK
+docs/development/M1.1-010_REVISION_RECORD.md: OK
+docs/development/M1.1-011_REVISION_RECORD.md: OK
+docs/development/M1.1_ACCEPTANCE.md: OK
+docs/development/M1.1_PACKAGING_REVISION_RECORD.md: OK
+docs/development/M1.1_REVISION_RECORD.md: OK
+docs/history/AI_HINTS_rev1.0.0.md: OK
+docs/history/AI_HINTS_rev1.0.1.md: OK
+docs/history/AI_HINTS_rev1.0.2.md: OK
+docs/history/CODEX_ENGINEERING_CAMPAIGN_rev1.0.0.md: OK
+docs/history/JOURNAL_rev1.0.0.md: OK
+docs/history/M1.1_ACCEPTANCE_rev1.0.0.md: OK
+docs/history/ROADMAP_rev1.0.0.md: OK
+docs/history/RV-M1.1-002/rev1.0.0/docs/components/RUNTIME_BASELINE.md: OK
+docs/history/RV-M1.1-002/rev1.0.0/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+docs/history/RV-M1.1-002/rev1.0.0/docs/components/RUNTIME_BASELINE_FLOW.md: OK
+docs/history/RV-M1.1-002/rev1.0.0/scripts/build_camrui_package.py: OK
+docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py: OK
+docs/history/RV-M1.1-002/rev1.0.1/docs/development/JOURNAL.md: OK
+docs/history/RV-M1.1-002/rev1.0.1/docs/development/M1.1_ACCEPTANCE.md: OK
+docs/history/RV-M1.1-003/JOURNAL_rev1.0.2.md: OK
+docs/history/RV-M1.1-004/rev1.0.1/docs/components/RUNTIME_BASELINE.md: OK
+docs/history/RV-M1.1-004/rev1.0.1/docs/components/RUNTIME_BASELINE_COOKBOOK.md: OK
+docs/history/RV-M1.1-004/rev1.0.3/docs/development/JOURNAL.md: OK
+docs/history/RV-M1.1-006/rev1.0.4/docs/development/JOURNAL.md: OK
+docs/security/UNDERCURRENT_BOUNDARY.md: OK
+docs/standards/COMPONENT_DEFINITION_OF_DONE.md: OK
+docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md: OK
+docs/standards/ENGINEERING_RECORDS_STANDARD.md: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/artifacts.json: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/checkout.md: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/cleanup-check.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/initdb.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/postgres.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/recheck-start.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/recheck-stop.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/start.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/stop.log: OK
+evidence/checkouts/POSTGRES-LEDGER/20261010T123047Z-b459bf1/unittest-combined.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T034142Z-892b489/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/artifacts.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/camrui-package.tar.gz: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/observer.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/package-preflight.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/package-verification.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/runtime-probe.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/systemd-template-check.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T035211Z-b15b093/unittest-combined.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/artifacts.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/build.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/commissioning-failure.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/package-verification.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/riverview-M1.1-3d7e58f-20261010T131615Z.tar.gz: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/stage-checksums.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-cluster-start.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-cluster-stop.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-harness-correction.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/test-schema-cleanup.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T131615Z-3d7e58f/unittest-combined.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1419Z-0a0f1e1/campaign-execution-capability.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1419Z-0a0f1e1/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1419Z-0a0f1e1/controlled-file-audit.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1419Z-0a0f1e1/package-verification.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/artifacts.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/build.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/package-verification.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/package-verification.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1424Z-e386eaf/stage-checksums.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/artifacts.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/package-verification.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1450Z-b40c77f/unittest.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/acceptance.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/artifacts.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/checkout.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/git-diff-check.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/independent-observer.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/live-postgres.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/package-verification.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/postgres-isolated-unittest.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/predecessor-start.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/pycompile.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/redeploy.log: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/revision-check.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/riverview-M1.1-a2b94e2-20261010.tar.gz: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/rollback-recovery.md: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/systemd-final.json: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/systemd-final.txt: OK
+evidence/checkouts/RUNTIME-BASELINE/20261010T1508Z-a2b94e2/systemd-unit-verify.log: OK
+evidence/checkouts/RUNTIME-BASELINE/development-validation-final.md: OK
+evidence/checkouts/RUNTIME-BASELINE/development-validation.md: OK
+evidence/checkouts/RUNTIME-BASELINE/packaging-repair.md: OK
+scripts/build_camrui_package.py: OK
+scripts/capture_baseline_acceptance.py: OK
+scripts/check_camrui_baseline.py: OK
+scripts/migrate_document_revisions.py: OK
+scripts/postgres_ledger_steward_snapshot.py: OK
+scripts/provision_pgpass.py: OK
+scripts/read_baseline_report.py: OK
+scripts/revision_control.py: OK
+scripts/runtime_baseline.py: OK
+scripts/verify_camrui_package.py: OK
+src/riverview_core/__init__.py: OK
+src/riverview_core/ledger.py: OK
+src/riverview_core/postgres_ledger.py: OK
+tests/test_ledger.py: OK
+tests/test_migrate_document_revisions.py: OK
+tests/test_postgres_ledger.py: OK
+tests/test_revision_control.py: OK
+tests/test_runtime_baseline.py: OK
+SOURCE_COMMIT: OK
+Collecting psycopg==3.2.10 (from psycopg[binary]==3.2.10)
+  Using cached psycopg-3.2.10-py3-none-any.whl.metadata (4.6 kB)
+Collecting typing-extensions>=4.6 (from psycopg==3.2.10->psycopg[binary]==3.2.10)
+  Using cached typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting psycopg-binary==3.2.10 (from psycopg[binary]==3.2.10)
+  Using cached psycopg_binary-3.2.10-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (3.0 kB)
+Using cached psycopg-3.2.10-py3-none-any.whl (206 kB)
+Using cached psycopg_binary-3.2.10-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.4 MB)
+Using cached typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+Installing collected packages: typing-extensions, psycopg-binary, psycopg
+Successfully installed psycopg-3.2.10 psycopg-binary-3.2.10 typing-extensions-4.16.0
+test_completion_requires_verification_flag (test_ledger.LedgerTests.test_completion_requires_verification_flag) ... ok
+test_idempotent_event_and_illegal_transition (test_ledger.LedgerTests.test_idempotent_event_and_illegal_transition) ... ok
+test_independent_assignments_and_reopen (test_ledger.LedgerTests.test_independent_assignments_and_reopen) ... ok
+test_heading_revision_preserved (test_migrate_document_revisions.MigrationTests.test_heading_revision_preserved) ... ok
+test_preserves_and_migrates (test_migrate_document_revisions.MigrationTests.test_preserves_and_migrates) ... ok
+test_rejects_overwrite (test_migrate_document_revisions.MigrationTests.test_rejects_overwrite) ... ok
+test_completion_requires_verification_flag (test_postgres_ledger.PostgresLedgerTests.test_completion_requires_verification_flag) ... skipped 'RIVERVIEW_TEST_PG_DSN not configured'
+test_idempotency_and_illegal_transition (test_postgres_ledger.PostgresLedgerTests.test_idempotency_and_illegal_transition) ... skipped 'RIVERVIEW_TEST_PG_DSN not configured'
+test_persistence_and_independent_assignments (test_postgres_ledger.PostgresLedgerTests.test_persistence_and_independent_assignments) ... skipped 'RIVERVIEW_TEST_PG_DSN not configured'
+test_backup_exact_and_logged (test_revision_control.RevisionTests.test_backup_exact_and_logged) ... ok
+test_backup_rejects_traversal (test_revision_control.RevisionTests.test_backup_rejects_traversal) ... ok
+test_bump_with_backup_passes (test_revision_control.RevisionTests.test_bump_with_backup_passes) ... ok
+test_bump_without_backup_fails (test_revision_control.RevisionTests.test_bump_without_backup_fails) ... ok
+test_changed_without_bump_fails (test_revision_control.RevisionTests.test_changed_without_bump_fails) ... ok
+test_inventory (test_revision_control.RevisionTests.test_inventory) ... ok
+test_legacy_markdown_document_revision (test_revision_control.RevisionTests.test_legacy_markdown_document_revision) ... ok
+test_legacy_markdown_revision (test_revision_control.RevisionTests.test_legacy_markdown_revision) ... ok
+test_legacy_revision_comparison (test_revision_control.RevisionTests.test_legacy_revision_comparison) ... ok
+test_tampered_backup_fails (test_revision_control.RevisionTests.test_tampered_backup_fails) ... ok
+test_installer_reuses_only_root_owned_directory_and_restores_read_access (test_runtime_baseline.CredentialTerminalTests.test_installer_reuses_only_root_owned_directory_and_restores_read_access) ... ok
+test_password_prompt_reads_nonseekable_tty_without_echo (test_runtime_baseline.CredentialTerminalTests.test_password_prompt_reads_nonseekable_tty_without_echo) ... ok
+test_committed_invalid_shell_bytes_fail_before_archive_creation (test_runtime_baseline.PackageShellCompatibilityTests.test_committed_invalid_shell_bytes_fail_before_archive_creation) ... ok
+test_extracted_install_and_rollback_parse_and_execute_preamble (test_runtime_baseline.PackageShellCompatibilityTests.test_extracted_install_and_rollback_parse_and_execute_preamble) ... ok
+test_packaged_bytes_ignore_windows_checkout_and_export_conversion (test_runtime_baseline.PackageShellCompatibilityTests.test_packaged_bytes_ignore_windows_checkout_and_export_conversion) ... ok
+test_predecessor_windows_package_reproduces_reported_error (test_runtime_baseline.PackageShellCompatibilityTests.test_predecessor_windows_package_reproduces_reported_error) ... ok
+test_acceptance_requires_fresh_distinct_matching_observations (test_runtime_baseline.RuntimeBaselineTests.test_acceptance_requires_fresh_distinct_matching_observations) ... ok
+test_driver_error_is_sanitized (test_runtime_baseline.RuntimeBaselineTests.test_driver_error_is_sanitized) ... ok
+test_installed_unit_storage_contract_matches_runtime_default (test_runtime_baseline.RuntimeBaselineTests.test_installed_unit_storage_contract_matches_runtime_default) ... ok
+test_observer_fresh_stale_missing_and_failure (test_runtime_baseline.RuntimeBaselineTests.test_observer_fresh_stale_missing_and_failure) ... ok
+test_observer_rejects_future_and_excess_ttl (test_runtime_baseline.RuntimeBaselineTests.test_observer_rejects_future_and_excess_ttl) ... ok
+test_package_exact_commit_checksums_and_no_overwrite (test_runtime_baseline.RuntimeBaselineTests.test_package_exact_commit_checksums_and_no_overwrite) ... ok
+test_pgpass_escaping_and_invalid_passwords (test_runtime_baseline.RuntimeBaselineTests.test_pgpass_escaping_and_invalid_passwords) ... ok
+test_probe_rejects_noncontract_runtime_passfile_location (test_runtime_baseline.RuntimeBaselineTests.test_probe_rejects_noncontract_runtime_passfile_location) ... ok
+test_repeated_requests_are_independent (test_runtime_baseline.RuntimeBaselineTests.test_repeated_requests_are_independent) ... ok
+test_role_and_schema_fail_closed (test_runtime_baseline.RuntimeBaselineTests.test_role_and_schema_fail_closed) ... ok
+test_root_owned_systemd_credential_is_copied_to_exclusive_private_libpq_file (test_runtime_baseline.RuntimeBaselineTests.test_root_owned_systemd_credential_is_copied_to_exclusive_private_libpq_file) ... ok
+test_schema_owner_is_observed_without_inventing_an_ownership_migration (test_runtime_baseline.RuntimeBaselineTests.test_schema_owner_is_observed_without_inventing_an_ownership_migration) ... ok
+test_secure_file_modes_symlink_empty_and_owner (test_runtime_baseline.RuntimeBaselineTests.test_secure_file_modes_symlink_empty_and_owner) ... ok
+test_service_identity_and_ambient_password_rejected (test_runtime_baseline.RuntimeBaselineTests.test_service_identity_and_ambient_password_rejected) ... ok
+test_ssh_command_and_injection_rejection (test_runtime_baseline.RuntimeBaselineTests.test_ssh_command_and_injection_rejection) ... ok
+test_storage_path_failure_reports_reason_and_keeps_blocker_code (test_runtime_baseline.RuntimeBaselineTests.test_storage_path_failure_reports_reason_and_keeps_blocker_code) ... ok
+test_systemd_credential_delivery_rejects_wrong_directory_and_user_writable_file (test_runtime_baseline.RuntimeBaselineTests.test_systemd_credential_delivery_rejects_wrong_directory_and_user_writable_file) ... ok
+test_systemd_root_owned_credential_mount_is_accepted_without_relaxing_state_paths (test_runtime_baseline.RuntimeBaselineTests.test_systemd_root_owned_credential_mount_is_accepted_without_relaxing_state_paths) ... ok
+test_unsafe_path_reports_exact_safe_predicate (test_runtime_baseline.RuntimeBaselineTests.test_unsafe_path_reports_exact_safe_predicate) ... ok
+test_valid_baseline_is_not_institutional_health (test_runtime_baseline.RuntimeBaselineTests.test_valid_baseline_is_not_institutional_health) ... ok
+
+----------------------------------------------------------------------
+Ran 45 tests in 1.485s
+
+OK (skipped=3)
+Rollback record: /var/backups/riverview-baseline.UlzhahQf
+{
+  "baseline_ready": true,
+  "blocker_code": null,
+  "component_id": "RUNTIME-BASELINE",
+  "component_version": "1.0.0",
+  "database": "riverview",
+  "database_role": "riverview_core",
+  "diagnostic_ref": "docs/components/RUNTIME_BASELINE_COOKBOOK.md",
+  "event_cursor": null,
+  "expires_at": "2026-10-10T15:12:09.674341+00:00",
+  "freshness": "current",
+  "heartbeat_at": null,
+  "institutional_readiness": "not_verified",
+  "last_meaningful_progress_at": null,
+  "observed_at": "2026-10-10T15:11:09.674341+00:00",
+  "path_failure_reason": null,
+  "projection_version": "rv.runtime-baseline.v1",
+  "recovery_status": "baseline_verified",
+  "responsible_office_id": "office:operations",
+  "runtime_account": "riverview",
+  "schema": "riverview_dev",
+  "schema_owner": "riverview_core",
+  "source_commit": "64e8f14ad6d71102a864755739a1c8a61506235c",
+  "status": "baseline_ready",
+  "step_id": "ready",
+  "target_host": "admin1-Default-string",
+  "workflow_id": "runtime-baseline.v1"
+}
