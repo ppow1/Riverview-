@@ -1,8 +1,8 @@
 # Riverview~ runtime baseline troubleshooting and recovery
 
-**Document Revision:** 1.0.5
+**Document Revision:** 1.0.6
 **Component:** RUNTIME-BASELINE
-**Repair task:** RV-M1.1-009
+**Repair task:** RV-M1.1-010
 **Task:** RV-M1.1-001
 **Owner:** office:operations
 **Status:** systemd credential ownership cause corrected; live commissioning and rollback NOT VERIFIED
@@ -45,7 +45,7 @@ machine; it does not provide an independent database or runtime verification gat
 | Commissioning | Authorized root; exact package manifest; reusable release root-owned and service-readable | Existing non-symlink deployment, lock held, non-root-owned/invalid partial release | Inspect active link and root-only rollback record/checksums; stat the release path without reading credentials | Preserve invalid/untrusted release; do not delete it automatically. For a verified root-owned release, use the corrected installer to normalize read/traverse permissions and continue; it retains file bytes and rejects ownership mismatch |
 | identity | OS riverview, nonroot, nologin, systemd User=riverview | IDENTITY_MISSING / IDENTITY_MISMATCH / INTERACTIVE_SERVICE_ACCOUNT | `getent passwd riverview`; selected unit properties | Correct authorized commissioning; never run institution as root; restart probe |
 | storage | Private directory owned by runtime account | PATH_UNAVAILABLE / UNSAFE_PATH / UNSAFE_MODE; sanitized `path_failure_reason` distinguishes `symlink_in_path`, `unexpected_file_type`, and `owner_uid_mismatch` | `stat -c '%U:%G %a %F' /var/lib/riverview`; compare with the fresh probe report from inside the service unit | Do not infer the failing predicate from host metadata alone. Compare the service-context reason with systemd's `User`, `Group`, `StateDirectory`, and `StateDirectoryMode`; repair only the demonstrated mismatch, preserve path checks, then rerun |
-| credential | Fresh systemd credential from protected root source; absent passfile is captured through getpass controlling TTY with echo disabled | CREDENTIAL_MISSING / CREDENTIAL_UNREADABLE / UNSAFE_PATH / UNSAFE_MODE / AMBIENT_DATABASE_OVERRIDE; TTY I/O error fails before file creation | Stat only metadata; never read credential contents | Validate the PID 1 credential directory/file as root-owned, non-writable, path-stable, and service-readable; provision only an absent source passfile |
+| credential | Fresh systemd credential from protected root source; absent passfile is captured through getpass controlling TTY with echo disabled | CREDENTIAL_MISSING / CREDENTIAL_UNREADABLE / UNSAFE_PATH / UNSAFE_MODE / AMBIENT_DATABASE_OVERRIDE; TTY I/O error fails before file creation | Stat only metadata; never read credential contents | Validate PID 1 source as root-owned 0550/0440; copy through no-follow/exclusive descriptors into private runtime storage as service-owned 0700/0600; pass only that copy to libpq |
 | database | Read-only TCP connection, expected DB/role and scoped privileges | DATABASE_UNAVAILABLE / DATABASE_IDENTITY_MISMATCH / EXCESS_DATABASE_PRIVILEGE / READ_ONLY_REQUIRED / DEPENDENCY_MISSING | `systemctl is-active postgresql`; `pg_lsclusters`; `.venv/bin/python -c 'import psycopg; print(psycopg.__version__)'` | Restore dependency or reviewed permissions; no password resets or public schema changes; restart probe |
 | schema | Existing riverview_dev owner and USAGE/CREATE | SCHEMA_MISSING / SCHEMA_AUTHORITY_MISMATCH | Authorized DBA queries pg_namespace/has_schema_privilege; do not initialize via PostgresLedger constructor | Reconcile with prior baseline evidence; reviewed schema repair only; restart probe |
 | ready / observer | Fresh rv.runtime-baseline.v1 with observed/expiry time | REPORT_UNAVAILABLE / stale / nonzero probe | Independent report consumer; check clock and unit result | Diagnose missing/partial report, then refresh probe; never call expired evidence healthy |
@@ -78,6 +78,13 @@ symlinked path, root-owned directory mode 0550, root-owned regular file mode
 credential bytes. Regression tests cover the observed ownership contract and
 reject an unexpected credential location. Host execution must still verify the
 real unit and database result before M1.1 acceptance.
+
+Libpq rejects systemd's correctly root-owned 0440 source because it requires
+mode 0600 or stricter. The service therefore copies it without logging into its
+service-owned, mode-0700 systemd RuntimeDirectory as a service-owned 0600 file.
+Creation is exclusive and rejects symlinks or an existing destination;
+systemd removes the directory after the oneshot stops. Password contents never
+enter logs or diagnostics.
 
 A retry after that prompt failure is safe when read-only inspection confirms the known partial state: the riverview system account exists with a non-login shell; /etc/riverview is root-owned mode 0700; /etc/riverview/pgpass is absent; the attempted versioned release is a root-owned directory; /var/lib/riverview, /opt/riverview-core, and the service unit are absent. Use a fresh, verified package and rerun the installer. It reuses the account and exact release, rejects a symlink/non-directory or non-root-owned release, makes files readable and directories traversable for the service, and strips group/other write access before continuing. It does not overwrite an existing passfile. Never edit the failed staged package or delete the partial release. If ownership differs, stop and retain it for diagnosis.
 
@@ -129,6 +136,7 @@ does not substitute for them.
 ## Revision history
 
 - 1.0.5: Record proven systemd credential ownership mismatch, safe predicate split and scoped broker usage; predecessor `.riverview-backups/20261010T142904528427Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md`.
+- 1.0.6: Document libpq mode-0600 requirement and isolated runtime copy; predecessor is recorded under RV-M1.1-010 in `.riverview-backups/manifest.jsonl`.
 
 - 1.0.3: Explain non-seeking hidden TTY capture and validated partial-install retry; predecessor under docs/history/RV-M1.1-007/rev1.0.2/docs/components/RUNTIME_BASELINE_COOKBOOK.md.
 

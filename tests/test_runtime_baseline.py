@@ -1,13 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_runtime_baseline.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Identity/credential security, DB contract, observer and package regression tests
 # Execution Model: Request-driven tests; simulated DB explicitly distinct from live proof
 # Observability: unittest counts and failures
 # Dependencies: Python 3.10+, Git, Linux
 # Authority: Temporary fixtures only; no live DB or credentials
-# Changed: 2026-10-10 UTC | RV-M1.1-009 | Reproduce and validate systemd credential mount ownership
+# Changed: 2026-10-10 UTC | RV-M1.1-010 | Cover root-owned systemd source and private libpq passfile copy
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: This file
 # History: docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py
@@ -42,7 +42,7 @@ from verify_camrui_package import verify
 
 
 class RuntimeBaselineTests(unittest.TestCase):
-    def run_probe(self, rows=None, failure=None, identity=None, environ=None):
+    def run_probe(self, rows=None, failure=None, identity=None, environ=None, passfile=None):
         connect = MagicMock()
         cur = connect.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
         cur.fetchone.side_effect = rows or [("on",), ("riverview_core", "riverview", "127.0.0.1"),
@@ -54,8 +54,10 @@ class RuntimeBaselineTests(unittest.TestCase):
              patch.object(baseline.os, "geteuid", return_value=12345), \
              patch.object(baseline, "private_path"), \
              patch.object(baseline, "systemd_credential_path"), \
+             patch.object(baseline, "copy_systemd_credential"), \
              patch.dict(os.environ, environ or {}, clear=True):
-            report, code = baseline.probe(passfile=Path("/credentials/pgpass"),
+            report, code = baseline.probe(passfile=passfile or Path("/run/riverview-credentials/pgpass"),
+                                          credential_source=Path("/run/credentials/riverview-baseline.service/pgpass"),
                                           state_dir=Path("/var/lib/riverview"), connect=connect)
         return report, code, connect, cur
 
@@ -156,6 +158,9 @@ class RuntimeBaselineTests(unittest.TestCase):
         self.assertIn("Group=riverview\n", unit)
         self.assertIn("StateDirectory=riverview\n", unit)
         self.assertIn("StateDirectoryMode=0700\n", unit)
+        self.assertIn("RuntimeDirectory=riverview-credentials\n", unit)
+        self.assertIn("RuntimeDirectoryMode=0700\n", unit)
+        self.assertIn("--passfile /run/riverview-credentials/pgpass", unit)
         self.assertNotIn("DynamicUser=yes", unit)
         self.assertIn('default=Path("/var/lib/riverview")',
                       (repo / "scripts/runtime_baseline.py").read_text())
@@ -180,6 +185,38 @@ class RuntimeBaselineTests(unittest.TestCase):
         with patch.dict(os.environ, {"CREDENTIALS_DIRECTORY": "/tmp/user-controlled"}):
             with self.assertRaisesRegex(baseline.BaselineError, "unexpected_credential_location"):
                 baseline.systemd_credential_path(Path("/tmp/user-controlled/pgpass"))
+
+    def test_probe_rejects_noncontract_runtime_passfile_location(self):
+        report, code, connect, _ = self.run_probe(passfile=Path("/tmp/pgpass"))
+        self.assertEqual(code, 2)
+        self.assertEqual(report["blocker_code"], "UNSAFE_PATH")
+        self.assertEqual(report["path_failure_reason"], "unexpected_runtime_credential_location")
+        connect.assert_not_called()
+
+    def test_root_owned_systemd_credential_is_copied_to_exclusive_private_libpq_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / "credential-source"
+            source.write_bytes(b"secret-fixture-never-reported")
+            source.chmod(0o440)
+            runtime = root / "runtime"
+            runtime.mkdir(mode=0o700)
+            destination = runtime / "pgpass"
+            fake_info = SimpleNamespace(st_mode=stat.S_IFREG | 0o440, st_uid=0, st_size=29)
+            with patch.object(baseline.os, "fstat", return_value=fake_info):
+                baseline.copy_systemd_credential(source, destination, os.getuid())
+            self.assertEqual(destination.read_bytes(), b"secret-fixture-never-reported")
+            self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o600)
+            self.assertEqual(destination.stat().st_uid, os.getuid())
+            with patch.object(baseline.os, "fstat", return_value=fake_info), \
+                 self.assertRaises(baseline.BaselineError):
+                baseline.copy_systemd_credential(source, destination, os.getuid())
+            self.assertEqual(destination.read_bytes(), b"secret-fixture-never-reported")
+            link = runtime / "linked"
+            link.symlink_to(destination)
+            with patch.object(baseline.os, "fstat", return_value=fake_info), \
+                 self.assertRaises(baseline.BaselineError):
+                baseline.copy_systemd_credential(source, link, os.getuid())
 
     def test_storage_path_failure_reports_reason_and_keeps_blocker_code(self):
         identity = SimpleNamespace(pw_uid=12345, pw_shell="/usr/sbin/nologin")

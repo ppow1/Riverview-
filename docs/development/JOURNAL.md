@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.11
+**Document Revision:** 1.0.12
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -253,6 +253,34 @@ verification, commit, build the exact package, bootstrap the broker, redeploy,
 verify live database acceptance and rollback, then evaluate full M1.1 DoD.
 Status remains IN PROGRESS; Steward acceptance and later live dashboard/autonomy
 gates remain required.
+
+## 2026-10-10 UTC — RV-M1.1-010 / libpq passfile mode mismatch
+
+Live deployment of source commit a25aa71 corrected the prior misleading
+UNSAFE_PATH report; the service then failed during database authentication.
+The journal showed libpq rejected `/run/credentials/riverview-baseline.service/pgpass`
+because systemd correctly delivered a root-owned mode-0440 credential. This is
+not a reason to loosen the systemd source contract: libpq requires a passfile
+mode of 0600 or stricter.
+
+Implementation places an ephemeral, mode-0700 `RuntimeDirectory` under systemd
+control. The unprivileged probe validates the fixed root-owned systemd source,
+copies through O_NOFOLLOW and O_EXCL descriptors to a service-owned mode-0600
+passfile, validates the copy, and passes only the copy to Psycopg. Existing
+destination/symlink paths fail closed. systemd cleans the directory on service
+stop. No credential bytes are logged, exposed in reports, or placed in source.
+
+Task RV-M1.1-010 predecessor backups for runtime source, unit, tests, component
+specification, cookbook, flowchart and this journal are listed in
+`.riverview-backups/manifest.jsonl`; files were verified before edits. Regression
+coverage checks the root-owned source contract, installed unit paths, exclusive
+copy, owner/mode and symlink refusal. The focused runtime suite passed (26 tests).
+The full suite passed (52 tests, zero failures/skips) against a temporary
+socket-only PostgreSQL cluster, with zero leftover test schemas; cluster/data
+were removed. M1.1-010 remains IN PROGRESS pending package build, narrowly
+approved root-policy update, live service and recovery tests.
+The current package registry is still pinned to a25aa71. Steward acceptance
+remains pending; M1.2 is not eligible.
 
 ## 2026-10-10 UTC — RV-M1.1-009 / predeployment checkout closure
 

@@ -1,8 +1,8 @@
 # Riverview~ M1.1 runtime baseline commissioning
 
-**Document Revision:** 1.0.5
+**Document Revision:** 1.0.6
 **Component:** RUNTIME-BASELINE
-**Repair task:** RV-M1.1-009
+**Repair task:** RV-M1.1-010
 **Task:** RV-M1.1-001 / GitHub Issue #1
 **Owner:** office:operations; accepting authority: Steward
 **Status:** security-contract repair and privileged deployment broker implemented; live commissioning in progress
@@ -36,7 +36,8 @@ No roadmap or architecture requirement is waived by this package.
 | Runtime Python | release-local `.venv`, Psycopg binary 3.2.10; root installs dependencies with TLS verification |
 | State / diagnostic storage | `/var/lib/riverview`, riverview-owned mode 0700; no institutional state is stored here |
 | Persistent credential source | `/etc/riverview/pgpass`, root:root mode 0600; parent mode 0700 |
-| Runtime credential | systemd `LoadCredential=pgpass`; temporary, service-readable root-owned file in `CREDENTIALS_DIRECTORY` (observed file 0440, directory 0550) |
+| Runtime credential source | systemd `LoadCredential=pgpass`; temporary, service-readable root-owned file in `CREDENTIALS_DIRECTORY` (file 0440, directory 0550) |
+| Runtime libpq passfile | Copied without logging into `/run/riverview-credentials/pgpass`, service-owned mode 0600 in a systemd-managed mode-0700 runtime directory; removed when the oneshot service stops |
 | Database | existing PostgreSQL 16, `riverview`, role `riverview_core`, TCP `127.0.0.1:5432` |
 | Isolated schema | existing `riverview_dev`, actual owner reported, riverview_core USAGE/CREATE rights checked without DDL |
 | Database files | PostgreSQL-managed storage; prior readiness evidence reused; new ownership inspection NOT VERIFIED |
@@ -99,6 +100,16 @@ systemd credential delivery separately: PID 1 creates
 `pgpass` as root-owned mode 0440, with service read/traverse access. Requiring
 these systemd-managed objects to be owned by the runtime UID was a contract bug;
 their root ownership and non-writable modes are security requirements.
+
+Libpq independently requires a passfile with mode 0600 or stricter and rejects
+the root-owned 0440 systemd source even when the service has read access. The
+runtime therefore validates that fixed source, copies its bytes using no-follow
+and exclusive-create file descriptors into the service-owned 0700
+`RuntimeDirectory`, verifies the resulting service-owned 0600 regular file, and
+passes only that private copy to Psycopg. A pre-existing destination or symlink
+fails closed. The directory is ephemeral and systemd removes it after the
+oneshot exits. The source remains root-owned and read-only; neither source nor
+copy contents enter logs or diagnostics.
 
 ## Credential delivery and configuration
 
@@ -296,6 +307,7 @@ and any explicit sequencing decision remain required before M1.2.
 
 ## Revision history
 
+- 1.0.6 — 2026-10-10: Document systemd source-to-libpq private passfile handling; predecessor is recorded under RV-M1.1-010 in `.riverview-backups/manifest.jsonl`.
 - 1.0.3 — 2026-10-10: Document non-seeking hidden terminal input and safe rerun behavior for the root-owned partial release; preserve predecessor under docs/history/RV-M1.1-007/rev1.0.2/docs/components/RUNTIME_BASELINE.md.
 - 1.0.5 — 2026-10-10: Pin the scoped root broker and correct the systemd credential-directory ownership contract; predecessor `.riverview-backups/20261010T142904371319Z/docs/components/RUNTIME_BASELINE.md`.
 

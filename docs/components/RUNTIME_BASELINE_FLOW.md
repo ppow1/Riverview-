@@ -1,8 +1,8 @@
 # Riverview~ runtime baseline process map
 
-**Document Revision:** 1.0.3
+**Document Revision:** 1.0.4
 **Component:** RUNTIME-BASELINE
-**Repair task:** RV-M1.1-009
+**Repair task:** RV-M1.1-010
 **Workflow:** runtime-baseline.v1
 **Task:** RV-M1.1-001
 **Status:** scoped privilege broker and credential-path correction implemented; live acceptance NOT VERIFIED
@@ -21,9 +21,10 @@ flowchart TD
   T -- TTY failure --> Q[Fail closed; passfile remains absent; retain partial release]
   Q --> R[Retry corrected installer after read-only ownership checks]
   R --> C
-  G -- Yes --> S[systemd starts unprivileged probe and supplies credential]
+  G -- Yes --> S[systemd starts unprivileged probe and supplies root-owned credential]
+  S --> CP[Validate source; exclusive no-follow copy to private mode-0600 runtime passfile]
   T -- Captured --> S
-  S --> identity{identity: correct non-login account?}
+  CP --> identity{identity: correct non-login account?}
   identity -- No --> B[blocked: accountable configuration error]
   identity -- Yes --> storage{storage: private owned directory?}
   storage -- No --> B
@@ -60,7 +61,9 @@ read-only; no assignment events, recovery authority, worker or CME loops are
 claimed here. Notifications are operator-visible exit codes/reports; automated
 durable notification remains M3.2. The acceptance hold governs engineering
 sequencing, not ongoing authorized institutional execution. PID 1's root-owned
-read-only credential mount is validated separately from runtime-owned state.
+read-only credential mount is validated separately from runtime-owned state,
+then copied to a private ephemeral mode-0600 file because libpq rejects mode
+0440. systemd cleans that runtime directory after the oneshot stops.
 
 Restart means a new systemd diagnostic invocation and fresh credential delivery;
 the latest report is replaced and immutable acceptance artifacts remain retained.
@@ -68,6 +71,7 @@ the latest report is replaced and immutable acceptance artifacts remain retained
 ## Revision history
 
 - 1.0.3: Add hash-pinned broker flow and corrected systemd credential ownership contract; predecessor `.riverview-backups/20261010T142904684465Z/docs/components/RUNTIME_BASELINE_FLOW.md`.
+- 1.0.4: Add private runtime passfile copy required by libpq; predecessor is recorded under RV-M1.1-010 in `.riverview-backups/manifest.jsonl`.
 
 - 1.0.2: Add hidden-TTY credential capture and safe retained-release retry branches; predecessor under docs/history/RV-M1.1-007/rev1.0.1/docs/components/RUNTIME_BASELINE_FLOW.md.
 

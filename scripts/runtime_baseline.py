@@ -1,13 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/runtime_baseline.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Read-only M1.1 identity, credential and PostgreSQL commissioning probe
 # Execution Model: Request-driven diagnostic; no institutional work loop
 # Observability: rv.runtime-baseline.v1 JSON stdout; freshness expires after 60s
 # Dependencies: Python 3.10+, Psycopg 3, Linux, PostgreSQL
 # Authority: Read-only; never provisions, changes passwords or initializes tables
-# Changed: 2026-10-10 UTC | RV-M1.1-009 | Validate systemd root-owned credential delivery separately
+# Changed: 2026-10-10 UTC | RV-M1.1-010 | Copy systemd credential into private libpq-compatible runtime storage
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: tests/test_runtime_baseline.py
 # History: New file; no predecessor; Git
@@ -85,6 +85,56 @@ def systemd_credential_path(path):
         raise BaselineError("PATH_UNAVAILABLE", step) from None
 
 
+def copy_systemd_credential(source, destination, uid):
+    """Copy the validated PID 1 credential into private mode-0600 runtime storage."""
+    source_fd = None
+    destination_fd = None
+    destination_created = False
+    try:
+        private_path(destination.parent, uid, directory=True)
+        source_fd = os.open(source, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        source_info = os.fstat(source_fd)
+        if (not stat.S_ISREG(source_info.st_mode) or source_info.st_uid != 0 or
+                stat.S_IMODE(source_info.st_mode) != 0o440 or source_info.st_size == 0):
+            raise BaselineError("UNSAFE_PATH", "credential", "credential_source_changed")
+        destination_fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
+                                 getattr(os, "O_NOFOLLOW", 0), 0o600)
+        destination_created = True
+        while True:
+            chunk = os.read(source_fd, 65536)
+            if not chunk:
+                break
+            view = memoryview(chunk)
+            while view:
+                written = os.write(destination_fd, view)
+                view = view[written:]
+        os.fsync(destination_fd)
+        os.close(destination_fd)
+        destination_fd = None
+        private_path(destination, uid)
+    except BaselineError:
+        if destination_fd is not None:
+            os.close(destination_fd)
+        if destination_created:
+            try:
+                destination.unlink()
+            except OSError:
+                pass
+        raise
+    except OSError:
+        if destination_fd is not None:
+            os.close(destination_fd)
+        if destination_created:
+            try:
+                destination.unlink()
+            except OSError:
+                pass
+        raise BaselineError("CREDENTIAL_UNAVAILABLE", "credential") from None
+    finally:
+        if source_fd is not None:
+            os.close(source_fd)
+
+
 def check_database(connect, passfile):
     # Explicit endpoint and read-only options; no DSN or password in diagnostics.
     with connect(host="127.0.0.1", port=5432, dbname="riverview", user="riverview_core",
@@ -115,7 +165,7 @@ def check_database(connect, passfile):
             return {"schema_owner": schema[0]}
 
 
-def probe(*, passfile, state_dir, account="riverview", connect=None):
+def probe(*, passfile, state_dir, account="riverview", connect=None, credential_source=None):
     now = datetime.now(timezone.utc)
     result = dict(projection_version="rv.runtime-baseline.v1", component_id="RUNTIME-BASELINE",
                   component_version="1.0.0", workflow_id="runtime-baseline.v1", step_id="identity",
@@ -147,7 +197,12 @@ def probe(*, passfile, state_dir, account="riverview", connect=None):
         result["step_id"] = "credential"
         if passfile is None:
             raise BaselineError("CREDENTIAL_MISSING", "credential")
-        systemd_credential_path(passfile)
+        if credential_source is None:
+            raise BaselineError("CREDENTIAL_MISSING", "credential")
+        if passfile != Path("/run/riverview-credentials/pgpass"):
+            raise BaselineError("UNSAFE_PATH", "credential", "unexpected_runtime_credential_location")
+        systemd_credential_path(credential_source)
+        copy_systemd_credential(credential_source, passfile, identity.pw_uid)
         if any(os.environ.get(name) for name in ("PGPASSWORD", "PGSERVICE", "PGSERVICEFILE", "PGOPTIONS")):
             raise BaselineError("AMBIENT_DATABASE_OVERRIDE", "credential")
         result["step_id"] = "database"
@@ -178,10 +233,10 @@ def main():
     parser.add_argument("--state-dir", type=Path, default=Path("/var/lib/riverview"))
     args = parser.parse_args()
     credential_dir = os.environ.get("CREDENTIALS_DIRECTORY")
-    passfile = args.passfile
-    if passfile is None and credential_dir:
-        passfile = Path(credential_dir) / "pgpass"
-    report, code = probe(passfile=passfile, state_dir=args.state_dir)
+    credential_source = Path(credential_dir) / "pgpass" if credential_dir else None
+    passfile = args.passfile or Path("/run/riverview-credentials/pgpass")
+    report, code = probe(passfile=passfile, credential_source=credential_source,
+                         state_dir=args.state_dir)
     print(json.dumps(report, sort_keys=True, indent=2))
     return code
 
