@@ -1,0 +1,22 @@
+2026-10-10 08:29:43.177 EDT [40341] LOG:  starting PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit
+2026-10-10 08:29:43.185 EDT [40341] LOG:  listening on Unix socket "/tmp/rv-pgtest.uEU8h2I0/socket/.s.PGSQL.5432"
+2026-10-10 08:29:43.214 EDT [40344] LOG:  database system was shut down at 2026-10-10 08:29:40 EDT
+2026-10-10 08:29:43.233 EDT [40341] LOG:  database system is ready to accept connections
+2026-10-10 08:29:46.102 EDT [40341] LOG:  received fast shutdown request
+2026-10-10 08:29:46.110 EDT [40341] LOG:  aborting any active transactions
+2026-10-10 08:29:46.116 EDT [40341] LOG:  background worker "logical replication launcher" (PID 40347) exited with exit code 1
+2026-10-10 08:29:46.118 EDT [40342] LOG:  shutting down
+2026-10-10 08:29:46.128 EDT [40342] LOG:  checkpoint starting: shutdown immediate
+2026-10-10 08:29:46.375 EDT [40342] LOG:  checkpoint complete: wrote 75 buffers (0.5%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.019 s, sync=0.191 s, total=0.257 s; sync files=76, longest=0.008 s, average=0.003 s; distance=356 kB, estimate=356 kB; lsn=0/154CE48, redo lsn=0/154CE48
+2026-10-10 08:29:46.389 EDT [40341] LOG:  database system is shut down
+2026-10-10 08:29:54.684 EDT [40506] LOG:  starting PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit
+2026-10-10 08:29:54.692 EDT [40506] LOG:  listening on Unix socket "/tmp/rv-pgtest.uEU8h2I0/socket/.s.PGSQL.5432"
+2026-10-10 08:29:54.726 EDT [40509] LOG:  database system was shut down at 2026-10-10 08:29:46 EDT
+2026-10-10 08:29:54.744 EDT [40506] LOG:  database system is ready to accept connections
+2026-10-10 08:29:54.945 EDT [40506] LOG:  received fast shutdown request
+2026-10-10 08:29:54.952 EDT [40506] LOG:  aborting any active transactions
+2026-10-10 08:29:54.959 EDT [40506] LOG:  background worker "logical replication launcher" (PID 40512) exited with exit code 1
+2026-10-10 08:29:54.959 EDT [40507] LOG:  shutting down
+2026-10-10 08:29:54.967 EDT [40507] LOG:  checkpoint starting: shutdown immediate
+2026-10-10 08:29:55.046 EDT [40507] LOG:  checkpoint complete: wrote 11 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.019 s, sync=0.024 s, total=0.087 s; sync files=7, longest=0.008 s, average=0.004 s; distance=12 kB, estimate=12 kB; lsn=0/15501D8, redo lsn=0/15501D8
+2026-10-10 08:29:55.060 EDT [40506] LOG:  database system is shut down

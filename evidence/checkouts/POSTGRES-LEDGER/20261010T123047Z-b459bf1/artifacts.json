@@ -1,0 +1,53 @@
+{
+  "component_id": "POSTGRES-LEDGER",
+  "files": {
+    "checkout.md": {
+      "revision": "1.0.0",
+      "sha256": "0e50a940694bea0717dd68a3dba77b71c78b24c7b46bad7b9c89da1f92a04e96",
+      "size_bytes": 2246
+    },
+    "cleanup-check.log": {
+      "revision": "1.0.0",
+      "sha256": "80f2c1882e027afed03e0b8c52246f06c17298e83a3fcbba647a74f2d17f8055",
+      "size_bytes": 41
+    },
+    "initdb.log": {
+      "revision": "1.0.0",
+      "sha256": "c6b734bc9c2b40c08721839170227db04dd32c8ab2556278457aeb7fd6f388ef",
+      "size_bytes": 844
+    },
+    "postgres.log": {
+      "revision": "1.0.0",
+      "sha256": "da8749ff380c543b9cec0075a4590b6cb48d73b25cab02399f0a7e9067593da1",
+      "size_bytes": 2531
+    },
+    "recheck-start.log": {
+      "revision": "1.0.0",
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "size_bytes": 52
+    },
+    "recheck-stop.log": {
+      "revision": "1.0.0",
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d",
+      "size_bytes": 56
+    },
+    "start.log": {
+      "revision": "1.0.0",
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "size_bytes": 52
+    },
+    "stop.log": {
+      "revision": "1.0.0",
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d",
+      "size_bytes": 56
+    },
+    "unittest-combined.log": {
+      "revision": "1.0.0",
+      "sha256": "c8d6b186a55189f1e1a8eabd77e74dba71ec4c289efa9f2ab873399aa03eb217",
+      "size_bytes": 4880
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "source_commit": "b459bf1691b9d92811185b0a5b7013a28ac40752",
+  "task_id": "RV-M1.1-006"
+}
