@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://riverview.invalid/contracts/dashboard/status-v1.schema.json",
   "title": "Riverview Status Dashboard API v1",
-  "description": "Authenticated read-only status projection; unavailable states are explicit.",
+  "description": "Authenticated read-only status projection; missing relations return HTTP 200 with status=not_initialized, while failed source queries return HTTP 503.",
   "oneOf": [
     {
       "$ref": "#/$defs/status"

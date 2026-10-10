@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL for integration class
 # Authority: Creates/drops only unique rvtest_* schemas; never accesses shared Riverview data
-# Changed: 2026-10-10 UTC | RV-M3.1-001 | Verify paged per-worker health and bounded snapshot projection
+# Changed: 2026-10-10 UTC | RV-M3.1-002 | Verify not-initialized routes preserve domain status without HTTP failures
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -174,6 +174,23 @@ class DashboardHTTPTests(unittest.TestCase):
         status, _, body = self.request("GET", "/not-an-api", token=self.token)
         self.assertEqual(status, 404)
         self.assertNotIn(b"BaseHTTPRequestHandler", body)
+
+    def test_not_initialized_attention_is_domain_state_not_repeated_http_503(self):
+        self.projection.attention = lambda *, limit=25: {
+            "status":"not_initialized", "items":[], "limit":limit}
+        status, _, body = self.request("GET", "/api/v1/attention?limit=10", token=self.token)
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["status"], "not_initialized")
+
+    def test_not_initialized_worker_and_ledger_pages_remain_explicit_http_200(self):
+        self.projection.workers = lambda *, after=None, limit=25: {
+            "status":"not_initialized", "items":[], "next_cursor":None, "page_limit":limit}
+        self.projection.events = lambda *, after_seq=None, before_seq=None, limit=25: {
+            "status":"not_initialized", "items":[], "next_cursor":None, "page_limit":limit}
+        for route in ("/api/v1/workers", "/api/v1/events"):
+            status, _, body = self.request("GET", route, token=self.token)
+            self.assertEqual(status, 200, route)
+            self.assertEqual(json.loads(body)["status"], "not_initialized")
 
     def test_token_file_requires_owner_only_permissions_and_loopback_bind(self):
         with self.assertRaisesRegex(RuntimeError, "owner-only"):

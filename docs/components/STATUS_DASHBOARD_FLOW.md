@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.2
+**Document Revision:** 1.0.3
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -18,7 +18,7 @@ flowchart LR
     g_rv_steward_dashboard_status_read_ledger_6f000d0e["Read bounded PostgreSQL projection"]
     g_rv_steward_dashboard_status_source_health_3cc042e8["Observe source and CME freshness"]
     g_rv_steward_dashboard_status_source_available_1fba9227{"Ledger available and initialized?"}
-    g_rv_steward_dashboard_status_source_failure_7a84936b[["Show unavailable or not initialized truthfully"]]
+    g_rv_steward_dashboard_status_source_failure_7a84936b[["Show unavailable or not-initialized state as explicit domain status"]]
     g_rv_steward_dashboard_status_privacy_filter_7710f632["Filter private rows and payloads"]
     g_rv_steward_dashboard_status_render_cached_529d8c25["Render shell and current local view"]
     g_rv_steward_dashboard_status_navigate_9ce45297["Switch tabs without inference or full reconstruction"]
@@ -34,6 +34,9 @@ flowchart LR
     g_rv_steward_dashboard_status_credential_failure_69b3e373[["Reject unsafe or unavailable runtime credential"]]
     g_rv_steward_dashboard_status_list_workers_fe34c745["Page individual worker lease health and active work counts"]
     g_rv_steward_dashboard_status_workers_unavailable_789b26c9[["Report missing worker relations or unreadable health as not initialized or unavailable"]]
+    g_rv_steward_dashboard_status_attention_relation_check_427bbb7d{"Is the optional CME attention relation initialized?"}
+    g_rv_steward_dashboard_status_attention_uninitialized_00c22bed["Render not_initialized domain state and defer attention polling"]
+    g_rv_steward_dashboard_status_read_attention_0d7d5751["Fetch bounded authoritative CME attention rows when the relation exists"]
   end
   g_rv_postgres_ledger_assignment_lifecycle_intake_c1d0abf1["Registered target<br/>rv:postgres-ledger:assignment-lifecycle"]
   g_rv_cme_progress_and_recovery_monitor_start_3c5b8496["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -61,6 +64,11 @@ flowchart LR
   g_rv_steward_dashboard_status_prepare_passfile_2eebe68e -->|prerequisite: Runtime credential available before requests| g_rv_steward_dashboard_status_ingest_66a3387a
   g_rv_steward_dashboard_status_render_cached_529d8c25 -->|Refresh bounded worker page| g_rv_steward_dashboard_status_list_workers_fe34c745
   g_rv_steward_dashboard_status_list_workers_fe34c745 -->|diagnostic_branch: Worker relation missing or source unavailable| g_rv_steward_dashboard_status_workers_unavailable_789b26c9
+  g_rv_steward_dashboard_status_render_cached_529d8c25 --> g_rv_steward_dashboard_status_attention_relation_check_427bbb7d
+  g_rv_steward_dashboard_status_attention_relation_check_427bbb7d -->|diagnostic_branch: Relation absent; return domain state without repeated request| g_rv_steward_dashboard_status_attention_uninitialized_00c22bed
+  g_rv_steward_dashboard_status_attention_relation_check_427bbb7d -->|Relation present| g_rv_steward_dashboard_status_read_attention_0d7d5751
+  g_rv_steward_dashboard_status_attention_uninitialized_00c22bed --> g_rv_steward_dashboard_status_list_workers_fe34c745
+  g_rv_steward_dashboard_status_read_attention_0d7d5751 --> g_rv_steward_dashboard_status_list_workers_fe34c745
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

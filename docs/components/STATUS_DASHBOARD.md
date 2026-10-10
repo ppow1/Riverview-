@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.3
+File Revision: 1.0.4
 Purpose: Specify the read-only live status projection and browser foundation
 Authority: Observes institution state; no assignment or policy mutation
-Changed: 2026-10-10 UTC | RV-M3.1-001 | Document worker identity projections and bounded health reporting
+Changed: 2026-10-10 UTC | RV-M3.1-002 | Define not-initialized domain responses and live CME commissioning
 History: Git and revision/backup manifest
 -->
 # Steward status dashboard
@@ -74,7 +74,10 @@ The status response schema identifier is `rv.dashboard.status.v1`; the summary c
 responses carry `status`, bounded `items`, and pagination state. Database
 unavailability returns a status projection whose `projection_status` is
 `unavailable`; HTTP query failures return 503. A reachable PostgreSQL instance
-with missing ledger tables returns `not_initialized`. CME values are
+with missing required relations returns HTTP 200 with `status=not_initialized`;
+this is a valid domain state, not a transport failure. The browser skips the
+optional attention query while its relation is absent and displays that state.
+CME values are
 `healthy`, `degraded`, `stale`, `unavailable`, or `not_initialized`; a missing
 heartbeat is unknown/not initialized, never healthy. Worker status is derived
 only from recorded assignment-lease heartbeats; no lease means `unknown`. A
@@ -120,8 +123,10 @@ omitted; absence is never represented as an empty healthy registry.
 ## Runtime and deployment
 
 Port 8766 is reserved for this service, bound to `127.0.0.1`; existing
-`riverview-event-processor.service` and `riverview-baseline.service` are separate
-and are not changed. Remote access, when needed, uses an authenticated SSH
+`riverview-event-processor.service`, `riverview-cme-monitor.service`, and
+`riverview-baseline.service` are separate. The CME monitor is a read-only observer
+of assignments/leases with writes limited to CME health and attention records;
+it has no dashboard dependency. Remote access, when needed, uses an authenticated SSH
 forward rather than an internet/LAN listener. systemd runs the root-owned release
 as OS account `riverview`; systemd `LoadCredential` provides the existing
 PostgreSQL passfile and separate dashboard bearer token. The token source is

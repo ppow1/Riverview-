@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:steward-dashboard:status",
-  "graph_revision": "1.0.4",
+  "graph_revision": "1.0.5",
   "component_id": "STEWARD-DASHBOARD",
   "workflow_id": "status-projection.v1",
   "diagram_order": 1,
@@ -117,9 +117,9 @@
     },
     {
       "id": "rv:steward-dashboard:status:source-failure",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "failure",
-      "label": "Show unavailable or not initialized truthfully",
+      "label": "Show unavailable or not-initialized state as explicit domain status",
       "source_references": [
         "src/riverview_core/status_dashboard/projection.py",
         "src/riverview_core/status_dashboard/static/app.js"
@@ -351,6 +351,50 @@
         "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
       ],
       "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:attention-relation-check",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Is the optional CME attention relation initialized?",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:attention-uninitialized",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Render not_initialized domain state and defer attention polling",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/server.py",
+        "tests/test_status_dashboard.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:read-attention",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Fetch bounded authoritative CME attention rows when the relation exists",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/projection.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": []
     }
   ],
   "edges": [
@@ -486,6 +530,33 @@
       "to": "rv:steward-dashboard:status:workers-unavailable",
       "type": "diagnostic_branch",
       "label": "Worker relation missing or source unavailable"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-cached",
+      "to": "rv:steward-dashboard:status:attention-relation-check",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:steward-dashboard:status:attention-relation-check",
+      "to": "rv:steward-dashboard:status:attention-uninitialized",
+      "type": "diagnostic_branch",
+      "label": "Relation absent; return domain state without repeated request"
+    },
+    {
+      "from": "rv:steward-dashboard:status:attention-relation-check",
+      "to": "rv:steward-dashboard:status:read-attention",
+      "type": "runtime_transition",
+      "label": "Relation present"
+    },
+    {
+      "from": "rv:steward-dashboard:status:attention-uninitialized",
+      "to": "rv:steward-dashboard:status:list-workers",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:steward-dashboard:status:read-attention",
+      "to": "rv:steward-dashboard:status:list-workers",
+      "type": "runtime_transition"
     }
   ]
 }

@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Serve the authenticated, loopback-only status UI and versioned API
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
 # Dependencies: Python 3.10+; standard library; status_dashboard.projection
 # Authority: Authenticated GET-only interface; no command or database write routes
-# Changed: 2026-10-10 UTC | RV-M3.1-001 | Add bounded worker health projection route
+# Changed: 2026-10-10 UTC | RV-M3.1-002 | Return not-initialized state as a successful domain response
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
 # History: Git and revision/backup manifest
@@ -240,21 +240,21 @@ def make_handler():
                     page = self.server._projection.assignments(
                         after=query.get("after", [None])[0],
                         limit=_bounded_limit(query.get("limit", [25])[0]))
-                    self._json(200 if page["status"] != "not_initialized" else 503, page, request_id)
+                    self._json(200, page, request_id)
                 elif parsed.path == "/api/v1/workers":
                     page = self.server._projection.workers(
                         after=query.get("after", [None])[0],
                         limit=_bounded_limit(query.get("limit", [25])[0]))
-                    self._json(200 if page["status"] != "not_initialized" else 503, page, request_id)
+                    self._json(200, page, request_id)
                 elif parsed.path == "/api/v1/events":
                     after_seq = query.get("after_seq", [None])[0]
                     before_seq = query.get("before_seq", [None])[0]
                     page = self.server._projection.events(after_seq=after_seq, before_seq=before_seq,
                                                           limit=_bounded_limit(query.get("limit", [25])[0]))
-                    self._json(200 if page["status"] != "not_initialized" else 503, page, request_id)
+                    self._json(200, page, request_id)
                 elif parsed.path == "/api/v1/attention":
                     page = self.server._projection.attention(limit=_bounded_limit(query.get("limit", [25])[0]))
-                    self._json(200 if page["status"] != "not_initialized" else 503, page, request_id)
+                    self._json(200, page, request_id)
                 elif parsed.path == "/api/v1/snapshot":
                     self._json(200, self.server._projection.snapshot(), request_id)
                 elif parsed.path.startswith("/api/v1/assignments/"):

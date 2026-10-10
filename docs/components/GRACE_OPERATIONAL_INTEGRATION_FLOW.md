@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.4
+**Document Revision:** 1.0.5
 **Status:** PLANNED — mandatory M4.4 deliverable; not implemented or operationally verified.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -28,6 +28,9 @@ flowchart LR
     g_rv_cme_progress_and_recovery_worker_health_5dbdee95["Report workers healthy only from fresh unexpired lease heartbeats"]
     g_rv_cme_progress_and_recovery_monitor_failure_e312bec5[["Persist sanitized scan failure when PostgreSQL remains reachable"]]
     g_rv_cme_progress_and_recovery_retry_backoff_c0e76a05["Retry database observation with bounded exponential backoff"]
+    g_rv_cme_progress_and_recovery_systemd_launch_1c419c2e(["systemd starts the isolated CME monitor service"])
+    g_rv_cme_progress_and_recovery_credential_validation_88942fa5{"Validate exact systemd credential, DSN, and non-root runtime identity"}
+    g_rv_cme_progress_and_recovery_credential_failure_57557600[["Reject invalid monitor credential or runtime configuration without exposing secrets"]]
   end
   g_rv_grace_operational_integration_evidence_review_600fe7b4["Registered target<br/>rv:grace:operational-integration"]
   g_rv_cme_progress_and_recovery_monitor_start_3c5b8496 --> g_rv_cme_progress_and_recovery_service_lock_cd8c9580
@@ -45,6 +48,10 @@ flowchart LR
   g_rv_cme_progress_and_recovery_recovery_22db97e3 -->|Request recorded; monitor continues unrelated work| g_rv_cme_progress_and_recovery_observe_428defda
   g_rv_cme_progress_and_recovery_monitor_failure_e312bec5 -->|recovery_route| g_rv_cme_progress_and_recovery_retry_backoff_c0e76a05
   g_rv_cme_progress_and_recovery_retry_backoff_c0e76a05 -->|recovery_route: Reacquire service lease and rescan durable state| g_rv_cme_progress_and_recovery_monitor_start_3c5b8496
+  g_rv_cme_progress_and_recovery_systemd_launch_1c419c2e --> g_rv_cme_progress_and_recovery_credential_validation_88942fa5
+  g_rv_cme_progress_and_recovery_credential_validation_88942fa5 -->|Credential and runtime identity valid| g_rv_cme_progress_and_recovery_monitor_start_3c5b8496
+  g_rv_cme_progress_and_recovery_credential_validation_88942fa5 -->|diagnostic_branch: Missing, unsafe, or overridden credential/configuration| g_rv_cme_progress_and_recovery_credential_failure_57557600
+  g_rv_cme_progress_and_recovery_credential_failure_57557600 -->|recovery_route: Correct protected configuration; systemd restart policy retries bounded failures| g_rv_cme_progress_and_recovery_systemd_launch_1c419c2e
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

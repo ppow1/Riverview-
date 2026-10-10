@@ -272,7 +272,7 @@
     },
     {
       "graph_id": "rv:cme:progress-and-recovery",
-      "graph_revision": "1.0.2",
+      "graph_revision": "1.0.3",
       "component_id": "CME",
       "workflow_id": "progress-and-recovery.v1",
       "diagram_order": 8,
@@ -281,7 +281,9 @@
         "src/riverview_core/cme/migrations/0005_cme_monitoring.sql",
         "tests/test_cme_monitor.py",
         "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md",
-        "docs/architecture/CORE_CONTRACT.md"
+        "docs/architecture/CORE_CONTRACT.md",
+        "scripts/run_cme_monitor.py",
+        "deploy/systemd/riverview-cme-monitor.service"
       ],
       "documentation_references": [
         "docs/components/CME_MONITOR.md",
@@ -299,7 +301,7 @@
       "nodes": [
         {
           "id": "rv:cme:progress-and-recovery:monitor-start",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "entry",
           "label": "Acquire the CME PostgreSQL advisory lease and begin repeated scans",
           "source_references": [
@@ -534,6 +536,51 @@
             "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
             "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
           ]
+        },
+        {
+          "id": "rv:cme:progress-and-recovery:systemd-launch",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "systemd starts the isolated CME monitor service",
+          "source_references": [
+            "deploy/systemd/riverview-cme-monitor.service"
+          ],
+          "documentation_references": [
+            "docs/components/CME_MONITOR.md",
+            "docs/components/CME_MONITOR_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:cme:progress-and-recovery:credential-validation",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Validate exact systemd credential, DSN, and non-root runtime identity",
+          "source_references": [
+            "scripts/run_cme_monitor.py",
+            "scripts/runtime_baseline.py",
+            "deploy/systemd/riverview-cme-monitor.service",
+            "tests/test_cme_monitor_service.py"
+          ],
+          "documentation_references": [
+            "docs/components/CME_MONITOR.md",
+            "docs/components/CME_MONITOR_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:cme:progress-and-recovery:credential-failure",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Reject invalid monitor credential or runtime configuration without exposing secrets",
+          "source_references": [
+            "scripts/run_cme_monitor.py",
+            "tests/test_cme_monitor_service.py"
+          ],
+          "documentation_references": [
+            "docs/components/CME_MONITOR_COOKBOOK.md"
+          ],
+          "verification_evidence": []
         }
       ],
       "edges": [
@@ -620,6 +667,29 @@
           "to": "rv:cme:progress-and-recovery:monitor-start",
           "type": "recovery_route",
           "label": "Reacquire service lease and rescan durable state"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:systemd-launch",
+          "to": "rv:cme:progress-and-recovery:credential-validation",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:credential-validation",
+          "to": "rv:cme:progress-and-recovery:monitor-start",
+          "type": "runtime_transition",
+          "label": "Credential and runtime identity valid"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:credential-validation",
+          "to": "rv:cme:progress-and-recovery:credential-failure",
+          "type": "diagnostic_branch",
+          "label": "Missing, unsafe, or overridden credential/configuration"
+        },
+        {
+          "from": "rv:cme:progress-and-recovery:credential-failure",
+          "to": "rv:cme:progress-and-recovery:systemd-launch",
+          "type": "recovery_route",
+          "label": "Correct protected configuration; systemd restart policy retries bounded failures"
         }
       ]
     },
@@ -2914,7 +2984,7 @@
     },
     {
       "graph_id": "rv:steward-dashboard:status",
-      "graph_revision": "1.0.4",
+      "graph_revision": "1.0.5",
       "component_id": "STEWARD-DASHBOARD",
       "workflow_id": "status-projection.v1",
       "diagram_order": 1,
@@ -3031,9 +3101,9 @@
         },
         {
           "id": "rv:steward-dashboard:status:source-failure",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "failure",
-          "label": "Show unavailable or not initialized truthfully",
+          "label": "Show unavailable or not-initialized state as explicit domain status",
           "source_references": [
             "src/riverview_core/status_dashboard/projection.py",
             "src/riverview_core/status_dashboard/static/app.js"
@@ -3265,6 +3335,50 @@
             "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
           ],
           "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:status:attention-relation-check",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Is the optional CME attention relation initialized?",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/status_dashboard/server.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:status:attention-uninitialized",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Render not_initialized domain state and defer attention polling",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/status_dashboard/server.py",
+            "tests/test_status_dashboard.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:status:read-attention",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Fetch bounded authoritative CME attention rows when the relation exists",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/status_dashboard/projection.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md"
+          ],
+          "verification_evidence": []
         }
       ],
       "edges": [
@@ -3400,6 +3514,33 @@
           "to": "rv:steward-dashboard:status:workers-unavailable",
           "type": "diagnostic_branch",
           "label": "Worker relation missing or source unavailable"
+        },
+        {
+          "from": "rv:steward-dashboard:status:render-cached",
+          "to": "rv:steward-dashboard:status:attention-relation-check",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:steward-dashboard:status:attention-relation-check",
+          "to": "rv:steward-dashboard:status:attention-uninitialized",
+          "type": "diagnostic_branch",
+          "label": "Relation absent; return domain state without repeated request"
+        },
+        {
+          "from": "rv:steward-dashboard:status:attention-relation-check",
+          "to": "rv:steward-dashboard:status:read-attention",
+          "type": "runtime_transition",
+          "label": "Relation present"
+        },
+        {
+          "from": "rv:steward-dashboard:status:attention-uninitialized",
+          "to": "rv:steward-dashboard:status:list-workers",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:steward-dashboard:status:read-attention",
+          "to": "rv:steward-dashboard:status:list-workers",
+          "type": "runtime_transition"
         }
       ]
     },
@@ -4217,6 +4358,8 @@
     "rv:assignment-scheduler:independent-claims:start",
     "rv:assignment-scheduler:independent-claims:start-check",
     "rv:cme:progress-and-recovery:attention",
+    "rv:cme:progress-and-recovery:credential-failure",
+    "rv:cme:progress-and-recovery:credential-validation",
     "rv:cme:progress-and-recovery:deadline-measurement",
     "rv:cme:progress-and-recovery:monitor-failure",
     "rv:cme:progress-and-recovery:monitor-start",
@@ -4226,6 +4369,7 @@
     "rv:cme:progress-and-recovery:retry-backoff",
     "rv:cme:progress-and-recovery:service-lock",
     "rv:cme:progress-and-recovery:stall-decision",
+    "rv:cme:progress-and-recovery:systemd-launch",
     "rv:cme:progress-and-recovery:worker-health",
     "rv:event-processor:assignment-progression:advance",
     "rv:event-processor:assignment-progression:baseline-jump",
@@ -4331,6 +4475,8 @@
     "rv:runtime-baseline:commissioning:storage",
     "rv:runtime-baseline:commissioning:systemd",
     "rv:runtime-baseline:commissioning:tty-failure",
+    "rv:steward-dashboard:status:attention-relation-check",
+    "rv:steward-dashboard:status:attention-uninitialized",
     "rv:steward-dashboard:status:authenticate",
     "rv:steward-dashboard:status:credential-failure",
     "rv:steward-dashboard:status:database-failure",
@@ -4345,6 +4491,7 @@
     "rv:steward-dashboard:status:page-events",
     "rv:steward-dashboard:status:prepare-passfile",
     "rv:steward-dashboard:status:privacy-filter",
+    "rv:steward-dashboard:status:read-attention",
     "rv:steward-dashboard:status:read-ledger",
     "rv:steward-dashboard:status:reconnect",
     "rv:steward-dashboard:status:render-cached",

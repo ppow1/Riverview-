@@ -1,10 +1,10 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.0.1
+// Revision: 1.0.2
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
   const state = {token: sessionStorage.getItem("rv.dashboard.token") || "", status: null,
-    assignments: [], events: [], attention: [], workers: [], assignmentCursor: null,
+    assignments: [], events: [], attention: [], attentionStatus: "unknown", workers: [], assignmentCursor: null,
     workerCursor: null, eventCursor: 0, olderEventCursor: null,
     recentErrors: [], navSamples: [], lastFetch: 0, timer: null};
   const esc = (value) => String(value ?? "—").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
@@ -55,7 +55,10 @@
       item("Instance", cme.instance_id || "not reported") + item("Last scan", when(cme.last_scan_at)) +
       item("Last error", cme.last_error_type || "none reported");
     const attention = state.attention;
-    $("attention-list").innerHTML = attention.length ? attention.slice(0,4).map((a) => `<div class="row"><span class="row-main">${esc(human(a.event_type))}</span><span class="row-meta">${esc(a.assignment_id || "service")}</span><span class="row-meta">${esc(when(a.recorded_at))}</span></div>`).join("") : noData(cme.status === "not_initialized" ? "CME tables are not installed in this schema." : "No attention records in the observed page.");
+    const attentionEmpty = state.attentionStatus === "not_initialized" ? "CME attention relation is not initialized in this schema." :
+      state.attentionStatus === "unavailable" ? "Attention source unavailable; current state is not confirmed." :
+      "No attention records in the observed page.";
+    $("attention-list").innerHTML = attention.length ? attention.slice(0,4).map((a) => `<div class="row"><span class="row-main">${esc(human(a.event_type))}</span><span class="row-meta">${esc(a.assignment_id || "service")}</span><span class="row-meta">${esc(when(a.recorded_at))}</span></div>`).join("") : noData(attentionEmpty);
   }
   function renderAssignments(target, items) {
     const host = $(target);
@@ -71,8 +74,12 @@
     $("request-state").textContent = "Refreshing projection";
     try {
       const result = await api("/api/v1/status");
-      const attention = await api("/api/v1/attention?limit=10").catch(() => ({items:[]}));
-      state.attention = attention.items || [];
+      if (result.relations?.cme_monitor_events !== true) {
+        state.attention = []; state.attentionStatus = "not_initialized";
+      } else {
+        const attention = await api("/api/v1/attention?limit=10");
+        state.attention = attention.items || []; state.attentionStatus = attention.status || "available";
+      }
       renderStatus(result);
       loadWorkers();
       $("request-state").textContent = "Projection current";
