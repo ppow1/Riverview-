@@ -1,3 +1,10 @@
+# Riverview~ controlled repository configuration
+# File: .gitignore
+# Component: ENG-REVISION-CONTROL
+# Revision: 1.0.0
+# Purpose: Ignore transient Python build and runtime artifacts
+# Authority: Repository hygiene only; no runtime authority
+# Changed: 2026-10-10 UTC | RV-ENG-REV-003 | Establish legacy baseline revision metadata
 # Riverview~ generated Python artifacts
 __pycache__/
 *.py[cod]

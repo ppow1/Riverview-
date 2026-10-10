@@ -1,7 +1,7 @@
 <!--
 Riverview~ Controlled Document
 File: docs/components/POSTGRES_LEDGER.md
-Revision: 1.0.0
+Revision: 1.0.2
 Migration: ENG-REV-002
 -->
 # PostgreSQL assignment ledger — component contract
@@ -11,23 +11,27 @@ Migration: ENG-REV-002
 ## Purpose and boundaries
 PostgresLedger records assignment state and append-only event records in the same PostgreSQL transaction. It is a library, **not** an always-on service, worker dispatcher, authorization gateway, independent verifier, CME agent, or durable outbox.
 
-## API
-`PostgresLedger(dsn, schema="public")` initializes tables in the selected schema. `create(assignment_id, owner, idempotency_key)` creates a queued assignment. `transition(assignment_id, to_state, step, idempotency_key, verified=False)` validates transitions against `TRANSITIONS` in `ledger.py`. `get(id)`, `list_assignments()`, `events(after_seq=0)`, and `close()` are read/cleanup operations. Rows are Python dictionaries, with PostgreSQL timestamps and UUID values. `events` returns ordered `seq` values.
+## API and authority boundary
+`apply_migrations(dsn, schema=...)` explicitly applies ordered SQL files from `src/riverview_core/migrations/`. The runner serializes migrations per schema, records SHA-256 checksums, treats an identical rerun as a no-op, and refuses changed bytes for an applied version. `PostgresLedger(dsn, schema=...)` requires an already migrated schema; construction does not issue DDL.
 
-## Persistence and concurrency
-Psycopg 3 connection uses autocommit for reads; explicit `db.transaction()` groups each state mutation and corresponding event atomically. `SELECT ... FOR UPDATE` serializes changes to one assignment; advisory transaction locks serialize duplicate idempotency keys. Unique constraints protect event identifiers and idempotency keys. A successful test confirmed state survives closing and reopening the connection. This is not a benchmark or comprehensive concurrency proof.
+`create(assignment_id, owner, idempotency_key, *, authority_ref, objective_ref, actor_id, ...)` persists required authority and objective references plus contract, workflow, occupant, correlation, and initial-step metadata. `transition(assignment_id, to_state, step, idempotency_key, *, actor_id, verified=False)` records actor, authority reference inherited from the assignment, correlation, causation, privacy domain, payload schema, and event payload. It validates state changes against `TRANSITIONS` in `ledger.py`. `get(id)`, `list_assignments()`, `events(after_seq=0)`, and `close()` are query/lifecycle operations. Rows are Python dictionaries, with PostgreSQL timestamps, UUIDs, and JSON values.
+
+Authority references are stored, not validated. `verified=True` is an untrusted caller assertion retained as `verified_claim`; it is not independent verification. Authentication, authorization, grant validation, and independent outcome verification remain outside this persistence component.
+
+## Persistence, idempotency, and concurrency
+Psycopg 3 uses autocommit for reads; explicit transactions group each state mutation and corresponding event atomically. `SELECT ... FOR UPDATE` serializes changes to one assignment; advisory transaction locks serialize duplicate idempotency keys. Unique constraints protect event identifiers and idempotency keys. A failed event insert rolls back its state change. Idempotency replay compares assignment, event type, payload, actor, authority, correlation, and payload schema; conflicting reuse is rejected. Integration tests confirm causality and state survive close/reopen. This is not a benchmark or comprehensive concurrency proof.
 
 ## Schema
-`assignments`: id (PK), state, owner, workflow_step, updated_at, version.
-`events`: seq (identity PK), event_id (unique UUID), idempotency_key (unique), assignment_id, event_type, occurred_at, payload (JSONB).
+`schema_migrations`: version (PK), immutable source-file SHA-256 checksum, applied timestamp.
+`assignments`: id (PK), constrained state, owner, occupant_id, authority_ref, objective_ref, contract_ref, workflow_id, workflow_step, correlation_id, updated_at, version.
+`events`: seq (identity PK), unique event_id, `rv.event.v1` schema, type, occurred/recorded times, assignment, actor, correlation/causation, unique idempotency key, authority reference, privacy domain, payload schema, and JSONB payload.
 
 ## Limitations and open work
 - `verified=True` is only an untrusted caller assertion, **not independent verification**. Never expose this API to untrusted callers or connect it directly to hardware dispatch.
-- No authentication or authorization layer, audit of readers, migrations/versioned schema, connection pooling, automatic reconnect, backups/restore drills, outbox, worker, service, or health endpoint.
-- The API does not yet enforce that replayed creation keys match the original owner, or that replayed transitions match all original arguments. Treat idempotency replay as key-scoped, not a complete semantic identity check.
-- Schema initialization runs on construction and requires DDL rights; separate migrations are needed for production.
+- No authentication or authorization layer, authority grant validation, independent verifier, audit of readers, connection pooling, automatic reconnect, backups/restore drills, outbox, worker, service, or health endpoint.
+- Migration DDL is not yet applied to shared `riverview_dev`; deployment there and M1.2 acceptance remain gated by M1.1 Steward acceptance.
 - `list_assignments()` and `events()` are unbounded and intended for small development datasets; use pagination for real dashboard use.
 - Steward readout currently is an **on-demand snapshot**, not a continuously refreshed Steward dashboard.
 
 ## Evidence and acceptance
-On Camrui, `PYTHONPATH=src RIVERVIEW_TEST_PG_DSN=<test DSN> python3 -m unittest discover -s tests -v` produced six passing tests (three SQLite, three PostgreSQL) on 2026-10-09. PostgreSQL tests create and drop isolated temporary schemas. Before release require independent verification, service, live Steward integration, fault/restart/concurrency tests, backups and migration procedure. See `POSTGRES_LEDGER_COOKBOOK.md` and `POSTGRES_LEDGER_FLOW.md`.
+RV-M1.2-001 ran six PostgreSQL integration tests against a disposable PostgreSQL 16 UTF-8 cluster and unique temporary schemas. Migration apply/rerun/drift and absent-schema rejection, atomic rollback on injected event failure, legal/illegal and duplicate transitions, idempotency collision, causality, reconnect persistence, and independent assignment progress passed. The cluster and test schemas were removed. These are technical M1.2 results, not Steward acceptance or full component DoD. See `POSTGRES_LEDGER_COOKBOOK.md`, `POSTGRES_LEDGER_FLOW.md`, and linked checkout evidence.

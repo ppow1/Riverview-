@@ -1,12 +1,29 @@
 <!--
 Riverview~ Controlled Document
 File: docs/components/POSTGRES_LEDGER_COOKBOOK.md
-Revision: 1.0.0
+Revision: 1.0.1
 Migration: ENG-REV-002
 -->
 # PostgreSQL ledger — operational and troubleshooting cookbook
 
 **Scope:** Camrui developer backend. Never drop the `public` schema or delete the live `riverview` database to fix a test.
+
+## Versioned migrations
+Migrations are explicit and target only the selected schema. The ledger
+constructor no longer creates tables. For local isolated tests, configure
+`RIVERVIEW_TEST_PG_DSN` to a disposable test database and run:
+
+```bash
+PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_postgres_ledger.py' -v
+```
+
+Each test creates and drops only its uniquely named `rvtest_*` schema. The suite
+checks apply/rerun, checksum drift, atomic rollback, state transition rules,
+idempotency, event causality, and reconnect persistence. Do not apply migrations
+to commissioned `riverview_dev` before M1.1 Steward acceptance and sequencing are
+recorded. Never edit an applied migration to repair it; add a reviewed numbered
+forward migration. A checksum mismatch is an integrity failure: preserve the
+schema and investigate migration history.
 
 ## Known-good baseline
 Camrui PostgreSQL 16, database `riverview`, login `riverview_core`, psycopg 3 installed. Six tests passed 2026-10-09; the sixth caught and drove correction of an implicit-transaction persistence bug (commit `166f14a`). This does **not** establish production readiness.
@@ -33,7 +50,7 @@ export PYTHONPATH=src
 export RIVERVIEW_TEST_PG_DSN='postgresql://riverview_core:<database password>@127.0.0.1:5432/riverview'
 python3 -m unittest discover -s tests -v
 ```
-Expected: six tests, `OK`, exit code 0. Test schemas are uniquely named and dropped in teardown; if interrupted, inspect `SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'rvtest_%';` before removing any orphaned schema. Never automate a wildcard DROP.
+Expected: all PostgreSQL tests execute (no DSN-related skip) and report `OK`, exit code 0. Test schemas are uniquely named and dropped in teardown; if interrupted, inspect `SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'rvtest_%';` before removing any orphaned schema. Never automate a wildcard DROP.
 
 ## Symptom -> action
 | Symptom | Check | Recovery |
@@ -47,6 +64,8 @@ Expected: six tests, `OK`, exit code 0. Test schemas are uniquely named and drop
 | Idempotency collision | inspect exact idempotency key and prior event | Use new key for genuinely new action; do not delete event |
 | Permission denied creating schema | test role schema privileges | Use dedicated authorized test database/role; do not grant blanket superuser |
 | Test reports zero PostgreSQL tests | `RIVERVIEW_TEST_PG_DSN` | Set DSN; skipped tests are not proof |
+| `schema is not migrated` | Check target schema and `schema_migrations` | Apply only reviewed migrations to the intended disposable or authorized schema |
+| Applied migration checksum mismatch | Compare the recorded checksum to the exact SQL file and release commit | Stop; preserve evidence and schema state; correct with a reviewed forward migration |
 | Database storage or connection exhaustion | disk, `pg_stat_activity`, logs | Preserve evidence, resolve resource issue; do not delete WAL manually |
 
 ## Recovery discipline

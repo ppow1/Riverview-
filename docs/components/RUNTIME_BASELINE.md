@@ -1,6 +1,6 @@
 # Riverview~ M1.1 runtime baseline commissioning
 
-**Document Revision:** 1.0.9
+**Document Revision:** 1.0.10
 **Component:** RUNTIME-BASELINE
 **Repair task:** RV-M1.1-011
 **Task:** RV-M1.1-001 / GitHub Issue #1
@@ -294,7 +294,9 @@ No institutional event processor or CME is enabled by this installer.
 
 See [flowchart](RUNTIME_BASELINE_FLOW.md), [cookbook](RUNTIME_BASELINE_COOKBOOK.md)
 and [development evidence](../development/M1.1_ACCEPTANCE.md). Steward acceptance
-and any explicit sequencing decision remain required before M1.2.
+and any explicit sequencing decision remain required before M1.2 shared-schema
+deployment and acceptance. Owner-authorized isolated M1.2 engineering may proceed
+while that decision is pending; this component contract does not waive acceptance.
 
 ## Revision history
 

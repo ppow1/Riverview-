@@ -1,7 +1,7 @@
 <!--
 Riverview~ Controlled Document
 File: docs/components/POSTGRES_LEDGER_FLOW.md
-Revision: 1.0.0
+Revision: 1.0.1
 Migration: ENG-REV-002
 -->
 # PostgreSQL ledger — component flow and Steward projection
@@ -9,27 +9,31 @@ Migration: ENG-REV-002
 ## Transaction flow
 ```mermaid
 flowchart TD
- A[Caller: create or transition] --> B[PostgresLedger]
- B --> C[Begin PostgreSQL transaction]
- C --> D[Advisory lock on idempotency key]
- D --> E{Existing event key?}
- E -->|Matching replay| F[Return current assignment]
- E -->|Conflicting replay| X[Reject / rollback]
- E -->|New| G{Create or transition?}
- G -->|Create| H[Reject existing ID / insert queued assignment]
- G -->|Transition| I[Lock assignment row FOR UPDATE]
- I --> J{Legal state transition?}
- J -->|No| X
- J -->|Yes| K{Completing?}
- K -->|Yes, verified flag false| X
- K -->|No or flag true| L[Update assignment and version]
- H --> M[Insert event in same transaction]
- L --> M
- M --> N[Commit]
- N --> O[Read assignment / ordered events]
- F --> O
- O --> P[On-demand Steward snapshot]
- P -. future .-> Q[Live Steward dashboard + alerts]
+ A[Explicit versioned migration] --> B{Stored checksum matches?}
+ B -->|Mismatch| X[Fail without schema changes]
+ B -->|Already applied| C[No-op]
+ B -->|New version| D[Apply SQL and checksum atomically]
+ C --> E[PostgresLedger requires migrated schema]
+ D --> E
+ F[Caller: create or transition] --> E
+ E --> G[Begin PostgreSQL transaction]
+ G --> H[Advisory lock on idempotency key]
+ H --> I{Existing event key?}
+ I -->|Exact semantic replay| J[Return current assignment]
+ I -->|Conflicting replay| X
+ I -->|New| K{Create or transition?}
+ K -->|Create| L[Insert assignment metadata]
+ K -->|Transition| M[Lock assignment row FOR UPDATE]
+ M --> N{Legal state transition?}
+ N -->|No| X
+ N -->|Yes| O[Update state and version]
+ L --> P[Append rv.event.v1 with authority and causality]
+ O --> P
+ P --> Q[Commit atomically]
+ Q --> R[Read assignment / ordered events]
+ J --> R
+ R --> S[On-demand status snapshot]
+ S -. M3.1 .-> T[Live Steward dashboard]
 ```
 
 ## Assignment lifecycle

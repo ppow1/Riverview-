@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.17
+**Document Revision:** 1.0.19
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -378,3 +378,30 @@ returned systemd success/exit 0. The live report is current and ready, collector
 again produced two distinct ready observations with `PENDING_STEWARD`, and the
 active broker paths remain absent. Evidence: `evidence/checkouts/RUNTIME-BASELINE/
 20261010T1511Z-64e8f14/`.
+
+
+RV-ENG-REV-003 audit found 58 `missing_revision` checkout messages. Fifty-six
+were false negatives from the checker not consuming the evidence sidecar formats
+(`artifacts` and legacy `files` mappings); the two actual omissions were `.gitignore`
+and file-level metadata on the Rev 1.0 Engineering Records Standard. All existing
+evidence sidecar entries had matching checksum, size, and revision. Work is correcting
+the checker and baseline metadata with preserved predecessors.
+
+M1.1 technical acceptance remains PASS, with Steward acceptance and later DoD
+items outstanding. The current directive permits M1.2 schema/migration design,
+implementation, and isolated tests while that gate is pending; shared development
+schema migration and M1.2 acceptance remain gated.
+
+2026-10-10 15:26 UTC — RV-ENG-REV-003 / ENG-REVISION-CONTROL: Current baseline
+revision checker reports zero issues across 149 tracked baseline files. Its
+original 58 findings were 56 sidecar-versioned evidence files and two actual
+file-level metadata omissions. Regression tests cover both sidecar formats,
+tampering and text evidence headers. M1.2 isolated engineering began under
+RV-M1.2-001 per the current owner directive. A checksum-pinned migration runner
+and event-contract-aligned PostgreSQL schema were implemented; migration,
+transaction rollback, transition, idempotency, causality and reconnect tests
+passed on an isolated PostgreSQL 16 UTF-8 cluster. Initial row-factory and
+SQL_ASCII test-harness failures were repaired and retained in the task record.
+The commissioned `riverview_dev` schema and `riverview-baseline.service` were not
+modified. M1.1 scoped Steward acceptance, M1.2 shared-schema deployment and
+acceptance, and M1.3 dependencies remain pending; no formal acceptance is claimed.

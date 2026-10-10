@@ -2,23 +2,19 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/postgres_ledger.py
 # Component: POSTGRES-LEDGER
-# Revision: 1.0.0
-# Purpose: PostgreSQL development assignment and event ledger
+# Revision: 1.1.1
+# Purpose: Persist contract-aligned assignments and causally linked events
 # Execution Model: Request-driven library
-# Observability: PostgreSQL events and state projection
-# Dependencies: Python 3; psycopg 3; PostgreSQL
-# Authority: Development backend; caller authorization external
-# Changed: 2026-10-09 UTC | ENG-REV-004 | Initial controlled header migration
-# Contracts: docs/components/POSTGRES_LEDGER.md
+# Observability: PostgreSQL assignment/event queries and schema version
+# Dependencies: Python 3.10+; Psycopg 3; PostgreSQL 16; versioned migrations
+# Authority: Persistence only; authority references are recorded, not validated
+# Changed: 2026-10-10 UTC | RV-M1.2-001 | Require migration-managed schema and full event metadata
+# Contracts: docs/components/POSTGRES_LEDGER.md; docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md
 # Tests: tests/test_postgres_ledger.py
-# History: Git commit 6810e00374f50a81820be5f4e7714b329965ea66 and staged predecessor manifest
+# History: .riverview-backups/manifest.jsonl and Git
 # =============================================================================
+"""PostgreSQL persistence adapter for durable assignments and events."""
 
-"""PostgreSQL development backend for the Riverview assignment ledger.
-
-Requires psycopg 3. Schema isolation is selected with a connection option
-(search_path), not interpolated SQL. This is not a production authority service.
-"""
 import json
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -27,79 +23,149 @@ import psycopg
 from psycopg.rows import dict_row
 
 from .ledger import TRANSITIONS, TransitionError
+from .postgres_migrations import MigrationError, apply_migrations
 
 
 class PostgresLedger:
+    """Request-driven ledger; schema changes are explicit migrations."""
+
     def __init__(self, dsn, *, schema="public"):
-        if not schema.replace("_", "").isalnum() or not schema[0].isalpha():
+        if not schema or not schema[0].isalpha() or not schema.replace("_", "").isalnum():
             raise ValueError("invalid schema")
+        self.schema = schema
         self.db = psycopg.connect(dsn, row_factory=dict_row, autocommit=True)
-        with self.db.transaction():
+        try:
             with self.db.cursor() as cur:
+                cur.execute("SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname=%s) AS present",
+                            (schema,))
+                if not cur.fetchone()["present"]:
+                    raise MigrationError(f"target schema does not exist: {schema}")
                 cur.execute("SELECT set_config('search_path', %s, false)", (schema,))
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS assignments (
-                        id TEXT PRIMARY KEY, state TEXT NOT NULL, owner TEXT NOT NULL,
-                        workflow_step TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL,
-                        version INTEGER NOT NULL DEFAULT 1
-                    )""")
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS events (
-                        seq BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                        event_id UUID NOT NULL UNIQUE,
-                        idempotency_key TEXT NOT NULL UNIQUE,
-                        assignment_id TEXT NOT NULL,
-                        event_type TEXT NOT NULL,
-                        occurred_at TIMESTAMPTZ NOT NULL,
-                        payload JSONB NOT NULL
-                    )""")
+                cur.execute("SELECT to_regclass('schema_migrations') AS ledger")
+                if cur.fetchone()["ledger"] is None:
+                    raise MigrationError("schema is not migrated; call apply_migrations first")
+                cur.execute("SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1")
+                if cur.fetchone() is None:
+                    raise MigrationError("schema has no applied ledger migration")
+        except BaseException:
+            self.db.close()
+            raise
 
     def close(self):
         self.db.close()
 
-    def _event(self, cur, assignment_id, event_type, key, payload):
-        cur.execute(
-            "INSERT INTO events(event_id,idempotency_key,assignment_id,event_type,occurred_at,payload) VALUES(%s,%s,%s,%s,%s,%s)",
-            (uuid4(), key, assignment_id, event_type, datetime.now(timezone.utc), json.dumps(payload)))
+    @staticmethod
+    def _timestamp():
+        return datetime.now(timezone.utc)
 
-    def create(self, assignment_id, owner, idempotency_key):
-        if not assignment_id or not owner or not idempotency_key:
-            raise ValueError("assignment_id, owner, and idempotency_key are required")
+    def _set_search_path(self, cur):
+        cur.execute("SELECT set_config('search_path', %s, false)", (self.schema,))
+
+    def _append_event(self, cur, *, assignment_id, event_type, idempotency_key,
+                      actor_id, authority_ref, correlation_id, causation_id,
+                      payload_schema, payload, privacy_domain="institution"):
+        event_id = uuid4()
+        cur.execute(
+            """INSERT INTO events
+               (event_id, schema, event_type, occurred_at, recorded_at,
+                assignment_id, actor_id, correlation_id, causation_id,
+                idempotency_key, authority_ref, privacy_domain, payload_schema, payload)
+               VALUES (%s, 'rv.event.v1', %s, %s, %s, %s, %s, %s, %s,
+                       %s, %s, %s, %s, %s)""",
+            (event_id, event_type, self._timestamp(), self._timestamp(),
+             assignment_id, actor_id, correlation_id, causation_id,
+             idempotency_key, authority_ref, privacy_domain, payload_schema,
+             json.dumps(payload, sort_keys=True)))
+        return event_id
+
+    def _replay(self, cur, key, assignment_id, event_type, expected, *, actor_id,
+                authority_ref, correlation_id, payload_schema):
+        cur.execute(
+            """SELECT assignment_id,event_type,payload,actor_id,authority_ref,
+                      correlation_id,payload_schema FROM events WHERE idempotency_key=%s""",
+            (key,))
+        existing = cur.fetchone()
+        if not existing:
+            return None
+        if (existing["assignment_id"] != assignment_id or
+                existing["event_type"] != event_type or
+                existing["payload"] != expected or existing["actor_id"] != actor_id or
+                existing["authority_ref"] != authority_ref or
+                existing["correlation_id"] != correlation_id or
+                existing["payload_schema"] != payload_schema):
+            raise TransitionError("idempotency key collision")
+        return self.get(assignment_id)
+
+    def create(self, assignment_id, owner, idempotency_key, *, authority_ref,
+               objective_ref, actor_id, contract_ref=None, workflow_id="assignment.v1",
+               workflow_step="intake", occupant_id=None, correlation_id=None):
+        required = (assignment_id, owner, idempotency_key, authority_ref,
+                    objective_ref, actor_id, workflow_id, workflow_step)
+        if any(not value for value in required):
+            raise ValueError("assignment, owner, authority, objective, actor, and workflow metadata are required")
+        correlation_id = correlation_id or assignment_id
+        payload = {
+            "owner": owner, "occupant_id": occupant_id,
+            "authority_ref": authority_ref, "objective_ref": objective_ref,
+            "contract_ref": contract_ref, "workflow_id": workflow_id,
+            "workflow_step": workflow_step, "state": "queued",
+        }
         with self.db.transaction():
             with self.db.cursor() as cur:
-                cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (idempotency_key,))
-                cur.execute("SELECT assignment_id,event_type FROM events WHERE idempotency_key=%s", (idempotency_key,))
-                existing = cur.fetchone()
-                if existing:
-                    if existing["assignment_id"] != assignment_id or existing["event_type"] != "assignment.created":
-                        raise TransitionError("idempotency key collision")
-                    return self.get(assignment_id)
+                self._set_search_path(cur)
+                cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+                            (idempotency_key,))
+                replay = self._replay(cur, idempotency_key, assignment_id,
+                                      "assignment.created", payload, actor_id=actor_id,
+                                      authority_ref=authority_ref,
+                                      correlation_id=correlation_id,
+                                      payload_schema="rv.assignment.created.v1")
+                if replay is not None:
+                    return replay
                 cur.execute("SELECT 1 FROM assignments WHERE id=%s", (assignment_id,))
                 if cur.fetchone():
                     raise TransitionError("assignment already exists")
+                now = self._timestamp()
                 cur.execute(
-                    "INSERT INTO assignments(id,state,owner,workflow_step,updated_at) VALUES(%s,'queued',%s,'intake',%s)",
-                    (assignment_id, owner, datetime.now(timezone.utc)))
-                self._event(cur, assignment_id, "assignment.created", idempotency_key,
-                            {"owner": owner, "state": "queued"})
+                    """INSERT INTO assignments
+                       (id,state,owner,occupant_id,authority_ref,objective_ref,contract_ref,
+                        workflow_id,workflow_step,correlation_id,updated_at)
+                       VALUES (%s,'queued',%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (assignment_id, owner, occupant_id, authority_ref, objective_ref,
+                     contract_ref, workflow_id, workflow_step, correlation_id, now))
+                self._append_event(
+                    cur, assignment_id=assignment_id, event_type="assignment.created",
+                    idempotency_key=idempotency_key, actor_id=actor_id,
+                    authority_ref=authority_ref, correlation_id=correlation_id,
+                    causation_id=None, payload_schema="rv.assignment.created.v1",
+                    payload=payload)
         return self.get(assignment_id)
 
-    def transition(self, assignment_id, to_state, step, idempotency_key, *, verified=False):
-        if not idempotency_key or not step:
-            raise ValueError("idempotency_key and workflow step required")
+    def transition(self, assignment_id, to_state, step, idempotency_key, *, actor_id,
+                   verified=False, privacy_domain="institution"):
+        if not idempotency_key or not step or not actor_id:
+            raise ValueError("idempotency key, actor, and workflow step are required")
         with self.db.transaction():
             with self.db.cursor() as cur:
-                cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (idempotency_key,))
-                cur.execute("SELECT assignment_id,event_type,payload FROM events WHERE idempotency_key=%s", (idempotency_key,))
+                self._set_search_path(cur)
+                cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+                            (idempotency_key,))
+                cur.execute(
+                    "SELECT assignment_id,event_type,payload FROM events WHERE idempotency_key=%s",
+                    (idempotency_key,))
                 existing = cur.fetchone()
                 if existing:
                     payload = existing["payload"]
                     if (existing["assignment_id"] != assignment_id or
-                        existing["event_type"] != "assignment.transitioned" or
-                        payload.get("to") != to_state or payload.get("step") != step):
+                            existing["event_type"] != "assignment.transitioned" or
+                            payload.get("to") != to_state or payload.get("step") != step or
+                            payload.get("actor_id") != actor_id or
+                            payload.get("verified_claim") is not verified or
+                            payload.get("privacy_domain") != privacy_domain):
                         raise TransitionError("idempotency key collision")
                     return self.get(assignment_id)
-                cur.execute("SELECT state FROM assignments WHERE id=%s FOR UPDATE", (assignment_id,))
+                cur.execute("SELECT * FROM assignments WHERE id=%s FOR UPDATE",
+                            (assignment_id,))
                 row = cur.fetchone()
                 if row is None:
                     raise TransitionError("unknown assignment")
@@ -108,23 +174,40 @@ class PostgresLedger:
                 if to_state == "completed" and not verified:
                     raise TransitionError("completion requires independently verified evidence")
                 cur.execute(
+                    "SELECT event_id FROM events WHERE assignment_id=%s ORDER BY seq DESC LIMIT 1",
+                    (assignment_id,))
+                previous_event_id = cur.fetchone()["event_id"]
+                payload = {"from": row["state"], "to": to_state, "step": step,
+                           "actor_id": actor_id, "verified_claim": bool(verified),
+                           "privacy_domain": privacy_domain}
+                now = self._timestamp()
+                cur.execute(
                     "UPDATE assignments SET state=%s,workflow_step=%s,updated_at=%s,version=version+1 WHERE id=%s",
-                    (to_state, step, datetime.now(timezone.utc), assignment_id))
-                self._event(cur, assignment_id, "assignment.transitioned", idempotency_key,
-                            {"from": row["state"], "to": to_state, "step": step, "verified_claim": verified})
+                    (to_state, step, now, assignment_id))
+                self._append_event(
+                    cur, assignment_id=assignment_id, event_type="assignment.transitioned",
+                    idempotency_key=idempotency_key, actor_id=actor_id,
+                    authority_ref=row["authority_ref"],
+                    correlation_id=row["correlation_id"],
+                    causation_id=previous_event_id,
+                    payload_schema="rv.assignment.transitioned.v1", payload=payload,
+                    privacy_domain=privacy_domain)
         return self.get(assignment_id)
 
     def get(self, assignment_id):
         with self.db.cursor() as cur:
+            self._set_search_path(cur)
             cur.execute("SELECT * FROM assignments WHERE id=%s", (assignment_id,))
             return cur.fetchone()
 
     def list_assignments(self):
         with self.db.cursor() as cur:
+            self._set_search_path(cur)
             cur.execute("SELECT * FROM assignments ORDER BY id")
             return cur.fetchall()
 
     def events(self, after_seq=0):
         with self.db.cursor() as cur:
+            self._set_search_path(cur)
             cur.execute("SELECT * FROM events WHERE seq>%s ORDER BY seq", (after_seq,))
             return cur.fetchall()
