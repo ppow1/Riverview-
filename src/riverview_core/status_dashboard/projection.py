@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/projection.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Project authoritative PostgreSQL/CME state into bounded safe views
 # Execution Model: Request-driven read-only API dependency
 # Observability: Versioned status, assignment, event, attention and snapshot JSON
 # Dependencies: Python 3.10+; Psycopg 3; M1.2/M1.4/M2.1-M2.4 schema
 # Authority: SELECT-only projection; never mutates CME or assignment state
-# Changed: 2026-10-10 UTC | RV-M3.1-001 | Initial bounded PostgreSQL dashboard projections
+# Changed: 2026-10-10 UTC | RV-M3.1-001 | Add individual bounded worker health projections
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
 # History: Git and revision/backup manifest
@@ -158,27 +158,50 @@ class DashboardProjection:
                         "source": "cme_monitor_health",
                     }
             if present["worker_registry"] and present["assignment_leases"]:
-                cur.execute("""SELECT count(*) FILTER (WHERE active) AS active_workers,
-                                    max(l.heartbeat_at) AS last_heartbeat_at,
-                                    count(l.assignment_id) FILTER (WHERE l.expires_at > clock_timestamp()) AS active_leases
-                             FROM worker_registry w LEFT JOIN assignment_leases l USING(worker_id)""")
+                cur.execute("""WITH worker_rows AS (
+                               SELECT w.worker_id, w.active, max(l.heartbeat_at) AS heartbeat_at,
+                                      count(l.assignment_id) FILTER (WHERE l.expires_at > clock_timestamp()
+                                        AND NOT EXISTS (SELECT 1 FROM events p
+                                          WHERE p.assignment_id=l.assignment_id
+                                            AND p.privacy_domain <> 'institution')) AS active_leases
+                               FROM worker_registry w LEFT JOIN assignment_leases l USING(worker_id)
+                               GROUP BY w.worker_id, w.active
+                             ), classified AS (
+                               SELECT *, CASE
+                                 WHEN NOT active THEN 'inactive'
+                                 WHEN heartbeat_at IS NULL THEN 'unknown'
+                                 WHEN extract(epoch FROM (clock_timestamp()-heartbeat_at)) < 0 THEN 'unverified'
+                                 WHEN extract(epoch FROM (clock_timestamp()-heartbeat_at)) > %s THEN 'stale'
+                                 ELSE 'healthy' END AS health
+                               FROM worker_rows
+                             )
+                             SELECT count(*) FILTER (WHERE active) AS active_workers,
+                                    count(*) FILTER (WHERE active AND health='healthy') AS healthy_workers,
+                                    count(*) FILTER (WHERE active AND health='stale') AS stale_workers,
+                                    count(*) FILTER (WHERE active AND health='unknown') AS unknown_workers,
+                                    count(*) FILTER (WHERE active AND health='unverified') AS unverified_workers,
+                                    coalesce(sum(active_leases) FILTER (WHERE active),0) AS active_leases
+                             FROM classified""", (self.heartbeat_stale_seconds,))
                 worker = cur.fetchone()
-                if worker["last_heartbeat_at"] is not None:
-                    cur.execute("SELECT extract(epoch FROM (clock_timestamp() - %s)) AS age",
-                                (worker["last_heartbeat_at"],))
-                    age = float(cur.fetchone()["age"])
-                    worker_status = "healthy" if age <= self.heartbeat_stale_seconds else "stale"
-                else:
-                    age, worker_status = None, "unknown"
-                if age is not None and age < 0:
+                if worker["active_workers"] == 0:
+                    worker_status = "unknown"
+                elif worker["unverified_workers"]:
                     worker_status = "unverified"
+                elif worker["stale_workers"]:
+                    worker_status = "stale"
+                elif worker["unknown_workers"]:
+                    worker_status = "unknown"
+                else:
+                    worker_status = "healthy"
                 result["workers"] = {
                     "status": worker_status, "active_workers": worker["active_workers"],
-                    "active_leases": worker["active_leases"],
-                    "last_heartbeat_at": self._iso(worker["last_heartbeat_at"]),
-                    "heartbeat_age_seconds": round(age, 3) if age is not None else None,
+                    "healthy_workers": worker["healthy_workers"],
+                    "stale_workers": worker["stale_workers"],
+                    "unknown_workers": worker["unknown_workers"],
+                    "unverified_workers": worker["unverified_workers"],
+                    "active_leases": int(worker["active_leases"] or 0),
                     "source": "assignment_leases", "health_semantics":
-                        "lease heartbeat only; no active lease is unknown, not healthy",
+                        "per-worker latest lease heartbeat; no heartbeat is unknown, not healthy",
                 }
             return result
         try:
@@ -356,6 +379,45 @@ class DashboardProjection:
                 "diagnostic_ref": "docs/components/STATUS_DASHBOARD_COOKBOOK.md"}
         return self._read(query)
 
+    def workers(self, *, after: str | None = None, limit: int = 25):
+        limit = self._page_limit(limit)
+        if after is not None and (len(after) > 256 or "\x00" in after):
+            raise ValueError("invalid worker cursor")
+        def query(cur):
+            rel = self._relations(cur, [f"{self.schema}.worker_registry",
+                                        f"{self.schema}.assignment_leases",
+                                        f"{self.schema}.events"])
+            if not all(rel.values()):
+                return {"status": "not_initialized", "items": [], "next_cursor": None,
+                        "page_limit": limit}
+            cur.execute("""SELECT w.worker_id, w.active,
+                                max(l.heartbeat_at) AS heartbeat_at,
+                                extract(epoch FROM (clock_timestamp()-max(l.heartbeat_at))) AS heartbeat_age,
+                                count(l.assignment_id) FILTER (WHERE l.expires_at > clock_timestamp()
+                                  AND NOT EXISTS (SELECT 1 FROM events p
+                                    WHERE p.assignment_id=l.assignment_id
+                                      AND p.privacy_domain <> 'institution')) AS active_leases
+                         FROM worker_registry w LEFT JOIN assignment_leases l USING(worker_id)
+                         WHERE (%s::text IS NULL OR w.worker_id > %s)
+                         GROUP BY w.worker_id,w.active ORDER BY w.worker_id LIMIT %s""",
+                        (after, after, limit + 1))
+            rows=cur.fetchall();more=len(rows)>limit;rows=rows[:limit];items=[]
+            for row in rows:
+                age=float(row["heartbeat_age"]) if row["heartbeat_age"] is not None else None
+                if not row["active"]: health="inactive"
+                elif age is None: health="unknown"
+                elif age < 0: health="unverified"
+                elif age > self.heartbeat_stale_seconds: health="stale"
+                else: health="healthy"
+                items.append({"worker_id":row["worker_id"],"active":row["active"],
+                    "status":health,"last_heartbeat_at":self._iso(row["heartbeat_at"]),
+                    "heartbeat_age_seconds":round(age,3) if age is not None else None,
+                    "active_leases":row["active_leases"],"source":"assignment_leases"})
+            return {"status":"available","items":items,
+                    "next_cursor":items[-1]["worker_id"] if more and items else None,
+                    "page_limit":limit,"truncated":more}
+        return self._read(query)
+
     def attention(self, *, limit: int = 25):
         limit = self._page_limit(limit)
         def query(cur):
@@ -387,13 +449,15 @@ class DashboardProjection:
             assignments = {"status": "unavailable", "items": [], "truncated": False}
             event_page = {"status": "unavailable", "items": [], "truncated": False}
             attention = {"status": "unavailable", "items": []}
+            workers = {"status": "unavailable", "items": [], "truncated": False}
         else:
             assignments = self.assignments(limit=_MAX_SNAPSHOT_ASSIGNMENTS)
             event_page = self.events(limit=_MAX_SNAPSHOT_EVENTS)
             attention = self.attention(limit=_MAX_SNAPSHOT_EVENTS)
+            workers = self.workers(limit=_MAX_SNAPSHOT_EVENTS)
         return {"schema_version": "rv.dashboard.snapshot.v1", "captured_at": datetime.now(UTC).isoformat(),
                 "observed_state": status["projection_status"] != "unavailable", "source": status["source"], "projection": status,
-                "assignments": assignments, "events": event_page, "attention": attention,
+                "assignments": assignments, "events": event_page, "attention": attention, "workers": workers,
                 "references": {"roadmap": "docs/ROADMAP.md",
                                "process_graph": "process_graphs/steward-dashboard/status.json",
                                "cookbook": "docs/components/STATUS_DASHBOARD_COOKBOOK.md"},

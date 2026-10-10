@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Serve the authenticated, loopback-only status UI and versioned API
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
 # Dependencies: Python 3.10+; standard library; status_dashboard.projection
 # Authority: Authenticated GET-only interface; no command or database write routes
-# Changed: 2026-10-10 UTC | RV-M3.1-001 | Permit read-only systemd credential mode in credential directory
+# Changed: 2026-10-10 UTC | RV-M3.1-001 | Add bounded worker health projection route
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
 # History: Git and revision/backup manifest
@@ -238,6 +238,11 @@ def make_handler():
                     self._json(200, self.server._projection.status(), request_id)
                 elif parsed.path == "/api/v1/assignments":
                     page = self.server._projection.assignments(
+                        after=query.get("after", [None])[0],
+                        limit=_bounded_limit(query.get("limit", [25])[0]))
+                    self._json(200 if page["status"] != "not_initialized" else 503, page, request_id)
+                elif parsed.path == "/api/v1/workers":
+                    page = self.server._projection.workers(
                         after=query.get("after", [None])[0],
                         limit=_bounded_limit(query.get("limit", [25])[0]))
                     self._json(200 if page["status"] != "not_initialized" else 503, page, request_id)

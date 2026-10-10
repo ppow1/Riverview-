@@ -2914,7 +2914,7 @@
     },
     {
       "graph_id": "rv:steward-dashboard:status",
-      "graph_revision": "1.0.2",
+      "graph_revision": "1.0.4",
       "component_id": "STEWARD-DASHBOARD",
       "workflow_id": "status-projection.v1",
       "diagram_order": 1,
@@ -2932,7 +2932,16 @@
         "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
         "docs/components/STATUS_DASHBOARD_FLOW.md"
       ],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/commissioning.md",
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/live-dashboard.json",
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/browser-observation.json",
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/test-suite.log",
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/systemd-restart.json",
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/process-graph-validation.json",
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/revision-audit.json",
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/artifacts.json"
+      ],
       "nodes": [
         {
           "id": "rv:steward-dashboard:status:ingest",
@@ -2986,7 +2995,10 @@
           "documentation_references": [
             "docs/components/STATUS_DASHBOARD.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/live-dashboard.json",
+            "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/test-suite.log"
+          ]
         },
         {
           "id": "rv:steward-dashboard:status:source-health",
@@ -2999,7 +3011,10 @@
           "documentation_references": [
             "docs/components/STATUS_DASHBOARD.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/live-dashboard.json",
+            "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/test-suite.log"
+          ]
         },
         {
           "id": "rv:steward-dashboard:status:source-available",
@@ -3065,7 +3080,9 @@
           "documentation_references": [
             "docs/components/STATUS_DASHBOARD.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/browser-observation.json"
+          ]
         },
         {
           "id": "rv:steward-dashboard:status:page-events",
@@ -3093,7 +3110,10 @@
           "documentation_references": [
             "docs/components/STATUS_DASHBOARD.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/test-suite.log",
+            "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/dashboard-isolated-cme-test.png"
+          ]
         },
         {
           "id": "rv:steward-dashboard:status:export-snapshot",
@@ -3108,7 +3128,10 @@
             "docs/components/STATUS_DASHBOARD.md",
             "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/browser-observation.json",
+            "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/live-dashboard.json"
+          ]
         },
         {
           "id": "rv:steward-dashboard:status:database-failure",
@@ -3136,7 +3159,9 @@
           "documentation_references": [
             "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/systemd-restart.json"
+          ]
         },
         {
           "id": "rv:steward-dashboard:status:jump-ledger",
@@ -3192,7 +3217,10 @@
             "docs/components/STATUS_DASHBOARD.md",
             "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/systemd-state.json",
+            "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/test-suite.log"
+          ]
         },
         {
           "id": "rv:steward-dashboard:status:credential-failure",
@@ -3202,6 +3230,36 @@
           "source_references": [
             "scripts/run_status_dashboard.py",
             "scripts/runtime_baseline.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:status:list-workers",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Page individual worker lease health and active work counts",
+          "source_references": [
+            "src/riverview_core/status_dashboard/projection.py",
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/status_dashboard/static/app.js"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:status:workers-unavailable",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Report missing worker relations or unreadable health as not initialized or unavailable",
+          "source_references": [
+            "src/riverview_core/status_dashboard/projection.py",
+            "src/riverview_core/status_dashboard/static/app.js"
           ],
           "documentation_references": [
             "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
@@ -3330,6 +3388,18 @@
           "to": "rv:steward-dashboard:status:ingest",
           "type": "prerequisite",
           "label": "Runtime credential available before requests"
+        },
+        {
+          "from": "rv:steward-dashboard:status:render-cached",
+          "to": "rv:steward-dashboard:status:list-workers",
+          "type": "runtime_transition",
+          "label": "Refresh bounded worker page"
+        },
+        {
+          "from": "rv:steward-dashboard:status:list-workers",
+          "to": "rv:steward-dashboard:status:workers-unavailable",
+          "type": "diagnostic_branch",
+          "label": "Worker relation missing or source unavailable"
         }
       ]
     },
@@ -4270,6 +4340,7 @@
     "rv:steward-dashboard:status:inspect-detail",
     "rv:steward-dashboard:status:jump-cme",
     "rv:steward-dashboard:status:jump-ledger",
+    "rv:steward-dashboard:status:list-workers",
     "rv:steward-dashboard:status:navigate",
     "rv:steward-dashboard:status:page-events",
     "rv:steward-dashboard:status:prepare-passfile",
@@ -4281,6 +4352,7 @@
     "rv:steward-dashboard:status:source-available",
     "rv:steward-dashboard:status:source-failure",
     "rv:steward-dashboard:status:source-health",
+    "rv:steward-dashboard:status:workers-unavailable",
     "rv:worker-adapter:deterministic-attempt:action",
     "rv:worker-adapter:deterministic-attempt:action-failure",
     "rv:worker-adapter:deterministic-attempt:auth-fail",

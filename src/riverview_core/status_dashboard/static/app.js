@@ -1,10 +1,11 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.0.0
+// Revision: 1.0.1
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
   const state = {token: sessionStorage.getItem("rv.dashboard.token") || "", status: null,
-    assignments: [], events: [], attention: [], assignmentCursor: null, eventCursor: 0, olderEventCursor: null,
+    assignments: [], events: [], attention: [], workers: [], assignmentCursor: null,
+    workerCursor: null, eventCursor: 0, olderEventCursor: null,
     recentErrors: [], navSamples: [], lastFetch: 0, timer: null};
   const esc = (value) => String(value ?? "—").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   const human = (value) => String(value || "unknown").replaceAll("_", " ").replaceAll(".", " · ");
@@ -45,7 +46,7 @@
       ["Assignments", String(s.assignments_total ?? "—"), assignments],
       ["Event cursor", s.event_cursor ?? "—", "Institution events only"],
       ["CME monitor", human(s.cme?.status), s.cme?.heartbeat_age_seconds == null ? "Heartbeat not observed" : `${s.cme.heartbeat_age_seconds}s since heartbeat`],
-      ["Workers", human(s.workers?.status), `${s.workers?.active_workers ?? "—"} active · ${s.workers?.active_leases ?? "—"} leases`]
+      ["Workers", human(s.workers?.status), `${s.workers?.healthy_workers ?? 0} healthy · ${s.workers?.stale_workers ?? 0} stale · ${s.workers?.unknown_workers ?? 0} unknown`]
     ].map(([label,value,sub]) => `<article class="metric"><div class="metric-label">${esc(label)}</div><div class="metric-value ${stateClass(value)}">${esc(value)}</div><div class="metric-sub">${esc(sub)}</div></article>`).join("");
     const cme = s.cme || {};
     $("cme-pill").className = `pill ${stateClass(cme.status || "unknown").replace("status-", "")}`;
@@ -73,6 +74,7 @@
       const attention = await api("/api/v1/attention?limit=10").catch(() => ({items:[]}));
       state.attention = attention.items || [];
       renderStatus(result);
+      loadWorkers();
       $("request-state").textContent = "Projection current";
       if (result.projection_status === "unavailable") recordUiError("source_unavailable", "/api/v1/status");
     } catch (error) { $("request-state").textContent = `Refresh failed: ${error.message}`; $("freshness").textContent = "Source unavailable · last-known data not marked current"; }
@@ -102,6 +104,30 @@
       $("more-events").hidden = !state.olderEventCursor;
       bindEventLinks();
     } catch (error) { $("event-list").innerHTML = noData(`Event source unavailable (${error.message}).`); $("overview-events").innerHTML = noData(`Unavailable (${error.message}).`); }
+  }
+  function renderWorkers() {
+    const host = $("worker-list");
+    host.innerHTML = state.workers.length ? state.workers.map((w) => `<div class="row"><span class="row-main">${esc(w.worker_id)}</span><span class="status-text ${stateClass(w.status)}">${esc(human(w.status))}</span><span class="row-meta">${esc(w.active_leases)} active leases · heartbeat ${esc(when(w.last_heartbeat_at))}</span></div>`).join("") : noData("No worker identities are present in this page.");
+    $("worker-page-note").textContent = state.workers.length ? `${state.workers.length} observed · page limit 25` : "";
+    $("more-workers").hidden = !state.workerCursor;
+  }
+  async function loadWorkers(append = false) {
+    if (!state.token) return;
+    if (state.status?.workers?.status === "not_initialized") {
+      state.workers = []; state.workerCursor = null;
+      $("worker-list").innerHTML = noData("Worker registry and lease health are not initialized in this schema.");
+      $("worker-page-note").textContent = "Not initialized"; $("more-workers").hidden = true;
+      return;
+    }
+    try {
+      const path = `/api/v1/workers?limit=25${append && state.workerCursor ? `&after=${encodeURIComponent(state.workerCursor)}` : ""}`;
+      const page = await api(path);
+      state.workers = append ? state.workers.concat(page.items || []) : (page.items || []);
+      state.workerCursor = page.next_cursor; renderWorkers();
+    } catch (error) {
+      $("worker-list").innerHTML = noData(`Worker health unavailable (${error.message}).`);
+      $("worker-page-note").textContent = "Unavailable"; $("more-workers").hidden = true;
+    }
   }
   async function loadOlderEvents() {
     if (!state.olderEventCursor) return;
@@ -153,10 +179,11 @@
   document.querySelectorAll(".nav-item").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.view)));
   document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.go)));
   $("login-form").addEventListener("submit", (event) => { event.preventDefault(); connect($("token").value.trim()); $("token").value = ""; });
-  $("refresh").addEventListener("click", () => { refreshStatus(); loadAssignments(); loadEvents(); });
+  $("refresh").addEventListener("click", () => { refreshStatus(); loadAssignments(); loadEvents(); loadWorkers(); });
   $("auth-open").addEventListener("click", () => { sessionStorage.removeItem("rv.dashboard.token"); state.token=""; if(state.timer)clearInterval(state.timer); $("workspace").hidden=true; $("login").hidden=false; $("token").focus(); });
   $("more-assignments").addEventListener("click", () => loadAssignments(true));
   $("more-events").addEventListener("click", () => loadOlderEvents());
+  $("more-workers").addEventListener("click", () => loadWorkers(true));
   $("snapshot").addEventListener("click", async () => {
     try {
       const bundle = await api("/api/v1/snapshot");

@@ -1,10 +1,10 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.2
+File Revision: 1.0.3
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
-Changed: 2026-10-10 UTC | RV-M3.1-001 | Record isolated deployment and credential troubleshooting
+Changed: 2026-10-10 UTC | RV-M3.1-001 | Record worker health and credential troubleshooting
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -20,6 +20,14 @@ The unit loads pgpass with systemd LoadCredential. Its root-owned read-only
 copied with copy_systemd_credential to /run/riverview-status-dashboard/pgpass
 inside the service-owned 0700 RuntimeDirectory. This produces the 0600 passfile
 required by libpq. The token remains a separate credential and is never logged.
+
+## Worker health
+
+The overview shows a bounded worker page from GET /api/v1/workers. Health is
+derived from each worker’s latest assignment-lease heartbeat; missing heartbeat
+is unknown, future heartbeat is unverified, and expired lease does not mean a
+worker is healthy. Pagination is keyset-bounded. A missing worker/lease relation
+is not_initialized and does not fabricate worker health.
 
 ## Fast read-only checks
 

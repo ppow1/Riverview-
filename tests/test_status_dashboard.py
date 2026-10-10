@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL for integration class
 # Authority: Creates/drops only unique rvtest_* schemas; never accesses shared Riverview data
-# Changed: 2026-10-10 UTC | RV-M3.1-001 | Test the credential launcher, systemd modes, API and PostgreSQL projections
+# Changed: 2026-10-10 UTC | RV-M3.1-001 | Verify paged per-worker health and bounded snapshot projection
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -50,6 +50,10 @@ class _FakeProjection:
         return {"status":"available", "items":[], "next_cursor":None, "page_limit":limit}
 
     def events(self, *, after_seq=None, before_seq=None, limit=25):
+        self.last_limit = limit
+        return {"status":"available", "items":[], "next_cursor":None, "page_limit":limit}
+
+    def workers(self, *, after=None, limit=25):
         self.last_limit = limit
         return {"status":"available", "items":[], "next_cursor":None, "page_limit":limit}
 
@@ -162,6 +166,9 @@ class DashboardHTTPTests(unittest.TestCase):
 
     def test_pages_are_bounded_and_unknown_routes_do_not_reveal_server(self):
         status, _, body = self.request("GET", "/api/v1/events?limit=9000", token=self.token)
+        self.assertEqual(status, 200)
+        self.assertEqual(self.projection.last_limit, 100)
+        status, _, body = self.request("GET", "/api/v1/workers?limit=9000", token=self.token)
         self.assertEqual(status, 200)
         self.assertEqual(self.projection.last_limit, 100)
         status, _, body = self.request("GET", "/not-an-api", token=self.token)
@@ -281,6 +288,46 @@ class DashboardPostgresTests(unittest.TestCase):
             cur.execute("UPDATE cme_monitor_health SET last_heartbeat_at=clock_timestamp()+interval '2 minutes' "
                         "WHERE service_id='cme.monitor.v1'")
         self.assertEqual(self.projection.status()["cme"]["status"], "unverified")
+
+    def test_workers_have_individual_bounded_health_and_summary_counts(self):
+        from psycopg import sql
+        from uuid import uuid4
+        workers = {"healthy": "dash-healthy", "stale": "dash-stale",
+                   "future": "dash-future", "unknown": "dash-unknown"}
+        assignments = {name: self.create("worker-" + name) for name in workers if name != "unknown"}
+        now = datetime.now(timezone.utc)
+        heartbeats = {"healthy": now-timedelta(seconds=2),
+                      "stale": now-timedelta(minutes=2),
+                      "future": now+timedelta(minutes=2)}
+        with self.admin.cursor() as cur:
+            for name, worker_id in workers.items():
+                cur.execute("INSERT INTO worker_registry(worker_id,credential_sha256,capabilities,scope_ref) "
+                            "VALUES (%s,%s,'[]','dashboard-test')", (worker_id,bytes(name[0].encode())*32))
+                if name == "unknown":
+                    continue
+                assignment_id=assignments[name]
+                heartbeat=heartbeats[name]
+                expires=now+timedelta(seconds=60) if name != "stale" else now-timedelta(seconds=5)
+                acquired=now-timedelta(seconds=10)
+                cur.execute("INSERT INTO assignment_leases(assignment_id,worker_id,generation,acquired_at,"
+                            "heartbeat_at,expires_at) VALUES (%s,%s,1,%s,%s,%s)",
+                            (assignment_id,worker_id,acquired,heartbeat,expires))
+        pages=[]; page=self.projection.workers(limit=2); pages.append(page)
+        self.assertEqual(len(page["items"]),2); self.assertTrue(page["truncated"])
+        while page["next_cursor"]:
+            page=self.projection.workers(after=page["next_cursor"],limit=2); pages.append(page)
+        observed={w["worker_id"]:w["status"] for p in pages for w in p["items"]}
+        self.assertEqual(observed, {"dash-healthy":"healthy","dash-stale":"stale",
+                                    "dash-future":"unverified","dash-unknown":"unknown"})
+        summary=self.projection.status()["workers"]
+        self.assertEqual(summary["active_workers"],4)
+        self.assertEqual(summary["healthy_workers"],1)
+        self.assertEqual(summary["stale_workers"],1)
+        self.assertEqual(summary["unverified_workers"],1)
+        self.assertEqual(summary["unknown_workers"],1)
+        self.assertEqual(summary["status"],"unverified")
+        self.assertEqual(sum(w["active_leases"] for p in pages for w in p["items"]),2)
+        self.assertEqual(len(self.projection.snapshot()["workers"]["items"]),4)
 
     def test_unavailable_and_not_initialized_sources_are_distinct(self):
         missing = DashboardProjection(DSN, schema="rvtest_missing_dashboard")

@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.2
+File Revision: 1.0.3
 Purpose: Specify the read-only live status projection and browser foundation
 Authority: Observes institution state; no assignment or policy mutation
-Changed: 2026-10-10 UTC | RV-M3.1-001 | Document dashboard architecture and verified runtime credential delivery
+Changed: 2026-10-10 UTC | RV-M3.1-001 | Document worker identity projections and bounded health reporting
 History: Git and revision/backup manifest
 -->
 # Steward status dashboard
@@ -62,14 +62,15 @@ content, credentials and private conversation content are not projected.
 
 | Route | Purpose | Parameters and limit |
 | --- | --- | --- |
-| `GET /api/v1/status` | Database/schema/migration identity, event cursor and lifecycle counts, CME heartbeat/freshness, worker lease freshness, verifier relation presence, source/deployment identity. | Fixed size. |
+| `GET /api/v1/status` | Database/schema/migration identity, event cursor and lifecycle counts, CME heartbeat/freshness, aggregate per-worker health counts, verifier relation presence, source/deployment identity. | Fixed size. |
 | `GET /api/v1/assignments?after=<id>&limit=<n>` | Keyset page of lifecycle, owner, workflow/step, version, correlation and last persisted progress event. | Default 25, max 100. No progress percent. |
 | `GET /api/v1/assignments/<id>` | One assignment, 20 latest visible lifecycle events, 5 attempts and 5 independent-verification summaries. | Fixed limits; no event payload/evidence URI. |
 | `GET /api/v1/events?after_seq=<n>&limit=<n>` | Institution event cursor page with event/correlation/causation identity. | Default 25, max 100; no payload. |
+| `GET /api/v1/workers?after=<id>&limit=<n>` | Bounded worker identity, active/inactive state, latest lease heartbeat health and visible active-lease count. | Default 25, max 100; keyset by worker ID. |
 | `GET /api/v1/attention?limit=<n>` | Bounded CME attention and recovery event records. | Default 25, max 100; sanitized error class only. |
-| `GET /api/v1/snapshot` | Bounded server-observed operational snapshot. | At most 50 assignments and 25 events/attention rows. |
+| `GET /api/v1/snapshot` | Bounded server-observed operational snapshot. | At most 50 assignments and 25 events/attention/worker rows. |
 
-The status response schema identifier is `rv.dashboard.status.v1`; list/detail
+The status response schema identifier is `rv.dashboard.status.v1`; the summary counts healthy, stale, unknown and future-dated unverified active workers. `GET /api/v1/workers` pages individual identities; each status uses the latest recorded assignment-lease heartbeat. No heartbeat is unknown, not healthy. The overview shows worker IDs, health and lease counts. List/detail
 responses carry `status`, bounded `items`, and pagination state. Database
 unavailability returns a status projection whose `projection_status` is
 `unavailable`; HTTP query failures return 503. A reachable PostgreSQL instance
@@ -109,7 +110,7 @@ authority. These are architectural constraints, not delivered M3.1 features.
 
 The server snapshot reports an observed-state flag (false when the source is unavailable), observed time, source revision/deployment identity,
 projection status and freshness, CME/worker health, bounded visible assignment
-and event summaries, stable graph/cookbook references, and explicit redaction
+event, attention and worker summaries, stable graph/cookbook references, and explicit redaction
 metadata. The browser adds at most 20 sanitized request errors and 100 navigation
 timings from the current tab. It contains no token, headers, database DSN,
 payload body, unrestricted conversations, resident session, work-order or

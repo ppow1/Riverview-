@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.1
+**Document Revision:** 1.0.2
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -32,6 +32,8 @@ flowchart LR
     g_rv_steward_dashboard_status_service_start_ebd3f698(["systemd starts the dashboard service"])
     g_rv_steward_dashboard_status_prepare_passfile_2eebe68e["Validate systemd pgpass and copy to private runtime storage"]
     g_rv_steward_dashboard_status_credential_failure_69b3e373[["Reject unsafe or unavailable runtime credential"]]
+    g_rv_steward_dashboard_status_list_workers_fe34c745["Page individual worker lease health and active work counts"]
+    g_rv_steward_dashboard_status_workers_unavailable_789b26c9[["Report missing worker relations or unreadable health as not initialized or unavailable"]]
   end
   g_rv_postgres_ledger_assignment_lifecycle_intake_c1d0abf1["Registered target<br/>rv:postgres-ledger:assignment-lifecycle"]
   g_rv_cme_progress_and_recovery_monitor_start_3c5b8496["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -57,6 +59,8 @@ flowchart LR
   g_rv_steward_dashboard_status_service_start_ebd3f698 --> g_rv_steward_dashboard_status_prepare_passfile_2eebe68e
   g_rv_steward_dashboard_status_prepare_passfile_2eebe68e -->|diagnostic_branch: Credential validation or private copy failed| g_rv_steward_dashboard_status_credential_failure_69b3e373
   g_rv_steward_dashboard_status_prepare_passfile_2eebe68e -->|prerequisite: Runtime credential available before requests| g_rv_steward_dashboard_status_ingest_66a3387a
+  g_rv_steward_dashboard_status_render_cached_529d8c25 -->|Refresh bounded worker page| g_rv_steward_dashboard_status_list_workers_fe34c745
+  g_rv_steward_dashboard_status_list_workers_fe34c745 -->|diagnostic_branch: Worker relation missing or source unavailable| g_rv_steward_dashboard_status_workers_unavailable_789b26c9
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 
