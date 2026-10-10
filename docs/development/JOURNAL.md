@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.29
+**Document Revision:** 1.0.32
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -611,3 +611,34 @@ not live operational commissioning: M2.1/M2.2 remain unmerged on PRs #9/#10, no
 M2.3 migration is in shared `riverview_dev`, and the full component DoD remains
 open. The roadmap cursor advances to M2.4 CME monitoring service. No PR was
 merged and no shared service/database was changed.
+
+## 2026-10-10 UTC — RV-M2-BASELINE-001 / integrated M2.1–M2.3 baseline
+
+Fetched `origin/main` and verified exact integration commit
+`4f028a138c41665239bde2c11be65b0f841f02bf`, including PR #9, #10 and #12 merge
+commits. Kept the prior clean M2.3 checkout available while testing a detached
+worktree at `origin/main`. The complete isolated PostgreSQL 16.15 suite passed
+89 tests with zero failures, errors, or skips. Post-run inspection found zero
+`rvtest_*` schemas and the private Unix-socket cluster was stopped. Process graph
+validation passed for 10 workflows/156 nodes; the revision audit passed with no
+issues; GitHub's main CI run 38079898010 succeeded at the same source commit.
+The v1.0.0 knowledge provider contract and mandatory Grace M4.4 requirements
+remain intact. The exact run evidence is in
+`evidence/checkouts/INTEGRATED-M2-BASELINE/20261010T194058Z-4f028a1/`.
+
+Ancestry checks proved the PR #9, #10 and #12 source branches had zero commits
+absent from main. Those exact three feature branches were deleted normally;
+archive and historical branches were preserved. The original clean checkout was
+fast-forwarded to integrated `main`, and M2.4 work began on a branch from it.
+
+## 2026-10-10 UTC — RV-M2.4-001 / design and implementation intake
+
+The M2.4 contract requires an always-on observer for progress, deadlines, stalls
+and recovery requests; it does not give CME worker execution, HR, or resource
+scheduling authority. The implementation keeps deadlines and attention history
+in CME-owned tables, uses stable database event keys for restart-safe dedupe,
+and reports missing worker heartbeats as unknown rather than healthy. CME emits
+recovery requests as durable records only; M2.3 remains the recovery owner. The
+monitor is designed to scan every nonterminal assignment without an assignment
+blocking another. M2.4 remains under isolated engineering verification until the
+checkout record and required gates are complete.

@@ -1,0 +1,43 @@
+{
+  "result_revision": "1.0.0",
+  "repository": "ppow1/Riverview-",
+  "authoritative_branch": "main",
+  "main_commit": "4f028a138c41665239bde2c11be65b0f841f02bf",
+  "branches": [
+    {
+      "pull_request": 9,
+      "branch": "codex/knowledge-provider-v1-grace-m2.1",
+      "head": "3e110feb01e3968abd37e4f53bc84edc2eb01605",
+      "merge_commit": "b0a5b818b188a97a800988b7781d59578c318954",
+      "main_only_commits": 8,
+      "branch_only_commits": 0,
+      "contained_in_main": true,
+      "local_deleted": true,
+      "remote_deleted": true
+    },
+    {
+      "pull_request": 10,
+      "branch": "codex/m2.2-independent-verification",
+      "head": "9ec049873369ecd11cb6bc50dd94aaa4af82d859",
+      "merge_commit": "b4b8339c492b2cf0d7e230b27575c2cebcea33fc",
+      "main_only_commits": 6,
+      "branch_only_commits": 0,
+      "contained_in_main": true,
+      "local_deleted": true,
+      "remote_deleted": true
+    },
+    {
+      "pull_request": 12,
+      "branch": "codex/m2.3-failure-recovery",
+      "head": "425c044424719d3f997b19ec51f4f44d8d2a7411",
+      "merge_commit": "4f028a138c41665239bde2c11be65b0f841f02bf",
+      "main_only_commits": 3,
+      "branch_only_commits": 0,
+      "contained_in_main": true,
+      "local_deleted": true,
+      "remote_deleted": true
+    }
+  ],
+  "verification": "git merge-base --is-ancestor and git rev-list --left-right --count; remote checked with git ls-remote --heads",
+  "other_branches_deleted": false
+}

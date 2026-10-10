@@ -1,0 +1,145 @@
+{
+  "graph_id": "rv:cme:progress-and-recovery",
+  "graph_revision": "1.0.0",
+  "component_id": "CME",
+  "workflow_id": "progress-and-recovery.v1",
+  "diagram_order": 8,
+  "source_references": [
+    "docs/ROADMAP.md",
+    "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md",
+    "docs/architecture/CORE_CONTRACT.md"
+  ],
+  "documentation_references": [
+    "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+    "docs/ROADMAP.md",
+    "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+  ],
+  "verification_evidence": [],
+  "nodes": [
+    {
+      "id": "rv:cme:progress-and-recovery:monitor-start",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "PLANNED — observe durable assignment and service progress",
+      "source_references": [
+        "docs/ROADMAP.md"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:observe",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "PLANNED — measure progress, freshness, stalls, and recovery state",
+      "source_references": [
+        "docs/ROADMAP.md"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:stall-decision",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "PLANNED — distinguish progressing, blocked, stale, and failed work",
+      "source_references": [
+        "docs/ROADMAP.md"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:attention",
+      "node_revision": "1.0.0",
+      "type": "escalation",
+      "label": "PLANNED — persist attention or genuine Steward decision request",
+      "source_references": [
+        "docs/ROADMAP.md"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:recovery",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "PLANNED — request bounded assignment-local recovery and preserve unrelated work",
+      "source_references": [
+        "docs/ROADMAP.md"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:resident-feedback",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "PLANNED — return progress and attention evidence to Grace",
+      "jump_target_id": "rv:grace:operational-integration:evidence-review",
+      "source_references": [
+        "docs/ROADMAP.md"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+      ],
+      "verification_evidence": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:cme:progress-and-recovery:monitor-start",
+      "to": "rv:cme:progress-and-recovery:observe",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:observe",
+      "to": "rv:cme:progress-and-recovery:stall-decision",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:stall-decision",
+      "to": "rv:cme:progress-and-recovery:observe",
+      "type": "runtime_transition",
+      "label": "PLANNED — progress; continue monitoring"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:stall-decision",
+      "to": "rv:cme:progress-and-recovery:attention",
+      "type": "escalation",
+      "label": "PLANNED — genuine decision or attention condition"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:stall-decision",
+      "to": "rv:cme:progress-and-recovery:recovery",
+      "type": "recovery_route",
+      "label": "PLANNED — assignment-local recovery"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:attention",
+      "to": "rv:cme:progress-and-recovery:resident-feedback",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:resident-feedback",
+      "to": "rv:grace:operational-integration:evidence-review",
+      "type": "jump"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:recovery",
+      "to": "rv:cme:progress-and-recovery:observe",
+      "type": "runtime_transition",
+      "label": "PLANNED — continue unrelated monitoring"
+    }
+  ]
+}
