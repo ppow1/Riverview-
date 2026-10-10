@@ -1,0 +1,15 @@
+{
+  "result_revision": "1.0.0",
+  "source_commit": "f27686ad7087ce9ea828c21ec584d45ef3bb5f84",
+  "environment": "Camrui Ubuntu 24.04.3; PostgreSQL 16.15 isolated UTF-8 cluster",
+  "command": "PYTHONPATH=src RIVERVIEW_TEST_PG_DSN='host=127.0.0.1 port=55432 dbname=postgres user=postgres' python3 -m unittest discover -s tests -v",
+  "result": "PASS",
+  "tests_run": 80,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "m2_1_integration_tests": 3,
+  "output": "unittest.log",
+  "cleanup": {"remaining_rvtest_schemas": 0, "test_cluster_stopped": true},
+  "limitations": ["unfinished-attempt visibility was tested from a durable running row; worker process termination/restart was not exercised", "no shared-schema deployment or service commissioning"]
+}

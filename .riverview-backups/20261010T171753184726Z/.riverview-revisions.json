@@ -1,0 +1,98 @@
+{
+  "manifest_revision": "1.1.7",
+  "files": {
+    "process_graphs/generated/riverview-process-graph.json": {
+      "revision": "1.0.11",
+      "path": "process_graphs/generated/riverview-process-graph.json",
+      "sha256": "610597d4afc640aa2c557bb17e182f5659d8463baf7623a7fecb97fb07bccf09",
+      "size_bytes": 90837
+    },
+    "process_graphs/schema/riverview-process-graph.schema.json": {
+      "revision": "1.0.1",
+      "path": "process_graphs/schema/riverview-process-graph.schema.json",
+      "sha256": "0c03d29216d6d3cb08e58ab7bff12b545211f78fbdffb0767118553b52025da7",
+      "size_bytes": 3203
+    },
+    "process_graphs/postgres-ledger/assignment-lifecycle.json": {
+      "revision": "1.0.0",
+      "path": "process_graphs/postgres-ledger/assignment-lifecycle.json",
+      "sha256": "3cf4993bd5a07c8ad99cfbf2179d33b0fd606174b795624897c4f146bdc7e9bd",
+      "size_bytes": 6599
+    },
+    "process_graphs/postgres-ledger/migration.json": {
+      "revision": "1.0.1",
+      "path": "process_graphs/postgres-ledger/migration.json",
+      "sha256": "4fe10b7583e6c6b2fdd01afee4da4f3b7ffd083a3c609ed36fc7fd015e215093",
+      "size_bytes": 13553
+    },
+    "process_graphs/runtime-baseline/runtime-baseline.json": {
+      "revision": "1.0.1",
+      "path": "process_graphs/runtime-baseline/runtime-baseline.json",
+      "sha256": "29385a4a5958e7ba21248cd9b5ccdef4c990cb0b2a59ad36e7ca0f2f6522547c",
+      "size_bytes": 14418
+    },
+    "process_graphs/steward-dashboard/status.json": {
+      "revision": "1.0.0",
+      "path": "process_graphs/steward-dashboard/status.json",
+      "sha256": "c53a8f48022f8cf2c2999b189ee7388e1710dcf6b57ab9ef44db5426d89672ed",
+      "size_bytes": 619
+    },
+    ".riverview-revisions.json": {
+      "revision": "1.1.7"
+    },
+    "process_graphs/event-processor/assignment-progression.json": {
+      "revision": "1.0.4",
+      "path": "process_graphs/event-processor/assignment-progression.json",
+      "sha256": "aeeae994795fefdecabfcc6defb1b845450231ef073463547c4406c5ed734aa5",
+      "size_bytes": 13511
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/ci_results.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/ci_results.json",
+      "sha256": "104994ab8fb87720074406e662f59cb5f2353f9ef6ee87b90768e4f515b1c9fe",
+      "size_bytes": 402
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/package_verification.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/package_verification.json",
+      "sha256": "18442844fb52bda3c838b208f993a2cb0875fd5533105441d4e7d41ca43946ce",
+      "size_bytes": 878
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json": {
+      "revision": "1.0.2",
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json",
+      "sha256": "6f6e3ca0fab7eefcebe1fe3b35b2b8a568878154b216c6c93d83c57edd8e8458",
+      "size_bytes": 6034
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/test_results.json": {
+      "revision": "1.0.1",
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/test_results.json",
+      "sha256": "6d6ef80a5252415c7113309ac64ed8d889e83ead00e89266081583926b0d04d5",
+      "size_bytes": 548
+    },
+    "process_graphs/assignment-scheduler/independent-claims.json": {
+      "revision": "1.0.4",
+      "path": "process_graphs/assignment-scheduler/independent-claims.json",
+      "sha256": "9f587540e540e056653239c0faf60e98108cc4c0d5d71546ae1e1a5d34e41144",
+      "size_bytes": 9993
+    },
+    "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+      "sha256": "0f74190e28f0604cda6e4df8394f3cbacee0c3f7c9c7bd72bbe2de97fffd029a",
+      "size_bytes": 553
+    },
+    "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json",
+      "sha256": "9eb7c69d0aefaf2da23b24fda7c8e5d3614f6703fbbd1816cab398d46d194313",
+      "size_bytes": 724
+    },
+    "process_graphs/worker-adapter/deterministic-attempt.json": {
+      "revision": "1.0.0",
+      "path": "process_graphs/worker-adapter/deterministic-attempt.json",
+      "sha256": "212732e9d49a76ecd57b4f6b45aa9f8b08ac1f07e70e1fe3b12d8456192f3341",
+      "size_bytes": 6609
+    }
+  }
+}

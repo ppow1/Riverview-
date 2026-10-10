@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.6",
+  "manifest_revision": "1.1.8",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.10",
+      "revision": "1.0.12",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "17cd6e807ae10cbe8bbd1917493e977eca805ca51ccd94669f5d5f6cb32085f6",
-      "size_bytes": 81224
+      "sha256": "1462efcbb35f05f2ad96e2338dfb1426bbf146f7ae562c57c6a0b13d9fe798f7",
+      "size_bytes": 91729
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 619
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.6"
+      "revision": "1.1.8"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -87,6 +87,18 @@
       "path": "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json",
       "sha256": "9eb7c69d0aefaf2da23b24fda7c8e5d3614f6703fbbd1816cab398d46d194313",
       "size_bytes": 724
+    },
+    "process_graphs/worker-adapter/deterministic-attempt.json": {
+      "revision": "1.0.1",
+      "path": "process_graphs/worker-adapter/deterministic-attempt.json",
+      "sha256": "345987bbbafa6ad3453bf18182d44071be64f8c3a62242a67bab392b73dcfa61",
+      "size_bytes": 8879
+    },
+    "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json",
+      "sha256": "4be125b6c9cbc7c1a213effdd34fb4dd7ac586cd196f2c9b9d9e7cf1546ade03",
+      "size_bytes": 753
     }
   }
 }

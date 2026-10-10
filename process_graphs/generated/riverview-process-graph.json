@@ -2083,6 +2083,258 @@
         }
       ],
       "edges": []
+    },
+    {
+      "graph_id": "rv:worker-adapter:deterministic-attempt",
+      "graph_revision": "1.0.1",
+      "component_id": "WORKER-ADAPTER",
+      "workflow_id": "deterministic-attempt.v1",
+      "diagram_order": 7,
+      "source_references": [
+        "src/riverview_core/worker_adapter/adapter.py",
+        "src/riverview_core/worker_adapter/migrations/0001_worker_attempts.sql",
+        "tests/test_worker_adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_FLOW.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/development/M2.1-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+      ],
+      "nodes": [
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:request",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Deterministic worker request",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:authenticate",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Verify random credential digest, active registration, and scope",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/worker_adapter/migrations/0001_worker_attempts.sql"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:auth-fail",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Reject invalid token, capability, or assignment authority scope",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:lease",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Require current M1.4 assignment fencing generation",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:lease-jump",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "Resolve lease and fencing contract in M1.4 scheduler",
+          "jump_target_id": "rv:assignment-scheduler:independent-claims:start-check",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:begin",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Persist attributable attempt before execution",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/worker_adapter/migrations/0001_worker_attempts.sql"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:compute",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Run deterministic local SHA-256 capability",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:complete-check",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Recheck current lease before durable result commit",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:lost",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Persist lease_lost attempt and reject stale result",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/worker_adapter/migrations/0001_worker_attempts.sql"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:result",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Persist result, digest, and successful attempt status",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/worker_adapter/migrations/0001_worker_attempts.sql"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:loss-query",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Expose unfinished attempts for worker-loss detection",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:request",
+          "to": "rv:worker-adapter:deterministic-attempt:authenticate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:authenticate",
+          "to": "rv:worker-adapter:deterministic-attempt:auth-fail",
+          "type": "diagnostic_branch",
+          "label": "Credential, capability, or scope rejected"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:authenticate",
+          "to": "rv:worker-adapter:deterministic-attempt:lease",
+          "type": "runtime_transition",
+          "label": "Authorized"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:lease",
+          "to": "rv:worker-adapter:deterministic-attempt:begin",
+          "type": "runtime_transition",
+          "label": "Current lease"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:lease-jump",
+          "to": "rv:assignment-scheduler:independent-claims:start-check",
+          "type": "jump",
+          "label": "Follow current M1.4 lease validation"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:begin",
+          "to": "rv:worker-adapter:deterministic-attempt:compute",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:compute",
+          "to": "rv:worker-adapter:deterministic-attempt:complete-check",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:complete-check",
+          "to": "rv:worker-adapter:deterministic-attempt:lost",
+          "type": "diagnostic_branch",
+          "label": "Lease expired or fenced"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:complete-check",
+          "to": "rv:worker-adapter:deterministic-attempt:result",
+          "type": "runtime_transition",
+          "label": "Current lease"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:begin",
+          "to": "rv:worker-adapter:deterministic-attempt:loss-query",
+          "type": "diagnostic_branch",
+          "label": "Process stops before result commit"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:lease",
+          "to": "rv:assignment-scheduler:independent-claims:start-check",
+          "type": "prerequisite",
+          "label": "M1.4 lease table/token contract; not a runtime call"
+        }
+      ]
     }
   ],
   "node_registry": [
@@ -2179,6 +2431,17 @@
     "rv:runtime-baseline:commissioning:storage",
     "rv:runtime-baseline:commissioning:systemd",
     "rv:runtime-baseline:commissioning:tty-failure",
-    "rv:steward-dashboard:status:ingest"
+    "rv:steward-dashboard:status:ingest",
+    "rv:worker-adapter:deterministic-attempt:auth-fail",
+    "rv:worker-adapter:deterministic-attempt:authenticate",
+    "rv:worker-adapter:deterministic-attempt:begin",
+    "rv:worker-adapter:deterministic-attempt:complete-check",
+    "rv:worker-adapter:deterministic-attempt:compute",
+    "rv:worker-adapter:deterministic-attempt:lease",
+    "rv:worker-adapter:deterministic-attempt:lease-jump",
+    "rv:worker-adapter:deterministic-attempt:loss-query",
+    "rv:worker-adapter:deterministic-attempt:lost",
+    "rv:worker-adapter:deterministic-attempt:request",
+    "rv:worker-adapter:deterministic-attempt:result"
   ]
 }

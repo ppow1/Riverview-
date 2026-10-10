@@ -1,0 +1,23 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "checkout.md": {
+      "path": "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/checkout.md",
+      "revision": "1.0.0",
+      "size_bytes": 2113,
+      "sha256": "efe759a869bf6032578388c141d97f64a82ab78c10a803b889fd2f481a97c572"
+    },
+    "test_results.json": {
+      "path": "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json",
+      "revision": "1.0.0",
+      "size_bytes": 753,
+      "sha256": "4be125b6c9cbc7c1a213effdd34fb4dd7ac586cd196f2c9b9d9e7cf1546ade03"
+    },
+    "unittest.log": {
+      "path": "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/unittest.log",
+      "revision": "1.0.0",
+      "size_bytes": 12493,
+      "sha256": "587bf5660c4629e551b7a31dd75222223a41c198b5fcfe5738753e47b5fa4532"
+    }
+  }
+}
