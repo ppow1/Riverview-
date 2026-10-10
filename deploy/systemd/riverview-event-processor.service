@@ -1,0 +1,50 @@
+# RIVERVIEW~ CONTROLLED CONFIGURATION
+# File: deploy/systemd/riverview-event-processor.service
+# Component: EVENT-PROCESSOR
+# Revision: 1.0.0
+# Purpose: Run the durable M1.3 event consumer under systemd supervision
+# Execution Model: Continuous service; bounded retry with restart recovery
+# Observability: Structured JSON in the systemd journal; cursor in PostgreSQL
+# Dependencies: PostgreSQL 16; riverview_core; systemd credential delivery
+# Authority: Advances assignment intake only; no external work or secret logging
+# Changed: 2026-10-10 UTC | RV-M1.3-002 | Add isolated supervised processor unit
+# Contracts: docs/components/EVENT_PROCESSOR.md
+# Tests: tests/test_event_processor.py
+# History: New file; Git and .riverview-backups/manifest.jsonl
+[Unit]
+Description=Riverview M1.3 durable assignment event processor
+After=postgresql.service
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=riverview
+Group=riverview
+WorkingDirectory=/opt/riverview-event-processor
+Environment=PYTHONPATH=/opt/riverview-event-processor/src
+Environment="RIVERVIEW_PG_DSN=host=127.0.0.1 port=5432 dbname=riverview user=riverview_core application_name=riverview-event-processor"
+Environment=RIVERVIEW_PG_SCHEMA=riverview_dev
+Environment=RIVERVIEW_PROCESSOR_ID=assignment-intake.v1
+RuntimeDirectory=riverview-event-processor
+RuntimeDirectoryMode=0700
+LoadCredential=pgpass:/etc/riverview/pgpass
+ExecStart=/opt/riverview-event-processor/.venv/bin/python /opt/riverview-event-processor/scripts/run_event_processor.py
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET
+TimeoutStartSec=20
+
+[Install]
+WantedBy=multi-user.target

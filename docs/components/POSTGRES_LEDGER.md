@@ -1,7 +1,7 @@
 <!--
 Riverview~ Controlled Document
 File: docs/components/POSTGRES_LEDGER.md
-Revision: 1.0.4
+Revision: 1.0.5
 Migration: ENG-REV-002
 -->
 # PostgreSQL assignment ledger — component contract
@@ -20,6 +20,8 @@ Authority references are stored, not validated. `verified=True` is an untrusted 
 
 ## Persistence, idempotency, and concurrency
 Psycopg 3 uses autocommit for reads; explicit transactions group each state mutation and corresponding event atomically. `SELECT ... FOR UPDATE` serializes changes to one assignment; advisory transaction locks serialize duplicate idempotency keys. Unique constraints protect event identifiers and idempotency keys. A failed event insert rolls back its state change. Idempotency replay compares assignment, event type, payload, actor, authority, correlation, and payload schema; conflicting reuse is rejected. Integration tests confirm causality and state survive close/reopen. This is not a benchmark or comprehensive concurrency proof.
+
+Before inserting any event, the writer also takes one transaction-scoped event-log advisory lock and holds it until commit. PostgreSQL identity values are allocated before commit; without this lock, a higher sequence could commit and be checkpointed while a lower sequence remains uncommitted, causing a global consumer cursor to skip it. The lock makes event sequence visibility monotonic across committed ledger writes. It serializes event appends and limits write throughput; M1.4 must measure and revisit this design before scaling.
 
 ## Schema
 `schema_migrations`: version (PK), immutable source-file SHA-256 checksum, applied timestamp.
