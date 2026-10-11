@@ -1,0 +1,20 @@
+{
+  "artifact_sha256": "d4922d9db60d0d3eb68f3d2652532e4b80b9b11471a060817ae5cd274ca9447d",
+  "artifact_stored_bytes": 98,
+  "attempt_id": "8047ad40-17c4-4be8-a815-94370876c9be",
+  "credentials_or_source_bodies_included": false,
+  "isolated_schema": "rvtest_35558cc21da946469339d77412a873eb",
+  "observed_at_utc": "2026-10-11T05:11:42.172797+00:00",
+  "postgres_version": "PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit",
+  "progressing_assignment_id": "worker-cycle-3eabd18fefae444b99958f8cfdfbc610",
+  "progressing_final_state": "completed",
+  "repository_commit": "39ab8fba161fb2ae1d658024ae86a807be7cc0e5",
+  "task_id": "RV-M3.3-REAL-PROVIDER-PARALLEL",
+  "verification_decision": "ACCEPTED",
+  "verifier_id": "verifier-repository-parallel-9d7383ac4b15499c818625a4b91f3c14",
+  "waiting_assignment_id": "worker-cycle-b859d8a8c9214a1fac9d67de317b7cbe",
+  "waiting_contract_ref": "repo://riverview/unregistered.v1",
+  "waiting_final_state": "blocked",
+  "waiting_knowledge_status": "NO_MATCH",
+  "worker_id": "worker-repository-parallel-b402b2473b154763946946b3f40d2299"
+}

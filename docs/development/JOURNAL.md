@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.59
+**Document Revision:** 1.0.60
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -1084,3 +1084,27 @@ status and ledger counts are under
 `evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050604Z-7a9ff46/`.
 No shared DB state, identity, grant, assignment or worker changed. M3.3 remains
 blocked at missing DB-enforced authority integration and has no live provider.
+
+## 2026-10-11 UTC — RV-M3.3-REAL-PROVIDER-PARALLEL / isolation and acceptance proof
+
+Added a PostgreSQL integration combining the actual repository provider with
+two independently claimable assignments. In the disposable PostgreSQL 16.15
+cluster, the first assignment's unsupported contract returned `NO_MATCH`, was
+persisted at `WAITING_FOR_EVIDENCE`, and remained blocked. The same worker's next
+poll completed a separate pinned-contract assignment through artifact creation;
+a distinct verifier accepted it. The artifact is 98 bytes, SHA-256
+`d4922d9db60d0d3eb68f3d2652532e4b80b9b11471a060817ae5cd274ca9447d`; assignment,
+attempt, verifier and status identifiers are in the sanitized evidence report.
+The focused test passed and the complete isolated PostgreSQL suite passed
+143/143, zero failures/errors/skips. The `rvtest_*` schema count was zero after
+tests, and the socket-only cluster stopped with a completed fast shutdown.
+Canonical graph check passed at 13 workflows / 235 nodes and the new evidence
+is referenced from its no-match, wait and verified nodes.
+
+The first optional evidence query failed because it filtered on a nonexistent
+`worker_results.assignment_id`; inspection confirmed the table keys by attempt.
+The fixture cleanup ran. The corrected query joins through `worker_attempts`
+and the focused retest passed. This failed attempt and fix are retained in the
+evidence bundle rather than omitted. M3.3 remains blocked on live
+database-enforced Steward authority; no live identity, grant, assignment,
+provider or service was changed by this experiment.

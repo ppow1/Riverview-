@@ -1,0 +1,37 @@
+{
+  "database": "PostgreSQL 16.15 socket-only disposable cluster",
+  "file_revision": "1.0.0",
+  "focused_test": {
+    "exit_code": 0,
+    "failed": 0,
+    "name": "test_real_provider_no_match_waits_while_peer_artifact_is_independently_verified",
+    "passed": 1
+  },
+  "full_suite": {
+    "command": "RIVERVIEW_TEST_PG_DSN=<socket-only disposable PostgreSQL 16 DSN> PYTHONPATH=src python3 -m unittest discover -s tests -v",
+    "duration_seconds": 62.647,
+    "errors": 0,
+    "exit_code": 0,
+    "failed": 0,
+    "passed": 143,
+    "skipped": 0
+  },
+  "host": "Camrui isolated test environment",
+  "isolated_postgresql": {
+    "shutdown": "Fast shutdown completed; cluster stopped",
+    "socket_only": true,
+    "test_schemas_remaining": 0,
+    "version": "16.15"
+  },
+  "observed_at_utc": "2026-10-11T05:12:52Z",
+  "process_graph": {
+    "graphs": 13,
+    "nodes": 235,
+    "status": "PASS"
+  },
+  "remaining_test_schemas": 0,
+  "scope": "Isolated demonstration only; no shared identity/grant/assignment or live worker configuration",
+  "shared_runtime_modified": false,
+  "source_commit": "39ab8fba161fb2ae1d658024ae86a807be7cc0e5",
+  "task_id": "RV-M3.3-REAL-PROVIDER-PARALLEL"
+}

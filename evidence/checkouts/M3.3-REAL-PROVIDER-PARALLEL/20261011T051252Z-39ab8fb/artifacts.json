@@ -1,0 +1,43 @@
+{
+  "artifacts": {
+    "failed-attempt.json": {
+      "path": "evidence/checkouts/M3.3-REAL-PROVIDER-PARALLEL/20261011T051252Z-39ab8fb/failed-attempt.json",
+      "revision": "1.0.0",
+      "sha256": "6161e92bed31f71d72d5e43d01b4a95b4077815fdef65792bcbd88a029b9c824",
+      "size_bytes": 796
+    },
+    "full-suite.log": {
+      "path": "evidence/checkouts/M3.3-REAL-PROVIDER-PARALLEL/20261011T051252Z-39ab8fb/full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "5db5e85e603b31c502f07c14e8b3fce01cbb7cead1c0f2961c7e25e280bb0cf3",
+      "size_bytes": 23893
+    },
+    "process-graph-check.json": {
+      "path": "evidence/checkouts/M3.3-REAL-PROVIDER-PARALLEL/20261011T051252Z-39ab8fb/process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "7ef484a32e77e50a8ec660890e84895ae3184316d32fde9057eb65322a125b37",
+      "size_bytes": 55
+    },
+    "remaining-test-schemas.txt": {
+      "path": "evidence/checkouts/M3.3-REAL-PROVIDER-PARALLEL/20261011T051252Z-39ab8fb/remaining-test-schemas.txt",
+      "revision": "1.0.0",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "size_bytes": 2
+    },
+    "run.json": {
+      "path": "evidence/checkouts/M3.3-REAL-PROVIDER-PARALLEL/20261011T051252Z-39ab8fb/run.json",
+      "revision": "1.0.0",
+      "sha256": "7a973b0436bed9a1363634658a181972030ed49c3ce2534951122bed1729ba47",
+      "size_bytes": 1185
+    },
+    "worker-verifier-evidence.json": {
+      "path": "evidence/checkouts/M3.3-REAL-PROVIDER-PARALLEL/20261011T051252Z-39ab8fb/worker-verifier-evidence.json",
+      "revision": "1.0.0",
+      "sha256": "d184879435430fe96c5c065e9ed1c104558db7f4513eb0a1ecffa9a0f40dcb6b",
+      "size_bytes": 1163
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "source_commit": "39ab8fba161fb2ae1d658024ae86a807be7cc0e5",
+  "task_id": "RV-M3.3-REAL-PROVIDER-PARALLEL"
+}
