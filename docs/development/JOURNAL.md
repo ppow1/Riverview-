@@ -1,8 +1,16 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.61
+**Document Revision:** 1.0.63
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-SCHEDULER-DIAGNOSTICS / safe operator diagnosis
+
+On `codex/m4.1-db-privilege-boundary` at `fe4aa3cf5919485c5c5620d76a5ec766213b289f`, confirmed PR #20 remains open/draft and exact-head CI run 38115573864 passed. The shared PostgreSQL/CME/event-processor/dashboard/notification services remained active. Reviewed the scheduler cookbook and identified that its generic “query ready assignments and lease expiries” instruction lacked a concrete bounded read-only query and decision table. Added those diagnostics with an explicit isolated-schema boundary: M1.4 has not been deployed into `riverview_dev`.
+
+Preserved predecessor bytes and checksums for the cookbook, dashboard route test, operations record, and journal before changes. The first focused unittest selector named a nonexistent test class and returned exit 1 before running tests. Corrected the selector to `DashboardHTTPTests`; focused HTML route test passed 1/1. A private socket-only PostgreSQL 16 cluster on port 55486 ran the complete suite: 133 passed, zero failures/errors/skips. The suite left zero `rvtest_` schemas/roles; the cluster was fast-stopped and its disposable directory removed. A separate isolated cluster executed the documented migration and lease queries against one synthetic ready assignment/current lease and returned the expected safe metadata; explicit fixture teardown left zero test schemas. Graph validation reported 12 workflows/226 nodes PASS, controlled revision audit had no findings, and compileall returned exit 0. Immutable logs/checksums are linked in `docs/development/OPERATIONS-COOKBOOK-001_REVISION_RECORD.md` and under `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T054342Z-scheduler-docs/`.
+
+No live shared-schema, credential, role, service, assignment, or worker state changed. M4.1 remains isolated-engineering PASS / live commissioning OPEN, M3.3 remains blocked on real live authorization and knowledge preflight, and PR #20 remains unmerged. Next safe work: preserve the tested docs route through a compatible versioned package and continue M4.1 contract/commissioning preparation without changing the shared database boundary.
 
 ## 2026-10-11 UTC — RV-M3.2-001 / durable visual notification design
 

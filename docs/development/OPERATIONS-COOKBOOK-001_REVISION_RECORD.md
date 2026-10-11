@@ -2,10 +2,12 @@
 Riverview~ Controlled Document
 File: docs/development/OPERATIONS-COOKBOOK-001_REVISION_RECORD.md
 Component: RIVERVIEW-OPERATIONS
-File Revision: 1.0.1
+File Revision: 1.0.3
 Purpose: Record the consolidated operational guide deliverable and evidence
 Authority: Documentation and diagnostics; does not authorize shared-state mutation
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Record passing suite, live deployment, and browser evidence
+Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-SCHEDULER-DIAGNOSTICS | Record safe isolated scheduler diagnostics and regression results
+Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-SCHEDULER-QUERY-CLARIFICATION | Record executed query smoke and final cookbook revision
 History: Git and revision/backup manifest
 -->
 # RV-OPS-COOKBOOK-001 — Consolidated operations and recovery guide
@@ -40,6 +42,39 @@ The full suite passed `118` tests with `0` failures/errors/skips on isolated Pos
 
 The two earlier disposable-cluster failures and their socket-permission/missing-role corrections are retained in `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T034600Z-9f752a7/failed-attempts.md`. The live database remained read-only during this work. The documentation references actual commissioning records for M1.2 ledger/backup, M1.3 event processor, and M2.4 monitor. The historic M3.1 worker result was a bounded deterministic hash task with independent verification and is explicitly not represented as generalized autonomous engineering or operational Grace.
 
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-SCHEDULER-DIAGNOSTICS
+
+Expanded `ASSIGNMENT_SCHEDULER_COOKBOOK.md` with bounded read-only queue,
+lease-generation, event-causality and migration inspection, interpretation of
+ready/current/expired/running states, stale-token recovery, and escalation
+criteria. The guide explicitly limits these scheduler queries to a known
+disposable schema because M1.4 is not deployed to shared `riverview_dev`.
+Added a dashboard route regression that requires the new headings, table, and
+code block to render through the safe Markdown endpoint.
+
+Verification used a private Unix-socket-only PostgreSQL 16 cluster at port
+55486 in `/tmp`; no shared database or installed service was changed. The
+documented migration and lease queries were executed against disposable schema
+`rvtest_scheduler` after applying the reviewed ledger and scheduler fixtures
+and creating one synthetic ready assignment with a current lease. The read-only
+output showed the migration checksums, worker/generation/expiry and causal event
+metadata without objective or payload; explicit teardown left zero `rvtest_`
+schemas. Full suite: 133 passed, zero failures/errors/skips. The focused dashboard document
+route passed 1/1; process graph check passed (12 workflows/226 nodes),
+revision audit passed with no findings, and compileall exited 0. Fixture
+cleanup reported zero `rvtest_` schemas and roles; the cluster was fast-stopped
+and its exact temporary directory removed. An initial test selector used a
+nonexistent unittest class name and exited 1 before any test ran; the selector
+was corrected to `DashboardHTTPTests` and the intended route test passed.
+Exact logs and checksums are retained at
+`evidence/checkouts/OPERATIONS-COOKBOOK/20261011T054342Z-scheduler-docs/`.
+
+This change improves isolated scheduler diagnosis only. It does not imply M1.4
+deployment, M3.3 acceptance, a live worker, or a change to the shared ledger.
+
 ## Revision history
 
 - **1.0.0 — 2026-10-11:** Initial task record.
+- **1.0.1 — 2026-10-11:** Record consolidated guide commissioning and dashboard deployment.
+- **1.0.2 — 2026-10-11:** Add the scheduler claim/lease diagnosis and route evidence.
+- **1.0.3 — 2026-10-11:** Record query smoke evidence and final cookbook revision.
