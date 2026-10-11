@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.23
+# Revision: 1.0.24
 # Purpose: Verify scoped dispatch, fail-closed knowledge, independent outcomes, and recovery
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL test database
 # Authority: Creates and drops only unique rvtest_* schemas
-# Changed: 2026-10-10 UTC | RV-M2.4-001 | Verify knowledge timeout with synchronization instead of a brittle latency bound
+# Changed: 2026-10-11 UTC | RV-M3.3-REPOSITORY-KNOWLEDGE | Execute real repository grounding through the worker and verifier
 # Contracts: docs/development/M2.3-001_REVISION_RECORD.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -145,15 +145,69 @@ class WorkerAdapterTests(unittest.TestCase):
             capabilities or ["deterministic.sha256.v1"],
             scope or self.scope)
 
-    def ready_assignment(self, *, scope=None, objective="objective:sha256"):
+    def ready_assignment(self, *, scope=None, objective="objective:sha256", contract_ref=None):
         assignment_id = "worker-cycle-" + uuid4().hex
         authority = scope or self.scope
         self.ledger.create(assignment_id, "engineering", f"create-{assignment_id}",
                            authority_ref=authority, objective_ref=objective,
-                           actor_id="resident:test")
+                           actor_id="resident:test", contract_ref=contract_ref)
         self.ledger.transition(assignment_id, "ready", "intake", f"ready-{assignment_id}",
                                actor_id="event-processor")
         return assignment_id
+
+    def test_pinned_repository_provider_drives_real_worker_artifact_and_verification(self):
+        import subprocess
+        from riverview_core.worker_adapter import ContinuousWorker
+        from riverview_core.worker_adapter.repository_knowledge import RepositoryKnowledgeProvider
+        from riverview_core.worker_adapter.verifier import DeterministicSha256Verifier
+
+        repository = Path(__file__).resolve().parents[1]
+        commit = subprocess.run(["git", "-C", str(repository), "rev-parse", "HEAD"],
+                                check=True, capture_output=True, text=True).stdout.strip()
+        provider = RepositoryKnowledgeProvider(repository, commit)
+        contract_ref = RepositoryKnowledgeProvider.WORKER_CONTRACT
+        assignment_id = self.ready_assignment(
+            objective="objective:hash-current-worker-contract", contract_ref=contract_ref)
+        worker_id = "worker-repository-" + uuid4().hex
+        worker_credential = self.worker.register_worker(
+            worker_id, ["deterministic.sha256.v1"], self.scope)
+
+        def artifact_action(assignment, grounding):
+            self.assertEqual(assignment["contract_ref"], contract_ref)
+            self.assertEqual(grounding.status.value, "VERIFIED")
+            return grounding.value["documents"][0]["content"]
+
+        run = ContinuousWorker(
+            self.worker, worker_id, worker_credential, knowledge=provider,
+            action=artifact_action, action_effect_class="retry_safe").run_once()
+        self.assertEqual(run["status"], "AWAITING_VERIFICATION")
+        result = self.ledger.get(assignment_id)
+        self.assertEqual(result["state"], "awaiting_verification")
+
+        verifier_id = "verifier-repository-" + uuid4().hex
+        verifier_credential = self.worker.register_worker(
+            verifier_id, ["assignment.verify.v1"], self.scope)
+        verified = self.worker.verify_attempt(
+            assignment_id, run["attempt_id"], verifier_id, verifier_credential,
+            DeterministicSha256Verifier(),
+            idempotency_key="verify-repository-" + uuid4().hex)
+        self.assertEqual(verified.status.value, "ACCEPTED")
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "completed")
+        with self.worker.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT operation,status,source_references,source_revision,
+                                  source_sha256,retrieval_complete
+                           FROM knowledge_observations WHERE assignment_id=%s
+                           ORDER BY recorded_at""", (assignment_id,))
+            observations = cur.fetchall()
+        by_operation = {row["operation"]: row for row in observations}
+        for operation in ("ground_assignment", "preflight_action", "reground_assignment"):
+            self.assertEqual(by_operation[operation]["status"], "VERIFIED")
+            self.assertTrue(by_operation[operation]["retrieval_complete"])
+            self.assertTrue(by_operation[operation]["source_references"])
+            self.assertEqual(by_operation[operation]["source_revision"], commit)
+            self.assertEqual(len(by_operation[operation]["source_sha256"]), 64)
+        self.assertEqual(by_operation["record_learning"]["status"], "UNAVAILABLE")
 
     class VerifiedProvider:
         def __init__(self, value="objective:sha256"):

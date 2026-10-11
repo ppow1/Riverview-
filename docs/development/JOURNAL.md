@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.55
+**Document Revision:** 1.0.56
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -990,3 +990,22 @@ reports decoded screenshot bytes. This dashboard deployment does not commission
 the authority registry: the shared database has no authority tables, and no
 identity/grant was created. M4.1 remains IN PROGRESS; M3.3 remains blocked on
 deployable database-enforced authority and a real verified knowledge provider.
+
+## 2026-10-11 UTC — RV-M3.3-REPOSITORY-KNOWLEDGE / pinned source provider
+
+Implemented an actual read-only repository knowledge provider against the
+frozen v1 interface. It supports only the exact worker-adapter contract and
+`deterministic.sha256.v1`, pins content to a full source commit or verified
+immutable package checksums, returns bounded source text with references and a
+stable aggregate SHA-256, and fails closed for dirty/mismatched/oversized or
+unavailable sources. The read-only provider explicitly returns UNAVAILABLE for
+learning writes. Added unit and isolated PostgreSQL end-to-end coverage where
+the real provider grounds/preflights/regrounds, a worker creates a durable
+artifact from retrieved contract text, and a distinct verifier evaluates the
+result. No shared DB or runtime service was changed. This advances the M3.3
+knowledge dependency but does not satisfy the live commissioning gate or the
+separate institutional retrieval/learning provider requirement. Evidence and
+exact run counts will be recorded after the tests complete. Next: check the
+package-mode validation against the existing Camrui package builder, then run
+the focused and complete isolated PostgreSQL suites, graph synchronization,
+controlled revision audit, and exact-head CI.
