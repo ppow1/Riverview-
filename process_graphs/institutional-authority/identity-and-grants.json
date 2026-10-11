@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:institutional-authority:identity-and-grants",
-  "graph_revision": "1.0.1",
+  "graph_revision": "1.0.2",
   "component_id": "INSTITUTIONAL-AUTHORITY",
   "workflow_id": "identity-and-grants.v1",
   "diagram_order": 1,
@@ -224,7 +224,7 @@
     },
     {
       "id": "rv:institutional-authority:identity-and-grants:runtime-denial-verified",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "verification",
       "label": "Runtime SQL access denied and manager registry behavior verified",
       "source_references": [
@@ -233,7 +233,9 @@
       "documentation_references": [
         "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "evidence/checkouts/M4.1-DB-BOUNDARY/20261011T053022Z-411bff9/checkout.md"
+      ]
     },
     {
       "id": "rv:institutional-authority:identity-and-grants:boundary-preflight-failure",

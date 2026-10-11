@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.57
+**Document Revision:** 1.0.58
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -1026,3 +1026,12 @@ and tests passed. No issue involved the shared database.
 Next: capture commit-bound evidence, run GitHub CI, open (do not merge) a
 focused dependent PR, then continue M4.1 integration only after its documented
 role, credential, backup and compatibility prerequisites are met.
+
+Commit `411bff91f383f9a518cd5fda8116e6cbf7bc9c86` was rechecked on the exact
+committed tree: full PostgreSQL-backed suite 133/133, zero skipped/failed/
+errored; compileall exit 0; canonical graph 12 workflows/226 nodes; controlled
+revision audit zero findings; test schema and role cleanup zero. PostgreSQL
+test cluster stopped cleanly. Immutable logs, commands and SHA-256 manifest:
+`evidence/checkouts/M4.1-DB-BOUNDARY/20261011T053022Z-411bff9/`. The process
+graph verification node references the checkout report. M4.1 stays in
+progress and no shared live objects or services changed.
