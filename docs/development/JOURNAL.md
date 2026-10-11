@@ -1,8 +1,14 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.76
+**Document Revision:** 1.0.77
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-11 UTC — RV-OVERNIGHT-20261011-CHECKPOINT / M4.1 live bootstrap and M4.2 CI
+
+Completed scoped M4.1 database-boundary and Steward-token bootstrap verification on Camrui. A protected PostgreSQL dump restored into a disposable database with matching catalog counts; the disposable database was removed. Exact committed source `d3a0ed4fdec3061923964451ce2fccff18fadca7` passed preflight, apply and postflight. Bootstrap returned `BOOTSTRAPPED`, then `ALREADY_BOOTSTRAPPED` on a fresh process. The root-owned token was checked in-process against the digest and three scoped active grants without printing the token. Runtime registry reads and manager DDL were denied. `riverview_dev` remained at 9 migrations, 4 assignments and 11 events; PostgreSQL, event processor, CME monitor, notification dispatcher, dashboard and SSH stayed active. Evidence: `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T081700Z-live-bootstrap/`.
+
+M4.1 remains IN PROGRESS because no resident/worker assignment control consumes the registry. M3.3 still requires that integration and a real institutional knowledge provider. M4.2 is isolated engineering only; no reasoning provider/resident service exists. Exact-head CI run 38124331966 passed on `f807d95d688b8a486db34eb5aa4be9f78c8f998d`. PR #21 is open/draft/unmerged. No Steward acceptance beyond M3.1 is claimed. Next: correct the roadmap and M4.2 records, then continue safe independent cookbook and resident/model integration work without substituting mocks for live proof.
 
 ## 2026-10-11 UTC — RV-M4.2-001 / isolated resident reasoning verification
 
