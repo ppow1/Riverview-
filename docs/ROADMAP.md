@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.17
+**Document Revision:** 1.1.18
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-11
 **Component:** RV-ROADMAP  
@@ -155,6 +155,8 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 **M4.1 isolated boundary correction (2026-10-11):** The authority provisioner now requires a dedicated authority-only schema; rejects unrelated tables/functions and unsafe manager memberships; revokes `PUBLIC`/runtime schema access; and gives a NOINHERIT, no-membership manager only allowlisted table DML. The complete isolated PostgreSQL suite passed 135/135 (zero skips/failures/errors), teardown left zero test schemas/roles, process graph passed at 12 workflows / 227 nodes, the controlled revision audit had zero findings, and exact-head PR #20 CI passed (run 38119049973). A later helper diagnostic correction passed three focused PostgreSQL boundary tests and exact-head full CI run 38120458854; it now reports safe static reasons and SQLSTATE-only driver failures. A protected PostgreSQL 16.15 backup and disposable restore rehearsal also passed with matching catalog counts; the two failed preflight attempts and path correction are documented. Evidence is linked in `docs/development/M4.1-001_REVISION_RECORD.md` and `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T070500Z-backup-restore/`. A current read-only Camrui preflight confirms `riverview_authority`, its manager/owner roles and nine tables are absent; the mixed `riverview_dev` remains runtime-owned with 67 objects and runtime schema access. The helper fails closed and no `--apply` was run. This is not shared-schema commissioning: no role, credential, schema, identity, grant, worker state, or service was changed. Evidence: `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T070335Z-live-preflight/`. M4.1 remains IN PROGRESS; M3.3 still requires live authorization/worker integration and the separate real knowledge-provider requirement.
 
+**M4.1 fresh-schema migration correction (2026-10-11):** The authority test fixture had precreated the general Core migration ledger, masking that an empty dedicated registry schema cannot record migration checksums. Added idempotent authority migration 0000 to bootstrap that ledger and verified the package from an empty schema. Full isolated PostgreSQL suite passed 137/137 (zero skips/errors/failures), cleanup left zero test schemas/roles, the private test server stopped, graph check passed 12 workflows/228 nodes, compileall passed and revision audit reported zero issues. Evidence: `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T072000Z-fresh-schema-ledger/`. Shared Camrui remains unchanged; dedicated authority schema/roles and runtime integration are still absent. M4.1 remains IN PROGRESS and M3.3 remains the earliest unaccepted roadmap item.
+
 **Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. M3.3 remains the current unaccepted roadmap step; full Grace integration remains a later mandatory system-level gate.
 
 **M1.4 live dependency correction (2026-10-11 UTC):** A read-only `sudo -u postgres psql` inspection found the shared `riverview_dev.schema_migrations` row `0001_assignment_leases` applied at `2026-10-10 18:27:04.341175-04:00`, with SHA-256 `ce29c2994904f54706db883f61127bf05ee195ecbdce90e7242886e86711b717`, matching `src/riverview_core/assignment_scheduler/migrations/0001_assignment_leases.sql`. This was applied as part of the later worker and monitor migration chain. It corrects the earlier “no shared migration” statement without claiming M1.4 runtime commissioning; the standalone scheduler service, full M1.4 exit gate and Component DoD remain open. Exact read-only output is in `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T055428Z-pg-doc-safety/live-peer-inspection.txt`.
@@ -162,6 +164,7 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 ## Revision history
 
 - **1.1.17 — 2026-10-11:** Record safe M4.1 preflight diagnostics, focused PostgreSQL regressions and exact-head CI; preserve live no-schema blocker.
+- **1.1.18 — 2026-10-11:** Record fresh-dedicated-schema migration-ledger defect and 137-test isolated correction; preserve live provisioning and M3.3 gates.
 
 - **1.1.16 — 2026-10-11:** Record exact Camrui M4.1 catalog preflight and no-apply result; retain M4.1/M3.3 blockers.
 

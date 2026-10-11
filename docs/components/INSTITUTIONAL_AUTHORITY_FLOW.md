@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_FLOW.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.3
+File Revision: 1.0.4
 Purpose: Map root-local bootstrap, authorization, office state and recovery
 Authority: Deny when principal, credential, grant, or source state is uncertain
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -20,6 +20,7 @@ History: Git and .riverview-backups/manifest.jsonl
 flowchart LR
   subgraph g_rv_institutional_authority_identity_and_grants["INSTITUTIONAL-AUTHORITY / identity-and-grants.v1"]
     g_rv_institutional_authority_identity_and_grants_bootstrap_a48d6fd3(["Trusted root-local first Steward provisioning"])
+    g_rv_institutional_authority_identity_and_grants_migration_ledger_bootstrap_b3ae001f["Create authority checksum ledger when absent using idempotent migration 0000"]
     g_rv_institutional_authority_identity_and_grants_migration_ready_c4bb91b6["Reviewed migration is applied to the selected schema"]
     g_rv_institutional_authority_identity_and_grants_principal_create_ee96873b["Create durable principal identity and one-time credential"]
     g_rv_institutional_authority_identity_and_grants_grant_create_462e1d10["Steward issues an exact action and scope grant"]
@@ -38,6 +39,7 @@ flowchart LR
     g_rv_institutional_authority_identity_and_grants_boundary_preflight_failure_44d08c3b[["Mixed schema, unsafe ownership/membership or incomplete role precondition fails closed"]]
     g_rv_institutional_authority_identity_and_grants_dedicated_schema_gate_c3990d8d{"Schema contains only authority tables, migration ledger and append-only trigger?"}
   end
+  g_rv_institutional_authority_identity_and_grants_migration_ledger_bootstrap_b3ae001f -->|Migration runner applies checksum-ledger bootstrap before registry migration| g_rv_institutional_authority_identity_and_grants_migration_ready_c4bb91b6
   g_rv_institutional_authority_identity_and_grants_bootstrap_a48d6fd3 -->|prerequisite: Trusted DB bootstrap requires reviewed schema| g_rv_institutional_authority_identity_and_grants_migration_ready_c4bb91b6
   g_rv_institutional_authority_identity_and_grants_migration_ready_c4bb91b6 --> g_rv_institutional_authority_identity_and_grants_principal_create_ee96873b
   g_rv_institutional_authority_identity_and_grants_principal_create_ee96873b --> g_rv_institutional_authority_identity_and_grants_grant_create_462e1d10

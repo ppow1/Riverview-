@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.10
+File Revision: 1.0.11
 Purpose: Diagnose and safely recover institutional authority registry state
 Authority: Read-only diagnostics first; grant changes require authenticated Steward
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Keep evidence references as readable paths in safe dashboard renderer
@@ -11,6 +11,7 @@ Changed: 2026-10-11 UTC | RV-M4.1-LEAST-PRIVILEGE | Require dedicated registry s
 Changed: 2026-10-11 UTC | RV-M4.1-ROLE-SCOPE-REVIEW-FIX | Align operations checks with the isolated authority schema
 Changed: 2026-10-11 UTC | RV-M4.1-DEDICATED-SCHEMA-COOKBOOK | Use null-safe catalog checks for the not-yet-created authority schema
 Changed: 2026-10-11 UTC | RV-M4.1-PREFLIGHT-DIAGNOSTIC | Document safe boundary detail and SQLSTATE-only database failures
+Changed: 2026-10-11 UTC | RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER | Describe fresh-schema authority migration order and checksum ledger bootstrap
 Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER-DOC | Document NOINHERIT manager with no role memberships
 History: Git and .riverview-backups/manifest.jsonl
 -->
@@ -130,6 +131,19 @@ authority service can perform only its documented registry operations, and
 confirm every attempt (including denials) is retained in the authority event
 record. A passing isolated role experiment must not be reported as live
 commissioning.
+
+## Fresh dedicated authority schema migration
+
+The M4.1 migration directory is self-contained and must be applied only to the dedicated `riverview_authority` schema after the DBA has created that schema with its distinct NOLOGIN schema owner. `0000_authority_migration_ledger.sql` creates the local `schema_migrations` ledger if missing; `0001_institutional_authority.sql` creates the nine authority tables and append-only trigger. The existing checksum runner records both revisions and refuses drift. A compatible existing ledger is retained; no `riverview_dev` migration is implied.
+
+Isolated regression command (the test creates an empty unique schema with no ledger, applies both migrations, then verifies idempotent rerun):
+
+```sh
+RIVERVIEW_TEST_PG_DSN="$RIVERVIEW_TEST_PG_DSN" PYTHONPATH=src \
+  python3 -m unittest tests.test_institutional_authority -v
+```
+
+Expected: 7 tests pass, the ledger contains ordered `0000_authority_migration_ledger` and `0001_institutional_authority` checksums, and teardown removes the uniquely named schema. This proves the isolated fresh-schema migration path only; it does not authorize or claim shared Camrui deployment.
 
 ## Versioned privilege-boundary provisioner (isolated/controlled use)
 

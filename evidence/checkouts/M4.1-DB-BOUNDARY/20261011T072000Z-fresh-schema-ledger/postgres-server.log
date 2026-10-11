@@ -1,0 +1,40 @@
+2026-10-11 03:17:55.859 EDT [304596] LOG:  starting PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit
+2026-10-11 03:17:55.867 EDT [304596] LOG:  listening on Unix socket "/tmp/rv-m41-fullfresh-n7rnQQ/socket/.s.PGSQL.55443"
+2026-10-11 03:17:55.896 EDT [304599] LOG:  database system was shut down at 2026-10-11 03:17:52 EDT
+2026-10-11 03:17:55.913 EDT [304596] LOG:  database system is ready to accept connections
+2026-10-11 03:18:09.505 EDT [304809] ERROR:  institutional_authority_events is append-only
+2026-10-11 03:18:09.505 EDT [304809] CONTEXT:  PL/pgSQL function rvtest_6dd6d3305b9c4a09a5b5536c73c06b7c.reject_institutional_authority_event_mutation() line 3 at RAISE
+2026-10-11 03:18:09.505 EDT [304809] STATEMENT:  DELETE FROM "rvtest_6dd6d3305b9c4a09a5b5536c73c06b7c".institutional_authority_events
+2026-10-11 03:18:14.253 EDT [304853] ERROR:  permission denied for table institutional_principals
+2026-10-11 03:18:14.253 EDT [304853] STATEMENT:  SELECT count(*) FROM "rvtest_65c5d0cba32c485db34b2735494c435c".institutional_principals
+2026-10-11 03:18:14.266 EDT [304856] ERROR:  permission denied for table institutional_authority_events
+2026-10-11 03:18:14.266 EDT [304856] STATEMENT:  INSERT INTO "rvtest_65c5d0cba32c485db34b2735494c435c".institutional_authority_events
+	                    (event_id,event_type,actor_id) VALUES ($1,'principal_created','worker:boundary-test')
+2026-10-11 03:18:14.276 EDT [304857] ERROR:  must be owner of table authority_grants
+2026-10-11 03:18:14.276 EDT [304857] STATEMENT:  DROP TABLE "rvtest_65c5d0cba32c485db34b2735494c435c".authority_grants
+2026-10-11 03:18:14.290 EDT [304859] ERROR:  must be owner of table authority_grants
+2026-10-11 03:18:14.290 EDT [304859] STATEMENT:  DROP TABLE "rvtest_65c5d0cba32c485db34b2735494c435c".authority_grants
+2026-10-11 03:18:19.434 EDT [304920] ERROR:  notification_events is append-only
+2026-10-11 03:18:19.434 EDT [304920] CONTEXT:  PL/pgSQL function reject_notification_event_mutation() line 3 at RAISE
+2026-10-11 03:18:19.434 EDT [304920] STATEMENT:  UPDATE notification_events SET event_type='delivery_confirmed'
+2026-10-11 03:18:19.435 EDT [304920] ERROR:  notification_events is append-only
+2026-10-11 03:18:19.435 EDT [304920] CONTEXT:  PL/pgSQL function reject_notification_event_mutation() line 3 at RAISE
+2026-10-11 03:18:19.435 EDT [304920] STATEMENT:  DELETE FROM notification_events
+2026-10-11 03:18:22.970 EDT [304980] ERROR:  injected event failure
+2026-10-11 03:18:22.970 EDT [304980] CONTEXT:  PL/pgSQL function reject_transition_event() line 3 at RAISE
+2026-10-11 03:18:22.970 EDT [304980] STATEMENT:  INSERT INTO events
+	               (event_id, schema, event_type, occurred_at, recorded_at,
+	                assignment_id, actor_id, correlation_id, causation_id,
+	                idempotency_key, authority_ref, privacy_domain, payload_schema, payload)
+	               VALUES ($1, 'rv.event.v1', $2, $3, $4, $5, $6, $7, $8,
+	                       $9, $10, $11, $12, $13)
+2026-10-11 03:18:46.132 EDT [305399] ERROR:  completion requires persisted independent verification
+2026-10-11 03:18:46.132 EDT [305399] CONTEXT:  PL/pgSQL function require_independent_verification_for_completion() line 8 at RAISE
+2026-10-11 03:18:46.132 EDT [305399] STATEMENT:  UPDATE assignments SET state='completed' WHERE id=$1
+2026-10-11 03:18:56.382 EDT [304596] LOG:  received fast shutdown request
+2026-10-11 03:18:56.390 EDT [304596] LOG:  aborting any active transactions
+2026-10-11 03:18:56.396 EDT [304596] LOG:  background worker "logical replication launcher" (PID 304602) exited with exit code 1
+2026-10-11 03:18:56.401 EDT [304597] LOG:  shutting down
+2026-10-11 03:18:56.408 EDT [304597] LOG:  checkpoint starting: shutdown immediate
+2026-10-11 03:19:04.538 EDT [304597] LOG:  checkpoint complete: wrote 2106 buffers (12.9%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.115 s, sync=7.887 s, total=8.137 s; sync files=3311, longest=0.008 s, average=0.003 s; distance=27031 kB, estimate=27031 kB; lsn=0/2F59940, redo lsn=0/2F59940
+2026-10-11 03:19:04.558 EDT [304596] LOG:  database system is shut down

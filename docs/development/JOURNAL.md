@@ -1,8 +1,12 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.72
+**Document Revision:** 1.0.73
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-11 UTC — RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER / empty-schema acceptance defect
+
+The authority integration fixture had applied Core migrations before the dedicated authority migrations, masking a fresh-install defect: the dedicated schema had no `schema_migrations` checksum ledger. Added idempotent authority migration `0000_authority_migration_ledger.sql` and changed the registry fixture to begin with a genuinely empty schema. Focused registry tests passed 7/7; the full isolated PostgreSQL 16.15 suite passed 137/137 with zero skips, failures or errors. Test cleanup left zero fixture schemas/roles; the private cluster socket was absent after shutdown. Canonical graph synchronization/check passed (12 workflows/228 nodes), compileall passed and controlled revision audit had zero issues. Evidence is in `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T072000Z-fresh-schema-ledger/`. The live Camrui authority schema/roles remain absent; no shared database, identity, credential, service, assignment or deployment was changed. This repairs isolated installation readiness, not M4.1 commissioning or M3.3's live gate.
 
 ## 2026-10-11 UTC — RV-OPS-COOKBOOK-DASHBOARD-PACKAGE-ROLLBACK / live compatibility correction
 

@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.6
+File Revision: 1.0.7
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -10,6 +10,7 @@ Changed: 2026-10-11 UTC | RV-M4.1-DB-BOUNDARY | Specify separate schema, runtime
 Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ROUTE | Verify local dashboard documentation route for the expanded authority procedures
 Changed: 2026-10-11 UTC | RV-M4.1-LEAST-PRIVILEGE | Require a dedicated registry schema and scoped manager DML without owner or schema-create access
 Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER | Require the manager login to inherit no other database role grants
+Changed: 2026-10-11 UTC | RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER | Make authority migrations self-contained for a dedicated fresh schema
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
@@ -17,7 +18,7 @@ History: Git and .riverview-backups/manifest.jsonl
 **Milestone:** M4.1 — Office, occupant, implementation and state separation
 **Status:** Isolated PostgreSQL implementation in progress; not live commissioned
 **Implementation:** `src/riverview_core/institutional_authority/registry.py`
-**Migration:** `src/riverview_core/institutional_authority/migrations/0001_institutional_authority.sql`
+**Migrations:** `0000_authority_migration_ledger.sql` bootstraps the checksum ledger if absent; `0001_institutional_authority.sql` creates the registry tables and trigger.
 **Process graph:** `rv:institutional-authority:identity-and-grants`
 
 ## Identity model
@@ -134,6 +135,11 @@ See the [boundary procedure](INSTITUTIONAL_AUTHORITY_COOKBOOK.md#versioned-privi
 All routines are synchronous and transactional in the selected schema. No DDL
 runs at construction or service startup. Apply the versioned migration explicitly
 only after backup, restore rehearsal, owner/privilege review, and a release plan.
+The authority migration chain is self-contained for a fresh dedicated schema:
+`0000_authority_migration_ledger.sql` creates only `schema_migrations` if absent,
+then `0001_institutional_authority.sql` creates the registry. The runner records
+checksums and rejects later drift. Existing schemas with a compatible ledger are
+preserved; the bootstrap migration uses `IF NOT EXISTS`.
 
 See [the focused flow](INSTITUTIONAL_AUTHORITY_FLOW.md),
 [the operations cookbook](INSTITUTIONAL_AUTHORITY_COOKBOOK.md), and
