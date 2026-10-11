@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.49
+**Document Revision:** 1.0.50
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -898,3 +898,13 @@ open. M3.3 therefore remains BLOCKED at live authorization and real-knowledge
 preflight. The next safe step is to review CI on the M4.1 branch, then design and
 exercise the database privilege boundary on disposable PostgreSQL before any
 shared deployment.
+
+## 2026-10-11 UTC — RV-M4.1-001 / PR #18 CI result
+
+PR #18 was opened as draft at head `e0fd888a979e32b4f11c848b22a54fdf8c32bbb7`,
+base `codex/m3.2-durable-notifications`; no merge was requested or performed.
+GitHub controlled-checkout run 38111731347 passed on the exact head, including
+the full test suite, canonical graph synchronization, and controlled revision /
+predecessor verification. Evidence: `evidence/checkouts/M4.1/20261011T042919Z-e0fd888/github-ci.json`.
+M4.1 is still not operationally commissioned; live DB-role separation and
+worker/assignment integration remain open.
