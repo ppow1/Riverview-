@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.89
+**Document Revision:** 1.0.91
 **Component:** ENG-RECORDS
 **Date:** 2026-10-11 UTC
 
@@ -1314,3 +1314,22 @@ This supplies the canonical live evidence that two durable assignments progress
 independently and missing knowledge cannot authorize an action. Scoped M3.3
 technical criteria are ready for Steward review; formal acceptance and full
 Component DoD remain open.
+
+## 2026-10-11 UTC — RV-M4.1-GRACE-BOOTSTRAP-STATUS / controlled identity preparation
+
+Resumed M4.1 after the live M3.3 technical commissioning. Read-only Camrui
+inspection confirmed PostgreSQL 16.15, the dedicated authority schema, five
+existing principals, and no Grace office, implementation, or binding. The
+M3.3 intake, worker, verifier, and dashboard services remained active. Added a
+fixed-scope root-local Grace bootstrap helper and safety tests; six focused
+tests passed and the helper compiles. The full disposable-PostgreSQL test suite
+passed 190/190 (zero skips/errors/failures) in 57.095 seconds; process graph
+validation passed at 16 workflows/311 nodes, and the revision audit returned
+zero issues. A recovery defect found in review was
+corrected: if the database credential committed but token-file delivery was
+interrupted, retries revoke orphaned bearers before issuing a new credential.
+The interrupted-delivery regression passes. The provisioner has not been run
+against the live registry. Isolated full-suite, graph, revision, exact-head CI,
+and immutable-package verification remain pending; no live identity or service
+was changed. Next: run the full private-PostgreSQL suite and controlled audits,
+then commit/push before considering live provisioner execution.

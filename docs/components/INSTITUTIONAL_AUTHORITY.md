@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.17
+File Revision: 1.0.18
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -20,6 +20,7 @@ Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT | Specify isolated runtime e
 Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-RECORDS | Link migration 0002 in the component migration inventory
 Changed: 2026-10-11 UTC | RV-M4.1-LIVE-EXACT-GRANT | Record deployed migration and function-only runtime ACL
 Changed: 2026-10-11 UTC | RV-M4.1-MIGRATION-CONTRACT-CURRENT-STATE | Document checksum ledger/registry/function migration order
+Changed: 2026-10-11 UTC | RV-M4.1-GRACE-BOOTSTRAP-STATUS | Clarify historical M3.3 blockers and current additive Grace identity bootstrap work
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
@@ -130,6 +131,19 @@ M3.3 remains in progress pending that commissioning and recovery evidence.
 Direct inserts and invented authority scope strings remain prohibited. M4.1
 does not implement chat, work-order promotion, provider routing, or the Grace
 director.
+
+### Current milestone status (2026-10-11)
+
+The later live M3.3 commissioning recorded in `docs/development/M3.3-001_REVISION_RECORD.md`
+supersedes the pre-commissioning M3.3 blocker statements in historical notes
+below and in older M4.1 checkpoints. M3.3 scoped technical criteria are PASS
+and ready for Steward review; this does not claim formal acceptance or full
+Component DoD. Current M4.1 engineering adds a fixed-identity Grace office,
+resident principal, occupant, local-model binding and exact office-state grant
+through `scripts/provision_grace_resident.py`. Its implementation and six
+safety tests are in the working branch; no Grace identity has yet been created
+in the live registry, and this helper is not a resident service. It adds no
+assignment or tool grant. M4.1 and M4.4 remain in progress.
 
 ### Database privilege boundary package
 
