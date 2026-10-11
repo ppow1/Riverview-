@@ -1,0 +1,35 @@
+{
+  "artifacts": {
+    "focused-tests.log": {
+      "path": "focused-tests.log",
+      "revision": "1.0.0",
+      "sha256": "f477cded753054ef80130fb3616b6a3a92f9fd93fa4e790877a37dc258988c67",
+      "size_bytes": 822
+    },
+    "full-suite-rerun.log": {
+      "path": "full-suite-rerun.log",
+      "revision": "1.0.0",
+      "sha256": "b703c004cd5255ac119ff205d5451fbb879e5c9aba9c2308052c5f4fbeae2db6",
+      "size_bytes": 27055
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "e065c83cf4c2616437117b0509c9bb37313b93e398b4f7c134a120f5c50fc4b7",
+      "size_bytes": 25981
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "7a9e83e9b74f63269a7178069743a52c2bf73cb08c6cc5f40e72374682f1d90c",
+      "size_bytes": 55
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    }
+  },
+  "manifest_revision": "1.0.0"
+}
