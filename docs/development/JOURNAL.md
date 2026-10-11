@@ -1,11 +1,12 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.100
+**Document Revision:** 1.0.101
 **Component:** ENG-RECORDS
 **Date:** 2026-10-11 UTC
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
 **Changed:** 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-CHECKPOINT | Record persistent objective execution evidence and non-commissioning boundary
 **Changed:** 2026-10-11 UTC | RV-M4.1-M4.2-OCCUPANT-REPLACEMENT-INTEGRATION | Record isolated cross-component Grace identity replacement regression and limits
+**Changed:** 2026-10-11 UTC | RV-M4.1-CROSS-INTEGRATION-CI | Record exact-head CI run 38165302494 at commit 89752f7
 
 ## 2026-10-11 UTC — RV-M3.3-COURSE-CORRECTION / M3.3 commissioning and M4.2 checkpoint
 
@@ -1448,4 +1449,6 @@ private cluster was stopped. No shared or operational state was changed. This
 is an M4.1/M4.2 isolated integration proof only; live resident operation, model
 proposal, and full Component DoD remain open. M3.3 is technically ready for
 Steward review with formal acceptance pending. Next work remains M4.1 runtime
-integration in dependency order.
+integration in dependency order. Exact-head GitHub CI passed for source commit
+`89752f79487cf9178484db6451a4c36fd107b80a` in run
+[38165302494](https://github.com/ppow1/Riverview-/actions/runs/38165302494).
