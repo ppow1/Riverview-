@@ -1,0 +1,11 @@
+{
+  "status": 200,
+  "content_type": "text/html; charset=utf-8",
+  "title": "Repository Knowledge Cookbook",
+  "headings": 4,
+  "tables": 1,
+  "code_blocks": 2,
+  "escaped_source_comment": true,
+  "unsafe_script": false,
+  "raw_markdown": false
+}

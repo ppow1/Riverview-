@@ -1,11 +1,12 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.8
+File Revision: 1.0.9
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Link durable notification receipt diagnostics
+Changed: 2026-10-11 UTC | RV-M3.3-DASHBOARD-READINESS-CHECK | Document observed listener readiness interval after service restart
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -154,7 +155,8 @@ existing PostgreSQL credential.
    `LoadCredential=pgpass:/etc/riverview/pgpass` contract.
 4. Configure only `riverview-status-dashboard.service`, bound to `127.0.0.1:8766`.
 5. Check the versioned release/commit, service identity, loopback listener and
-   authenticated status read. Restart this unit once and repeat the check.
+   authenticated status read. Restart this unit once and use the bounded
+   readiness check below before concluding that it failed.
 6. On failure, stop only the dashboard service, restore its prior unit/link from
    the deployment record, reload systemd and restart only that unit. Confirm the
    event processor and baseline service did not change.
@@ -162,3 +164,36 @@ existing PostgreSQL credential.
 No shared database migration is required. Do not use the dashboard to apply one.
 The default source returns truthful unavailable/not-initialized states if its
 database tables are absent or unreadable.
+
+### Post-restart listener readiness
+
+During a controlled dashboard-only package update, `systemctl restart` returned
+while the new process was running but before port 8766 accepted its first
+connection. An immediate `curl` returned connection refused; within two seconds
+the listener was bound, the journal recorded `dashboard_started` with the
+expected commit, the unit had zero restarts and the shell route returned HTTP
+200. This is an observed listener-readiness interval, not a database or CME
+failure. Poll for a bounded ten seconds:
+
+```bash
+ready=0
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  if curl --fail --silent --max-time 2 http://127.0.0.1:8766/ -o /dev/null; then
+    ready=1
+    break
+  fi
+  sleep 1
+done
+test "$ready" -eq 1
+systemctl show riverview-status-dashboard.service -p ActiveState -p SubState -p MainPID -p NRestarts -p ExecMainStatus
+ss -ltn '( sport = :8766 )'
+```
+
+Expected: the bounded probe succeeds, `ActiveState=active`, `SubState=running`,
+`ExecMainStatus=0`, and only `127.0.0.1:8766` listens. If it does not become
+ready within ten seconds, stop repeating restarts; inspect the unit journal and
+process exit first. Restore the previous versioned dashboard symlink only if
+the new release is implicated, then restart only this unit and repeat the
+bounded check. Escalate if the failure persists, restarts recur, the listener
+binds outside loopback, or the service reports authentication/credential
+errors. Never weaken authentication or bind policy.

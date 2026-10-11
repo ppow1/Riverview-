@@ -1,0 +1,25 @@
+{
+  "task_id": "RV-OPS-COOKBOOK-LIVE-DOCS-DEPLOYMENT",
+  "source_commit": "a8f0d6276b45bf51f523825527f5f9e3c80cd250",
+  "previous_release": "/opt/riverview-status-dashboard/releases/c85faf9180a934e61d4e382a98687a09fbfaf0f3",
+  "active_release": "/opt/riverview-status-dashboard/releases/a8f0d6276b45bf51f523825527f5f9e3c80cd250",
+  "package_archive": "/var/lib/riverview/deployments/dashboard/a8f0d6276b45bf51f523825527f5f9e3c80cd250/source.tar.gz",
+  "package_sha256": "739e38068929f16a9bffcf165a0fec0e4a4587ee64987105313be8da3c9d607b",
+  "package_manifest_entries_verified": 1279,
+  "release_owner_mode": "root:root; files read-only; directories 0555",
+  "dashboard_unit_sha256": "6fb11ab264ccbba74d0213f4e3e8d00eba8ca847fde046757d7906cc18cf88a0",
+  "dashboard_service": "active/running; ExecMainStatus=0; NRestarts=0; loopback 127.0.0.1:8766",
+  "related_services": {
+    "postgresql@16-main.service": "active",
+    "riverview-event-processor.service": "active",
+    "riverview-cme-monitor.service": "active",
+    "riverview-notification-dispatcher.service": "active",
+    "riverview-status-dashboard.service": "active",
+    "ssh.service": "active"
+  },
+  "database_migration_applied": false,
+  "database_state_changed": false,
+  "credentials_changed": false,
+  "other_services_restarted": false,
+  "scope": "Docs-only source change; dashboard-only immutable release. Previous release retained for rollback."
+}

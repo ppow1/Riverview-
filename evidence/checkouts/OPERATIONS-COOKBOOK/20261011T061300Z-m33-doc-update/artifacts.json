@@ -1,0 +1,92 @@
+{
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "8067bb2acd0d3b1252216574e6ee9af49072147113a646f09d9715badfe95151",
+      "size_bytes": 1212
+    },
+    "compileall.txt": {
+      "path": "compileall.txt",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "dashboard-route.log": {
+      "path": "dashboard-route.log",
+      "revision": "1.0.0",
+      "sha256": "cfaaa5bd37186447fe5610a1b1ba73f877ad0a7f03c2653b7806724461df1139",
+      "size_bytes": 2327
+    },
+    "fixture-cleanup.txt": {
+      "path": "fixture-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "574e5ff26ed495457a5948897244e629113370b041c434923925183a6828c8f0",
+      "size_bytes": 32
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "5028b9506eee43ae21c4f8411b6442972587d64a2b2092baa8a3fa45beb1f38c",
+      "size_bytes": 23893
+    },
+    "live-service-check.txt": {
+      "path": "live-service-check.txt",
+      "revision": "1.0.0",
+      "sha256": "753ad047b01736104c5a127169893263e4ffcd75f9f65419b24509e5d9ab1710",
+      "size_bytes": 159
+    },
+    "postgres-initdb.log": {
+      "path": "postgres-initdb.log",
+      "revision": "1.0.0",
+      "sha256": "476ff0b1a53a245a5b6a5e5f25eca3e8d0efbe31e4e5c9ee54f6ca04d8ef00f0",
+      "size_bytes": 852
+    },
+    "postgres-server.log": {
+      "path": "postgres-server.log",
+      "revision": "1.0.0",
+      "sha256": "1c3f2132dba18e3350fbc2a51bd8df4d00c224edf90a012e06d075ce29a1c915",
+      "size_bytes": 3198
+    },
+    "postgres-start.log": {
+      "path": "postgres-start.log",
+      "revision": "1.0.0",
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "size_bytes": 52
+    },
+    "postgres-stop.log": {
+      "path": "postgres-stop.log",
+      "revision": "1.0.0",
+      "sha256": "f2c0faedef0a01ab1cc16ffea304c9d5e661dd13b60122fecd895a586042b79a",
+      "size_bytes": 64
+    },
+    "private-cluster-path.txt": {
+      "path": "private-cluster-path.txt",
+      "revision": "1.0.0",
+      "sha256": "602413af0c45f599beeef8c06a220731180f3354408a16c1daac88573f475ae1",
+      "size_bytes": 28
+    },
+    "process-graph.json": {
+      "path": "process-graph.json",
+      "revision": "1.0.0",
+      "sha256": "7ef484a32e77e50a8ec660890e84895ae3184316d32fde9057eb65322a125b37",
+      "size_bytes": 55
+    },
+    "source-diff-check.txt": {
+      "path": "source-diff-check.txt",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "test-target.txt": {
+      "path": "test-target.txt",
+      "revision": "1.0.0",
+      "sha256": "360728df9046bfe89bb92bf5e6627521f48838ee96c467d3f4d51b76b96fed87",
+      "size_bytes": 67
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-OPS-COOKBOOK-CROSS-BRANCH-DOC-PORT",
+  "source_commit": "9b6f1dc8acdf0038cda7d26b99886bab0acc2210",
+  "evidence_type": "isolated_verification_and_read_only_host_inspection"
+}

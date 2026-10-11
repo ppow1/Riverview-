@@ -1,0 +1,11 @@
+{
+  "task_id": "RV-M3.3-REAL-PROVIDER-EVIDENCE",
+  "observed_date_utc": "2026-10-11",
+  "attempted_test": "test_real_provider_no_match_waits_while_peer_artifact_is_independently_verified",
+  "test_file_revision": "1.0.27",
+  "result": "FAIL in optional evidence collection after execution and verification assertions had passed",
+  "exception": "psycopg.errors.UndefinedColumn: column r.assignment_id does not exist; worker_results is keyed by attempt_id",
+  "side_effects": "Disposable test schema cleaned by tearDown; no shared database or live service touched",
+  "corrective_action": "Join worker_results to worker_attempts USING (attempt_id), then filter on worker_attempts.assignment_id",
+  "retest": "PASS on test file revision 1.0.28; focused test and complete PostgreSQL suite passed"
+}

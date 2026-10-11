@@ -1,0 +1,35 @@
+{
+  "archive_manifest_and_shell_verification": "PASS",
+  "archive_sha256": "ef44cbb892f8807cf9777624af40304343ce47cca027d5e38c6f73f5e49fd07b",
+  "baseline_unit": "oneshot LoadState=loaded Result=success ExecMainStatus=0; not restarted or changed",
+  "browser_acceptance": "PASS; Firefox 156.0.1; completed/independently verified assignment projection; CME healthy; six attention items; zero browser errors; documentation and workflow views passed; navigation calls 63\u2013221 ms",
+  "current_dashboard_release": "ea90d6778a5b6f7e431839a4b1b75fdc1b2b0ad5",
+  "dashboard_listener": "127.0.0.1:8766 only",
+  "dashboard_shell_http": 200,
+  "dashboard_unit": "active/running; ExecMainStatus=0; NRestarts=0",
+  "file_revision": "1.0.0",
+  "live_counts": {
+    "assignments": 4,
+    "attempts": 1,
+    "cme_attention_events": 6,
+    "events": 11,
+    "independent_verifications": 1,
+    "migrations": 9,
+    "notifications": 3
+  },
+  "observed_at_utc": "2026-10-11T05:02:05Z",
+  "other_units": {
+    "postgresql@16-main.service": "active",
+    "riverview-cme-monitor.service": "active",
+    "riverview-event-processor.service": "active",
+    "riverview-notification-dispatcher.service": "active"
+  },
+  "previous_dashboard_release": "b63f6d85e7837caaa03265aa19164b57c818c8d9",
+  "provider_cookbook": "HTTP 200; formatted HTML with 4 headings, 1 table and 2 code blocks; source metadata comment hidden; zero scripts; no raw Markdown",
+  "release_owner_mode": "root:root 0555; package files root-owned and non-writable",
+  "restart_readiness_observation": "first immediate curl raced listener bind and returned connection refused; within two seconds service remained active with zero restarts, loopback listener accepted requests and shell returned HTTP 200; see cookbook rev 1.0.9 for bounded readiness polling",
+  "scope_limit": "Dashboard-only release. Repository provider remains isolated and is not configured in a live worker. No identity, grant, migration, worker or assignment changed.",
+  "shared_database_mutation": "none; metadata/count queries were in read-only transactions",
+  "source_commit": "ea90d6778a5b6f7e431839a4b1b75fdc1b2b0ad5",
+  "task_id": "RV-M3.3-DASHBOARD-KNOWLEDGE"
+}

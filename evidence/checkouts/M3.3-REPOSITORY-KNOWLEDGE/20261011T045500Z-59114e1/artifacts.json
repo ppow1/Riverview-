@@ -1,0 +1,43 @@
+{
+  "artifacts": {
+    "full-suite.log": {
+      "path": "evidence/checkouts/M3.3-REPOSITORY-KNOWLEDGE/20261011T045500Z-59114e1/full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "5344b6337cdb6fe7e0f1a160a4c11ae497a824187e279c6ed947d82a940fcd42",
+      "size_bytes": 23505
+    },
+    "process-graph-check.json": {
+      "path": "evidence/checkouts/M3.3-REPOSITORY-KNOWLEDGE/20261011T045500Z-59114e1/process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "7ef484a32e77e50a8ec660890e84895ae3184316d32fde9057eb65322a125b37",
+      "size_bytes": 55
+    },
+    "remaining-test-schemas.txt": {
+      "path": "evidence/checkouts/M3.3-REPOSITORY-KNOWLEDGE/20261011T045500Z-59114e1/remaining-test-schemas.txt",
+      "revision": "1.0.0",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "size_bytes": 2
+    },
+    "run.json": {
+      "path": "evidence/checkouts/M3.3-REPOSITORY-KNOWLEDGE/20261011T045500Z-59114e1/run.json",
+      "revision": "1.0.0",
+      "sha256": "dbbb1f2ca30d2046f52687b84ba6d1381dc796008a1a36bd812aa1ed21dcd0f4",
+      "size_bytes": 1549
+    },
+    "worker-integration.log": {
+      "path": "evidence/checkouts/M3.3-REPOSITORY-KNOWLEDGE/20261011T045500Z-59114e1/worker-integration.log",
+      "revision": "1.0.0",
+      "sha256": "9edb6e5b4140aafc3a33096046b1294f80b1416ef0f57c447df3f7f77e36cf9f",
+      "size_bytes": 305
+    },
+    "worker-verifier-evidence.json": {
+      "path": "evidence/checkouts/M3.3-REPOSITORY-KNOWLEDGE/20261011T045500Z-59114e1/worker-verifier-evidence.json",
+      "revision": "1.0.0",
+      "sha256": "b8e4e51a2f63d2256dcb5111bb02da3a71e7fe5e851af6c219a162e7b2a5840a",
+      "size_bytes": 3384
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "source_commit": "59114e1fefcc94c6eacf2f4b25f263c7d627c817",
+  "task_id": "RV-M3.3-REPOSITORY-KNOWLEDGE"
+}

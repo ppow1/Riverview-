@@ -2,10 +2,17 @@
 Riverview~ Controlled Document
 File: docs/development/OPERATIONS-COOKBOOK-001_REVISION_RECORD.md
 Component: RIVERVIEW-OPERATIONS
-File Revision: 1.0.1
+File Revision: 1.0.11
 Purpose: Record the consolidated operational guide deliverable and evidence
 Authority: Documentation and diagnostics; does not authorize shared-state mutation
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Record passing suite, live deployment, and browser evidence
+Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-CROSS-BRANCH-DOC-PORT | Port safe database, scheduler, and worker guidance without dropping M3.3 knowledge docs/graph
+Changed: 2026-10-11 UTC | RV-M1.4-LIVE-DEPENDENCY-CORRECTION | Correct live lease migration status while preserving the M1.4 acceptance boundary
+Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-DEPLOY-8DCEC2A | Commission updated operational cookbooks as a dashboard-only immutable release and verify in Firefox
+Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-LIVE-BACKUP-FAILURE | Restore the observed PostgreSQL private-path failure and its verified recovery procedure
+Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-SERVICE-INVENTORY-CORRECTION | Correct the six-unit live service inventory
+Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-LIVE-DOCS-DEPLOYMENT | Record exact-source package, deployment, rollback preservation and browser evidence
+Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-DEPLOY-8556598 | Deploy corrected current-state guide and verify live Firefox rendering
 History: Git and revision/backup manifest
 -->
 # RV-OPS-COOKBOOK-001 — Consolidated operations and recovery guide
@@ -40,6 +47,73 @@ The full suite passed `118` tests with `0` failures/errors/skips on isolated Pos
 
 The two earlier disposable-cluster failures and their socket-permission/missing-role corrections are retained in `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T034600Z-9f752a7/failed-attempts.md`. The live database remained read-only during this work. The documentation references actual commissioning records for M1.2 ledger/backup, M1.3 event processor, and M2.4 monitor. The historic M3.1 worker result was a bounded deterministic hash task with independent verification and is explicitly not represented as generalized autonomous engineering or operational Grace.
 
+## 2026-10-11 UTC — cross-branch operations documentation update
+
+Ported the password-safe PostgreSQL cookbook and expanded scheduler and worker
+diagnostics from the M4.1 operations work onto the existing M3.3 branch. Kept
+the branch's repository-knowledge provider cookbook, component contract, flow,
+canonical JSON graph, consolidated operations guide, and dashboard navigation.
+The dashboard HTTP class passed 12/12, including rendered headings, tables,
+code blocks, safe PostgreSQL examples, the shared lease-migration boundary,
+worker recovery guidance, repository-knowledge rendering, and resolution of
+every static-shell documentation link.
+
+A fresh local socket-only PostgreSQL 16.15 cluster ran the complete suite:
+**143 passed, zero failures/errors/skips**. Teardown reported zero `rvtest_*`
+schemas and roles; the cluster was stopped and removed. Canonical graph
+validation passed **13 workflows / 235 nodes**. Compileall and source diff
+check returned zero. Evidence is at
+`evidence/checkouts/OPERATIONS-COOKBOOK/20261011T061300Z-m33-doc-update/`.
+
+Read-only catalog evidence confirms `0001_assignment_leases` is present in
+`riverview_dev` as a later worker/monitor dependency, with checksum matching
+the checked-in SQL. This does not represent standalone M1.4 scheduler
+commissioning. No shared data changed. These documents are committed on the
+M3.3 source branch so a future package can preserve its knowledge documents
+and graph. Deployment has not yet been attempted or claimed.
+
 ## Revision history
 
 - **1.0.0 — 2026-10-11:** Initial task record.
+- **1.0.8 — 2026-10-11:** Port the safe PostgreSQL/scheduler/worker guidance onto M3.3, record full isolated testing and graph evidence, and retain no-deployment status.
+- **1.0.9 — 2026-10-11:** Record the exact-source M3.3 docs package deployment and live browser verification.
+- **1.0.10 — 2026-10-11:** Add the observed backup-path failure recovery and six-service diagnostics; record the follow-up exact-source deployment and browser evidence.
+- **1.0.11 — 2026-10-11:** Record deployment of the M3.3 current-state correction, exact package provenance, Firefox rendering, and retained rollback release.
+
+
+## 2026-10-11 UTC — dashboard cookbook update deployment
+
+The verified documentation update was installed from exact source commit
+`8dcec2ada7d811a78f6cb28a1b81e6f8f59b1a9b` as a root-owned, read-only
+immutable dashboard release. Archive SHA-256:
+`047ee8e2a0bf4e64415199c9bff07cb79961b03bcba1b08dd3f28ea2275b0f60`. The
+prior release `7a9ff46e11edc54b1ffe46f63962754e6d2da765` remains intact. Only
+`riverview-status-dashboard.service` was restarted; it returned active/running,
+`ExecMainStatus=0`, `NRestarts=0`. PostgreSQL, event processor, CME monitor,
+notification dispatcher, and SSH remained active. One immediate HTTP probe raced
+listener bind; a bounded retry returned HTTP 200 without a service restart or
+other corrective action.
+
+Firefox 156.0.1 verified the live projection and readable operations cookbook:
+healthy projection and CME, six persisted attention items, completed actual worker
+assignment `m31-real-worker-2533f1c7dd1c433c95bd2cfa8a314d7c`, one independent
+verification, 17 headings, 2 tables, 17 code blocks, 21 documentation-link
+requests all HTTP 200, zero unsafe links/scripts/browser errors, and graph view
+position correctly unknown. Navigation calls measured 88–143 ms in this sample.
+Evidence and checksums are in
+`evidence/checkouts/OPERATIONS-COOKBOOK/20261011T062000Z-deployment-8dcec2a/`.
+No shared database state, credentials, workers, or assignments were changed.
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-LIVE-DOCS-DEPLOYMENT / verified backup recovery and service inventory
+
+Restored the observed PostgreSQL backup-path permission failure and safe recovery procedure to the guide served by the dashboard. The procedure names the protected PostgreSQL-owned destination, exact verified archive checksum, read-only diagnosis, expected path/database results, disposable restore verification, and escalation conditions; it explicitly forbids relaxing `/var/lib/riverview` mode or restoring over the live database. The top-level health checks now include all six active Camrui units, including notification dispatcher.
+
+The guide updates passed exact-head full CI on `c85faf9180a934e61d4e382a98687a09fbfaf0f3` (run 38124689669) and `a8f0d6276b45bf51f523825527f5f9e3c80cd250` (run 38124873054). Both runs include complete tests, graph synchronization, and controlled revision audit. The package verifier passed at the latter commit; archive SHA-256 is `739e38068929f16a9bffcf165a0fec0e4a4587ee64987105313be8da3c9d607b`, with 1,279 manifest entries.
+
+Dashboard-only release `a8f0d6276b45bf51f523825527f5f9e3c80cd250` is active and root-owned/read-only; prior release `c85faf9180a934e61d4e382a98687a09fbfaf0f3` and a root-protected package archive remain for rollback. Dashboard unit is active/running with zero restarts on loopback 8766. PostgreSQL, event processor, CME monitor, notification dispatcher and SSH are active. Firefox 156.0.1 verified healthy/current projection and CME, the actual completed M3.1 assignment plus one independent verification, six attention items, 18 headings, 2 tables, 18 code blocks, 21/21 component links at HTTP 200, graph navigation and zero browser errors/unsafe links/scripts. Single-run navigation calls were 170/138/312/108 ms; not a paint or sustained performance benchmark. No database, credentials, assignment, worker or non-dashboard unit changed. Evidence: `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T082940Z-a8f0d62/`. PR #19 remains open/draft/unmerged; M3.3 remains unaccepted and blocked on live authority-consuming worker/service integration and real institutional knowledge capability.
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-DEPLOY-8556598 / corrected current status release
+
+Exact-head PR #19 commit `8556598b19a7da4aa191a600c767d79d24432afe` passed full controlled-checkout CI run `38125561042`. The exact-source full package was verified and installed into the new root-owned/read-only release `/opt/riverview-status-dashboard/releases/8556598b19a7da4aa191a600c767d79d24432afe`. Package archive SHA-256 is `82d75f7f688b30fccf9207d17e6bed81ed82dcb93a708eae82cd0633abb1910b`; its 1,304 packaged-file checksums passed. The prior `a8f0d62` release and root-only package archive (SHA-256 `739e38068929f16a9bffcf165a0fec0e4a4587ee64987105313be8da3c9d607b`) remain as rollback.
+
+Only `riverview-status-dashboard.service` was restarted. It returned active/running, `ExecMainStatus=0`, `NRestarts=0`, loopback `127.0.0.1:8766`; all six operational services remained active and the unit checksum did not change. Firefox 156.0.1 verified the real completed M3.1 assignment and one independent verification, healthy projection/CME, six persisted attention items, and the corrected cookbook rendered as formatted HTML with 18 headings, 2 tables, 18 code blocks, 21/21 documentation links HTTP 200, zero unsafe links/scripts/browser errors. Workflow graph showed 12 nodes, 11 edges, one decision, with live position truthfully unknown. Navigation calls were 59, 65, 91 and 102 ms, not full paint or a sustained benchmark. No database, credentials, assignment, worker or non-dashboard service changed. Evidence: `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T084139Z-8556598/`. PR #19 remains open/draft/unmerged; M3.3 remains blocked on application-level authority enforcement and live worker/provider commissioning.

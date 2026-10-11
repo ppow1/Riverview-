@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.8
+# Revision: 1.0.17
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL for integration class
 # Authority: Creates/drops only unique rvtest_* schemas; never accesses shared Riverview data
-# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Verify safe component links remain functional in the consolidated guide
+# Changed: 2026-10-11 UTC | RV-M3.3-KNOWLEDGE-COOKBOOK-DASHBOARD | Verify provider cookbook navigation and safe rendering
+# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-CROSS-BRANCH-DOC-PORT | Verify all shell docs links and render safe PostgreSQL/scheduler/worker guides
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -17,6 +18,7 @@
 
 import json
 import os
+import re
 import tempfile
 import sys
 import threading
@@ -145,6 +147,12 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn(b"Riverview", body)
         self.assertIn(b"/docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md", body)
+        doc_names = set(re.findall(rb'href="/docs/components/([A-Za-z0-9_-]+\.md)"', body))
+        self.assertGreater(len(doc_names), 1)
+        for name in sorted(doc_names):
+            doc_status, _, _ = self.request(
+                "GET", "/docs/components/" + name.decode("ascii"))
+            self.assertEqual(doc_status, 200, name.decode("ascii"))
         header_map = dict(headers)
         self.assertEqual(header_map["Cache-Control"], "no-store")
         self.assertIn("default-src 'none'", header_map["Content-Security-Policy"])
@@ -198,9 +206,44 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertIn(b"<pre><code", body)
         self.assertNotIn(b"Riverview~ Controlled Document", body)
         self.assertNotIn(b"<!--", body)
+        status, headers, body = self.request(
+            "GET", "/docs/components/POSTGRES_LEDGER_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", dict(headers)["Content-Type"])
+        self.assertIn(b"BEGIN READ ONLY", body)
+        self.assertIn(b"sudo -n -u postgres psql", body)
+        self.assertNotIn(b"PGPASSWORD=", body)
+        self.assertNotIn(b"postgresql://", body)
+        status, _, body = self.request(
+            "GET", "/docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        for evidence in (b"Read-only claim and lease inspection",
+                         b"no standalone M1.4 scheduler service",
+                         b"ce29c2994904f54706db883f61127bf05ee195ecbdce90e7242886e86711b717"):
+            self.assertIn(evidence, body)
+        status, _, body = self.request(
+            "GET", "/docs/components/WORKER_ADAPTER_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        self.assertIn(b"Failure and restart recovery", body)
+        self.assertIn(b"worker_recovery_records", body)
+        self.assertIn(b"<table>", body)
         status, _, body = self.request("GET", "/docs/components/../../README.md")
         self.assertEqual(status, 404)
         self.assertNotIn(b"README", body)
+
+    def test_repository_knowledge_cookbook_is_linked_and_rendered_safely(self):
+        status, _, shell = self.request("GET", "/")
+        self.assertEqual(status, 200)
+        self.assertIn(b"/docs/components/REPOSITORY_KNOWLEDGE_COOKBOOK.md", shell)
+        status, headers, body = self.request(
+            "GET", "/docs/components/REPOSITORY_KNOWLEDGE_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", dict(headers)["Content-Type"])
+        self.assertIn(b"<h1", body)
+        self.assertIn(b"<table>", body)
+        self.assertIn(b"<pre><code", body)
+        self.assertNotIn(b"Riverview~ Controlled Document", body)
+        self.assertNotIn(b"<!--", body)
 
     def test_canonical_graph_api_is_authenticated_and_never_fabricates_live_position(self):
         from urllib.parse import quote

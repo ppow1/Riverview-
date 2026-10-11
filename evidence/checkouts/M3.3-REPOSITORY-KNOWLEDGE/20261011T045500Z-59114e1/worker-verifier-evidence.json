@@ -1,0 +1,74 @@
+{
+  "artifact_sha256": "d4922d9db60d0d3eb68f3d2652532e4b80b9b11471a060817ae5cd274ca9447d",
+  "artifact_stored_bytes": 98,
+  "assignment_id": "worker-cycle-f01da85a9ddf4d7d90ad32ae8148fdde",
+  "attempt_id": "8056c197-d875-460b-b8a4-ba3621795030",
+  "credentials_or_source_bodies_included": false,
+  "final_assignment_state": "completed",
+  "isolated_schema": "rvtest_ffc2476a932840258a0caa7882a65f70",
+  "observed_at_utc": "2026-10-11T04:54:53.949532+00:00",
+  "postgres_version": "PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit",
+  "provider_operations": {
+    "ground_assignment": {
+      "retrieval_complete": true,
+      "source_references": [
+        "repo://docs/components/WORKER_ADAPTER.md",
+        "repo://src/riverview_core/worker_adapter/adapter.py",
+        "repo://src/riverview_core/worker_adapter/continuous.py",
+        "repo://src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
+        "repo://src/riverview_core/worker_adapter/repository_knowledge.py"
+      ],
+      "source_revision": "59114e1fefcc94c6eacf2f4b25f263c7d627c817",
+      "source_sha256": "034877ae3d6e8ca62b5e9713c3794d5379e0652aa25155fa6a45361d62eb265e",
+      "status": "VERIFIED"
+    },
+    "preflight_action": {
+      "retrieval_complete": true,
+      "source_references": [
+        "repo://docs/components/WORKER_ADAPTER.md",
+        "repo://src/riverview_core/worker_adapter/adapter.py",
+        "repo://src/riverview_core/worker_adapter/continuous.py",
+        "repo://src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
+        "repo://src/riverview_core/worker_adapter/repository_knowledge.py"
+      ],
+      "source_revision": "59114e1fefcc94c6eacf2f4b25f263c7d627c817",
+      "source_sha256": "034877ae3d6e8ca62b5e9713c3794d5379e0652aa25155fa6a45361d62eb265e",
+      "status": "VERIFIED"
+    },
+    "record_learning": {
+      "retrieval_complete": null,
+      "source_references": [],
+      "source_revision": null,
+      "source_sha256": null,
+      "status": "UNAVAILABLE"
+    },
+    "reground_assignment": {
+      "retrieval_complete": true,
+      "source_references": [
+        "repo://docs/components/WORKER_ADAPTER.md",
+        "repo://src/riverview_core/worker_adapter/adapter.py",
+        "repo://src/riverview_core/worker_adapter/continuous.py",
+        "repo://src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
+        "repo://src/riverview_core/worker_adapter/repository_knowledge.py"
+      ],
+      "source_revision": "59114e1fefcc94c6eacf2f4b25f263c7d627c817",
+      "source_sha256": "034877ae3d6e8ca62b5e9713c3794d5379e0652aa25155fa6a45361d62eb265e",
+      "status": "VERIFIED"
+    }
+  },
+  "repository_commit": "59114e1fefcc94c6eacf2f4b25f263c7d627c817",
+  "task_id": "RV-M3.3-REPOSITORY-KNOWLEDGE",
+  "verification_criteria": {
+    "attempt_succeeded": true,
+    "output_matches_input_digest": true,
+    "result_shape_valid": true,
+    "stored_result_digest_valid": true
+  },
+  "verification_decision": "ACCEPTED",
+  "verification_evidence_references": [
+    "urn:rv:worker-attempt:8056c197-d875-460b-b8a4-ba3621795030",
+    "repo://src/riverview_core/worker_adapter/adapter.py"
+  ],
+  "verifier_id": "verifier-repository-c97e40c85f6b424898767bd1ed78b920",
+  "worker_id": "worker-repository-18f063dbdbc84a1bb85bc8c4aa6c41e1"
+}

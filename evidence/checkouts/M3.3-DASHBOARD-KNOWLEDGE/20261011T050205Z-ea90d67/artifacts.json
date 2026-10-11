@@ -1,0 +1,49 @@
+{
+  "artifacts": {
+    "browser-acceptance.json": {
+      "path": "evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050205Z-ea90d67/browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "79c28eb06fe564cd6c0d01fe6816d9e8afba0a5e1894d4f7e9ef5d90e97e2abf",
+      "size_bytes": 3842
+    },
+    "cookbook-view.png": {
+      "path": "evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050205Z-ea90d67/cookbook-view.png",
+      "revision": "1.0.0",
+      "sha256": "ca033765521caf288d1582f0e00508ae8354c2c10220776ccdfec50d1eb9024a",
+      "size_bytes": 176770
+    },
+    "dashboard-systemd.txt": {
+      "path": "evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050205Z-ea90d67/dashboard-systemd.txt",
+      "revision": "1.0.0",
+      "sha256": "5c477bf465ead6dbbfeedf4e1797b5cf1ac3f86628f052ecfc4e1d93d1a0bac9",
+      "size_bytes": 80
+    },
+    "deployment.json": {
+      "path": "evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050205Z-ea90d67/deployment.json",
+      "revision": "1.0.0",
+      "sha256": "e4b09f5c881508db168c8f94ec6e91e2c6b724f6f07aa7fea14652147ce0fce7",
+      "size_bytes": 2189
+    },
+    "live-postgres-counts.txt": {
+      "path": "evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050205Z-ea90d67/live-postgres-counts.txt",
+      "revision": "1.0.0",
+      "sha256": "b3c1809202180224e06d077b2db145081ad426356c5b49d058e08cdb61ceccb6",
+      "size_bytes": 105
+    },
+    "provider-cookbook-render.json": {
+      "path": "evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050205Z-ea90d67/provider-cookbook-render.json",
+      "revision": "1.0.0",
+      "sha256": "fa917b42e5f4846db7bbc0c6f8cbf94e8329d4ab371b57edd36c1e3908884cbd",
+      "size_bytes": 247
+    },
+    "workflow-view.png": {
+      "path": "evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050205Z-ea90d67/workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "50c107e660334fb251f35f05af044bfbbccadf3d5bd4811b228abc8440c1c465",
+      "size_bytes": 234056
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "source_commit": "ea90d6778a5b6f7e431839a4b1b75fdc1b2b0ad5",
+  "task_id": "RV-M3.3-DASHBOARD-KNOWLEDGE"
+}

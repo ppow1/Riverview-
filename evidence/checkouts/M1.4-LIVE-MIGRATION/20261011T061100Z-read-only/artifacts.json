@@ -1,0 +1,26 @@
+{
+  "component_id": "ASSIGNMENT-SCHEDULER / POSTGRES LEDGER",
+  "files": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "8dfc9d90e33c8ae622b1207410cd3cf387b5fb025ce8ca8928329b9ac846e4ad",
+      "size_bytes": 1156
+    },
+    "live-peer-inspection.txt": {
+      "path": "live-peer-inspection.txt",
+      "revision": "1.0.0",
+      "sha256": "5c786c793525d9667b2de03eb52af7b2efa784084e8572ca89861817687f0869",
+      "size_bytes": 2254
+    },
+    "migration-sql-checksum.txt": {
+      "path": "migration-sql-checksum.txt",
+      "revision": "1.0.0",
+      "sha256": "d545628651322947bfa96b8eead4239974f0779d9fc0e1685a01925533caaadf",
+      "size_bytes": 144
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "source_commit": "efc687769ebe683adb5e0f3e3c14dbd15480f3e3",
+  "task_id": "RV-M1.4-LIVE-DEPENDENCY-CORRECTION"
+}

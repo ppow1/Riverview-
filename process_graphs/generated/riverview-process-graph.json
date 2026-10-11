@@ -1629,6 +1629,328 @@
       ]
     },
     {
+      "graph_id": "rv:repository-knowledge-provider:pinned-worker-contracts",
+      "graph_revision": "1.0.2",
+      "component_id": "REPOSITORY-KNOWLEDGE-PROVIDER",
+      "workflow_id": "pinned-worker-contracts.v1",
+      "diagram_order": 1,
+      "source_references": [
+        "src/riverview_core/worker_adapter/repository_knowledge.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
+        "tests/test_repository_knowledge.py",
+        "tests/test_worker_adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md",
+        "docs/components/REPOSITORY_KNOWLEDGE_FLOW.md",
+        "docs/components/REPOSITORY_KNOWLEDGE_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER.md",
+        "process_graphs/README.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M3.3-REPOSITORY-KNOWLEDGE/20261011T045500Z-59114e1/run.json",
+        "evidence/checkouts/M3.3-REAL-PROVIDER-PARALLEL/20261011T051252Z-39ab8fb/run.json"
+      ],
+      "nodes": [
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:intake",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Worker requests one registered contract reference",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:resolve",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Resolve exact allowlisted contract or action mapping",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:pin",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Require full source commit to match the approved pin",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:integrity",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Are all configured source bytes clean and checksum-valid?",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:read",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Read only the bounded fixed source set",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:verified",
+          "node_revision": "1.0.2",
+          "type": "measurement",
+          "label": "Return complete source refs, revision and aggregate hash",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M3.3-REPOSITORY-KNOWLEDGE/20261011T045500Z-59114e1/run.json",
+            "evidence/checkouts/M3.3-REAL-PROVIDER-PARALLEL/20261011T051252Z-39ab8fb/run.json"
+          ]
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:no-match",
+          "node_revision": "1.0.1",
+          "type": "failure",
+          "label": "Unknown contract or action returns NO_MATCH",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M3.3-REAL-PROVIDER-PARALLEL/20261011T051252Z-39ab8fb/run.json"
+          ]
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:unverified",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Pin or source integrity failure returns UNVERIFIED",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:incomplete",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Source exceeds a fixed retrieval bound",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:unavailable",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Git, package metadata or source read unavailable",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:wait",
+          "node_revision": "1.0.1",
+          "type": "escalation",
+          "label": "Non-VERIFIED lookups keep only this assignment waiting",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M3.3-REAL-PROVIDER-PARALLEL/20261011T051252Z-39ab8fb/run.json"
+          ]
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:worker-ground",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "Return source evidence to the existing worker grounding gate",
+          "jump_target_id": "rv:worker-adapter:deterministic-attempt:ground",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:worker-wait",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "Route non-verified outcomes to the existing assignment-local wait",
+          "jump_target_id": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:learning-unavailable",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Learning write is explicitly unavailable in this read-only provider",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:intake",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:resolve",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:resolve",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:no-match",
+          "type": "diagnostic_branch",
+          "label": "No registered contract/action"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:resolve",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:pin",
+          "type": "runtime_transition",
+          "label": "Known mapping"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:pin",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:integrity",
+          "type": "runtime_transition",
+          "label": "Exact commit"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:pin",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:unverified",
+          "type": "diagnostic_branch",
+          "label": "Commit mismatch"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:integrity",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:read",
+          "type": "runtime_transition",
+          "label": "Sources clean and checksummed"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:integrity",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:unverified",
+          "type": "diagnostic_branch",
+          "label": "Dirty/tampered bytes"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:read",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:verified",
+          "type": "verification"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:read",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:incomplete",
+          "type": "diagnostic_branch",
+          "label": "Size limit"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:read",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:unavailable",
+          "type": "diagnostic_branch",
+          "label": "Read/metadata failure"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:verified",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:worker-ground",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:worker-ground",
+          "to": "rv:worker-adapter:deterministic-attempt:ground",
+          "type": "jump"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:no-match",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:wait",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:unverified",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:wait",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:incomplete",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:wait",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:unavailable",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:wait",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:wait",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:worker-wait",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:worker-wait",
+          "to": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+          "type": "jump"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:learning-unavailable",
+          "to": "rv:worker-adapter:deterministic-attempt:learning",
+          "type": "documentation"
+        }
+      ]
+    },
+    {
       "graph_id": "rv:notification-delivery:visual-attention",
       "graph_revision": "1.0.0",
       "component_id": "NOTIFICATION-DELIVERY",
@@ -5235,6 +5557,20 @@
     "rv:postgres-ledger:migration:stop",
     "rv:postgres-ledger:migration:transaction",
     "rv:postgres-ledger:migration:update",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:incomplete",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:intake",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:integrity",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:learning-unavailable",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:no-match",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:pin",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:read",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:resolve",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:unavailable",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:unverified",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:verified",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:wait",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:worker-ground",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:worker-wait",
     "rv:runtime-baseline:commissioning:accept-decision",
     "rv:runtime-baseline:commissioning:accept-hold",
     "rv:runtime-baseline:commissioning:acceptance",

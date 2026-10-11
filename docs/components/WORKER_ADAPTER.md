@@ -1,6 +1,6 @@
 # Riverview~ worker adapter contract
 
-**Document Revision:** 1.0.5
+**Document Revision:** 1.0.6
 **Component:** WORKER-ADAPTER
 **Milestone:** M2.1–M2.3
 **Status:** M2.3 IN PROGRESS — isolated engineering; no service deployment
@@ -65,6 +65,33 @@ still applied only to isolated test schemas; no live/shared deployment is
 claimed. Learning capture records outcomes but does not auto-promote knowledge.
 The provider interface is injectable and the scheduler does not depend on its
 implementation.
+
+### Commit-pinned repository knowledge provider
+
+`RepositoryKnowledgeProvider` is a read-only, real-source implementation for a
+small exact allowlist. It currently supports the worker adapter contract and
+`deterministic.sha256.v1`. It reads fixed documentation and implementation files
+from a clean Git checkout whose full `HEAD` equals the configured commit, or
+from an immutable package whose `SOURCE_COMMIT` and `PACKAGE_SHA256SUMS` verify
+the same content. The result includes the source paths, exact commit, aggregate
+SHA-256, and the retrieved contract text. User-supplied paths and arbitrary
+actions are not accepted.
+
+This provider's `VERIFIED` status proves bounded source retrieval only; the
+worker still requires its independent authority and outcome-verification
+boundaries. Unknown references/actions return `NO_MATCH`, a contract/action
+mismatch returns `CONTRADICTORY`, dirty or mismatched source returns
+`UNVERIFIED`, oversized content returns `INCOMPLETE`, and read/metadata errors
+return `UNAVAILABLE`. `record_learning` is explicitly unavailable because this
+read-only provider has no learning store; the worker persists that result in
+the existing observation ledger. The provider is tested in isolation and in an
+actual disposable-PostgreSQL worker/verifier cycle but is not configured in a
+Camrui service. It is not the complete institutional knowledge/learning
+provider required for project completion.
+
+See the [provider contract](REPOSITORY_KNOWLEDGE_PROVIDER.md),
+[workflow graph](REPOSITORY_KNOWLEDGE_FLOW.md), and
+[troubleshooting cookbook](REPOSITORY_KNOWLEDGE_COOKBOOK.md).
 
 See the [workflow graph](WORKER_ADAPTER_FLOW.md),
 [operational cookbook](WORKER_ADAPTER_COOKBOOK.md), and

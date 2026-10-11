@@ -1,8 +1,12 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.55
+**Document Revision:** 1.0.73
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-CROSS-BRANCH-DOC-PORT / M1.4 live-state correction
+
+Carried the tested password-safe PostgreSQL, expanded scheduler/worker diagnostics, and dashboard documentation-route assertions onto the existing M3.3 branch so a future exact-source dashboard package preserves its repository-knowledge docs and canonical graph. Read-only catalog evidence confirms shared `riverview_dev` contains `0001_assignment_leases`, applied `2026-10-10 18:27:04.341175-04:00`, checksum `ce29c2994904f54706db883f61127bf05ee195ecbdce90e7242886e86711b717`, equal to the checked-in SQL. This corrects “not applied” records but does not assert a standalone M1.4 scheduler service or acceptance. Exact evidence is `evidence/checkouts/M1.4-LIVE-MIGRATION/20261011T061100Z-read-only/`. The comprehensive M3.3 operations guide and knowledge-provider docs/graph were retained. No database mutation was performed.
 
 ## 2026-10-11 UTC — RV-M3.2-001 / durable visual notification design
 
@@ -990,3 +994,175 @@ reports decoded screenshot bytes. This dashboard deployment does not commission
 the authority registry: the shared database has no authority tables, and no
 identity/grant was created. M4.1 remains IN PROGRESS; M3.3 remains blocked on
 deployable database-enforced authority and a real verified knowledge provider.
+
+## 2026-10-11 UTC — RV-M3.3-REPOSITORY-KNOWLEDGE / pinned source provider
+
+Implemented an actual read-only repository knowledge provider against the
+frozen v1 interface. It supports only the exact worker-adapter contract and
+`deterministic.sha256.v1`, pins content to a full source commit or verified
+immutable package checksums, returns bounded source text with references and a
+stable aggregate SHA-256, and fails closed for dirty/mismatched/oversized or
+unavailable sources. The read-only provider explicitly returns UNAVAILABLE for
+learning writes. Added unit and isolated PostgreSQL end-to-end coverage where
+the real provider grounds/preflights/regrounds, a worker creates a durable
+artifact from retrieved contract text, and a distinct verifier evaluates the
+result. No shared DB or runtime service was changed. This advances the M3.3
+knowledge dependency but does not satisfy the live commissioning gate or the
+separate institutional retrieval/learning provider requirement. Evidence and
+exact run counts will be recorded after the tests complete. Next: check the
+package-mode validation against the existing Camrui package builder, then run
+the focused and complete isolated PostgreSQL suites, graph synchronization,
+controlled revision audit, and exact-head CI.
+
+## 2026-10-11 UTC — RV-M3.3-REPOSITORY-KNOWLEDGE / worker verification
+
+The pinned provider integration ran against a disposable socket-only PostgreSQL
+16.15 cluster. One assignment was grounded, preflighted and regrounded from the
+commit-pinned repository contract. A distinct worker persisted a 98-byte result
+artifact and a separate verifier independently accepted its four deterministic
+criteria; assignment reached completed. IDs, SHA-256, source refs and operation
+statuses are in the sanitized `worker-verifier-evidence.json`. The schema was
+dropped, `rvtest_*` count was zero, and the private test cluster completed fast
+shutdown. The whole suite passed 141 tests with zero failures/errors/skips on
+59114e1. The canonical graph check passed at 13 workflows / 235 nodes. Eight
+provider unit tests, one end-to-end provider/worker/verifier test, compileall,
+and two dashboard cookbook navigation/rendering tests passed.
+
+Corrective notes: an initial staged whitespace check flagged Markdown hardbreak
+spaces in the two new provider documents; the exact predecessors were retained,
+the whitespace was removed in new file revisions, and the filtered source
+whitespace check then passed. An initial leftover-schema check incorrectly set
+`RIVERVIEW_TEST_PG_DSN` for `psql` rather than passing a libpq DSN; it failed with
+“role admin1 does not exist” and made no connection/state change. The corrected
+`psql "host=<private socket> port=55482 dbname=postgres user=admin1"` query
+returned zero remaining `rvtest_*` schemas. The private cluster's immediate
+shutdown checkpoint took about 16 seconds and completed; no system service was
+involved. M3.3 remains blocked on the live database authority boundary and
+commissioning; no shared database or live assignment was touched.
+
+## 2026-10-11 UTC — RV-M3.3-DASHBOARD-KNOWLEDGE / deployed docs and browser check
+
+Built Camrui package from exact commit `ea90d6778a5b6f7e431839a4b1b75fdc1b2b0ad5`
+(archive SHA-256 `ef44cbb892f8807cf9777624af40304343ce47cca027d5e38c6f73f5e49fd07b`);
+package manifest and Linux shell checks passed. Installed a root-owned,
+non-writable versioned dashboard release, retaining the preceding `b63f6d8`
+release. Restarted only `riverview-status-dashboard.service`. An immediate first
+HTTP probe raced listener bind and was refused; within two seconds the loopback
+listener returned HTTP 200, the process had exit status 0 and zero restarts, and
+Firefox 156.0.1 passed with healthy CME, six attention rows, no browser errors,
+valid graph projection, rendered cookbook, and 63–221 ms navigation calls. The
+repository-knowledge cookbook returned formatted safe HTML with four headings,
+one table, two code blocks, no scripts, and no raw Markdown. The bounded wait
+and troubleshooting response are documented in dashboard cookbook rev 1.0.9.
+
+Read-only PostgreSQL checks observed 9 migrations, 4 assignments, 11 events, 1
+attempt, 1 independent verification, 6 CME monitor events, and 3 notifications.
+PostgreSQL, event processor, CME monitor, notification dispatcher and dashboard
+remained active. The baseline oneshot retained `Result=success` and was not
+restarted. Evidence and screenshot hashes are indexed at
+`evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050205Z-ea90d67/`. The
+provider remains unconfigured for live work; no identity/grant, migration,
+worker, assignment, or shared database data was changed.
+
+Diagnostic corrections: one initial read-only SQL query used `USING
+(assignment_id)` although `assignments` names its key `id`; a second attempt had
+misquoted SQL literals. Both failed before any state change; corrected catalog
+inspection and an explicitly read-only count query succeeded. These command
+mistakes are not counted as functional-test failures.
+
+## 2026-10-11 UTC — RV-M3.3-DASHBOARD-DOCS-RELEASE / refreshed installed guide
+
+After the documentation changes passed exact-head CI at `7a9ff46`, built and
+verified the archive (SHA-256
+`09d54b2c1e64ee3ea454e09e8c279c01935012b646256b4c6fec2ed1a820f464`) and
+installed a second protected dashboard release while retaining `ea90d67` for
+rollback. The bounded listener-readiness loop passed. The dashboard unit is
+active with exit status 0 and zero restarts; PostgreSQL, event processor, CME
+monitor, dispatcher, and baseline oneshot result remain unchanged. Firefox
+156.0.1 verified the live assignment projection and graph, zero browser errors,
+21 documentation HTTP 200 link fetches including the repository provider
+cookbook, and 61–123 ms navigation calls. Read-only live counts remain 9
+migrations / 4 assignments / 11 events / 1 attempt / 1 verifier / 6 attention
+events / 3 notifications. The sanitized browser report, screenshots, service
+status and ledger counts are under
+`evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050604Z-7a9ff46/`.
+No shared DB state, identity, grant, assignment or worker changed. M3.3 remains
+blocked at missing DB-enforced authority integration and has no live provider.
+
+## 2026-10-11 UTC — RV-M3.3-REAL-PROVIDER-PARALLEL / isolation and acceptance proof
+
+Added a PostgreSQL integration combining the actual repository provider with
+two independently claimable assignments. In the disposable PostgreSQL 16.15
+cluster, the first assignment's unsupported contract returned `NO_MATCH`, was
+persisted at `WAITING_FOR_EVIDENCE`, and remained blocked. The same worker's next
+poll completed a separate pinned-contract assignment through artifact creation;
+a distinct verifier accepted it. The artifact is 98 bytes, SHA-256
+`d4922d9db60d0d3eb68f3d2652532e4b80b9b11471a060817ae5cd274ca9447d`; assignment,
+attempt, verifier and status identifiers are in the sanitized evidence report.
+The focused test passed and the complete isolated PostgreSQL suite passed
+143/143, zero failures/errors/skips. The `rvtest_*` schema count was zero after
+tests, and the socket-only cluster stopped with a completed fast shutdown.
+Canonical graph check passed at 13 workflows / 235 nodes and the new evidence
+is referenced from its no-match, wait and verified nodes.
+
+The first optional evidence query failed because it filtered on a nonexistent
+`worker_results.assignment_id`; inspection confirmed the table keys by attempt.
+The fixture cleanup ran. The corrected query joins through `worker_attempts`
+and the focused retest passed. This failed attempt and fix are retained in the
+evidence bundle rather than omitted. M3.3 remains blocked on live
+database-enforced Steward authority; no live identity, grant, assignment,
+provider or service was changed by this experiment.
+
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-CROSS-BRANCH-DOC-PORT / M3.3 integration verification
+
+The safe PostgreSQL, scheduler, and worker procedures and dashboard-link assertions
+are integrated on the existing M3.3 branch while retaining the repository
+knowledge docs and process graph. The complete suite passed 143 tests with zero
+failures, errors, or skips on a disposable PostgreSQL 16.15 cluster; cleanup
+reported no remaining test schemas or roles. Focused dashboard documentation tests
+passed 12/12, and canonical graph validation passed 13 workflows / 235 nodes.
+Compileall and source diff checks passed. Read-only host evidence confirms the
+active dashboard is still release `7a9ff46e11edc54b1ffe46f63962754e6d2da765`;
+no candidate was left deployed and no shared database changes were made. Exact
+logs and checksummed evidence are in
+`evidence/checkouts/OPERATIONS-COOKBOOK/20261011T061300Z-m33-doc-update/`.
+The branch still requires exact-head CI and package compatibility review before
+any deployment; PR #19 remains open and unmerged.
+
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-DEPLOY-8DCEC2A / live documentation release
+
+Committed the cookbook integration on PR #19 (`8dcec2a`), then exact-head CI
+passed (run 38117449506). An immutable dashboard-only package from that commit
+was installed at `/opt/riverview-status-dashboard/releases/8dcec2ada7d811a78f6cb28a1b81e6f8f59b1a9b`;
+package SHA-256 is recorded in the deployment evidence. The immediately preceding
+release remains available. Dashboard restarted with active/running state, exit
+status zero, and no systemd restarts. A bounded listener check returned 200; its
+first instantaneous attempt had raced socket bind, consistent with the prior
+observed startup behavior. Firefox verified live healthy CME/projection, the
+completed actual worker assignment and independent verification, six attention
+items, 21 documentation fetches returning 200, rendered safe Markdown and no
+browser errors. Full results are retained in the linked deployment evidence.
+No database, worker, credential, or other service changes occurred. PR #19 is
+open/unmerged; M3.3 live authority/provider commissioning remains outstanding.
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-LIVE-DOCS-DEPLOYMENT / observed failure, live release
+
+Added the observed PostgreSQL backup-path permission failure and verified safe recovery to the M3.3 operations guide without weakening `/var/lib/riverview` permissions. Corrected the top-level health commands to include all six current services, including the notification dispatcher. The renderer check passed; exact-head PR #19 CI passed on `c85faf9180a934e61d4e382a98687a09fbfaf0f3` (run 38124689669) and final source `a8f0d6276b45bf51f523825527f5f9e3c80cd250` (run 38124873054); each CI run includes the full suite, graph and controlled revision checks.
+
+Built and verified a full-SHA package (SHA-256 `739e38068929f16a9bffcf165a0fec0e4a4587ee64987105313be8da3c9d607b`; 1,279 manifest entries). Deployed dashboard-only release `a8f0d6276b45bf51f523825527f5f9e3c80cd250`, retaining previous release `c85faf9180a934e61d4e382a98687a09fbfaf0f3` and the root-protected package archive for rollback. Dashboard returned active/running, zero restarts, loopback 8766; PostgreSQL, event processor, monitor, notification dispatcher and SSH stayed active. Firefox 156.0.1 showed the real completed M3.1 assignment, healthy/current projection and CME, six attention items and one independent verification; 21 linked docs returned HTTP 200, with no unsafe links, scripts or browser errors. Workflow view showed 12 nodes, 11 edges, one decision, and live execution position correctly unknown. No database, credentials, assignments or non-dashboard units changed. Evidence: `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T082940Z-a8f0d62/`.
+
+PR #19 remains draft/open/unmerged; no M3.3 or later milestone acceptance is claimed. The live M4.1 authority registry/bootstrap still lacks a consuming resident/worker service; real institutional knowledge and Grace operational capability remain outstanding.
+
+## 2026-10-11 UTC — RV-OVERNIGHT-20261011-M33-CURRENT-STATE / authority status correction
+
+Reconciled the active M3.3 blocker and roadmap after scoped M4.1 live authority-boundary commissioning. The dedicated authority schema, root-local one-time Steward bootstrap, three scoped grants, access-denial checks, protected backup/restore, and service-preservation evidence are present at source commit `c9ab1e6048146006d13770f375fccfd2b33bc8f2`, PR #21, under `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T081700Z-live-bootstrap/`. This does not provide application authorization: worker and assignment paths do not consume the grant registry. The live repository provider is also not configured, and no general institutional provider is available. M3.3 remains blocked at those application-level integration and live commissioning requirements. Updated `docs/ROADMAP.md` to revision 1.1.16 and `docs/development/M3.3-001_REVISION_RECORD.md` to revision 1.0.7; historical pre-M4.1 observations remain marked as historical. No live database, credential, assignment, worker, or service was changed by this documentation correction. Exact graph, revision, suite, PR-head CI, and dashboard-doc rendering checks are pending.
+
+## 2026-10-11 UTC — RV-OVERNIGHT-20261011-M33-TEST-EVIDENCE / full PostgreSQL suite
+
+The canonical command `PYTHONPATH=src RIVERVIEW_TEST_PG_DSN=postgresql://admin1@/postgres?host=/tmp/riverview-test-pg-overnight/socket&port=55439 python3 -m unittest discover -s tests -v` passed **143/143**, with zero failures, errors or skips, against a new socket-only PostgreSQL 16.15 cluster initialized solely for this run. Database and role/schema cleanup checks both returned zero; the cluster was stopped and its generated data directory removed. The first attempt ran Python as OS user `postgres`; two pinned-provider tests errored because that account could not read the worktree's Git metadata. The corrected run executes as `admin1` against an isolated cluster, not the shared application database. A broad `pytest` probe also tried to collect an archived historical test outside `tests/` and failed import; the repository CI's documented `unittest discover -s tests` command is authoritative and passed. Graph validation passed (13 workflows / 235 nodes), controlled revision audit passed with zero findings, and `git diff --check` passed. Logs and exact hashes are in `evidence/checkouts/M3.3-CURRENT-STATE/20261011T083548Z-a8f0d62/`. PR #19 CI for the preceding source commit passed, but exact-head CI for this documentation checkpoint remains pending. No deployment or shared service/data change occurred.
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-DEPLOY-8556598 / live dashboard guide refresh
+
+After exact-head PR #19 CI run `38125561042` passed for commit `8556598b19a7da4aa191a600c767d79d24432afe`, built a package from committed blobs (archive SHA-256 `82d75f7f688b30fccf9207d17e6bed81ed82dcb93a708eae82cd0633abb1910b`, 1,304 checksum manifest entries; verifier PASS). Deployed the immutable root-owned release at `/opt/riverview-status-dashboard/releases/8556598b19a7da4aa191a600c767d79d24432afe`; prior release `a8f0d62` and protected archive remain available. Only the dashboard service was restarted; it returned active/running, zero restarts and exit status 0 on loopback 8766. PostgreSQL, event processor, CME monitor, notification dispatcher and SSH remained active. Systemd unit SHA-256 was unchanged. Firefox 156.0.1 observed healthy/current projection and CME, existing completed M3.1 assignment with independent verification, six attention items, formatted operations cookbook (18 headings, 2 tables, 18 code blocks), 21/21 linked docs HTTP 200, zero browser errors/unsafe links/scripts, and truthful unknown workflow position. Single-run navigation calls were 59–102 ms, not an end-to-end rendering benchmark. No shared database state, credential, worker or assignment changed. Evidence with artifact checksums: `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T084139Z-8556598/`. M3.3 remains blocked at application grant enforcement and live worker/provider commissioning; PR #19 is still draft/open/unmerged.

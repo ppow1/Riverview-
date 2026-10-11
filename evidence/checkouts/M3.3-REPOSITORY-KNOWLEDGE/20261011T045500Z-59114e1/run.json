@@ -1,0 +1,46 @@
+{
+  "file_revision": "1.0.0",
+  "focused_live-provider-worker-verifier": {
+    "command": "python3 -m unittest tests.test_worker_adapter.WorkerAdapterTests.test_pinned_repository_provider_drives_real_worker_artifact_and_verification -v",
+    "evidence_file": "worker-verifier-evidence.json",
+    "exit_code": 0,
+    "failed": 0,
+    "passed": 1
+  },
+  "full_suite": {
+    "command": "RIVERVIEW_TEST_PG_DSN=<socket-only disposable PostgreSQL 16 DSN> PYTHONPATH=src python3 -m unittest discover -s tests -v",
+    "errors": 0,
+    "exit_code": 0,
+    "failed": 0,
+    "passed": 141,
+    "skipped": 0
+  },
+  "host": "admin1-Default-string",
+  "isolated_postgresql": {
+    "cluster_shutdown": "Fast shutdown completed; private cluster stopped",
+    "major_version": 16,
+    "max_connections": 100,
+    "rvtest_schemas_remaining": 0,
+    "unix_socket_only": true
+  },
+  "limitations": [
+    "Repository provider is not configured in Camrui worker service.",
+    "No live authority integration or two-assignment M3.3 commissioning is claimed.",
+    "Read-only provider returns UNAVAILABLE for learning writes."
+  ],
+  "observed_at_utc": "2026-10-11T04:56:47.130501+00:00",
+  "os": "Linux-7.0.0-31-generic-x86_64-with-glibc2.39",
+  "process_graph": {
+    "graphs": 13,
+    "nodes": 235,
+    "status": "PASS"
+  },
+  "shared_runtime_modified": false,
+  "source_commit": "59114e1fefcc94c6eacf2f4b25f263c7d627c817",
+  "task_id": "RV-M3.3-REPOSITORY-KNOWLEDGE",
+  "unit_provider_tests": {
+    "evidence": "full-suite.log",
+    "failed": 0,
+    "passed": 8
+  }
+}

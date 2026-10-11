@@ -1,0 +1,2 @@
+root:root 700 /var/lib/riverview/deployments/dashboard/8556598b19a7da4aa191a600c767d79d24432afe
+root:root 600 /var/lib/riverview/deployments/dashboard/8556598b19a7da4aa191a600c767d79d24432afe/source.tar.gz
