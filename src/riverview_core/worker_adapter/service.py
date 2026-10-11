@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/service.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Validate systemd worker credentials and idempotent registry state
 # Execution Model: Shared startup preflight for supervised executor/verifier units
 # Observability: Safe identity/configuration errors without bearer disclosure
 # Dependencies: Python 3.10+; Psycopg; systemd credentials
 # Authority: Service identity and exact scope remain Steward-grant controlled
 # Changed: 2026-10-11 UTC | RV-M3.3-WORKER-SERVICE | Initial systemd service preflight
+# Changed: 2026-10-11 UTC | RV-M33-CREDENTIAL-NEWLINE | Accept exactly one file-terminating LF from protected credential provisioning
 # Contracts: docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_service.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -89,7 +90,7 @@ def prepare_database_credential(service_unit: str) -> str:
 def read_worker_credential(service_unit: str, credential_name: str) -> str:
     try:
         raw = _read_systemd_credential(credential_name, service_unit)
-        token = raw.decode("ascii")
+        token = raw.decode("ascii").removesuffix("\n")
     except UnicodeDecodeError:
         raise WorkerServiceConfigurationError("worker_credential_format_invalid") from None
     if not 32 <= len(token) <= 512 or any(character.isspace() for character in token):

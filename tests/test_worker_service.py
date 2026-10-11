@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_service.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Enforce service identity, package paths, credentials and unit boundaries
 # Execution Model: Local contract tests; PostgreSQL behavior is covered separately
 # Observability: Safe configuration failure codes and reviewed unit properties
@@ -13,6 +13,7 @@
 # Changed: 2026-10-11 UTC | RV-M33-ENGINEERING-ARTIFACT | Require shared private artifact state and custom verifier service contract
 # Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-TEST-CORRECTION | Assert imported capability definition rather than duplicated literal
 # Changed: 2026-10-11 UTC | RV-M33-VERIFIER-PACKAGE-ROOT | Require verifier service package-root pin
+# Changed: 2026-10-11 UTC | RV-M33-CREDENTIAL-NEWLINE | Cover the protected token file's single line terminator
 # Contracts: deploy/systemd/riverview-m33-worker.service; deploy/systemd/riverview-m33-verifier.service
 # Tests: This file
 # History: .riverview-backups/manifest.jsonl and Git
@@ -21,9 +22,11 @@
 
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 from riverview_core.worker_adapter.service import (
     WorkerServiceConfigurationError, _read_systemd_credential,
+    read_worker_credential,
 )
 
 
@@ -31,6 +34,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class WorkerServiceContractTests(unittest.TestCase):
+    def test_credential_reader_accepts_only_one_trailing_line_feed(self):
+        token = "t" * 64
+        with patch("riverview_core.worker_adapter.service._read_systemd_credential",
+                   return_value=(token + "\n").encode("ascii")):
+            self.assertEqual(read_worker_credential("riverview-m33-worker.service",
+                                                    "worker-token"), token)
+        for invalid in ((token + "\n\n").encode("ascii"),
+                        (token + "\r\n").encode("ascii"), b"\xff"):
+            with self.subTest(invalid=invalid[-2:]):
+                with patch("riverview_core.worker_adapter.service._read_systemd_credential",
+                           return_value=invalid):
+                    with self.assertRaises(WorkerServiceConfigurationError):
+                        read_worker_credential("riverview-m33-worker.service", "worker-token")
+
     def test_credential_loader_accepts_only_registered_service_units_and_names(self):
         for unit, name in (("unrelated.service", "pgpass"),
                            ("riverview-m33-worker.service", "unknown"),
