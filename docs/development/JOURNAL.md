@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.56
+**Document Revision:** 1.0.57
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -1009,3 +1009,29 @@ exact run counts will be recorded after the tests complete. Next: check the
 package-mode validation against the existing Camrui package builder, then run
 the focused and complete isolated PostgreSQL suites, graph synchronization,
 controlled revision audit, and exact-head CI.
+
+## 2026-10-11 UTC — RV-M3.3-REPOSITORY-KNOWLEDGE / worker verification
+
+The pinned provider integration ran against a disposable socket-only PostgreSQL
+16.15 cluster. One assignment was grounded, preflighted and regrounded from the
+commit-pinned repository contract. A distinct worker persisted a 98-byte result
+artifact and a separate verifier independently accepted its four deterministic
+criteria; assignment reached completed. IDs, SHA-256, source refs and operation
+statuses are in the sanitized `worker-verifier-evidence.json`. The schema was
+dropped, `rvtest_*` count was zero, and the private test cluster completed fast
+shutdown. The whole suite passed 141 tests with zero failures/errors/skips on
+59114e1. The canonical graph check passed at 13 workflows / 235 nodes. Eight
+provider unit tests, one end-to-end provider/worker/verifier test, compileall,
+and two dashboard cookbook navigation/rendering tests passed.
+
+Corrective notes: an initial staged whitespace check flagged Markdown hardbreak
+spaces in the two new provider documents; the exact predecessors were retained,
+the whitespace was removed in new file revisions, and the filtered source
+whitespace check then passed. An initial leftover-schema check incorrectly set
+`RIVERVIEW_TEST_PG_DSN` for `psql` rather than passing a libpq DSN; it failed with
+“role admin1 does not exist” and made no connection/state change. The corrected
+`psql "host=<private socket> port=55482 dbname=postgres user=admin1"` query
+returned zero remaining `rvtest_*` schemas. The private cluster's immediate
+shutdown checkpoint took about 16 seconds and completed; no system service was
+involved. M3.3 remains blocked on the live database authority boundary and
+commissioning; no shared database or live assignment was touched.

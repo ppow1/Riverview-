@@ -1630,7 +1630,7 @@
     },
     {
       "graph_id": "rv:repository-knowledge-provider:pinned-worker-contracts",
-      "graph_revision": "1.0.0",
+      "graph_revision": "1.0.1",
       "component_id": "REPOSITORY-KNOWLEDGE-PROVIDER",
       "workflow_id": "pinned-worker-contracts.v1",
       "diagram_order": 1,
@@ -1647,7 +1647,9 @@
         "docs/components/WORKER_ADAPTER.md",
         "process_graphs/README.md"
       ],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "evidence/checkouts/M3.3-REPOSITORY-KNOWLEDGE/20261011T045500Z-59114e1/run.json"
+      ],
       "nodes": [
         {
           "id": "rv:repository-knowledge-provider:pinned-worker-contracts:intake",
@@ -1716,7 +1718,7 @@
         },
         {
           "id": "rv:repository-knowledge-provider:pinned-worker-contracts:verified",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "measurement",
           "label": "Return complete source refs, revision and aggregate hash",
           "source_references": [
@@ -1725,7 +1727,9 @@
           "documentation_references": [
             "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "evidence/checkouts/M3.3-REPOSITORY-KNOWLEDGE/20261011T045500Z-59114e1/run.json"
+          ]
         },
         {
           "id": "rv:repository-knowledge-provider:pinned-worker-contracts:no-match",
