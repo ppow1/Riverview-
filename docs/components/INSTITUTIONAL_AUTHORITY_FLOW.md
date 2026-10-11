@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_FLOW.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.4
+File Revision: 1.0.5
 Purpose: Map root-local bootstrap, authorization, office state and recovery
 Authority: Deny when principal, credential, grant, or source state is uncertain
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -38,6 +38,11 @@ flowchart LR
     g_rv_institutional_authority_identity_and_grants_runtime_denial_verified_c2b31279["Runtime schema/table access denied; manager DML works without DDL or owner inheritance"]
     g_rv_institutional_authority_identity_and_grants_boundary_preflight_failure_44d08c3b[["Mixed schema, unsafe ownership/membership or incomplete role precondition fails closed"]]
     g_rv_institutional_authority_identity_and_grants_dedicated_schema_gate_c3990d8d{"Schema contains only authority tables, migration ledger and append-only trigger?"}
+    g_rv_institutional_authority_identity_and_grants_bootstrap_token_persist_48d47baa["Create or reuse and fsync the root-only bearer file before DB commit"]
+    g_rv_institutional_authority_identity_and_grants_bootstrap_record_commit_cbb111d7["Persist the initial Steward digest, exact grants and audit event transactionally"]
+    g_rv_institutional_authority_identity_and_grants_bootstrap_token_verify_6fd32a89["Verify persisted bearer authorizes exact bootstrap grant and only its digest is stored"]
+    g_rv_institutional_authority_identity_and_grants_bootstrap_error_51c2980d[["Bootstrap outcome unavailable or secret persistence failed; retain protected token and fail closed"]]
+    g_rv_institutional_authority_identity_and_grants_bootstrap_retry_6882465e["Resume with the same protected token after interruption"]
   end
   g_rv_institutional_authority_identity_and_grants_migration_ledger_bootstrap_b3ae001f -->|Migration runner applies checksum-ledger bootstrap before registry migration| g_rv_institutional_authority_identity_and_grants_migration_ready_c4bb91b6
   g_rv_institutional_authority_identity_and_grants_bootstrap_a48d6fd3 -->|prerequisite: Trusted DB bootstrap requires reviewed schema| g_rv_institutional_authority_identity_and_grants_migration_ready_c4bb91b6
@@ -60,6 +65,15 @@ flowchart LR
   g_rv_institutional_authority_identity_and_grants_transfer_protected_objects_ce82dd28 -->|verification| g_rv_institutional_authority_identity_and_grants_runtime_denial_verified_c2b31279
   g_rv_institutional_authority_identity_and_grants_dedicated_schema_gate_c3990d8d -->|Dedicated schema contains no unrelated objects| g_rv_institutional_authority_identity_and_grants_schema_owner_gate_a70328d4
   g_rv_institutional_authority_identity_and_grants_schema_owner_gate_a70328d4 -->|diagnostic_branch: Runtime/manager role or schema-owner relationship is unsafe| g_rv_institutional_authority_identity_and_grants_boundary_preflight_failure_44d08c3b
+  g_rv_institutional_authority_identity_and_grants_bootstrap_a48d6fd3 -->|Root-only commissioning helper| g_rv_institutional_authority_identity_and_grants_bootstrap_token_persist_48d47baa
+  g_rv_institutional_authority_identity_and_grants_migration_ready_c4bb91b6 -->|prerequisite: Dedicated migration and privilege boundary verified| g_rv_institutional_authority_identity_and_grants_bootstrap_token_persist_48d47baa
+  g_rv_institutional_authority_identity_and_grants_bootstrap_token_persist_48d47baa -->|File fsync precedes transaction| g_rv_institutional_authority_identity_and_grants_bootstrap_record_commit_cbb111d7
+  g_rv_institutional_authority_identity_and_grants_bootstrap_token_persist_48d47baa -->|diagnostic_branch: Unsafe path or persistence failure| g_rv_institutional_authority_identity_and_grants_bootstrap_error_51c2980d
+  g_rv_institutional_authority_identity_and_grants_bootstrap_record_commit_cbb111d7 -->|verification: Database commit succeeds| g_rv_institutional_authority_identity_and_grants_bootstrap_token_verify_6fd32a89
+  g_rv_institutional_authority_identity_and_grants_bootstrap_record_commit_cbb111d7 -->|diagnostic_branch: Transaction unavailable or ambiguous| g_rv_institutional_authority_identity_and_grants_bootstrap_error_51c2980d
+  g_rv_institutional_authority_identity_and_grants_bootstrap_error_51c2980d -->|recovery_route: Preserve token file; investigate DB result| g_rv_institutional_authority_identity_and_grants_bootstrap_retry_6882465e
+  g_rv_institutional_authority_identity_and_grants_bootstrap_retry_6882465e -->|Reuse existing token; never rotate on uncertain commit| g_rv_institutional_authority_identity_and_grants_bootstrap_token_persist_48d47baa
+  g_rv_institutional_authority_identity_and_grants_bootstrap_token_verify_6fd32a89 -->|Initial authority verified| g_rv_institutional_authority_identity_and_grants_complete_b22cd8fd
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

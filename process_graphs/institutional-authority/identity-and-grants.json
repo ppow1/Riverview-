@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:institutional-authority:identity-and-grants",
-  "graph_revision": "1.0.5",
+  "graph_revision": "1.0.6",
   "component_id": "INSTITUTIONAL-AUTHORITY",
   "workflow_id": "identity-and-grants.v1",
   "diagram_order": 1,
@@ -11,7 +11,8 @@
     "tests/test_institutional_authority.py",
     "src/riverview_core/institutional_authority/db_boundary.py",
     "scripts/provision_authority_boundary.py",
-    "tests/test_institutional_authority_boundary.py"
+    "tests/test_institutional_authority_boundary.py",
+    "scripts/bootstrap_authority_steward.py"
   ],
   "documentation_references": [
     "docs/components/INSTITUTIONAL_AUTHORITY.md",
@@ -278,6 +279,76 @@
         "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
       ],
       "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Create or reuse and fsync the root-only bearer file before DB commit",
+      "source_references": [
+        "scripts/bootstrap_authority_steward.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:bootstrap-record-commit",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Persist the initial Steward digest, exact grants and audit event transactionally",
+      "source_references": [
+        "src/riverview_core/institutional_authority/registry.py",
+        "scripts/bootstrap_authority_steward.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:bootstrap-token-verify",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Verify persisted bearer authorizes exact bootstrap grant and only its digest is stored",
+      "source_references": [
+        "scripts/bootstrap_authority_steward.py",
+        "tests/test_institutional_authority.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:bootstrap-error",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Bootstrap outcome unavailable or secret persistence failed; retain protected token and fail closed",
+      "source_references": [
+        "scripts/bootstrap_authority_steward.py",
+        "src/riverview_core/institutional_authority/registry.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:bootstrap-retry",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Resume with the same protected token after interruption",
+      "source_references": [
+        "scripts/bootstrap_authority_steward.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": []
     }
   ],
   "edges": [
@@ -398,6 +469,60 @@
       "to": "rv:institutional-authority:identity-and-grants:boundary-preflight-failure",
       "type": "diagnostic_branch",
       "label": "Runtime/manager role or schema-owner relationship is unsafe"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:bootstrap",
+      "to": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+      "type": "runtime_transition",
+      "label": "Root-only commissioning helper"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:migration-ready",
+      "to": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+      "type": "prerequisite",
+      "label": "Dedicated migration and privilege boundary verified"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+      "to": "rv:institutional-authority:identity-and-grants:bootstrap-record-commit",
+      "type": "runtime_transition",
+      "label": "File fsync precedes transaction"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+      "to": "rv:institutional-authority:identity-and-grants:bootstrap-error",
+      "type": "diagnostic_branch",
+      "label": "Unsafe path or persistence failure"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:bootstrap-record-commit",
+      "to": "rv:institutional-authority:identity-and-grants:bootstrap-token-verify",
+      "type": "verification",
+      "label": "Database commit succeeds"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:bootstrap-record-commit",
+      "to": "rv:institutional-authority:identity-and-grants:bootstrap-error",
+      "type": "diagnostic_branch",
+      "label": "Transaction unavailable or ambiguous"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:bootstrap-error",
+      "to": "rv:institutional-authority:identity-and-grants:bootstrap-retry",
+      "type": "recovery_route",
+      "label": "Preserve token file; investigate DB result"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:bootstrap-retry",
+      "to": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+      "type": "runtime_transition",
+      "label": "Reuse existing token; never rotate on uncertain commit"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:bootstrap-token-verify",
+      "to": "rv:institutional-authority:identity-and-grants:complete",
+      "type": "runtime_transition",
+      "label": "Initial authority verified"
     }
   ]
 }
