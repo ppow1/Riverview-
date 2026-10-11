@@ -5314,7 +5314,7 @@
     },
     {
       "graph_id": "rv:worker-adapter:deterministic-attempt",
-      "graph_revision": "1.0.8",
+      "graph_revision": "1.0.9",
       "component_id": "WORKER-ADAPTER",
       "workflow_id": "deterministic-attempt.v1",
       "diagram_order": 7,
@@ -5348,7 +5348,8 @@
         "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/acceptance.json",
         "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log",
         "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094446Z-cpu-e2e/acceptance.json",
-        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094446Z-cpu-e2e/failure_review.json"
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094446Z-cpu-e2e/failure_review.json",
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/acceptance.json"
       ],
       "nodes": [
         {
@@ -5873,7 +5874,8 @@
           ],
           "verification_evidence": [
             "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/acceptance.json",
-            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log"
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log",
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/acceptance.json"
           ]
         },
         {
@@ -5889,7 +5891,8 @@
           ],
           "verification_evidence": [
             "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/acceptance.json",
-            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log"
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log",
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/acceptance.json"
           ]
         },
         {
@@ -5922,7 +5925,8 @@
           ],
           "verification_evidence": [
             "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/acceptance.json",
-            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log"
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log",
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/acceptance.json"
           ]
         }
       ],

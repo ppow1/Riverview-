@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.84
+**Document Revision:** 1.0.85
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -10,7 +10,9 @@ Implemented an optional `local.inference.v1` worker action using the existing ex
 
 Built llama.cpp v0.6.0 from pinned commit `d81235049384534c167caea52b85a694f6103d14`; Qwen3-0.6B Q8_0 was sourced at immutable model revision `23749fefcc72300e3a2ad315e1317431b06b590a` and verified against publisher SHA-256 `9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031`. A successful actual-model run created two unique PostgreSQL assignments, claimed distinct leases in parallel, persisted `AUTH` and `RESOURCE` JSON results, passed independent exact-label verification, and completed both assignments. Model calls overlapped 18.545 seconds; event-to-lease queue delays were 185.0 ms and 134.3 ms. The acceptance JSON verified result hashes and temporary server/schema cleanup.
 
-The first classification attempt was a genuine model-quality failure: it emitted `AUTH` for both prompts and the independent verifier rejected the full-disk result. A harness timestamp bug also interrupted report completion and the first cleanup omitted `CASCADE`; these defects were diagnosed, the evidence was preserved, and only the identified disposable test schema was inspected and explicitly removed. A corrected isolated instruction-following task then passed. This is not evidence of general model reasoning. The UTF-8 private PostgreSQL test cluster was user-owned and isolated; no shared database, installed service, worker credential, or production configuration changed. The external knowledge provider, operational worker service, M3.3, and Grace M4.4 remain outstanding. M3.3 remains the roadmap cursor. Evidence: `evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094446Z-cpu-e2e/` (failed attempt) and `20261011T094654Z-cpu-e2e/` (successful run).
+The first classification attempt was a genuine model-quality failure: it emitted `AUTH` for both prompts and the independent verifier rejected the full-disk result. A harness timestamp bug also interrupted report completion and the first cleanup omitted `CASCADE`; these defects were diagnosed, the evidence was preserved, and only the identified disposable test schema was inspected and explicitly removed. A corrected isolated instruction-following task then passed. This is not evidence of general model reasoning. The UTF-8 private PostgreSQL test cluster was user-owned and isolated; no shared database, installed service, worker credential, or production configuration changed. The external knowledge provider, operational worker service, M3.3, and Grace M4.4 remain outstanding. M3.3 remains the roadmap cursor. Evidence: `evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094446Z-cpu-e2e/` (failed attempt) and `20261011T094654Z-cpu-e2e/` (successful precommit run).
+
+The feature/evidence source is committed and pushed as `bbe9a6c1c63345861da5bfeb7cfb77931961e005` on `codex/m4.2-resident-reasoning`. The committed-source acceptance was repeated with a clean tracked tree; two concurrent model calls again completed with independently accepted results and verified digests. The full suite passed 155/155 with no skips, the canonical graph check passed at 13 workflows / 269 nodes, the revision audit reported zero findings, and exact-head CI run 38129918014 passed. Evidence: `evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/`.
 
 ## 2026-10-11 UTC — RV-OVERNIGHT-20261011-CHECKPOINT / M4.1 live bootstrap and M4.2 CI
 

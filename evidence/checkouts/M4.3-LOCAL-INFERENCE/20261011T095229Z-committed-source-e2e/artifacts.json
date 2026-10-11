@@ -1,0 +1,23 @@
+{
+  "artifacts": {
+    "acceptance.json": {
+      "path": "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "9a54223359f976f40c378473fef7fa56c205c2f9f3abb5e9e65c441007b37346",
+      "size_bytes": 4502
+    },
+    "llama-server.log": {
+      "path": "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/llama-server.log",
+      "revision": "1.0.0",
+      "sha256": "39fe7ba8cc52281edb64d354ab5215ca6487f6c832043ca2b9d366892cc1d08d",
+      "size_bytes": 2568
+    },
+    "verification_command.txt": {
+      "path": "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/verification_command.txt",
+      "revision": "1.0.0",
+      "sha256": "29b6b22c61492fc2cb433977c0793cedb3668177b2741cd7c8d96b0650426b14",
+      "size_bytes": 295
+    }
+  },
+  "manifest_revision": "1.0.0"
+}
