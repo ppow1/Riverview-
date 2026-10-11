@@ -1,8 +1,12 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.86
+**Document Revision:** 1.0.87
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-11 UTC — RV-M3.3-AUTHORITY-COOKBOOK-COMMISSIONING / dashboard route
+
+Expanded the institutional authority cookbook with the isolated `assignment.create` transaction boundary, exact denial/unavailable handling, a throwaway-database regression command, post-recovery checks and escalation conditions. Corrected its current-state text to distinguish the deployed exact-grant database function from an application intake that has no live route. The dashboard documentation endpoint returned HTTP 200 and safe readable HTML with headings and command blocks; evidence paths remain plain text because the dashboard deliberately serves only `docs/components/*.md`. The first added browser-test assertion expected Markdown backticks in the rendered output; actual HTML correctly used a `<code>` element. Corrected the assertion, then the focused route test passed 1/1 and the complete dashboard HTTP class passed 12/12. Evidence retains the initial assertion failure and corrected results. No runtime, shared database, or service changed. M3.3 remains blocked on governed request-path/worker integration, commissioned real worker and real repository-backed knowledge provider.
 
 ## 2026-10-11 UTC — RV-M3.3-ASSIGNMENT-INTAKE / isolated authorized creation
 

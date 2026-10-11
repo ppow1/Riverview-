@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.20
+File Revision: 1.0.22
 Purpose: Diagnose and safely recover institutional authority registry state
 Authority: Read-only diagnostics first; grant changes require authenticated Steward
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Keep evidence references as readable paths in safe dashboard renderer
@@ -20,6 +20,8 @@ Changed: 2026-10-11 UTC | RV-M4.1-LIVE-BOOTSTRAP-EVIDENCE | Record actual Camrui
 Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT | Add exact-grant function deployment preflight and isolated runtime recovery path
 Changed: 2026-10-11 UTC | RV-M4.1-LIVE-EXACT-GRANT | Record protected backup/restore, additive migration and live least-privilege verification
 Changed: 2026-10-11 UTC | RV-M4.1-LIVE-STATE-COOKBOOK-CORRECTION | Make current-state banner and preflight expectations match live migration 0002
+Changed: 2026-10-11 UTC | RV-M3.3-ASSIGNMENT-INTAKE-COOKBOOK-LINK-FIX | Keep evidence references readable in the dashboard's approved documentation-link scope
+Changed: 2026-10-11 UTC | RV-M3.3-ASSIGNMENT-INTAKE-COOKBOOK | Record isolated exact assignment.create path and explicit live-route boundary
 Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-RECORDS | Record the post-bootstrap live migration baseline and isolated grant-check result
 History: Git and .riverview-backups/manifest.jsonl
 -->
@@ -27,11 +29,13 @@ History: Git and .riverview-backups/manifest.jsonl
 
 **Current state:** Camrui has the dedicated `riverview_authority` schema,
 protected table ownership, manager credential, root-local Steward identity,
-migration 0002 and exact-grant function-only runtime ACL. The live worker
-adapter is not deployed in a service, and assignment creation is not yet
-authorized through `assignment.create`. The registry belongs in its separate
-schema; never use the mixed `riverview_dev` application schema. Do not paste
-bearer or database credential values into a shell command.
+migration 0002 and exact-grant function-only runtime ACL. The live worker adapter is not deployed in a service. The isolated
+`AuthorizedAssignmentIntake` library now checks exact `assignment.create` and
+binds the grant lock to assignment/event persistence, but no live route uses it.
+The low-level ledger API and direct SQL are not authorization boundaries. The
+registry belongs in its separate schema; never use the mixed `riverview_dev`
+application schema. Do not paste bearer or database credential values into a
+shell command.
 
 ## Confirm migration readiness
 
@@ -70,6 +74,46 @@ Expected: only provisioned identities appear. A grant is usable only when its
 principal is active, credential unexpired/unrevoked, and action and scope match
 exactly. Missing rows, stale timestamps, unexpected broad grants, or conflicting
 binding revisions are not healthy/authorized states.
+
+## Assignment-create authorization boundary (isolated; not live route)
+
+The application library `src/riverview_core/assignment_intake.py` exposes
+`AuthorizedAssignmentIntake.create`. It requires an exact active
+`assignment.create` grant for the supplied authority reference, derives the
+actor from the database authorization result, and keeps the grant-row lock open
+through assignment and `assignment.created` event persistence in the same
+transaction. Missing, revoked, wrong-scope, or unavailable authority must fail
+closed before persistence. The caller cannot supply an actor identity.
+
+This is not yet wired to a browser, resident, API, or worker service. Do not
+create live assignments through raw `PostgresLedger.create`, direct SQL, or by
+manufacturing a scope/grant. The four passing isolated integration tests are recorded in
+`evidence/checkouts/M3.3-ASSIGNMENT-INTAKE/acceptance.json` (repository evidence
+path; evidence files are not served through the dashboard documentation route).
+
+For an isolated regression, configure `RIVERVIEW_TEST_PG_DSN` only with a
+throwaway PostgreSQL test database and run:
+
+```bash
+PYTHONPATH=src RIVERVIEW_TEST_PG_DSN='<disposable PostgreSQL test database DSN>' \
+  python3 -m unittest tests.test_assignment_intake -v
+```
+
+Expected: 4 tests pass, zero skips; each unique `rvtest_*` schema is removed.
+A missing DSN is a skipped test and is not verification. The test requires a
+PostgreSQL test role able to create isolated schemas and apply the versioned
+migrations; never point it at Camrui's shared `riverview` database.
+
+If intake raises `AssignmentIntakeDenied`, preserve the denial and verify the
+request's exact authority reference against an authorized Steward-issued grant;
+do not widen scope or retry with a guessed identity. If it raises
+`AssignmentIntakeUnavailable`, treat authority as unknown, perform no fallback
+write, and diagnose the authority function/registry/database dependency using
+the read-only checks above. Post-recovery, rerun the isolated test suite and
+confirm assignment/event counts are unchanged in the intended live database
+before any separately authorized deployment. Escalate any unexpected persisted
+row, lock timeout, credential exposure, or disagreement between grant identity
+and actor attribution.
 
 ## Symptoms and responses
 
@@ -430,10 +474,14 @@ dispatcher, dashboard and SSH remained active; `riverview_dev` retained nine
 migrations, four assignments, and eleven events. The root-owned package remains
 at `/var/tmp/riverview-m41-source-36622e5`. Full outputs and checksums are in
 `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T090700Z-live-exact-grant/`.
-This commissions the additive database function/ACL only. No worker service
-consumes it yet; M3.3 still lacks `assignment.create` enforcement, a real
-commissioned worker, and the external real knowledge provider.
+This dated paragraph records the live database function/ACL commissioning at
+that time. Subsequent isolated engineering added the application-level
+`AuthorizedAssignmentIntake` boundary, documented above; it is not deployed or
+used by a live route. A commissioned real worker and the external real
+knowledge provider remain unavailable.
 
+- **1.0.22 — 2026-10-11:** Keep the repository evidence path readable without an unsupported dashboard hyperlink.
+- **1.0.21 — 2026-10-11:** Document isolated exact assignment-create authorization, failure handling, regression command, and the still-undeployed live route.
 - **1.0.20 — 2026-10-11:** Correct cookbook current-state banner and distinguish historical pre-deployment checks from live exact-grant commissioning.
 - **1.0.19 — 2026-10-11:** Record live additive exact-grant deployment after protected backup/restore and runtime role checks; retain worker/assignment/provider gates.
 - **1.0.18 — 2026-10-11:** Record the live authority migration baseline and exact-grant isolated test result; define safe deployment sequencing.

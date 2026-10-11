@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.19
+# Revision: 1.0.21
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -19,6 +19,8 @@
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-DASHBOARD-REPOSITORY-LINK | Preserve installed knowledge-cookbook navigation in source shell
 # Changed: 2026-10-11 UTC | RV-M4.1-DB-RESTORE-COOKBOOK | Verify observed backup path incident renders safely through docs route
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-PACKAGE-ROUTE-INTEGRITY | Require every dashboard shell documentation link to resolve
+# Changed: 2026-10-11 UTC | RV-M3.3-ASSIGNMENT-INTAKE-COOKBOOK-RENDER | Verify current authority recovery section renders safely with no broken evidence link
+# Changed: 2026-10-11 UTC | RV-M3.3-DASHBOARD-COOKBOOK-ASSERTION-CORRECTION | Match expected HTML code-tag rendering rather than Markdown source
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -314,6 +316,18 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertIn("does not currently persist", graph["execution_position"]["reason"])
         status, _, body = self.request("GET", "/api/v1/graphs/rv%3Anot-registered%3Anone", token=self.token)
         self.assertEqual(status, 404)
+
+    def test_assignment_intake_cookbook_renders_without_broken_evidence_link(self):
+        status, headers, body = self.request(
+            "GET", "/docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", dict(headers)["Content-Type"])
+        self.assertIn(b"Assignment-create authorization boundary", body)
+        self.assertIn(b"<pre><code class=\"language-bash\">", body)
+        self.assertIn(b"exact <code>assignment.create</code>", body)
+        self.assertIn(b"evidence/checkouts/M3.3-ASSIGNMENT-INTAKE/acceptance.json", body)
+        self.assertNotIn(b"href=\"/evidence/", body)
+        self.assertNotIn(b"<!--", body)
 
     def test_markdown_renderer_escapes_html_and_rejects_unsafe_link_schemes(self):
         html = render_markdown("# Title\n\n<script>alert(1)</script>\n\n[bad](javascript:alert(1))\n\n[component](CME_MONITOR_COOKBOOK.md)\n\n| A | B |\n|---|---|\n| x | y |\n\n```sh\necho safe\n```",
