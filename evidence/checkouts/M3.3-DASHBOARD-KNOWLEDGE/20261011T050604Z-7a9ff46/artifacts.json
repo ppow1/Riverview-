@@ -1,0 +1,43 @@
+{
+  "artifacts": {
+    "browser-acceptance.json": {
+      "path": "evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050604Z-7a9ff46/browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "f0d30caf5d09fe59326da3135d9d04b5730d2c1534ec1f01f0fbf4e734ded45c",
+      "size_bytes": 4058
+    },
+    "cookbook-view.png": {
+      "path": "evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050604Z-7a9ff46/cookbook-view.png",
+      "revision": "1.0.0",
+      "sha256": "ca033765521caf288d1582f0e00508ae8354c2c10220776ccdfec50d1eb9024a",
+      "size_bytes": 176770
+    },
+    "dashboard-systemd.txt": {
+      "path": "evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050604Z-7a9ff46/dashboard-systemd.txt",
+      "revision": "1.0.0",
+      "sha256": "33a51cb2f4787d7d5a8e93859273441e7c260a50b2bdb82be08ca92e1bb67fa7",
+      "size_bytes": 80
+    },
+    "deployment.json": {
+      "path": "evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050604Z-7a9ff46/deployment.json",
+      "revision": "1.0.0",
+      "sha256": "fcc2c3be4f1380c950621578daf5757e16020441f66b51e5bb34d2d7ac5540a6",
+      "size_bytes": 1844
+    },
+    "live-postgres-counts.txt": {
+      "path": "evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050604Z-7a9ff46/live-postgres-counts.txt",
+      "revision": "1.0.0",
+      "sha256": "b3c1809202180224e06d077b2db145081ad426356c5b49d058e08cdb61ceccb6",
+      "size_bytes": 105
+    },
+    "workflow-view.png": {
+      "path": "evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050604Z-7a9ff46/workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "3729238efffb1e069242a8f16513ebe45270695a133e58eec2d0d36e6417db42",
+      "size_bytes": 213159
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "source_commit": "7a9ff46e11edc54b1ffe46f63962754e6d2da765",
+  "task_id": "RV-M3.3-DASHBOARD-KNOWLEDGE"
+}

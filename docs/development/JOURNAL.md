@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.58
+**Document Revision:** 1.0.59
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -1065,3 +1065,22 @@ Diagnostic corrections: one initial read-only SQL query used `USING
 misquoted SQL literals. Both failed before any state change; corrected catalog
 inspection and an explicitly read-only count query succeeded. These command
 mistakes are not counted as functional-test failures.
+
+## 2026-10-11 UTC — RV-M3.3-DASHBOARD-DOCS-RELEASE / refreshed installed guide
+
+After the documentation changes passed exact-head CI at `7a9ff46`, built and
+verified the archive (SHA-256
+`09d54b2c1e64ee3ea454e09e8c279c01935012b646256b4c6fec2ed1a820f464`) and
+installed a second protected dashboard release while retaining `ea90d67` for
+rollback. The bounded listener-readiness loop passed. The dashboard unit is
+active with exit status 0 and zero restarts; PostgreSQL, event processor, CME
+monitor, dispatcher, and baseline oneshot result remain unchanged. Firefox
+156.0.1 verified the live assignment projection and graph, zero browser errors,
+21 documentation HTTP 200 link fetches including the repository provider
+cookbook, and 61–123 ms navigation calls. Read-only live counts remain 9
+migrations / 4 assignments / 11 events / 1 attempt / 1 verifier / 6 attention
+events / 3 notifications. The sanitized browser report, screenshots, service
+status and ledger counts are under
+`evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050604Z-7a9ff46/`.
+No shared DB state, identity, grant, assignment or worker changed. M3.3 remains
+blocked at missing DB-enforced authority integration and has no live provider.

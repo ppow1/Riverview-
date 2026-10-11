@@ -1,0 +1,33 @@
+{
+  "archive_manifest_and_shell_verification": "PASS",
+  "archive_sha256": "09d54b2c1e64ee3ea454e09e8c279c01935012b646256b4c6fec2ed1a820f464",
+  "baseline_unit": "oneshot Result=success ExecMainStatus=0; unchanged",
+  "current_dashboard_release": "7a9ff46e11edc54b1ffe46f63962754e6d2da765",
+  "dashboard_browser": "Firefox 156.0.1; healthy projection, CME healthy, 6 persisted attention items, 1 independent verification; zero browser errors; graph valid with position unknown rather than fabricated; navigation 61\u2013123 ms",
+  "dashboard_listener": "127.0.0.1:8766",
+  "dashboard_unit": "active/running; ExecMainStatus=0; NRestarts=0",
+  "documentation_browser": "Operations cookbook rendered as HTML with 17 headings, 2 tables, 17 code blocks, no scripts/raw Markdown/unsafe links; all 21 discovered documentation link fetches returned HTTP 200, including repository knowledge cookbook",
+  "file_revision": "1.0.0",
+  "live_counts": {
+    "assignments": 4,
+    "attempts": 1,
+    "attention": 6,
+    "events": 11,
+    "migrations": 9,
+    "notifications": 3,
+    "verifications": 1
+  },
+  "observed_at_utc": "2026-10-11T05:06:04Z",
+  "other_units": {
+    "postgresql@16-main.service": "active",
+    "riverview-cme-monitor.service": "active",
+    "riverview-event-processor.service": "active",
+    "riverview-notification-dispatcher.service": "active"
+  },
+  "previous_dashboard_release": "ea90d6778a5b6f7e431839a4b1b75fdc1b2b0ad5",
+  "release_owner_mode": "root:root; package non-writable",
+  "scope_limit": "Dashboard/documentation-only release; provider remains isolated/not configured as live worker. No new identity, grant, migration, assignment, or worker state.",
+  "shared_database_mutation": "none; count query read-only",
+  "source_commit": "7a9ff46e11edc54b1ffe46f63962754e6d2da765",
+  "task_id": "RV-M3.3-DASHBOARD-KNOWLEDGE"
+}
