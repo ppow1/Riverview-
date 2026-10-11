@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/markdown.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Render approved component documentation as safe readable HTML
 # Execution Model: Request-time pure rendering of repository-controlled Markdown
 # Observability: Invalid or unsupported links remain inert text
 # Dependencies: Python standard library
 # Authority: No raw HTML; links are limited to HTTPS, anchors, and approved docs
-# Changed: 2026-10-10 UTC | RV-M3.1-003 | Initial allowlisted Markdown renderer
+# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Preserve final character of validated local documentation links
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -59,7 +59,7 @@ def _inline(text: str, document: str) -> str:
         token = match.group(0)
         if token.startswith("["):
             label, raw_href = token[1:-1].split("](", 1)
-            raw_href = raw_href[:-1].strip()
+            raw_href = raw_href.strip()
             href = _doc_href(raw_href, document)
             label_html = escape(label)
             if href:

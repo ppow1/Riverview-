@@ -1,13 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/verify_status_dashboard_browser.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Verify deployed dashboard in a real headless Firefox browser
 # Execution Model: Request-driven acceptance utility; starts and stops only its own geckodriver
 # Observability: Redacted JSON result; screenshots and no credentials
 # Dependencies: Python 3.10+, Firefox, geckodriver
 # Authority: Read-only dashboard APIs; no assignment or service mutations
-# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Verify operational guide navigation, rendering, and document links
+# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Verify rendered component links resolve and remain safe
 # Contracts: docs/components/STATUS_DASHBOARD_API.schema.json
 # Tests: Camrui deployed Firefox acceptance
 # History: Git and .riverview-backups/manifest.jsonl
@@ -158,7 +158,7 @@ def main():
         if not report["independent_verifications"]: failed.append("independent_verification")
         if report["attention_http_status"] != 200: failed.append("attention_endpoint")
         if report["graph"]["syntax"] != "valid" or report["graph"]["nodes"] < 1 or report["graph"]["decisions"] < 1 or report["graph"]["edges"] < 1 or report["graph"]["canonical_edges"] != report["graph"]["edges"] + report["graph"]["external_edges"] or any(node_id not in report["graph"]["jump_node_ids"] for node_id in report["graph"]["external_jump_sources"]): failed.append("workflow_graph")
-        if report["documentation"]["headings"] < 10 or report["documentation"]["tables"] < 2 or report["documentation"]["code_blocks"] < 8 or report["documentation"]["raw_markdown"] or report["documentation"]["scripts"] or report["documentation"]["unsafe_links"] or any(item["status"] != 200 for item in report["documentation"]["document_links"]): failed.append("readable_documentation")
+        if report["documentation"]["headings"] < 10 or report["documentation"]["tables"] < 2 or report["documentation"]["code_blocks"] < 8 or report["documentation"]["raw_markdown"] or report["documentation"]["scripts"] or report["documentation"]["unsafe_links"] or len(report["documentation"]["document_links"]) < 7 or any(item["status"] != 200 for item in report["documentation"]["document_links"]): failed.append("readable_documentation")
         if not report["jump_navigation"]: failed.append("cross_workflow_navigation")
         if report["browser_errors"]: failed.append("browser_errors")
         report["failed_checks"] = failed

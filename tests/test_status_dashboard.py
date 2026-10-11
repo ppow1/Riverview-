@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL for integration class
 # Authority: Creates/drops only unique rvtest_* schemas; never accesses shared Riverview data
-# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Verify the consolidated cookbook is served safely and linked in dashboard navigation
+# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Verify safe component links remain functional in the consolidated guide
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -229,12 +229,13 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(status, 404)
 
     def test_markdown_renderer_escapes_html_and_rejects_unsafe_link_schemes(self):
-        html = render_markdown("# Title\n\n<script>alert(1)</script>\n\n[bad](javascript:alert(1))\n\n| A | B |\n|---|---|\n| x | y |\n\n```sh\necho safe\n```",
+        html = render_markdown("# Title\n\n<script>alert(1)</script>\n\n[bad](javascript:alert(1))\n\n[component](CME_MONITOR_COOKBOOK.md)\n\n| A | B |\n|---|---|\n| x | y |\n\n```sh\necho safe\n```",
                                document="docs/components/STATUS_DASHBOARD_COOKBOOK.md",
                                title="Cookbook")
         self.assertIn(b"&lt;script&gt;alert(1)&lt;/script&gt;", html)
         self.assertNotIn(b"<script>", html)
         self.assertNotIn(b"href=\"javascript:", html)
+        self.assertIn(b"href=\"/docs/components/CME_MONITOR_COOKBOOK.md\"", html)
         self.assertIn(b"<table>", html)
         self.assertIn(b"<pre><code class=\"language-sh\">", html)
 
