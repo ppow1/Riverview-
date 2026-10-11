@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_institutional_authority.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.6
+# Revision: 1.0.7
 # Purpose: Verify durable identity separation and fail-closed exact scoped grants
 # Execution Model: PostgreSQL integration tests in rvtest_* disposable schemas
 # Observability: unittest evidence, authority events, binding/state revisions
@@ -9,6 +9,7 @@
 # Authority: Creates/drops only unique test schemas
 # Changed: 2026-10-11 UTC | RV-M4.1-001 | Verify expiry validation and Steward recovery credential
 # Changed: 2026-10-11 UTC | RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER | Run authority tests against fresh schema with no precreated ledger
+# Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Verify pre-persistable root bootstrap token is stored only as a digest
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -70,6 +71,37 @@ class InstitutionalAuthorityTests(unittest.TestCase):
         else:
             with self.assertRaises(IdentityConflict):
                 self.registry.bootstrap_steward("steward:second")
+
+    def test_bootstrap_accepts_preallocated_token_for_write_ahead_persistence(self):
+        from unittest.mock import patch
+        import psycopg
+        from psycopg import sql
+        from riverview_core.institutional_authority import AuthorityRegistry
+        from riverview_core.postgres_migrations import apply_migrations
+
+        schema = "rvtest_bootstrap_" + uuid4().hex
+        self.admin.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
+        registry = None
+        try:
+            migration = (Path(__file__).resolve().parents[1]
+                         / "src/riverview_core/institutional_authority/migrations")
+            apply_migrations(DSN, schema=schema, migrations_dir=migration)
+            registry = AuthorityRegistry(DSN, schema=schema)
+            token = secrets.token_urlsafe(32)
+            with patch("riverview_core.institutional_authority.registry.os.geteuid", return_value=0):
+                self.assertEqual(registry.bootstrap_steward(token=token), token)
+            self.assertEqual(registry.authorize(token, "identity.manage", "institution")["principal_id"],
+                             "steward:camrui")
+            with self.admin.cursor() as cur:
+                cur.execute(sql.SQL("SELECT credential_sha256 FROM {}.principal_credentials").format(
+                    sql.Identifier(schema)))
+                digest = cur.fetchone()[0]
+            self.assertEqual(digest, hashlib.sha256(token.encode("utf-8")).digest())
+            self.assertNotIn(token.encode("utf-8"), digest)
+        finally:
+            if registry is not None:
+                registry.close()
+            self.admin.execute(sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(sql.Identifier(schema)))
 
     def test_grants_are_exact_scoped_and_cannot_be_self_issued(self):
         from riverview_core.institutional_authority import AuthorityDenied

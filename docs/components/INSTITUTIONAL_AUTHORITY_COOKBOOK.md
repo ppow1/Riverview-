@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.14
+File Revision: 1.0.15
 Purpose: Diagnose and safely recover institutional authority registry state
 Authority: Read-only diagnostics first; grant changes require authenticated Steward
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Keep evidence references as readable paths in safe dashboard renderer
@@ -15,6 +15,7 @@ Changed: 2026-10-11 UTC | RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER | Describe fresh
 Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER-DOC | Document NOINHERIT manager with no role memberships
 Changed: 2026-10-11 UTC | RV-M4.1-OWNER-SCHEMA-USAGE | Diagnose and repair FK-check schema USAGE for protected table owner
 Changed: 2026-10-11 UTC | RV-M4.1-APPLY-REQUIRED-DRY-RUN | Verify read-only preflight reports incomplete grants before apply
+Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Document restart-safe Steward credential bootstrap
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional authority registry cookbook
@@ -274,6 +275,35 @@ schema usage to `PUBLIC` or the runtime, and do not change relation ownership.
 Repeat the manager FK-insert integration test, runtime-denial check, manager
 DDL-denial check, and boundary preflight. Stop if target identity, owner, or
 existing grants differ from the reviewed schema.
+
+### Initial Steward bootstrap and restart
+
+The first Steward bootstrap is root-local and one-time. Run only the committed,
+root-owned source copy after the authority schema preflight reports
+`apply_required=false`. The helper is fixed to database `riverview`, schema
+`riverview_authority`, manager passfile `/etc/riverview/authority/manager.pgpass`,
+and token path `/etc/riverview/authority/steward.token`; it accepts no command
+arguments or caller-selected paths. It creates a 256-bit random token, writes
+and fsyncs the file as `root:root 0600`, then asks the registry to persist only
+the SHA-256 digest and exact initial Steward grants. The token never appears in
+stdout, command arguments, logs, or PostgreSQL rows.
+
+```sh
+sudo -n env PYTHONPATH=/var/tmp/riverview-m41-source-<commit>/src \
+  python3 /var/tmp/riverview-m41-source-<commit>/scripts/bootstrap_authority_steward.py
+sudo -n stat -c '%U:%G mode=%a size=%s' /etc/riverview/authority/steward.token
+```
+
+Expected status is `BOOTSTRAPPED`, or `ALREADY_BOOTSTRAPPED` only when the
+existing protected token authenticates the active Steward. If the process
+stops after writing the token but before database commit, rerun the same helper;
+it reuses the pre-persisted token. If the database result is ambiguous, preserve
+the file and verify the exact `identity.manage` grant through the registry
+before retrying. Never delete or replace a token after an uncertain commit.
+If the helper reports an error, inspect its redacted status and PostgreSQL
+availability; do not print or copy the token. Post-check that only its SHA-256
+digest is stored, that the three bootstrap grants are exact institution-scoped
+grants, and that manager/runtime ACL checks still pass.
 
 **Camrui commissioning addendum, 2026-10-11:** A protected full backup and
 disposable restore rehearsal passed before additive migrations and the isolated

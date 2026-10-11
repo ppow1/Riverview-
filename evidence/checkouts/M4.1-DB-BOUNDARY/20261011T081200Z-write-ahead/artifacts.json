@@ -1,0 +1,34 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M4.1-BOOTSTRAP-WRITE-AHEAD",
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "source_commit": "d3a0ed4fdec3061923964451ce2fccff18fadca7",
+  "target": "Disposable socket-only PostgreSQL 16.15; complete isolated suite; live bootstrap not performed",
+  "decision": "PASS isolated tests; exact-head CI and live bootstrap pending",
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "a6230684e084ec34367cd9253a9ab61d1ad2c4e89377c54cf91b2b30377c24b0",
+      "size_bytes": 2965
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "d565744cfde5f7cb7368d07fa796af40d928e86aaa4ef2960a12d3c9a9ea5ad8",
+      "size_bytes": 24778
+    },
+    "fixture-cleanup.txt": {
+      "path": "fixture-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "52f96c26a39ed25108a6db43d6e11c6051eba8a498a5baab1891adfa7ac7c262",
+      "size_bytes": 4
+    },
+    "source-files.sha256": {
+      "path": "source-files.sha256",
+      "revision": "1.0.0",
+      "sha256": "98a747b141ccc468c252d20d90b0d213232473995d8b11e73ad8f9e6a4c4d628",
+      "size_bytes": 668
+    }
+  }
+}

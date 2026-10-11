@@ -1,13 +1,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/registry.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.6
+# Revision: 1.0.8
 # Purpose: Persist separated offices, occupants, implementations and scoped grants
 # Execution Model: Synchronous transactional PostgreSQL registry
 # Observability: Append-only authority events and office binding revisions
 # Dependencies: Python 3.10+; Psycopg 3; institutional_authority migration
 # Authority: Exact active credential, principal, action and scope are required
 # Changed: 2026-10-11 UTC | RV-M4.1-001 | Validate expiry timestamps and object-shaped office state
+# Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Allow trusted root caller to persist random token before bootstrap transaction
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: tests/test_institutional_authority.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -132,12 +133,21 @@ class AuthorityRegistry:
                     (uuid4(), principal_id, self._digest(token), expires_at))
         return token
 
-    def bootstrap_steward(self, principal_id="steward:camrui"):
-        """Create the first Steward principal from trusted root-local setup only."""
+    def bootstrap_steward(self, principal_id="steward:camrui", *, token=None):
+        """Create the first Steward from root-local setup, optionally with a
+        pre-generated token that the caller has already persisted securely.
+
+        Supplying a token enables write-ahead persistence: a protected local
+        secret file can be durable before PostgreSQL commits. A failed
+        transaction leaves an unusable token file that can safely be retried.
+        """
         if os.geteuid() != 0:
             raise AuthorityDenied("initial Steward bootstrap requires trusted root-local setup")
         if not principal_id:
             raise ValueError("principal_id is required")
+        if token is None:
+            token = secrets.token_urlsafe(32)
+        self._digest(token)
         try:
             with self.db.transaction():
                 with self.db.cursor() as cur:
@@ -149,7 +159,8 @@ class AuthorityRegistry:
                         raise IdentityConflict("active Steward is already provisioned")
                     cur.execute("INSERT INTO institutional_principals(principal_id,principal_kind) VALUES (%s,'steward')",
                                 (principal_id,))
-                    token = self._new_credential(cur, principal_id)
+                    cur.execute("INSERT INTO principal_credentials(credential_id,principal_id,credential_sha256) VALUES (%s,%s,%s)",
+                                (uuid4(), principal_id, self._digest(token)))
                     for action, scope in self.BOOTSTRAP_GRANTS:
                         cur.execute("""INSERT INTO authority_grants
                             (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)

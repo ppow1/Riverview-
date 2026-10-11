@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.9
+File Revision: 1.0.10
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -12,6 +12,7 @@ Changed: 2026-10-11 UTC | RV-M4.1-LEAST-PRIVILEGE | Require a dedicated registry
 Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER | Require the manager login to inherit no other database role grants
 Changed: 2026-10-11 UTC | RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER | Make authority migrations self-contained for a dedicated fresh schema
 Changed: 2026-10-11 UTC | RV-M4.1-OWNER-SCHEMA-USAGE | Grant protected table owner schema USAGE for PostgreSQL FK enforcement without CREATE
+Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Persist bootstrap bearer before commit and support safe restart
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
@@ -42,7 +43,13 @@ implements an office:
 ## Credential and grant contract
 
 Credentials are 256-bit random bearer values returned once. PostgreSQL stores
-only SHA-256 digests. Expired, revoked, inactive, malformed and unknown
+only SHA-256 digests. The root-local initial bootstrap may accept a securely
+pre-generated token so its protected file can be fsynced before the database
+transaction commits; if the transaction rolls back, that token is not
+authorized and can be retried. The fixed helper
+`scripts/bootstrap_authority_steward.py` supports this write-ahead sequence and
+resumes from the same root-only token file after interruption. Expired,
+revoked, inactive, malformed and unknown
 credentials fail closed. The first active Steward is created by a trusted
 root-local bootstrap operation; bootstrap is one-time and is not an HTTP route.
 The token must be placed in an access-controlled secret store by the operator
