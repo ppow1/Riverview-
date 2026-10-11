@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.18
+File Revision: 1.0.19
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -21,6 +21,7 @@ Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-RECORDS | Link migration 000
 Changed: 2026-10-11 UTC | RV-M4.1-LIVE-EXACT-GRANT | Record deployed migration and function-only runtime ACL
 Changed: 2026-10-11 UTC | RV-M4.1-MIGRATION-CONTRACT-CURRENT-STATE | Document checksum ledger/registry/function migration order
 Changed: 2026-10-11 UTC | RV-M4.1-GRACE-BOOTSTRAP-STATUS | Clarify historical M3.3 blockers and current additive Grace identity bootstrap work
+Changed: 2026-10-11 UTC | RV-M4.1-GRACE-IDENTITY-COMMISSIONING | Document the live fixed-identity bootstrap and exact grant result
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
@@ -141,9 +142,15 @@ and ready for Steward review; this does not claim formal acceptance or full
 Component DoD. Current M4.1 engineering adds a fixed-identity Grace office,
 resident principal, occupant, local-model binding and exact office-state grant
 through `scripts/provision_grace_resident.py`. Its implementation and six
-safety tests are in the working branch; no Grace identity has yet been created
-in the live registry, and this helper is not a resident service. It adds no
-assignment or tool grant. M4.1 and M4.4 remain in progress.
+safety tests passed before deployment. The subsequent live commissioning used
+root-owned source commit `fb536bb647d7d7a655a56155f687c74bec219945`. A fresh
+process retry returned `ALREADY_PROVISIONED`; an independent registry check
+verified the binding, model revision and only `office.state.write` on
+`office:office:grace`. The bearer remains in a root:root 0600 file and was not
+emitted. Live evidence is
+`evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/`. The helper is
+not a resident service and adds no assignment or tool grant. M4.1 service
+integration and M4.4 remain in progress.
 
 ### Database privilege boundary package
 

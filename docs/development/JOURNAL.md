@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.91
+**Document Revision:** 1.0.92
 **Component:** ENG-RECORDS
 **Date:** 2026-10-11 UTC
 
@@ -1333,3 +1333,20 @@ against the live registry. Isolated full-suite, graph, revision, exact-head CI,
 and immutable-package verification remain pending; no live identity or service
 was changed. Next: run the full private-PostgreSQL suite and controlled audits,
 then commit/push before considering live provisioner execution.
+
+## 2026-10-11 UTC — RV-M4.1-GRACE-IDENTITY-COMMISSIONING / additive live bootstrap
+
+Exact-head CI passed on commit `fb536bb647d7d7a655a56155f687c74bec219945`
+(run `38142915471`). The committed helper was extracted from that commit,
+archived and SHA-256 verified, installed root-owned, then run locally against
+the dedicated authority schema. It created only the stable Grace office,
+resident, occupant, local-model binding and exact office-state grant. An
+independent fresh process verified the grant using the protected resident
+credential and a retry returned `ALREADY_PROVISIONED`. Credential metadata is
+root:root 0600, no token was emitted, all seven existing M3.3 services remained
+active, and M3.3 assignment data was not touched. Evidence is
+`evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/`. Graph
+registration and synchronized views now pass with 16 workflows/318 nodes.
+This advances M4.1 identity bootstrap only; a continuous resident service and
+Grace-directed end-to-end execution are still absent. Proceed with authority-
+bound resident service integration and restart/replacement verification.

@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:institutional-authority:identity-and-grants",
-  "graph_revision": "1.0.9",
+  "graph_revision": "1.0.10",
   "component_id": "INSTITUTIONAL-AUTHORITY",
   "workflow_id": "identity-and-grants.v1",
   "diagram_order": 1,
@@ -16,7 +16,9 @@
     "src/riverview_core/institutional_authority/grants.py",
     "src/riverview_core/institutional_authority/migrations/0002_exact_grant_authorization.sql",
     "src/riverview_core/worker_adapter/adapter.py",
-    "tests/test_worker_adapter.py"
+    "tests/test_worker_adapter.py",
+    "scripts/provision_grace_resident.py",
+    "tests/test_grace_provisioning.py"
   ],
   "documentation_references": [
     "docs/components/INSTITUTIONAL_AUTHORITY.md",
@@ -26,7 +28,9 @@
     "process_graphs/README.md",
     "docs/components/WORKER_ADAPTER.md"
   ],
-  "verification_evidence": [],
+  "verification_evidence": [
+    "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/identity-verification.json"
+  ],
   "nodes": [
     {
       "id": "rv:institutional-authority:identity-and-grants:bootstrap",
@@ -426,6 +430,114 @@
         "docs/components/WORKER_ADAPTER.md"
       ],
       "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:grace-provision-request",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Root-local request to bind the fixed Grace resident identity",
+      "source_references": [
+        "scripts/provision_grace_resident.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/development/M4.1-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:grace-provision-preflight",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Validate root credentials, local model and fixed authority schema preconditions",
+      "source_references": [
+        "scripts/provision_grace_resident.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/development/M4.1-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/identity-verification.json"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:grace-provision-registry",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Idempotently create the Grace office, resident, occupant, model binding and exact office-state grant",
+      "source_references": [
+        "scripts/provision_grace_resident.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/development/M4.1-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/identity-verification.json"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:grace-provision-verify",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Independently confirm the bound identity and exact office-state grant",
+      "source_references": [
+        "scripts/provision_grace_resident.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/development/M4.1-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/identity-verification.json"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:grace-provision-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Fail closed on unavailable credentials, conflicting identity, or unsafe protected path",
+      "source_references": [
+        "scripts/provision_grace_resident.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/development/M4.1-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:grace-provision-recovery",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Revoke orphan resident bearer records and retry safely after interrupted credential delivery",
+      "source_references": [
+        "scripts/provision_grace_resident.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/development/M4.1-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1320Z-611a19a/full-suite.log"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:grace-identity-bound",
+      "node_revision": "1.0.0",
+      "type": "exit",
+      "label": "Identity-only bootstrap verified; resident runtime and Grace objective execution remain separate work",
+      "source_references": [
+        "scripts/provision_grace_resident.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/development/M4.1-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/identity-verification.json"
+      ]
     }
   ],
   "edges": [
@@ -645,6 +757,52 @@
       "to": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
       "type": "recovery_route",
       "label": "Revalidate the exact grant in the resumed operation"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:grace-provision-request",
+      "to": "rv:institutional-authority:identity-and-grants:grace-provision-preflight",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:grace-provision-preflight",
+      "to": "rv:institutional-authority:identity-and-grants:grace-provision-registry",
+      "type": "runtime_transition",
+      "label": "All root-owned inputs and exact schema preconditions pass"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:grace-provision-preflight",
+      "to": "rv:institutional-authority:identity-and-grants:grace-provision-failure",
+      "type": "diagnostic_branch",
+      "label": "Credential, model, database or path precondition fails"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:grace-provision-registry",
+      "to": "rv:institutional-authority:identity-and-grants:grace-provision-verify",
+      "type": "verification"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:grace-provision-registry",
+      "to": "rv:institutional-authority:identity-and-grants:grace-provision-failure",
+      "type": "diagnostic_branch",
+      "label": "Registry mutation conflicts or becomes unavailable"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:grace-provision-failure",
+      "to": "rv:institutional-authority:identity-and-grants:grace-provision-recovery",
+      "type": "recovery_route",
+      "label": "Reconcile durable registry state and protected credential file"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:grace-provision-recovery",
+      "to": "rv:institutional-authority:identity-and-grants:grace-provision-registry",
+      "type": "runtime_transition",
+      "label": "Retry fixed identities idempotently; orphan bearer is revoked before replacement"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:grace-provision-verify",
+      "to": "rv:institutional-authority:identity-and-grants:grace-identity-bound",
+      "type": "runtime_transition",
+      "label": "One exact office.state.write grant and matching binding verified"
     }
   ]
 }

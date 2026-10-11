@@ -1,0 +1,5 @@
+root:root 755 4096 /opt/riverview-grace
+root:root 755 4096 /opt/riverview-grace/releases/fb536bb647d7d7a655a56155f687c74bec219945
+root:root 700 4096 /etc/riverview/grace
+root:root 600 44 /etc/riverview/grace/resident.credential
+root:root 600 492 /etc/riverview/grace/provisioning.json

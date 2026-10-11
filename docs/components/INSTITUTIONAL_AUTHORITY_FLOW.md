@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_FLOW.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.6
+File Revision: 1.0.7
 Purpose: Map root-local bootstrap, authorization, office state and recovery
 Authority: Deny when principal, credential, grant, or source state is uncertain
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -48,6 +48,13 @@ flowchart LR
     g_rv_institutional_authority_identity_and_grants_runtime_grant_allowed_24a31d10["Exact active grant allows this transaction-bound worker operation"]
     g_rv_institutional_authority_identity_and_grants_runtime_grant_denied_1e6c02a9[["Missing, revoked, expired, wrong-action, or wrong-scope credential is denied"]]
     g_rv_institutional_authority_identity_and_grants_runtime_grant_unavailable_15bb3150[["Protected grant function or PostgreSQL is unavailable; worker action fails closed"]]
+    g_rv_institutional_authority_identity_and_grants_grace_provision_request_421d027a(["Root-local request to bind the fixed Grace resident identity"])
+    g_rv_institutional_authority_identity_and_grants_grace_provision_preflight_bf691201["Validate root credentials, local model and fixed authority schema preconditions"]
+    g_rv_institutional_authority_identity_and_grants_grace_provision_registry_e56aa743["Idempotently create the Grace office, resident, occupant, model binding and exact office-state grant"]
+    g_rv_institutional_authority_identity_and_grants_grace_provision_verify_150fc962["Independently confirm the bound identity and exact office-state grant"]
+    g_rv_institutional_authority_identity_and_grants_grace_provision_failure_df8e07b7[["Fail closed on unavailable credentials, conflicting identity, or unsafe protected path"]]
+    g_rv_institutional_authority_identity_and_grants_grace_provision_recovery_5e1d3180["Revoke orphan resident bearer records and retry safely after interrupted credential delivery"]
+    g_rv_institutional_authority_identity_and_grants_grace_identity_bound_a2ac060a(["Identity-only bootstrap verified; resident runtime and Grace objective execution remain separate work"])
   end
   g_rv_institutional_authority_identity_and_grants_migration_ledger_bootstrap_b3ae001f -->|Migration runner applies checksum-ledger bootstrap before registry migration| g_rv_institutional_authority_identity_and_grants_migration_ready_c4bb91b6
   g_rv_institutional_authority_identity_and_grants_bootstrap_a48d6fd3 -->|prerequisite: Trusted DB bootstrap requires reviewed schema| g_rv_institutional_authority_identity_and_grants_migration_ready_c4bb91b6
@@ -87,6 +94,14 @@ flowchart LR
   g_rv_institutional_authority_identity_and_grants_runtime_grant_denied_1e6c02a9 --> g_rv_institutional_authority_identity_and_grants_deny_e8ae7e89
   g_rv_institutional_authority_identity_and_grants_runtime_grant_unavailable_15bb3150 --> g_rv_institutional_authority_identity_and_grants_unavailable_ecf79c11
   g_rv_institutional_authority_identity_and_grants_recover_dedfc857 -->|recovery_route: Revalidate the exact grant in the resumed operation| g_rv_institutional_authority_identity_and_grants_runtime_grant_check_6433bcd9
+  g_rv_institutional_authority_identity_and_grants_grace_provision_request_421d027a --> g_rv_institutional_authority_identity_and_grants_grace_provision_preflight_bf691201
+  g_rv_institutional_authority_identity_and_grants_grace_provision_preflight_bf691201 -->|All root-owned inputs and exact schema preconditions pass| g_rv_institutional_authority_identity_and_grants_grace_provision_registry_e56aa743
+  g_rv_institutional_authority_identity_and_grants_grace_provision_preflight_bf691201 -->|diagnostic_branch: Credential, model, database or path precondition fails| g_rv_institutional_authority_identity_and_grants_grace_provision_failure_df8e07b7
+  g_rv_institutional_authority_identity_and_grants_grace_provision_registry_e56aa743 -->|verification| g_rv_institutional_authority_identity_and_grants_grace_provision_verify_150fc962
+  g_rv_institutional_authority_identity_and_grants_grace_provision_registry_e56aa743 -->|diagnostic_branch: Registry mutation conflicts or becomes unavailable| g_rv_institutional_authority_identity_and_grants_grace_provision_failure_df8e07b7
+  g_rv_institutional_authority_identity_and_grants_grace_provision_failure_df8e07b7 -->|recovery_route: Reconcile durable registry state and protected credential file| g_rv_institutional_authority_identity_and_grants_grace_provision_recovery_5e1d3180
+  g_rv_institutional_authority_identity_and_grants_grace_provision_recovery_5e1d3180 -->|Retry fixed identities idempotently; orphan bearer is revoked before replacement| g_rv_institutional_authority_identity_and_grants_grace_provision_registry_e56aa743
+  g_rv_institutional_authority_identity_and_grants_grace_provision_verify_150fc962 -->|One exact office.state.write grant and matching binding verified| g_rv_institutional_authority_identity_and_grants_grace_identity_bound_a2ac060a
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 
