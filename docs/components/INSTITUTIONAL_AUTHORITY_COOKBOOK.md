@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.9
+File Revision: 1.0.10
 Purpose: Diagnose and safely recover institutional authority registry state
 Authority: Read-only diagnostics first; grant changes require authenticated Steward
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Keep evidence references as readable paths in safe dashboard renderer
@@ -10,6 +10,7 @@ Changed: 2026-10-11 UTC | RV-M4.1-COOKBOOK-DB-BOUNDARY | Document isolated datab
 Changed: 2026-10-11 UTC | RV-M4.1-LEAST-PRIVILEGE | Require dedicated registry schema and deny manager DDL/owner membership
 Changed: 2026-10-11 UTC | RV-M4.1-ROLE-SCOPE-REVIEW-FIX | Align operations checks with the isolated authority schema
 Changed: 2026-10-11 UTC | RV-M4.1-DEDICATED-SCHEMA-COOKBOOK | Use null-safe catalog checks for the not-yet-created authority schema
+Changed: 2026-10-11 UTC | RV-M4.1-PREFLIGHT-DIAGNOSTIC | Document safe boundary detail and SQLSTATE-only database failures
 Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER-DOC | Document NOINHERIT manager with no role memberships
 History: Git and .riverview-backups/manifest.jsonl
 -->
@@ -165,6 +166,10 @@ idempotent application, relation ownership, runtime schema/table denial, scoped
 manager DML, manager DDL/owner-membership denial, and fail-closed behavior when
 runtime or manager can assume the schema owner. A passing isolated test is not
 shared-schema commissioning.
+
+### Interpreting preflight failures
+
+The provisioner prints a JSON error with `status=ERROR` and a failure type. For `BoundaryPreflightError`, `detail` contains the reviewed static safety reason, such as `selected schema does not exist` or `selected schema contains non-authority objects: ...`. Database-driver failures expose only SQLSTATE; they do not print DSNs, passwords, SQL parameter values or exception text. A missing target schema is an expected stop until the dedicated schema and required roles are provisioned through the reviewed setup procedure. Do not respond to any preflight error by adding `--apply`, changing `riverview_dev`, or creating objects manually. Preserve the JSON result and correlate it with read-only catalog checks.
 
 ### Required role and ownership model
 

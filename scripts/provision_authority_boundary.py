@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/provision_authority_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Preflight/apply exact authority table ownership separation
 # Execution Model: Explicit local operator command; read-only by default
 # Observability: Redacted JSON report and process exit status
 # Dependencies: Python 3.10+; Psycopg 3; riverview_core
 # Authority: Only allowlisted M4.1 relations; requires PostgreSQL superuser for apply
 # Changed: 2026-10-11 UTC | RV-M4.1-DB-BOUNDARY | Add dry-run-first authority owner provisioner
+# Changed: 2026-10-11 UTC | RV-M4.1-PREFLIGHT-DIAGNOSTIC | Return safe static boundary failure details to operators
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 # Tests: tests/test_institutional_authority_boundary.py
 # History: .riverview-backups/manifest.jsonl
@@ -35,6 +36,15 @@ from riverview_core.institutional_authority.db_boundary import (
 )
 
 
+def _safe_error_detail(exc):
+    """Expose only reviewed static boundary messages or PostgreSQL SQLSTATEs."""
+    if isinstance(exc, BoundaryPreflightError):
+        return str(exc)
+    if isinstance(exc, psycopg.Error) and exc.sqlstate:
+        return "sqlstate=" + exc.sqlstate
+    return ""
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--schema", required=True)
@@ -59,7 +69,7 @@ def main(argv=None):
         return 0
     except (BoundaryPreflightError, ValueError, psycopg.Error) as exc:
         # Exception strings may contain SQL details; report only the type/code.
-        detail = ("sqlstate=" + exc.sqlstate) if isinstance(exc, psycopg.Error) and exc.sqlstate else ""
+        detail = _safe_error_detail(exc)
         print(json.dumps({"status": "ERROR", "failure_type": type(exc).__name__,
                           "detail": detail}, sort_keys=True))
         return 1

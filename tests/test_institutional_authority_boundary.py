@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_institutional_authority_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.10
+# Revision: 1.0.11
 # Purpose: Verify isolated M4.1 ownership separation denies runtime SQL bypass
 # Execution Model: PostgreSQL integration test using unique rvtest schema and roles
 # Observability: Protected object owners, runtime denial, manager registry authorization
@@ -19,6 +19,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-ROLE-SCOPE-REVIEW-FIX | Correct fixture ledger setup for the dedicated authority schema
 # Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER-TEST | Model a NOINHERIT manager login in the boundary fixture
 # Changed: 2026-10-11 UTC | RV-M4.1-DEDICATED-SCHEMA-FUNCTION-TEST | Reject unrelated schema functions before privilege changes
+# Changed: 2026-10-11 UTC | RV-M4.1-PREFLIGHT-DIAGNOSTIC | Assert safe static target failures and SQLSTATE-only diagnostics
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -32,6 +33,25 @@ import unittest
 from uuid import uuid4
 
 DSN = os.environ.get("RIVERVIEW_TEST_PG_DSN")
+
+
+class PreflightDiagnosticTests(unittest.TestCase):
+    def test_boundary_preflight_reports_safe_static_reason(self):
+        from scripts.provision_authority_boundary import _safe_error_detail
+        from riverview_core.institutional_authority.db_boundary import BoundaryPreflightError
+
+        self.assertEqual(_safe_error_detail(BoundaryPreflightError("selected schema does not exist")),
+                         "selected schema does not exist")
+
+    def test_database_error_reports_only_sqlstate(self):
+        import psycopg
+        from scripts.provision_authority_boundary import _safe_error_detail
+
+        error = psycopg.OperationalError("sensitive host and password text")
+        error.sqlstate = "08006"
+        self.assertEqual(_safe_error_detail(error), "sqlstate=08006")
+        self.assertNotIn("password", _safe_error_detail(error))
+        self.assertNotIn("host", _safe_error_detail(error))
 
 
 @unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")
