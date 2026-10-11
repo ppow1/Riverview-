@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.88
+**Document Revision:** 1.0.89
 **Component:** ENG-RECORDS
 **Date:** 2026-10-11 UTC
 
@@ -1296,3 +1296,21 @@ The recovered pair did not establish simultaneous multi-executor throughput, so
 the canonical M3.3 independent-concurrency criterion remains NOT VERIFIED.
 Evidence is `evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/`. PR #21
 remains draft/open/unmerged; no Steward acceptance is inferred.
+
+
+## 2026-10-11 UTC — RV-M3.3-WAITING-ISOLATION / fail-closed scheduler continuation
+
+Submitted an authorized unknown-contract assignment through the live loopback
+request API. Its assignment and events persisted, the repository knowledge
+provider returned `NO_MATCH`, and the scheduler persisted
+`blocked/WAITING_FOR_EVIDENCE` with no attempt. While it remained waiting,
+submitted a separate authorized repository-test assignment. The normal scheduler
+dispatched it; the credentialed worker produced a new report artifact; the
+independent verifier accepted it; the dashboard live status/detail endpoints
+returned HTTP 200 and displayed the waiting and completed assignments. No direct
+state manipulation or service/credential configuration change occurred.
+Evidence: `evidence/checkouts/M3.3-WAITING-ISOLATION/20261011T1310Z-47a79ad/`.
+This supplies the canonical live evidence that two durable assignments progress
+independently and missing knowledge cannot authorize an action. Scoped M3.3
+technical criteria are ready for Steward review; formal acceptance and full
+Component DoD remain open.

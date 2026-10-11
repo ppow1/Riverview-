@@ -1,9 +1,9 @@
 # Riverview~ worker adapter contract
 
-**Document Revision:** 1.0.13
+**Document Revision:** 1.0.15
 **Component:** WORKER-ADAPTER
 **Milestone:** M2.1–M2.3
-**Status:** M3.3 live governed execution chain commissioned on Camrui; canonical simultaneous multi-executor criterion and full Component DoD remain open. M4.3 local-inference execution remains isolated.
+**Status:** M3.3 scoped technical acceptance criteria PASS and ready for Steward review; no simultaneous executor-process throughput claim. Formal acceptance and full Component DoD remain open; M4.3 local-inference execution remains isolated.
 **Implementation:** `src/riverview_core/worker_adapter/adapter.py`
 **Changed:** 2026-10-11 UTC | RV-M4.1-LIVE-EXACT-GRANT | Record deployed database function ACL while retaining undeployed worker service status
 **Changed:** 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Record verified isolated model execution and persistent-service limitation
@@ -11,6 +11,8 @@
 **Changed:** 2026-10-11 UTC | RV-M3.3-REPOSITORY-KNOWLEDGE | Specify pinned read-only repository provider and its fail-closed status
 **Changed:** 2026-10-11 UTC | RV-M3.3-WORKER-SERVICE | Specify executor/verifier systemd runner contracts and commissioning state
 **Changed:** 2026-10-11 UTC | RV-M3.3-LIVE-COMMISSIONING | Record live grant-bound repository test executor, verifier, artifact and recovery evidence
+**Changed:** 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION | Record live unavailable-knowledge isolation while eligible work continues
+**Changed:** 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-STATUS | Align current scoped technical status and distinguish process concurrency claims
 
 ## Scope and trust boundaries
 
@@ -147,11 +149,16 @@ dispatcher, and dashboard were active at the captured post-check. One authorized
 assignment and two recovery assignments completed with ACCEPTED independent
 verification. A deliberate executor SIGKILL restarted without duplicating the
 completed result; queued assignments and stall/resolution notices survived a
-separate bounded outage and were processed after recovery. This demonstrates
-queue recovery, not simultaneous multi-executor throughput. Current exact-scope
-grants are time-limited; inspect live authority records before operating.
+separate bounded outage and were processed after recovery. A separate live run returned `NO_MATCH` for an unregistered contract, persisted
+that assignment at `WAITING_FOR_EVIDENCE`, and then completed and independently
+verified a second eligible assignment while the first remained waiting. This
+proves independent assignment progress and fail-closed knowledge behavior; it
+does not claim simultaneous execution by multiple executor processes. Current
+exact-scope grants are time-limited; inspect live authority records before
+operating.
 Evidence and outstanding M3.3 acceptance limits are in
-`evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/` and
+`evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/`,
+`evidence/checkouts/M3.3-WAITING-ISOLATION/20261011T1310Z-47a79ad/`, and
 `docs/development/M3.3-001_REVISION_RECORD.md`.
 
 See the [workflow graph](WORKER_ADAPTER_FLOW.md),

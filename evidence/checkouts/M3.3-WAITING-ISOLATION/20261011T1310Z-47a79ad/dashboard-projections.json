@@ -1,0 +1,210 @@
+{
+  "captured_at_utc": "2026-10-11T13:10:25.871677+00:00",
+  "dashboard_source": "live authenticated API on 127.0.0.1:8766",
+  "projections": {
+    "/api/v1/assignments/m33-live-followup-df010ec29b0747d089575a817e938261": {
+      "http_status": 200,
+      "projection": {
+        "assignment": {
+          "assignment_id": "m33-live-followup-df010ec29b0747d089575a817e938261",
+          "correlation_id": "corr-09820523c4b7407f9dde6578fe11ee53",
+          "owner": "engineering-office",
+          "state": "completed",
+          "updated_at": "2026-10-11T09:09:50.055266-04:00",
+          "version": 5,
+          "workflow_id": "engineering.assignment.v1",
+          "workflow_step": "independent_verification"
+        },
+        "attempts": [
+          {
+            "attempt_id": "c6727274-c0c7-41d5-b3ea-20ddd28ce394",
+            "capability": "engineering.repository-check.v1",
+            "failure_class": null,
+            "finished_at": "2026-10-11T09:09:48.303297-04:00",
+            "lease_generation": 1,
+            "started_at": "2026-10-11T09:09:48.277372-04:00",
+            "status": "succeeded",
+            "worker_id": "worker:m33:executor:e92ec51590b34cd3"
+          }
+        ],
+        "diagnostic_ref": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+        "events": [
+          {
+            "actor_id": "verifier:worker:m33:verifier:e92ec51590b34cd3",
+            "causation_id": "5f28daa4-8ee5-41c4-abd9-eeac5406e8b0",
+            "correlation_id": "corr-09820523c4b7407f9dde6578fe11ee53",
+            "event_id": "d9b22352-9b38-45a3-988a-68f969e0c947",
+            "event_type": "assignment.transitioned",
+            "recorded_at": "2026-10-11T09:09:50.058834-04:00",
+            "seq": 34
+          },
+          {
+            "actor_id": "worker:m33:executor:e92ec51590b34cd3",
+            "causation_id": "88238213-c919-445a-b474-fbd9f6b54544",
+            "correlation_id": "corr-09820523c4b7407f9dde6578fe11ee53",
+            "event_id": "5f28daa4-8ee5-41c4-abd9-eeac5406e8b0",
+            "event_type": "assignment.transitioned",
+            "recorded_at": "2026-10-11T09:09:48.323990-04:00",
+            "seq": 33
+          },
+          {
+            "actor_id": "worker:m33:executor:e92ec51590b34cd3",
+            "causation_id": "c4ef26b7-277a-4aac-8af9-24ac9fd7a2c1",
+            "correlation_id": "corr-09820523c4b7407f9dde6578fe11ee53",
+            "event_id": "88238213-c919-445a-b474-fbd9f6b54544",
+            "event_type": "assignment.transitioned",
+            "recorded_at": "2026-10-11T09:09:46.654091-04:00",
+            "seq": 32
+          },
+          {
+            "actor_id": "service:assignment-intake.v1",
+            "causation_id": "1b9a4787-96e3-4a2d-bc36-eb91e945d30f",
+            "correlation_id": "corr-09820523c4b7407f9dde6578fe11ee53",
+            "event_id": "c4ef26b7-277a-4aac-8af9-24ac9fd7a2c1",
+            "event_type": "assignment.transitioned",
+            "recorded_at": "2026-10-11T09:09:46.133861-04:00",
+            "seq": 31
+          },
+          {
+            "actor_id": "steward:camrui",
+            "causation_id": null,
+            "correlation_id": "corr-09820523c4b7407f9dde6578fe11ee53",
+            "event_id": "1b9a4787-96e3-4a2d-bc36-eb91e945d30f",
+            "event_type": "assignment.created",
+            "recorded_at": "2026-10-11T09:09:45.893226-04:00",
+            "seq": 30
+          }
+        ],
+        "status": "available",
+        "verifications": [
+          {
+            "attempt_id": "c6727274-c0c7-41d5-b3ea-20ddd28ce394",
+            "decision": "ACCEPTED",
+            "evidence_count": 2,
+            "recorded_at": "2026-10-11T09:09:50.039615-04:00",
+            "verification_id": "c6727274-c0c7-41d5-b3ea-20ddd28ce394",
+            "verifier_id": "worker:m33:verifier:e92ec51590b34cd3",
+            "verifier_revision": "1.0.1"
+          }
+        ]
+      }
+    },
+    "/api/v1/assignments/m33-live-wait-e8646ad6795f4c7b9cf443faf236d0df": {
+      "http_status": 200,
+      "projection": {
+        "assignment": {
+          "assignment_id": "m33-live-wait-e8646ad6795f4c7b9cf443faf236d0df",
+          "correlation_id": "corr-be757f9f13af486a941ec5165e931f17",
+          "owner": "engineering-office",
+          "state": "blocked",
+          "updated_at": "2026-10-11T09:09:39.568250-04:00",
+          "version": 3,
+          "workflow_id": "engineering.assignment.v1",
+          "workflow_step": "WAITING_FOR_EVIDENCE"
+        },
+        "attempts": [],
+        "diagnostic_ref": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+        "events": [
+          {
+            "actor_id": "worker:m33:executor:e92ec51590b34cd3",
+            "causation_id": "05fa7159-c2cc-4437-8ed0-48c767718f59",
+            "correlation_id": "corr-be757f9f13af486a941ec5165e931f17",
+            "event_id": "fcda6c74-94f1-46a1-84a7-a76df1e9516e",
+            "event_type": "assignment.transitioned",
+            "recorded_at": "2026-10-11T09:09:39.570276-04:00",
+            "seq": 29
+          },
+          {
+            "actor_id": "service:assignment-intake.v1",
+            "causation_id": "de163a5f-e8a5-4c05-afe8-d3722c472825",
+            "correlation_id": "corr-be757f9f13af486a941ec5165e931f17",
+            "event_id": "05fa7159-c2cc-4437-8ed0-48c767718f59",
+            "event_type": "assignment.transitioned",
+            "recorded_at": "2026-10-11T09:09:39.124107-04:00",
+            "seq": 28
+          },
+          {
+            "actor_id": "steward:camrui",
+            "causation_id": null,
+            "correlation_id": "corr-be757f9f13af486a941ec5165e931f17",
+            "event_id": "de163a5f-e8a5-4c05-afe8-d3722c472825",
+            "event_type": "assignment.created",
+            "recorded_at": "2026-10-11T09:09:38.510718-04:00",
+            "seq": 27
+          }
+        ],
+        "status": "available",
+        "verifications": []
+      }
+    },
+    "/api/v1/status": {
+      "http_status": 200,
+      "projection": {
+        "assignment_counts": {
+          "blocked": 1,
+          "completed": 5,
+          "ready": 3
+        },
+        "assignments_total": 9,
+        "cme": {
+          "assignments_observed": 4,
+          "heartbeat_age_seconds": 1.492,
+          "instance_id": "5e5916da-a47d-4e4f-84ab-e9209a8050b0",
+          "last_error_type": null,
+          "last_heartbeat_at": "2026-10-11T09:10:24.229784-04:00",
+          "last_scan_at": "2026-10-11T09:10:24.229785-04:00",
+          "service_id": "cme.monitor.v1",
+          "source": "cme_monitor_health",
+          "status": "healthy",
+          "workers_enabled": 2,
+          "workers_registered": 4
+        },
+        "component_id": "STEWARD-DASHBOARD",
+        "component_version": "1.0.0",
+        "diagnostics": {
+          "component": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+          "graph": "process_graphs/steward-dashboard/status.json",
+          "workflow": "rv:steward-dashboard:status:request"
+        },
+        "event_cursor": 34,
+        "freshness": "current",
+        "observed_at": "2026-10-11T09:10:25.703620-04:00",
+        "projection_status": "healthy",
+        "relations": {
+          "assignment_leases": true,
+          "assignments": true,
+          "cme_monitor_events": true,
+          "cme_monitor_health": true,
+          "events": true,
+          "schema_migrations": true,
+          "verification_records": true,
+          "worker_attempts": true,
+          "worker_registry": true
+        },
+        "schema_version": "rv.dashboard.status.v1",
+        "source": {
+          "database": "riverview",
+          "deployment_id": "m3.1-camrui-docs-e26f937",
+          "kind": "postgresql",
+          "latest_migration": "0006_durable_notifications",
+          "schema": "riverview_dev",
+          "source_commit": "8556598b19a7da4aa191a600c767d79d24432afe"
+        },
+        "verification": {
+          "status": "available"
+        },
+        "workers": {
+          "active_leases": 0,
+          "active_workers": 2,
+          "health_semantics": "per-worker latest lease heartbeat; no heartbeat is unknown, not healthy",
+          "healthy_workers": 0,
+          "source": "assignment_leases",
+          "stale_workers": 1,
+          "status": "stale",
+          "unknown_workers": 1,
+          "unverified_workers": 0
+        }
+      }
+    }
+  }
+}

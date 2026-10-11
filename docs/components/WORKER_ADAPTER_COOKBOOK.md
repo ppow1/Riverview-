@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/WORKER_ADAPTER_COOKBOOK.md
 Component: WORKER-ADAPTER
-File Revision: 1.0.10
+File Revision: 1.0.11
 Purpose: Diagnose isolated worker identity, attempt, verification and recovery records safely
 Authority: Read-only diagnosis; credential delivery and worker enrollment are trusted control-plane operations
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Add redacted worker and verification record queries with failure interpretation
@@ -10,6 +10,10 @@ Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Add bounded model execution 
 Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Document the real isolated concurrent model acceptance and harness
 Changed: 2026-10-11 UTC | RV-M3.3-WORKER-SERVICE | Document separate executor/verifier systemd preflight and recovery
 Changed: 2026-10-11 UTC | RV-M3.3-LIVE-COMMISSIONING | Link confirmed Camrui deployment evidence and distinguish verified queue recovery from concurrency
+Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION | Link the live NO_MATCH and scheduler-continuation evidence
+Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-LINK-CLARIFICATION | Present checkout evidence as a non-linked path in dashboard-served documentation
+Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-REVISION-CORRECTION | Add the missed controlled file revision increment for the preceding same-task content edits
+Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-LINK-CLARIFICATION | Present checkout evidence as a non-linked path in dashboard-served documentation
 History: Git and revision backup manifest
 -->
 # Riverview~ worker adapter cookbook
@@ -187,8 +191,14 @@ is retained in
 capture, the governed intake, executor, verifier, event processor, CME monitor,
 notification dispatcher, and dashboard were active. The evidence demonstrates
 an authorized repository-test assignment, independent verification, artifact
-persistence, and safe queue recovery after restart. It does not demonstrate
-simultaneous multi-executor throughput or full M3.3 acceptance. The executor uses the fixed `deterministic.sha256.v1`
+persistence, and safe queue recovery after restart. A separate live probe persisted an assignment with missing repository evidence as
+`WAITING_FOR_EVIDENCE`; while it remained there, the scheduler completed a valid
+assignment through artifact creation and independent verification. See checkout
+evidence at
+`evidence/checkouts/M3.3-WAITING-ISOLATION/20261011T1310Z-47a79ad/acceptance.json`.
+This proves waiting work does not block unrelated eligible work. It does not
+claim simultaneous executor-process throughput. Scoped technical criteria are
+ready for Steward review; full Component DoD and formal acceptance remain open. The executor uses the fixed `deterministic.sha256.v1`
 capability and repository-backed provider pinned to an exact committed release.
 The verifier is a separate service identity and `assignment.verify.v1` worker.
 Both use root-owned systemd credential sources and PID 1 credential delivery;

@@ -1,0 +1,79 @@
+{
+  "artifacts": {
+    "acceptance.json": {
+      "path": "acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "41fba1a2aca400edbaa15da27e6bf9859f14ae5fe99ee7f7099ba3d8e63c21f5",
+      "size_bytes": 3192
+    },
+    "artifact-metadata.json": {
+      "path": "artifact-metadata.json",
+      "revision": "1.0.0",
+      "sha256": "2db8c2dd0c93c887317d778e2659883a47d557cfc67315202b307559accb2a7f",
+      "size_bytes": 1016
+    },
+    "dashboard-projections.json": {
+      "path": "dashboard-projections.json",
+      "revision": "1.0.0",
+      "sha256": "be0a7f896d562e20f10e9ae0e59b38a6af4829bdeae7be1261b2c030336eb48d",
+      "size_bytes": 8281
+    },
+    "database-state.json": {
+      "path": "database-state.json",
+      "revision": "1.0.0",
+      "sha256": "20755d78c159818a19eb2dad1e21acc332caeabd3fb4e08befc1c3934bedd7e0",
+      "size_bytes": 7647
+    },
+    "focused-doc-regression.log": {
+      "path": "focused-doc-regression.log",
+      "revision": "1.0.0",
+      "sha256": "4945c4aade0e9437860ae5b4ccdbc4d1c756a2d36c07c962b329e9317a7a3b72",
+      "size_bytes": 3291
+    },
+    "governed-request-results.json": {
+      "path": "governed-request-results.json",
+      "revision": "1.0.0",
+      "sha256": "a1ae8ca5342fdae2db242c480f32743fea90c8d23c3366badd200b605907347e",
+      "size_bytes": 589
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "e2e70831ded7b370762ce616cb04ca132e9f8e6fb10607236ba4f171956708ec",
+      "size_bytes": 55
+    },
+    "process-graph-validate.json": {
+      "path": "process-graph-validate.json",
+      "revision": "1.0.0",
+      "sha256": "5141ab715e2fd189f9c47a72e229726a5f8f610ff5bb9825af7746f3ca880544",
+      "size_bytes": 39
+    },
+    "result-summary.txt": {
+      "path": "result-summary.txt",
+      "revision": "1.0.0",
+      "sha256": "07ac9d919543c9d8370d3299db7158a2053d5a59d3f111ed0ccf20d1d818ea4a",
+      "size_bytes": 967
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "service-state.json": {
+      "path": "service-state.json",
+      "revision": "1.0.0",
+      "sha256": "7d0a045816cf30190edc537bb62223d53aae4e92068557a177da18850009a10a",
+      "size_bytes": 1356
+    }
+  },
+  "checkout": {
+    "component_id": "CME-FIRST-VERTICAL-SLICE",
+    "decision": "PASS \u2014 live NO_MATCH remains WAITING_FOR_EVIDENCE while unrelated governed task completes and is independently verified; no formal Steward acceptance claimed",
+    "operator": "Codex CLI local commissioning",
+    "source_commit": "47a79adafe1524b3e819148b70c02a1857f50dbf",
+    "target": "Camrui Ubuntu; live PostgreSQL, systemd executor/verifier and authenticated dashboard projections",
+    "task_id": "RV-M3.3-WAITING-ISOLATION"
+  },
+  "manifest_revision": "1.0.0"
+}

@@ -1,0 +1,62 @@
+{
+  "criteria": [
+    {
+      "criterion": "unverified or absent knowledge cannot authorize action",
+      "evidence": "database-state.json records NO_MATCH with empty source references and no attempt for waiting assignment",
+      "result": "PASS"
+    },
+    {
+      "criterion": "waiting assignment does not block unrelated eligible work",
+      "evidence": "while waiting assignment persisted, normal scheduler completed the separate valid assignment",
+      "result": "PASS"
+    },
+    {
+      "criterion": "two durable assignments progress independently",
+      "evidence": "overlapping ledger lifetimes; one is truthfully waiting while the other progresses to independently verified completion",
+      "result": "PASS scoped"
+    },
+    {
+      "criterion": "actual artifact and independent verification for eligible assignment",
+      "evidence": "database-state.json worker result, artifact digest, separate verifier identity and ACCEPTED criteria; artifact-metadata.json reports mode 0600",
+      "result": "PASS"
+    },
+    {
+      "criterion": "dashboard visibility of both outcomes",
+      "evidence": "dashboard-projections.json: authenticated live status and both detail endpoints returned HTTP 200; one WAITING_FOR_EVIDENCE and one completed with verifier result",
+      "result": "PASS"
+    },
+    {
+      "criterion": "simultaneous execution by multiple executor processes",
+      "evidence": "this work order demonstrates assignment-level concurrency and non-blocking wait; separate executor throughput is outside the scoped acceptance demonstrated here",
+      "result": "NOT CLAIMED"
+    }
+  ],
+  "deployment": "/opt/riverview-m33/releases/47a79adafe1524b3e819148b70c02a1857f50dbf",
+  "observed_timeline_local": [
+    {
+      "event": "unsupported-contract assignment and event persisted; route returned HTTP 200",
+      "time": "2026-10-11T09:09:38.510718-04:00"
+    },
+    {
+      "event": "provider grounding result NO_MATCH; assignment state blocked, workflow_step WAITING_FOR_EVIDENCE; no worker attempt",
+      "time": "2026-10-11T09:09:39.568250-04:00"
+    },
+    {
+      "event": "valid governed repository-check assignment and event persisted; route returned HTTP 200 while prior assignment remained waiting",
+      "time": "2026-10-11T09:09:45.893226-04:00"
+    },
+    {
+      "event": "valid assignment completed after real test artifact and independent ACCEPTED verification; waiting assignment remained blocked",
+      "time": "2026-10-11T09:09:50.055266-04:00"
+    }
+  ],
+  "scenario": {
+    "creation_path": "POST /api/v1/assignments using the existing exact Steward assignment.create grant; credentials excluded from evidence",
+    "eligible_assignment": "m33-live-followup-df010ec29b0747d089575a817e938261",
+    "waiting_assignment": "m33-live-wait-e8646ad6795f4c7b9cf443faf236d0df"
+  },
+  "source_commit": "47a79adafe1524b3e819148b70c02a1857f50dbf",
+  "status": "Live M3.3 non-blocking-wait criterion PASS; supports scoped M3.3 technical review. No Steward acceptance or full Component DoD is claimed.",
+  "target": "Camrui; PostgreSQL riverview/riverview_dev; loopback intake; dashboard read-only projection",
+  "task_id": "RV-M3.3-WAITING-ISOLATION"
+}
