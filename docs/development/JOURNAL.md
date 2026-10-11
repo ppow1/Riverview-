@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.80
+**Document Revision:** 1.0.81
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -1211,3 +1211,34 @@ safe step is exact-head CI, followed by protected backup/restore rehearsal and
 only then an additive deployment decision; M3.3 also requires assignment
 creation authorization, a commissioned worker, and the external real
 knowledge provider.
+
+## 2026-10-11 UTC — RV-M4.1-LIVE-EXACT-GRANT / additive boundary commissioning
+
+Exact-head CI passed on `36622e573f9e030aba909967be76fc4cd646b620` (run
+`38126965396`). Took a fresh PostgreSQL-owned 0600 full backup of `riverview`
+(SHA-256 `f25af3984fa29f7f0a035c9fc0b01a6086e9eadbcb3b26ea77f2a7181255e4c7`),
+validated the custom archive, restored it to a unique disposable DB, matched
+Core/authority migration counts plus assignments/events/authority relation
+counts, then removed only that restore DB and verified absence. Source
+`36622e5` was extracted from its Git archive into a root-owned read-only-to-
+admin source directory. Its checksum migration runner applied only authority
+migration 0002. The boundary helper dry-run selected exactly the authority
+relations and reported `apply_required=true`; apply returned `APPLIED`; an
+idempotency rerun returned no pending migration; postflight returned
+`apply_required=false`.
+
+Live catalog checks verified the security-definer owner, pinned search path,
+runtime execution grant, manager denial, runtime schema USAGE without CREATE,
+and no runtime table SELECT. In a single rollback-only DB transaction, a
+synthetic exact grant was allowed to the real `riverview_core` role, a wrong
+action was denied, direct table access was denied, and the manager was denied
+function execution; all rows were rolled back and verified absent. The initial
+post-restore count query used the wrong ledger schema and failed read-only; a
+corrected query established the expected counts. PostgreSQL, event processor,
+CME monitor, notification dispatcher, dashboard and SSH remained active.
+`riverview_dev` still has 9 migrations, 4 assignments and 11 events. Evidence:
+`evidence/checkouts/M4.1-DB-BOUNDARY/20261011T090700Z-live-exact-grant/`.
+This is database-function/ACL commissioning, not worker-service integration or
+full M4.1/M3.3 acceptance. The next engineering tasks are `assignment.create`
+authorization and controlled deployment of the actual worker adapter; M3.3
+also requires the externally owned real institutional knowledge provider.

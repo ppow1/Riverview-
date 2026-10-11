@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.13
+File Revision: 1.0.15
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -16,6 +16,8 @@ Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Persist bootstrap bear
 Changed: 2026-10-11 UTC | RV-M4.1-LIVE-BOOTSTRAP-EVIDENCE | Record verified root-local live Steward bootstrap without claiming service integration
 Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT | Specify isolated runtime exact-grant function and current deployment boundary
 Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-RECORDS | Link migration 0002 in the component migration inventory
+Changed: 2026-10-11 UTC | RV-M4.1-LIVE-EXACT-GRANT | Record deployed migration and function-only runtime ACL
+Changed: 2026-10-11 UTC | RV-M4.1-MIGRATION-CONTRACT-CURRENT-STATE | Document checksum ledger/registry/function migration order
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
@@ -96,16 +98,19 @@ Missing grants and unavailable registry fail closed. Disposable PostgreSQL
 tests exercise the real function, runtime/manager ACLs, wrong action/scope,
 revocation, and worker execution.
 
-The new migration and adapter are **not yet applied/deployed on Camrui**. The
-live schema currently has the previously commissioned registry/bootstrap
-boundary; runtime has no execute grant on this new function, and no live worker
-service consumes grants. Deployment requires the new migration checksum, a
-protected pre-change backup, successful boundary dry-run/apply, and post-apply
-ACL and application-path checks. M3.3 remains blocked until controlled
-deployment, a real approved worker, and the separately owned real knowledge
-provider are available. Direct inserts and invented authority scope strings
-remain prohibited. M4.1 does not implement chat, work-order promotion, provider
-routing, or the Grace director.
+Migration 0002 and its function-only ACL are deployed on Camrui from exact
+source `36622e573f9e030aba909967be76fc4cd646b620`, after a protected backup and
+disposable restore rehearsal. The runtime can execute only the exact grant
+function and cannot directly access authority tables. A rollback-only live
+runtime-role transaction verified exact allow, wrong-action deny, table-read
+deny and manager-function deny. Evidence:
+`evidence/checkouts/M4.1-DB-BOUNDARY/20261011T090700Z-live-exact-grant/`.
+The worker adapter code is not yet installed in a worker service, assignment
+creation still lacks `assignment.create` enforcement, and no real approved
+worker/knowledge-provider end-to-end run exists. M3.3 remains blocked on those
+application-path and provider requirements. Direct inserts and invented
+authority scope strings remain prohibited. M4.1 does not implement chat,
+work-order promotion, provider routing, or the Grace director.
 
 ### Database privilege boundary package
 
@@ -133,8 +138,8 @@ and cannot be a member of any other database role; it cannot create objects,
 drop tables, execute either protected function directly, or inherit the
 `NOLOGIN` table-owner role. After migration 0002 and a successful boundary
 apply, the runtime receives schema `USAGE` and function `EXECUTE` only for the
-exact-grant check; authority-table and trigger access remain denied. Until that
-apply, the live ACL remains in its pre-function state. The manager is still a
+exact-grant check; authority-table and trigger access remain denied. This
+function-only runtime ACL is deployed and verified on Camrui. The manager is still a
 trusted authority capability: a
 compromised manager can issue direct DML and bypass application-level grant
 checks, so its secret must be isolated from worker, CME, event-processor, and
@@ -176,9 +181,12 @@ runs at construction or service startup. Apply the versioned migration explicitl
 only after backup, restore rehearsal, owner/privilege review, and a release plan.
 The authority migration chain is self-contained for a fresh dedicated schema:
 `0000_authority_migration_ledger.sql` creates only `schema_migrations` if absent,
-then `0001_institutional_authority.sql` creates the registry. The runner records
-checksums and rejects later drift. Existing schemas with a compatible ledger are
-preserved; the bootstrap migration uses `IF NOT EXISTS`.
+`0001_institutional_authority.sql` creates the registry and append-only trigger,
+and `0002_exact_grant_authorization.sql` adds the protected exact-grant
+function. The runner records checksums and rejects later drift. Existing
+schemas with a compatible ledger are preserved; the bootstrap migration uses
+`IF NOT EXISTS`. On Camrui all three checksums are recorded; the exact-grant
+function ACL is verified, while worker-service integration remains open.
 
 See [the focused flow](INSTITUTIONAL_AUTHORITY_FLOW.md),
 [the operations cookbook](INSTITUTIONAL_AUTHORITY_COOKBOOK.md), and

@@ -1,0 +1,70 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M4.1-GRANT-ENFORCEMENT-COMMISSIONING",
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "source_commit": "36622e573f9e030aba909967be76fc4cd646b620",
+  "target": "Camrui PostgreSQL 16.15; dedicated riverview_authority schema; root-owned source package",
+  "decision": "M4.1 exact grant function and narrow runtime ACL deployed and verified; worker service integration and M3.3 remain open",
+  "artifacts": {
+    "active-services.txt": {
+      "path": "active-services.txt",
+      "revision": "1.0.0",
+      "sha256": "f61238e196f49e9eb1b747c30f4c38a4b73c773f04b76713312fdc2f8c9006ef",
+      "size_bytes": 698
+    },
+    "backup-restore.txt": {
+      "path": "backup-restore.txt",
+      "revision": "1.0.0",
+      "sha256": "2d9d7c2292d79f3cfb55079f1c815d11d706ad7de19d4d093ca7d040eab0811f",
+      "size_bytes": 967
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "655135bc5a44bb9c6a8a0cc81b89546528989dce937f161455cb6363361a7d10",
+      "size_bytes": 1148
+    },
+    "database-postflight.txt": {
+      "path": "database-postflight.txt",
+      "revision": "1.0.0",
+      "sha256": "c7b1b39aa0081bc2522fd20440d004595dc36bddffad45549a2ea5d1074624ad",
+      "size_bytes": 366
+    },
+    "deployment-actions.txt": {
+      "path": "deployment-actions.txt",
+      "revision": "1.0.0",
+      "sha256": "e9ef10eae1b2090ed91a69197ac504bcb017f8fa1587eee0ce325d598e5e0a18",
+      "size_bytes": 953
+    },
+    "github-ci.json": {
+      "path": "github-ci.json",
+      "revision": "1.0.0",
+      "sha256": "788e26f9e3b130f3d2d5fff7f9d75b04a54cc7ac7100f71ae9cce5050881d994",
+      "size_bytes": 267
+    },
+    "migration-postflight.txt": {
+      "path": "migration-postflight.txt",
+      "revision": "1.0.0",
+      "sha256": "9e1ac24aab7dbe49f890d9de63c1db8e18cb53d4b264c229c456bed2ab4914e6",
+      "size_bytes": 541
+    },
+    "package-provenance.txt": {
+      "path": "package-provenance.txt",
+      "revision": "1.0.0",
+      "sha256": "3481f4a409c88fab5920048faf6f6a9f1e7880ef42fa7f2474e3edfee2977857",
+      "size_bytes": 645
+    },
+    "post-deployment-regressions.txt": {
+      "path": "post-deployment-regressions.txt",
+      "revision": "1.0.0",
+      "sha256": "be8429b29bb32c68dd193a6547cdaad04c955950e23e3ce7bdae7acf5c5f65e4",
+      "size_bytes": 546
+    },
+    "runtime-role-acceptance.txt": {
+      "path": "runtime-role-acceptance.txt",
+      "revision": "1.0.0",
+      "sha256": "911623fbf34701f1a2c19fa055614468eb8433d4c2ec9e648d4b78640dd4ee5f",
+      "size_bytes": 105
+    }
+  }
+}

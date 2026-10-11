@@ -1,0 +1,1 @@
+PASS: runtime exact allow; wrong-action deny; direct table deny; manager function deny; rollback cleanup

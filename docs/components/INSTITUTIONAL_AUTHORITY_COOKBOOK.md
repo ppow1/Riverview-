@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.18
+File Revision: 1.0.20
 Purpose: Diagnose and safely recover institutional authority registry state
 Authority: Read-only diagnostics first; grant changes require authenticated Steward
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Keep evidence references as readable paths in safe dashboard renderer
@@ -18,19 +18,20 @@ Changed: 2026-10-11 UTC | RV-M4.1-APPLY-REQUIRED-DRY-RUN | Verify read-only pref
 Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Document restart-safe Steward credential bootstrap
 Changed: 2026-10-11 UTC | RV-M4.1-LIVE-BOOTSTRAP-EVIDENCE | Record actual Camrui backup, restore, ACL and Steward bootstrap results
 Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT | Add exact-grant function deployment preflight and isolated runtime recovery path
+Changed: 2026-10-11 UTC | RV-M4.1-LIVE-EXACT-GRANT | Record protected backup/restore, additive migration and live least-privilege verification
+Changed: 2026-10-11 UTC | RV-M4.1-LIVE-STATE-COOKBOOK-CORRECTION | Make current-state banner and preflight expectations match live migration 0002
 Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-RECORDS | Record the post-bootstrap live migration baseline and isolated grant-check result
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional authority registry cookbook
 
 **Current state:** Camrui has the dedicated `riverview_authority` schema,
-protected table ownership, manager credential and root-local Steward identity
-documented below. Migration 0002 and the runtime exact-grant function are newly
-implemented and isolated-tested, but are **not yet applied** to Camrui; the live
-runtime currently has no authority-schema `USAGE` or grant-function execution,
-and no live worker consumes grants. The registry belongs in its separate schema;
-never use the mixed `riverview_dev` application schema. Do not paste bearer or
-database credential values into a shell command.
+protected table ownership, manager credential, root-local Steward identity,
+migration 0002 and exact-grant function-only runtime ACL. The live worker
+adapter is not deployed in a service, and assignment creation is not yet
+authorized through `assignment.create`. The registry belongs in its separate
+schema; never use the mixed `riverview_dev` application schema. Do not paste
+bearer or database credential values into a shell command.
 
 ## Confirm migration readiness
 
@@ -42,7 +43,8 @@ sudo -n -u postgres psql -d riverview -X -c \
           to_regclass('riverview_authority.authority_grants') AS grants"
 ```
 
-Expected on the current Camrui baseline: all four objects exist. If the schema
+Expected on the current Camrui baseline: all four objects exist and migration
+0002 is recorded with the checksum in the live commissioning evidence. If the schema
 or any of these relations is absent, compare with the dated deployment evidence
 before proceeding. A partial schema or checksum mismatch is a stop condition,
 not permission to create objects by hand.
@@ -113,8 +115,8 @@ sudo -n -u postgres psql -X --set=ON_ERROR_STOP=1 -d riverview -c \
   "BEGIN READ ONLY; SELECT current_user; SELECT nspname,pg_get_userbyid(nspowner) AS schema_owner FROM pg_namespace WHERE nspname='riverview_dev'; SELECT rolname,rolsuper,rolcreaterole,rolcreatedb,rolbypassrls FROM pg_roles WHERE rolname='riverview_core'; SELECT to_regclass('riverview_dev.institutional_principals') AS authority_registry; COMMIT;"
 ```
 
-Observed on Camrui at the time of this preflight: `current_user=postgres` for the
-read-only diagnostic; `riverview_dev` and its application tables are owned by
+Historical read-only preflight on 2026-10-11: `current_user=postgres` for the
+diagnostic; `riverview_dev` and its application tables were owned by
 `riverview_core`; that role has no superuser, CREATEROLE, CREATEDB, or BYPASSRLS
 attributes but has schema CREATE. `institutional_principals` is absent. The exact
 command above exited 0. The output is retained in
@@ -131,13 +133,13 @@ read them. The experiment is recorded at
 versioned role-provisioning/migration package, protected service credential,
 application integration, and shared-schema deployment have not been delivered.
 
-Until those pieces are implemented and independently tested, treat authority
-registry responses as isolated library behavior, not a deployed security
-boundary. Do not manually create production grants or run direct SQL to change
-identity state. Preserve existing services and use a new protected backup and
-restore rehearsal before any future deployment. Stop and escalate if any
-proposed deployment cannot prove that ordinary runtime principals lack direct
-write access and cannot assume the authority writer role.
+That early feasibility experiment is superseded by the dedicated schema,
+versioned provisioner and live migration 0002/function-only ACL recorded below.
+The current live evidence is still limited to the database authorization
+boundary: no worker service consumes it and no live assignment grant has been
+created. Do not manually create operational grants or use `riverview_dev` for
+authority records. Any further migration requires a fresh protected
+backup/restore rehearsal and must prove runtime table access remains denied.
 
 After a reviewed boundary package exists, verify as the ordinary app role that
 SELECT and DML against the authority tables are denied, verify that the isolated
@@ -356,20 +358,19 @@ transfers function ownership to the NOLOGIN table owner, revokes execution from
 the manager and PUBLIC, and grants the runtime only schema USAGE plus this
 function's EXECUTE privilege. Direct authority-table access remains denied.
 
-The shared Camrui state was rechecked read-only on 2026-10-11 with:
+The shared Camrui state was checked read-only before migration on 2026-10-11 with:
 
 ```sh
 sudo -n -u postgres psql -X -P pager=off -d riverview -c \
   "SELECT version,checksum FROM riverview_authority.schema_migrations ORDER BY version; SELECT to_regprocedure('riverview_authority.authorize_exact_grant(bytea,text,text)') AS exact_grant_function; SELECT has_schema_privilege('riverview_core','riverview_authority','USAGE') AS runtime_schema_usage"
 ```
 
-Observed migration entries are `0000_authority_migration_ledger`
+At that pre-deployment check, migration entries were `0000_authority_migration_ledger`
 (`8043b6f310f98e8e9613abbec71befcb4e3734d6fb374c36c6ccafe36b965fd6`) and
 `0001_institutional_authority`
 (`347e415b662675d492400a0af145edc9ca92e5122ee3e22886d9656b578fad36`). The
-function is absent and runtime schema USAGE is false. This is the expected
-pre-deployment state; no shared schema or privilege was changed during this
-preflight.
+function was absent and runtime schema USAGE was false. The later deployment
+and its independently checked result are recorded below.
 
 The function, runtime/manager ACL and worker integration were exercised on a
 disposable PostgreSQL 16.15 socket-only cluster using:
@@ -384,11 +385,12 @@ RIVERVIEW_TEST_PG_DSN='host=/tmp/rv-m41-authcheck-pg port=55441 dbname=riverview
 Result: 22 tests passed, no failures/errors/skips. Coverage includes exact grant
 success, wrong action/scope, revoked credentials, registration denial, worker
 denial after revocation, manager function denial, runtime table denial, and
-existing concurrent/recovery monitor behavior. This is isolated verification
-only; it does not prove Camrui runtime ACL or deployed-worker behavior. The new
-function remains unapplied on the shared authority schema.
+existing concurrent/recovery monitor behavior. This was isolated verification
+only; it did not prove Camrui runtime ACL or deployed-worker behavior. The
+subsequent live database result is recorded below; the worker adapter itself
+remains undeployed in a service.
 
-**Safe deployment sequence:** create a new protected full `riverview` backup
+**Executed safe deployment sequence:** create a new protected full `riverview` backup
 under the PostgreSQL-owned backup parent; restore it to a uniquely named
 disposable database and compare Core/authority counts and ACLs; verify packaged
 migration bytes and checksum; apply only authority migration 0002; run the
@@ -403,6 +405,37 @@ applying. Do not drop migration 0002 or the authority schema to roll back; retai
 the function and revoke only the exact runtime function/schema grants through a
 reviewed restoration procedure if a post-apply check fails.
 
+**Camrui exact-grant commissioning, 2026-10-11:** Exact source commit
+`36622e573f9e030aba909967be76fc4cd646b620` passed controlled-checkout CI run
+`38126965396`. A fresh protected backup was stored at
+`/var/lib/postgresql/backups/riverview/m4.1/rv-m41-exact-grant-20261011T090346Z/riverview.dump`
+(postgres:postgres, mode 0600, 97,847 bytes, SHA-256
+`f25af3984fa29f7f0a035c9fc0b01a6086e9eadbcb3b26ea77f2a7181255e4c7`). Its
+custom archive listed successfully and restored to a unique disposable database
+with nine Core migrations, two authority migrations, four assignments, eleven
+events, and ten authority relations. That database was removed and verified
+absent. Only after restore verification, a root-owned package extracted from
+the exact commit applied migration 0002 and the reviewed boundary helper. The
+first preflight returned `apply_required=true`; apply returned `APPLIED`; repeat
+migration returned no pending steps and postflight returned
+`apply_required=false`. Live SQL confirms migration checksum
+`84be0433c2e603875489a3e4311199f19b97eddc6a5ec55eef6dd47010cb091d`, function
+owner `riverview_authority_owner`, fixed search path, runtime `EXECUTE=true`,
+manager `EXECUTE=false`, runtime schema USAGE=true/CREATE=false, and direct
+runtime table SELECT=false. A transaction-only runtime-role check allowed one
+exact grant, denied another action, denied direct table read, and denied manager
+function execution; all synthetic authority rows were rolled back and absence
+was confirmed. PostgreSQL, event processor, CME monitor, notification
+dispatcher, dashboard and SSH remained active; `riverview_dev` retained nine
+migrations, four assignments, and eleven events. The root-owned package remains
+at `/var/tmp/riverview-m41-source-36622e5`. Full outputs and checksums are in
+`evidence/checkouts/M4.1-DB-BOUNDARY/20261011T090700Z-live-exact-grant/`.
+This commissions the additive database function/ACL only. No worker service
+consumes it yet; M3.3 still lacks `assignment.create` enforcement, a real
+commissioned worker, and the external real knowledge provider.
+
+- **1.0.20 — 2026-10-11:** Correct cookbook current-state banner and distinguish historical pre-deployment checks from live exact-grant commissioning.
+- **1.0.19 — 2026-10-11:** Record live additive exact-grant deployment after protected backup/restore and runtime role checks; retain worker/assignment/provider gates.
 - **1.0.18 — 2026-10-11:** Record the live authority migration baseline and exact-grant isolated test result; define safe deployment sequencing.
 - **1.0.1 — 2026-10-11:** Add observed live ownership state, limited isolated role-boundary proof, and explicit non-deployment guidance.
 - **1.0.4 — 2026-10-11:** Present evidence references as readable paths supported by the dashboard's documentation-link policy.

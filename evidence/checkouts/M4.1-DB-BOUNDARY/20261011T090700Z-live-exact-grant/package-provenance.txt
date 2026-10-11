@@ -1,0 +1,5 @@
+Source commit: 36622e573f9e030aba909967be76fc4cd646b620
+GitHub Actions controlled-checkout run 38126965396: completed success at exact head.
+Root-owned deployment source: /var/tmp/riverview-m41-source-36622e5 (root:root, mode 0755); SQL migration and provisioner root:root, mode 0644. Extracted from git archive of the exact source commit; no user-writable code was executed as PostgreSQL.
+Migration SHA-256 (checkout and protected source copy): 84be0433c2e603875489a3e4311199f19b97eddc6a5ec55eef6dd47010cb091d.
+Database DSN was peer-local dbname=riverview under OS account postgres; no credential value was placed in command arguments or logs.

@@ -1,10 +1,11 @@
 # Riverview~ worker adapter contract
 
-**Document Revision:** 1.0.6
+**Document Revision:** 1.0.7
 **Component:** WORKER-ADAPTER
 **Milestone:** M2.1–M2.3
 **Status:** Isolated M4.1 exact-grant integration added; Camrui worker/service deployment remains unverified
 **Implementation:** `src/riverview_core/worker_adapter/adapter.py`
+**Changed:** 2026-10-11 UTC | RV-M4.1-LIVE-EXACT-GRANT | Record deployed database function ACL while retaining undeployed worker service status
 
 ## Scope and trust boundaries
 
@@ -21,11 +22,11 @@ accept a free-form scope claim as authority.
 transaction cursor. The function returns only principal/grant IDs, locks the
 credential/principal/grant rows through transaction completion, and never
 reveals credential digests. A missing grant denies; a missing function or DB
-error is `GrantCheckUnavailable` and denies. The separate database-boundary
-tests confirm the runtime can execute this function but cannot read authority
-tables, while the manager cannot call the function. The live Camrui migration
-and function ACL have not yet been deployed, so this is isolated application
-integration, not a live-worker authorization claim.
+error is `GrantCheckUnavailable` and denies. Isolated database-boundary tests
+confirm the runtime can execute this function but cannot read authority tables,
+while the manager cannot call the function. The Camrui migration and
+function-only ACL are now live and independently verified; the worker adapter
+has not been deployed into a service, so no live-worker execution claim is made.
 
 The only executable task is `deterministic.sha256.v1`: hash caller-provided UTF-8
 text and return its digest and byte count. No shell, subprocess, network,
@@ -42,8 +43,8 @@ lost-lease failure rather than accepting a stale worker result.
 
 The M2.1 migration is separate and explicit. No schema DDL is applied at adapter
 startup. The adapter accepts a separate `authority_schema`; production must use
-`riverview_authority`. Migration 0002 and its exact function ACL have not yet
-been applied to the shared authority schema. No worker service is commissioned.
+`riverview_authority`. Migration 0002 and its exact function ACL are applied to
+the shared authority schema. No worker service is commissioned.
 Steward-issued credential storage and worker process credential delivery remain
 explicit commissioning work.
 
@@ -142,6 +143,9 @@ of this function.
 Isolated PostgreSQL tests passed 22/22 across boundary, worker and CME suites on
 2026-10-11. They cover granted worker operations, wrong scope/action, missing
 registration grant, post-registration credential revocation, and manager/runtime
-SQL separation. The live schema lacks the new function and no production worker
-uses this contract yet. M3.3 and M4.1 remain IN PROGRESS until live migration,
-protected backup/restore, ACL checks and real approved worker commissioning pass.
+SQL separation. A protected live backup/restore, migration 0002, function ACL,
+and rollback-only runtime-role allow/deny check now pass; see
+`evidence/checkouts/M4.1-DB-BOUNDARY/20261011T090700Z-live-exact-grant/`. No
+worker service consumes this contract. M3.3 and M4.1 remain IN PROGRESS pending
+`assignment.create` authorization, deployment and commissioning of the worker
+adapter with an approved real worker, plus the real knowledge provider for M3.3.
