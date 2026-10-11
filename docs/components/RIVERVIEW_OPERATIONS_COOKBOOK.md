@@ -2,11 +2,12 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md
 Component: RIVERVIEW-OPERATIONS
-File Revision: 1.0.3
+File Revision: 1.0.4
 Purpose: Provide a safe, evidence-grounded operations and recovery entry point
 Authority: Diagnostics are read-only; state-changing operations are explicitly identified
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Link identity and authority diagnosis
 Changed: 2026-10-11 UTC | RV-M3.3-KNOWLEDGE-OPERATIONS | Add fail-closed repository knowledge operations
+Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-LIVE-BACKUP-FAILURE | Restore observed PostgreSQL backup-path failure and recovery
 History: Git and revision/backup manifest
 -->
 # Riverview operations and recovery guide
@@ -96,6 +97,47 @@ PYTHONPATH=src RIVERVIEW_TEST_PG_DSN='<disposable PostgreSQL test database DSN>'
 The integration suite must report that all intended PostgreSQL tests ran, with zero skips. A missing DSN or skipped database tests is not a pass. This command is not for the shared Camrui `riverview_dev` schema. An interrupted fixture may leave a test schema: list candidates explicitly with `SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'rvtest_%' ORDER BY schema_name;`, identify the owning test run, and remove only a verified disposable schema after review. Never use wildcard deletion.
 
 ### Backup and restore readiness
+
+### Observed PostgreSQL backup path permission failure
+
+During the 2026-10-11 M4.1 rehearsal, `pg_dump` returned `Permission denied`
+when the PostgreSQL operating-system account attempted to create a backup
+under `/var/lib/riverview/backups/m4.1`. The state directory is deliberately
+`riverview:riverview`, mode `0700`; PostgreSQL cannot traverse it. This is a
+filesystem boundary, not a database outage. **Do not chmod/chown this directory
+or relax its mode.**
+
+Check path and database independently without displaying database contents:
+
+```bash
+sudo -n stat -c '%A %a %U:%G %n' /var/lib/riverview
+sudo -n -u postgres test -x /var/lib/riverview; printf 'postgres_traverse_exit=%s\n' "$?"
+sudo -n pg_isready -d riverview
+```
+
+Expected: state directory `drwx------ 700 riverview:riverview`,
+`postgres_traverse_exit=1` and PostgreSQL accepting connections. If
+`pg_isready` fails, follow the PostgreSQL outage procedure above; do not
+conflate it with the path failure.
+
+The safe recovery is a new protected destination under the PostgreSQL-owned
+tree. In the verified rehearsal, archive
+`/var/lib/postgresql/backups/riverview/m4.1/riverview-20261011T070500Z.dump`
+was owned by `postgres:postgres`, mode `0600`, SHA-256
+`378a1a4cba4605a673d8cf22b8bfcbb4277bce272158cae6e79c7d6ecfd0720b`; its
+`pg_restore --list` and restore to a uniquely named disposable database
+passed, with matching migration/table counts (9 migrations, 4 assignments,
+11 events, 1 attempt, 1 verification). The disposable database was removed
+after verification. Detailed artifact and failed-attempt evidence is retained
+at commit `f807d95d688b8a486db34eb5aa4be9f78c8f998d`, path
+`evidence/checkouts/M4.1-DB-BOUNDARY/20261011T070500Z-backup-restore/`.
+
+After recovery, require the archive checksum to match, `pg_restore --list` to
+exit zero, and a disposable restore's migration/catalog counts to match the
+captured pre-backup values. Retain a failed archive/restore for diagnosis;
+never restore over `riverview`. Escalate if the protected PostgreSQL-owned
+destination is unavailable, the checksum/list/restore fails, counts differ,
+or any operator proposes changing the private state-directory permissions.
 
 Before a reviewed schema/deployment operation, write a full custom-format dump to a new protected directory, verify its checksum and archive listing, and restore it to a uniquely named disposable database. The following demonstrates backup creation and integrity checks; choose a unique run suffix and retain the resulting path in the approved commissioning record:
 
@@ -289,3 +331,4 @@ Stop state-changing work and escalate to the Steward/Operations owner for: migra
 - **1.0.0 — 2026-10-11:** Initial consolidated operational and recovery guide grounded in Camrui service units, component contracts, and retained commissioning findings.
 - **1.0.1 — 2026-10-11:** Make backup paths collision-resistant and document a unique disposable database restore/cleanup path.
 - **1.0.3 — 2026-10-11:** Document observed fail-closed repository provider diagnostics and recovery boundaries.
+- **1.0.4 — 2026-10-11:** Restore the observed PostgreSQL backup-path permission diagnosis and verified safe recovery evidence.
