@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.13
+File Revision: 1.0.14
 Purpose: Diagnose and safely recover institutional authority registry state
 Authority: Read-only diagnostics first; grant changes require authenticated Steward
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Keep evidence references as readable paths in safe dashboard renderer
@@ -14,6 +14,7 @@ Changed: 2026-10-11 UTC | RV-M4.1-PREFLIGHT-DIAGNOSTIC | Document safe boundary 
 Changed: 2026-10-11 UTC | RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER | Describe fresh-schema authority migration order and checksum ledger bootstrap
 Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER-DOC | Document NOINHERIT manager with no role memberships
 Changed: 2026-10-11 UTC | RV-M4.1-OWNER-SCHEMA-USAGE | Diagnose and repair FK-check schema USAGE for protected table owner
+Changed: 2026-10-11 UTC | RV-M4.1-APPLY-REQUIRED-DRY-RUN | Verify read-only preflight reports incomplete grants before apply
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional authority registry cookbook
@@ -259,6 +260,9 @@ ORDER BY c.relname;
 Expected after correction: all nine registry relations have the dedicated
 NOLOGIN owner, `owner_usage=true`, and `owner_create=false`. Runtime schema
 usage remains false; manager usage is true and manager create is false.
+The provisioner's read-only JSON report must set `apply_required=true` if any
+of these allowlisted ownership or privilege conditions is incomplete. Only a
+fully compliant current state may report `apply_required=false`.
 
 **Recovery:** Preserve a current protected backup and verify its checksum and
 restore rehearsal. Run the reviewed boundary provisioner first without

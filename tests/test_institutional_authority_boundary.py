@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_institutional_authority_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.13
+# Revision: 1.0.14
 # Purpose: Verify isolated M4.1 ownership separation denies runtime SQL bypass
 # Execution Model: PostgreSQL integration test using unique rvtest schema and roles
 # Observability: Protected object owners, runtime denial, manager registry authorization
@@ -21,6 +21,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-DEDICATED-SCHEMA-FUNCTION-TEST | Reject unrelated schema functions before privilege changes
 # Changed: 2026-10-11 UTC | RV-M4.1-PREFLIGHT-DIAGNOSTIC | Assert safe static target failures and SQLSTATE-only diagnostics
 # Changed: 2026-10-11 UTC | RV-M4.1-OWNER-SCHEMA-USAGE | Exercise manager FK checks while owner retains USAGE but not CREATE
+# Changed: 2026-10-11 UTC | RV-M4.1-APPLY-REQUIRED-DRY-RUN | Require preflight to detect missing owner schema USAGE before apply
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -173,6 +174,20 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
             manager_role=self.manager_role, owner_role=self.owner_role, apply=True)
         self.assertEqual(applied["status"], "APPLIED")
         self.assertEqual(len(applied["authority_tables"]), 9)
+
+        # A previously transferred boundary can still be incomplete. The
+        # read-only preflight must detect the missing table-owner schema USAGE
+        # required for later foreign-key checks, then an idempotent apply fixes it.
+        self.admin.execute(self.sql.SQL("REVOKE USAGE ON SCHEMA {} FROM {}").format(
+            self.sql.Identifier(self.schema), self.sql.Identifier(self.owner_role)))
+        incomplete = provision_authority_boundary(
+            self.admin, schema=self.schema, runtime_role=self.runtime_role,
+            manager_role=self.manager_role, owner_role=self.owner_role, apply=False)
+        self.assertTrue(incomplete["apply_required"])
+        repaired = provision_authority_boundary(
+            self.admin, schema=self.schema, runtime_role=self.runtime_role,
+            manager_role=self.manager_role, owner_role=self.owner_role, apply=True)
+        self.assertEqual(repaired["status"], "APPLIED")
 
         # Repeated application must be safe and report the protected state.
         repeated = provision_authority_boundary(

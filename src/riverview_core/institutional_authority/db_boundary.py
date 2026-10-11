@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/db_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.6
+# Revision: 1.0.8
 # Purpose: Separate authority relation ownership from the shared runtime role
 # Execution Model: Explicit PostgreSQL DBA operation; dry-run by default
 # Observability: Redacted JSON preflight and applied-relation report
@@ -14,6 +14,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-LEAST-PRIVILEGE | Use dedicated schema, scoped manager DML grants, and deny manager DDL/owner inheritance
 # Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER | Require the manager LOGIN to inherit no PostgreSQL role memberships
 # Changed: 2026-10-11 UTC | RV-M4.1-OWNER-SCHEMA-USAGE | Grant protected table owner schema USAGE so FK checks work without DDL access
+# Changed: 2026-10-11 UTC | RV-M4.1-APPLY-REQUIRED-DRY-RUN | Detect incomplete schema/table ACLs during read-only preflight
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: tests/test_institutional_authority_boundary.py
 # History: .riverview-backups/manifest.jsonl
@@ -193,6 +194,47 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
             if trigger_row["function_owner"] not in acceptable_owners:
                 raise BoundaryPreflightError("authority trigger function owner is outside the approved transition set")
 
+            cur.execute("""SELECT has_schema_privilege(%s::name,%s,'USAGE') AS runtime_usage,
+                                  has_schema_privilege(%s::name,%s,'CREATE') AS runtime_create,
+                                  has_schema_privilege(%s::name,%s,'USAGE') AS manager_usage,
+                                  has_schema_privilege(%s::name,%s,'CREATE') AS manager_create,
+                                  CASE WHEN to_regrole(%s) IS NULL THEN false
+                                       ELSE has_schema_privilege(%s::name,%s,'USAGE') END AS owner_usage,
+                                  CASE WHEN to_regrole(%s) IS NULL THEN false
+                                       ELSE has_schema_privilege(%s::name,%s,'CREATE') END AS owner_create""",
+                        (runtime_role, schema, runtime_role, schema,
+                         manager_role, schema, manager_role, schema,
+                         owner_role, owner_role, schema, owner_role, owner_role, schema))
+            schema_access = cur.fetchone()
+            cur.execute("""SELECT c.relname AS tablename,
+                                  pg_get_userbyid(c.relowner) AS owner,
+                                  has_table_privilege(%s::name,c.oid,'SELECT') AS runtime_select,
+                                  has_table_privilege(%s::name,c.oid,'INSERT') AS runtime_insert,
+                                  has_table_privilege(%s::name,c.oid,'UPDATE') AS runtime_update,
+                                  has_table_privilege(%s::name,c.oid,'DELETE') AS runtime_delete,
+                                  has_table_privilege(%s::name,c.oid,'SELECT') AS manager_select,
+                                  has_table_privilege(%s::name,c.oid,'INSERT') AS manager_insert,
+                                  has_table_privilege(%s::name,c.oid,'UPDATE') AS manager_update,
+                                  has_table_privilege(%s::name,c.oid,'DELETE') AS manager_delete
+                           FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+                           WHERE n.nspname=%s AND c.relkind='r' AND c.relname=ANY(%s)""",
+                        (runtime_role, runtime_role, runtime_role, runtime_role,
+                         manager_role, manager_role, manager_role, manager_role,
+                         schema, list(AUTHORITY_TABLES)))
+            table_access = cur.fetchall()
+            owner_dml = ("runtime_select", "runtime_insert", "runtime_update", "runtime_delete")
+            manager_dml = ("manager_select", "manager_insert", "manager_update", "manager_delete")
+            apply_required = (
+                owner is None
+                or len(table_access) != len(AUTHORITY_TABLES)
+                or any(row["owner"] != owner_role for row in table_access)
+                or any(row[name] for row in table_access for name in owner_dml)
+                or any(not row[name] for row in table_access for name in manager_dml)
+                or schema_access["runtime_usage"] or schema_access["runtime_create"]
+                or not schema_access["manager_usage"] or schema_access["manager_create"]
+                or not schema_access["owner_usage"] or schema_access["owner_create"]
+            )
+
             if not apply:
                 return {
                     "status": "PREFLIGHT_PASS",
@@ -202,7 +244,7 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                     "manager_role": manager_role,
                     "owner_role": owner_role,
                     "authority_tables": sorted(tables),
-                    "apply_required": owner is None or any(x != owner_role for x in tables.values()),
+                    "apply_required": apply_required,
                 }
 
             if owner is None:
