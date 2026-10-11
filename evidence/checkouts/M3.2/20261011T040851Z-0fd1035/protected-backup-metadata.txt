@@ -1,0 +1,2 @@
+700 postgres:postgres 4096 /var/lib/postgresql/riverview-backup.m32-live-20261011T040550Z.8ATpFNNx
+600 postgres:postgres 50858 /var/lib/postgresql/riverview-backup.m32-live-20261011T040550Z.8ATpFNNx/riverview.dump

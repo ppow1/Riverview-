@@ -1,0 +1,72 @@
+{
+  "backup": {
+    "location": "/var/lib/postgresql/riverview-backup.m32-live-20261011T040550Z.8ATpFNNx/riverview.dump",
+    "restore_drill": "PASS; restored to disposable DB, migration 0006 validated, disposable DB removed",
+    "sha256": "ee874b32fd3d0a641647739fe3b7503508c10d3d6086971515b6aa86f0a3633e"
+  },
+  "component_id": "NOTIFICATION-DELIVERY",
+  "decision": "Scoped M3.2 operational technical criteria PASS; not a full-DoD or Steward acceptance claim. Next roadmap item M3.3.",
+  "deployment": {
+    "dashboard_port": 8766,
+    "dashboard_release": "/opt/riverview-status-dashboard/releases/0fd10357ccdf2c9a0c87ba4a6f41e37ecff33ce9",
+    "dispatcher_release": "/opt/riverview-notification-dispatcher/releases/0fd10357ccdf2c9a0c87ba4a6f41e37ecff33ce9",
+    "migration": "0006_durable_notifications",
+    "package_sha256": "3f00b24eeb829f5806a991c97d20a564a9d447a8dd2fd4537a3676f9f410af18"
+  },
+  "environment": "Ubuntu 24.04; shared development database riverview/riverview_dev",
+  "gates": {
+    "full_component_dod": "OPEN",
+    "github_ci": "PASS: PR #17 controlled-checkout run 38110425379",
+    "live_decision_request_case": "NOT VERIFIED live; shared DB has no awaiting_steward assignment; isolated contract tests passed",
+    "process_graph": "PASS: 11 workflows / 209 nodes",
+    "revision_audit": "PASS: zero findings against recorded ENG-REVISION-CONTROL baseline",
+    "steward_acceptance": "NOT REQUESTED"
+  },
+  "host": "Camrui",
+  "isolated_verification": {
+    "cleanup": "temporary rvtest_* schemas absent and cluster stopped",
+    "command": "python -m unittest discover -s tests -v",
+    "errors": 0,
+    "failures": 0,
+    "postgresql": "16.15 UTF8 disposable socket-only cluster",
+    "result": "PASS",
+    "skips": 0,
+    "tests_run": 125
+  },
+  "live_browser": {
+    "attempts": 1,
+    "attention_http_status": 200,
+    "attention_items": 6,
+    "browser": "Firefox 156.0.1",
+    "browser_errors": [],
+    "cme": "healthy",
+    "documentation_code_blocks": 16,
+    "documentation_headings": 16,
+    "documentation_tables": 2,
+    "independent_verifications": 1,
+    "navigation_call_ms": [
+      51,
+      45,
+      45,
+      62
+    ],
+    "projection": "healthy",
+    "worker_assignment": "m31-real-worker-2533f1c7dd1c433c95bd2cfa8a314d7c",
+    "worker_state": "completed",
+    "workflow_graph": "valid; jump navigation works; no current node highlighted because no authoritative node mapping"
+  },
+  "live_database": {
+    "assignments": 4,
+    "delivery_confirmed_receipts": 3,
+    "dispatcher_health": "healthy",
+    "institution_events": 11,
+    "notices": 3,
+    "pending_decision_requests": 0,
+    "receipt_acknowledged_events": 3,
+    "restart_recovery": "same three notification source identities; no duplicate notices",
+    "source_cme_stall_events": 3
+  },
+  "source_commit": "0fd10357ccdf2c9a0c87ba4a6f41e37ecff33ce9",
+  "task_id": "RV-M3.2-001",
+  "timestamp_utc": "2026-10-11T04:08:51Z"
+}

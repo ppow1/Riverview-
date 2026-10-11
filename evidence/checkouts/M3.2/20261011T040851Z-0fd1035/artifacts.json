@@ -1,0 +1,109 @@
+{
+  "artifacts": {
+    "backup-restore-drill.txt": {
+      "path": "backup-restore-drill.txt",
+      "revision": "1.0.0",
+      "sha256": "0f08f6079c589c4f39c1fd60e546530bb8a8e2923151fa5ba9c8e3580395bb32",
+      "size_bytes": 173
+    },
+    "commissioning-summary.json": {
+      "path": "commissioning-summary.json",
+      "revision": "1.0.0",
+      "sha256": "4b2cacdcdb486f8a9565ed78bf39e1761e7b4fd6cb6cd484064b8379ef271e0a",
+      "size_bytes": 2936
+    },
+    "cookbook-view.png": {
+      "path": "cookbook-view.png",
+      "revision": "1.0.0",
+      "sha256": "ca033765521caf288d1582f0e00508ae8354c2c10220776ccdfec50d1eb9024a",
+      "size_bytes": 176770
+    },
+    "dashboard-browser-acceptance.json": {
+      "path": "dashboard-browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "6c0137dd80b1a73aaea47eaf85b618478ad03ab53942ba85bbb9748b0e9cb867",
+      "size_bytes": 3520
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "819935d68f4d6d3e8e8cce7d2c25ed9dd6662bc05b86c2a4eea48915d31cf604",
+      "size_bytes": 20613
+    },
+    "live-migration-result.txt": {
+      "path": "live-migration-result.txt",
+      "revision": "1.0.0",
+      "sha256": "25d86035aa7237d4fb855fea5c50a29252f19d520b792b020c39c2b354356c57",
+      "size_bytes": 137
+    },
+    "live-post-restart-sql.txt": {
+      "path": "live-post-restart-sql.txt",
+      "revision": "1.0.0",
+      "sha256": "032b8577dd4a8109774074ed57666971f97775e4bcb5b1c1611831e9cc2a0ceb",
+      "size_bytes": 357
+    },
+    "notification-browser-receipt.json": {
+      "path": "notification-browser-receipt.json",
+      "revision": "1.0.0",
+      "sha256": "32b6e1638ff6c9f1bb96f23da4d3d476aa310a329d888d95363d260f8a26a35e",
+      "size_bytes": 288
+    },
+    "notification-browser.stderr": {
+      "path": "notification-browser.stderr",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "process-graph-check.txt": {
+      "path": "process-graph-check.txt",
+      "revision": "1.0.0",
+      "sha256": "73cae0665eb9e71bbbfc9ffd2d9d10e90225f07f47e25f742e1590d53a48ce9c",
+      "size_bytes": 55
+    },
+    "protected-backup-metadata.txt": {
+      "path": "protected-backup-metadata.txt",
+      "revision": "1.0.0",
+      "sha256": "d1c5723e59c384962351259b783fc62f48e545206a01c7fb3c2369177a09d482",
+      "size_bytes": 214
+    },
+    "protected-backup-sha256.txt": {
+      "path": "protected-backup-sha256.txt",
+      "revision": "1.0.0",
+      "sha256": "0366c07f8df0b340dab0ff47417edda78ae22e790542c22deda183b17cb31a46",
+      "size_bytes": 153
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "services-after-restart.txt": {
+      "path": "services-after-restart.txt",
+      "revision": "1.0.0",
+      "sha256": "43357a2841fa0ef6c44c64bde58a565f34c4bfe6d77a8a547598671ea278123b",
+      "size_bytes": 407
+    },
+    "test-cluster-cleanup.txt": {
+      "path": "test-cluster-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "3349a3d9a7ad3311439b5edd617781d69d3fd19ca2cd1aa6489732e08ae21a38",
+      "size_bytes": 46
+    },
+    "workflow-view.png": {
+      "path": "workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "93b5459c3b9c872c6bca3553f00fa76574682c73c927787fccafc508f6e2fef4",
+      "size_bytes": 213180
+    }
+  },
+  "checkout": {
+    "component_id": "NOTIFICATION-DELIVERY",
+    "decision": "PASS scoped technical criteria; full DoD OPEN",
+    "operator": "Codex CLI local commissioning",
+    "source_commit": "0fd10357ccdf2c9a0c87ba4a6f41e37ecff33ce9",
+    "target": "Camrui Ubuntu 24.04; riverview/riverview_dev",
+    "task_id": "RV-M3.2-001"
+  },
+  "manifest_revision": "1.0.0"
+}

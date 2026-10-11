@@ -1,0 +1,1 @@
+{"acknowledged_receipt_authority_effect": null, "browser": "Firefox", "browser_errors": [], "delivery_states": {"acknowledged": 3}, "dispatcher_status": "healthy", "event_types": ["assignment_stalled"], "notification_status": "available", "notifications_after_ack": 3, "visible_rows": 3}

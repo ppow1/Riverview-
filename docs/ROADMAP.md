@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.7
+**Document Revision:** 1.1.8
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-11
 **Component:** RV-ROADMAP  
@@ -147,9 +147,11 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 **M3.1 — Read-only status projection and browser dashboard:** Scoped technical implementation **ACCEPTED BY THE STEWARD on 2026-10-11 UTC** under the overnight work order, based on Camrui commissioning evidence at deployed release `008d942ea57116b0fbdead771c201d3f99305482`, records/CI commit `6926ac129cca8f733048cbf478d27d6bf00248dc`, live-worker/independent-verification evidence, passing full suite and CI, and the earlier external Windows snapshot. Acceptance is scoped to the M3.1 technical implementation only. The full component DoD remains OPEN: no post-change Windows visual confirmation of the graph/cookbook pages, no sustained operational-autonomy demonstration, and later console/chat/actionable-control requirements remain. PR #16 remains open/draft and unmerged; see its Steward acceptance comment and `docs/development/M3.1-001_REVISION_RECORD.md`.
 
-**Current step: M3.2 — Durable notification and decision requests.** Begin engineering from verified existing CME attention data and dashboard projections. A successful durable event is not delivery; implement one actual notification channel with durable delivery/acknowledgment truth and explicit Steward decision-request lifecycle. Do not mutate source assignment lifecycle from notification delivery. Follow the M3.2 component record as it is established. Full DoD for M3.2 remains to be demonstrated.
+**M3.2 — Durable notification and decision requests:** Scoped technical criteria PASS at `0fd10357ccdf2c9a0c87ba4a6f41e37ecff33ce9`. The additive `0006_durable_notifications` migration and dedicated dispatcher were commissioned on Camrui with a protected backup/restore drill. Three genuine persisted CME stall events produced three durable notices; browser rendering and explicit acknowledgment were recorded, and dispatcher restart retained the same notice identities without duplicates. Live dashboard/notification browser verification passed with no browser errors. Isolated full suite passed 125/125 with zero skips; CI, graph synchronization (11 workflows / 209 nodes), and revision audit passed. Live `awaiting_steward` decision-request creation was not exercised because no such assignment exists in the shared database; isolated tests cover request/no-authority-effect behavior. This is technical commissioning evidence, not full component DoD or Steward acceptance. See `docs/development/M3.2-001_REVISION_RECORD.md` and `evidence/checkouts/M3.2/20261011T040851Z-0fd1035/`.
 
-**Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. M3.2 is the current roadmap step; full Grace integration remains a later mandatory system-level gate.
+**Current step: M3.3 — First end-to-end unattended demonstration.** Prepare and execute the reproducible Camrui vertical slice with concurrent authorized assignments, real worker execution, independent verification, restart/recovery, dashboard projection, and notification evidence. Preserve M3.2's open full-DoD requirements and do not imply Grace autonomy. PR #17 remains draft/open and unmerged; M3.2 branch depends on the still-open M3.1 PR #16.
+
+**Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. M3.3 is the current roadmap step; full Grace integration remains a later mandatory system-level gate.
 
 ## Revision history
 
@@ -172,3 +174,4 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 - **1.1.5 — 2026-10-11:** Record the Steward's scoped technical acceptance of M3.1 without waiving full component DoD; advance the cursor to M3.2 durable notification and decision requests.
 - **1.1.6 — 2026-10-11:** Remove trailing whitespace detected during acceptance-record checkout.
 - **1.1.7 — 2026-10-11:** Correct the Grace section cursor reference to reflect M3.2 as the current step.
+- **1.1.8 — 2026-10-11:** Record scoped M3.2 technical commissioning and advance the engineering cursor to M3.3; retain open full-DoD and live decision-request limitations.
