@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.60
+**Document Revision:** 1.0.61
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -1073,3 +1073,20 @@ working-tree precondition because the backup manifest was intentionally dirty.
 It created no archive. Commit records/backups first, then rebuild and verify the
 exact committed source. This is a safe packaging precondition, not a test or
 deployment failure; no active host path changed.
+
+## 2026-10-11 UTC — RV-M4.1-167 / exact commit verification checkpoint
+
+Committed and pushed the latest records as `167e63b9969a5cdbb1e4d3abee33e3e503bba11f`.
+From its clean tree, built and verified the exact-source Camrui archive
+(SHA-256 `04abf2a8a6ce4efcc3c741548df76fac77ea7b7b0833b439fe9580d9458f5d52`);
+manifest, shell bytes, and path scan passed. Repeated the PostgreSQL-backed
+suite (133/133, zero skips), focused docs route test (1/1), compileall, graph
+check (12 workflows/226 nodes), revision audit (zero findings), and fixture
+cleanup (zero `rvtest_*` schema/roles). Exact-head CI run 38115448463 passed.
+Evidence is `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T054020Z-167e63b/`.
+
+Deployment remains deliberately withheld because the verified full archive
+would downgrade the installed dashboard shell and drop working repository-
+knowledge links. Existing release 7a9ff46 and all operational services remain
+unchanged and healthy; shared authority tables/roles/credentials remain absent.
+M4.1 is isolated-engineering PASS, not live commissioning or component DONE.
