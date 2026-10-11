@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.13
+**Document Revision:** 1.1.14
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-11
 **Component:** RV-ROADMAP  
@@ -153,13 +153,15 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 **M4.1 deployment/view checkpoint (2026-10-11):** PR #18 source commit `b63f6d85e7837caaa03265aa19164b57c818c8d9` is deployed as a dashboard-only release so the M4.1 cookbook and canonical graph can be browsed. Firefox confirmed the graph and docs; no authority migration, identity, grant, credential, worker, or assignment was deployed or created. M4.1 remains IN PROGRESS and M3.3 remains BLOCKED at live authority/knowledge preflight. Evidence is `evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/`.
 
-**M4.1 isolated boundary correction (2026-10-11):** The authority provisioner now requires a dedicated authority-only schema; rejects unrelated tables/functions and unsafe manager memberships; revokes `PUBLIC`/runtime schema access; and gives a NOINHERIT, no-membership manager only allowlisted table DML. The focused private-PostgreSQL boundary test and process-graph revision tests pass; full exact-head CI is pending. This is not shared-schema commissioning: no roles, credentials, schema, identity, grant or worker state were changed. M4.1 remains IN PROGRESS and M3.3 remains blocked pending live authority/worker integration and the separate real knowledge-provider requirement.
+**M4.1 isolated boundary correction (2026-10-11):** The authority provisioner now requires a dedicated authority-only schema; rejects unrelated tables/functions and unsafe manager memberships; revokes `PUBLIC`/runtime schema access; and gives a NOINHERIT, no-membership manager only allowlisted table DML. The complete isolated PostgreSQL suite passed 135/135 (zero skips/failures/errors), teardown left zero test schemas/roles, process graph passed at 12 workflows / 227 nodes, the controlled revision audit had zero findings, and exact-head PR #20 CI passed (run 38119049973). Evidence is linked in the M4.1 revision record. This is not shared-schema commissioning: no roles, credentials, schema, identity, grant, worker state, or service was changed. M4.1 remains IN PROGRESS; M3.3 still requires live authorization/worker integration and the separate real knowledge-provider requirement.
 
 **Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. M3.3 remains the current unaccepted roadmap step; full Grace integration remains a later mandatory system-level gate.
 
 **M1.4 live dependency correction (2026-10-11 UTC):** A read-only `sudo -u postgres psql` inspection found the shared `riverview_dev.schema_migrations` row `0001_assignment_leases` applied at `2026-10-10 18:27:04.341175-04:00`, with SHA-256 `ce29c2994904f54706db883f61127bf05ee195ecbdce90e7242886e86711b717`, matching `src/riverview_core/assignment_scheduler/migrations/0001_assignment_leases.sql`. This was applied as part of the later worker and monitor migration chain. It corrects the earlier “no shared migration” statement without claiming M1.4 runtime commissioning; the standalone scheduler service, full M1.4 exit gate and Component DoD remain open. Exact read-only output is in `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T055428Z-pg-doc-safety/live-peer-inspection.txt`.
 
 ## Revision history
+
+- **1.1.14 — 2026-10-11:** Record exact-head M4.1 isolated 135-test verification and passing CI while retaining the open live commissioning and M3.3 blockers.
 
 - **1.1.10 — 2026-10-11:** Record M4.1 isolated privilege feasibility and dashboard-only graph/cookbook deployment; preserve M3.3 as blocked and unaccepted.
 - **1.1.11 — 2026-10-11:** Record the packaged, isolated M4.1 privilege-boundary implementation and test; preserve the live schema-owner blocker and M3.3 status.
