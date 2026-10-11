@@ -1,8 +1,8 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.4
+**Document Revision:** 1.1.6
 **Status:** Active planning baseline — execution gates require evidence  
-**Date:** 2026-10-09  
+**Date:** 2026-10-11
 **Component:** RV-ROADMAP  
 **Owner:** Steward  
 **Purpose:** Define the ordered implementation path and what the command **“go” or “next”** means.  
@@ -145,7 +145,9 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 **M2.4 — CME monitoring service:** Isolated technical criteria PASS at `a44091bc32e82580dd8a3350e1ecfa47b0157b36`, integrated by PR #14. The authorized shared `riverview_dev` migration chain and dedicated systemd monitor were commissioned on Camrui from `702f5db3f03669427a3625425eca04c023a0754c`. The live service reported healthy and recorded three genuine stale-assignment alerts; manual restart and systemd recovery after SIGKILL preserved those alert IDs without duplicates. Scoped operational criteria PASS. Full component DoD remains OPEN; no live worker is registered, and no unrelated live assignment progress was available to observe. See `docs/development/M2.4-001_REVISION_RECORD.md` and `evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/`.
 
-**Current step: M3.1 — Read-only status projection and browser dashboard.** Engineering began from integrated main at e9c66afabe88fe02403a35c8ede83eba54bca2e2. The canonical roadmap is revision 1.1.4; Issue #13 and draft PR #15 remain requirements input and PR #15 is not merged. PR #16 remains open as draft. The Steward supplied post-migration Windows-over-SSH evidence in PR comment 6103058810. A controlled PostgreSQL worker assignment has since reached independent verified completion; formatted cookbook rendering and a canonical graph viewer are now part of this M3.1 work. See the latest M3.1 revision record for evidence and gates. Full component DoD and formal acceptance remain open.
+**M3.1 — Read-only status projection and browser dashboard:** Scoped technical implementation **ACCEPTED BY THE STEWARD on 2026-10-11 UTC** under the overnight work order, based on Camrui commissioning evidence at deployed release `008d942ea57116b0fbdead771c201d3f99305482`, records/CI commit `6926ac129cca8f733048cbf478d27d6bf00248dc`, live-worker/independent-verification evidence, passing full suite and CI, and the earlier external Windows snapshot. Acceptance is scoped to the M3.1 technical implementation only. The full component DoD remains OPEN: no post-change Windows visual confirmation of the graph/cookbook pages, no sustained operational-autonomy demonstration, and later console/chat/actionable-control requirements remain. PR #16 remains open/draft and unmerged; see its Steward acceptance comment and `docs/development/M3.1-001_REVISION_RECORD.md`.
+
+**Current step: M3.2 — Durable notification and decision requests.** Begin engineering from verified existing CME attention data and dashboard projections. A successful durable event is not delivery; implement one actual notification channel with durable delivery/acknowledgment truth and explicit Steward decision-request lifecycle. Do not mutate source assignment lifecycle from notification delivery. Follow the M3.2 component record as it is established. Full DoD for M3.2 remains to be demonstrated.
 
 **Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. M3.1 is the active milestone; its complete integration remains in progress.
 
@@ -167,3 +169,5 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 - **1.1.2 — 2026-10-10:** Reconcile M2.4 PR #14 integration on main and record M3.1 as active from the verified integrated baseline; preserve the unmerged draft PR #15 status.
 - **1.1.3 — 2026-10-10:** Record authorized shared M2.4 migrations, installed monitor health/restart recovery, and actual live dashboard integration while retaining M3.1 as active and full DoD obligations open.
 - **1.1.4 — 2026-10-10:** Include readable diagnostic documents and canonical graph visualization in M3.1 acceptance, record the Steward's external browser observation and live worker integration evidence, and propose (without accepting) M3.4 ownership for Issue #13's actionable console/resident-chat requirements.
+- **1.1.5 — 2026-10-11:** Record the Steward's scoped technical acceptance of M3.1 without waiving full component DoD; advance the cursor to M3.2 durable notification and decision requests.
+- **1.1.6 — 2026-10-11:** Remove trailing whitespace detected during acceptance-record checkout.

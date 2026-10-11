@@ -1,8 +1,19 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.40
+**Document Revision:** 1.0.41
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-11 UTC — RV-M3.1-ACCEPTANCE / scoped Steward acceptance
+
+The Steward accepted the scoped M3.1 technical implementation based on the
+commissioning record, passing CI, live worker/verifier evidence and the external
+Windows dashboard snapshot. This records acceptance only for the scoped
+technical implementation; it does not close the component Definition of Done,
+waive the new-view Windows recheck or full autonomy/Issue #13 obligations, or
+authorize merging PR #16. The roadmap now advances to M3.2 durable notification
+and decision requests. PR #16 remains open/draft; its discussion records this
+decision. Evidence and deployed provenance remain unchanged.
 
 ## 2026-10-10 UTC — RV-M3.1-004 / deployed graph and documentation browser verification
 
