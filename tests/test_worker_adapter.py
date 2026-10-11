@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.24
+# Revision: 1.0.25
 # Purpose: Verify scoped dispatch, fail-closed knowledge, independent outcomes, and recovery
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL test database
 # Authority: Creates and drops only unique rvtest_* schemas
-# Changed: 2026-10-11 UTC | RV-M3.3-REPOSITORY-KNOWLEDGE | Execute real repository grounding through the worker and verifier
+# Changed: 2026-10-11 UTC | RV-M3.3-REPOSITORY-KNOWLEDGE-EVIDENCE | Emit optional sanitized integration evidence
 # Contracts: docs/development/M2.3-001_REVISION_RECORD.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -21,6 +21,7 @@ import os
 import threading
 import time
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -208,6 +209,49 @@ class WorkerAdapterTests(unittest.TestCase):
             self.assertEqual(by_operation[operation]["source_revision"], commit)
             self.assertEqual(len(by_operation[operation]["source_sha256"]), 64)
         self.assertEqual(by_operation["record_learning"]["status"], "UNAVAILABLE")
+        evidence_path = os.environ.get("RIVERVIEW_M33_KNOWLEDGE_EVIDENCE_PATH")
+        if evidence_path:
+            with self.worker.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("SELECT result_sha256,octet_length(result::text) AS stored_bytes FROM worker_results WHERE attempt_id=%s",
+                            (run["attempt_id"],))
+                artifact = cur.fetchone()
+                cur.execute("SELECT decision,verifier_id,criteria,evidence_references FROM verification_records WHERE attempt_id=%s",
+                            (run["attempt_id"],))
+                verification = cur.fetchone()
+                cur.execute("SELECT version() AS postgres_version")
+                postgres_version = cur.fetchone()["postgres_version"]
+            evidence = {
+                "task_id": "RV-M3.3-REPOSITORY-KNOWLEDGE",
+                "observed_at_utc": datetime.now(timezone.utc).isoformat(),
+                "repository_commit": commit,
+                "postgres_version": postgres_version,
+                "isolated_schema": self.schema,
+                "assignment_id": assignment_id,
+                "worker_id": worker_id,
+                "attempt_id": run["attempt_id"],
+                "artifact_sha256": artifact["result_sha256"],
+                "artifact_stored_bytes": artifact["stored_bytes"],
+                "provider_operations": {
+                    name: {"status": row["status"],
+                           "source_references": row["source_references"],
+                           "source_revision": row["source_revision"],
+                           "source_sha256": row["source_sha256"],
+                           "retrieval_complete": row["retrieval_complete"]}
+                    for name, row in by_operation.items()
+                },
+                "verifier_id": verification["verifier_id"],
+                "verification_decision": verification["decision"],
+                "verification_criteria": verification["criteria"],
+                "verification_evidence_references": verification["evidence_references"],
+                "final_assignment_state": self.ledger.get(assignment_id)["state"],
+                "credentials_or_source_bodies_included": False,
+            }
+            output = Path(evidence_path)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            with output.open("x", encoding="utf-8") as stream:
+                json.dump(evidence, stream, indent=2, sort_keys=True)
+                stream.write("\n")
 
     class VerifiedProvider:
         def __init__(self, value="objective:sha256"):

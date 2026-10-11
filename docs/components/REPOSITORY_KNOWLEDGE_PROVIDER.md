@@ -2,18 +2,18 @@
 Riverview~ Controlled Document
 File: docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md
 Component: REPOSITORY-KNOWLEDGE-PROVIDER
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Specify bounded, commit-pinned repository grounding for worker tasks
 Authority: Read-only retrieval; does not grant assignment or worker authority
-Changed: 2026-10-11 UTC | RV-M3.3-REPOSITORY-KNOWLEDGE | Initial contract
+Changed: 2026-10-11 UTC | RV-M3.3-REPOSITORY-KNOWLEDGE-MD-LINT | Remove trailing whitespace
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Repository knowledge provider
 
-**Status:** Isolated engineering and tests; not configured in the live worker service.  
-**Implementation:** `src/riverview_core/worker_adapter/repository_knowledge.py`  
-**Contract:** Existing knowledge-provider v1.0.0; this is one replaceable provider.  
-**Workflow:** `rv:repository-knowledge-provider:pinned-worker-contracts`
+- **Status:** Isolated engineering and tests; not configured in the live worker service.
+- **Implementation:** `src/riverview_core/worker_adapter/repository_knowledge.py`
+- **Contract:** Existing knowledge-provider v1.0.0; this is one replaceable provider.
+- **Workflow:** `rv:repository-knowledge-provider:pinned-worker-contracts`
 
 ## Scope and trust boundary
 
@@ -68,3 +68,8 @@ See the [generated process flow](REPOSITORY_KNOWLEDGE_FLOW.md),
 service configuration was created by this component. M3.3 remains open until
 authority is enforced on the live control path and its two-assignment recovery
 demonstration is independently commissioned.
+
+## Revision history
+
+- **1.0.1 — 2026-10-11:** Remove trailing whitespace from metadata and status summary.
+- **1.0.0 — 2026-10-11:** Establish bounded source-provider contract.

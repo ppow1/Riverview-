@@ -2,17 +2,17 @@
 Riverview~ Controlled Document
 File: docs/components/REPOSITORY_KNOWLEDGE_FLOW.md
 Component: REPOSITORY-KNOWLEDGE-PROVIDER
-Document Revision: 1.0.2
+Document Revision: 1.0.3
 Purpose: Display pinned contract retrieval, failure and worker handoff
 Authority: A source lookup cannot grant work authority
-Changed: 2026-10-11 UTC | RV-M3.3-REPOSITORY-KNOWLEDGE-FLOW-HISTORY | Add generated-flow revision history
+Changed: 2026-10-11 UTC | RV-M3.3-REPOSITORY-KNOWLEDGE-MD-LINT | Remove trailing whitespace
 Generated from: process_graphs/knowledge-provider/repository-contracts.json
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Repository knowledge retrieval and handoff
 
-**Canonical workflow:** `rv:repository-knowledge-provider:pinned-worker-contracts`  
-**Generated from:** canonical JSON graph; do not hand-edit the Mermaid block.  
+**Canonical workflow:** `rv:repository-knowledge-provider:pinned-worker-contracts`
+**Generated from:** canonical JSON graph; do not hand-edit the Mermaid block.
 **Cookbook:** [diagnosis and recovery](REPOSITORY_KNOWLEDGE_COOKBOOK.md)
 
 ```mermaid
@@ -69,6 +69,7 @@ flowchart LR
 
 ## Revision history
 
+- **1.0.3 — 2026-10-11:** Remove trailing whitespace from generated-view metadata.
 - **1.0.2 — 2026-10-11:** Add the flow document's revision history.
 - **1.0.1 — 2026-10-11:** Generate synchronized flow from the registered canonical graph.
 - **1.0.0 — 2026-10-11:** Establish the workflow view contract.
