@@ -1,0 +1,7 @@
+Deployment restart and recovery record
+
+Initial activation attempt: the service restart completed but a zero-wait HTTP probe raced service startup and returned connection refused. The deployment guard restored the prior current symlink and prior systemd unit. The previous dashboard returned to active state; no database or other service was modified.
+
+Correction: repeated activation of the same reviewed candidate with bounded 20-second readiness polling. HTTP became ready and the dashboard browser acceptance completed. Final dashboard state: active/running, ExecMainStatus=0, NRestarts=0, current symlink points at the immutable docs overlay. PostgreSQL, event processor, CME monitor, notification dispatcher and SSH were active. The prior immutable dashboard release and prior unit bytes were retained for rollback.
+
+This was a startup-probe timing issue, not evidence of a candidate application defect. The retry used the same reviewed package and bounded readiness check.

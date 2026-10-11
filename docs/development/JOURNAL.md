@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.81
+**Document Revision:** 1.0.82
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -1242,3 +1242,11 @@ This is database-function/ACL commissioning, not worker-service integration or
 full M4.1/M3.3 acceptance. The next engineering tasks are `assignment.create`
 authorization and controlled deployment of the actual worker adapter; M3.3
 also requires the externally owned real institutional knowledge provider.
+
+
+## 2026-10-11 UTC — RV-M4.1-DASHBOARD-DOCS-LIVE / deployment and browser evidence
+
+Deployed an immutable documentation and synchronized-process-graph overlay at
+`/opt/riverview-status-dashboard/releases/8556598b19a7da4aa191a600c767d79d24432afe-docs-d2c145c`. The executable, scripts, static assets, systemd security controls, and PostgreSQL state were retained byte-for-byte from the prior release; the overlay is sourced from docs/process-graph commit `d2c145cb9c7fbfb983ea842199e204d03bfdf731`. Source identity and docs identity are separately recorded in the package manifest and systemd deployment ID. Package checksums passed.
+
+The first immediate HTTP probe raced systemd startup; the rollback guard restored the prior symlink and unit. A bounded readiness retry then passed without touching other services or database state. The service is active with `NRestarts=0`, `/api/v1/attention` returns 200, and the current release is the immutable docs overlay. Firefox 156.0.1 live-browser evidence shows a completed real assignment, one persisted attempt and independent verification, healthy CME projection, six attention items, 19 documentation links returning 200, rendered headings/tables/code blocks, no browser errors or unsafe links, and graph structure/navigation with live execution position truthfully shown as unknown. View-handler navigation timings in this single run were 64–210 ms; they are not paint benchmarks. Evidence, screenshots, service state, database read-only counts, checksums, and release manifest are retained in `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/`. This is operational dashboard documentation deployment evidence, not full dashboard Component DoD or milestone acceptance.

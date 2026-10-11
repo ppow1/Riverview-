@@ -1,0 +1,6 @@
+{
+  "status": "PASS",
+  "workflows": 13,
+  "nodes": 265,
+  "command": "python3 scripts/process_graph.py check"
+}

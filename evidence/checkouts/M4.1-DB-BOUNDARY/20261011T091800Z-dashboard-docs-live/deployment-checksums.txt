@@ -1,0 +1,3 @@
+3afe126a33c726681a7ebd7e306a04f332cb6e03b101c5b8b230d562c9a0ebeb  /opt/riverview-status-dashboard/current/PACKAGE_SHA256SUMS
+91cf8ad088f794e763c594981398b881ecf2839cdaf6728eeed64aa4ab1815ca  /etc/systemd/system/riverview-status-dashboard.service
+6fb11ab264ccbba74d0213f4e3e8d00eba8ca847fde046757d7906cc18cf88a0  /var/backups/riverview/status-dashboard/docs-d2c145c/unit.before

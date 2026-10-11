@@ -1,0 +1,7 @@
+  postgresql.service                                    loaded active exited  PostgreSQL RDBMS
+  postgresql@16-main.service                            loaded active running PostgreSQL Cluster 16-main
+  riverview-cme-monitor.service                         loaded active running Riverview CME assignment progress monitor
+  riverview-event-processor.service                     loaded active running Riverview M1.3 durable assignment event processor
+  riverview-notification-dispatcher.service             loaded active running Riverview durable visual notification dispatcher
+  riverview-status-dashboard.service                    loaded active running Riverview read-only Steward status dashboard
+  ssh.service                                           loaded active running OpenBSD Secure Shell server
