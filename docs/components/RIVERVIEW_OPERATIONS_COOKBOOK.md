@@ -2,12 +2,13 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md
 Component: RIVERVIEW-OPERATIONS
-File Revision: 1.0.4
+File Revision: 1.0.5
 Purpose: Provide a safe, evidence-grounded operations and recovery entry point
 Authority: Diagnostics are read-only; state-changing operations are explicitly identified
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Link identity and authority diagnosis
 Changed: 2026-10-11 UTC | RV-M3.3-KNOWLEDGE-OPERATIONS | Add fail-closed repository knowledge operations
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-LIVE-BACKUP-FAILURE | Restore observed PostgreSQL backup-path failure and recovery
+Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-SERVICE-INVENTORY-CORRECTION | Include the active notification dispatcher in health checks
 History: Git and revision/backup manifest
 -->
 # Riverview operations and recovery guide
@@ -21,19 +22,20 @@ Run on Camrui. These checks do not print credentials or database contents.
 ```bash
 hostnamectl --static
 id
-systemctl is-active postgresql@16-main.service riverview-event-processor.service riverview-cme-monitor.service riverview-status-dashboard.service ssh.service
+systemctl is-active postgresql@16-main.service riverview-event-processor.service riverview-cme-monitor.service riverview-notification-dispatcher.service riverview-status-dashboard.service ssh.service
 pg_lsclusters
 ss -ltn '( sport = :5432 or sport = :8766 )'
-systemctl show riverview-event-processor.service riverview-cme-monitor.service riverview-status-dashboard.service -p Id -p ActiveState -p SubState -p MainPID -p NRestarts
+systemctl show riverview-event-processor.service riverview-cme-monitor.service riverview-notification-dispatcher.service riverview-status-dashboard.service -p Id -p ActiveState -p SubState -p MainPID -p NRestarts
 ```
 
-Commissioned listener ownership is PostgreSQL on loopback port 5432 and the read-only dashboard on loopback port 8766. The dashboard's remote access is through an authorized SSH forward; it is not an internet-facing listener. On the observed host all four Riverview/PostgreSQL/SSH units were active. A different result is not repaired by restarting every unit: continue with the owning service below.
+Commissioned listener ownership is PostgreSQL on loopback port 5432 and the read-only dashboard on loopback port 8766. The dashboard's remote access is through an authorized SSH forward; it is not an internet-facing listener. The six-unit Camrui operational set is PostgreSQL, event processor, CME monitor, notification dispatcher, dashboard, and SSH; `systemctl is-active` must be interpreted at the time it is run. A different result is not repaired by restarting every unit: continue with the owning service below.
 
 Read only the selected unit's recent, sanitized journal:
 
 ```bash
 journalctl -u riverview-event-processor.service --since=-30min --no-pager
 journalctl -u riverview-cme-monitor.service --since=-30min --no-pager
+journalctl -u riverview-notification-dispatcher.service --since=-30min --no-pager
 journalctl -u riverview-status-dashboard.service --since=-30min --no-pager
 journalctl -u postgresql@16-main.service --since=-30min --no-pager
 ```
@@ -332,3 +334,4 @@ Stop state-changing work and escalate to the Steward/Operations owner for: migra
 - **1.0.1 — 2026-10-11:** Make backup paths collision-resistant and document a unique disposable database restore/cleanup path.
 - **1.0.3 — 2026-10-11:** Document observed fail-closed repository provider diagnostics and recovery boundaries.
 - **1.0.4 — 2026-10-11:** Restore the observed PostgreSQL backup-path permission diagnosis and verified safe recovery evidence.
+- **1.0.5 — 2026-10-11:** Correct the six-unit Camrui inventory and include notification-dispatcher health and journal checks.
