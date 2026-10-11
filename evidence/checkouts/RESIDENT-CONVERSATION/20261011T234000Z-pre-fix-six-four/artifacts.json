@@ -1,0 +1,35 @@
+{
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "a1b7484782f2556d67296732446d83db431fd9201fe20a594393af1e2705ab3e",
+      "size_bytes": 2941
+    },
+    "final-revision-audit.json": {
+      "path": "final-revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "d66882bdb93ad0a6848816dc07f02e40b9bc64c54079480db6828aeb1f8f777e",
+      "size_bytes": 55
+    },
+    "reproduce.py": {
+      "path": "reproduce.py",
+      "revision": "1.0.0",
+      "sha256": "ff934a1fee7c09088f960561a316359e96db2717c9d766ee0e7b536b99d4957c",
+      "size_bytes": 4029
+    },
+    "reproduction-output.json": {
+      "path": "reproduction-output.json",
+      "revision": "1.0.0",
+      "sha256": "d975c77a50df1d49414472e3d86511efb18976f60bfb4beea4d103c3b17470d5",
+      "size_bytes": 999
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

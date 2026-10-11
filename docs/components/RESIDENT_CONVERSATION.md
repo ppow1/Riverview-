@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.6
+File Revision: 1.0.8
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -12,6 +12,8 @@ Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Record committed-source local Fir
 Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Serialize shared PostgreSQL connection use and fail closed on leaked transactions
 Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Record successful Camrui recommission and remaining temporary-model limitation
 Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Record live pending-turn interruption recovery and verified browser rendering
+Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Reproduce exact predecessor six-versus-four event visibility gap in isolated PostgreSQL
+Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Retain the exact predecessor reproduction source and sanitized result
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
@@ -72,6 +74,8 @@ Isolated PostgreSQL tests exercise exact read/send grants, persistent history, r
 Evidence is `evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/`; its `artifacts.json` pins checksums and artifact revisions. The later live Camrui recommission is recorded at `evidence/checkouts/RESIDENT-CONVERSATION/20261011T230000Z-live-durability/`. It deployed commit `30085f040d16c666ab8e715e2b9f8c384d1adf9c`; two real Firefox browser turns used the existing CPU-only Qwen3-0.6B binding. For each turn the user event was visible to a fresh PostgreSQL connection before inference completed, and after acknowledgment API and independent database sequences/counts matched (2/2, then 4/4). The conversation survived browser refresh and a dashboard systemd restart, then accepted a second turn. The pinned model ID and SHA matched the office binding; missing conversation authority returned 403; dashboard status, assignments, events, workers, attention, notifications, and objectives routes returned 200. PostgreSQL held nine assignments, two conversations and eight conversation events; the Grace objectives table remained absent. No dashboard connection was idle in transaction. A new protected database backup was archive-verified and restored to a disposable database before deployment. The previous release remains available for rollback.
 
 The live recovery drill also restarted only the dashboard after PostgreSQL showed a pending user event but before the model response. Startup reconciliation persisted `response_interrupted` with `service_restarted`; the response-status API agreed. A new ordinary turn then completed through the same conversation. The first browser wait in the drill timed out at its 30-second test predicate; inspection showed the CPU model had completed just after that bound. Fresh API/PostgreSQL comparison and a new Firefox history load confirmed the successful response and four rendered rows (including the durable interruption). The timeout and its resolution are retained in the checkout evidence rather than counted as a successful browser assertion.
+
+The exact original six-versus-four symptom was reproduced against preserved pre-fix commit `ea6748729fabfa3b93e3abb457f4e0e46357be26` in an isolated PostgreSQL cluster. With four rows committed, the reproducer held an outer connection transaction (modeling an overlapping request scope), invoked a third completed service turn in a nested transaction, and read history through the same connection before outer commit: the API saw six events, a fresh PostgreSQL connection saw four, and the shared connection remained `INTRANS`. No production data or services were involved. The reproducer and checksummed output are `evidence/checkouts/RESIDENT-CONVERSATION/20261011T234000Z-pre-fix-six-four/`.
 
 The CPU inference service is a transient systemd unit bound to loopback and is not configured to restart on host reboot. Dashboard restart recovery was tested while that model unit remained active; host-reboot model recovery is not claimed. An alternate real model was not used. Conversation privacy/retention policy approval, multi-process connection coordination, formal M3.4 sequencing decision, and full Component Definition of Done remain open. This live commissioning is technical evidence only; it does not itself claim formal roadmap acceptance.
 

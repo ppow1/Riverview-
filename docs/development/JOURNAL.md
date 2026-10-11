@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.106
+**Document Revision:** 1.0.108
 **Component:** ENG-RECORDS
 **Date:** 2026-10-11 UTC
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
@@ -9,6 +9,8 @@
 **Changed:** 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Diagnose shared psycopg connection transaction interleaving; serialize database scopes and add independent-connection concurrency regressions
 **Changed:** 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Record passing Camrui Firefox recommission, independent PostgreSQL commit checks, protected backup/restore, and transient CPU-model boundary
 **Changed:** 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Verify live dashboard restart marks pending turn interrupted, and follow-up is committed and browser-visible despite a 30-second test wait timeout
+**Changed:** 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Reproduce exact 6 API versus 4 independent committed events on preserved pre-fix code under an overlapping transaction scope
+**Changed:** 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Preserve reproducible pre-fix script, checksummed 6/4 output, and corrected temporary-worktree setup attempt
 **Changed:** 2026-10-11 UTC | RV-M4.1-CROSS-INTEGRATION-CI | Record exact-head CI run 38165302494 at commit 89752f7
 **Changed:** 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Record committed-source browser acceptance, full tests, graph and revision audit
 

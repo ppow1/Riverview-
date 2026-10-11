@@ -1,0 +1,21 @@
+{
+  "record_schema": "rv.grace-chat-pre-fix-reproduction.v1",
+  "record_revision": "1.0.0",
+  "pre_fix_source_commit": "ea6748729fabfa3b93e3abb457f4e0e46357be26",
+  "database": "throwaway PostgreSQL 16.15 cluster",
+  "provider": "deterministic repository test provider",
+  "preexisting_committed_events": 4,
+  "api_ack_status": "completed",
+  "same_connection_api_events": 6,
+  "independent_postgresql_events": 4,
+  "connection_in_transaction_before_outer_commit": true,
+  "exact_six_vs_four_reproduced": true,
+  "message_content_recorded": false,
+  "credentials_recorded": false,
+  "initial_setup_attempt": {
+    "outcome": "FAILED_BEFORE_TEST_EXECUTION",
+    "reason": "The temporary predecessor worktree had already been removed.",
+    "database": "pg_virtualenv created and dropped its empty disposable cluster; no test schema or source was modified."
+  },
+  "corrected_attempt": "PASS; recreated the detached worktree at the pinned source commit, ran reproduce.py, then removed the worktree"
+}
