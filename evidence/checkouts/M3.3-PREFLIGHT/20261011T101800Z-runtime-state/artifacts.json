@@ -1,0 +1,23 @@
+{
+  "artifacts": {
+    "github-ci.json": {
+      "path": "github-ci.json",
+      "revision": "1.0.0",
+      "sha256": "ca3f6e0204d2a797382684d9f4a55bfe923200b1443647c2b457b9ac2296f431",
+      "size_bytes": 263
+    },
+    "host-readonly.txt": {
+      "path": "host-readonly.txt",
+      "revision": "1.0.0",
+      "sha256": "90cad06396efc64e8eacf4795ca86ffb0dfe17061a3dc27570ed21e42079fbc1",
+      "size_bytes": 636
+    },
+    "commands.txt": {
+      "path": "commands.txt",
+      "revision": "1.0.0",
+      "sha256": "afb92609d61dc12704c3c6f4f9212115db843a78f7d44dcfb3e22aa3770174f8",
+      "size_bytes": 863
+    }
+  },
+  "manifest_revision": "1.0.0"
+}
