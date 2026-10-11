@@ -1,0 +1,53 @@
+{
+  "artifacts": {
+    "acceptance.json": {
+      "path": "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "4895db4f5ffe9ab2d572d7eba83def197241747dc6b388a5a77ca0ed692be153",
+      "size_bytes": 4501
+    },
+    "compile_results.json": {
+      "path": "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/compile_results.json",
+      "revision": "1.0.0",
+      "sha256": "ccf9ffbce46801841e823f54aec2cc098b50647c5ef65bfb7cda287a7ee763e9",
+      "size_bytes": 101
+    },
+    "compileall.log": {
+      "path": "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/compileall.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "full-suite.log": {
+      "path": "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "9be13f95ed46d2b03f95c292f8f8adbe90e798ac25c95db8578fd5143111c8f3",
+      "size_bytes": 26258
+    },
+    "llama-server.log": {
+      "path": "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/llama-server.log",
+      "revision": "1.0.0",
+      "sha256": "5a99f7857f60b0f257def0c843c982b0d6dba7152241509fa62088d9efb449e0",
+      "size_bytes": 2568
+    },
+    "local-inference-unit.log": {
+      "path": "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/local-inference-unit.log",
+      "revision": "1.0.0",
+      "sha256": "1af21d091efb594a6fd8d1bed57a3e4cffa882c0fb5721e4cbfce8188fd8a07c",
+      "size_bytes": 792
+    },
+    "postgres-worker-artifact-test.log": {
+      "path": "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/postgres-worker-artifact-test.log",
+      "revision": "1.0.0",
+      "sha256": "0888d816479bcee9bd15b0bce469069ab0c53ed2d43b26342cd261d51f6ed2ee",
+      "size_bytes": 313
+    },
+    "runtime_build.json": {
+      "path": "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/runtime_build.json",
+      "revision": "1.0.0",
+      "sha256": "6b1619678987ff7bf546f22978bda601d93a8044841d16e61a87c32dbbbe62f3",
+      "size_bytes": 887
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

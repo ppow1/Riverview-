@@ -2,14 +2,15 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.10
-# Purpose: Authenticate workers and enforce exact institutional grants for persisted attempts
+# Revision: 1.0.11
+# Purpose: Authenticate workers and persist exact-grant local inference artifacts
 # Execution Model: Request-driven local task execution with PostgreSQL durability
 # Observability: Worker identity, capability, attempt outcome, and result digest
 # Dependencies: Python 3.10+; Psycopg 3; M1.2 ledger and M1.4 assignment lease
 # Authority: No arbitrary commands, shell execution, or external effects
 # Changed: 2026-10-10 UTC | RV-M2.3-001 | Persist execution intent before worker actions
 # Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-FIX | Use one exact institutional credential at each worker action boundary
+# Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Persist bounded JSON artifacts under an exact local-inference capability
 # Contracts: docs/components/WORKER_ADAPTER.md; docs/architecture/CORE_CONTRACT.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -50,6 +51,7 @@ class PostgresWorkerAdapter:
     """
 
     SHA256_CAPABILITY = "deterministic.sha256.v1"
+    LOCAL_INFERENCE_CAPABILITY = "local.inference.v1"
     VERIFICATION_CAPABILITY = "assignment.verify.v1"
 
     def __init__(self, dsn, *, schema="public", authority_schema=None):
@@ -110,7 +112,7 @@ class PostgresWorkerAdapter:
             raise WorkerAuthorizationError("worker capability is not registered")
         if capability == self.VERIFICATION_CAPABILITY:
             action = "assignment.verify"
-        elif capability == self.SHA256_CAPABILITY:
+        elif capability in {self.SHA256_CAPABILITY, self.LOCAL_INFERENCE_CAPABILITY}:
             action = "assignment.execute"
         else:
             raise WorkerAuthorizationError("capability has no authority action mapping")
@@ -153,7 +155,7 @@ class PostgresWorkerAdapter:
         return self.scheduler.start_assignment(assignment_id, worker_id, generation)
 
     def begin_execution_intent(self, assignment_id, worker_id, credential, generation,
-                               idempotency_key, *, effect_class):
+                               idempotency_key, *, effect_class, capability=None):
         """Durably classify an action before invoking its execution callback.
 
         ``retry_safe`` may be replayed after lease expiry. ``external_uncertain``
@@ -163,6 +165,7 @@ class PostgresWorkerAdapter:
             raise ValueError("effect_class must be retry_safe or external_uncertain")
         if not idempotency_key:
             raise ValueError("idempotency_key is required")
+        capability = capability or self.SHA256_CAPABILITY
         db = self.ledger.db
         with db.transaction():
             with db.cursor() as cur:
@@ -172,7 +175,7 @@ class PostgresWorkerAdapter:
                 if assignment is None:
                     raise WorkerAdapterError("unknown assignment")
                 self._authorized_worker(cur, worker_id, credential,
-                                        self.SHA256_CAPABILITY, assignment["authority_ref"])
+                                        capability, assignment["authority_ref"])
                 cur.execute("SELECT worker_id,generation,expires_at FROM assignment_leases WHERE assignment_id=%s FOR UPDATE",
                             (assignment_id,))
                 lease = cur.fetchone()
@@ -183,13 +186,14 @@ class PostgresWorkerAdapter:
                         lease["expires_at"] <= now):
                     raise WorkerLeaseLost("active assignment lease is required")
                 cur.execute("""SELECT intent_id,assignment_id,worker_id,lease_generation,
-                                      effect_class,status FROM worker_execution_intents
+                                      capability,effect_class,status FROM worker_execution_intents
                                WHERE idempotency_key=%s FOR UPDATE""", (idempotency_key,))
                 prior = cur.fetchone()
                 if prior:
                     if (prior["assignment_id"] != assignment_id or
                             prior["worker_id"] != worker_id or
                             prior["lease_generation"] != generation or
+                            prior["capability"] != capability or
                             prior["effect_class"] != effect_class):
                         raise WorkerAdapterError("execution intent idempotency collision")
                     return prior["intent_id"]
@@ -197,9 +201,143 @@ class PostgresWorkerAdapter:
                     (assignment_id,worker_id,lease_generation,capability,effect_class,
                      idempotency_key,status)
                     VALUES (%s,%s,%s,%s,%s,%s,'running') RETURNING intent_id""",
-                    (assignment_id, worker_id, generation, self.SHA256_CAPABILITY,
+                    (assignment_id, worker_id, generation, capability,
                      effect_class, idempotency_key))
                 return cur.fetchone()["intent_id"]
+
+    def execute_artifact(self, assignment_id, worker_id, credential, generation,
+                         idempotency_key, input_data, result, *, capability,
+                         intent_id=None):
+        """Persist a bounded JSON result artifact under a registered capability.
+
+        Input is represented only by its digest. Result JSON is canonicalized and
+        stored with a separately recomputable digest. The active lease and exact
+        worker grant are checked both before attempt creation and before result
+        commit, so a stale worker cannot publish after revocation/fencing.
+        """
+        if (not isinstance(input_data, str) or not idempotency_key or
+                not isinstance(capability, str) or not capability or
+                not isinstance(result, dict)):
+            raise ValueError("text input, capability, idempotency key, and object result are required")
+        raw = input_data.encode("utf-8")
+        if len(raw) > 65536:
+            raise ValueError("artifact input exceeds 65536 bytes")
+        input_digest = hashlib.sha256(raw).hexdigest()
+        try:
+            result_json = json.dumps(result, sort_keys=True, separators=(",", ":"),
+                                     ensure_ascii=False, allow_nan=False)
+            result_bytes = result_json.encode("utf-8")
+        except (TypeError, ValueError):
+            raise ValueError("result must be finite JSON data") from None
+        if len(result_bytes) > 65536:
+            raise ValueError("result artifact exceeds 65536 bytes")
+        result_digest = hashlib.sha256(result_bytes).hexdigest()
+        db = self.ledger.db
+        with db.transaction():
+            with db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("SELECT * FROM assignments WHERE id=%s FOR UPDATE", (assignment_id,))
+                assignment = cur.fetchone()
+                if assignment is None:
+                    raise WorkerAdapterError("unknown assignment")
+                self._authorized_worker(cur, worker_id, credential, capability,
+                                        assignment["authority_ref"])
+                cur.execute("SELECT worker_id,generation,expires_at FROM assignment_leases WHERE assignment_id=%s FOR UPDATE",
+                            (assignment_id,))
+                lease = cur.fetchone()
+                cur.execute("SELECT clock_timestamp() AS now")
+                now = cur.fetchone()["now"]
+                if (assignment["state"] != "running" or lease is None or
+                        lease["worker_id"] != worker_id or lease["generation"] != generation or
+                        lease["expires_at"] <= now):
+                    raise WorkerLeaseLost("active assignment lease is required")
+                cur.execute("""SELECT attempt_id,status,assignment_id,worker_id,
+                                      lease_generation,capability,input_sha256
+                               FROM worker_attempts WHERE idempotency_key=%s""",
+                            (idempotency_key,))
+                existing = cur.fetchone()
+                if existing:
+                    if (existing["assignment_id"] != assignment_id or
+                            existing["worker_id"] != worker_id or
+                            existing["lease_generation"] != generation or
+                            existing["capability"] != capability or
+                            existing["input_sha256"].strip() != input_digest):
+                        raise WorkerAdapterError("idempotency key collision")
+                    if existing["status"] != "succeeded":
+                        raise WorkerAdapterError("idempotent attempt is still incomplete")
+                    cur.execute("SELECT result,result_sha256 FROM worker_results WHERE attempt_id=%s",
+                                (existing["attempt_id"],))
+                    saved = cur.fetchone()
+                    if saved is None:
+                        raise WorkerAdapterError("successful attempt has no result artifact")
+                    if saved["result_sha256"].strip() != result_digest:
+                        raise WorkerAdapterError("idempotent result differs from saved artifact")
+                    if intent_id is not None:
+                        cur.execute("""UPDATE worker_execution_intents
+                            SET attempt_id=%s,status='succeeded',finished_at=clock_timestamp()
+                            WHERE intent_id=%s AND assignment_id=%s AND worker_id=%s
+                              AND lease_generation=%s AND capability=%s AND status='running'""",
+                            (existing["attempt_id"], intent_id, assignment_id,
+                             worker_id, generation, capability))
+                        if cur.rowcount != 1:
+                            raise WorkerAdapterError("execution intent is absent or no longer current")
+                    return {"attempt_id": existing["attempt_id"], "status": "succeeded",
+                            "result": saved["result"], "result_sha256": saved["result_sha256"]}
+                attempt_id = uuid4()
+                cur.execute("""INSERT INTO worker_attempts
+                    (attempt_id,assignment_id,worker_id,lease_generation,capability,
+                     idempotency_key,input_sha256,status)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,'running')""",
+                    (attempt_id, assignment_id, worker_id, generation, capability,
+                     idempotency_key, input_digest))
+                if intent_id is not None:
+                    cur.execute("""UPDATE worker_execution_intents SET attempt_id=%s
+                        WHERE intent_id=%s AND assignment_id=%s AND worker_id=%s
+                          AND lease_generation=%s AND capability=%s AND status='running'""",
+                        (attempt_id, intent_id, assignment_id, worker_id,
+                         generation, capability))
+                    if cur.rowcount != 1:
+                        raise WorkerAdapterError("execution intent is absent or no longer current")
+        with db.transaction():
+            with db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("SELECT * FROM assignments WHERE id=%s FOR UPDATE", (assignment_id,))
+                assignment = cur.fetchone()
+                if assignment is None:
+                    raise WorkerAdapterError("assignment disappeared before artifact commit")
+                self._authorized_worker(cur, worker_id, credential, capability,
+                                        assignment["authority_ref"])
+                cur.execute("SELECT worker_id,generation,expires_at FROM assignment_leases WHERE assignment_id=%s FOR UPDATE",
+                            (assignment_id,))
+                lease = cur.fetchone()
+                cur.execute("SELECT clock_timestamp() AS now")
+                now = cur.fetchone()["now"]
+                if (assignment["state"] != "running" or lease is None or
+                        lease["worker_id"] != worker_id or lease["generation"] != generation or
+                        lease["expires_at"] <= now):
+                    cur.execute("UPDATE worker_attempts SET status='lease_lost',finished_at=clock_timestamp(),failure_class='WorkerLeaseLost' WHERE attempt_id=%s AND status='running'",
+                                (attempt_id,))
+                    lost = True
+                else:
+                    cur.execute("INSERT INTO worker_results(attempt_id,result,result_sha256) VALUES (%s,%s,%s)",
+                                (attempt_id, result_json, result_digest))
+                    cur.execute("UPDATE worker_attempts SET status='succeeded',finished_at=clock_timestamp() WHERE attempt_id=%s AND status='running'",
+                                (attempt_id,))
+                    if cur.rowcount != 1:
+                        raise WorkerAdapterError("attempt is no longer running")
+                    if intent_id is not None:
+                        cur.execute("""UPDATE worker_execution_intents
+                            SET status='succeeded',finished_at=clock_timestamp()
+                            WHERE intent_id=%s AND assignment_id=%s AND worker_id=%s
+                              AND lease_generation=%s AND capability=%s AND status='running'""",
+                            (intent_id, assignment_id, worker_id, generation, capability))
+                        if cur.rowcount != 1:
+                            raise WorkerAdapterError("execution intent is absent or no longer current")
+                    lost = False
+        if lost:
+            raise WorkerLeaseLost("lease was fenced before result commit")
+        return {"attempt_id": attempt_id, "status": "succeeded",
+                "result": result, "result_sha256": result_digest}
 
     def mark_execution_intent(self, intent_id, status, *, failure_class=None):
         """Settle a caught action failure without claiming an uncertain effect succeeded."""

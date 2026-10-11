@@ -1,0 +1,6 @@
+test_continuous_worker_persists_structured_artifact_and_independent_verification (tests.test_worker_adapter.WorkerAdapterTests.test_continuous_worker_persists_structured_artifact_and_independent_verification) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 1.367s
+
+OK

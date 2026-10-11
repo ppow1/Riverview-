@@ -1,0 +1,23 @@
+{
+  "artifacts": {
+    "acceptance.json": {
+      "path": "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094446Z-cpu-e2e/acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "23b50db82c1a87c354dad6aa530027cdfd29bdf459b3335d46b276e26e53b420",
+      "size_bytes": 2959
+    },
+    "failure_review.json": {
+      "path": "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094446Z-cpu-e2e/failure_review.json",
+      "revision": "1.0.0",
+      "sha256": "2fedd694ef32e471a49636bd2fd8bfd31175c514486de94ddfcd955bde4a4545",
+      "size_bytes": 769
+    },
+    "llama-server.log": {
+      "path": "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094446Z-cpu-e2e/llama-server.log",
+      "revision": "1.0.0",
+      "sha256": "7026b6f690e534265981c2324ee6454668d26358c9b2f3e5c2d3114a7b2b39cf",
+      "size_bytes": 2568
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

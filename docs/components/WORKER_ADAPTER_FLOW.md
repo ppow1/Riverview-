@@ -1,6 +1,6 @@
 # Riverview~ worker adapter flow
 
-**Document Revision:** 1.0.5
+**Document Revision:** 1.0.6
 **Component:** WORKER-ADAPTER
 **Canonical workflow:** `process_graphs/worker-adapter/deterministic-attempt.json`
 **Generated from:** canonical workflow JSON; do not edit the Mermaid projection by hand.
@@ -28,7 +28,7 @@ flowchart LR
     g_rv_worker_adapter_deterministic_attempt_reground_5d56433b["Refresh assignment context before action or on a recovery trigger"]
     g_rv_worker_adapter_deterministic_attempt_reground_gate_f5063204{"Is the current assignment context VERIFIED?"}
     g_rv_worker_adapter_deterministic_attempt_evidence_wait_e57f58d4[["Persist non-verified status and wait for evidence for this assignment only"]]
-    g_rv_worker_adapter_deterministic_attempt_action_cef7346f["Invoke action only after durable effect-classified intent"]
+    g_rv_worker_adapter_deterministic_attempt_action_cef7346f["Invoke the assigned, preflighted execution capability"]
     g_rv_worker_adapter_deterministic_attempt_action_failure_d12eae6a[["Record assignment-local failure and reground without stopping other polls"]]
     g_rv_worker_adapter_deterministic_attempt_learning_83260d87["Persist learning outcome and provenance without automatic promotion"]
     g_rv_worker_adapter_deterministic_attempt_cycle_recovery_addf7cd2["Reconcile expired leases after interruption with effect-aware durable recovery"]
@@ -41,6 +41,10 @@ flowchart LR
     g_rv_worker_adapter_deterministic_attempt_recovery_preserve_f9e86f59["Preserve durable result and continue to independent verification"]
     g_rv_worker_adapter_deterministic_attempt_recovery_audit_fb03175c["Persist one decision per assignment and lease generation"]
     g_rv_worker_adapter_deterministic_attempt_verification_jump_0fedcb93["Continue preserved results at independent verifier"]
+    g_rv_worker_adapter_deterministic_attempt_local_endpoint_check_ae8f9d87["Require literal loopback endpoint and bounded complete response"]
+    g_rv_worker_adapter_deterministic_attempt_local_inference_call_8fb3f636["Run registered local inference capability on grounded input"]
+    g_rv_worker_adapter_deterministic_attempt_local_inference_failure_d21fb2df[["Reject unavailable, oversized, malformed, or truncated inference output"]]
+    g_rv_worker_adapter_deterministic_attempt_structured_artifact_6b88f0e1["Persist bounded JSON output and canonical digest under current lease"]
   end
   g_rv_assignment_scheduler_independent_claims_start_check_f588e935["Registered target<br/>rv:assignment-scheduler:independent-claims"]
   g_rv_outcome_verifier_independent_result_verification_intake_faa4dd99["Registered target<br/>rv:outcome-verifier:independent-result"]
@@ -88,5 +92,11 @@ flowchart LR
   g_rv_worker_adapter_deterministic_attempt_recovery_audit_fb03175c -->|recovery_route: continue unrelated work| g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4
   g_rv_worker_adapter_deterministic_attempt_action_cef7346f -->|action output reaches durable attempt boundary| g_rv_worker_adapter_deterministic_attempt_begin_9ea07cfe
   g_rv_worker_adapter_deterministic_attempt_result_12aa9ef4 -->|durable result| g_rv_worker_adapter_deterministic_attempt_learning_83260d87
+  g_rv_worker_adapter_deterministic_attempt_action_cef7346f -->|capability is local.inference.v1| g_rv_worker_adapter_deterministic_attempt_local_inference_call_8fb3f636
+  g_rv_worker_adapter_deterministic_attempt_local_inference_call_8fb3f636 --> g_rv_worker_adapter_deterministic_attempt_local_endpoint_check_ae8f9d87
+  g_rv_worker_adapter_deterministic_attempt_local_endpoint_check_ae8f9d87 -->|diagnostic_branch: endpoint or response validation fails| g_rv_worker_adapter_deterministic_attempt_local_inference_failure_d21fb2df
+  g_rv_worker_adapter_deterministic_attempt_local_inference_failure_d21fb2df -->|recovery_route: fail this assignment; retry-safe recovery only| g_rv_worker_adapter_deterministic_attempt_action_failure_d12eae6a
+  g_rv_worker_adapter_deterministic_attempt_local_endpoint_check_ae8f9d87 -->|complete bounded response| g_rv_worker_adapter_deterministic_attempt_structured_artifact_6b88f0e1
+  g_rv_worker_adapter_deterministic_attempt_structured_artifact_6b88f0e1 -->|exact grant and current lease rechecked| g_rv_worker_adapter_deterministic_attempt_complete_check_6605f820
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

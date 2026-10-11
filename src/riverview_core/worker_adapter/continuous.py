@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/continuous.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.6
-# Purpose: Execute isolated durable assignment cycles without global task coupling
+# Revision: 1.0.7
+# Purpose: Execute deterministic and capability-specific durable worker cycles
 # Execution Model: Repeatable poll cycle; durable claims and outcomes in PostgreSQL
 # Observability: Assignment state, knowledge observations, attempts, and results
 # Dependencies: Psycopg; M1.2 ledger; M1.4 scheduler; worker-adapter contract
 # Authority: One assignment per cycle; no action without VERIFIED grounding/preflight
 # Changed: 2026-10-10 UTC | RV-M2.3-001 | Persist effect class before invoking worker action
+# Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Route registered action capability and persist structured artifacts
 # Contracts: docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -19,6 +20,7 @@ import json
 import logging
 import threading
 import time
+from collections.abc import Mapping
 
 from .adapter import PostgresWorkerAdapter, WorkerAdapterError
 from .knowledge import KnowledgeResult, KnowledgeStatus, UnavailableKnowledgeProvider
@@ -35,7 +37,7 @@ class ContinuousWorker:
     def __init__(self, adapter: PostgresWorkerAdapter, worker_id: str,
                  credential: str, *, knowledge=None, lease_seconds=30,
                  action=None, action_effect_class=None, poll_interval=0.5,
-                 knowledge_timeout_seconds=5.0):
+                 knowledge_timeout_seconds=5.0, action_capability=None):
         if poll_interval <= 0 or knowledge_timeout_seconds <= 0:
             raise ValueError("poll and knowledge timeout values must be positive")
         self.adapter = adapter
@@ -44,6 +46,9 @@ class ContinuousWorker:
         self.knowledge = knowledge or UnavailableKnowledgeProvider()
         self.lease_seconds = lease_seconds
         self.action = action or self._default_action
+        self.action_capability = action_capability or self.ACTION
+        if not isinstance(self.action_capability, str) or not self.action_capability:
+            raise ValueError("action_capability must be a non-empty string")
         self.action_effect_class = (action_effect_class or
                                     ("retry_safe" if action is None else "external_uncertain"))
         if self.action_effect_class not in {"retry_safe", "external_uncertain"}:
@@ -109,6 +114,7 @@ class ContinuousWorker:
         finally:
             recovery.close()
         claim = self.adapter.claim_next(self.worker_id, self.credential,
+                                        capability=self.action_capability,
                                         lease_seconds=self.lease_seconds)
         if claim is None:
             return {"status": "IDLE"}
@@ -118,20 +124,24 @@ class ContinuousWorker:
             return self._wait_for_evidence(assignment, lease, "ground_assignment", grounded)
         self._record(assignment, "ground_assignment", grounded)
 
-        preflight = self._provider_call("preflight_action", assignment, self.ACTION)
+        preflight = self._provider_call("preflight_action", assignment,
+                                        self.action_capability)
         if preflight.status is not KnowledgeStatus.VERIFIED:
             return self._wait_for_evidence(assignment, lease, "preflight_action", preflight,
-                                           action=self.ACTION)
-        self._record(assignment, "preflight_action", preflight, action=self.ACTION)
+                                           action=self.action_capability)
+        self._record(assignment, "preflight_action", preflight,
+                     action=self.action_capability)
 
         self.adapter.start_assignment(assignment["id"], self.worker_id,
-                                      self.credential, lease["generation"])
+                                      self.credential, lease["generation"],
+                                      capability=self.action_capability)
         current_assignment = self.adapter.ledger.get(assignment["id"])
         trigger = "context_restored" if lease["generation"] > 1 else "before_action"
         if (current_assignment["version"] > assignment["version"] + 1):
             trigger = "assignment_changed"
         regrounded = self._provider_call("reground_assignment", current_assignment, trigger)
-        self._record(current_assignment, "reground_assignment", regrounded, action=self.ACTION)
+        self._record(current_assignment, "reground_assignment", regrounded,
+                     action=self.action_capability)
         if regrounded.status is not KnowledgeStatus.VERIFIED:
             self.adapter.scheduler.transition_with_lease(
                 assignment["id"], "blocked", "WAITING_FOR_EVIDENCE",
@@ -144,15 +154,27 @@ class ContinuousWorker:
         intent_id = self.adapter.begin_execution_intent(
             assignment["id"], self.worker_id, self.credential, lease["generation"],
             f"continuous:{assignment['id']}:{lease['generation']}",
-            effect_class=self.action_effect_class)
+            effect_class=self.action_effect_class,
+            capability=self.action_capability)
         try:
             data = self.action(assignment, regrounded)
-            if not isinstance(data, str):
-                raise WorkerAdapterError("worker action must return text for deterministic capability")
-            outcome = self.adapter.execute_sha256(
-                assignment["id"], self.worker_id, self.credential, lease["generation"],
-                f"continuous:{assignment['id']}:{lease['generation']}", data,
-                intent_id=intent_id)
+            attempt_key = f"continuous:{assignment['id']}:{lease['generation']}"
+            if isinstance(data, str) and self.action_capability == self.ACTION:
+                outcome = self.adapter.execute_sha256(
+                    assignment["id"], self.worker_id, self.credential, lease["generation"],
+                    attempt_key, data, intent_id=intent_id)
+            else:
+                if isinstance(data, str):
+                    data = {"output": data}
+                if not isinstance(data, Mapping):
+                    raise WorkerAdapterError("artifact worker action must return a JSON object")
+                grounded_value = regrounded.value
+                input_data = (grounded_value if isinstance(grounded_value, str) else
+                              json.dumps(grounded_value, sort_keys=True, default=str))
+                outcome = self.adapter.execute_artifact(
+                    assignment["id"], self.worker_id, self.credential, lease["generation"],
+                    attempt_key, input_data, dict(data),
+                    capability=self.action_capability, intent_id=intent_id)
             self.adapter.scheduler.transition_with_lease(
                 assignment["id"], "awaiting_verification", "worker_result_recorded",
                 f"continuous-result:{assignment['id']}:{lease['generation']}",

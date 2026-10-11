@@ -1,0 +1,106 @@
+{
+  "assignments": [
+    {
+      "artifact_hash_valid": true,
+      "assignment_id": "m43-authentication-52a8dc4413684d0aa74e513713385741",
+      "attempt_id": "68cd087a-11bc-4eb5-868c-635a5d547fef",
+      "attempt_status": "succeeded",
+      "capability": "local.inference.v1",
+      "claimed_assignment_id": "m43-authentication-52a8dc4413684d0aa74e513713385741",
+      "elapsed_ms": 18766.3,
+      "lease_acquired_at": "2026-10-11T05:47:05.243950-04:00",
+      "model_call": {
+        "elapsed_ms": 18546.3,
+        "finished_at_utc_ns": 1791712043900123403,
+        "started_at_utc_ns": 1791712025353827913
+      },
+      "outcome": {
+        "assignment_id": "m43-authentication-52a8dc4413684d0aa74e513713385741",
+        "attempt_id": "68cd087a-11bc-4eb5-868c-635a5d547fef",
+        "result_sha256": "72dcac217e416b16bbeb1d2078e754f86ff2c8aeef057ae9642893e20ae28215",
+        "status": "AWAITING_VERIFICATION"
+      },
+      "queue_delay_ms": 185.0,
+      "queued_at": "2026-10-11T05:47:05.058976-04:00",
+      "result": {
+        "finish_reason": "stop",
+        "model_revision": "23749fefcc72300e3a2ad315e1317431b06b590a",
+        "model_sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+        "output": "AUTH",
+        "provider": "llama.cpp-compatible",
+        "requested_model": "qwen3-0.6b-q8_0-local",
+        "served_model": "qwen3-0.6b-q8_0-local"
+      },
+      "result_sha256": "72dcac217e416b16bbeb1d2078e754f86ff2c8aeef057ae9642893e20ae28215",
+      "state": "completed",
+      "verification": "ACCEPTED",
+      "verifier_id": "worker:m43-independent-verifier",
+      "worker_attempt_recorded_finish": "2026-10-11T05:47:23.938916-04:00",
+      "worker_attempt_recorded_start": "2026-10-11T05:47:23.914846-04:00",
+      "worker_id": "worker:m43-local-1"
+    },
+    {
+      "artifact_hash_valid": true,
+      "assignment_id": "m43-storage-3aa994e623f845eb80f37ff6629fdfe9",
+      "attempt_id": "4d5b508d-13fb-4c97-b0cb-7f4fc58d7c94",
+      "attempt_status": "succeeded",
+      "capability": "local.inference.v1",
+      "claimed_assignment_id": "m43-storage-3aa994e623f845eb80f37ff6629fdfe9",
+      "elapsed_ms": 19102.9,
+      "lease_acquired_at": "2026-10-11T05:47:05.256233-04:00",
+      "model_call": {
+        "elapsed_ms": 18898.1,
+        "finished_at_utc_ns": 1791712044253208479,
+        "started_at_utc_ns": 1791712025355107106
+      },
+      "outcome": {
+        "assignment_id": "m43-storage-3aa994e623f845eb80f37ff6629fdfe9",
+        "attempt_id": "4d5b508d-13fb-4c97-b0cb-7f4fc58d7c94",
+        "result_sha256": "a71a94872faba816d85895a4e95b08b1f3a8f607d5deafa139731738e3a58c76",
+        "status": "AWAITING_VERIFICATION"
+      },
+      "queue_delay_ms": 134.3,
+      "queued_at": "2026-10-11T05:47:05.121964-04:00",
+      "result": {
+        "finish_reason": "stop",
+        "model_revision": "23749fefcc72300e3a2ad315e1317431b06b590a",
+        "model_sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+        "output": "RESOURCE",
+        "provider": "llama.cpp-compatible",
+        "requested_model": "qwen3-0.6b-q8_0-local",
+        "served_model": "qwen3-0.6b-q8_0-local"
+      },
+      "result_sha256": "a71a94872faba816d85895a4e95b08b1f3a8f607d5deafa139731738e3a58c76",
+      "state": "completed",
+      "verification": "ACCEPTED",
+      "verifier_id": "worker:m43-independent-verifier",
+      "worker_attempt_recorded_finish": "2026-10-11T05:47:24.284755-04:00",
+      "worker_attempt_recorded_start": "2026-10-11T05:47:24.265756-04:00",
+      "worker_id": "worker:m43-local-2"
+    }
+  ],
+  "cleanup": {
+    "schema_absent": true,
+    "schema_dropped": true,
+    "server_stopped": true
+  },
+  "component": "LOCAL-INFERENCE-WORKER",
+  "concurrency": {
+    "distinct_assignments": 2,
+    "max_workers": 2,
+    "parallel_attempt_overlap_ms": 18545.0,
+    "workers": 2
+  },
+  "endpoint_host": "127.0.0.1",
+  "fixture_knowledge_provider": "fixed test cases only; not institutional retrieval",
+  "llama_cpp_source_commit": "d81235049384534c167caea52b85a694f6103d14",
+  "llama_server_sha256": "dc82364c7428bcfa22ca07d2e6edf958a16bb1b7294920a749bf6fbf9ab70b57",
+  "model_revision": "23749fefcc72300e3a2ad315e1317431b06b590a",
+  "model_sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+  "port": 56827,
+  "schema": "rvtest_m43_f025e7b59b5d445184b2",
+  "server_exit_code": 0,
+  "source_commit": "aa659e93a3307ad46db0a322227998e4587539fa",
+  "source_tree_dirty": true,
+  "status": "PASS"
+}

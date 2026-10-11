@@ -1,0 +1,23 @@
+{
+  "artifacts": {
+    "fixture_review.json": {
+      "path": "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T092845Z-cpu-test/fixture_review.json",
+      "revision": "1.0.0",
+      "sha256": "cbd12d0d4d974b90ad1a8d4517509ea45e2b8c9c88e58b3dbf49af8a0db33ff1",
+      "size_bytes": 699
+    },
+    "initdb-sqlascii-fixture.log": {
+      "path": "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T092845Z-cpu-test/initdb-sqlascii-fixture.log",
+      "revision": "1.0.0",
+      "sha256": "0a32c6a28ae1c8b2179fc796eadf521f6349372e5188206b04a88637d0594601",
+      "size_bytes": 931
+    },
+    "postgres-sqlascii-fixture.log": {
+      "path": "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T092845Z-cpu-test/postgres-sqlascii-fixture.log",
+      "revision": "1.0.0",
+      "sha256": "40dc55c0bf65f254072a0d03e9c18c695ad086cf8823e157ac9bc30269ef1001",
+      "size_bytes": 576
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

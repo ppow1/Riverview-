@@ -2,15 +2,17 @@
 Riverview~ Controlled Document
 File: docs/components/WORKER_ADAPTER_COOKBOOK.md
 Component: WORKER-ADAPTER
-File Revision: 1.0.7
+File Revision: 1.0.9
 Purpose: Diagnose isolated worker identity, attempt, verification and recovery records safely
 Authority: Read-only diagnosis; credential delivery and worker enrollment are trusted control-plane operations
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Add redacted worker and verification record queries with failure interpretation
+Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Add bounded model execution and diagnosis steps
+Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Document the real isolated concurrent model acceptance and harness
 History: Git and revision backup manifest
 -->
 # Riverview~ worker adapter cookbook
 
-**Document Revision:** 1.0.7
+**Document Revision:** 1.0.8
 **Component:** WORKER-ADAPTER
 **Task:** RV-M2.1-001
 **Status:** IN PROGRESS — disposable PostgreSQL only
@@ -169,3 +171,68 @@ after lease fencing, same executor/verifier accepted, unverifiable result
 marked complete, unknown external effect automatically replayed, or unclear
 fixture ownership is an escalation condition. Preserve all records and do not
 repair by directly changing assignments, leases, attempts, or verifications.
+
+
+## Local inference worker (M4.3)
+
+The worker action is `local.inference.v1`; registration, assignment authority,
+verified knowledge preflight, lease fencing, durable intent, and independent
+verification remain required. `LocalInferenceAction` accepts only a literal
+loopback HTTP URL ending in `/v1`, for example `http://127.0.0.1:8767/v1`. It
+rejects public/private network hosts, DNS names, embedded user-info, query
+strings, and non-HTTP schemes. The action sends a bounded grounded prompt,
+rejects credential-shaped content, allows at most 90 seconds and 128 generated
+tokens by default, and rejects
+truncated, malformed, empty, or oversized responses. Error values are sanitized
+and omit request/response bodies.
+
+For the pinned CPU commissioning experiment, the llama.cpp server was built
+from upstream tag `v0.6.0` at commit
+`d81235049384534c167caea52b85a694f6103d14`; Qwen3-0.6B-GGUF was downloaded
+from immutable model revision
+`23749fefcc72300e3a2ad315e1317431b06b590a`. Model file SHA-256 must match
+`9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031`. Keep
+these weights outside the source repository. The server is temporary and
+loopback-bound; no inference systemd unit is installed by this commissioning
+procedure. See the M4.3 revision record for exact commands, live runtime
+measurements, durable assignment/attempt/result/verification IDs, and cleanup.
+
+Run the committed `scripts/verify_local_inference.py` only with the private
+UTF-8 PostgreSQL test cluster, the pinned executable and model, and a new
+evidence-directory path. The harness validates the DSN and model checksum,
+creates one unpredictable `rvtest_m43_*` schema, applies the checked-in
+migrations, executes two separate workers concurrently, verifies each saved
+artifact with a different identity, then stops its own loopback server and
+drops only the schema it created. Its fixture knowledge source contains two
+fixed instruction tasks; it is not an institutional knowledge provider. The
+acceptance checks instruction following, durable persistence, result hashes,
+independent decisions and real overlapping model calls—not general reasoning
+quality. Preserve failed-run evidence and investigate it before retrying.
+
+Example command (all paths and the test DSN must refer to the verified private
+test setup):
+
+```bash
+PYTHONPATH=src python3 scripts/verify_local_inference.py \
+  --dsn "$RIVERVIEW_TEST_PG_DSN" \
+  --server /tmp/rv-llama-build/bin/llama-server \
+  --model "$HOME/.cache/riverview/models/Qwen3-0.6B-Q8_0.gguf" \
+  --output evidence/checkouts/M4.3-LOCAL-INFERENCE/<new-run-id>
+```
+
+### Diagnosis
+
+| Symptom | Diagnostic | Expected result / interpretation | Safe action | Escalate when |
+|---|---|---|---|---|
+| `endpoint_unavailable` | `ss -ltn '( sport = :8767 )'; curl --fail --silent --show-error --max-time 3 http://127.0.0.1:8767/health` | Listener is loopback-only and model health is ready; connection failure is not a worker success | Start the exact pinned local server only for the isolated commissioning run; retry the assignment after readiness | Port ownership differs, listener is non-loopback, model file checksum differs, or process exceeds the bounded memory budget |
+| HTTP status error | Inspect only sanitized exception class and server process exit status; do not save prompt/server request logs | Endpoint returned a non-success status; `LocalInferenceError` has no body | Correct server readiness or stop the test; retain assignment failure and use the worker's normal retry/recovery policy | Repeated 4xx/5xx after verified readiness or unexpected network destination |
+| `response_schema_invalid` / `response_incomplete` | Read no private response body from journal; validate configured API compatibility with a non-sensitive probe | A malformed or truncated response is rejected before durable success | Fix server/model/API version; the failed intent stays visible and no successful result is recorded | Runtime output differs from the pinned API contract or any incomplete output is accepted |
+| Assignment waiting or blocked | Query the isolated database's attempt, intent and knowledge status using the worker cookbook's redacted queries | Missing VERIFIED grounding/preflight or failed model calls remain non-success | Correct only the missing dependency and run the assignment again through normal lease/recovery flow | A missing provider/authority response is represented as successful or a lease is bypassed |
+| Result exists without accepted verification | Inspect persisted artifact digest, attempt and verification rows using the isolated read-only query | Executor output remains unverified until another identity accepts it | Run the distinct authorized verifier against the stored artifact; preserve rejected evidence | The executor can self-verify or completed state appears without accepted evidence |
+
+To stop the temporary runtime after acceptance, terminate only the recorded
+llama-server PID, confirm port 8767 is closed, and verify the PostgreSQL test
+cluster's cleanup separately. Do not kill by a broad `pkill` pattern. The local
+inference call has no remote side effects; keep action `retry_safe`, while future
+network tools must declare `external_uncertain` until their contract proves
+otherwise.

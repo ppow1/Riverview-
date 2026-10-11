@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.27
-# Purpose: Verify scoped dispatch, fail-closed knowledge, independent outcomes, and recovery
+# Revision: 1.0.28
+# Purpose: Verify scoped deterministic and structured worker artifacts
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL test database
@@ -11,6 +11,7 @@
 # Changed: 2026-10-10 UTC | RV-M2.4-001 | Verify knowledge timeout with synchronization instead of a brittle latency bound
 # Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-TEST-FIX | Give self-verification test its explicit verification grant
 # Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-REVOCATION | Deny registration without a grant and execution after revocation
+# Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Verify structured artifact execution under its own exact capability grant
 # Contracts: docs/development/M2.3-001_REVISION_RECORD.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -161,7 +162,8 @@ class WorkerAdapterTests(unittest.TestCase):
             (credential_id,principal_id,credential_sha256) VALUES (%s,%s,%s)""",
             (uuid4(), principal_id, digest))
         actions = ["worker.register"]
-        if "deterministic.sha256.v1" in capabilities:
+        if any(cap in capabilities for cap in
+               ("deterministic.sha256.v1", "local.inference.v1")):
             actions.append("assignment.execute")
         if "assignment.verify.v1" in capabilities:
             actions.append("assignment.verify")
@@ -240,6 +242,71 @@ class WorkerAdapterTests(unittest.TestCase):
             result = cur.fetchone()
             self.assertEqual(result["result"], first["result"])
             self.assertEqual(result["result_sha256"], first["result_sha256"])
+
+    def test_continuous_worker_persists_structured_artifact_and_independent_verification(self):
+        from riverview_core.worker_adapter import (
+            ContinuousWorker, VerificationResult, VerificationStatus)
+
+        assignment_id = self.ready_assignment(objective="objective:local:label-auth-message")
+        inference_worker_id = "worker-inference-" + uuid4().hex
+        inference_token = self.register_as(
+            inference_worker_id, [self.worker.LOCAL_INFERENCE_CAPABILITY], self.scope)
+        prompt = ("Classify the diagnostic text. Return exactly one lowercase label: "
+                  "auth or resource. Text: credential expired during authentication.")
+
+        class GroundedProvider(WorkerAdapterTests.VerifiedProvider):
+            pass
+
+        engine = ContinuousWorker(
+            self.worker, inference_worker_id, inference_token,
+            knowledge=GroundedProvider(prompt),
+            action=lambda assignment, grounded: {
+                "provider": "test-local-model", "model": "fixture-model-v1",
+                "output": "auth", "finish_reason": "stop"},
+            action_capability=self.worker.LOCAL_INFERENCE_CAPABILITY,
+            action_effect_class="retry_safe", lease_seconds=60)
+        outcome = engine.run_once()
+        self.assertEqual(outcome["status"], "AWAITING_VERIFICATION")
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "awaiting_verification")
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("SELECT capability,input_sha256,status FROM worker_attempts WHERE attempt_id=%s",
+                        (outcome["attempt_id"],))
+            attempt = cur.fetchone()
+            cur.execute("SELECT result,result_sha256 FROM worker_results WHERE attempt_id=%s",
+                        (outcome["attempt_id"],))
+            artifact = cur.fetchone()
+        self.assertEqual(attempt["capability"], self.worker.LOCAL_INFERENCE_CAPABILITY)
+        self.assertEqual(attempt["status"], "succeeded")
+        self.assertEqual(artifact["result"]["output"], "auth")
+        canonical = json.dumps(artifact["result"], sort_keys=True,
+                               separators=(",", ":"), ensure_ascii=False).encode()
+        self.assertEqual(hashlib.sha256(canonical).hexdigest(), artifact["result_sha256"].strip())
+
+        verifier_id = "worker-inference-verifier-" + uuid4().hex
+        verifier_token = self.register_as(verifier_id, ["assignment.verify.v1"], self.scope)
+
+        class IndependentVerifier:
+            REVISION = "local-inference-test-verifier-1"
+            def verify(self, assignment, attempt_row, result):
+                accepted = (result.get("provider") == "test-local-model"
+                            and result.get("model") == "fixture-model-v1"
+                            and result.get("output") == "auth"
+                            and result.get("finish_reason") == "stop"
+                            and attempt_row.get("status") == "succeeded")
+                criteria = {"distinct_executor_result": accepted,
+                            "expected_classification": result.get("output") == "auth"}
+                return VerificationResult(
+                    VerificationStatus.ACCEPTED if all(criteria.values()) else
+                    VerificationStatus.REJECTED, criteria,
+                    (f"urn:rv:attempt:{attempt_row['attempt_id']}",), self.REVISION,
+                    "fixture artifact independently matches expected classification")
+
+        verified = self.worker.verify_attempt(
+            assignment_id, outcome["attempt_id"], verifier_id, verifier_token,
+            IndependentVerifier(), idempotency_key="verify-local-inference-" + assignment_id)
+        self.assertEqual(verified.status, VerificationStatus.ACCEPTED)
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "completed")
         self.assertEqual(self.worker.incomplete_attempts(), [])
 
     def test_wrong_credential_capability_and_scope_are_rejected(self):
