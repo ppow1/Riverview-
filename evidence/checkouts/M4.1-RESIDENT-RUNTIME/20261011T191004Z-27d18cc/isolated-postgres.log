@@ -1,0 +1,255 @@
+2026-10-11 15:04:16.420 EDT [549801] LOG:  starting PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit
+2026-10-11 15:04:16.421 EDT [549801] LOG:  listening on Unix socket "/tmp/rv-m41-runtime-pg.UV4bgY/socket/.s.PGSQL.55493"
+2026-10-11 15:04:16.426 EDT [549804] LOG:  database system was shut down at 2026-10-11 15:04:10 EDT
+2026-10-11 15:04:16.436 EDT [549801] LOG:  database system is ready to accept connections
+2026-10-11 15:06:37.837 EDT [551776] ERROR:  common column name "office_id" appears more than once in left table
+2026-10-11 15:06:37.837 EDT [551776] STATEMENT:  SELECT o.office_id,o.office_role,b.occupant_id,
+	                        p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+	                        i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+	                        s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+	                        FROM institutional_offices o
+	                        JOIN office_bindings b USING (office_id)
+	                        JOIN resident_occupants r USING (occupant_id)
+	                        JOIN institutional_principals p ON p.principal_id=r.principal_id
+	                        JOIN resident_implementations i USING (implementation_id)
+	                        JOIN office_runtime_state s USING (office_id)
+	                        WHERE o.office_id=$1 FOR SHARE OF b
+2026-10-11 15:06:38.130 EDT [551781] ERROR:  common column name "office_id" appears more than once in left table
+2026-10-11 15:06:38.130 EDT [551781] STATEMENT:  SELECT o.office_id,o.office_role,b.occupant_id,
+	                        p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+	                        i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+	                        s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+	                        FROM institutional_offices o
+	                        JOIN office_bindings b USING (office_id)
+	                        JOIN resident_occupants r USING (occupant_id)
+	                        JOIN institutional_principals p ON p.principal_id=r.principal_id
+	                        JOIN resident_implementations i USING (implementation_id)
+	                        JOIN office_runtime_state s USING (office_id)
+	                        WHERE o.office_id=$1 FOR SHARE OF b
+2026-10-11 15:06:38.433 EDT [551786] ERROR:  common column name "office_id" appears more than once in left table
+2026-10-11 15:06:38.433 EDT [551786] STATEMENT:  SELECT o.office_id,o.office_role,b.occupant_id,
+	                        p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+	                        i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+	                        s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+	                        FROM institutional_offices o
+	                        JOIN office_bindings b USING (office_id)
+	                        JOIN resident_occupants r USING (occupant_id)
+	                        JOIN institutional_principals p ON p.principal_id=r.principal_id
+	                        JOIN resident_implementations i USING (implementation_id)
+	                        JOIN office_runtime_state s USING (office_id)
+	                        WHERE o.office_id=$1 FOR SHARE OF b
+2026-10-11 15:06:38.743 EDT [551791] ERROR:  common column name "office_id" appears more than once in left table
+2026-10-11 15:06:38.743 EDT [551791] STATEMENT:  SELECT o.office_id,o.office_role,b.occupant_id,
+	                        p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+	                        i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+	                        s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+	                        FROM institutional_offices o
+	                        JOIN office_bindings b USING (office_id)
+	                        JOIN resident_occupants r USING (occupant_id)
+	                        JOIN institutional_principals p ON p.principal_id=r.principal_id
+	                        JOIN resident_implementations i USING (implementation_id)
+	                        JOIN office_runtime_state s USING (office_id)
+	                        WHERE o.office_id=$1 FOR SHARE OF b
+2026-10-11 15:06:39.057 EDT [551795] ERROR:  common column name "office_id" appears more than once in left table
+2026-10-11 15:06:39.057 EDT [551795] STATEMENT:  SELECT o.office_id,o.office_role,b.occupant_id,
+	                        p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+	                        i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+	                        s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+	                        FROM institutional_offices o
+	                        JOIN office_bindings b USING (office_id)
+	                        JOIN resident_occupants r USING (occupant_id)
+	                        JOIN institutional_principals p ON p.principal_id=r.principal_id
+	                        JOIN resident_implementations i USING (implementation_id)
+	                        JOIN office_runtime_state s USING (office_id)
+	                        WHERE o.office_id=$1 FOR SHARE OF b
+2026-10-11 15:06:39.355 EDT [551799] ERROR:  common column name "office_id" appears more than once in left table
+2026-10-11 15:06:39.355 EDT [551799] STATEMENT:  SELECT o.office_id,o.office_role,b.occupant_id,
+	                        p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+	                        i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+	                        s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+	                        FROM institutional_offices o
+	                        JOIN office_bindings b USING (office_id)
+	                        JOIN resident_occupants r USING (occupant_id)
+	                        JOIN institutional_principals p ON p.principal_id=r.principal_id
+	                        JOIN resident_implementations i USING (implementation_id)
+	                        JOIN office_runtime_state s USING (office_id)
+	                        WHERE o.office_id=$1 FOR SHARE OF b
+2026-10-11 15:06:39.662 EDT [551805] ERROR:  common column name "office_id" appears more than once in left table
+2026-10-11 15:06:39.662 EDT [551805] STATEMENT:  SELECT o.office_id,o.office_role,b.occupant_id,
+	                        p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+	                        i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+	                        s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+	                        FROM institutional_offices o
+	                        JOIN office_bindings b USING (office_id)
+	                        JOIN resident_occupants r USING (occupant_id)
+	                        JOIN institutional_principals p ON p.principal_id=r.principal_id
+	                        JOIN resident_implementations i USING (implementation_id)
+	                        JOIN office_runtime_state s USING (office_id)
+	                        WHERE o.office_id=$1 FOR SHARE OF b
+2026-10-11 15:06:39.983 EDT [551808] ERROR:  common column name "office_id" appears more than once in left table
+2026-10-11 15:06:39.983 EDT [551808] STATEMENT:  SELECT o.office_id,o.office_role,b.occupant_id,
+	                        p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+	                        i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+	                        s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+	                        FROM institutional_offices o
+	                        JOIN office_bindings b USING (office_id)
+	                        JOIN resident_occupants r USING (occupant_id)
+	                        JOIN institutional_principals p ON p.principal_id=r.principal_id
+	                        JOIN resident_implementations i USING (implementation_id)
+	                        JOIN office_runtime_state s USING (office_id)
+	                        WHERE o.office_id=$1 FOR SHARE OF b
+2026-10-11 15:06:40.309 EDT [551814] ERROR:  common column name "office_id" appears more than once in left table
+2026-10-11 15:06:40.309 EDT [551814] STATEMENT:  SELECT o.office_id,o.office_role,b.occupant_id,
+	                        p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+	                        i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+	                        s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+	                        FROM institutional_offices o
+	                        JOIN office_bindings b USING (office_id)
+	                        JOIN resident_occupants r USING (occupant_id)
+	                        JOIN institutional_principals p ON p.principal_id=r.principal_id
+	                        JOIN resident_implementations i USING (implementation_id)
+	                        JOIN office_runtime_state s USING (office_id)
+	                        WHERE o.office_id=$1 FOR SHARE OF b
+2026-10-11 15:06:40.644 EDT [551818] ERROR:  common column name "office_id" appears more than once in left table
+2026-10-11 15:06:40.644 EDT [551818] STATEMENT:  SELECT o.office_id,o.office_role,b.occupant_id,
+	                        p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+	                        i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+	                        s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+	                        FROM institutional_offices o
+	                        JOIN office_bindings b USING (office_id)
+	                        JOIN resident_occupants r USING (occupant_id)
+	                        JOIN institutional_principals p ON p.principal_id=r.principal_id
+	                        JOIN resident_implementations i USING (implementation_id)
+	                        JOIN office_runtime_state s USING (office_id)
+	                        WHERE o.office_id=$1 FOR SHARE OF b
+2026-10-11 15:06:40.936 EDT [551822] ERROR:  common column name "office_id" appears more than once in left table
+2026-10-11 15:06:40.936 EDT [551822] STATEMENT:  SELECT o.office_id,o.office_role,b.occupant_id,
+	                        p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+	                        i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+	                        s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+	                        FROM institutional_offices o
+	                        JOIN office_bindings b USING (office_id)
+	                        JOIN resident_occupants r USING (occupant_id)
+	                        JOIN institutional_principals p ON p.principal_id=r.principal_id
+	                        JOIN resident_implementations i USING (implementation_id)
+	                        JOIN office_runtime_state s USING (office_id)
+	                        WHERE o.office_id=$1 FOR SHARE OF b
+2026-10-11 15:06:41.244 EDT [551826] ERROR:  common column name "office_id" appears more than once in left table
+2026-10-11 15:06:41.244 EDT [551826] STATEMENT:  SELECT o.office_id,o.office_role,b.occupant_id,
+	                        p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+	                        i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+	                        s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+	                        FROM institutional_offices o
+	                        JOIN office_bindings b USING (office_id)
+	                        JOIN resident_occupants r USING (occupant_id)
+	                        JOIN institutional_principals p ON p.principal_id=r.principal_id
+	                        JOIN resident_implementations i USING (implementation_id)
+	                        JOIN office_runtime_state s USING (office_id)
+	                        WHERE o.office_id=$1 FOR SHARE OF b
+2026-10-11 15:06:41.562 EDT [551830] ERROR:  common column name "office_id" appears more than once in left table
+2026-10-11 15:06:41.562 EDT [551830] STATEMENT:  SELECT o.office_id,o.office_role,b.occupant_id,
+	                        p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+	                        i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+	                        s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+	                        FROM institutional_offices o
+	                        JOIN office_bindings b USING (office_id)
+	                        JOIN resident_occupants r USING (occupant_id)
+	                        JOIN institutional_principals p ON p.principal_id=r.principal_id
+	                        JOIN resident_implementations i USING (implementation_id)
+	                        JOIN office_runtime_state s USING (office_id)
+	                        WHERE o.office_id=$1 FOR SHARE OF b
+2026-10-11 15:06:41.771 EDT [551832] ERROR:  institutional_authority_events is append-only
+2026-10-11 15:06:41.771 EDT [551832] CONTEXT:  PL/pgSQL function rvtest_bc9119799e6d4072b96a1d6cfd39b577.reject_institutional_authority_event_mutation() line 3 at RAISE
+2026-10-11 15:06:41.771 EDT [551832] STATEMENT:  DELETE FROM "rvtest_bc9119799e6d4072b96a1d6cfd39b577".institutional_authority_events
+2026-10-11 15:06:50.559 EDT [551910] ERROR:  common column name "office_id" appears more than once in left table
+2026-10-11 15:06:50.559 EDT [551910] STATEMENT:  SELECT o.office_id,o.office_role,b.occupant_id,p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,i.provider_ref,i.revision AS implementation_revision,b.binding_revision,s.state,s.revision AS state_revision,s.updated_at AS state_updated_at FROM institutional_offices o JOIN office_bindings b USING (office_id) JOIN resident_occupants r USING (occupant_id) JOIN institutional_principals p ON p.principal_id=r.principal_id JOIN resident_implementations i USING (implementation_id) JOIN office_runtime_state s USING (office_id) WHERE o.office_id=$1 FOR SHARE OF b
+2026-10-11 15:07:06.138 EDT [552093] ERROR:  institutional_authority_events is append-only
+2026-10-11 15:07:06.138 EDT [552093] CONTEXT:  PL/pgSQL function rvtest_98d6999ad7734060a820bd6bc580e950.reject_institutional_authority_event_mutation() line 3 at RAISE
+2026-10-11 15:07:06.138 EDT [552093] STATEMENT:  DELETE FROM "rvtest_98d6999ad7734060a820bd6bc580e950".institutional_authority_events
+2026-10-11 15:07:52.271 EDT [552464] ERROR:  institutional_authority_events is append-only
+2026-10-11 15:07:52.271 EDT [552464] CONTEXT:  PL/pgSQL function rvtest_c577f1c9eb244ed49196b8a37f784186.reject_institutional_authority_event_mutation() line 3 at RAISE
+2026-10-11 15:07:52.271 EDT [552464] STATEMENT:  DELETE FROM "rvtest_c577f1c9eb244ed49196b8a37f784186".institutional_authority_events
+2026-10-11 15:08:28.883 EDT [553228] LOG:  could not receive data from client: Connection reset by peer
+2026-10-11 15:08:28.883 EDT [553228] LOG:  unexpected EOF on client connection with an open transaction
+2026-10-11 15:08:48.475 EDT [553904] ERROR:  institutional_authority_events is append-only
+2026-10-11 15:08:48.475 EDT [553904] CONTEXT:  PL/pgSQL function rvtest_820fb80f7d63483081cc4e1bef0cd51e.reject_institutional_authority_event_mutation() line 3 at RAISE
+2026-10-11 15:08:48.475 EDT [553904] STATEMENT:  DELETE FROM "rvtest_820fb80f7d63483081cc4e1bef0cd51e".institutional_authority_events
+2026-10-11 15:08:51.398 EDT [553956] ERROR:  permission denied for function authorize_exact_grant
+2026-10-11 15:08:51.398 EDT [553956] STATEMENT:  SELECT principal_id,grant_id FROM "rvtest_d3fb1d8e099e4c1391ff4175ded7da00".authorize_exact_grant($1,$2,$3)
+2026-10-11 15:08:51.461 EDT [553959] ERROR:  permission denied for table institutional_principals
+2026-10-11 15:08:51.461 EDT [553959] STATEMENT:  SELECT count(*) FROM "rvtest_d3fb1d8e099e4c1391ff4175ded7da00".institutional_principals
+2026-10-11 15:08:51.474 EDT [553960] ERROR:  permission denied for table institutional_authority_events
+2026-10-11 15:08:51.474 EDT [553960] STATEMENT:  INSERT INTO "rvtest_d3fb1d8e099e4c1391ff4175ded7da00".institutional_authority_events
+	                    (event_id,event_type,actor_id) VALUES ($1,'principal_created','worker:boundary-test')
+2026-10-11 15:08:51.486 EDT [553961] ERROR:  must be owner of table authority_grants
+2026-10-11 15:08:51.486 EDT [553961] STATEMENT:  DROP TABLE "rvtest_d3fb1d8e099e4c1391ff4175ded7da00".authority_grants
+2026-10-11 15:08:51.522 EDT [553963] ERROR:  must be owner of table authority_grants
+2026-10-11 15:08:51.522 EDT [553963] STATEMENT:  DROP TABLE "rvtest_d3fb1d8e099e4c1391ff4175ded7da00".authority_grants
+2026-10-11 15:08:57.311 EDT [554027] ERROR:  notification_events is append-only
+2026-10-11 15:08:57.311 EDT [554027] CONTEXT:  PL/pgSQL function reject_notification_event_mutation() line 3 at RAISE
+2026-10-11 15:08:57.311 EDT [554027] STATEMENT:  UPDATE notification_events SET event_type='delivery_confirmed'
+2026-10-11 15:08:57.313 EDT [554027] ERROR:  notification_events is append-only
+2026-10-11 15:08:57.313 EDT [554027] CONTEXT:  PL/pgSQL function reject_notification_event_mutation() line 3 at RAISE
+2026-10-11 15:08:57.313 EDT [554027] STATEMENT:  DELETE FROM notification_events
+2026-10-11 15:08:59.168 EDT [554080] ERROR:  injected event failure
+2026-10-11 15:08:59.168 EDT [554080] CONTEXT:  PL/pgSQL function reject_transition_event() line 3 at RAISE
+2026-10-11 15:08:59.168 EDT [554080] STATEMENT:  INSERT INTO events
+	               (event_id, schema, event_type, occurred_at, recorded_at,
+	                assignment_id, actor_id, correlation_id, causation_id,
+	                idempotency_key, authority_ref, privacy_domain, payload_schema, payload)
+	               VALUES ($1, 'rv.event.v1', $2, $3, $4, $5, $6, $7, $8,
+	                       $9, $10, $11, $12, $13)
+2026-10-11 15:09:16.013 EDT [549802] LOG:  checkpoint starting: time
+2026-10-11 15:09:25.309 EDT [554798] ERROR:  completion requires persisted independent verification
+2026-10-11 15:09:25.309 EDT [554798] CONTEXT:  PL/pgSQL function require_independent_verification_for_completion() line 8 at RAISE
+2026-10-11 15:09:25.309 EDT [554798] STATEMENT:  UPDATE assignments SET state='completed' WHERE id=$1
+2026-10-11 15:09:42.298 EDT [549801] LOG:  received fast shutdown request
+2026-10-11 15:09:42.298 EDT [549801] LOG:  aborting any active transactions
+2026-10-11 15:09:42.304 EDT [549801] LOG:  background worker "logical replication launcher" (PID 549807) exited with exit code 1
+2026-10-11 15:09:42.624 EDT [549802] LOG:  checkpoint complete: wrote 2309 buffers (14.1%); 0 WAL file(s) added, 0 removed, 5 recycled; write=26.316 s, sync=0.002 s, total=26.612 s; sync files=0, longest=0.000 s, average=0.000 s; distance=93128 kB, estimate=93128 kB; lsn=0/863D9C8, redo lsn=0/6FE5D00
+2026-10-11 15:09:42.625 EDT [549802] LOG:  shutting down
+2026-10-11 15:09:42.625 EDT [549802] LOG:  checkpoint starting: shutdown immediate
+2026-10-11 15:09:42.685 EDT [549802] LOG:  checkpoint complete: wrote 107 buffers (0.7%); 0 WAL file(s) added, 0 removed, 2 recycled; write=0.003 s, sync=0.001 s, total=0.061 s; sync files=0, longest=0.000 s, average=0.000 s; distance=22879 kB, estimate=86103 kB; lsn=0/863DA40, redo lsn=0/863DA40
+2026-10-11 15:09:42.705 EDT [549801] LOG:  database system is shut down
+2026-10-11 15:10:09.857 EDT [555382] LOG:  starting PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit
+2026-10-11 15:10:09.857 EDT [555382] LOG:  listening on Unix socket "/tmp/rv-m41-runtime-pg.UV4bgY/socket/.s.PGSQL.55493"
+2026-10-11 15:10:09.863 EDT [555385] LOG:  database system was shut down at 2026-10-11 15:09:42 EDT
+2026-10-11 15:10:09.873 EDT [555382] LOG:  database system is ready to accept connections
+2026-10-11 15:10:42.166 EDT [556218] ERROR:  institutional_authority_events is append-only
+2026-10-11 15:10:42.166 EDT [556218] CONTEXT:  PL/pgSQL function rvtest_d5d1cc88f5ed4f36a398abebaef7b71a.reject_institutional_authority_event_mutation() line 3 at RAISE
+2026-10-11 15:10:42.166 EDT [556218] STATEMENT:  DELETE FROM "rvtest_d5d1cc88f5ed4f36a398abebaef7b71a".institutional_authority_events
+2026-10-11 15:10:45.081 EDT [556263] ERROR:  permission denied for function authorize_exact_grant
+2026-10-11 15:10:45.081 EDT [556263] STATEMENT:  SELECT principal_id,grant_id FROM "rvtest_deb4033de20647ff9c5c97dfc3f52748".authorize_exact_grant($1,$2,$3)
+2026-10-11 15:10:45.152 EDT [556265] ERROR:  permission denied for table institutional_principals
+2026-10-11 15:10:45.152 EDT [556265] STATEMENT:  SELECT count(*) FROM "rvtest_deb4033de20647ff9c5c97dfc3f52748".institutional_principals
+2026-10-11 15:10:45.168 EDT [556266] ERROR:  permission denied for table institutional_authority_events
+2026-10-11 15:10:45.168 EDT [556266] STATEMENT:  INSERT INTO "rvtest_deb4033de20647ff9c5c97dfc3f52748".institutional_authority_events
+	                    (event_id,event_type,actor_id) VALUES ($1,'principal_created','worker:boundary-test')
+2026-10-11 15:10:45.184 EDT [556268] ERROR:  must be owner of table authority_grants
+2026-10-11 15:10:45.184 EDT [556268] STATEMENT:  DROP TABLE "rvtest_deb4033de20647ff9c5c97dfc3f52748".authority_grants
+2026-10-11 15:10:45.226 EDT [556270] ERROR:  must be owner of table authority_grants
+2026-10-11 15:10:45.226 EDT [556270] STATEMENT:  DROP TABLE "rvtest_deb4033de20647ff9c5c97dfc3f52748".authority_grants
+2026-10-11 15:10:50.965 EDT [556338] ERROR:  notification_events is append-only
+2026-10-11 15:10:50.965 EDT [556338] CONTEXT:  PL/pgSQL function reject_notification_event_mutation() line 3 at RAISE
+2026-10-11 15:10:50.965 EDT [556338] STATEMENT:  UPDATE notification_events SET event_type='delivery_confirmed'
+2026-10-11 15:10:50.966 EDT [556338] ERROR:  notification_events is append-only
+2026-10-11 15:10:50.966 EDT [556338] CONTEXT:  PL/pgSQL function reject_notification_event_mutation() line 3 at RAISE
+2026-10-11 15:10:50.966 EDT [556338] STATEMENT:  DELETE FROM notification_events
+2026-10-11 15:10:52.764 EDT [556393] ERROR:  injected event failure
+2026-10-11 15:10:52.764 EDT [556393] CONTEXT:  PL/pgSQL function reject_transition_event() line 3 at RAISE
+2026-10-11 15:10:52.764 EDT [556393] STATEMENT:  INSERT INTO events
+	               (event_id, schema, event_type, occurred_at, recorded_at,
+	                assignment_id, actor_id, correlation_id, causation_id,
+	                idempotency_key, authority_ref, privacy_domain, payload_schema, payload)
+	               VALUES ($1, 'rv.event.v1', $2, $3, $4, $5, $6, $7, $8,
+	                       $9, $10, $11, $12, $13)
+2026-10-11 15:11:18.603 EDT [557109] ERROR:  completion requires persisted independent verification
+2026-10-11 15:11:18.603 EDT [557109] CONTEXT:  PL/pgSQL function require_independent_verification_for_completion() line 8 at RAISE
+2026-10-11 15:11:18.603 EDT [557109] STATEMENT:  UPDATE assignments SET state='completed' WHERE id=$1
+2026-10-11 15:11:34.427 EDT [555382] LOG:  received fast shutdown request
+2026-10-11 15:11:34.427 EDT [555382] LOG:  aborting any active transactions
+2026-10-11 15:11:34.431 EDT [555382] LOG:  background worker "logical replication launcher" (PID 555388) exited with exit code 1
+2026-10-11 15:11:34.436 EDT [555383] LOG:  shutting down
+2026-10-11 15:11:34.436 EDT [555383] LOG:  checkpoint starting: shutdown immediate
+2026-10-11 15:11:34.626 EDT [555383] LOG:  checkpoint complete: wrote 2809 buffers (17.1%); 0 WAL file(s) added, 0 removed, 3 recycled; write=0.033 s, sync=0.001 s, total=0.191 s; sync files=0, longest=0.000 s, average=0.000 s; distance=55392 kB, estimate=55392 kB; lsn=0/BC55CC0, redo lsn=0/BC55CC0
+2026-10-11 15:11:34.648 EDT [555382] LOG:  database system is shut down

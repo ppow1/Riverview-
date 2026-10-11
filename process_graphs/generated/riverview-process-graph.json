@@ -1329,7 +1329,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.8",
+      "graph_revision": "1.0.9",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -1663,9 +1663,9 @@
         },
         {
           "id": "rv:grace:operational-integration:persistent-service-loop",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
-          "label": "Supervised loop reloads durable objectives, dispatches eligible proposals, polls the existing leased worker, verifies outcomes, and records heartbeat",
+          "label": "Supervised loop reasons about at most one grounded objective per cycle, then dispatches eligible proposals, polls the existing leased worker, verifies outcomes, and records heartbeat so a waiting resident candidate does not delay unrelated CME work",
           "source_references": [
             "src/riverview_core/resident_execution/service.py",
             "scripts/run_grace_execution_service.py"

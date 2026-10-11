@@ -1,0 +1,33 @@
+{
+  "evidence_id": "RV-M4.1-PERSISTENT-RESIDENT-RUNTIME-20261011T191004Z",
+  "source_commit": "27d18cc15fbc8d6c093014709f6cfe5c04b3cfb6",
+  "branch": "codex/grace-persistent-execution",
+  "test_command": "RIVERVIEW_TEST_PG_DSN=<private socket DSN> PYTHONPATH=src python3 -m unittest discover -s tests -v",
+  "tests": {
+    "passed": 213,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "duration_seconds": 73.539
+  },
+  "postgresql": {
+    "version": "16.15",
+    "transport": "private Unix socket only",
+    "post_test_rvtest_schema_count": 0,
+    "cluster_stopped": true
+  },
+  "process_graph": {
+    "status": "PASS",
+    "workflows": 16,
+    "nodes": 333
+  },
+  "revision_audit": {
+    "status": "PASS",
+    "issues": 0
+  },
+  "compileall": "PASS",
+  "git_diff_check": "PASS",
+  "live_commissioning": "NOT_VERIFIED",
+  "models_accessed": false,
+  "shared_services_or_database_modified": false
+}

@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.14
+**Document Revision:** 1.0.15
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -92,7 +92,7 @@ flowchart LR
     g_rv_grace_operational_integration_waiting_and_failure_0a7985d4[["IMPLEMENTED — unavailable/missing/oversized evidence and worker failures remain non-complete"]]
     g_rv_grace_operational_integration_governed_objective_api_39b3aa23["Authenticated dashboard request plus exact objective.submit grant persists a bounded human objective; grounding may wait fail-closed"]
     g_rv_grace_operational_integration_typed_proposal_api_9e97178a["Typed PlanProposal is persisted only after verified grounding and complete acceptance criteria; proposal does not grant authority"]
-    g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8["Supervised loop reloads durable objectives, dispatches eligible proposals, polls the existing leased worker, verifies outcomes, and records heartbeat"]
+    g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8["Supervised loop reasons about at most one grounded objective per cycle, then dispatches eligible proposals, polls the existing leased worker, verifies outcomes, and records heartbeat so a waiting resident candidate does not delay unrelated CME work"]
     g_rv_grace_operational_integration_dispatch_retry_limit_3d51ab17{"Persist authorization/dispatch failures; stop automatic dispatch after three attempts and expose the proposal for operator attention"}
     g_rv_grace_operational_integration_dashboard_objective_projection_4a2e9051["Authenticated dashboard reads bounded objective, assignment, artifact digest, verifier decision, and service freshness from PostgreSQL"]
     g_rv_grace_operational_integration_worker_retry_ceiling_11dc0c66{"Apply the configured persistent retry-safe recovery ceiling; exhausted assignments remain blocked with a recovery record"}
