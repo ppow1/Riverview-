@@ -1,12 +1,13 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.102
+**Document Revision:** 1.0.103
 **Component:** ENG-RECORDS
 **Date:** 2026-10-11 UTC
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
 **Changed:** 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-CHECKPOINT | Record persistent objective execution evidence and non-commissioning boundary
 **Changed:** 2026-10-11 UTC | RV-M4.1-M4.2-OCCUPANT-REPLACEMENT-INTEGRATION | Record isolated cross-component Grace identity replacement regression and limits
 **Changed:** 2026-10-11 UTC | RV-M4.1-CROSS-INTEGRATION-CI | Record exact-head CI run 38165302494 at commit 89752f7
+**Changed:** 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Record committed-source browser acceptance, full tests, graph and revision audit
 
 ## 2026-10-11 UTC — RV-M3.4-GRACE-CHAT / isolated resident website conversation
 
@@ -28,9 +29,22 @@ objective or worker promotion call. Prior to edits, exact predecessor bytes and
 checksums were preserved by `scripts/revision_control.py` for the touched
 dashboard, provider, contract and journal files; new files start at revision
 1.0.0. The local Qwen3-0.6B GGUF and pinned llama.cpp binary are already present.
-No service, shared database, secret, external model endpoint, or 235B process was
-modified. PostgreSQL integration and real-model/browser commissioning results
-will be added only after those checks actually run.
+No shared service, database, secret, external model endpoint, or 235B process was
+modified. Commit `1fa9d6104fc07609e3d8bbda8bf836b0b22e19c1` passed the complete
+unittest suite (224 tests, no skips/failures) and a committed-source Firefox
+commissioning run. The browser run produced two actual model responses at 31.95s
+and 27.92s, retained the same conversation through refresh and isolated server/
+runtime reconstruction, persisted one controlled interruption, and verified
+zero objective promotion. The PostgreSQL counts were 3 user events, 2 assistant
+events, 1 interruption, and 0 objectives. Evidence:
+`evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/`.
+The database cluster, schema, browser session, server and model process were
+test-owned and cleaned up. PostgreSQL-focused/provider tests passed 16/16; graph
+validation/synchronization passed at 17 workflows / 348 nodes; the revision
+audit against PR #24 head reported zero findings. Existing resource warnings
+from unrelated suite fixtures were emitted but did not fail tests. This is not
+shared-service deployment, a systemd process restart test, formal M3.4 proposal
+acceptance, or full Component DoD.
 
 ## 2026-10-11 UTC — RV-M3.3-COURSE-CORRECTION / M3.3 commissioning and M4.2 checkpoint
 

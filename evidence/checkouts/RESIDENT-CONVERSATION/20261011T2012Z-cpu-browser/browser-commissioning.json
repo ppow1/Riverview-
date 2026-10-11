@@ -1,0 +1,35 @@
+{
+  "cleanup": {
+    "browser_session_closed": true,
+    "dashboard_process_stopped": true,
+    "model_process_stopped": true,
+    "test_schema_dropped": true
+  },
+  "database_schema": "rvtest_chat_ec5fed6f52e44a2ca9beebe2b8fd14f5",
+  "database_socket": "private /tmp/rv-m43-sock-* test cluster",
+  "failure_code": "browser acceptance condition timed out",
+  "failure_type": "RuntimeError",
+  "finished_at_epoch": 1791749564.315746,
+  "host": "Camrui",
+  "mode": "isolated",
+  "model": {
+    "binary_sha256": "dc82364c7428bcfa22ca07d2e6edf958a16bb1b7294920a749bf6fbf9ab70b57",
+    "context_size": 4096,
+    "endpoint": "loopback only",
+    "gpu_layers": 0,
+    "id": "qwen3-0.6b-q8_0-local",
+    "loaded_model": "qwen3-0.6b-q8_0-local",
+    "runtime_context": 4096,
+    "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031"
+  },
+  "ports": {
+    "dashboard_loopback": 8700,
+    "geckodriver_loopback": 60801,
+    "model_loopback": 55211
+  },
+  "recovery": {},
+  "schema_version": "rv.grace.conversation.commissioning.v1",
+  "status": "FAIL",
+  "task_id": "RV-M3.4-GRACE-CHAT",
+  "turns": []
+}

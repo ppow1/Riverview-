@@ -4538,7 +4538,7 @@
     },
     {
       "graph_id": "rv:resident-conversation:browser-chat",
-      "graph_revision": "1.0.0",
+      "graph_revision": "1.0.1",
       "component_id": "RESIDENT-CONVERSATION",
       "workflow_id": "resident.conversation.v1",
       "diagram_order": 14,
@@ -4558,7 +4558,8 @@
       "verification_evidence": [
         "tests/test_resident_conversation.py",
         "tests/test_local_reasoning_provider.py",
-        "tests/test_status_dashboard.py"
+        "tests/test_status_dashboard.py",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/browser-commissioning.json"
       ],
       "nodes": [
         {
@@ -4746,7 +4747,7 @@
         },
         {
           "id": "rv:resident-conversation:browser-chat:restart-recovery",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "recovery",
           "label": "After service restart mark unfinished request interrupted without automatic duplicate inference",
           "source_references": [
@@ -4757,12 +4758,13 @@
             "docs/components/RESIDENT_CONVERSATION.md"
           ],
           "verification_evidence": [
-            "tests/test_resident_conversation.py"
+            "tests/test_resident_conversation.py",
+            "evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/browser-commissioning.json"
           ]
         },
         {
           "id": "rv:resident-conversation:browser-chat:browser-history",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "exit",
           "label": "Return durable response/status and render persisted conversation in dashboard",
           "source_references": [
@@ -4775,7 +4777,8 @@
           ],
           "verification_evidence": [
             "tests/test_status_dashboard.py",
-            "tests/test_resident_conversation.py"
+            "tests/test_resident_conversation.py",
+            "evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/browser-commissioning.json"
           ]
         },
         {

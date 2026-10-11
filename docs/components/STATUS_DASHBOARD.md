@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.11
+File Revision: 1.0.12
 Purpose: Specify operational projections and exact-grant Grace objective and conversation interfaces
 Authority: Reads require dashboard authentication; objective and resident conversation operations require exact institutional grants
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
@@ -10,6 +10,7 @@ Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-CURRENT-DOCS-RELEASE | Define accurat
 Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-PROVENANCE-SECTION-ORDER | Place deployment provenance separately from the API route contract
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Add governed objective intake and result projections
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Integrate the isolated resident conversation view and versioned API
+Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Keep persisted historical interruption notices out of current response error state
 History: Git and revision/backup manifest
 -->
 # Steward status dashboard
@@ -181,6 +182,10 @@ events are stored with the existing resident execution records. Current model
 selection comes from the office implementation binding and must match the
 implementation revision. Model output cannot create or authorize an objective
 or work order.
+
+The conversation timeline retains prior failed/interrupted response events. The
+current response banner is cleared when a later assistant event succeeds; an
+older recovery notice does not appear as a current turn failure.
 
 This is isolated engineering on the proposed, not formally accepted M3.4
 sequencing workstream. It does not claim shared-service deployment, Steward

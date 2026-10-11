@@ -2,12 +2,13 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.2
+File Revision: 1.0.3
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Set a short CPU-model response budget and record observed timeout evidence
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Document model-specific inference prefix and real browser verification approach
+Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Record committed-source local Firefox and PostgreSQL commissioning evidence
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
@@ -60,6 +61,8 @@ Do not delete conversation rows or alter shared credentials as routine recovery.
 
 ## Verification status
 
-Isolated PostgreSQL tests exercise exact read/send grants, persistent history, retry idempotency, model replacement with the same office and conversation, missing-model failure, oversized context, and restart reconciliation. The installed 0.6B CPU model's first open-ended browser chat exceeded 120 seconds and was truthfully saved as `model_timeout`; that run is not successful inference evidence. Browser and actual CPU-model outcomes are recorded in the linked checkout evidence; unit tests alone do not establish browser commissioning or operational Grace. Shared dashboard deployment, Steward browser acceptance, conversation privacy/retention policy approval, multi-process conversation serialization, and the proposed M3.4 formal sequencing decision remain open.
+Isolated PostgreSQL tests exercise exact read/send grants, persistent history, retry idempotency, fake-provider implementation replacement with the same office and conversation, missing-model failure, oversized context, and restart reconciliation. A real Firefox run against committed source `1fa9d6104fc07609e3d8bbda8bf836b0b22e19c1` used the already-installed Qwen3-0.6B Q8_0 CPU model (pinned model SHA-256, 4096-token context, zero GPU layers, `/no_think` hint). Both browser turns generated and rendered: the initial turn took 31.95 seconds and the resumed turn took 27.92 seconds. PostgreSQL retained three user events, two assistant events, and one controlled interrupted event; ordinary chat created zero objectives. Browser refresh reloaded the same conversation. The isolated dashboard HTTP server and resident runtime objects were torn down and recreated against the same database, which reconciled the pending turn and allowed a subsequent response. The test does not establish a systemd or whole-host process restart.
+
+Evidence is `evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/`; its `artifacts.json` pins checksums and artifact revisions. Earlier failed commissioning attempts remain recorded in adjacent checkouts, with diagnosed harness/UI defects corrected and the final committed-source run passing. This is local isolated commissioning only: no shared dashboard deployment or Steward browser acceptance occurred. An actual alternate GGUF/model was not installed or used; replaceability is verified at the office-binding/provider contract with a deterministic fake replacement, while the real inference run used one model. Conversation privacy/retention policy approval, cross-process serialization, systemd restart commissioning, formal M3.4 sequencing decision, and full Component DoD remain open.
 
 Process graph: [`RESIDENT_CONVERSATION_FLOW.md`](RESIDENT_CONVERSATION_FLOW.md), graph ID `rv:resident-conversation:browser-chat`.

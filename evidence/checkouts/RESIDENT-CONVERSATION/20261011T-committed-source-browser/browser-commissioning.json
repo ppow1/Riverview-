@@ -1,0 +1,33 @@
+{
+  "cleanup": {
+    "browser_session_closed": false,
+    "dashboard_process_stopped": false,
+    "model_process_stopped": true,
+    "test_schema_dropped": true
+  },
+  "database_schema": "rvtest_chat_bf944a7c2ea1405e8dfef6b2b81b5184",
+  "database_socket": "private /tmp/rv-m43-sock-* test cluster",
+  "finished_at_epoch": 1791750925.3762305,
+  "host": "Camrui",
+  "mode": "isolated",
+  "model": {
+    "binary_sha256": "dc82364c7428bcfa22ca07d2e6edf958a16bb1b7294920a749bf6fbf9ab70b57",
+    "context_size": 4096,
+    "endpoint": "loopback only",
+    "gpu_layers": 0,
+    "id": "qwen3-0.6b-q8_0-local",
+    "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031"
+  },
+  "ports": {
+    "dashboard_loopback": 8700,
+    "geckodriver_loopback": 40627,
+    "model_loopback": 51759
+  },
+  "recovery": {},
+  "schema_version": "rv.grace.conversation.commissioning.v1",
+  "source_commit": "1fa9d61c44f411",
+  "stage": "wait_local_cpu_model",
+  "status": "FAIL",
+  "task_id": "RV-M3.4-GRACE-CHAT",
+  "turns": []
+}

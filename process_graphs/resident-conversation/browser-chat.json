@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-conversation:browser-chat",
-  "graph_revision": "1.0.0",
+  "graph_revision": "1.0.1",
   "component_id": "RESIDENT-CONVERSATION",
   "workflow_id": "resident.conversation.v1",
   "diagram_order": 14,
@@ -20,7 +20,8 @@
   "verification_evidence": [
     "tests/test_resident_conversation.py",
     "tests/test_local_reasoning_provider.py",
-    "tests/test_status_dashboard.py"
+    "tests/test_status_dashboard.py",
+    "evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/browser-commissioning.json"
   ],
   "nodes": [
     {"id":"rv:resident-conversation:browser-chat:browser-submit","node_revision":"1.0.0","type":"entry","label":"Authenticated browser submits a bounded conversation turn","source_references":["src/riverview_core/status_dashboard/static/app.js"],"documentation_references":["docs/components/RESIDENT_CONVERSATION.md"],"verification_evidence":[]},
@@ -35,8 +36,8 @@
     {"id":"rv:resident-conversation:browser-chat:provider-failure","node_revision":"1.0.0","type":"failure","label":"Persist a sanitized unavailable or incomplete response outcome","source_references":["src/riverview_core/resident_execution/conversation.py"],"documentation_references":["docs/components/RESIDENT_CONVERSATION.md"],"verification_evidence":["tests/test_resident_conversation.py"]},
     {"id":"rv:resident-conversation:browser-chat:binding-recheck","node_revision":"1.0.0","type":"verification","label":"Reject a result if the office implementation changed during inference","source_references":["src/riverview_core/resident_execution/conversation.py"],"documentation_references":["docs/components/RESIDENT_CONVERSATION.md"],"verification_evidence":["tests/test_resident_conversation.py"]},
     {"id":"rv:resident-conversation:browser-chat:persist-response","node_revision":"1.0.0","type":"process","label":"Append assistant message with model and token provenance","source_references":["src/riverview_core/resident_execution/conversation.py","src/riverview_core/resident_execution/migrations/0003_resident_conversation.sql"],"documentation_references":["docs/components/RESIDENT_CONVERSATION.md"],"verification_evidence":["tests/test_resident_conversation.py"]},
-    {"id":"rv:resident-conversation:browser-chat:restart-recovery","node_revision":"1.0.0","type":"recovery","label":"After service restart mark unfinished request interrupted without automatic duplicate inference","source_references":["src/riverview_core/resident_execution/conversation.py","src/riverview_core/status_dashboard/server.py"],"documentation_references":["docs/components/RESIDENT_CONVERSATION.md"],"verification_evidence":["tests/test_resident_conversation.py"]},
-    {"id":"rv:resident-conversation:browser-chat:browser-history","node_revision":"1.0.0","type":"exit","label":"Return durable response/status and render persisted conversation in dashboard","source_references":["src/riverview_core/status_dashboard/server.py","src/riverview_core/status_dashboard/static/app.js"],"documentation_references":["docs/components/RESIDENT_CONVERSATION.md","docs/components/STATUS_DASHBOARD.md"],"verification_evidence":["tests/test_status_dashboard.py","tests/test_resident_conversation.py"]},
+    {"id":"rv:resident-conversation:browser-chat:restart-recovery","node_revision":"1.0.1","type":"recovery","label":"After service restart mark unfinished request interrupted without automatic duplicate inference","source_references":["src/riverview_core/resident_execution/conversation.py","src/riverview_core/status_dashboard/server.py"],"documentation_references":["docs/components/RESIDENT_CONVERSATION.md"],"verification_evidence":["tests/test_resident_conversation.py","evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/browser-commissioning.json"]},
+    {"id":"rv:resident-conversation:browser-chat:browser-history","node_revision":"1.0.1","type":"exit","label":"Return durable response/status and render persisted conversation in dashboard","source_references":["src/riverview_core/status_dashboard/server.py","src/riverview_core/status_dashboard/static/app.js"],"documentation_references":["docs/components/RESIDENT_CONVERSATION.md","docs/components/STATUS_DASHBOARD.md"],"verification_evidence":["tests/test_status_dashboard.py","tests/test_resident_conversation.py","evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/browser-commissioning.json"]},
     {"id":"rv:resident-conversation:browser-chat:future-objective-jump","node_revision":"1.0.0","type":"jump","label":"Future explicit authorization remains a separate objective submission path","jump_target_id":"rv:grace:operational-integration:objective-intake","source_references":["src/riverview_core/status_dashboard/server.py"],"documentation_references":["docs/components/RESIDENT_CONVERSATION.md","docs/components/GRACE_EXECUTION_PIPELINE.md"],"verification_evidence":[]}
   ],
   "edges": [
