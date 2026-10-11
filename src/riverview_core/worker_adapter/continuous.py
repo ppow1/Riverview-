@@ -2,14 +2,15 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/continuous.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.7
-# Purpose: Execute deterministic and capability-specific durable worker cycles
+# Revision: 1.0.8
+# Purpose: Execute bounded capability work with pinned source-digest provenance
 # Execution Model: Repeatable poll cycle; durable claims and outcomes in PostgreSQL
 # Observability: Assignment state, knowledge observations, attempts, and results
 # Dependencies: Psycopg; M1.2 ledger; M1.4 scheduler; worker-adapter contract
 # Authority: One assignment per cycle; no action without VERIFIED grounding/preflight
 # Changed: 2026-10-10 UTC | RV-M2.3-001 | Persist effect class before invoking worker action
 # Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Route registered action capability and persist structured artifacts
+# Changed: 2026-10-11 UTC | RV-M33-GROUNDED-PROVENANCE-BOUND | Persist source digest and references instead of duplicating full grounded documents in the attempt input
 # Contracts: docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -168,9 +169,16 @@ class ContinuousWorker:
                     data = {"output": data}
                 if not isinstance(data, Mapping):
                     raise WorkerAdapterError("artifact worker action must return a JSON object")
-                grounded_value = regrounded.value
-                input_data = (grounded_value if isinstance(grounded_value, str) else
-                              json.dumps(grounded_value, sort_keys=True, default=str))
+                input_data = json.dumps({
+                    "assignment_id": assignment["id"],
+                    "objective_ref": assignment.get("objective_ref"),
+                    "contract_ref": assignment.get("contract_ref"),
+                    "knowledge_status": regrounded.status.value,
+                    "source_references": list(regrounded.source_references),
+                    "source_revision": regrounded.source_revision,
+                    "source_sha256": regrounded.source_sha256,
+                    "retrieval_complete": regrounded.retrieval_complete,
+                }, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
                 outcome = self.adapter.execute_artifact(
                     assignment["id"], self.worker_id, self.credential, lease["generation"],
                     attempt_key, input_data, dict(data),

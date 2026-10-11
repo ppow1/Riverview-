@@ -1,7 +1,7 @@
 <!--
 Riverview~ Controlled Document
 File: docs/components/POSTGRES_LEDGER_FLOW.md
-Revision: 1.0.1
+Revision: 1.0.2
 Migration: ENG-REV-002
 -->
 # PostgreSQL ledger — component flow and Steward projection

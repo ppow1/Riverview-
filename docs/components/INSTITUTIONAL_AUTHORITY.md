@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.16
+File Revision: 1.0.17
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -13,6 +13,7 @@ Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER | Require the manager login 
 Changed: 2026-10-11 UTC | RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER | Make authority migrations self-contained for a dedicated fresh schema
 Changed: 2026-10-11 UTC | RV-M4.1-OWNER-SCHEMA-USAGE | Grant protected table owner schema USAGE for PostgreSQL FK enforcement without CREATE
 Changed: 2026-10-11 UTC | RV-M3.3-ASSIGNMENT-INTAKE | Document isolated atomic exact assignment.create application boundary and live-route limitation
+Changed: 2026-10-11 UTC | RV-M3.3-GOVERNED-INTAKE-ROUTE | Document bounded loopback request API and isolated exact-grant route evidence
 Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Persist bootstrap bearer before commit and support safe restart
 Changed: 2026-10-11 UTC | RV-M4.1-LIVE-BOOTSTRAP-EVIDENCE | Record verified root-local live Steward bootstrap without claiming service integration
 Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT | Specify isolated runtime exact-grant function and current deployment boundary
@@ -112,11 +113,23 @@ The worker adapter code is not yet installed in a worker service. The isolated
 assignment/event persistence; tests verify grant denial, attribution, replay,
 and fail-closed registry errors. This does not change the lower-level
 `PostgresLedger.create` persistence API or prevent direct SQL writes. Every
-application route must use the authorized intake. No live route/service or real
-approved worker/knowledge-provider end-to-end run exists. M3.3 remains blocked
-on those application integration and provider requirements. Direct inserts and
-invented authority scope strings remain prohibited. M4.1 does not implement chat,
-work-order promotion, provider routing, or the Grace director.
+application route must use the authorized intake. A bounded loopback HTTP
+adapter now connects `POST /api/v1/assignments` to that intake; it rejects
+non-loopback binds, applies request-size and field limits, accepts a bearer only
+in the Authorization header, and emits no payload or credential in logs. Its
+isolated PostgreSQL HTTP test verifies denied requests have no rows, an
+authorized request persists Steward attribution and the created event, and an
+idempotent retry adds no duplicate. The `riverview-assignment-intake.service`
+unit reserves loopback port 8768; live installation/commissioning remains
+unverified. The actual read-only `RepositoryKnowledgeProvider` is also present
+on the M3.3 engineering branch and an isolated PostgreSQL worker test verifies
+source-pinned grounding, durable attempt output and a distinct independent
+verifier; it is not a general OctoMiner learning service. No live worker
+service, authorized shared assignment, or live route/worker/provider run exists.
+M3.3 remains in progress pending that commissioning and recovery evidence.
+Direct inserts and invented authority scope strings remain prohibited. M4.1
+does not implement chat, work-order promotion, provider routing, or the Grace
+director.
 
 ### Database privilege boundary package
 

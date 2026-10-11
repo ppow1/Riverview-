@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.11
-# Purpose: Authenticate workers and persist exact-grant local inference artifacts
+# Revision: 1.0.13
+# Purpose: Authenticate fixed engineering-test work under exact assignment grants
 # Execution Model: Request-driven local task execution with PostgreSQL durability
 # Observability: Worker identity, capability, attempt outcome, and result digest
 # Dependencies: Python 3.10+; Psycopg 3; M1.2 ledger and M1.4 assignment lease
@@ -11,6 +11,8 @@
 # Changed: 2026-10-10 UTC | RV-M2.3-001 | Persist execution intent before worker actions
 # Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-FIX | Use one exact institutional credential at each worker action boundary
 # Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Persist bounded JSON artifacts under an exact local-inference capability
+# Changed: 2026-10-11 UTC | RV-M33-ENGINEERING-ARTIFACT | Map the fixed repository test capability to assignment.execute
+# Changed: 2026-10-11 UTC | RV-M33-INDEPENDENT-CAPABILITY-EVIDENCE | Include execution capability in verifier evidence input
 # Contracts: docs/components/WORKER_ADAPTER.md; docs/architecture/CORE_CONTRACT.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -52,6 +54,7 @@ class PostgresWorkerAdapter:
 
     SHA256_CAPABILITY = "deterministic.sha256.v1"
     LOCAL_INFERENCE_CAPABILITY = "local.inference.v1"
+    REPOSITORY_CHECK_CAPABILITY = "engineering.repository-check.v1"
     VERIFICATION_CAPABILITY = "assignment.verify.v1"
 
     def __init__(self, dsn, *, schema="public", authority_schema=None):
@@ -112,7 +115,8 @@ class PostgresWorkerAdapter:
             raise WorkerAuthorizationError("worker capability is not registered")
         if capability == self.VERIFICATION_CAPABILITY:
             action = "assignment.verify"
-        elif capability in {self.SHA256_CAPABILITY, self.LOCAL_INFERENCE_CAPABILITY}:
+        elif capability in {self.SHA256_CAPABILITY, self.LOCAL_INFERENCE_CAPABILITY,
+                            self.REPOSITORY_CHECK_CAPABILITY}:
             action = "assignment.execute"
         else:
             raise WorkerAuthorizationError("capability has no authority action mapping")
@@ -411,6 +415,7 @@ class PostgresWorkerAdapter:
                     decision = None
                 if existing is None:
                     cur.execute("""SELECT a.attempt_id,a.assignment_id,a.worker_id,a.status,
+                                          a.capability,
                                           a.input_sha256,r.result,r.result_sha256
                                    FROM worker_attempts a JOIN worker_results r USING(attempt_id)
                                    WHERE a.attempt_id=%s AND a.assignment_id=%s FOR UPDATE OF a""",

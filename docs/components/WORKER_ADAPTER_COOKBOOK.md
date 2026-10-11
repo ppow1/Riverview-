@@ -2,17 +2,18 @@
 Riverview~ Controlled Document
 File: docs/components/WORKER_ADAPTER_COOKBOOK.md
 Component: WORKER-ADAPTER
-File Revision: 1.0.9
+File Revision: 1.0.10
 Purpose: Diagnose isolated worker identity, attempt, verification and recovery records safely
 Authority: Read-only diagnosis; credential delivery and worker enrollment are trusted control-plane operations
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Add redacted worker and verification record queries with failure interpretation
 Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Add bounded model execution and diagnosis steps
 Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Document the real isolated concurrent model acceptance and harness
+Changed: 2026-10-11 UTC | RV-M3.3-WORKER-SERVICE | Document separate executor/verifier systemd preflight and recovery
 History: Git and revision backup manifest
 -->
 # Riverview~ worker adapter cookbook
 
-**Document Revision:** 1.0.8
+**Document Revision:** 1.0.9
 **Component:** WORKER-ADAPTER
 **Task:** RV-M2.1-001
 **Status:** IN PROGRESS — disposable PostgreSQL only
@@ -171,6 +172,65 @@ after lease fencing, same executor/verifier accepted, unverifiable result
 marked complete, unknown external effect automatically replayed, or unclear
 fixture ownership is an escalation condition. Preserve all records and do not
 repair by directly changing assignments, leases, attempts, or verifications.
+
+## Supervised M3.3 executor and verifier services
+
+The versioned units are
+`deploy/systemd/riverview-m33-worker.service` and
+`deploy/systemd/riverview-m33-verifier.service`. They are source definitions,
+not proof of installation; check the deployment record before claiming either
+unit is active. The executor uses the fixed `deterministic.sha256.v1`
+capability and repository-backed provider pinned to an exact committed release.
+The verifier is a separate service identity and `assignment.verify.v1` worker.
+Both use root-owned systemd credential sources and PID 1 credential delivery;
+the bearer itself is never an environment variable, command argument, log, or
+database plaintext. The worker account cannot modify installed release bytes.
+
+Read-only service preflight:
+
+```sh
+systemctl status riverview-m33-worker.service riverview-m33-verifier.service --no-pager
+journalctl -u riverview-m33-worker.service -u riverview-m33-verifier.service -n 100 --no-pager
+systemctl show riverview-m33-worker.service riverview-m33-verifier.service \
+  --property=User,FragmentPath,ExecStart,LoadCredential,Restart --no-pager
+```
+
+Expected identities are `riverview`; both units have private PostgreSQL
+credentials, and executor/verifier bearer files are different. A missing unit,
+expired exact grant, missing schema or package pin must fail closed. Inspect
+`worker_registry` without the digest:
+
+```sql
+BEGIN READ ONLY;
+SELECT worker_id,capabilities,scope_ref,active,registered_at
+FROM riverview_dev.worker_registry ORDER BY worker_id;
+SELECT principal_id,action,scope_ref,valid_until,revoked_at
+FROM riverview_authority.authority_grants
+WHERE action IN ('worker.register','assignment.execute','assignment.verify')
+ORDER BY principal_id,action,scope_ref;
+COMMIT;
+```
+
+Check only the exact commissioning scope. Never print token files, inspect
+`credential_sha256`, copy credentials to shell variables, or grant wildcard
+scope. If the current registered identity, token digest, capabilities or scope
+differs from protected configuration, the service must remain stopped until
+Steward enrollment is reconciled through the authority API.
+
+Restarting either exact unit is non-destructive and reuses the persisted worker
+identity and attempt state:
+
+```sh
+sudo systemctl restart riverview-m33-worker.service
+sudo systemctl restart riverview-m33-verifier.service
+```
+
+After restart, confirm a fresh systemd process, a healthy dashboard worker
+projection, stable assignment/attempt IDs, no duplicate result or verification,
+and a valid pinned source revision. A successful process restart alone is not
+proof that a task was resumed or accepted. Do not manually change assignments,
+leases, authority grants, worker rows, artifacts, or verification rows to
+recover a failure.
 
 
 ## Local inference worker (M4.3)

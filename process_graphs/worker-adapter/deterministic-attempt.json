@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:worker-adapter:deterministic-attempt",
-  "graph_revision": "1.0.9",
+  "graph_revision": "1.0.11",
   "component_id": "WORKER-ADAPTER",
   "workflow_id": "deterministic-attempt.v1",
   "diagram_order": 7,
@@ -17,7 +17,16 @@
     "src/riverview_core/worker_adapter/recovery.py",
     "tests/test_local_inference.py",
     "tests/test_worker_adapter.py",
-    "scripts/verify_local_inference.py"
+    "scripts/verify_local_inference.py",
+    "src/riverview_core/worker_adapter/repository_knowledge.py",
+    "src/riverview_core/worker_adapter/service.py",
+    "scripts/run_worker_service.py",
+    "scripts/run_verifier_service.py",
+    "deploy/systemd/riverview-m33-worker.service",
+    "deploy/systemd/riverview-m33-verifier.service",
+    "tests/test_worker_service.py",
+    "src/riverview_core/worker_adapter/engineering_artifact.py",
+    "src/riverview_core/worker_adapter/verifier.py"
   ],
   "documentation_references": [
     "docs/components/WORKER_ADAPTER.md",
@@ -343,6 +352,7 @@
       "label": "Invoke the assigned, preflighted execution capability",
       "source_references": [
         "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/engineering_artifact.py",
         "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
         "src/riverview_core/worker_adapter/local_inference.py"
       ],

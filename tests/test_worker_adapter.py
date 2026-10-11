@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.28
+# Revision: 1.0.39
 # Purpose: Verify scoped deterministic and structured worker artifacts
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
@@ -12,6 +12,14 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-TEST-FIX | Give self-verification test its explicit verification grant
 # Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-REVOCATION | Deny registration without a grant and execution after revocation
 # Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Verify structured artifact execution under its own exact capability grant
+# Changed: 2026-10-11 UTC | RV-M3.3-REPOSITORY-KNOWLEDGE | Exercise pinned repository provider through worker and independent verifier
+# Changed: 2026-10-11 UTC | RV-M3.3-WORKER-SERVICE | Verify service restart registration is exact and idempotent
+# Changed: 2026-10-11 UTC | RV-M33-ENGINEERING-ARTIFACT | Exercise the repository test task, durable file artifact, and independent rerun in PostgreSQL
+# Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-FAILURE-DIAGNOSIS | Include safe action error code in isolated integration failure output
+# Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-FAILURE-DIAGNOSIS | Include durable failure class in isolated integration assertion
+# Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-VERIFICATION-DIAGNOSIS | Surface independent verifier criteria in the isolated regression
+# Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-VERIFICATION-DIAGNOSIS | Attach verifier criterion details to the repository artifact check
+# Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-VERIFICATION-DIAGNOSIS | Target repository-task verifier assertion for criteria output
 # Contracts: docs/development/M2.3-001_REVISION_RECORD.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -163,7 +171,8 @@ class WorkerAdapterTests(unittest.TestCase):
             (uuid4(), principal_id, digest))
         actions = ["worker.register"]
         if any(cap in capabilities for cap in
-               ("deterministic.sha256.v1", "local.inference.v1")):
+               ("deterministic.sha256.v1", "local.inference.v1",
+                "engineering.repository-check.v1")):
             actions.append("assignment.execute")
         if "assignment.verify.v1" in capabilities:
             actions.append("assignment.verify")
@@ -496,7 +505,7 @@ class WorkerAdapterTests(unittest.TestCase):
             self.assignment, attempt_id, verifier_id, verifier_token,
             DeterministicSha256Verifier(),
             idempotency_key="verify-after-recovery:" + uuid4().hex)
-        self.assertEqual(decision.status.value, "ACCEPTED")
+        self.assertEqual(decision.status.value, "ACCEPTED", dict(decision.criteria))
         self.assertEqual(self.ledger.get(self.assignment)["state"], "completed")
         recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema)
         try:
@@ -692,6 +701,220 @@ class WorkerAdapterTests(unittest.TestCase):
             idempotency_key="verify-tampered:" + uuid4().hex)
         self.assertEqual(decision.status.value, "REJECTED")
         self.assertEqual(self.ledger.get(self.assignment)["state"], "rework_required")
+
+    def test_pinned_repository_provider_drives_worker_artifact_and_independent_verification(self):
+        import shutil
+        import subprocess
+        import tempfile
+        from riverview_core.worker_adapter import ContinuousWorker
+        from riverview_core.worker_adapter.repository_knowledge import RepositoryKnowledgeProvider
+        from riverview_core.worker_adapter.verifier import DeterministicSha256Verifier
+
+        source_root = Path(__file__).resolve().parents[1]
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        repository = Path(temporary.name) / "pinned-source"
+        repository.mkdir()
+        source_paths = RepositoryKnowledgeProvider.CONTRACTS[
+            RepositoryKnowledgeProvider.WORKER_CONTRACT]
+        for relative in source_paths:
+            destination = repository / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source_root / relative, destination)
+        subprocess.run(["git", "-C", str(repository), "init", "-q"], check=True)
+        subprocess.run(["git", "-C", str(repository), "config", "user.name", "Riverview test"], check=True)
+        subprocess.run(["git", "-C", str(repository), "config", "user.email", "test@example.invalid"], check=True)
+        subprocess.run(["git", "-C", str(repository), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(repository), "commit", "-qm", "pinned worker contract"], check=True)
+        commit = subprocess.run(["git", "-C", str(repository), "rev-parse", "HEAD"],
+                                check=True, capture_output=True, text=True).stdout.strip()
+        provider = RepositoryKnowledgeProvider(repository, commit)
+        contract_ref = RepositoryKnowledgeProvider.WORKER_CONTRACT
+        assignment_id = "repository-knowledge-" + uuid4().hex
+        self.ledger.create(assignment_id, "engineering", f"create-{assignment_id}",
+                           authority_ref=self.scope, objective_ref="objective:verify-worker-contract",
+                           actor_id="resident:test", contract_ref=contract_ref)
+        self.ledger.transition(assignment_id, "ready", "intake", f"ready-{assignment_id}",
+                               actor_id="event-processor")
+        executor_id = "worker-repository-" + uuid4().hex
+        executor_credential = self.register_as(
+            executor_id, ["deterministic.sha256.v1"], self.scope)
+
+        def create_artifact(assignment, grounding):
+            self.assertEqual(assignment["contract_ref"], contract_ref)
+            self.assertEqual(grounding.status.value, "VERIFIED")
+            self.assertTrue(grounding.retrieval_complete)
+            return grounding.value["documents"][0]["content"]
+
+        execution = ContinuousWorker(
+            self.worker, executor_id, executor_credential, knowledge=provider,
+            action=create_artifact, action_effect_class="retry_safe").run_once()
+        self.assertEqual(execution["status"], "AWAITING_VERIFICATION")
+        verifier_id = "verifier-repository-" + uuid4().hex
+        verifier_credential = self.register_as(
+            verifier_id, ["assignment.verify.v1"], self.scope)
+        decision = self.worker.verify_attempt(
+            assignment_id, execution["attempt_id"], verifier_id, verifier_credential,
+            DeterministicSha256Verifier(),
+            idempotency_key=f"repository-verification:{execution['attempt_id']}")
+        self.assertEqual(decision.status.value, "ACCEPTED", dict(decision.criteria))
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "completed")
+        self.assertNotEqual(executor_id, verifier_id)
+        with self.worker.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT operation,status,source_revision,retrieval_complete
+                           FROM knowledge_observations WHERE assignment_id=%s
+                           ORDER BY recorded_at,observation_id""", (assignment_id,))
+            observations = cur.fetchall()
+            cur.execute("SELECT result FROM worker_results WHERE attempt_id=%s",
+                        (execution["attempt_id"],))
+            artifact = cur.fetchone()["result"]
+        grounded = [row for row in observations
+                    if row["operation"] in {"ground_assignment", "preflight_action",
+                                             "reground_assignment"}]
+        self.assertEqual({row["operation"] for row in grounded},
+                         {"ground_assignment", "preflight_action", "reground_assignment"})
+        self.assertTrue(all(row["status"] == "VERIFIED" and
+                            row["source_revision"] == commit and
+                            row["retrieval_complete"] is True for row in grounded))
+        self.assertEqual(set(artifact), {"sha256", "utf8_bytes"})
+        self.assertEqual(len(artifact["sha256"]), 64)
+        self.assertGreater(artifact["utf8_bytes"], 0)
+
+    def test_worker_service_registration_is_idempotent_and_exact(self):
+        from riverview_core.worker_adapter.service import (
+            WorkerServiceConfigurationError, ensure_registered,
+        )
+
+        ensure_registered(self.worker, self.worker_id, self.token,
+                          ("deterministic.sha256.v1",), self.scope)
+        with self.assertRaises(WorkerServiceConfigurationError):
+            ensure_registered(self.worker, self.worker_id, self.token,
+                              ("assignment.verify.v1",), self.scope)
+        with self.assertRaises(WorkerServiceConfigurationError):
+            ensure_registered(self.worker, self.worker_id, self.token,
+                              ("deterministic.sha256.v1",), "work-order:other")
+        with self.worker.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("SELECT count(*) AS n FROM worker_registry WHERE worker_id=%s",
+                        (self.worker_id,))
+            self.assertEqual(cur.fetchone()["n"], 1)
+
+    def test_repository_test_assignment_persists_real_file_and_independent_reverification(self):
+        import hashlib
+        import json
+        import shutil
+        import subprocess
+        import tempfile
+        from riverview_core.worker_adapter import ContinuousWorker
+        from riverview_core.worker_adapter.engineering_artifact import (
+            CAPABILITY, OBJECTIVE_REF, RepositoryContractTestAction,
+        )
+        from riverview_core.worker_adapter.repository_knowledge import RepositoryKnowledgeProvider
+        from riverview_core.worker_adapter.verifier import RepositoryContractTestVerifier
+
+        source_root = Path(__file__).resolve().parents[1]
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        base = Path(temporary.name)
+        source_repo, package = base / "source-repo", base / "immutable-release"
+        source_repo.mkdir()
+        source_paths = RepositoryKnowledgeProvider.CONTRACTS[
+            RepositoryKnowledgeProvider.WORKER_CONTRACT]
+        test_path = "tests/test_repository_knowledge.py"
+        for relative in [*source_paths, test_path]:
+            destination = source_repo / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source_root / relative, destination)
+        subprocess.run(["git", "-C", str(source_repo), "init", "-q"], check=True)
+        subprocess.run(["git", "-C", str(source_repo), "config", "user.name", "Riverview test"], check=True)
+        subprocess.run(["git", "-C", str(source_repo), "config", "user.email", "test@example.invalid"], check=True)
+        subprocess.run(["git", "-C", str(source_repo), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(source_repo), "commit", "-qm", "pinned engineering test package"], check=True)
+        commit = subprocess.run(["git", "-C", str(source_repo), "rev-parse", "HEAD"],
+                                check=True, capture_output=True, text=True).stdout.strip()
+        package.mkdir()
+        for relative in [*source_paths, test_path]:
+            destination = package / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source_repo / relative, destination)
+        (package / "SOURCE_COMMIT").write_text(commit + "\n", encoding="ascii")
+        manifest_paths = [*source_paths, test_path, "SOURCE_COMMIT"]
+        rows = []
+        for relative in manifest_paths:
+            raw = (package / relative).read_bytes()
+            rows.append(f"{hashlib.sha256(raw).hexdigest()}  {relative}")
+        (package / "PACKAGE_SHA256SUMS").write_text("\n".join(rows) + "\n", encoding="ascii")
+        for path in sorted(package.rglob("*"), reverse=True):
+            path.chmod(0o555 if path.is_dir() else 0o444)
+        package.chmod(0o555)
+        def restore_fixture_permissions():
+            for item in package.rglob("*"):
+                item.chmod(0o755 if item.is_dir() else 0o644)
+            package.chmod(0o755)
+        self.addCleanup(restore_fixture_permissions)
+        artifacts = base / "artifacts"
+        artifacts.mkdir(mode=0o700)
+
+        provider = RepositoryKnowledgeProvider(package, commit)
+        assignment_id = "engineering-test-" + uuid4().hex
+        contract_ref = RepositoryKnowledgeProvider.WORKER_CONTRACT
+        self.ledger.create(assignment_id, "engineering", f"create-{assignment_id}",
+                           authority_ref=self.scope, objective_ref=OBJECTIVE_REF,
+                           actor_id="steward:test", contract_ref=contract_ref)
+        self.ledger.transition(assignment_id, "ready", "intake", f"ready-{assignment_id}",
+                               actor_id="event-processor")
+        executor_id = "worker-engineering-test-" + uuid4().hex
+        executor_credential = self.register_as(executor_id, [CAPABILITY], self.scope)
+        action_impl = RepositoryContractTestAction(package, artifacts, commit)
+        action_failures = []
+        def action(assignment, grounding):
+            try:
+                return action_impl(assignment, grounding)
+            except Exception as exc:
+                action_failures.append(type(exc).__name__ + ":" + str(exc))
+                raise
+        execution = ContinuousWorker(
+            self.worker, executor_id, executor_credential, knowledge=provider,
+            action=action, action_effect_class="retry_safe",
+            action_capability=CAPABILITY).run_once()
+        self.assertEqual(execution["status"], "AWAITING_VERIFICATION",
+                         {"action_failures": action_failures,
+                          "worker_failure_type": execution.get("failure_type"),
+                          "execution": execution})
+
+        result_row = self.admin.execute(
+            "SELECT result,result_sha256 FROM worker_results WHERE attempt_id=%s",
+            (execution["attempt_id"],)).fetchone()
+        artifact = result_row[0]
+        artifact_path = artifacts / artifact["artifact_name"]
+        self.assertTrue(artifact_path.is_file())
+        self.assertEqual(hashlib.sha256(artifact_path.read_bytes()).hexdigest(),
+                         artifact["artifact_sha256"])
+        report = json.loads(artifact_path.read_text(encoding="utf-8"))
+        self.assertEqual(report["status"], "PASS")
+        self.assertGreater(report["test_count"], 0)
+        self.assertIn("Ran ", report["output"])
+
+        verifier_id = "verifier-engineering-test-" + uuid4().hex
+        verifier_credential = self.register_as(
+            verifier_id, ["assignment.verify.v1"], self.scope)
+        verifier = RepositoryContractTestVerifier(artifacts, commit, package)
+        decision = self.worker.verify_attempt(
+            assignment_id, execution["attempt_id"], verifier_id, verifier_credential,
+            verifier, idempotency_key=f"engineering-test-verification:{execution['attempt_id']}")
+        self.assertEqual(decision.status.value, "ACCEPTED", dict(decision.criteria))
+        self.assertTrue(all(decision.criteria.values()))
+        self.assertNotEqual(executor_id, verifier_id)
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "completed")
+        self.assertTrue(decision.criteria["independent_test_rerun_matches_report"])
+        observations = self.admin.execute(
+            "SELECT operation,status,source_revision,retrieval_complete FROM knowledge_observations "
+            "WHERE assignment_id=%s ORDER BY recorded_at,observation_id", (assignment_id,)).fetchall()
+        self.assertEqual({row[0] for row in observations},
+                         {"ground_assignment", "preflight_action", "reground_assignment", "record_learning"})
+        self.assertTrue(all(row[1] == "VERIFIED" and row[2] == commit
+                            and row[3] is True for row in observations[:3]))
 
     def test_executor_identity_cannot_verify_its_own_attempt(self):
         from riverview_core.worker_adapter import WorkerAuthorizationError

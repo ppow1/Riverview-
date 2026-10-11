@@ -1,6 +1,6 @@
 # Riverview~ worker adapter contract
 
-**Document Revision:** 1.0.10
+**Document Revision:** 1.0.12
 **Component:** WORKER-ADAPTER
 **Milestone:** M2.1–M2.3
 **Status:** M4.3 isolated local-inference execution and independent verification passed; persistent Camrui worker service remains uncommissioned
@@ -8,6 +8,8 @@
 **Changed:** 2026-10-11 UTC | RV-M4.1-LIVE-EXACT-GRANT | Record deployed database function ACL while retaining undeployed worker service status
 **Changed:** 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Record verified isolated model execution and persistent-service limitation
 **Changed:** 2026-10-11 UTC | RV-M3.3-ASSIGNMENT-INTAKE | Record isolated grant-gated assignment creation and undeployed service boundary
+**Changed:** 2026-10-11 UTC | RV-M3.3-REPOSITORY-KNOWLEDGE | Specify pinned read-only repository provider and its fail-closed status
+**Changed:** 2026-10-11 UTC | RV-M3.3-WORKER-SERVICE | Specify executor/verifier systemd runner contracts and commissioning state
 
 ## Scope and trust boundaries
 
@@ -86,6 +88,52 @@ the M4.3 record before asserting environment state. Learning capture records
 outcomes but does not auto-promote knowledge.
 The provider interface is injectable and the scheduler does not depend on its
 implementation.
+
+`RepositoryKnowledgeProvider` is the first real repository-backed provider. It
+is read-only and retrieves only a small allowlist of committed worker contract
+files. Construction requires an exact full Git commit ID; `VERIFIED` requires
+that `HEAD` equal this configured pin, each allowed file be clean, and all
+source bytes fit the configured per-file and aggregate bounds. For an immutable
+release package, it instead requires `SOURCE_COMMIT` and
+`PACKAGE_SHA256SUMS` to match the configured pin and source bytes. The result
+contains stable `repo://` references, the pinned revision, an aggregate
+SHA-256, and `retrieval_complete=True`. Unknown contract/action references
+return `NO_MATCH`; wrong pins or bytes return non-authorizing statuses; Git or
+read failures return `UNAVAILABLE`. Learning writes are explicitly unavailable.
+The provider never executes retrieved text and never supplies authority.
+
+The supported `repo://riverview/worker-adapter-contract.v1` contract grounds
+`deterministic.sha256.v1` only. It does not assert that local inference,
+arbitrary commands, or any external interface is verified. A deployment must
+pin its exact package revision; absence or mismatch leaves the assignment in
+`WAITING_FOR_EVIDENCE`. See
+[`Repository Knowledge Provider`](REPOSITORY_KNOWLEDGE_PROVIDER.md).
+
+### Supervised M3.3 executor and verifier services
+
+`scripts/run_worker_service.py` runs one continuous executor with the pinned
+repository provider and the existing scheduler. At startup it accepts only the
+registered worker service unit's systemd credentials, copies its protected
+PostgreSQL passfile into an exclusive service-private runtime path, and either
+registers the exact worker identity under its `worker.register` grant or checks
+that the existing active identity, credential digest, capabilities and scope
+match exactly. Any mismatch fails startup. The executor capability is fixed to
+`deterministic.sha256.v1`; no shell, arbitrary subprocess, network action, or
+model endpoint is exposed.
+
+`scripts/run_verifier_service.py` runs under another systemd unit and bearer,
+identity, and exact `assignment.verify.v1` grant. It polls only durable
+successful deterministic attempts awaiting verification, then uses the
+existing `DeterministicSha256Verifier`. The database lock, distinct verifier
+identity and idempotency key preserve independent verification across process
+restart. Both units are non-root, use PID 1 credential delivery, restart after
+unexpected failure, and do not apply migrations. Source definitions are
+`deploy/systemd/riverview-m33-worker.service` and
+`deploy/systemd/riverview-m33-verifier.service`. These units are prepared but
+not installed or active on Camrui; no worker grant or credential is thereby
+implied. Live commissioning requires a pinned root-owned package, one exact
+assignment scope, separate short-lived executor/verifier grants, and independent
+post-restart evidence.
 
 See the [workflow graph](WORKER_ADAPTER_FLOW.md),
 [operational cookbook](WORKER_ADAPTER_COOKBOOK.md), and
