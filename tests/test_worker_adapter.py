@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.25
+# Revision: 1.0.28
 # Purpose: Verify scoped dispatch, fail-closed knowledge, independent outcomes, and recovery
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL test database
 # Authority: Creates and drops only unique rvtest_* schemas
-# Changed: 2026-10-11 UTC | RV-M3.3-REPOSITORY-KNOWLEDGE-EVIDENCE | Emit optional sanitized integration evidence
+# Changed: 2026-10-11 UTC | RV-M3.3-REAL-PROVIDER-EVIDENCE-FIX | Join artifact to its assignment through worker attempt
 # Contracts: docs/development/M2.3-001_REVISION_RECORD.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -276,6 +276,102 @@ class WorkerAdapterTests(unittest.TestCase):
         def record_learning(self, assignment, outcome):
             from riverview_core.worker_adapter import KnowledgeResult, KnowledgeStatus
             return KnowledgeResult(KnowledgeStatus.UNAVAILABLE)
+
+    def test_real_provider_no_match_waits_while_peer_artifact_is_independently_verified(self):
+        import subprocess
+        from riverview_core.worker_adapter import ContinuousWorker
+        from riverview_core.worker_adapter.repository_knowledge import RepositoryKnowledgeProvider
+        from riverview_core.worker_adapter.verifier import DeterministicSha256Verifier
+
+        repository = Path(__file__).resolve().parents[1]
+        commit = subprocess.run(["git", "-C", str(repository), "rev-parse", "HEAD"],
+                                check=True, capture_output=True, text=True).stdout.strip()
+        provider = RepositoryKnowledgeProvider(repository, commit)
+        waiting_id = self.ready_assignment(
+            objective="objective:unsupported-contract-stays-local",
+            contract_ref="repo://riverview/unregistered.v1")
+        progressing_id = self.ready_assignment(
+            objective="objective:pinned-contract-peer-progresses",
+            contract_ref=RepositoryKnowledgeProvider.WORKER_CONTRACT)
+        worker_id = "worker-repository-parallel-" + uuid4().hex
+        credential = self.worker.register_worker(
+            worker_id, ["deterministic.sha256.v1"], self.scope)
+
+        def artifact_action(assignment, grounding):
+            self.assertEqual(assignment["contract_ref"], RepositoryKnowledgeProvider.WORKER_CONTRACT)
+            self.assertEqual(grounding.status.value, "VERIFIED")
+            return grounding.value["documents"][0]["content"]
+
+        engine = ContinuousWorker(
+            self.worker, worker_id, credential, knowledge=provider,
+            action=artifact_action, action_effect_class="retry_safe")
+        waiting = engine.run_once()
+        self.assertEqual(waiting["assignment_id"], waiting_id)
+        self.assertEqual(waiting["status"], "WAITING_FOR_EVIDENCE")
+        self.assertEqual(waiting["knowledge_status"], "NO_MATCH")
+        self.assertEqual(self.ledger.get(waiting_id)["workflow_step"], "WAITING_FOR_EVIDENCE")
+        with self.worker.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("SELECT status FROM knowledge_observations WHERE assignment_id=%s AND operation='ground_assignment'",
+                        (waiting_id,))
+            self.assertEqual(cur.fetchone()["status"], "NO_MATCH")
+
+        progressing = engine.run_once()
+        self.assertEqual(progressing["assignment_id"], progressing_id)
+        self.assertEqual(progressing["status"], "AWAITING_VERIFICATION")
+        self.assertEqual(self.ledger.get(waiting_id)["state"], "blocked")
+        self.assertEqual(self.ledger.get(progressing_id)["state"], "awaiting_verification")
+
+        verifier_id = "verifier-repository-parallel-" + uuid4().hex
+        verifier_credential = self.worker.register_worker(
+            verifier_id, ["assignment.verify.v1"], self.scope)
+        verified = self.worker.verify_attempt(
+            progressing_id, progressing["attempt_id"], verifier_id, verifier_credential,
+            DeterministicSha256Verifier(),
+            idempotency_key="verify-repository-parallel-" + uuid4().hex)
+        self.assertEqual(verified.status.value, "ACCEPTED")
+        self.assertEqual(self.ledger.get(progressing_id)["state"], "completed")
+        self.assertEqual(self.ledger.get(waiting_id)["state"], "blocked")
+        evidence_path = os.environ.get("RIVERVIEW_M33_PARALLEL_EVIDENCE_PATH")
+        if evidence_path:
+            with self.worker.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("SELECT status FROM knowledge_observations WHERE assignment_id=%s AND operation='ground_assignment'",
+                            (waiting_id,))
+                waiting_observation = cur.fetchone()
+                cur.execute("""SELECT r.attempt_id,r.result_sha256,octet_length(r.result::text) AS stored_bytes,
+                                      v.verifier_id,v.decision
+                               FROM worker_results r JOIN worker_attempts a USING (attempt_id)
+                               JOIN verification_records v USING (attempt_id)
+                               WHERE a.assignment_id=%s""", (progressing_id,))
+                artifact = cur.fetchone()
+                cur.execute("SELECT version() AS postgres_version")
+                postgres_version = cur.fetchone()["postgres_version"]
+            report = {
+                "task_id": "RV-M3.3-REAL-PROVIDER-PARALLEL",
+                "observed_at_utc": datetime.now(timezone.utc).isoformat(),
+                "repository_commit": commit,
+                "postgres_version": postgres_version,
+                "isolated_schema": self.schema,
+                "waiting_assignment_id": waiting_id,
+                "waiting_contract_ref": "repo://riverview/unregistered.v1",
+                "waiting_knowledge_status": waiting_observation["status"],
+                "waiting_final_state": self.ledger.get(waiting_id)["state"],
+                "progressing_assignment_id": progressing_id,
+                "worker_id": worker_id,
+                "attempt_id": str(artifact["attempt_id"]),
+                "artifact_sha256": artifact["result_sha256"],
+                "artifact_stored_bytes": artifact["stored_bytes"],
+                "verifier_id": artifact["verifier_id"],
+                "verification_decision": artifact["decision"],
+                "progressing_final_state": self.ledger.get(progressing_id)["state"],
+                "credentials_or_source_bodies_included": False,
+            }
+            output = Path(evidence_path)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            with output.open("x", encoding="utf-8") as stream:
+                json.dump(report, stream, indent=2, sort_keys=True)
+                stream.write("\n")
 
     def test_scoped_authenticated_execution_persists_attributed_idempotent_result(self):
         token = self.token
