@@ -1,9 +1,10 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.98
+**Document Revision:** 1.0.99
 **Component:** ENG-RECORDS
 **Date:** 2026-10-11 UTC
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
+**Changed:** 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-CHECKPOINT | Record persistent objective execution evidence and non-commissioning boundary
 
 ## 2026-10-11 UTC — RV-M3.3-COURSE-CORRECTION / M3.3 commissioning and M4.2 checkpoint
 
@@ -1409,3 +1410,24 @@ passed for 16 workflows / 323 nodes. The controlled-source revision audit agains
 the clean 6a326279 baseline returned zero issues. These results qualify this
 working-tree implementation only; CI and a reviewable feature commit are still
 required before a merge-ready claim.
+
+## 2026-10-11 UTC — RV-M4.4-PERSISTENT-EXECUTION / supervised execution infrastructure
+
+Added a continuously supervised, model-independent Grace service over the
+existing PostgreSQL objective pipeline, exact grants, event processor, leased
+worker adapter, bounded artifact worker, verifier, and dashboard. Governed
+objective submission, proposal, cancellation, durable health/progress,
+idempotent dispatch, bounded retry/recovery, and status projection are covered.
+The service unit targets its own immutable Grace release path; deployment,
+credentials, and migration application remain separate controlled operations.
+
+The complete suite passed 211/211 with zero failures, errors, or skips against
+private PostgreSQL 16.15 in 118.438 seconds. A spawned-process restart test
+proved queued durable work was resumed with exactly one execution attempt and
+one accepted independent verification. Graph check/validation passed for 16
+graphs and 330 nodes; static unit validation, compilation, and revision audit
+passed. Exact output and source checksums are in
+`evidence/checkouts/M4.4-PERSISTENT-EXECUTION/20261011T1740Z-cc548e6/`.
+Commit `da0b724` is a dependent draft change based on PR #23 head `cc548e6`.
+No live service was installed or started and no shared database or production
+service was changed; operational commissioning and full M4.4 DoD remain open.
