@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.12
+# Revision: 1.0.14
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -13,6 +13,8 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ASSERTION | Match cookbook's documented DROP CASCADE warning text
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-SCHEDULER-DIAGNOSTICS | Assert expanded scheduler recovery docs render through dashboard route
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Assert worker recovery diagnostics render through dashboard route
+# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-PG-SECRET-SAFETY | Assert PostgreSQL cookbook has no password-bearing command examples
+# Changed: 2026-10-11 UTC | RV-M1.4-LIVE-DEPENDENCY-CORRECTION | Assert scheduler docs distinguish shared migration from commissioning
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -190,6 +192,13 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertIn(b"<pre><code", body)
         self.assertNotIn(b"Riverview~ Controlled Document", body)
         self.assertNotIn(b"<!--", body)
+        status, headers, body = self.request(
+            "GET", "/docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        for evidence in (b"dependency of the later worker and monitoring migration chain",
+                         b"ce29c2994904f54706db883f61127bf05ee195ecbdce90e7242886e86711b717",
+                         b"no standalone M1.4 scheduler service"):
+            self.assertIn(evidence, body)
         status, headers, body = self.request("GET", "/docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md")
         self.assertEqual(status, 200)
         self.assertIn("text/html", dict(headers)["Content-Type"])
@@ -201,6 +210,19 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertIn(b"<table>", body)
         self.assertIn(b"<pre><code", body)
         self.assertNotIn(b"Riverview~ Controlled Document", body)
+        self.assertNotIn(b"<!--", body)
+        status, headers, body = self.request(
+            "GET", "/docs/components/POSTGRES_LEDGER_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", dict(headers)["Content-Type"])
+        for heading in (b"Connection and schema inspection", b"Run tests safely",
+                        b"Recovery discipline"):
+            self.assertIn(heading, body)
+        self.assertIn(b"sudo -n -u postgres psql", body)
+        self.assertIn(b"RIVERVIEW_TEST_PG_DSN", body)
+        self.assertNotIn(b"PGPASSWORD=", body)
+        self.assertNotIn(b"postgresql://", body)
+        self.assertIn(b"BEGIN READ ONLY", body)
         self.assertNotIn(b"<!--", body)
         status, headers, body = self.request(
             "GET", "/docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md")

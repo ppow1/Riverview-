@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.11
+**Document Revision:** 1.1.12
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-11
 **Component:** RV-ROADMAP  
@@ -139,7 +139,7 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 **M1.3:** Scoped technical commissioning PASS on Camrui at source commit `9ca7cb189d1e1f57c69395303a9367fabd979ff5`. Migration 0002, unattended event progression, causal ordering, durable cursor, restart, PostgreSQL session-loss recovery, rollback/redeployment, and M1.1 preservation are verified. The full component DoD remains OPEN; this is not a claim that the later dashboard, autonomy, external observability, or project completion criteria are satisfied.
 
-**M1.4:** Isolated technical criteria verified at source commit `549bd08b9b1800981c6c4c006dbe59d8fed0a799`: age-ordered independent claims, an active stalled lease not blocking unrelated progress, concurrent distinct claims, expiry generation increment, stale token rejection, and idempotent start. Evidence is in the M1.4-001 engineering record. No shared-schema migration, service deployment, operational commissioning, or full component DoD is claimed.
+**M1.4:** Isolated technical criteria verified at source commit `549bd08b9b1800981c6c4c006dbe59d8fed0a799`: age-ordered independent claims, an active stalled lease not blocking unrelated progress, concurrent distinct claims, expiry generation increment, stale token rejection, and idempotent start. The live `riverview_dev` catalog was later confirmed to contain `0001_assignment_leases` as a dependency in the worker/monitor migration chain; its checksum matches the checked-in migration. That migration presence is not a separate M1.4 scheduler-service commissioning or acceptance. No standalone scheduler service or M1.4 operational acceptance/full Component DoD is claimed. The original isolated checkout evidence remains valid for its stated scope; see the dated live-state correction in `docs/development/M1.4-001_REVISION_RECORD.md` and the operations cookbook evidence.
 
 **M2.1–M2.3 — Execution, independent verification, and restart recovery:** Integrated on `main` at `4f028a138c41665239bde2c11be65b0f841f02bf` by PRs #9, #10, and #12. The combined isolated PostgreSQL 16.15 suite passed 89/89 on Camrui; graph validation and the controlled revision audit passed, and GitHub main CI passed. This confirms the integrated engineering baseline only; the M2.1–M2.3 live deployments and full component DoD remain open.
 
@@ -155,10 +155,13 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 **Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. M3.3 remains the current unaccepted roadmap step; full Grace integration remains a later mandatory system-level gate.
 
+**M1.4 live dependency correction (2026-10-11 UTC):** A read-only `sudo -u postgres psql` inspection found the shared `riverview_dev.schema_migrations` row `0001_assignment_leases` applied at `2026-10-10 18:27:04.341175-04:00`, with SHA-256 `ce29c2994904f54706db883f61127bf05ee195ecbdce90e7242886e86711b717`, matching `src/riverview_core/assignment_scheduler/migrations/0001_assignment_leases.sql`. This was applied as part of the later worker and monitor migration chain. It corrects the earlier “no shared migration” statement without claiming M1.4 runtime commissioning; the standalone scheduler service, full M1.4 exit gate and Component DoD remain open. Exact read-only output is in `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T055428Z-pg-doc-safety/live-peer-inspection.txt`.
+
 ## Revision history
 
 - **1.1.10 — 2026-10-11:** Record M4.1 isolated privilege feasibility and dashboard-only graph/cookbook deployment; preserve M3.3 as blocked and unaccepted.
 - **1.1.11 — 2026-10-11:** Record the packaged, isolated M4.1 privilege-boundary implementation and test; preserve the live schema-owner blocker and M3.3 status.
+- **1.1.12 — 2026-10-11:** Correct M1.4 shared migration status from read-only live evidence; retain the separate service commissioning and full-DoD gates.
 - **1.0.1 — 2026-10-09:** Recognize “go” and “next” as equivalent roadmap advancement commands. Predecessor: `docs/history/ROADMAP_rev1.0.0.md`.
 
 - **1.0.0 — 2026-10-09:** Initial ordered, test-gated roadmap grounded in current repository contracts.

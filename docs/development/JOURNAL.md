@@ -1,8 +1,14 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.64
+**Document Revision:** 1.0.65
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-PG-SECRET-SAFETY / M1.4 live-state correction
+
+Revised the PostgreSQL ledger cookbook to remove password-bearing `PGPASSWORD` and credential-DSN examples and accurately identify the `riverview_dev` application schema. Added route regression assertions; the focused safe Markdown route passed. Read-only peer inspection of the commissioned local PostgreSQL instance confirmed nine migrations, including `0001_assignment_leases` applied at `2026-10-10 18:27:04.341175-04:00`; its recorded SHA-256 matches the checked-in migration. This corrects prior roadmap/M1.4 record/cookbook claims that it was absent. The observed migration was applied as a later worker/monitor dependency and does not prove a standalone scheduler service or M1.4 commissioning. No shared DB mutation occurred.
+
+On an isolated socket-only PostgreSQL 16.15 cluster, full suite passed 133/133 with no skips; focused documentation route passed 1/1. Isolated cluster teardown left zero `rvtest_*` schemas/roles. Graph validation and controlled revision audit are being rerun after these final record edits. Evidence, including the exact peer query result and test log, is retained in `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T055428Z-pg-doc-safety/`. The earlier scheduler and worker cookbook query/test evidence remains in their linked checkout folders. Existing live services and database were not changed.
 
 ## 2026-10-11 UTC — RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS / persisted worker records
 

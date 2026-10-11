@@ -2,19 +2,20 @@
 Riverview~ Controlled Document
 File: docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md
 Component: ASSIGNMENT-SCHEDULER
-File Revision: 1.0.4
+File Revision: 1.0.7
 Purpose: Diagnose isolated assignment claims, leases, and stale fencing safely
 Authority: Read-only diagnosis; never edits the shared ledger
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-SCHEDULER-DIAGNOSTICS | Add reproducible read-only claim and lease diagnosis
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-SCHEDULER-QUERY-CLARIFICATION | Clarify schema substitution and global event sequence gaps
+Changed: 2026-10-11 UTC | RV-M1.4-LIVE-DEPENDENCY-CORRECTION | Correct shared dependency migration status; distinguish presence from scheduler commissioning
 History: Git and revision backup manifest
 -->
 # Riverview~ assignment scheduler cookbook
 
-**Document Revision:** 1.0.4
+**Document Revision:** 1.0.7
 **Component:** ASSIGNMENT-SCHEDULER
 **Task:** RV-M1.4-001
-**Status:** Isolated technical criteria verified; no shared-schema migration or runtime deployment
+**Status:** Isolated technical criteria verified; dependency migration present in shared schema; standalone scheduler commissioning remains open
 
 ## Isolated schema verification
 
@@ -46,16 +47,30 @@ cleanup results are retained in the [M1.4 checkout record](../../evidence/checko
 - Migration missing or checksum mismatch: stop and verify the recorded and
   source checksums; do not let application startup repair schema state.
 
-M1.4 has not been deployed or commissioned. The recovery path for expired leases
-on assignments already in `running` requires an explicit later engineering step.
+The M1.4 lease migration is present in shared `riverview_dev` as a dependency
+of the later worker and monitoring migration chain. A read-only catalog check
+on 2026-10-11 found `0001_assignment_leases` with checksum
+`ce29c2994904f54706db883f61127bf05ee195ecbdce90e7242886e86711b717`, matching
+the checked-in migration file, applied at `2026-10-10 18:27:04.341175-04:00`.
+This records the migration's shared-schema presence only; no standalone
+M1.4 scheduler service, live lease-claim behavior, or end-to-end scheduler
+commissioning is claimed. The
+M2.3 worker recovery coordinator owns reconciliation of expired running
+assignments; inspect its durable decision before resuming them.
+
+## Revision history
+
+- **1.0.7 — 2026-10-11:** Consolidate migration correction metadata and retain explicit non-commissioning boundary.
 
 ## Read-only claim and lease inspection
 
-This scheduler is currently verified only against isolated PostgreSQL test
-schemas. There is no M1.4 shared-schema migration or live scheduler service on
-Camrui. Do not apply these scheduler queries to the live `riverview_dev`
-schema unless the migration ledger first proves that the reviewed scheduler
-migration is installed there. For an authorized disposable test database, set
+The scheduler's direct acceptance tests remain isolated PostgreSQL tests; the
+shared migration's presence does not prove live claim behavior. There is no
+standalone M1.4 scheduler service on Camrui. The read-only service and schema
+inventory in the [consolidated operations guide](RIVERVIEW_OPERATIONS_COOKBOOK.md)
+is the appropriate live inspection. Use the detailed queries below only against
+an authorized disposable fixture database/schema, after confirming that its
+migrations are installed. For that database, set
 `PGHOST`, `PGDATABASE`, and `PGUSER` to that test target and use an existing
 protected `.pgpass` file; never put a password or full credential DSN in a
 command argument.
