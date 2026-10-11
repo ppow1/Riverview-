@@ -1,0 +1,144 @@
+{
+  "assignment_id": "m31-real-worker-2533f1c7dd1c433c95bd2cfa8a314d7c",
+  "assignment_state": "completed",
+  "attempts": 1,
+  "attention_http_status": 200,
+  "attention_items": 6,
+  "attention_status": "available",
+  "base_url": "http://127.0.0.1:8766",
+  "browser": "Mozilla Firefox 156.0.1",
+  "browser_errors": [],
+  "cme_status": "healthy",
+  "documentation": {
+    "code_blocks": 16,
+    "document_links": [
+      {
+        "href": "/docs/components/CME_MONITOR_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/EVENT_PROCESSOR_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/POSTGRES_LEDGER_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/RUNTIME_BASELINE_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/RUNTIME_BASELINE_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/POSTGRES_LEDGER_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/EVENT_PROCESSOR_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/CME_MONITOR_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/RUNTIME_BASELINE_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/INSTITUTIONAL_AUTHORITY_FLOW.md",
+        "status": 200
+      }
+    ],
+    "headings": 16,
+    "raw_markdown": false,
+    "scripts": 0,
+    "tables": 2,
+    "title": "Riverview Operations Cookbook",
+    "unsafe_links": 0
+  },
+  "failed_checks": [],
+  "graph": {
+    "canonical_edges": 11,
+    "decisions": 1,
+    "edges": 10,
+    "external_edges": 1,
+    "external_jump_sources": [
+      "rv:assignment-scheduler:independent-claims:ready-jump"
+    ],
+    "jump_node_ids": [
+      "rv:assignment-scheduler:independent-claims:ready-jump"
+    ],
+    "label": "ASSIGNMENT-SCHEDULER \u00b7 independent-assignment-claims.v1 \u00b7 graph 1.0.4 \u00b7 12 nodes / 11 edges",
+    "nodes": 12,
+    "position": "Live execution position: unknown \u2014 The assignment ledger does not currently persist a graph node identity; no node is highlighted.",
+    "syntax": "valid"
+  },
+  "independent_verifications": 1,
+  "jump_navigation": true,
+  "jump_points": 2,
+  "navigation": [
+    {
+      "navigation_call_ms": 48,
+      "view": "assignments"
+    },
+    {
+      "navigation_call_ms": 47,
+      "view": "activity"
+    },
+    {
+      "navigation_call_ms": 55,
+      "view": "overview"
+    },
+    {
+      "navigation_call_ms": 49,
+      "view": "workflows"
+    }
+  ],
+  "projection_status": "healthy",
+  "screenshots": {
+    "cookbook-view.png": 176770,
+    "workflow-view.png": 213221
+  },
+  "selected_node_id": "rv:assignment-scheduler:independent-claims:start",
+  "source_commit": "b63f6d85e7837caaa03265aa19164b57c818c8d9"
+}

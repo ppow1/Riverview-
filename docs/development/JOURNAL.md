@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.54
+**Document Revision:** 1.0.55
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -959,3 +959,34 @@ Markdown and safe external HTTPS destinations. The new cookbook initially used
 Markdown links to evidence files, which correctly rendered as inert text. Those
 references are now plain readable repository paths instead of nonfunctional
 links. The HTML rendering check follows.
+
+
+## 2026-10-11 UTC — RV-M4.1-001 / dashboard-only docs and graph release
+
+Deployed the verified `b63f6d85e7837caaa03265aa19164b57c818c8d9` archive as an
+immutable root-owned dashboard release. CI run 38112124146 passed on that exact
+source commit. The dashboard application code was unchanged relative to the
+previous 0fd1035 release; this release adds the M4.1 cookbook and process graph
+content. The previous release and unit remained available/unchanged, a checksum-
+verified archive copy is retained root-only under
+`/var/lib/riverview/deployments/dashboard/b63f6d85e7837caaa03265aa19164b57c818c8d9/`,
+and only the dashboard unit was restarted. No migration, credential, identity,
+grant, assignment, worker, or other service was changed.
+
+Firefox 156 confirmed the live status projection, actual existing completed
+worker assignment and independent verification, six attention records, all 19
+linked component documents returning HTTP 200, zero browser errors, and local
+navigation calls of 47–55 ms. A focused browser check selected the exact M4.1
+canonical graph, rendered 12 nodes/13 edges/one decision, opened a stable node
+reference, and showed live execution position unknown with zero highlights.
+The full report, screenshot and archive checksums are retained under
+`evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/`.
+
+Two test-harness issues are retained: an immediate one-shot curl raced the
+service's sub-second socket bind (journal readiness followed one second later;
+subsequent checks passed), and an initial SVG `.click()` WebDriver call returned
+500. The established bubbling MouseEvent dispatch passed. The corrected checker
+reports decoded screenshot bytes. This dashboard deployment does not commission
+the authority registry: the shared database has no authority tables, and no
+identity/grant was created. M4.1 remains IN PROGRESS; M3.3 remains blocked on
+deployable database-enforced authority and a real verified knowledge provider.

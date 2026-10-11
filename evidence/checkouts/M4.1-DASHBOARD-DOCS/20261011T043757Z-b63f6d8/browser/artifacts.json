@@ -1,0 +1,28 @@
+{
+  "artifacts": {
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "1f17345cab10c250cbec492eb62a30e93459a7ef64b01f7c27bc308672ae7afa",
+      "size_bytes": 3840
+    },
+    "cookbook-view.png": {
+      "path": "cookbook-view.png",
+      "revision": "1.0.0",
+      "sha256": "ca033765521caf288d1582f0e00508ae8354c2c10220776ccdfec50d1eb9024a",
+      "size_bytes": 176770
+    },
+    "workflow-view.png": {
+      "path": "workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "70c76b7099a888ea9abcdf73190fb0b0bc3c41025266091638fc16696ba505e3",
+      "size_bytes": 213221
+    }
+  },
+  "component_id": "STEWARD-DASHBOARD",
+  "decision": "PASS; observed state and safe navigation only",
+  "manifest_revision": "1.0.0",
+  "source_commit": "b63f6d85e7837caaa03265aa19164b57c818c8d9",
+  "target": "Camrui loopback Firefox 156.0.1",
+  "task_id": "RV-M4.1-001"
+}
