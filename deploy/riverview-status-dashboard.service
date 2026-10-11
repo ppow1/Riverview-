@@ -1,6 +1,6 @@
 # Riverview~ controlled systemd unit; component STEWARD-DASHBOARD.
-# Revision: 1.0.3
-# Provenance: Dashboard code 8556598b19a7da4aa191a600c767d79d24432afe; docs/graph e26f9373cd75f71180890d2d10737f711397b784.
+# Revision: 1.0.4
+# Provenance: Dashboard code 8556598b19a7da4aa191a600c767d79d24432afe; docs/graph d2c145cb9c7fbfb983ea842199e204d03bfdf731.
 # Change only this dashboard unit; do not alter CME or runtime-baseline units.
 [Unit]
 Description=Riverview read-only Steward status dashboard
@@ -18,7 +18,7 @@ Environment=RIVERVIEW_DASHBOARD_HOST=127.0.0.1
 Environment=RIVERVIEW_DASHBOARD_PORT=8766
 Environment=RIVERVIEW_STALE_AFTER_SECONDS=30
 Environment=RIVERVIEW_SOURCE_COMMIT=8556598b19a7da4aa191a600c767d79d24432afe
-Environment=RIVERVIEW_DEPLOYMENT_ID=m3.1-camrui-docs-e26f937
+Environment=RIVERVIEW_DEPLOYMENT_ID=m3.1-camrui-docs-d2c145c
 RuntimeDirectory=riverview-status-dashboard
 RuntimeDirectoryMode=0700
 LoadCredential=pgpass:/etc/riverview/pgpass
