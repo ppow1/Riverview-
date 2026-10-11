@@ -1,0 +1,19 @@
+{
+  "captured_at_utc": "2026-10-11T03:46:00Z",
+  "evidence_type": "live_camrui_dashboard_documentation_deployment",
+  "source_commit": "9f752a7a380f58f4032a1c1b5cc097790cd989bc",
+  "release_path": "/opt/riverview-status-dashboard/releases/9f752a7a380f58f4032a1c1b5cc097790cd989bc",
+  "archive_sha256": "a505d3b4d2e7f88389a53ed04d1859c0211c942af5ae8bb6c5c3492831d6108d",
+  "previous_release": "/opt/riverview-status-dashboard/releases/008d942ea57116b0fbdead771c201d3f99305482",
+  "dashboard_unit": "active/running; NRestarts=0",
+  "dashboard_listener": "127.0.0.1:8766",
+  "guide_route_http": 200,
+  "neighboring_units": {
+    "postgresql@16-main.service": "active",
+    "riverview-event-processor.service": "active",
+    "riverview-cme-monitor.service": "active",
+    "ssh.service": "active"
+  },
+  "database_migration": "not applied; ledger inspected read-only",
+  "credentials_or_shared_data_changed": false
+}

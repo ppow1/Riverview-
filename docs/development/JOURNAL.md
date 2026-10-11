@@ -1,8 +1,14 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.42
+**Document Revision:** 1.0.43
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-001 / consolidated operations guide
+
+Checkout outcome: the complete PostgreSQL-backed suite passed 118 tests with zero skips on a disposable 16.15 cluster; graph synchronization passed 10 workflows / 196 nodes; revision audit passed; GitHub CI passed for `9f752a7`; and live Firefox confirmed the operational guide, all 16 component-doc links, healthy actual PostgreSQL/CME projection, completed assignment with independent verification, and no browser errors. The dashboard-only deployment at `9f752a7` is active while PostgreSQL, CME, event processor, and SSH remain active. The live database was only queried read-only.
+
+Corrective experiments retained: (1) a no-`PYTHONPATH` invocation failed import; (2) the first disposable PostgreSQL socket was inaccessible because of path/socket group mismatch; (3) after private socket access was corrected, the harness role `admin1` was absent. The isolated cluster was corrected with an owner-only parent directory, local socket mode, and test-only superuser role; final full suite passed. A targeted HTML check also expected an un-attributed `<h1>`; the renderer emits a safe heading ID, so the assertion was corrected. A live doc-link check found the Markdown parser removed one trailing target character; RV-OPS-COOKBOOK-001 fixed and regression-tested it. No live DB or unrelated service was altered.
 
 ## 2026-10-11 UTC — RV-OPS-COOKBOOK-001 / consolidated operations guide
 

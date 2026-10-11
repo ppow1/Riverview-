@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.6
+**Document Revision:** 1.1.7
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-11
 **Component:** RV-ROADMAP  
@@ -149,7 +149,7 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 **Current step: M3.2 — Durable notification and decision requests.** Begin engineering from verified existing CME attention data and dashboard projections. A successful durable event is not delivery; implement one actual notification channel with durable delivery/acknowledgment truth and explicit Steward decision-request lifecycle. Do not mutate source assignment lifecycle from notification delivery. Follow the M3.2 component record as it is established. Full DoD for M3.2 remains to be demonstrated.
 
-**Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. M3.1 is the active milestone; its complete integration remains in progress.
+**Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. M3.2 is the current roadmap step; full Grace integration remains a later mandatory system-level gate.
 
 ## Revision history
 
@@ -171,3 +171,4 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 - **1.1.4 — 2026-10-10:** Include readable diagnostic documents and canonical graph visualization in M3.1 acceptance, record the Steward's external browser observation and live worker integration evidence, and propose (without accepting) M3.4 ownership for Issue #13's actionable console/resident-chat requirements.
 - **1.1.5 — 2026-10-11:** Record the Steward's scoped technical acceptance of M3.1 without waiving full component DoD; advance the cursor to M3.2 durable notification and decision requests.
 - **1.1.6 — 2026-10-11:** Remove trailing whitespace detected during acceptance-record checkout.
+- **1.1.7 — 2026-10-11:** Correct the Grace section cursor reference to reflect M3.2 as the current step.

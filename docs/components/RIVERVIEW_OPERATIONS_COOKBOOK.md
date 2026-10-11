@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md
 Component: RIVERVIEW-OPERATIONS
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Provide a safe, evidence-grounded operations and recovery entry point
 Authority: Diagnostics are read-only; state-changing operations are explicitly identified
-Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Initial consolidated operational guide
+Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Use collision-resistant protected paths for database backup/restore examples
 History: Git and revision/backup manifest
 -->
 # Riverview operations and recovery guide
@@ -99,15 +99,25 @@ The integration suite must report that all intended PostgreSQL tests ran, with z
 Before a reviewed schema/deployment operation, write a full custom-format dump to a new protected directory, verify its checksum and archive listing, and restore it to a uniquely named disposable database. The following demonstrates backup creation and integrity checks; choose a unique run suffix and retain the resulting path in the approved commissioning record:
 
 ```bash
-sudo -n install -d -o postgres -g postgres -m 0700 /var/lib/postgresql/riverview-backups
-sudo -n -u postgres sh -c 'umask 077; pg_dump -Fc -d riverview -f /var/lib/postgresql/riverview-backups/riverview-<UTC-RUN-ID>.dump'
-sudo -n sha256sum /var/lib/postgresql/riverview-backups/riverview-<UTC-RUN-ID>.dump
-sudo -n -u postgres pg_restore --list /var/lib/postgresql/riverview-backups/riverview-<UTC-RUN-ID>.dump >/dev/null
+BACKUP_DIR=$(sudo -n -u postgres mktemp -d /var/lib/postgresql/riverview-backup.XXXXXXXX)
+BACKUP_FILE="$BACKUP_DIR/riverview.dump"
+sudo -n -u postgres sh -c 'umask 077; pg_dump -Fc -d riverview -f "$1"' sh "$BACKUP_FILE"
+sudo -n sha256sum "$BACKUP_FILE"
+sudo -n -u postgres pg_restore --list "$BACKUP_FILE" >/dev/null
 ```
 
-Expected: `pg_dump` exits 0, the file is readable only to its owner, a stable SHA-256 is recorded, and `pg_restore --list` exits 0. Preserve the prior dump; do not overwrite it. The documented M1.2 and M1.3 commissioning records contain actual protected-backup and disposable-restore evidence.
+Expected: `mktemp` creates a new, collision-resistant mode-0700 directory owned by `postgres`; `pg_dump` exits 0 and with `umask 077` creates a mode-0600 file; a stable SHA-256 is recorded; and `pg_restore --list` exits 0. Preserve the prior dump; do not overwrite it. The documented M1.2 and M1.3 commissioning records contain actual protected-backup and disposable-restore evidence.
 
-To prove recoverability, restore the dump to a new empty disposable database with a unique name, verify the migration ledger and expected table/row counts, then retain the restore result. Creating/dropping databases is privileged and can destroy data if a name is reused: inspect the exact target first and use only the documented disposable restore procedure. Do not restore over the live `riverview` database as a troubleshooting shortcut. A production recovery requires stopping affected writers, selecting a verified backup, an explicit incident/recovery decision, a reviewed recovery plan, and a post-restore integrity check. Database restore is not a routine service restart.
+To prove recoverability, use a new unique database name; `createdb` fails if it already exists and does not overwrite it. Replace the example suffix with a fresh UTC run identifier, confirm the printed name is not `riverview`, and retain the exact name in evidence:
+
+```bash
+RESTORE_DB=rv_restore_YYYYMMDDTHHMMSSZ
+sudo -n -u postgres createdb --template=template0 --owner=riverview_core "$RESTORE_DB"
+sudo -n -u postgres pg_restore --no-owner --dbname="$RESTORE_DB" "$BACKUP_FILE"
+sudo -n -u postgres psql -X --set=ON_ERROR_STOP=1 -d "$RESTORE_DB" -c 'BEGIN READ ONLY; SELECT version,checksum FROM riverview_dev.schema_migrations ORDER BY version; SELECT count(*) FROM riverview_dev.assignments; SELECT count(*) FROM riverview_dev.events; COMMIT;'
+```
+
+Expected: the restore completes without error and ledger/table counts match the pre-backup evidence. A failed restore database is retained until inspected. Once successful evidence is captured and after verifying the exact target name, remove only this disposable restore database with `sudo -n -u postgres dropdb --if-exists "$RESTORE_DB"`; never use that command with `riverview`. Creating/dropping databases is privileged and can destroy data if a name is reused: inspect the exact target first and use only this uniquely named disposable procedure. Do not restore over the live `riverview` database as a troubleshooting shortcut. A production recovery requires stopping affected writers, selecting a verified backup, an explicit incident/recovery decision, a reviewed recovery plan, and a post-restore integrity check. Database restore is not a routine service restart.
 
 Escalate if dump checksum, archive listing, restore, or row-count validation fails. Preserve the failed artifacts and logs; do not advance a migration or delete the backup to make the check pass.
 
@@ -239,3 +249,4 @@ Stop state-changing work and escalate to the Steward/Operations owner for: migra
 ## Revision history
 
 - **1.0.0 — 2026-10-11:** Initial consolidated operational and recovery guide grounded in Camrui service units, component contracts, and retained commissioning findings.
+- **1.0.1 — 2026-10-11:** Make backup paths collision-resistant and document a unique disposable database restore/cleanup path.
