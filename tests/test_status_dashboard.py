@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.16
+# Revision: 1.0.17
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -16,6 +16,7 @@
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-PG-SECRET-SAFETY | Assert PostgreSQL cookbook has no password-bearing command examples
 # Changed: 2026-10-11 UTC | RV-M1.4-LIVE-DEPENDENCY-CORRECTION | Assert scheduler docs distinguish shared migration from commissioning
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-DASHBOARD-REPOSITORY-LINK | Preserve installed knowledge-cookbook navigation in source shell
+# Changed: 2026-10-11 UTC | RV-M4.1-DB-RESTORE-COOKBOOK | Verify observed backup path incident renders safely through docs route
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-PACKAGE-ROUTE-INTEGRITY | Require every dashboard shell documentation link to resolve
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: This file
@@ -201,6 +202,15 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertIn(b"<pre><code", body)
         self.assertNotIn(b"Riverview~ Controlled Document", body)
         self.assertNotIn(b"<!--", body)
+        status, _, operations = self.request("GET", "/docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        self.assertIn(b"Observed PostgreSQL backup path permission failure", operations)
+        self.assertIn(b"Permission denied", operations)
+        self.assertIn(b"sudo -n -u postgres test -x", operations)
+        self.assertIn(b"378a1a4cba4605a673d8cf22b8bfcbb4277bce272158cae6e79c7d6ecfd0720b", operations)
+        self.assertIn(b"<pre><code", operations)
+        self.assertNotIn(b"Riverview~ Controlled Document", operations)
+        self.assertNotIn(b"<!--", operations)
         status, headers, body = self.request(
             "GET", "/docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md")
         self.assertEqual(status, 200)
