@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md
 Component: RIVERVIEW-OPERATIONS
-File Revision: 1.0.1
+File Revision: 1.0.2
 Purpose: Provide a safe, evidence-grounded operations and recovery entry point
 Authority: Diagnostics are read-only; state-changing operations are explicitly identified
-Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Use collision-resistant protected paths for database backup/restore examples
+Changed: 2026-10-11 UTC | RV-M4.1-001 | Link identity and authority diagnosis
 History: Git and revision/backup manifest
 -->
 # Riverview operations and recovery guide
@@ -244,6 +244,7 @@ Stop state-changing work and escalate to the Steward/Operations owner for: migra
 
 - [PostgreSQL ledger](POSTGRES_LEDGER_COOKBOOK.md) · [event processor](EVENT_PROCESSOR_COOKBOOK.md) · [CME monitor](CME_MONITOR_COOKBOOK.md)
 - [assignment scheduler](ASSIGNMENT_SCHEDULER_COOKBOOK.md) · [worker adapter and recovery](WORKER_ADAPTER_COOKBOOK.md) · [dashboard](STATUS_DASHBOARD_COOKBOOK.md) · [runtime baseline](RUNTIME_BASELINE_COOKBOOK.md)
+- [identity and authority](INSTITUTIONAL_AUTHORITY_COOKBOOK.md) · [authority contract](INSTITUTIONAL_AUTHORITY.md) · [authority flow](INSTITUTIONAL_AUTHORITY_FLOW.md)
 - [M1.2 commissioning](../../evidence/checkouts/POSTGRES-LEDGER/20261010T1615Z-3fd6fd2/checkout.md) · [M1.3 commissioning](../../evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json) · [M2.4 commissioning](../../evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md)
 
 ## Revision history

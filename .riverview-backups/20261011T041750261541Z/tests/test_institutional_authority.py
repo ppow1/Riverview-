@@ -1,0 +1,154 @@
+# RIVERVIEW~ CONTROLLED SOURCE
+# File: tests/test_institutional_authority.py
+# Component: INSTITUTIONAL-AUTHORITY
+# Revision: 1.0.0
+# Purpose: Verify durable identity separation and fail-closed exact scoped grants
+# Execution Model: PostgreSQL integration tests in rvtest_* disposable schemas
+# Observability: unittest evidence, authority events, binding/state revisions
+# Dependencies: RIVERVIEW_TEST_PG_DSN; PostgreSQL 16; Psycopg 3
+# Authority: Creates/drops only unique test schemas
+# Changed: 2026-10-11 UTC | RV-M4.1-001 | Initial identity/authority integration tests
+# Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
+# Tests: This file
+# History: Git and .riverview-backups/manifest.jsonl
+"""PostgreSQL integration tests for the institutional authority boundary."""
+
+import os
+import unittest
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from uuid import uuid4
+
+DSN = os.environ.get("RIVERVIEW_TEST_PG_DSN")
+
+
+@unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")
+class InstitutionalAuthorityTests(unittest.TestCase):
+    def setUp(self):
+        import psycopg
+        from psycopg import sql
+        from riverview_core.institutional_authority import AuthorityRegistry
+        from riverview_core.postgres_migrations import apply_migrations
+
+        self.schema = "rvtest_" + uuid4().hex
+        self.admin = psycopg.connect(DSN, autocommit=True)
+        self.admin.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(self.schema)))
+        apply_migrations(DSN, schema=self.schema)
+        migration = Path(__file__).resolve().parents[1] / "src/riverview_core/institutional_authority/migrations"
+        self.migrations = apply_migrations(DSN, schema=self.schema, migrations_dir=migration)
+        self.registry = AuthorityRegistry(DSN, schema=self.schema)
+        self.steward_token = self.registry.bootstrap_steward("steward:test")
+
+    def tearDown(self):
+        from psycopg import sql
+        self.registry.close()
+        self.admin.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(self.schema)))
+        self.admin.close()
+
+    def test_migration_is_idempotent_and_bootstrap_is_single_use(self):
+        from riverview_core.institutional_authority import IdentityConflict
+        from riverview_core.postgres_migrations import apply_migrations
+        migration = Path(__file__).resolve().parents[1] / "src/riverview_core/institutional_authority/migrations"
+        self.assertEqual(self.migrations, ["0001_institutional_authority"])
+        self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
+        with self.assertRaises(IdentityConflict):
+            self.registry.bootstrap_steward("steward:second")
+
+    def test_grants_are_exact_scoped_and_cannot_be_self_issued(self):
+        from riverview_core.institutional_authority import AuthorityDenied
+        worker_token = self.registry.create_principal(
+            self.steward_token, "worker:one", "worker")
+        grant_id = self.registry.grant(
+            self.steward_token, "worker:one", "assignment.execute",
+            "grant:demo-one", policy_ref="rv.policy:test.v1")
+        authorized = self.registry.authorize(
+            worker_token, "assignment.execute", "grant:demo-one")
+        self.assertEqual(authorized["principal_id"], "worker:one")
+        self.assertEqual(authorized["principal_kind"], "worker")
+        with self.assertRaises(AuthorityDenied):
+            self.registry.authorize(worker_token, "assignment.execute", "grant:demo-two")
+        with self.assertRaises(AuthorityDenied):
+            self.registry.authorize(worker_token, "authority.grant", "institution")
+        with self.assertRaises(AuthorityDenied):
+            self.registry.authorize("not-a-valid-bearer-credential", "assignment.execute", "grant:demo-one")
+        self.assertTrue(grant_id.startswith("grant:"))
+
+    def test_grant_revocation_is_durable_and_fail_closed(self):
+        from riverview_core.institutional_authority import AuthorityDenied
+        token = self.registry.create_principal(self.steward_token, "service:worker", "service")
+        grant = self.registry.grant(self.steward_token, "service:worker", "worker.run",
+                                    "scope:one", policy_ref="rv.policy:test.v1")
+        self.registry.authorize(token, "worker.run", "scope:one")
+        self.registry.revoke_grant(self.steward_token, grant)
+        with self.assertRaises(AuthorityDenied):
+            self.registry.authorize(token, "worker.run", "scope:one")
+
+    def test_office_occupant_implementation_and_state_are_separate_across_replacement(self):
+        from riverview_core.institutional_authority import AuthorityDenied
+        self.registry.create_office(self.steward_token, "office:grace", "engineering-director")
+        occupant_one = self.registry.create_principal(
+            self.steward_token, "resident:grace-occupant-1", "resident", office_id="office:grace")
+        self.registry.create_occupant(self.steward_token, "occupant:grace-1",
+                                      principal_id="resident:grace-occupant-1")
+        self.registry.create_implementation(self.steward_token, "impl:reasoner-1", kind="model",
+                                            provider_ref="local:test-provider", revision="1")
+        first_binding = self.registry.bind_office(
+            self.steward_token, "office:grace", "occupant:grace-1", "impl:reasoner-1")
+        state_grant = self.registry.grant(
+            self.steward_token, "resident:grace-occupant-1", "office.state.write",
+            "office:office:grace", policy_ref="rv.policy:office-state.v1")
+        self.registry.set_office_state(occupant_one, "office:grace",
+                                       {"objective_id": "objective:durable"}, expected_revision=1)
+
+        second_occupant = self.registry.create_principal(
+            self.steward_token, "resident:grace-occupant-2", "resident", office_id="office:grace")
+        self.registry.create_occupant(self.steward_token, "occupant:grace-2",
+                                      principal_id="resident:grace-occupant-2")
+        self.registry.create_implementation(self.steward_token, "impl:reasoner-2", kind="model",
+                                            provider_ref="local:replacement", revision="2")
+        second_binding = self.registry.bind_office(
+            self.steward_token, "office:grace", "occupant:grace-2", "impl:reasoner-2")
+        self.registry.grant(self.steward_token, "resident:grace-occupant-2",
+                            "office.state.write", "office:office:grace",
+                            policy_ref="rv.policy:office-state.v1")
+        snapshot = self.registry.office_snapshot("office:grace")
+        self.assertEqual(first_binding, 1)
+        self.assertEqual(second_binding, 2)
+        self.assertEqual(snapshot["office_role"], "engineering-director")
+        self.assertEqual(snapshot["occupant_id"], "occupant:grace-2")
+        self.assertEqual(snapshot["implementation_id"], "impl:reasoner-2")
+        self.assertEqual(snapshot["state"], {"objective_id": "objective:durable"})
+        self.assertEqual(snapshot["state_revision"], 2)
+        with self.assertRaises(AuthorityDenied):
+            self.registry.authorize(occupant_one, "office.state.write", "office:office:grace")
+        self.registry.authorize(second_occupant, "office.state.write", "office:office:grace")
+        with self.admin.cursor() as cur:
+            cur.execute(f"SELECT count(*) FROM {self.schema}.institutional_authority_events WHERE event_type='authority_revoked'")
+            self.assertEqual(cur.fetchone()[0], 1)
+
+    def test_office_state_restart_compare_and_swap_and_size_bound(self):
+        from riverview_core.institutional_authority import IdentityConflict
+        self.registry.create_office(self.steward_token, "office:restart", "specialist")
+        token = self.registry.create_principal(self.steward_token, "resident:restart", "resident")
+        self.registry.grant(self.steward_token, "resident:restart", "office.state.write",
+                            "office:office:restart", policy_ref="rv.policy:state.v1")
+        self.registry.set_office_state(token, "office:restart", {"plan_revision": 1}, expected_revision=1)
+        self.registry.close()
+        from riverview_core.institutional_authority import AuthorityRegistry
+        self.registry = AuthorityRegistry(DSN, schema=self.schema)
+        with self.assertRaises(IdentityConflict):
+            self.registry.set_office_state(token, "office:restart", {"plan_revision": 2}, expected_revision=1)
+        self.assertEqual(self.registry.office_snapshot("office:restart")["state"], {"plan_revision": 1})
+        with self.assertRaises(ValueError):
+            self.registry.set_office_state(token, "office:restart", {"large": "x" * 70000})
+
+    def test_authority_event_ledger_is_append_only(self):
+        import psycopg
+        from psycopg import sql
+        with self.assertRaises(psycopg.errors.RaiseException):
+            self.admin.execute(sql.SQL("DELETE FROM {}.institutional_authority_events").format(
+                sql.Identifier(self.schema)))
+
+
+if __name__ == "__main__":
+    unittest.main()

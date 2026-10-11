@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.8
+**Document Revision:** 1.1.9
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-11
 **Component:** RV-ROADMAP  
@@ -149,9 +149,9 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 **M3.2 — Durable notification and decision requests:** Scoped technical criteria PASS at `0fd10357ccdf2c9a0c87ba4a6f41e37ecff33ce9`. The additive `0006_durable_notifications` migration and dedicated dispatcher were commissioned on Camrui with a protected backup/restore drill. Three genuine persisted CME stall events produced three durable notices; browser rendering and explicit acknowledgment were recorded, and dispatcher restart retained the same notice identities without duplicates. Live dashboard/notification browser verification passed with no browser errors. Isolated full suite passed 125/125 with zero skips; CI, graph synchronization (11 workflows / 209 nodes), and revision audit passed. Live `awaiting_steward` decision-request creation was not exercised because no such assignment exists in the shared database; isolated tests cover request/no-authority-effect behavior. This is technical commissioning evidence, not full component DoD or Steward acceptance. See `docs/development/M3.2-001_REVISION_RECORD.md` and `evidence/checkouts/M3.2/20261011T040851Z-0fd1035/`.
 
-**Current step: M3.3 — First end-to-end unattended demonstration.** Prepare and execute the reproducible Camrui vertical slice with concurrent authorized assignments, real worker execution, independent verification, restart/recovery, dashboard projection, and notification evidence. Preserve M3.2's open full-DoD requirements and do not imply Grace autonomy. PR #17 remains draft/open and unmerged; M3.2 branch depends on the still-open M3.1 PR #16.
+**Current step: M3.3 — First end-to-end unattended demonstration — BLOCKED at live authorization/knowledge preflight.** M3.3 remains the earliest unaccepted roadmap step. The shared runtime has no enforced Steward-grant validation on assignment/worker control and no real institutional knowledge provider available to the worker (the default is fail-closed; the packaged v1 provider is a test mock). Therefore two live assignments cannot yet be represented as safely authorized and verified. No live state was changed to fabricate this proof. See `docs/development/M3.3-001_REVISION_RECORD.md`. M4.1 isolated engineering is proceeding as an unblocker while M3.3 remains open; implement the real grounded provider path under its roadmap owner, then return to the Camrui two-assignment demonstration. PR #17 remains draft/open and unmerged; its branch depends on the still-open M3.1 PR #16.
 
-**Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. M3.3 is the current roadmap step; full Grace integration remains a later mandatory system-level gate.
+**Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. M3.3 remains the current unaccepted roadmap step; full Grace integration remains a later mandatory system-level gate.
 
 ## Revision history
 
@@ -175,3 +175,4 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 - **1.1.6 — 2026-10-11:** Remove trailing whitespace detected during acceptance-record checkout.
 - **1.1.7 — 2026-10-11:** Correct the Grace section cursor reference to reflect M3.2 as the current step.
 - **1.1.8 — 2026-10-11:** Record scoped M3.2 technical commissioning and advance the engineering cursor to M3.3; retain open full-DoD and live decision-request limitations.
+- **1.1.9 — 2026-10-11:** Preserve M3.3 as the earliest unaccepted step while recording live authorization/knowledge preflight blockers and M4.1 unblocker engineering.

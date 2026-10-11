@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.46
+**Document Revision:** 1.0.48
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -866,3 +866,15 @@ component acceptance is claimed.
 Deployed the package from `0fd10357ccdf2c9a0c87ba4a6f41e37ecff33ce9` as separate root-owned dashboard and notification-dispatcher releases; neither existing CME nor event processor unit was modified. Applied migration 0006 only after a protected full database backup, restore drill, and clone migration. Firefox 156 rendered the three actual notices derived from three persisted CME stall events; delivery and explicit acknowledgment receipts persisted. Restarted only the notification dispatcher; its new instance remained healthy and the same three notification IDs remained, with no repeated notice insertion. Read-only SQL after recovery: 3 notices, 9 append-only receipt events (3 queued, 3 delivered, 3 acknowledged), 0 pending requests, 4 assignments and 11 source events. Post-restart Firefox acceptance also confirmed attention HTTP 200, healthy CME/status projection, safe readable linked cookbooks, navigable workflow graph, no browser errors, and existing completed independently verified M3.1 worker artifact. Browser navigation calls were 45–62 ms in this run.
 
 A first scratch browser predicate incorrectly inspected only the oldest row, which had already been acknowledged, and timed out while another row remained delivered. Corrected the test predicate to evaluate all rendered notice states; subsequent real-browser receipt tests passed. This was an acceptance harness defect, not a product delivery defect. The shared schema had no `awaiting_steward` assignment, so zero live decision requests were expected; request lifecycle remains integration-tested only. Evidence: `evidence/checkouts/M3.2/20261011T040851Z-0fd1035/`. M3.2 technical criteria pass; full DoD remains open and no later Steward acceptance is claimed. Next eligible work is M3.3 first unattended end-to-end demonstration.
+
+
+## 2026-10-11 UTC — RV-M3.3-001 / live authority and knowledge preflight
+
+M3.3 requires two authorized concurrent live assignments with a worker and independent verification, restart/recovery, dashboard and notification. Inspected the worker contract and runtime path. `PostgresWorkerAdapter` verifies a free-form matching scope reference but does not bind it to a durable Steward grant; the registry path is an explicitly trusted control-plane operation. `ContinuousWorker` defaults to `UnavailableKnowledgeProvider`; the only packaged provider besides that fail-closed default is a contract-test mock. Because authority and verified knowledge are prerequisites to an actual action, no live assignments, identities, grants, credentials, or services were modified to manufacture M3.3 results. Exact blockers and safe return conditions are recorded in `docs/development/M3.3-001_REVISION_RECORD.md`.
+
+Proceeding with isolated M4.1 authority engineering as a safe unblocker while the M3.3 cursor remains unaccepted. Added PostgreSQL-backed principals and hashed credentials, exact grants/revocation, office/occupant/implementation separation, office-keyed state, and append-only authority events with a canonical graph. First isolated test pass exposed incorrect event subject references and an ambiguous office-state join; after fixes, a later credential-revocation query typo was found and corrected. Latest focused integration run: 7/7 passed on disposable PostgreSQL 16 UTF8/socket-only test cluster; schemas were dropped per test. No shared migration or runtime deployment has occurred; current shared application DB owner can bypass library authorization with SQL, so live security acceptance remains open pending a separately enforced DB role boundary and worker/assignment integration.
+
+
+## 2026-10-11 UTC — RV-M4.1-001 / isolated regression checkpoint
+
+After registering the M4.1 workflow and linking its cookbook from the operations index, ran `RIVERVIEW_TEST_PG_DSN='host=/tmp/rv-m41-pgsock-20261011 port=55461 dbname=postgres user=admin1' PYTHONPATH=src python3 -m unittest discover -s tests -v` against a disposable PostgreSQL 16 UTF8 socket-only cluster. Result: 132 tests passed, 0 failures/errors/skips in 58.411 seconds. `rvtest_*` schema count was zero; cluster fast-stopped and reported database system shut down. `python3 -m compileall -q src scripts tests`, graph check (12 workflows / 221 nodes), and controlled revision audit all passed. No M4.1 migration/deployment to shared `riverview_dev`; the current DB owner can bypass library-level authorization, so M3.3 still cannot safely execute live assignments. M4.1 full DoD and PR/CI remain open.
