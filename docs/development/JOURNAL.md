@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.75
+**Document Revision:** 1.0.76
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -10,7 +10,7 @@ Implemented a provider-neutral resident reasoning slice on `codex/m4.2-resident-
 
 The focused current resident suite passed 10/10 and the complete suite passed 147/147 with no skips/errors/failures against disposable socket-only PostgreSQL 16.15 clusters. The focused and complete fixture cleanup left zero `rvtest_*` schemas/roles; the final cluster stopped cleanly. Graph validation passed at 13 workflows/255 nodes, compileall passed, and the controlled revision audit passed with zero issues. An earlier full-suite attempt exposed the newly added JSON graph's missing revision-sidecar registration; its failure/cleanup evidence is retained and the sidecar was corrected before the passing run. Full evidence is `evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/`; earlier failures are retained in sibling timestamped directories.
 
-No shared DB, identity, credentials, services, assignments, or deployment changed. The test provider is a mock only; no live provider/resident integration is claimed. M4.2 remains in progress pending operational provider/authority integration and acceptance. M3.3 remains the earliest unaccepted roadmap step, gated on live authorization and the real institutional knowledge provider. PR #20 remains open/draft/unmerged; this M4.2 branch is dependent and no merge is authorized.
+No shared DB, identity, credentials, services, assignments, or deployment changed. The test provider is a mock only; no live provider/resident integration is claimed. Exact-head GitHub controlled-checkout run 38122430742 passed on `bf9905af575da6b0254920e467476f0883156050`. PR #21 is draft/open/unmerged on top of PR #20; neither PR was merged. M4.2 remains in progress pending operational provider/authority integration and acceptance. M3.3 remains the earliest unaccepted roadmap step, gated on live authorization and the real institutional knowledge provider.
 
 ## 2026-10-11 UTC — RV-M4.1-FRESH-SCHEMA-CI-RESULT / controlled checkout passed
 

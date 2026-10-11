@@ -1,12 +1,12 @@
 {
-  "manifest_revision": "1.0.0",
+  "manifest_revision": "1.0.1",
   "task_id": "RV-M4.2-001-ISOLATED-VERIFICATION",
   "component_id": "RESIDENT-REASONING",
   "source_commit": "7d6923e4444e8c6a672a3a473a003441c39a0766",
   "tested_checkout": "Changes layered on source_commit; source-files.sha256 pins the exact controlled inputs tested",
   "target": "Private socket-only PostgreSQL 16.15; isolated tests; process graph and controlled revision audit",
   "decision": "PASS isolated engineering verification; live service/provider, M4.2 operational commissioning, full DoD and Steward acceptance remain open",
-  "tested_source_manifest_sha256": "47bb503d2dd16c7af6ed0c0944fe9bd68a07d1d5d58f012c02e532d5a8558495",
+  "tested_source_manifest_sha256": "d645eae4f25f20ca1038f760c079554fe907556cf78822e4589d9e373c54837b",
   "artifacts": {
     "checkout.md": {
       "path": "checkout.md",
@@ -64,8 +64,8 @@
     },
     "source-files.sha256": {
       "path": "source-files.sha256",
-      "revision": "1.0.0",
-      "sha256": "47bb503d2dd16c7af6ed0c0944fe9bd68a07d1d5d58f012c02e532d5a8558495",
+      "revision": "1.0.1",
+      "sha256": "d645eae4f25f20ca1038f760c079554fe907556cf78822e4589d9e373c54837b",
       "size_bytes": 647
     },
     "start.log": {
@@ -85,6 +85,12 @@
       "revision": "1.0.0",
       "sha256": "770251fe53c53219d3522f388b3ce5a8ee312a5450ae3eaae8d8b2c025b1dd01",
       "size_bytes": 52
+    },
+    "github-ci.json": {
+      "path": "github-ci.json",
+      "revision": "1.0.0",
+      "sha256": "4e5a1214280f56162ce209b033c45e4814728a601174ae22c69422f9075d6611",
+      "size_bytes": 1554
     }
   }
 }
