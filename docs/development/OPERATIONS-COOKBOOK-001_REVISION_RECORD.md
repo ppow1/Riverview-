@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/development/OPERATIONS-COOKBOOK-001_REVISION_RECORD.md
 Component: RIVERVIEW-OPERATIONS
-File Revision: 1.0.10
+File Revision: 1.0.11
 Purpose: Record the consolidated operational guide deliverable and evidence
 Authority: Documentation and diagnostics; does not authorize shared-state mutation
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Record passing suite, live deployment, and browser evidence
@@ -12,6 +12,7 @@ Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-DEPLOY-8DCEC2A | Commission updated op
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-LIVE-BACKUP-FAILURE | Restore the observed PostgreSQL private-path failure and its verified recovery procedure
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-SERVICE-INVENTORY-CORRECTION | Correct the six-unit live service inventory
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-LIVE-DOCS-DEPLOYMENT | Record exact-source package, deployment, rollback preservation and browser evidence
+Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-DEPLOY-8556598 | Deploy corrected current-state guide and verify live Firefox rendering
 History: Git and revision/backup manifest
 -->
 # RV-OPS-COOKBOOK-001 — Consolidated operations and recovery guide
@@ -77,6 +78,7 @@ and graph. Deployment has not yet been attempted or claimed.
 - **1.0.8 — 2026-10-11:** Port the safe PostgreSQL/scheduler/worker guidance onto M3.3, record full isolated testing and graph evidence, and retain no-deployment status.
 - **1.0.9 — 2026-10-11:** Record the exact-source M3.3 docs package deployment and live browser verification.
 - **1.0.10 — 2026-10-11:** Add the observed backup-path failure recovery and six-service diagnostics; record the follow-up exact-source deployment and browser evidence.
+- **1.0.11 — 2026-10-11:** Record deployment of the M3.3 current-state correction, exact package provenance, Firefox rendering, and retained rollback release.
 
 
 ## 2026-10-11 UTC — dashboard cookbook update deployment
@@ -109,3 +111,9 @@ Restored the observed PostgreSQL backup-path permission failure and safe recover
 The guide updates passed exact-head full CI on `c85faf9180a934e61d4e382a98687a09fbfaf0f3` (run 38124689669) and `a8f0d6276b45bf51f523825527f5f9e3c80cd250` (run 38124873054). Both runs include complete tests, graph synchronization, and controlled revision audit. The package verifier passed at the latter commit; archive SHA-256 is `739e38068929f16a9bffcf165a0fec0e4a4587ee64987105313be8da3c9d607b`, with 1,279 manifest entries.
 
 Dashboard-only release `a8f0d6276b45bf51f523825527f5f9e3c80cd250` is active and root-owned/read-only; prior release `c85faf9180a934e61d4e382a98687a09fbfaf0f3` and a root-protected package archive remain for rollback. Dashboard unit is active/running with zero restarts on loopback 8766. PostgreSQL, event processor, CME monitor, notification dispatcher and SSH are active. Firefox 156.0.1 verified healthy/current projection and CME, the actual completed M3.1 assignment plus one independent verification, six attention items, 18 headings, 2 tables, 18 code blocks, 21/21 component links at HTTP 200, graph navigation and zero browser errors/unsafe links/scripts. Single-run navigation calls were 170/138/312/108 ms; not a paint or sustained performance benchmark. No database, credentials, assignment, worker or non-dashboard unit changed. Evidence: `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T082940Z-a8f0d62/`. PR #19 remains open/draft/unmerged; M3.3 remains unaccepted and blocked on live authority-consuming worker/service integration and real institutional knowledge capability.
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-DEPLOY-8556598 / corrected current status release
+
+Exact-head PR #19 commit `8556598b19a7da4aa191a600c767d79d24432afe` passed full controlled-checkout CI run `38125561042`. The exact-source full package was verified and installed into the new root-owned/read-only release `/opt/riverview-status-dashboard/releases/8556598b19a7da4aa191a600c767d79d24432afe`. Package archive SHA-256 is `82d75f7f688b30fccf9207d17e6bed81ed82dcb93a708eae82cd0633abb1910b`; its 1,304 packaged-file checksums passed. The prior `a8f0d62` release and root-only package archive (SHA-256 `739e38068929f16a9bffcf165a0fec0e4a4587ee64987105313be8da3c9d607b`) remain as rollback.
+
+Only `riverview-status-dashboard.service` was restarted. It returned active/running, `ExecMainStatus=0`, `NRestarts=0`, loopback `127.0.0.1:8766`; all six operational services remained active and the unit checksum did not change. Firefox 156.0.1 verified the real completed M3.1 assignment and one independent verification, healthy projection/CME, six persisted attention items, and the corrected cookbook rendered as formatted HTML with 18 headings, 2 tables, 18 code blocks, 21/21 documentation links HTTP 200, zero unsafe links/scripts/browser errors. Workflow graph showed 12 nodes, 11 edges, one decision, with live position truthfully unknown. Navigation calls were 59, 65, 91 and 102 ms, not full paint or a sustained benchmark. No database, credentials, assignment, worker or non-dashboard service changed. Evidence: `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T084139Z-8556598/`. PR #19 remains open/draft/unmerged; M3.3 remains blocked on application-level authority enforcement and live worker/provider commissioning.

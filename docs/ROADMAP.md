@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.16
+**Document Revision:** 1.1.17
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-11
 **Component:** RV-ROADMAP  
@@ -159,6 +159,8 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 **M4.1/M4.2 live-state correction (2026-10-11 UTC):** The later scoped M4.1 deployment established and verified a dedicated PostgreSQL authority schema, restricted database roles, root-local Steward bootstrap and scoped grants, with a protected backup/restore drill. This supersedes the older dated checkpoint above that said no authority schema or grant existed; that checkpoint remains historical evidence of the earlier state. The live application worker/assignment path still does not consume/enforce the grants, so safe new live work and M3.3 remain blocked. M4.1 remains in progress and M4.2 PR #21 contains isolated provider-neutral reasoning/regrounding only; no live reasoning provider or resident deployment is verified. M4.2 does not satisfy those operational gates. See the M4.1 and M4.2 revision records and M4.1 live evidence directory.
 
+**Dashboard documentation release (2026-10-11 UTC):** PR #19 exact head `8556598b19a7da4aa191a600c767d79d24432afe` passed controlled-checkout CI run `38125561042`. Its verified package (SHA-256 `82d75f7f688b30fccf9207d17e6bed81ed82dcb93a708eae82cd0633abb1910b`; 1,304 manifest entries) is the active immutable dashboard-only release. The previous `a8f0d62` release and protected archive remain available. Firefox 156.0.1 showed a healthy/current real projection, healthy CME, the existing completed M3.1 assignment and independent verification, six attention items, 21/21 documentation links returning HTTP 200, 18 headings, 2 tables, 18 code blocks, no raw Markdown, unsafe links, scripts or browser errors. Navigation calls measured 59, 65, 91 and 102 ms in this single run; they are not full paint or sustained performance measurements. All six operational services remained active, only the dashboard unit was restarted, and no database, credential, worker, assignment, migration or other unit changed. Evidence: `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T084139Z-8556598/`. This docs/browser deployment does not advance M3.3, which remains blocked at application grant enforcement and live worker/provider commissioning.
+
 ## Revision history
 
 - **1.1.10 — 2026-10-11:** Record M4.1 isolated privilege feasibility and dashboard-only graph/cookbook deployment; preserve M3.3 as blocked and unaccepted.
@@ -168,6 +170,7 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 - **1.1.14 — 2026-10-11:** Record the real-provider concurrent wait/progress integration evidence and 143-test suite without claiming live M3.3 completion.
 - **1.1.15 — 2026-10-11:** Correct M1.4 shared migration status from read-only live evidence; retain separate scheduler service commissioning and full-DoD gates.
 - **1.1.16 — 2026-10-11:** Supersede stale current M3.3/M4.1 status with later scoped authority-schema and bootstrap evidence while retaining application grant-enforcement and live M3.3 blockers; record isolated M4.2 status.
+- **1.1.17 — 2026-10-11:** Record exact-head PR #19 CI, verified dashboard docs release `8556598`, Firefox checks, preserved rollback release, and unchanged M3.3 live integration blocker.
 - **1.0.1 — 2026-10-09:** Recognize “go” and “next” as equivalent roadmap advancement commands. Predecessor: `docs/history/ROADMAP_rev1.0.0.md`.
 
 - **1.0.0 — 2026-10-09:** Initial ordered, test-gated roadmap grounded in current repository contracts.

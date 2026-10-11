@@ -1,0 +1,112 @@
+{
+  "component_id": "RIVERVIEW-OPERATIONS / STEWARD-DASHBOARD",
+  "decision": "PASS documentation deployment/browser verification; no M3.3 or M4.1 acceptance",
+  "files": {
+    "active-release.txt": {
+      "path": "active-release.txt",
+      "revision": "1.0.0",
+      "sha256": "6a6fa9e76dc10aeb899c2fcb06d596ac4589e6d678dbdc7df0e2973929f2ee2c",
+      "size_bytes": 82
+    },
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "12ffed7383e4b26f7c7e895613b953bb17ffc35d415c32d97eb4b4a74a5cf9e9",
+      "size_bytes": 4057
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "1dafc45a7483723107947e8f88a479fcba2847bbea1114f71c854b3c33821e2e",
+      "size_bytes": 2151
+    },
+    "cookbook-view.png": {
+      "path": "cookbook-view.png",
+      "revision": "1.0.0",
+      "sha256": "b4d1b0ba156ede997a0db9bb65963857fea9d5524e4d01b245f4aad8d9a01b52",
+      "size_bytes": 174150
+    },
+    "dashboard-listener.txt": {
+      "path": "dashboard-listener.txt",
+      "revision": "1.0.0",
+      "sha256": "53957f41132878abc22aa5af6f7f4ea5f8c61e1f5331dd6e1ebfeb965d450610",
+      "size_bytes": 130
+    },
+    "dashboard-readiness.txt": {
+      "path": "dashboard-readiness.txt",
+      "revision": "1.0.0",
+      "sha256": "ce5160732537495c19ec06dc34ff9b20fe246b7e5ba0e5c579285a8db26a5bb5",
+      "size_bytes": 9
+    },
+    "dashboard-unit-sha256.txt": {
+      "path": "dashboard-unit-sha256.txt",
+      "revision": "1.0.0",
+      "sha256": "a155962fd8107b8d68a742d873eb7c8e6a719569079d157f78a5d62f690dbd57",
+      "size_bytes": 121
+    },
+    "dashboard-unit.txt": {
+      "path": "dashboard-unit.txt",
+      "revision": "1.0.0",
+      "sha256": "0120164706535849a4ee55d1a9263839c24e1a10f1600407ddd94125d2f2c4b8",
+      "size_bytes": 80
+    },
+    "deployment.json": {
+      "path": "deployment.json",
+      "revision": "1.0.0",
+      "sha256": "9e42a043ba6f54258bd45e2bee88591d66d90a52720c5cca0bb1516f031ea2cd",
+      "size_bytes": 1515
+    },
+    "package-build.txt": {
+      "path": "package-build.txt",
+      "revision": "1.0.0",
+      "sha256": "7314e68c46f41d8259ea9d1f551c893ba4ccf45cb1caeaa666897b1e961efcbe",
+      "size_bytes": 135
+    },
+    "package-manifest-entry-count.txt": {
+      "path": "package-manifest-entry-count.txt",
+      "revision": "1.0.0",
+      "sha256": "afd03f6a4095ef50d155cbc4e12b0f02152e0f76597903900ba89dba557ad488",
+      "size_bytes": 5
+    },
+    "package-verification.json": {
+      "path": "package-verification.json",
+      "revision": "1.0.0",
+      "sha256": "2611205e66bcec3c93adf40d10be242fa1923d48bf1b588654e48c914529ce44",
+      "size_bytes": 878
+    },
+    "protected-package-metadata.txt": {
+      "path": "protected-package-metadata.txt",
+      "revision": "1.0.0",
+      "sha256": "2d39475b679d4cb5785053a3202db475c36e4d8d316347a42cb63750f52814d5",
+      "size_bytes": 206
+    },
+    "protected-package-sha256.txt": {
+      "path": "protected-package-sha256.txt",
+      "revision": "1.0.0",
+      "sha256": "796f91291506be8370181664e4bc4811560be2016599c1fe6aa47ab5571ca224",
+      "size_bytes": 162
+    },
+    "readiness-attempts.txt": {
+      "path": "readiness-attempts.txt",
+      "revision": "1.0.0",
+      "sha256": "7f0e07bb8b2e49b5dd200927831ec32da754c24dfa08001a6cab16491ae323c7",
+      "size_bytes": 398
+    },
+    "six-service-status.txt": {
+      "path": "six-service-status.txt",
+      "revision": "1.0.0",
+      "sha256": "7cf2f1c2beefeb984e485857763da5a9b5e8079291c9f5e110d3bbf4d8e10704",
+      "size_bytes": 42
+    },
+    "workflow-view.png": {
+      "path": "workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "a4ebfe1bc0299e39202a429827a5299d3f01410af9315f826a642cf1a3367354",
+      "size_bytes": 212964
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "source_commit": "8556598b19a7da4aa191a600c767d79d24432afe",
+  "target": "Camrui; dashboard-only release on loopback 8766",
+  "task_id": "RV-OPS-COOKBOOK-DEPLOY-8556598"
+}
