@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.58
+**Document Revision:** 1.0.59
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -1035,3 +1035,22 @@ test cluster stopped cleanly. Immutable logs, commands and SHA-256 manifest:
 `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T053022Z-411bff9/`. The process
 graph verification node references the checkout report. M4.1 stays in
 progress and no shared live objects or services changed.
+
+## 2026-10-11 UTC — RV-M4.1-DASHBOARD-ROUTE / preserve deployed interface
+
+Added an HTTP-handler regression for the expanded authority cookbook and its
+component link. The first assertion expected the phrase `DROP TABLE`, while the
+actual warning is `DROP ... CASCADE`; corrected the assertion to match the
+documented command warning. The focused dashboard route test now passes 1/1,
+checking HTTP 200, rendered headings/table/code, expected security guidance,
+and absence of source metadata comments.
+
+Before any dashboard deployment, compared the committed M4.1 package against
+the active root-owned release. The M4.1 source branch's `static/index.html` is
+revision 1.0.5; Camrui's deployed M3.3 release `7a9ff46` contains revision 1.0.6
+with additional repository-knowledge cookbook links. Installing the M4.1
+archive would roll back the active shell. Package archive/path/checksum/shell
+verification passed, but deployment was correctly withheld; no active symlink,
+service, DB, or credential changed. The new cookbook route was tested in the
+source handler, not claimed live in the browser. Refresh from the current
+dashboard source before deployment. PR #20 remains draft; no merge performed.

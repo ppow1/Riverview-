@@ -2,13 +2,15 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.8
+# Revision: 1.0.10
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL for integration class
 # Authority: Creates/drops only unique rvtest_* schemas; never accesses shared Riverview data
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Verify safe component links remain functional in the consolidated guide
+# Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ROUTE | Exercise updated authority diagnostics through the dashboard documentation route
+# Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ASSERTION | Match cookbook's documented DROP CASCADE warning text
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -198,6 +200,22 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertIn(b"<pre><code", body)
         self.assertNotIn(b"Riverview~ Controlled Document", body)
         self.assertNotIn(b"<!--", body)
+        status, headers, body = self.request(
+            "GET", "/docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", dict(headers)["Content-Type"])
+        self.assertIn(b'id="versioned-privilege-boundary-provisioner-isolated-controlled-use"', body)
+        self.assertIn(b"DROP ... CASCADE", body)
+        self.assertIn(b"NOLOGIN", body)
+        self.assertIn(b"protected full backup", body)
+        self.assertIn(b"<table>", body)
+        self.assertIn(b"<pre><code", body)
+        self.assertNotIn(b"<!--", body)
+        status, headers, body = self.request(
+            "GET", "/docs/components/INSTITUTIONAL_AUTHORITY.md")
+        self.assertEqual(status, 200)
+        self.assertIn(b'INSTITUTIONAL_AUTHORITY_COOKBOOK.md', body)
+        self.assertIn(b"<h1", body)
         status, _, body = self.request("GET", "/docs/components/../../README.md")
         self.assertEqual(status, 404)
         self.assertNotIn(b"README", body)
