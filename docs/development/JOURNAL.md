@@ -1,8 +1,14 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.63
+**Document Revision:** 1.0.64
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS / persisted worker records
+
+Continued in `codex/m4.1-db-privilege-boundary` after scheduler cookbook checkout. Added a controlled worker cookbook revision with isolated-schema preflight and redacted read-only views of registry capabilities, attempts/results, independent verification, execution intents, and recovery decisions. Added a dashboard-route assertion for its rendered documentation. Existing architecture confirms there is no commissioned live worker service or enrollment CLI; the guide directs enrollment only through the trusted control-plane workflow and prohibits manual live row insertion or bearer export.
+
+On a private PostgreSQL 16 socket-only test cluster, all 133 tests passed with zero failures/errors/skips. An isolated schema with the full ledger/scheduler/worker migration chain registered separate synthetic executor and verifier identities; `ContinuousWorker` wrote a deterministic persisted result; independent SHA-256 verification accepted it and the test assignment reached `completed`. The exact diagnostic query showed both identities, one succeeded attempt/result digest, distinct accepted verifier, successful `retry_safe` intent, and no recovery row, without returning tokens, input, event payload, evidence references or result JSON. The fixture schema was explicitly removed, catalog counts reported zero `rvtest_` schemas/roles, and the cluster was stopped and deleted. The safe dashboard route passed 1/1; graph validation passed 12 workflows/226 nodes; controlled revision audit passed with zero findings; compileall and source diff-check passed. Evidence: `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T055053Z-worker-docs/`. Exact-head CI and PR status will follow the final commit. No shared database or service changed, and this isolated worker execution is not live commissioning or Grace acceptance.
 
 ## 2026-10-11 UTC — RV-OPS-COOKBOOK-SCHEDULER-DIAGNOSTICS / safe operator diagnosis
 

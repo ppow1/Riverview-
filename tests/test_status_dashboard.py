@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.11
+# Revision: 1.0.12
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -12,6 +12,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ROUTE | Exercise updated authority diagnostics through the dashboard documentation route
 # Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ASSERTION | Match cookbook's documented DROP CASCADE warning text
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-SCHEDULER-DIAGNOSTICS | Assert expanded scheduler recovery docs render through dashboard route
+# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Assert worker recovery diagnostics render through dashboard route
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -209,6 +210,18 @@ class DashboardHTTPTests(unittest.TestCase):
                         b"Isolated failure and recovery verification",
                         b"StaleLeaseError"):
             self.assertIn(heading, body)
+        self.assertIn(b"<table>", body)
+        self.assertIn(b"<pre><code", body)
+        self.assertNotIn(b"<!--", body)
+        status, headers, body = self.request(
+            "GET", "/docs/components/WORKER_ADAPTER_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", dict(headers)["Content-Type"])
+        for heading in (b"Worker registration and persisted execution diagnosis",
+                        b"Independent outcome verification",
+                        b"Failure and restart recovery"):
+            self.assertIn(heading, body)
+        self.assertIn(b"credential digests", body)
         self.assertIn(b"<table>", body)
         self.assertIn(b"<pre><code", body)
         self.assertNotIn(b"<!--", body)
