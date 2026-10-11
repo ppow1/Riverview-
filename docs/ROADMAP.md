@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.37
+**Document Revision:** 1.1.38
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-11
 **Component:** RV-ROADMAP  
@@ -13,6 +13,7 @@
 **Changed:** 2026-10-11 UTC | RV-M4.1-GRACE-IDENTITY-COMMISSIONING | Record exact-commit Grace identity bootstrap and independent grant verification
 **Changed:** 2026-10-11 UTC | RV-M3.3-COURSE-CORRECTION | Reconcile assignment-level concurrency evidence with M3.3 criteria and preserve its Steward-review gate
 **Changed:** 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-CHECKPOINT | Record model-independent persistent service implementation without claiming live Grace acceptance
+**Changed:** 2026-10-11 UTC | RV-M4.1-M4.2-OCCUPANT-REPLACEMENT-INTEGRATION | Record isolated cross-component office-state continuity and exact-grant replacement verification
 **Purpose:** Define the ordered implementation path and what the command **“go” or “next”** means.  
 **Source contracts:** `README.md`, `docs/architecture/CORE_CONTRACT.md`, `docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md`, `docs/architecture/LINUX_DEPLOYMENT_AND_HOSTING_v0.1.md`, `docs/architecture/OBSERVABILITY_AND_SPATIAL_CONTRACT_v0.1.md`, `docs/components/POSTGRES_LEDGER.md`, `docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md`.
 
@@ -179,6 +180,8 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 **M4.1 live authority bootstrap correction (2026-10-11):** A protected `riverview_dev` dump was restored successfully into a disposable database and removed after matching catalog checks. Exact source `d3a0ed4fdec3061923964451ce2fccff18fadca7` passed preflight/apply/postflight in the dedicated authority schema. The root-only token bootstrap returned `BOOTSTRAPPED`, then `ALREADY_BOOTSTRAPPED` on a fresh process; an independent database-role check matched its digest and confirmed three scoped active grants without displaying the token. Runtime direct reads and manager DDL remained denied; core state remained at 9 migrations, 4 assignments, 11 events. PostgreSQL, event processor, CME monitor, notification dispatcher, dashboard and SSH stayed active. Evidence: `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T081700Z-live-bootstrap/`. Exact-head CI run 38124331966 passed on `f807d95d688b8a486db34eb5aa4be9f78c8f998d`. This is scoped M4.1 DB/bootstrap verification, not M4.1 DONE: no resident/worker service yet consumes the registry. M3.3 still requires exact-grant assignment/worker integration and a real knowledge provider. PR #21 remains open/draft/unmerged.
 
+**M4.1/M4.2 occupant-replacement integration regression (2026-10-11):** A new isolated PostgreSQL integration test composes the authority registry with `ResidentReasoner`: it persists a plan as the first occupant, replaces the bound occupant and implementation, confirms the former occupant's exact office-state grant is revoked, then constructs a replacement runtime that resumes the office-keyed plan under the new binding revision and provider. The focused ResidentReasoning suite passed 12/12; the complete isolated PostgreSQL 16 suite passed 212/212 with zero skips, errors or failures. Process graph validation passed at 16 workflows / 330 nodes and the controlled revision audit returned zero issues. The fixture schema count was zero and the private test cluster was stopped. This is isolated test evidence, not live occupant replacement or resident-service commissioning. M4.1 remains in progress; the M3.3 scoped technical gate remains ready for formal Steward acceptance, which is still open. Evidence and limits are recorded in `docs/development/M4.1-001_REVISION_RECORD.md`.
+
 ## Revision history
 
 - **1.1.32 — 2026-10-11:** Clarify that the M4.2 checkpoint blocker statement predates and is superseded by M3.3 live commissioning.
@@ -235,3 +238,4 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 - **1.1.33 — 2026-10-11:** Reconcile M3.3 scoped technical status and resume M4.1 engineering without claiming acceptance.
 - **1.1.34 — 2026-10-11:** Record exact-commit Grace identity bootstrap and independent exact-grant verification; retain M4.1/M4.4 open gates.
+- **1.1.38 — 2026-10-11:** Add an isolated authority/reasoner occupant-replacement integration regression; preserve M3.3 formal-acceptance and full-DoD gates.

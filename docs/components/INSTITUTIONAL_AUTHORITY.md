@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.19
+File Revision: 1.0.20
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -22,6 +22,7 @@ Changed: 2026-10-11 UTC | RV-M4.1-LIVE-EXACT-GRANT | Record deployed migration a
 Changed: 2026-10-11 UTC | RV-M4.1-MIGRATION-CONTRACT-CURRENT-STATE | Document checksum ledger/registry/function migration order
 Changed: 2026-10-11 UTC | RV-M4.1-GRACE-BOOTSTRAP-STATUS | Clarify historical M3.3 blockers and current additive Grace identity bootstrap work
 Changed: 2026-10-11 UTC | RV-M4.1-GRACE-IDENTITY-COMMISSIONING | Document the live fixed-identity bootstrap and exact grant result
+Changed: 2026-10-11 UTC | RV-M3.3-STATUS-RECONCILIATION | Correct current summary text superseded by later M3.3 live commissioning
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
@@ -123,14 +124,16 @@ isolated PostgreSQL HTTP test verifies denied requests have no rows, an
 authorized request persists Steward attribution and the created event, and an
 idempotent retry adds no duplicate. The `riverview-assignment-intake.service`
 unit reserves loopback port 8768; live installation/commissioning remains
-unverified. The actual read-only `RepositoryKnowledgeProvider` is also present
-on the M3.3 engineering branch and an isolated PostgreSQL worker test verifies
-source-pinned grounding, durable attempt output and a distinct independent
-verifier; it is not a general OctoMiner learning service. No live worker
-service, authorized shared assignment, or live route/worker/provider run exists.
-M3.3 remains in progress pending that commissioning and recovery evidence.
-Direct inserts and invented authority scope strings remain prohibited. M4.1
-does not implement chat, work-order promotion, provider routing, or the Grace
+unverified. Earlier M3.3 isolated engineering added the read-only
+`RepositoryKnowledgeProvider` and worker tests. Later live commissioning and
+waiting-assignment isolation evidence in the current milestone status below and
+`docs/development/M3.3-001_REVISION_RECORD.md` supersede the precommissioning
+limitation recorded in this section's history. The live governed route,
+authorized worker, repository provider, artifact, separate verifier, PostgreSQL
+persistence, restart recovery, and dashboard projections passed scoped technical
+checks. Formal Steward acceptance and full Component DoD remain open. Direct
+inserts and invented authority scope strings remain prohibited. M4.1 does not
+implement chat, work-order promotion, provider routing, or the complete Grace
 director.
 
 ### Current milestone status (2026-10-11)

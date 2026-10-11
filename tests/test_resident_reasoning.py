@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.9
+# Revision: 1.0.10
 # Purpose: Verify resident regrounding, bounded provider routing and durable resume
 # Execution Model: Isolated PostgreSQL authority registry integration tests
 # Observability: Assertions inspect persisted office state and provider outcomes
@@ -20,6 +20,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.2-COMPLETE-ROUTE-TEST | Configure the explicit fallback target in the token-budget boundary test
 # Changed: 2026-10-11 UTC | RV-M4.2-ROUTE-MINIMUM-BUDGET | Verify too-small total budget rejects the route before provider invocation
 # Changed: 2026-10-11 UTC | RV-M4.4-CONTEXT-FAILURE-CLASS | Verify oversized evidence and unserializable evidence have distinct outcomes
+# Changed: 2026-10-11 UTC | RV-M4.1-M4.2-OCCUPANT-REPLACEMENT-INTEGRATION | Verify a replacement Grace occupant resumes office-keyed reasoning state under its own exact grant
 # =============================================================================
 
 import hashlib
@@ -171,6 +172,49 @@ class ResidentReasoningTests(unittest.TestCase):
         self.assertEqual(second.status, ReasoningStatus.PROPOSED)
         self.assertEqual(replacement_provider.requests[0].prior_plan["summary"], "plan one")
         self.assertNotIn("credential", replacement_provider.requests[0].__dataclass_fields__)
+
+    def test_replacement_occupant_resumes_reasoning_with_new_binding_and_grant(self):
+        """Office state follows the role while authority follows the occupant."""
+        from riverview_core.institutional_authority import AuthorityDenied
+        from riverview_core.resident_reasoning import ReasoningStatus, ResidentReasoner
+
+        first_provider = _Provider("provider.a", summary="plan before replacement")
+        first = self._runtime({"provider.a": first_provider}).propose(
+            self.assignments.current["id"], trigger="initial", token_budget=100)
+        self.assertEqual(first.status, ReasoningStatus.PROPOSED)
+
+        replacement_principal = "resident:" + uuid4().hex
+        replacement_token = self.registry.create_principal(
+            self.steward_token, replacement_principal, "resident", office_id=self.office_id)
+        replacement_occupant = "occupant:" + uuid4().hex
+        self.registry.create_occupant(self.steward_token, replacement_occupant,
+                                      principal_id=replacement_principal)
+        self.registry.bind_office(self.steward_token, self.office_id,
+                                  replacement_occupant, self.impl_b)
+        self.registry.grant(self.steward_token, replacement_principal,
+                            "office.state.write", "office:" + self.office_id,
+                            policy_ref="rv.policy:resident-runtime.v1")
+
+        replacement_provider = _Provider("provider.b", summary="continued plan")
+        replacement_runtime = ResidentReasoner(
+            registry=self.registry, office_id=self.office_id,
+            resident_credential=replacement_token, assignments=self.assignments,
+            knowledge=self.knowledge, providers={"provider.b": replacement_provider},
+            timeout_seconds=0.1)
+        resumed = replacement_runtime.propose(
+            self.assignments.current["id"], trigger="occupant_replacement", token_budget=100)
+
+        self.assertEqual(resumed.status, ReasoningStatus.PROPOSED)
+        request = replacement_provider.requests[0]
+        self.assertEqual(request.binding_revision, 2)
+        self.assertEqual(request.implementation_revision, "model-rev-b")
+        self.assertEqual(request.prior_plan["summary"], "plan before replacement")
+        with self.assertRaises(AuthorityDenied):
+            self.registry.authorize(self.resident_token, "office.state.write",
+                                    "office:" + self.office_id)
+        snapshot = self.registry.office_snapshot(self.office_id)
+        self.assertEqual(snapshot["state"]["resident_reasoning_v1"]["plans"]
+                         [self.assignments.current["id"]]["summary"], "continued plan")
 
     def test_unverified_grounding_waits_and_is_persisted(self):
         from riverview_core.resident_reasoning import ReasoningStatus
