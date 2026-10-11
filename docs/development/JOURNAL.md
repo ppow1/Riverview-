@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.59
+**Document Revision:** 1.0.60
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -1054,3 +1054,22 @@ verification passed, but deployment was correctly withheld; no active symlink,
 service, DB, or credential changed. The new cookbook route was tested in the
 source handler, not claimed live in the browser. Refresh from the current
 dashboard source before deployment. PR #20 remains draft; no merge performed.
+
+Post-change verification on commit `9c96e7869c57165705392525b8be0f80575112ed`:
+full isolated suite passed 133/133 with no skips/errors/failures; dashboard
+cookbook route focus passed 1/1; compileall, graph sync (12/226), and controlled
+revision audit passed. Exact-head GitHub CI run 38115330159 passed. Read-only
+Camrui status at 05:37 UTC showed PostgreSQL, event processor, CME monitor,
+notification dispatcher and dashboard active; baseline oneshot `Result=success`;
+dashboard HTTP 200 on existing release 7a9ff46. Ledger counts: nine
+migrations, four assignments, 11 events, one attempt, one verification, six
+monitor events, three notices. An initial read-only query used the guessed
+`assignment_events` name and failed; `pg_tables` confirmed the canonical table
+is `events`, and the corrected read-only query returned these counts.
+
+Attempted to create a follow-up exact-commit Camrui package before committing
+the required predecessor records; `build_camrui_package.py` refused its clean
+working-tree precondition because the backup manifest was intentionally dirty.
+It created no archive. Commit records/backups first, then rebuild and verify the
+exact committed source. This is a safe packaging precondition, not a test or
+deployment failure; no active host path changed.
