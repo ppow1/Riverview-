@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.48
+**Document Revision:** 1.0.49
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -878,3 +878,23 @@ Proceeding with isolated M4.1 authority engineering as a safe unblocker while th
 ## 2026-10-11 UTC — RV-M4.1-001 / isolated regression checkpoint
 
 After registering the M4.1 workflow and linking its cookbook from the operations index, ran `RIVERVIEW_TEST_PG_DSN='host=/tmp/rv-m41-pgsock-20261011 port=55461 dbname=postgres user=admin1' PYTHONPATH=src python3 -m unittest discover -s tests -v` against a disposable PostgreSQL 16 UTF8 socket-only cluster. Result: 132 tests passed, 0 failures/errors/skips in 58.411 seconds. `rvtest_*` schema count was zero; cluster fast-stopped and reported database system shut down. `python3 -m compileall -q src scripts tests`, graph check (12 workflows / 221 nodes), and controlled revision audit all passed. No M4.1 migration/deployment to shared `riverview_dev`; the current DB owner can bypass library-level authorization, so M3.3 still cannot safely execute live assignments. M4.1 full DoD and PR/CI remain open.
+
+## 2026-10-11 UTC — RV-M4.1-001 / isolated authority evidence checkpoint
+
+Committed the isolated identity and scoped-authority registry at source commit
+`5f54fd9abaf7cc27f514e41461ee188c0d57ea91`. The complete applicable suite
+passed 132/132 with zero skips on a disposable PostgreSQL 16 socket-only cluster;
+compileall, process graph validation (12 workflows / 221 nodes), and the
+controlled-revision audit passed. Durable logs, tool versions, isolated cluster
+shutdown, and read-only M3.3 preflight state are retained under
+`evidence/checkouts/M4.1/20261011T042719Z-5f54fd9/` and
+`evidence/checkouts/M3.3/20261011T042719Z-5f54fd9/`.
+
+No shared schema migration, authority identity/grant creation, worker/assignment
+change, or service restart was performed. Live M4.1 remains NOT VERIFIED because
+the shared application role owns the schema and can bypass library checks;
+worker/assignment integration and protected database-role separation remain
+open. M3.3 therefore remains BLOCKED at live authorization and real-knowledge
+preflight. The next safe step is to review CI on the M4.1 branch, then design and
+exercise the database privilege boundary on disposable PostgreSQL before any
+shared deployment.

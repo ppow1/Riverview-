@@ -1,0 +1,33 @@
+{
+  "checks": {
+    "compileall": "PASS",
+    "controlled_revision_audit": "PASS zero findings before evidence files were staged",
+    "graph": "PASS 12 workflows / 221 nodes",
+    "markdown_renderer": "PASS source-rendered docs; not browser served/deployed"
+  },
+  "cleanup": {
+    "remaining_rvtest_schemas": 0,
+    "temporary_cluster": "stopped; PostgreSQL log ends with database system is shut down"
+  },
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "environment": "Ubuntu 24.04; disposable PostgreSQL 16 UTF8; local Unix socket only",
+  "full_component_dod": "OPEN",
+  "host": "Camrui",
+  "live_deployment": "NOT PERFORMED",
+  "live_security_boundary": "NOT VERIFIED; current shared app role owns schema and must be separated before live authorization",
+  "shared_schema_migration": "NOT APPLIED",
+  "source_commit": "5f54fd9abaf7cc27f514e41461ee188c0d57ea91",
+  "steward_acceptance": "NOT REQUESTED",
+  "task_id": "RV-M4.1-001",
+  "test_command": "RIVERVIEW_TEST_PG_DSN=\"host=/tmp/rv-m41-pgsock-20261011 port=55461 dbname=postgres user=admin1\" PYTHONPATH=src python3 -m unittest discover -s tests -v",
+  "tests": {
+    "duration_seconds": 58.411,
+    "errors": 0,
+    "failures": 0,
+    "focused_authority_tests": 7,
+    "result": "PASS",
+    "run": 132,
+    "skips": 0
+  },
+  "timestamp_utc": "2026-10-11T04:27:19Z"
+}
