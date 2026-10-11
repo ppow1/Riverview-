@@ -1,8 +1,39 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.92
+**Document Revision:** 1.0.95
 **Component:** ENG-RECORDS
 **Date:** 2026-10-11 UTC
+**Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
+
+## 2026-10-11 UTC — RV-M3.3-COURSE-CORRECTION / M3.3 commissioning and M4.2 checkpoint
+
+Reconciled M3.3 commissioning evidence against the canonical criterion. Live
+records prove a governed authorized request, denied unauthorized request with
+no writes, durable assignment/event creation, scheduled execution by the
+commissioned service, a protected repository-test report artifact, distinct
+independent verification, PostgreSQL lifecycle/provenance, dashboard status,
+and restart recovery. A separate NO_MATCH assignment remained in
+WAITING_FOR_EVIDENCE while another normal-route assignment completed and was
+verified. This satisfies the roadmap requirement for two concurrent durable
+assignments progressing independently; simultaneous throughput across multiple
+executor processes was not measured and is not stated as a separate criterion.
+Existing isolated suite, CI, graph, and revision-audit evidence is retained in
+the M3.3 commissioning directories. Scoped technical criteria are ready for
+Steward review; no formal acceptance, merge, or full Component DoD is claimed.
+
+Completed the M4.2 local provider boundary checkpoint already in progress. Six
+isolated HTTP contract tests passed. A real Qwen3-0.6B loopback call did not
+produce a complete plan within the bounded 30-second request and returned
+sanitized UNAVAILABLE; no resident call or authority-state write occurred.
+Explicitly close `HTTPError` response resources and replace the threaded
+socket-backed M4.2 contract fixture after the six focused tests pass with
+`ResourceWarning` promoted to an error. The full suite passed 196/196 with no
+skips, failures, or errors. Tracemalloc localized its remaining
+`ResourceWarning` to the existing M4.3 `tests/test_local_inference.py` threaded
+HTTP fixture when it replaces the test server; that out-of-scope fixture was
+not changed during this M3.3-priority checkpoint. No service, shared database,
+resident identity, credential, or M3.3 worker state was changed. Evidence:
+`evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1340Z-fce3c30/`.
 
 ## 2026-10-11 UTC — RV-M3.3-AUTHORITY-COOKBOOK-COMMISSIONING / dashboard route
 

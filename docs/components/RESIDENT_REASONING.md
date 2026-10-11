@@ -2,19 +2,21 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.2
+File Revision: 1.0.4
 Purpose: Define resident context regrounding and bounded reasoning-provider routing
 Authority: Exact office-state grant required; provider output is a proposal, never permission
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Establish isolated resident reasoning contract
 Changed: 2026-10-11 UTC | RV-M4.2-ROUTE-MINIMUM-BUDGET | Reject fallback configurations whose minimum per-attempt budget exceeds the requested total
 Changed: 2026-10-11 UTC | RV-M4.2-MARKDOWN-WHITESPACE | Normalize compact metadata formatting for clean controlled diff checks
+Changed: 2026-10-11 UTC | RV-M4.2-LOCAL-PROVIDER-INTEGRATION | Document strict loopback provider adapter and actual host timeout boundary
+Changed: 2026-10-11 UTC | RV-M4.2-LOCAL-PROVIDER-RESULT | Record actual model timeout separately from the verified mock HTTP contract
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Resident regrounding and reasoning routing
 
 - **Milestone:** M4.2 — Resident regrounding and reasoning routing
-- **Status:** Isolated engineering in progress; not deployed or operationally commissioned
-- **Implementation:** `src/riverview_core/resident_reasoning.py`
+- **Status:** Isolated engineering in progress; local provider contract tests pass, but actual model plan call and resident service are not operationally commissioned
+- **Implementation:** `src/riverview_core/resident_reasoning.py`; `src/riverview_core/local_reasoning_provider.py`
 - **Process graph:** `rv:resident-reasoning:runtime`
 **Owner:** Resident runtime / CME integration
 
@@ -32,6 +34,19 @@ resident reasoning provider.
 The implementation consumes M4.1's `AuthorityRegistry` and the frozen
 `worker_adapter.knowledge_provider_v1` contract. No second knowledge API is
 introduced.
+
+`LocalReasoningProvider` is an optional implementation of the existing
+`ReasoningProvider` contract. It sends bounded requests only to a literal
+loopback OpenAI-compatible `/v1` endpoint, pins the served model name and
+implementation SHA-256 to the bound implementation revision, and accepts only
+the exact typed, one-step proposal schema. Transport errors return sanitized
+`UNAVAILABLE`; malformed or incomplete responses become invalid proposals.
+The adapter cannot execute work or authorize its proposal. Six isolated HTTP
+contract tests pass. A real call to the installed Qwen3-0.6B model on Camrui
+returned `UNAVAILABLE` at the 30-second bound before a complete proposal was
+produced; no `ResidentReasoner` invocation, authority-state write, persistent
+inference service, or change to the M3.3 worker path occurred. Evidence is in
+`evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1340Z-fce3c30/`.
 
 ## Interfaces
 
@@ -134,7 +149,9 @@ Isolated PostgreSQL tests cover durable resume across runtime replacement,
 grounding failure, explicit timeout fallback, provider replacement with
 unchanged grants, unavailable routes, credential-key rejection, assignment
 revision changes, revocation, and token-budget enforcement. They use fake
-providers and are integration tests of the contract/state boundary only. No
-actual model provider, Camrui authority schema/credential, resident service,
-browser chat, work-order promotion, or Grace objective-to-artifact cycle is
-commissioned by these tests. M4.2 full DoD and Steward acceptance remain open.
+providers and are integration tests of the contract/state boundary only. The
+loopback provider contract is separately covered by six fake-HTTP tests, but its
+actual model call did not complete within the bounded host request as recorded
+above. No resident service, browser chat, work-order promotion, or Grace
+objective-to-artifact cycle is commissioned by these tests. M4.2 full DoD and
+Steward acceptance remain open.

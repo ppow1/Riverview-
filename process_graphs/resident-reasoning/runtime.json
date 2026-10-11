@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-reasoning:runtime",
-  "graph_revision": "1.0.3",
+  "graph_revision": "1.0.4",
   "component_id": "RESIDENT-REASONING",
   "workflow_id": "resident.reasoning.v1",
   "diagram_order": 13,
@@ -8,7 +8,9 @@
     "src/riverview_core/resident_reasoning.py",
     "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
     "src/riverview_core/institutional_authority/registry.py",
-    "tests/test_resident_reasoning.py"
+    "tests/test_resident_reasoning.py",
+    "src/riverview_core/local_reasoning_provider.py",
+    "tests/test_local_reasoning_provider.py"
   ],
   "documentation_references": [
     "docs/components/RESIDENT_REASONING.md",
@@ -17,7 +19,8 @@
     "docs/components/RESIDENT_REASONING_FLOW.md"
   ],
   "verification_evidence": [
-    "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+    "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md",
+    "evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1340Z-fce3c30/result-summary.json"
   ],
   "nodes": [
     {
@@ -252,14 +255,16 @@
       "type": "process",
       "label": "Call one provider under per-call timeout and divided token budget",
       "source_references": [
-        "src/riverview_core/resident_reasoning.py"
+        "src/riverview_core/resident_reasoning.py",
+        "src/riverview_core/local_reasoning_provider.py"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_REASONING.md",
         "docs/components/RESIDENT_REASONING_COOKBOOK.md"
       ],
       "verification_evidence": [
-        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md",
+        "evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1340Z-fce3c30/result-summary.json"
       ]
     },
     {

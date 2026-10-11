@@ -1,0 +1,29 @@
+{
+  "manifest_revision": "1.0.0",
+  "checkout": {
+    "component_id": "RESIDENT-REASONING",
+    "task_id": "RV-M4.2-LOCAL-PROVIDER-CHECKPOINT",
+    "source_commit": "fce3c30e568dfb29ce7733ec05ff9b94b620974c",
+    "target": "Isolated contract test fixture and private PostgreSQL 16.15 cluster; no shared runtime changes"
+  },
+  "artifacts": {
+    "provider-contract-tests.log": {
+      "path": "provider-contract-tests.log",
+      "revision": "1.0.0",
+      "sha256": "ac23e9d6873a6eec2814de4ff32fbba799a2920d9388f07d869c2df74acbd5ea",
+      "size_bytes": 1164
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "f000226017f4c008d324c659b906ebcf1158b2321776a78ca0b38a1978c434d5",
+      "size_bytes": 33659
+    },
+    "result-summary.json": {
+      "path": "result-summary.json",
+      "revision": "1.0.0",
+      "sha256": "efb9097d1f6e57e8a6003f9070ba24e5d0e5371344b2fa8a574e5341ed3b230a",
+      "size_bytes": 1497
+    }
+  }
+}
