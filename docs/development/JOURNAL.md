@@ -1,8 +1,12 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.73
+**Document Revision:** 1.0.74
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-11 UTC — RV-M4.1-FRESH-SCHEMA-CI-RESULT / controlled checkout passed
+
+Exact-head GitHub controlled-checkout run 38121104825 passed on `73613cea5d0e1c179d33eebf576ef3931efdf5a3`, covering the complete suite, canonical graph validation and controlled revision/predecessor audit after the fresh-schema ledger correction and its retained backups. The implementation suite passed 137/137 on isolated PostgreSQL 16.15, zero skips/failures/errors. PR #20 stays open/draft and unmerged. No live authority schema or credential was provisioned; deployed services and shared state remain unchanged.
 
 ## 2026-10-11 UTC — RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER / empty-schema acceptance defect
 
