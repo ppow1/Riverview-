@@ -1,0 +1,32 @@
+BEGIN
+     worker_id      |        capabilities         | active |         registered_at         
+--------------------+-----------------------------+--------+-------------------------------
+ worker:doc-smoke   | ["deterministic.sha256.v1"] | t      | 2026-10-11 01:51:53.059794-04
+ verifier:doc-smoke | ["assignment.verify.v1"]    | t      | 2026-10-11 01:51:53.065112-04
+(2 rows)
+
+              attempt_id              |  assignment_id   |    worker_id     | lease_generation |       capability        |  status   |          started_at           |          finished_at          | failure_class 
+--------------------------------------+------------------+------------------+------------------+-------------------------+-----------+-------------------------------+-------------------------------+---------------
+ cdea4a17-e98a-4330-bfb4-26c162bf22a9 | worker-doc-smoke | worker:doc-smoke |                1 | deterministic.sha256.v1 | succeeded | 2026-10-11 01:51:53.247383-04 | 2026-10-11 01:51:53.267211-04 | 
+(1 row)
+
+              attempt_id              |                          result_sha256                           |          recorded_at          
+--------------------------------------+------------------------------------------------------------------+-------------------------------
+ cdea4a17-e98a-4330-bfb4-26c162bf22a9 | 9ac06f01573c83d774eea9831113e2fe4689d0787ab2e1d04b24ff21df5dff08 | 2026-10-11 01:51:53.263732-04
+(1 row)
+
+           verification_id            |  assignment_id   |              attempt_id              |   executor_id    |    verifier_id     | verifier_revision | decision |          recorded_at          
+--------------------------------------+------------------+--------------------------------------+------------------+--------------------+-------------------+----------+-------------------------------
+ cdea4a17-e98a-4330-bfb4-26c162bf22a9 | worker-doc-smoke | cdea4a17-e98a-4330-bfb4-26c162bf22a9 | worker:doc-smoke | verifier:doc-smoke | 1.0.0             | ACCEPTED | 2026-10-11 01:51:53.321168-04
+(1 row)
+
+              intent_id               |  assignment_id   |    worker_id     | lease_generation |       capability        | effect_class |  status   |              attempt_id              |          started_at           |          finished_at          | failure_class 
+--------------------------------------+------------------+------------------+------------------+-------------------------+--------------+-----------+--------------------------------------+-------------------------------+-------------------------------+---------------
+ dc7668a5-3216-4503-bb3e-c4f91104a288 | worker-doc-smoke | worker:doc-smoke |                1 | deterministic.sha256.v1 | retry_safe   | succeeded | cdea4a17-e98a-4330-bfb4-26c162bf22a9 | 2026-10-11 01:51:53.229005-04 | 2026-10-11 01:51:53.269937-04 | 
+(1 row)
+
+ recovery_id | assignment_id | lease_generation | decision | previous_state | resulting_state | observed_expiry | recorded_at 
+-------------+---------------+------------------+----------+----------------+-----------------+-----------------+-------------
+(0 rows)
+
+COMMIT

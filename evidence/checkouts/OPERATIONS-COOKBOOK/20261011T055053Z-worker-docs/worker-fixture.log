@@ -1,0 +1,2 @@
+worker_migrations=0001_worker_attempts,0002_knowledge_observations,0003_independent_verification,0004_failure_recovery
+worker_cycle=AWAITING_VERIFICATION verification=ACCEPTED assignment=completed

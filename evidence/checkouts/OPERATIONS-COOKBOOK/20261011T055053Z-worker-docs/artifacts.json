@@ -1,0 +1,128 @@
+{
+  "component_id": "RIVERVIEW-OPERATIONS",
+  "files": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "8aca96da4b3f497c5965a4e01236c32fce5af700eb9a508d5a0c8e6ef88b22e3",
+      "size_bytes": 3717
+    },
+    "compileall.txt": {
+      "path": "compileall.txt",
+      "revision": "1.0.0",
+      "sha256": "df938fa5fa03c274d051b5b3720e1b0c54063860291840909f5c6c05b7d05e6f",
+      "size_bytes": 51
+    },
+    "dashboard-route.log": {
+      "path": "dashboard-route.log",
+      "revision": "1.0.0",
+      "sha256": "47ef53438fcc8cfd1f287abc47b9e3191e5afbec0c66cdcf003f51466e73cd02",
+      "size_bytes": 269
+    },
+    "fixture-teardown.txt": {
+      "path": "fixture-teardown.txt",
+      "revision": "1.0.0",
+      "sha256": "197dc3555397e7b77079f75d937697eb1f10f07e607d725b4882eab2dc419c92",
+      "size_bytes": 808
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "0427176ed6467e6919a194dd8e662f48881250cd3ecf26cd99434f515c673f65",
+      "size_bytes": 22132
+    },
+    "live-dashboard-http.txt": {
+      "path": "live-dashboard-http.txt",
+      "revision": "1.0.0",
+      "sha256": "8c22db8454897b6b1eccc1e2da5964ba5b099d4d17b800013ff9267803d7dab6",
+      "size_bytes": 19
+    },
+    "live-dashboard-release.txt": {
+      "path": "live-dashboard-release.txt",
+      "revision": "1.0.0",
+      "sha256": "ff6ce1c5c5137e080acba65629b0ccae500ba15ba17c32ae52744624ced792f6",
+      "size_bytes": 82
+    },
+    "live-service-health.txt": {
+      "path": "live-service-health.txt",
+      "revision": "1.0.0",
+      "sha256": "663940bd3c2e5ebe57e7bd354a7cfeef6cc4bb431b6101d993689cb524778888",
+      "size_bytes": 502
+    },
+    "postgres-initdb.log": {
+      "path": "postgres-initdb.log",
+      "revision": "1.0.0",
+      "sha256": "1c148286df995d916b32784b317cc032856172af8b4052aa4823edcb532cc3a7",
+      "size_bytes": 858
+    },
+    "postgres-server.log": {
+      "path": "postgres-server.log",
+      "revision": "1.0.0",
+      "sha256": "d936b9b009d149110cf0a84b2ba85f8bba1726457fb9a7765e8ff88d98b72257",
+      "size_bytes": 4197
+    },
+    "postgres-start.log": {
+      "path": "postgres-start.log",
+      "revision": "1.0.0",
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "size_bytes": 52
+    },
+    "postgres-stop.log": {
+      "path": "postgres-stop.log",
+      "revision": "1.0.0",
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d",
+      "size_bytes": 56
+    },
+    "private-cluster-path.txt": {
+      "path": "private-cluster-path.txt",
+      "revision": "1.0.0",
+      "sha256": "51f2a1d868fa757bd6d0db17e3ec0530f9cc6e456088b45a495d3bc5f73e5e4a",
+      "size_bytes": 31
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "ee97fbdd8a2cb539b0b56e0b4369ddde874cfc1b778acf7bfd199595f833d06f",
+      "size_bytes": 55
+    },
+    "relation-preflight.log": {
+      "path": "relation-preflight.log",
+      "revision": "1.0.0",
+      "sha256": "458d5d63bd4e1e78cf266646ac0a11040d9bbdfd6e1ec23910255e316d519304",
+      "size_bytes": 764
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "source-diff-check.txt": {
+      "path": "source-diff-check.txt",
+      "revision": "1.0.0",
+      "sha256": "f2c6f1fe1a18e2f74038b5969ad0e76de4d74d8ce9ac0137c62c7596540d7780",
+      "size_bytes": 224
+    },
+    "test-dsn.txt": {
+      "path": "test-dsn.txt",
+      "revision": "1.0.0",
+      "sha256": "c5efa3e5bfa06d98c00ddc62f62666d9b12581ef88f3a1a5928601ba8ff65f1c",
+      "size_bytes": 82
+    },
+    "worker-fixture.log": {
+      "path": "worker-fixture.log",
+      "revision": "1.0.0",
+      "sha256": "204bb3011e7de9db54f1e0c42a233fb7b4c253a501a0c2c4efbc12ec0928ad39",
+      "size_bytes": 197
+    },
+    "worker-query.log": {
+      "path": "worker-query.log",
+      "revision": "1.0.0",
+      "sha256": "3b2dce25ebc90a273518caa536e145c7b5c9ce46ffc81819e1e35885aec58af3",
+      "size_bytes": 3119
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "source_commit": "ff99fe92cc5f82cd6177f21bbd72ae137e3118fa",
+  "task_id": "RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS"
+}
