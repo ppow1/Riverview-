@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.11
+File Revision: 1.0.13
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -14,6 +14,8 @@ Changed: 2026-10-11 UTC | RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER | Make authority
 Changed: 2026-10-11 UTC | RV-M4.1-OWNER-SCHEMA-USAGE | Grant protected table owner schema USAGE for PostgreSQL FK enforcement without CREATE
 Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Persist bootstrap bearer before commit and support safe restart
 Changed: 2026-10-11 UTC | RV-M4.1-LIVE-BOOTSTRAP-EVIDENCE | Record verified root-local live Steward bootstrap without claiming service integration
+Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT | Specify isolated runtime exact-grant function and current deployment boundary
+Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-RECORDS | Link migration 0002 in the component migration inventory
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
@@ -21,7 +23,7 @@ History: Git and .riverview-backups/manifest.jsonl
 **Milestone:** M4.1 — Office, occupant, implementation and state separation
 **Status:** Additive live authority schema, privilege boundary, and root-local Steward bootstrap verified; service integration remains unverified
 **Implementation:** `src/riverview_core/institutional_authority/registry.py`
-**Migrations:** `0000_authority_migration_ledger.sql` bootstraps the checksum ledger if absent; `0001_institutional_authority.sql` creates the registry tables and trigger.
+**Migrations:** `0000_authority_migration_ledger.sql` bootstraps the checksum ledger if absent; `0001_institutional_authority.sql` creates registry tables and trigger; `0002_exact_grant_authorization.sql` creates the protected runtime exact-grant function.
 **Process graph:** `rv:institutional-authority:identity-and-grants`
 
 ## Identity model
@@ -74,27 +76,43 @@ must not interpret either as permission.
 
 ## Current security boundary and deployment limitation
 
-The isolated contract tests exercise token digest lookup, exact grant matching,
-revocation, expiry validation, append-only events, and state continuity. The
-current Camrui `riverview_core` database identity owns existing application
-tables. This milestone's migration has **not** been applied to shared
-`riverview_dev`, and no service uses this registry yet. Therefore the Python
-registry check is not claimed as a database-enforced boundary against arbitrary
-SQL from a process holding the current owner credential. Before live assignment
-creation is authorized, deployment must separate the authority writer from
-ordinary runtime database roles or use an equivalently enforced database
-boundary, then bind the worker/assignment control path to `authorize()`.
+Camrui has the dedicated `riverview_authority` schema, protected registry
+ownership, a separate manager, and the root-local Steward bootstrap described
+in dated live evidence. Migration
+`migrations/0002_exact_grant_authorization.sql` adds a `SECURITY DEFINER`
+function which accepts only a SHA-256 credential digest, exact action, and exact
+scope, and returns matching principal/grant identifiers. It uses fully
+qualified authority relations, a pinned `pg_catalog, pg_temp` search path,
+bounded inputs, and row locks held through the caller's transaction. It returns
+no credential digest or registry rows. The boundary provisioner grants runtime
+schema `USAGE` and `EXECUTE` on this one function while keeping direct table
+access denied; the manager and `PUBLIC` cannot execute it.
 
-This boundary is why the M3.3 shared assignment demonstration remains blocked;
-direct inserts or invented grant strings are not an acceptable substitute.
-M4.1 does not implement chat, work-order promotion, provider routing, or the
-Grace director.
+`ExactGrantAuthorizer` calls this function on the caller's active PostgreSQL
+cursor. `PostgresWorkerAdapter` requires the grant-bound bearer at worker
+registration (`worker.register`) and checks `assignment.execute` or
+`assignment.verify` at claim/start/action/verification for the exact scope.
+Missing grants and unavailable registry fail closed. Disposable PostgreSQL
+tests exercise the real function, runtime/manager ACLs, wrong action/scope,
+revocation, and worker execution.
+
+The new migration and adapter are **not yet applied/deployed on Camrui**. The
+live schema currently has the previously commissioned registry/bootstrap
+boundary; runtime has no execute grant on this new function, and no live worker
+service consumes grants. Deployment requires the new migration checksum, a
+protected pre-change backup, successful boundary dry-run/apply, and post-apply
+ACL and application-path checks. M3.3 remains blocked until controlled
+deployment, a real approved worker, and the separately owned real knowledge
+provider are available. Direct inserts and invented authority scope strings
+remain prohibited. M4.1 does not implement chat, work-order promotion, provider
+routing, or the Grace director.
 
 ### Database privilege boundary package
 
 `src/riverview_core/institutional_authority/db_boundary.py` and
 `scripts/provision_authority_boundary.py` provide a DBA-operated, dry-run-first
-transition for the nine authority relations and append-only trigger function.
+transition for the nine authority relations, append-only trigger, and exact-
+grant authorization function.
 The helper rejects a runtime or authority manager that owns the selected
 schema or can assume its owner role. PostgreSQL schema ownership can grant
 object-drop authority independently of relation ownership. The runtime must
@@ -102,18 +120,22 @@ therefore have a distinct schema owner/migration identity; relation transfer
 alone is insufficient.
 
 The authority registry must use a dedicated schema containing only its nine
-tables, its migration ledger, and its append-only event trigger. Never run the
-boundary helper against a mixed application schema: it revokes schema access
-from `PUBLIC` and the ordinary runtime as well as protecting each table. The
+tables, its migration ledger, append-only trigger, and versioned
+`authorize_exact_grant(bytea,text,text)` function. Never run the boundary helper
+against a mixed application schema: it revokes broad schema access before
+granting the runtime only the exact authorization function. The
 manager is a dedicated non-superuser LOGIN. It receives only schema `USAGE` and
 `SELECT`/`INSERT`/`UPDATE`/`DELETE` on the nine registry tables. The protected
 `NOLOGIN` table owner also requires schema `USAGE` for PostgreSQL foreign-key
 checks executed as relation owner; it does not receive schema `CREATE`. The
 manager is `NOINHERIT`
 and cannot be a member of any other database role; it cannot create objects,
-drop tables, execute the trigger function directly, or inherit the `NOLOGIN`
-table-owner role. The runtime receives no schema `USAGE` or table/function
-access. The manager is still a trusted authority capability: a
+drop tables, execute either protected function directly, or inherit the
+`NOLOGIN` table-owner role. After migration 0002 and a successful boundary
+apply, the runtime receives schema `USAGE` and function `EXECUTE` only for the
+exact-grant check; authority-table and trigger access remain denied. Until that
+apply, the live ACL remains in its pre-function state. The manager is still a
+trusted authority capability: a
 compromised manager can issue direct DML and bypass application-level grant
 checks, so its secret must be isolated from worker, CME, event-processor, and
 dashboard runtimes. The helper performs no identity/grant creation or work

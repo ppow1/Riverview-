@@ -1,20 +1,31 @@
 # Riverview~ worker adapter contract
 
-**Document Revision:** 1.0.5
+**Document Revision:** 1.0.6
 **Component:** WORKER-ADAPTER
 **Milestone:** M2.1–M2.3
-**Status:** M2.3 IN PROGRESS — isolated engineering; no service deployment
+**Status:** Isolated M4.1 exact-grant integration added; Camrui worker/service deployment remains unverified
 **Implementation:** `src/riverview_core/worker_adapter/adapter.py`
 
 ## Scope and trust boundaries
 
-The first adapter slice registers a worker identity, capability list, and exact
-assignment authority scope. Registration creates a random high-entropy bearer
-credential, returns it once, and stores only its SHA-256 digest. Execution
-compares credentials in constant time, checks the registered capability and
-requires worker scope to equal the assignment's `authority_ref`. Registration
-itself is a trusted control-plane operation; this library does not authenticate
-its registrar or validate the authority grant externally.
+The adapter registers a worker identity, capability list, and exact assignment
+authority scope. Registration now requires a Steward-issued identity bearer
+whose exact `worker.register` grant matches that scope. The same bearer is
+stored only as a SHA-256 digest and checked against an active exact
+`assignment.execute` or `assignment.verify` grant before each corresponding
+action. The worker's scope must also equal the assignment's `authority_ref`.
+The adapter does not generate an independently authorized worker credential or
+accept a free-form scope claim as authority.
+
+`ExactGrantAuthorizer` calls the protected SQL function on the caller's active
+transaction cursor. The function returns only principal/grant IDs, locks the
+credential/principal/grant rows through transaction completion, and never
+reveals credential digests. A missing grant denies; a missing function or DB
+error is `GrantCheckUnavailable` and denies. The separate database-boundary
+tests confirm the runtime can execute this function but cannot read authority
+tables, while the manager cannot call the function. The live Camrui migration
+and function ACL have not yet been deployed, so this is isolated application
+integration, not a live-worker authorization claim.
 
 The only executable task is `deterministic.sha256.v1`: hash caller-provided UTF-8
 text and return its digest and byte count. No shell, subprocess, network,
@@ -30,9 +41,11 @@ for worker-loss detection. Result commit rechecks the active lease and records a
 lost-lease failure rather than accepting a stale worker result.
 
 The M2.1 migration is separate and explicit. No schema DDL is applied at adapter
-startup and no M2.1 migration has been applied to shared `riverview_dev`. Secret
-provisioning for a deployed worker and external worker transport/authentication
-remain future operational integration work.
+startup. The adapter accepts a separate `authority_schema`; production must use
+`riverview_authority`. Migration 0002 and its exact function ACL have not yet
+been applied to the shared authority schema. No worker service is commissioned.
+Steward-issued credential storage and worker process credential delivery remain
+explicit commissioning work.
 
 ## Continuous worker and knowledge boundary
 
@@ -113,3 +126,22 @@ verification, and does not inspect external systems or claim that an uncertain
 action did not take effect. Uncertain work requires authoritative reconciliation
 before it can be resumed. See the [M2.3 cookbook](WORKER_ADAPTER_COOKBOOK.md)
 and [RV-M2.3-001 record](../development/M2.3-001_REVISION_RECORD.md).
+
+## M4.1 exact-grant integration (isolated)
+
+`register_worker(..., credential=...)` requires an active credential with the
+exact `worker.register` scope grant. `claim_next`, `start_assignment`, action
+preflight and result commit re-check `assignment.execute`; verification
+re-checks `assignment.verify`. Revocation prevents a later action even if the
+worker registry row remains active. Worker-local hashes do not replace the
+authority check. The function migration is
+`src/riverview_core/institutional_authority/migrations/0002_exact_grant_authorization.sql`;
+the boundary provisioner grants the runtime only schema `USAGE` and execution
+of this function.
+
+Isolated PostgreSQL tests passed 22/22 across boundary, worker and CME suites on
+2026-10-11. They cover granted worker operations, wrong scope/action, missing
+registration grant, post-registration credential revocation, and manager/runtime
+SQL separation. The live schema lacks the new function and no production worker
+uses this contract yet. M3.3 and M4.1 remain IN PROGRESS until live migration,
+protected backup/restore, ACL checks and real approved worker commissioning pass.

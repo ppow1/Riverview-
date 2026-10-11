@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.78
+**Document Revision:** 1.0.80
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -1165,3 +1165,49 @@ checkpoint evidence are pending.
 Ran the controlled read-only Firefox check against the currently deployed dashboard release `8dcec2ada7d811a78f6cb28a1b81e6f8f59b1a9b`; all services remained active. The actual completed M3.1 assignment showed healthy/current projection, healthy CME, six attention records, one independent verification, and no failed checks or browser errors. The Operations Cookbook rendered 17 headings, 2 tables and 17 code blocks; all 21 linked component documents returned HTTP 200, with no raw Markdown, scripts or unsafe links. Graph view showed 12 nodes, 11 canonical edges and one decision, with correct unknown execution position. Navigation handler timings were 84/332/90/242 ms for Assignments/Activity/Overview/Workflows in this single run; not paint latency or a sustained benchmark. Durable report/screenshots and checksums: `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T082220Z-4b7c23d/`.
 
 The deployed release is based on the M3.3 repository-knowledge branch, while the present M4.2 PR source is based on the M4.1 database-boundary branch. The deployed cookbook has a repository-knowledge diagnosis absent in this checkout; this checkout has the observed PostgreSQL backup-path permission-failure procedure absent in the deployed package. Do not hot-edit or replace the working dashboard. Reconcile those controlled documents in the owning source branch before a later compatible package release. The current live read confirms documentation route health, but does not clear the docs/source divergence. Next: preserve the live run artifacts, then address the cookbook divergence through its owning source branch without altering database or service state.
+
+## 2026-10-11 UTC — RV-M4.1-GRANT-ENFORCEMENT / exact-grant worker integration
+
+Added a protected `authorize_exact_grant(bytea,text,text)` database function,
+DB-boundary ACL integration, and `ExactGrantAuthorizer` on the existing worker
+transaction. Worker registration now requires a grant-bound `worker.register`
+credential; action and verification re-check exact `assignment.execute` and
+`assignment.verify` scope grants. No grant, expired/revoked credential, unknown
+function or database failure authorizes work. The existing deterministic worker
+and CME integration fixtures now issue isolated grants rather than relying on a
+free-form worker scope string.
+
+The first boundary test run failed because its assertion expected runtime
+schema USAGE to remain absent; the revised invariant is USAGE plus execute on
+one function with all authority tables inaccessible. A follow-up test run
+exposed that a revocation assertion had also revoked the same test credential
+used by a later registry check; the test now revokes a separate credential.
+Final focused PostgreSQL run passed 22/22 tests with no skips/failures/errors.
+Process graph regeneration and validation passed at 13 workflows/265 nodes and
+all 13 graph unit tests passed. Camrui read-only inspection confirms migrations
+0000/0001 only, absent migration 0002/function, and runtime schema USAGE=false.
+No live schema, grants, identities, credentials, assignments or services were
+changed. M3.3 remains blocked on live deployment, an authorized assignment
+intake path, a commissioned worker and the external real knowledge provider;
+M4.1 remains in progress and M4.2 remains isolated. Next: complete full-suite,
+revision and CI gates, checkpoint evidence, then evaluate protected additive
+deployment without altering M1.1/runtime services.
+
+## 2026-10-11 UTC — RV-M4.1-GRANT-FULL-SUITE / migration expectation correction
+
+The first complete suite after adding authority migration 0002 found one stale
+idempotency assertion still expecting only migrations 0000 and 0001. Updated
+the test to assert all three migrations; the focused regression passed 1/1 and
+the complete PostgreSQL-backed suite then passed **150/150**, zero
+skips/errors/failures. Fixture cleanup found no `rvtest_*` schema or role and
+the isolated PostgreSQL cluster stopped cleanly. `compileall`, process graph
+(13 workflows/265 nodes), and controlled revision/predecessor audit passed.
+Evidence and artifact checksums:
+`evidence/checkouts/M4.1-DB-BOUNDARY/20261011T090500Z-exact-grant-worker-integration/`.
+Camrui was only read-only preflighted: the 0002 function remains absent and
+runtime schema USAGE remains false; no shared state or service changed. PR #21
+is open/draft and exact-head CI for these changes remains pending. The next
+safe step is exact-head CI, followed by protected backup/restore rehearsal and
+only then an additive deployment decision; M3.3 also requires assignment
+creation authorization, a commissioned worker, and the external real
+knowledge provider.

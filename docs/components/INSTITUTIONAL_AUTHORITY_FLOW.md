@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_FLOW.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.5
+File Revision: 1.0.6
 Purpose: Map root-local bootstrap, authorization, office state and recovery
 Authority: Deny when principal, credential, grant, or source state is uncertain
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -43,6 +43,11 @@ flowchart LR
     g_rv_institutional_authority_identity_and_grants_bootstrap_token_verify_6fd32a89["Verify persisted bearer authorizes exact bootstrap grant and only its digest is stored"]
     g_rv_institutional_authority_identity_and_grants_bootstrap_error_51c2980d[["Bootstrap outcome unavailable or secret persistence failed; retain protected token and fail closed"]]
     g_rv_institutional_authority_identity_and_grants_bootstrap_retry_6882465e["Resume with the same protected token after interruption"]
+    g_rv_institutional_authority_identity_and_grants_runtime_worker_registration_33ad4cb1(["Worker registration or a scoped worker action begins with a grant-bound credential"])
+    g_rv_institutional_authority_identity_and_grants_runtime_grant_check_6433bcd9{"Protected exact-grant function validates active credential, action, and exact scope"}
+    g_rv_institutional_authority_identity_and_grants_runtime_grant_allowed_24a31d10["Exact active grant allows this transaction-bound worker operation"]
+    g_rv_institutional_authority_identity_and_grants_runtime_grant_denied_1e6c02a9[["Missing, revoked, expired, wrong-action, or wrong-scope credential is denied"]]
+    g_rv_institutional_authority_identity_and_grants_runtime_grant_unavailable_15bb3150[["Protected grant function or PostgreSQL is unavailable; worker action fails closed"]]
   end
   g_rv_institutional_authority_identity_and_grants_migration_ledger_bootstrap_b3ae001f -->|Migration runner applies checksum-ledger bootstrap before registry migration| g_rv_institutional_authority_identity_and_grants_migration_ready_c4bb91b6
   g_rv_institutional_authority_identity_and_grants_bootstrap_a48d6fd3 -->|prerequisite: Trusted DB bootstrap requires reviewed schema| g_rv_institutional_authority_identity_and_grants_migration_ready_c4bb91b6
@@ -74,6 +79,14 @@ flowchart LR
   g_rv_institutional_authority_identity_and_grants_bootstrap_error_51c2980d -->|recovery_route: Preserve token file; investigate DB result| g_rv_institutional_authority_identity_and_grants_bootstrap_retry_6882465e
   g_rv_institutional_authority_identity_and_grants_bootstrap_retry_6882465e -->|Reuse existing token; never rotate on uncertain commit| g_rv_institutional_authority_identity_and_grants_bootstrap_token_persist_48d47baa
   g_rv_institutional_authority_identity_and_grants_bootstrap_token_verify_6fd32a89 -->|Initial authority verified| g_rv_institutional_authority_identity_and_grants_complete_b22cd8fd
+  g_rv_institutional_authority_identity_and_grants_runtime_worker_registration_33ad4cb1 -->|Check worker.register or the capability-mapped action and exact scope| g_rv_institutional_authority_identity_and_grants_runtime_grant_check_6433bcd9
+  g_rv_institutional_authority_identity_and_grants_runtime_grant_check_6433bcd9 -->|Active credential and exact grant match| g_rv_institutional_authority_identity_and_grants_runtime_grant_allowed_24a31d10
+  g_rv_institutional_authority_identity_and_grants_runtime_grant_check_6433bcd9 -->|diagnostic_branch: No exact active grant| g_rv_institutional_authority_identity_and_grants_runtime_grant_denied_1e6c02a9
+  g_rv_institutional_authority_identity_and_grants_runtime_grant_check_6433bcd9 -->|diagnostic_branch: Function or database unavailable| g_rv_institutional_authority_identity_and_grants_runtime_grant_unavailable_15bb3150
+  g_rv_institutional_authority_identity_and_grants_runtime_grant_allowed_24a31d10 --> g_rv_institutional_authority_identity_and_grants_authorized_action_492c71b2
+  g_rv_institutional_authority_identity_and_grants_runtime_grant_denied_1e6c02a9 --> g_rv_institutional_authority_identity_and_grants_deny_e8ae7e89
+  g_rv_institutional_authority_identity_and_grants_runtime_grant_unavailable_15bb3150 --> g_rv_institutional_authority_identity_and_grants_unavailable_ecf79c11
+  g_rv_institutional_authority_identity_and_grants_recover_dedfc857 -->|recovery_route: Revalidate the exact grant in the resumed operation| g_rv_institutional_authority_identity_and_grants_runtime_grant_check_6433bcd9
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

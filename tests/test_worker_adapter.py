@@ -2,13 +2,15 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.23
+# Revision: 1.0.27
 # Purpose: Verify scoped dispatch, fail-closed knowledge, independent outcomes, and recovery
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL test database
 # Authority: Creates and drops only unique rvtest_* schemas
 # Changed: 2026-10-10 UTC | RV-M2.4-001 | Verify knowledge timeout with synchronization instead of a brittle latency bound
+# Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-TEST-FIX | Give self-verification test its explicit verification grant
+# Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-REVOCATION | Deny registration without a grant and execution after revocation
 # Contracts: docs/development/M2.3-001_REVISION_RECORD.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -114,9 +116,13 @@ class WorkerAdapterTests(unittest.TestCase):
                          migrations_dir=root / "assignment_scheduler/migrations")
         apply_migrations(DSN, schema=self.schema,
                          migrations_dir=root / "worker_adapter/migrations")
+        apply_migrations(DSN, schema=self.schema,
+                         migrations_dir=root / "institutional_authority/migrations")
         self.ledger = PostgresLedger(DSN, schema=self.schema)
         from riverview_core.worker_adapter import PostgresWorkerAdapter
         self.worker = PostgresWorkerAdapter(DSN, schema=self.schema)
+        self.admin.execute("INSERT INTO institutional_principals(principal_id,principal_kind) "
+                           "VALUES ('steward:test','steward')")
         self.assignment = "worker-task-" + uuid4().hex
         self.worker_id = "worker-local-" + uuid4().hex
         self.scope = "grant:local-task"
@@ -140,10 +146,32 @@ class WorkerAdapterTests(unittest.TestCase):
         self.admin.close()
 
     def register(self, capabilities=None, scope=None):
-        return self.worker.register_worker(
-            self.worker_id,
-            capabilities or ["deterministic.sha256.v1"],
-            scope or self.scope)
+        return self.register_as(self.worker_id,
+                                capabilities or ["deterministic.sha256.v1"],
+                                scope or self.scope)
+
+    def register_as(self, worker_id, capabilities, scope):
+        token = __import__("secrets").token_urlsafe(32)
+        principal_id = "worker-principal:" + worker_id
+        digest = hashlib.sha256(token.encode("utf-8")).digest()
+        self.admin.execute(
+            "INSERT INTO institutional_principals(principal_id,principal_kind) VALUES (%s,'worker')",
+            (principal_id,))
+        self.admin.execute("""INSERT INTO principal_credentials
+            (credential_id,principal_id,credential_sha256) VALUES (%s,%s,%s)""",
+            (uuid4(), principal_id, digest))
+        actions = ["worker.register"]
+        if "deterministic.sha256.v1" in capabilities:
+            actions.append("assignment.execute")
+        if "assignment.verify.v1" in capabilities:
+            actions.append("assignment.verify")
+        for action in actions:
+            self.admin.execute("""INSERT INTO authority_grants
+                (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+                VALUES (%s,%s,%s,%s,'steward:test','rv.policy:worker-fixture.v1')""",
+                (f"test:{action}:{worker_id}", principal_id, action, scope))
+        return self.worker.register_worker(worker_id, capabilities, scope,
+                                           credential=token)
 
     def ready_assignment(self, *, scope=None, objective="objective:sha256"):
         assignment_id = "worker-cycle-" + uuid4().hex
@@ -221,7 +249,7 @@ class WorkerAdapterTests(unittest.TestCase):
         with self.assertRaises(WorkerAuthorizationError):
             self.worker.claim_next(self.worker_id, "wrong-token")
         other_id = "worker-other-" + uuid4().hex
-        other_token = self.worker.register_worker(
+        other_token = self.register_as(
             other_id, ["deterministic.sha256.v1"], "grant:other")
         with self.assertRaises(WorkerAuthorizationError):
             self.worker.execute_sha256(self.assignment, other_id, other_token,
@@ -234,6 +262,28 @@ class WorkerAdapterTests(unittest.TestCase):
                                actor_id="event-processor")
         scoped_claim = self.worker.claim_next(other_id, other_token, lease_seconds=30)
         self.assertEqual(scoped_claim["assignment"]["id"], other_assignment)
+
+    def test_missing_registration_grant_and_revoked_execution_grant_fail_closed(self):
+        import secrets
+        from riverview_core.worker_adapter import WorkerAuthorizationError
+
+        with self.assertRaises(WorkerAuthorizationError):
+            self.worker.register_worker(
+                "worker-ungranted-" + uuid4().hex,
+                ["deterministic.sha256.v1"], self.scope,
+                credential=secrets.token_urlsafe(32))
+        digest = hashlib.sha256(self.token.encode("utf-8")).digest()
+        self.admin.execute("UPDATE principal_credentials SET revoked_at=clock_timestamp() "
+                           "WHERE credential_sha256=%s", (digest,))
+        with self.assertRaises(WorkerAuthorizationError):
+            self.worker.execute_sha256(
+                self.assignment, self.worker_id, self.token,
+                self.lease["generation"], "revoked-action:" + uuid4().hex, "must not run")
+        with self.worker.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("SELECT count(*) AS attempts FROM worker_attempts WHERE assignment_id=%s",
+                        (self.assignment,))
+            self.assertEqual(cur.fetchone()["attempts"], 0)
 
     def test_interrupted_attempt_is_durably_visible_for_worker_loss_detection(self):
         token = self.token
@@ -304,7 +354,7 @@ class WorkerAdapterTests(unittest.TestCase):
 
         assignment_id = self.ready_assignment(objective="objective:external-effect")
         worker_id = "worker-crash-" + uuid4().hex
-        credential = self.worker.register_worker(
+        credential = self.register_as(
             worker_id, ["deterministic.sha256.v1"], self.scope)
         ctx = multiprocessing.get_context("fork")
         parent, child = ctx.Pipe(duplex=False)
@@ -372,7 +422,7 @@ class WorkerAdapterTests(unittest.TestCase):
                                    (attempt_id,)).fetchone()[0]
         self.assertEqual(len(saved.strip()), 64)
         verifier_id = "verifier-recovery-" + uuid4().hex
-        verifier_token = self.worker.register_worker(
+        verifier_token = self.register_as(
             verifier_id, ["assignment.verify.v1"], self.scope)
         from riverview_core.worker_adapter import DeterministicSha256Verifier
         decision = self.worker.verify_attempt(
@@ -449,7 +499,7 @@ class WorkerAdapterTests(unittest.TestCase):
             scope = f"grant:parallel:{index}"
             assignment_id = self.ready_assignment(scope=scope)
             worker_id = f"worker-parallel-{uuid4().hex}"
-            credential = self.worker.register_worker(worker_id,
+            credential = self.register_as(worker_id,
                           ["deterministic.sha256.v1"], scope)
             adapter = PostgresWorkerAdapter(DSN, schema=self.schema)
             workers.append((adapter, ContinuousWorker(
@@ -523,7 +573,7 @@ class WorkerAdapterTests(unittest.TestCase):
                                "await-verification:" + uuid4().hex,
                                actor_id=f"worker:{self.worker_id}")
         verifier_id = "verifier-" + uuid4().hex
-        credential = self.worker.register_worker(
+        credential = self.register_as(
             verifier_id, ["assignment.verify.v1"], self.scope)
         from riverview_core.worker_adapter.verifier import DeterministicSha256Verifier
         return outcome, verifier_id, credential, DeterministicSha256Verifier()
@@ -589,6 +639,11 @@ class WorkerAdapterTests(unittest.TestCase):
                 self.ledger._set_search_path(cur)
                 cur.execute("UPDATE worker_registry SET capabilities=capabilities || '[\"assignment.verify.v1\"]'::jsonb WHERE worker_id=%s",
                             (self.worker_id,))
+        self.admin.execute("""INSERT INTO authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES (%s,%s,'assignment.verify',%s,'steward:test','rv.policy:self-verification-test.v1')""",
+            ("test:self-verify:" + self.worker_id,
+             "worker-principal:" + self.worker_id, self.scope))
         from riverview_core.worker_adapter.verifier import DeterministicSha256Verifier
         with self.assertRaisesRegex(WorkerAuthorizationError, "cannot verify its own"):
             self.worker.verify_attempt(

@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:institutional-authority:identity-and-grants",
-  "graph_revision": "1.0.6",
+  "graph_revision": "1.0.9",
   "component_id": "INSTITUTIONAL-AUTHORITY",
   "workflow_id": "identity-and-grants.v1",
   "diagram_order": 1,
@@ -12,14 +12,19 @@
     "src/riverview_core/institutional_authority/db_boundary.py",
     "scripts/provision_authority_boundary.py",
     "tests/test_institutional_authority_boundary.py",
-    "scripts/bootstrap_authority_steward.py"
+    "scripts/bootstrap_authority_steward.py",
+    "src/riverview_core/institutional_authority/grants.py",
+    "src/riverview_core/institutional_authority/migrations/0002_exact_grant_authorization.sql",
+    "src/riverview_core/worker_adapter/adapter.py",
+    "tests/test_worker_adapter.py"
   ],
   "documentation_references": [
     "docs/components/INSTITUTIONAL_AUTHORITY.md",
     "docs/components/INSTITUTIONAL_AUTHORITY_FLOW.md",
     "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
     "docs/development/M4.1-001_REVISION_RECORD.md",
-    "process_graphs/README.md"
+    "process_graphs/README.md",
+    "docs/components/WORKER_ADAPTER.md"
   ],
   "verification_evidence": [],
   "nodes": [
@@ -349,6 +354,78 @@
         "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
       ],
       "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:runtime-worker-registration",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Worker registration or a scoped worker action begins with a grant-bound credential",
+      "source_references": [
+        "src/riverview_core/worker_adapter/adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Protected exact-grant function validates active credential, action, and exact scope",
+      "source_references": [
+        "src/riverview_core/institutional_authority/grants.py",
+        "src/riverview_core/institutional_authority/migrations/0002_exact_grant_authorization.sql"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:runtime-grant-allowed",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Exact active grant allows this transaction-bound worker operation",
+      "source_references": [
+        "src/riverview_core/worker_adapter/adapter.py",
+        "tests/test_worker_adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:runtime-grant-denied",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Missing, revoked, expired, wrong-action, or wrong-scope credential is denied",
+      "source_references": [
+        "src/riverview_core/institutional_authority/grants.py",
+        "tests/test_worker_adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:runtime-grant-unavailable",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Protected grant function or PostgreSQL is unavailable; worker action fails closed",
+      "source_references": [
+        "src/riverview_core/institutional_authority/grants.py",
+        "src/riverview_core/worker_adapter/adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
     }
   ],
   "edges": [
@@ -523,6 +600,51 @@
       "to": "rv:institutional-authority:identity-and-grants:complete",
       "type": "runtime_transition",
       "label": "Initial authority verified"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:runtime-worker-registration",
+      "to": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+      "type": "runtime_transition",
+      "label": "Check worker.register or the capability-mapped action and exact scope"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+      "to": "rv:institutional-authority:identity-and-grants:runtime-grant-allowed",
+      "type": "runtime_transition",
+      "label": "Active credential and exact grant match"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+      "to": "rv:institutional-authority:identity-and-grants:runtime-grant-denied",
+      "type": "diagnostic_branch",
+      "label": "No exact active grant"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+      "to": "rv:institutional-authority:identity-and-grants:runtime-grant-unavailable",
+      "type": "diagnostic_branch",
+      "label": "Function or database unavailable"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:runtime-grant-allowed",
+      "to": "rv:institutional-authority:identity-and-grants:authorized-action",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:runtime-grant-denied",
+      "to": "rv:institutional-authority:identity-and-grants:deny",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:runtime-grant-unavailable",
+      "to": "rv:institutional-authority:identity-and-grants:unavailable",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:recover",
+      "to": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+      "type": "recovery_route",
+      "label": "Revalidate the exact grant in the resumed operation"
     }
   ]
 }

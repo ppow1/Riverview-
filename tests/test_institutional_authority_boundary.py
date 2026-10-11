@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_institutional_authority_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.14
+# Revision: 1.0.17
 # Purpose: Verify isolated M4.1 ownership separation denies runtime SQL bypass
 # Execution Model: PostgreSQL integration test using unique rvtest schema and roles
 # Observability: Protected object owners, runtime denial, manager registry authorization
@@ -22,6 +22,9 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-PREFLIGHT-DIAGNOSTIC | Assert safe static target failures and SQLSTATE-only diagnostics
 # Changed: 2026-10-11 UTC | RV-M4.1-OWNER-SCHEMA-USAGE | Exercise manager FK checks while owner retains USAGE but not CREATE
 # Changed: 2026-10-11 UTC | RV-M4.1-APPLY-REQUIRED-DRY-RUN | Require preflight to detect missing owner schema USAGE before apply
+# Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT | Verify exact-grant function is the runtime's sole authority access
+# Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-FIX | Read default tuple rows by position
+# Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-TEST-FIX | Revoke only a separate test credential
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -209,12 +212,44 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
                          self.owner_role, self.schema, self.owner_role, self.schema))
             access = cur.fetchone()
         self.assertFalse(access["manager_is_owner"])
-        self.assertFalse(access["runtime_usage"])
+        self.assertTrue(access["runtime_usage"])
         self.assertFalse(access["runtime_create"])
         self.assertTrue(access["manager_usage"])
         self.assertFalse(access["manager_create"])
         self.assertTrue(access["owner_usage"])
         self.assertFalse(access["owner_create"])
+        from psycopg.errors import InsufficientPrivilege
+        digest = hashlib.sha256(self.worker_token.encode("utf-8")).digest()
+        check_sql = self.sql.SQL(
+            "SELECT principal_id,grant_id FROM {}.authorize_exact_grant(%s,%s,%s)"
+        ).format(self.sql.Identifier(self.schema))
+        with self.psycopg.connect(self.runtime_dsn) as runtime:
+            valid = runtime.execute(check_sql, (digest, "assignment.execute",
+                                                "assignment:boundary-test")).fetchone()
+            self.assertEqual(valid[0], "worker:boundary-test")
+            self.assertEqual(valid[1], "boundary-test-grant")
+            self.assertIsNone(runtime.execute(check_sql, (digest, "assignment.execute",
+                                                          "assignment:other")).fetchone())
+            self.assertIsNone(runtime.execute(check_sql, (digest, "assignment.verify",
+                                                          "assignment:boundary-test")).fetchone())
+            self.assertIsNone(runtime.execute(check_sql, (b"bad", "assignment.execute",
+                                                          "assignment:boundary-test")).fetchone())
+        with self.psycopg.connect(self.manager_dsn) as manager:
+            with self.assertRaises(InsufficientPrivilege):
+                manager.execute(check_sql, (digest, "assignment.execute",
+                                             "assignment:boundary-test")).fetchone()
+        revoked_digest = hashlib.sha256(secrets.token_bytes(32)).digest()
+        self.admin.execute(self.sql.SQL(
+            "INSERT INTO {}.principal_credentials(credential_id,principal_id,credential_sha256) "
+            "VALUES (%s,'worker:boundary-test',%s)"
+        ).format(self.sql.Identifier(self.schema)), (uuid4(), revoked_digest))
+        self.admin.execute(self.sql.SQL(
+            "UPDATE {}.principal_credentials SET revoked_at=clock_timestamp() "
+            "WHERE credential_sha256=%s"
+        ).format(self.sql.Identifier(self.schema)), (revoked_digest,))
+        with self.psycopg.connect(self.runtime_dsn) as runtime:
+            self.assertIsNone(runtime.execute(check_sql, (revoked_digest, "assignment.execute",
+                                                          "assignment:boundary-test")).fetchone())
         self.admin.execute(self.sql.SQL("GRANT {} TO {}").format(
             self.sql.Identifier(self.owner_role), self.sql.Identifier(self.manager_role)))
         with self.assertRaisesRegex(BoundaryPreflightError, "manager role can assume"):

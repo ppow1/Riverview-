@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/process_graph.py
 # Component: RV-PROCESS-GRAPH
-# Revision: 1.0.5
+# Revision: 1.0.7
 # Purpose: Validate canonical workflow graphs and generate synchronized views
 # Execution Model: Request-driven developer utility and CI check
 # Observability: Structured validation errors and generated graph inventory
@@ -10,6 +10,8 @@
 # Authority: Reads repository graph data; writes only registered generated views
 # Changed: 2026-10-10 UTC | RV-M2.3-001 | Avoid trailing whitespace in generated graph heading
 # Changed: 2026-10-11 UTC | RV-GRAPH-FILE-REVISION-FIX | Increment generated File Revision metadata as well as Document Revision headings
+# Changed: 2026-10-11 UTC | RV-GRAPH-SIDECAR-INCREMENT | Increment sidecar revisions when canonical JSON graph/schema bytes change
+# Changed: 2026-10-11 UTC | RV-GRAPH-GENERATE-SOURCE-CHECK | Permit regeneration only for backed-up canonical JSON edits and enforce predecessor presence
 # Contracts: process_graphs/README.md; process_graphs/schema/riverview-process-graph.schema.json
 # Tests: tests/test_process_graph.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -128,11 +130,35 @@ def validate_graphs(graphs):
     return graphs, nodes
 
 
-def load_and_validate():
-    validate_json_sidecar(SCHEMA_PATH)
+def require_source_predecessor(path):
+    """Allow a changed canonical JSON input only with its recorded predecessor."""
+    rel = path.relative_to(ROOT).as_posix()
+    manifest = read_json(REVISION_MANIFEST)
+    entry = manifest.get("files", {}).get(rel)
+    if entry is None:
+        if path.exists():
+            raise GraphError(f"canonical JSON has no revision sidecar entry: {rel}")
+        return
+    digest = __import__("hashlib").sha256(path.read_bytes()).hexdigest()
+    if digest == entry.get("sha256"):
+        return
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import revision_control
+    if not revision_control.verified_predecessor(ROOT, rel, entry):
+        raise GraphError(f"canonical JSON predecessor backup is missing or invalid: {rel}")
+
+
+def load_and_validate(*, verify_sidecars=True):
+    if verify_sidecars:
+        validate_json_sidecar(SCHEMA_PATH)
+    else:
+        require_source_predecessor(SCHEMA_PATH)
     graphs = [(path, read_json(path)) for path in graph_paths()]
     for path, _ in graphs:
-        validate_json_sidecar(path)
+        if verify_sidecars:
+            validate_json_sidecar(path)
+        else:
+            require_source_predecessor(path)
     return validate_graphs(graphs)
 
 
@@ -229,6 +255,18 @@ def bump(value):
     return f"{major}.{minor}.{patch + 1}"
 
 
+def record_json_manifest_entry(manifest, rel, content):
+    """Record a controlled JSON file and increment its sidecar on byte changes."""
+    digest = __import__("hashlib").sha256(content).hexdigest()
+    entry = manifest["files"].get(rel)
+    if entry is None:
+        entry = {"revision": "1.0.0"}
+        manifest["files"][rel] = entry
+    elif entry.get("sha256") and entry["sha256"] != digest:
+        entry["revision"] = bump(entry["revision"])
+    entry.update({"path": rel, "sha256": digest, "size_bytes": len(content)})
+
+
 def revision_backup(path, task):
     sys.path.insert(0, str(ROOT / "scripts"))
     import revision_control
@@ -309,7 +347,7 @@ def diagram_views(graphs):
 
 
 def generate(check=False):
-    graphs, _ = load_and_validate()
+    graphs, _ = load_and_validate(verify_sidecars=check)
     aggregate_data = aggregate(graphs)
     markdown = diagram_views(graphs)
     master_body = aggregate_mermaid(graphs)
@@ -354,11 +392,8 @@ def generate(check=False):
     tracked_json = [SCHEMA_PATH, *graph_paths(), MASTER_JSON]
     for path in tracked_json:
         rel = path.relative_to(ROOT).as_posix()
-        if rel not in manifest["files"]:
-            manifest["files"][rel] = {"revision": "1.0.0"}
         content = path.read_bytes()
-        manifest["files"][rel].update({"path": rel, "sha256": __import__("hashlib").sha256(content).hexdigest(),
-                                        "size_bytes": len(content)})
+        record_json_manifest_entry(manifest, rel, content)
     if ".riverview-revisions.json" not in manifest["files"]:
         manifest["files"][".riverview-revisions.json"] = {"revision": manifest["manifest_revision"]}
     else:

@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.8
-# Purpose: Authenticate a scoped local worker and persist deterministic attempts/results
+# Revision: 1.0.10
+# Purpose: Authenticate workers and enforce exact institutional grants for persisted attempts
 # Execution Model: Request-driven local task execution with PostgreSQL durability
 # Observability: Worker identity, capability, attempt outcome, and result digest
 # Dependencies: Python 3.10+; Psycopg 3; M1.2 ledger and M1.4 assignment lease
 # Authority: No arbitrary commands, shell execution, or external effects
 # Changed: 2026-10-10 UTC | RV-M2.3-001 | Persist execution intent before worker actions
+# Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-FIX | Use one exact institutional credential at each worker action boundary
 # Contracts: docs/components/WORKER_ADAPTER.md; docs/architecture/CORE_CONTRACT.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -18,13 +19,14 @@
 import hashlib
 import hmac
 import json
-import secrets
 from uuid import uuid4
 
 from psycopg.rows import dict_row
 
 from ..postgres_ledger import PostgresLedger
 from ..assignment_scheduler import PostgresAssignmentScheduler
+from ..institutional_authority import (ExactGrantAuthorizer,
+                                       GrantCheckUnavailable, GrantDenied)
 from .verifier import VerificationResult, VerificationStatus
 
 
@@ -50,33 +52,48 @@ class PostgresWorkerAdapter:
     SHA256_CAPABILITY = "deterministic.sha256.v1"
     VERIFICATION_CAPABILITY = "assignment.verify.v1"
 
-    def __init__(self, dsn, *, schema="public"):
+    def __init__(self, dsn, *, schema="public", authority_schema=None):
         self.dsn = dsn
         self.ledger = PostgresLedger(dsn, schema=schema)
         self.scheduler = PostgresAssignmentScheduler(dsn, schema=schema)
         self.schema = schema
+        self.authorizer = ExactGrantAuthorizer(authority_schema or schema)
 
     def close(self):
         self.scheduler.close()
         self.ledger.close()
 
-    def register_worker(self, worker_id, capabilities, scope_ref):
-        """Create a scoped worker and return its one-time bearer credential."""
+    def register_worker(self, worker_id, capabilities, scope_ref, *, credential=None):
+        """Register a worker only with a Steward-issued exact registration grant.
+
+        The supplied credential is returned unchanged and stored only as a
+        digest. It must be issued for this institutional principal and scope.
+        """
         if not worker_id or not scope_ref:
             raise ValueError("worker_id and scope_ref are required")
         caps = sorted(set(capabilities or []))
         if not caps or any(not isinstance(cap, str) or not cap.strip() for cap in caps):
             raise ValueError("at least one non-empty capability is required")
-        token = secrets.token_urlsafe(32)
-        digest = hashlib.sha256(token.encode("utf-8")).digest()
+        if not isinstance(credential, str) or len(credential) < 32:
+            raise WorkerAuthorizationError("a grant-bound worker credential is required")
+        digest = hashlib.sha256(credential.encode("utf-8")).digest()
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
+                self._require_grant(cur, credential, "worker.register", scope_ref)
                 cur.execute("""INSERT INTO worker_registry
                     (worker_id,credential_sha256,capabilities,scope_ref)
                     VALUES (%s,%s,%s,%s)""",
                     (worker_id, digest, json.dumps(caps), scope_ref))
-        return token
+        return credential
+
+    def _require_grant(self, cur, credential, action, scope_ref):
+        try:
+            return self.authorizer.require(cur, credential, action, scope_ref)
+        except GrantDenied as exc:
+            raise WorkerAuthorizationError(str(exc)) from None
+        except GrantCheckUnavailable:
+            raise WorkerAdapterError("institutional authority registry is unavailable") from None
 
     def _authenticated_worker(self, cur, worker_id, credential, capability):
         if not isinstance(credential, str) or not credential:
@@ -91,6 +108,13 @@ class PostgresWorkerAdapter:
             raise WorkerAuthorizationError("worker is inactive")
         if capability not in row["capabilities"]:
             raise WorkerAuthorizationError("worker capability is not registered")
+        if capability == self.VERIFICATION_CAPABILITY:
+            action = "assignment.verify"
+        elif capability == self.SHA256_CAPABILITY:
+            action = "assignment.execute"
+        else:
+            raise WorkerAuthorizationError("capability has no authority action mapping")
+        self._require_grant(cur, credential, action, row["scope_ref"])
         return row["scope_ref"]
 
     def _authorized_worker(self, cur, worker_id, credential, capability, authority_ref):

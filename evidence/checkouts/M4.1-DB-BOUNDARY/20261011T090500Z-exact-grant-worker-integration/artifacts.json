@@ -1,0 +1,71 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M4.1-GRANT-ENFORCEMENT",
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "source_commit": "c9ab1e6048146006d13770f375fccfd2b33bc8f2",
+  "working_tree_source_sha256": "91723f265f37302f8ec13c82b741b8b64cf4c101a6fc938fa9a05a2bf5da7b04",
+  "target": "Isolated PostgreSQL 16.15 integration cluster; live Camrui state read-only preflight",
+  "decision": "Exact-grant enforcement passes isolated testing; live additive migration and runtime ACL remain undeployed",
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "4cee7f544110d054ba736aae953d4a0e197b5998205bb07d45230a641a84cb20",
+      "size_bytes": 803
+    },
+    "compileall.txt": {
+      "path": "compileall.txt",
+      "revision": "1.0.0",
+      "sha256": "138dda0dcc91460b5c0bfbc94a7cdd3779f84786471c7915238274938a1426b0",
+      "size_bytes": 43
+    },
+    "fixture-cleanup.txt": {
+      "path": "fixture-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "7ae69cc6508255c5ab4455f4ba6156e1a6f1b1df9780fde1ca30e03403ce6615",
+      "size_bytes": 136
+    },
+    "focused-suite.log": {
+      "path": "focused-suite.log",
+      "revision": "1.0.0",
+      "sha256": "821204e2eb455a56a4a495b485dfa89bff563a0d92bf18cf3c71e2306383b9bb",
+      "size_bytes": 287
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "ba69d9165a11681146fe134e65a534c9e53a6d7e3c15355f50c6258ac2dcdda1",
+      "size_bytes": 25148
+    },
+    "live-preflight.txt": {
+      "path": "live-preflight.txt",
+      "revision": "1.0.0",
+      "sha256": "f83bd43b8a7261159dd0636ec4f34f9ac0eaac5a0c03ff5e32f876c58eee211b",
+      "size_bytes": 274
+    },
+    "migration-regression.log": {
+      "path": "migration-regression.log",
+      "revision": "1.0.0",
+      "sha256": "9e64087cdc31db2de4132f7e6899f48e2bcab9625afdcf73cab04a2c7d1b8056",
+      "size_bytes": 365
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "8c4416114d451cfb3fa402e3707f89605d86c209c095a517c954160628152ee6",
+      "size_bytes": 55
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "source-files.sha256": {
+      "path": "source-files.sha256",
+      "revision": "1.0.0",
+      "sha256": "91723f265f37302f8ec13c82b741b8b64cf4c101a6fc938fa9a05a2bf5da7b04",
+      "size_bytes": 2500
+    }
+  }
+}

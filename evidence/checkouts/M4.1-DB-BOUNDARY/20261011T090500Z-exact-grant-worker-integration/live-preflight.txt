@@ -1,0 +1,1 @@
+Read-only Camrui authority state (2026-10-11): riverview_authority schema_migrations contains 0000_authority_migration_ledger and 0001_institutional_authority only; authorize_exact_grant(bytea,text,text) absent; riverview_core schema USAGE=false. No live changes were made.
