@@ -1,0 +1,46 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M4.1-DB-RESTORE-COOKBOOK",
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "source_commit": "e314952c5b517a8bd3188d45487f9b12dc567ae3",
+  "target": "Camrui source route test and GitHub exact-head CI",
+  "decision": "Docs route focused test PASS; full exact-head CI PASS; no live dashboard redeployment",
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "6fedd41013b976c68c0b1c86ba01a3412725eca6550bb8827e5aa238a8261892",
+      "size_bytes": 997
+    },
+    "compileall.log": {
+      "path": "compileall.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "dashboard-doc-route.log": {
+      "path": "dashboard-doc-route.log",
+      "revision": "1.0.0",
+      "sha256": "8c21a8444a5e024e47491e9f9c90e40e874f196446071cb59115fbb564c84b94",
+      "size_bytes": 225
+    },
+    "github-ci.json": {
+      "path": "github-ci.json",
+      "revision": "1.0.0",
+      "sha256": "f0ede92d91b2c54132e3793c2e2af564306cb88d37bcd4debfc9d0fd14c37599",
+      "size_bytes": 523
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "880df8d0d37d404b02c2b8750a027b028d90790143d0e3db351d92c3932a9530",
+      "size_bytes": 55
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    }
+  }
+}
