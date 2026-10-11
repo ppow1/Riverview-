@@ -1,0 +1,58 @@
+{
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "4777a3133840638bd81a20952ffcfee89af85c4783dafc018460a0f7f87738a5",
+      "size_bytes": 3132
+    },
+    "diff-check.txt": {
+      "path": "diff-check.txt",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "6e89967e2c5b7bef40d0deed93d7118c6204eb7321ad23a91d2263f310c824b6",
+      "size_bytes": 23893
+    },
+    "live-service-status.txt": {
+      "path": "live-service-status.txt",
+      "revision": "1.0.0",
+      "sha256": "7cf2f1c2beefeb984e485857763da5a9b5e8079291c9f5e110d3bbf4d8e10704",
+      "size_bytes": 42
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "7ef484a32e77e50a8ec660890e84895ae3184316d32fde9057eb65322a125b37",
+      "size_bytes": 55
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "test-infrastructure-cleanup.txt": {
+      "path": "test-infrastructure-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "4b963243ed5540b919cedae43793a0c322b0ade20f897f07777c1161807f52d1",
+      "size_bytes": 92
+    },
+    "test-schema-cleanup.txt": {
+      "path": "test-schema-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "52f96c26a39ed25108a6db43d6e11c6051eba8a498a5baab1891adfa7ac7c262",
+      "size_bytes": 4
+    }
+  },
+  "component_id": "CME-FIRST-VERTICAL-SLICE",
+  "decision": "PASS regression and record correction; M3.3 operational milestone remains blocked",
+  "manifest_revision": "1.0.0",
+  "source_commit": "a8f0d6276b45bf51f523825527f5f9e3c80cd250",
+  "target": "Camrui; disposable socket-only PostgreSQL 16.15 integration cluster; no shared application writes",
+  "task_id": "RV-OVERNIGHT-20261011-M33-TEST-EVIDENCE"
+}

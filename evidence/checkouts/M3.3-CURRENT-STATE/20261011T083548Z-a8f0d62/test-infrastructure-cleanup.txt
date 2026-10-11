@@ -1,0 +1,3 @@
+system_test_database=removed
+isolated_cluster=stopped_and_removed
+cleanup_verification=PASS

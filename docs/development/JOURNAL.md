@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.69
+**Document Revision:** 1.0.72
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -1146,3 +1146,19 @@ items, 21 documentation fetches returning 200, rendered safe Markdown and no
 browser errors. Full results are retained in the linked deployment evidence.
 No database, worker, credential, or other service changes occurred. PR #19 is
 open/unmerged; M3.3 live authority/provider commissioning remains outstanding.
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-LIVE-DOCS-DEPLOYMENT / observed failure, live release
+
+Added the observed PostgreSQL backup-path permission failure and verified safe recovery to the M3.3 operations guide without weakening `/var/lib/riverview` permissions. Corrected the top-level health commands to include all six current services, including the notification dispatcher. The renderer check passed; exact-head PR #19 CI passed on `c85faf9180a934e61d4e382a98687a09fbfaf0f3` (run 38124689669) and final source `a8f0d6276b45bf51f523825527f5f9e3c80cd250` (run 38124873054); each CI run includes the full suite, graph and controlled revision checks.
+
+Built and verified a full-SHA package (SHA-256 `739e38068929f16a9bffcf165a0fec0e4a4587ee64987105313be8da3c9d607b`; 1,279 manifest entries). Deployed dashboard-only release `a8f0d6276b45bf51f523825527f5f9e3c80cd250`, retaining previous release `c85faf9180a934e61d4e382a98687a09fbfaf0f3` and the root-protected package archive for rollback. Dashboard returned active/running, zero restarts, loopback 8766; PostgreSQL, event processor, monitor, notification dispatcher and SSH stayed active. Firefox 156.0.1 showed the real completed M3.1 assignment, healthy/current projection and CME, six attention items and one independent verification; 21 linked docs returned HTTP 200, with no unsafe links, scripts or browser errors. Workflow view showed 12 nodes, 11 edges, one decision, and live execution position correctly unknown. No database, credentials, assignments or non-dashboard units changed. Evidence: `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T082940Z-a8f0d62/`.
+
+PR #19 remains draft/open/unmerged; no M3.3 or later milestone acceptance is claimed. The live M4.1 authority registry/bootstrap still lacks a consuming resident/worker service; real institutional knowledge and Grace operational capability remain outstanding.
+
+## 2026-10-11 UTC — RV-OVERNIGHT-20261011-M33-CURRENT-STATE / authority status correction
+
+Reconciled the active M3.3 blocker and roadmap after scoped M4.1 live authority-boundary commissioning. The dedicated authority schema, root-local one-time Steward bootstrap, three scoped grants, access-denial checks, protected backup/restore, and service-preservation evidence are present at source commit `c9ab1e6048146006d13770f375fccfd2b33bc8f2`, PR #21, under `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T081700Z-live-bootstrap/`. This does not provide application authorization: worker and assignment paths do not consume the grant registry. The live repository provider is also not configured, and no general institutional provider is available. M3.3 remains blocked at those application-level integration and live commissioning requirements. Updated `docs/ROADMAP.md` to revision 1.1.16 and `docs/development/M3.3-001_REVISION_RECORD.md` to revision 1.0.7; historical pre-M4.1 observations remain marked as historical. No live database, credential, assignment, worker, or service was changed by this documentation correction. Exact graph, revision, suite, PR-head CI, and dashboard-doc rendering checks are pending.
+
+## 2026-10-11 UTC — RV-OVERNIGHT-20261011-M33-TEST-EVIDENCE / full PostgreSQL suite
+
+The canonical command `PYTHONPATH=src RIVERVIEW_TEST_PG_DSN=postgresql://admin1@/postgres?host=/tmp/riverview-test-pg-overnight/socket&port=55439 python3 -m unittest discover -s tests -v` passed **143/143**, with zero failures, errors or skips, against a new socket-only PostgreSQL 16.15 cluster initialized solely for this run. Database and role/schema cleanup checks both returned zero; the cluster was stopped and its generated data directory removed. The first attempt ran Python as OS user `postgres`; two pinned-provider tests errored because that account could not read the worktree's Git metadata. The corrected run executes as `admin1` against an isolated cluster, not the shared application database. A broad `pytest` probe also tried to collect an archived historical test outside `tests/` and failed import; the repository CI's documented `unittest discover -s tests` command is authoritative and passed. Graph validation passed (13 workflows / 235 nodes), controlled revision audit passed with zero findings, and `git diff --check` passed. Logs and exact hashes are in `evidence/checkouts/M3.3-CURRENT-STATE/20261011T083548Z-a8f0d62/`. PR #19 CI for the preceding source commit passed, but exact-head CI for this documentation checkpoint remains pending. No deployment or shared service/data change occurred.

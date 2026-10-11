@@ -1,0 +1,17 @@
+active_release=/opt/riverview-status-dashboard/releases/a8f0d6276b45bf51f523825527f5f9e3c80cd250
+lrwxrwxrwx 777 root:root /opt/riverview-status-dashboard/current
+-r--r--r-- 444 root:root /opt/riverview-status-dashboard/current/docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md
+6fb11ab264ccbba74d0213f4e3e8d00eba8ca847fde046757d7906cc18cf88a0  /etc/systemd/system/riverview-status-dashboard.service
+MainPID=330665
+NRestarts=0
+ExecMainStatus=0
+ActiveState=active
+SubState=running
+State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+LISTEN 0      64         127.0.0.1:8766      0.0.0.0:*          
+active
+active
+active
+active
+active
+active

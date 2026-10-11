@@ -1,0 +1,51 @@
+{
+  "component_id": "RIVERVIEW-OPERATIONS / STEWARD-DASHBOARD",
+  "deployed_commit": "a8f0d6276b45bf51f523825527f5f9e3c80cd250",
+  "evidence_bundle": "RV-OPS-COOKBOOK-LIVE-DOCS-DEPLOYMENT",
+  "files": {
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "67935db02b339d0ec3bd7d455af8e1426386b76e37930977637312c75039c153",
+      "size_bytes": 4060
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "7bdc75e7a0f53fe937a0fb40438dd428711f8928bc3562f3fb1d7d74b1b524e7",
+      "size_bytes": 2981
+    },
+    "cookbook-view.png": {
+      "path": "cookbook-view.png",
+      "revision": "1.0.0",
+      "sha256": "b4d1b0ba156ede997a0db9bb65963857fea9d5524e4d01b245f4aad8d9a01b52",
+      "size_bytes": 174150
+    },
+    "deployment.json": {
+      "path": "deployment.json",
+      "revision": "1.0.0",
+      "sha256": "b40954383bc0e11f15d8a6d0d426d65c3db186f9a7b47fb5b4d81470c5b2e159",
+      "size_bytes": 1414
+    },
+    "package-verification.json": {
+      "path": "package-verification.json",
+      "revision": "1.0.0",
+      "sha256": "53cd1e315b537002851866b6e835c4ef2e042e12bd2f00dfea6f5fb08c712c3c",
+      "size_bytes": 878
+    },
+    "postdeployment-service-state.txt": {
+      "path": "postdeployment-service-state.txt",
+      "revision": "1.0.0",
+      "sha256": "ff318937c9b91a4207836d2bc705c5847bd58c42794eca2ea7a17e10345f461c",
+      "size_bytes": 649
+    },
+    "workflow-view.png": {
+      "path": "workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "5dccf81340f5dfabd32a238e0e20486d689d0e33ad69639baa559c49461f10f6",
+      "size_bytes": 213231
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "source_commit": "a8f0d6276b45bf51f523825527f5f9e3c80cd250"
+}
