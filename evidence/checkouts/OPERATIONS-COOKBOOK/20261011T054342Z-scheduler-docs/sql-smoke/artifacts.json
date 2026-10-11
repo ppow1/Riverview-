@@ -1,0 +1,58 @@
+{
+  "artifacts": {
+    "fixture-teardown.txt": {
+      "path": "fixture-teardown.txt",
+      "revision": "1.0.0",
+      "sha256": "0e3407833f770489abcbb269a41310c1d48828bfb36e969459a00025fae06940",
+      "size_bytes": 39
+    },
+    "initdb.log": {
+      "path": "initdb.log",
+      "revision": "1.0.0",
+      "sha256": "0a1cf8f67a6d812de2d4b6a1042ca579b8f654d7aa7871477c8bb969c1a312c8",
+      "size_bytes": 862
+    },
+    "lease-query.txt": {
+      "path": "lease-query.txt",
+      "revision": "1.0.0",
+      "sha256": "3ad17e1dcbb41af5a2abeec7ecf28022e598088dd1885dd0054943f910d4a9c7",
+      "size_bytes": 1439
+    },
+    "migration-query.txt": {
+      "path": "migration-query.txt",
+      "revision": "1.0.0",
+      "sha256": "6a6a6870a7876fd1ba93605e754602e30c3b9645b7b6477eef689c127b648bdd",
+      "size_bytes": 1067
+    },
+    "private-cluster-path.txt": {
+      "path": "private-cluster-path.txt",
+      "revision": "1.0.0",
+      "sha256": "f8ac3f10ac8e8658e1902e68598ff0b5e345f20cb049a45e1c9676139660c04e",
+      "size_bytes": 33
+    },
+    "server.log": {
+      "path": "server.log",
+      "revision": "1.0.0",
+      "sha256": "738864ce7dbc3cc09b795efc0d9a1fac9b595d731834f90fc53ca20213173a74",
+      "size_bytes": 1288
+    },
+    "start.log": {
+      "path": "start.log",
+      "revision": "1.0.0",
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "size_bytes": 52
+    },
+    "stop.log": {
+      "path": "stop.log",
+      "revision": "1.0.0",
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d",
+      "size_bytes": 56
+    }
+  },
+  "component_id": "ASSIGNMENT-SCHEDULER",
+  "decision": "PASS for exact read-only query smoke on a disposable PostgreSQL schema; fixture explicitly removed",
+  "manifest_revision": "1.0.0",
+  "source_commit": "ffea38e10c3205318d6fa040f2525629e6d08234",
+  "target": "admin1-Default-string Ubuntu 24.04.3; isolated PostgreSQL 16 plus read-only local service health",
+  "task_id": "RV-OPS-COOKBOOK-SCHEDULER-DIAGNOSTICS"
+}
