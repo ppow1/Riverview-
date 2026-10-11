@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/projection.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.1
+# Revision: 1.0.3
 # Purpose: Project authoritative PostgreSQL/CME state into bounded safe views
 # Execution Model: Request-driven read-only API dependency
 # Observability: Versioned status, assignment, event, attention and snapshot JSON
 # Dependencies: Python 3.10+; Psycopg 3; M1.2/M1.4/M2.1-M2.4 schema
 # Authority: SELECT-only projection; never mutates CME or assignment state
-# Changed: 2026-10-10 UTC | RV-M3.1-001 | Add individual bounded worker health projections
+# Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-ISOLATION | Include durable dispatch/verifier failure summaries
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
 # History: Git and revision/backup manifest
@@ -85,7 +85,7 @@ class DashboardProjection:
             db = cur.fetchone()
             names = ("schema_migrations", "assignments", "events", "assignment_leases",
                      "worker_registry", "worker_attempts", "verification_records",
-                     "cme_monitor_health", "cme_monitor_events")
+                     "cme_monitor_health", "cme_monitor_events", "grace_execution_health")
             rel = self._relations(cur, [f"{self.schema}.{name}" for name in names])
             present = {name: rel[f"{self.schema}.{name}"] for name in names}
             base_ready = present["assignments"] and present["events"] and present["schema_migrations"]
@@ -103,6 +103,7 @@ class DashboardProjection:
                 "assignment_counts": {},
                 "assignments_total": 0,
                 "cme": {"status": "not_initialized", "source": "cme_monitor_health"},
+                "grace_execution": {"status": "not_initialized", "source": "grace_execution_health"},
                 "workers": {"status": "not_initialized", "source": "assignment_leases"},
                 "verification": {"status": "not_initialized" if not present["verification_records"] else "available"},
                 "relations": {name: bool(value) for name, value in present.items()},
@@ -157,6 +158,29 @@ class DashboardProjection:
                         "workers_enabled": health["workers_enabled"],
                         "source": "cme_monitor_health",
                     }
+            if present["grace_execution_health"]:
+                cur.execute("""SELECT instance_id,status,last_heartbeat_at,last_cycle_at,
+                    last_error_type,cycles_completed FROM grace_execution_health
+                    WHERE service_id='grace.execution.v1'""")
+                grace = cur.fetchone()
+                if grace:
+                    cur.execute("SELECT extract(epoch FROM (clock_timestamp() - %s)) AS age",
+                                (grace["last_heartbeat_at"],))
+                    age = float(cur.fetchone()["age"])
+                    grace_status = grace["status"]
+                    if age < 0:
+                        grace_status = "unverified"
+                    elif grace_status == "healthy" and age > self.heartbeat_stale_seconds:
+                        grace_status = "stale"
+                    result["grace_execution"] = {
+                        "status": grace_status, "service_id": "grace.execution.v1",
+                        "instance_id": str(grace["instance_id"]),
+                        "last_heartbeat_at": self._iso(grace["last_heartbeat_at"]),
+                        "heartbeat_age_seconds": round(age, 3),
+                        "last_cycle_at": self._iso(grace["last_cycle_at"]),
+                        "last_error_type": grace["last_error_type"],
+                        "cycles_completed": grace["cycles_completed"],
+                        "source": "grace_execution_health"}
             if present["worker_registry"] and present["assignment_leases"]:
                 cur.execute("""WITH worker_rows AS (
                                SELECT w.worker_id, w.active, max(l.heartbeat_at) AS heartbeat_at,
@@ -216,6 +240,7 @@ class DashboardProjection:
                 "projection_status": "unavailable", "freshness": "unavailable",
                 "unavailable_reason": str(exc), "event_cursor": None, "assignment_counts": {},
                 "assignments_total": 0, "cme": {"status": "unavailable"},
+                "grace_execution": {"status": "unavailable"},
                 "workers": {"status": "unavailable"}, "verification": {"status": "unavailable"},
                 "diagnostics": {"component": "docs/components/STATUS_DASHBOARD_COOKBOOK.md"},
             }
@@ -441,6 +466,70 @@ class DashboardProjection:
                               "failure_type": failure_type if isinstance(failure_type, str) and
                                   _SAFE_CODE.fullmatch(failure_type) else None})
             return {"status": "available", "items": items, "limit": limit}
+        return self._read(query)
+
+    def objectives(self, *, limit: int = 25, objective_id: str | None = None):
+        """Read bounded objective, work-order, artifact and verification summaries."""
+        limit = self._page_limit(limit)
+        def query(cur):
+            present = self._relations(cur, [f"{self.schema}.grace_objectives"])
+            if not next(iter(present.values())):
+                return {"schema_version": "rv.dashboard.objectives.v1",
+                        "status": "not_initialized", "items": [], "limit": limit}
+            cur.execute("""SELECT o.objective_id,o.request,o.scope_ref,o.submitter_id,
+                    o.acceptance_criteria,o.status,o.assignment_id,o.source_revision,
+                    o.source_sha256,o.revision,o.created_at,o.updated_at,
+                    a.state AS assignment_state,wa.attempt_id,wr.result AS artifact,
+                    wr.result_sha256,vr.decision AS verification_decision,
+                    vr.verification_id,vr.verifier_revision,de.failure_count,
+                    de.last_failure_at,ve.failure_count AS verification_failure_count,
+                    ve.last_failure_at AS last_verification_failure_at
+                FROM grace_objectives o
+                LEFT JOIN assignments a ON a.id=o.assignment_id
+                LEFT JOIN LATERAL (SELECT attempt_id FROM worker_attempts x
+                    WHERE x.assignment_id=a.id ORDER BY x.started_at DESC LIMIT 1) wa ON true
+                LEFT JOIN worker_results wr ON wr.attempt_id=wa.attempt_id
+                LEFT JOIN LATERAL (SELECT verification_id,decision,verifier_revision
+                    FROM verification_records v WHERE v.assignment_id=a.id
+                    ORDER BY v.verification_id DESC LIMIT 1) vr ON true
+                LEFT JOIN LATERAL (SELECT count(*) AS failure_count,max(occurred_at) AS last_failure_at
+                    FROM grace_objective_events e WHERE e.objective_id=o.objective_id
+                      AND e.event_type='execution.dispatch_failed') de ON true
+                LEFT JOIN LATERAL (SELECT count(*) AS failure_count,max(occurred_at) AS last_failure_at
+                    FROM grace_objective_events e WHERE e.objective_id=o.objective_id
+                      AND e.event_type='execution.verification_failed') ve ON true
+                WHERE (%s::text IS NULL OR o.objective_id=%s)
+                ORDER BY o.updated_at DESC,o.objective_id LIMIT %s""",
+                (objective_id, objective_id, limit))
+            items=[]
+            for row in cur.fetchall():
+                artifact = row["artifact"] if isinstance(row["artifact"], dict) else None
+                items.append({"objective_id": row["objective_id"],
+                    "request": str(row["request"])[:512], "scope_ref": row["scope_ref"],
+                    "submitter_id": row["submitter_id"],
+                    "acceptance_criteria": row["acceptance_criteria"],
+                    "status": row["status"], "assignment_id": row["assignment_id"],
+                    "assignment_state": row["assignment_state"],
+                    "attempt_id": str(row["attempt_id"]) if row["attempt_id"] else None,
+                    "artifact": ({"sha256": row["result_sha256"],
+                                  "reference": artifact.get("artifact_name"),
+                                  "status": artifact.get("status")}
+                                 if artifact else None),
+                    "verification": ({"decision": row["verification_decision"],
+                                      "verification_id": str(row["verification_id"]),
+                                      "verifier_revision": row["verifier_revision"]}
+                                     if row["verification_decision"] else None),
+                    "dispatch_failures": int(row["failure_count"] or 0),
+                    "last_dispatch_failure_at": self._iso(row["last_failure_at"]),
+                    "verification_failures": int(row["verification_failure_count"] or 0),
+                    "last_verification_failure_at": self._iso(row["last_verification_failure_at"]),
+                    "source_revision": row["source_revision"],
+                    "source_sha256": row["source_sha256"], "revision": row["revision"],
+                    "created_at": self._iso(row["created_at"]),
+                    "updated_at": self._iso(row["updated_at"])})
+            return {"schema_version": "rv.dashboard.objectives.v1", "status": "available",
+                    "observed_at": datetime.now(UTC).isoformat(), "items": items,
+                    "limit": limit, "truncated": len(items) == limit}
         return self._read(query)
 
     def snapshot(self):

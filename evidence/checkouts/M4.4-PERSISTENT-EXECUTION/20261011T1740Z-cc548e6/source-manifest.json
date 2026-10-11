@@ -1,0 +1,152 @@
+{
+  "base_commit": "cc548e605075fdb5f0a9b258382904da17fa8f48",
+  "branch": "codex/grace-persistent-execution",
+  "files": [
+    {
+      "path": ".riverview-revisions.json",
+      "revision": "1.1.90",
+      "sha256": "d689925071cca39da0f477af639a3ce973faaeb0564c07f02b63b9f73eb52560",
+      "size_bytes": 9473
+    },
+    {
+      "path": "deploy/grace-execution.env.example",
+      "revision": "1.0.0",
+      "sha256": "b2b5b190bf5aaa92e835762ef9f843d45d1d2900ef8f1afdd5eb7d9547054e97",
+      "size_bytes": 570
+    },
+    {
+      "path": "deploy/systemd/riverview-grace-execution.service",
+      "revision": "1.0.1",
+      "sha256": "b7d3dd33c1b3bf41c7b511acde9c14038bd7155da2488462b6678bcfe84748c6",
+      "size_bytes": 2088
+    },
+    {
+      "path": "docs/ROADMAP.md",
+      "revision": "1.1.37",
+      "sha256": "e4c55a29953fa017614319f4355b04ace921d37ae9ba4d651045f1756f1a3bdd",
+      "size_bytes": 40468
+    },
+    {
+      "path": "docs/components/GRACE_EXECUTION_COOKBOOK.md",
+      "revision": "1.0.0",
+      "sha256": "356ae05cc2fceade10b65f056e28d14a17f2c79e45f9ab963c17d1b7f80f7629",
+      "size_bytes": 5130
+    },
+    {
+      "path": "docs/components/GRACE_EXECUTION_PIPELINE.md",
+      "revision": "1.0.1",
+      "sha256": "0d8db76079ec86fe52b5b1ce168a34ab835e491a0f4e770e5b5b9edc416dd78f",
+      "size_bytes": 5483
+    },
+    {
+      "path": "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+      "revision": "1.0.11",
+      "sha256": "1d1d6534d252d264a4749e38e6354b82c771bb110bb8d1f15a665292057d1313",
+      "size_bytes": 17306
+    },
+    {
+      "path": "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+      "revision": "1.0.3",
+      "sha256": "0493a51920768f8671cd583219525c801becfc9ac842ddef5940e7c4b106555e",
+      "size_bytes": 8156
+    },
+    {
+      "path": "docs/components/STATUS_DASHBOARD.md",
+      "revision": "1.0.10",
+      "sha256": "56573bf9e6b4f3812f9a237364cff97e7dc702e8352c1aed56f17c00c038273d",
+      "size_bytes": 16316
+    },
+    {
+      "path": "process_graphs/generated/riverview-process-graph.json",
+      "revision": "1.0.59",
+      "sha256": "27f6e60bd4e71d5384da52bb2597bc4059bf02f0b9f81a696915fedc1d839de2",
+      "size_bytes": 335817
+    },
+    {
+      "path": "process_graphs/grace/operational-integration.json",
+      "revision": "1.0.7",
+      "sha256": "b267b523e9ef7af957cedb32bca5e3ca9b46686ba184b784680a76a8f047ab02",
+      "size_bytes": 23522
+    },
+    {
+      "path": "scripts/run_grace_execution_service.py",
+      "revision": "1.0.0",
+      "sha256": "caacce00de15f44630f41a2ccd9ba164541d6a0069ef9932fd767a0129b24632",
+      "size_bytes": 5796
+    },
+    {
+      "path": "src/riverview_core/resident_execution/migrations/0002_execution_health.sql",
+      "revision": "1.0.0",
+      "sha256": "2635541132aaa5319f7f967d1a8d71ef86f920cffec4404982d43fb20914985b",
+      "size_bytes": 554
+    },
+    {
+      "path": "src/riverview_core/resident_execution/service.py",
+      "revision": "1.0.2",
+      "sha256": "37516a751fbcdb7d5e3345fbcd292078dda5629404eb716049f545d7d4e113b4",
+      "size_bytes": 12973
+    },
+    {
+      "path": "src/riverview_core/status_dashboard/projection.py",
+      "revision": "1.0.3",
+      "sha256": "d806bef8c23b83e47ede582c888ec8a005e1416d8185548f05d6d91c59bdcd81",
+      "size_bytes": 35331
+    },
+    {
+      "path": "src/riverview_core/status_dashboard/server.py",
+      "revision": "1.0.9",
+      "sha256": "fa386e3baa805b0470761d17316318c76c619e20c03920fc4f1f138ec2850308",
+      "size_bytes": 33658
+    },
+    {
+      "path": "src/riverview_core/status_dashboard/static/app.js",
+      "revision": "1.0.5",
+      "sha256": "84d16b75b1573bd666a94364953e1796ae3909e891f6c972c7771e3a750d0b6d",
+      "size_bytes": 23901
+    },
+    {
+      "path": "src/riverview_core/status_dashboard/static/index.html",
+      "revision": "1.0.8",
+      "sha256": "f989481b87c1056b4c81a18bec678d11c771acd36930c99c23da1a3abce8786a",
+      "size_bytes": 10775
+    },
+    {
+      "path": "src/riverview_core/worker_adapter/continuous.py",
+      "revision": "1.0.9",
+      "sha256": "3bce24a29c0494be0b86a7d640f74b8c4b047771d1259f5d29c254dd97c84004",
+      "size_bytes": 13832
+    },
+    {
+      "path": "src/riverview_core/worker_adapter/migrations/0005_retry_limit.sql",
+      "revision": "1.0.0",
+      "sha256": "a8d1a567f17123ecb2b0581fc85c1bcd816040a9e9357b565e35c2567eea413a",
+      "size_bytes": 428
+    },
+    {
+      "path": "src/riverview_core/worker_adapter/recovery.py",
+      "revision": "1.0.1",
+      "sha256": "d93aaee3eb7713754bc0e6ce4645ec20ac7eb498d7d4f0460494f56871b84a6b",
+      "size_bytes": 8498
+    },
+    {
+      "path": "src/riverview_core/worker_adapter/service.py",
+      "revision": "1.0.2",
+      "sha256": "c6f88ea24ccf62f930dd7dd545d8df006cebe4c6b2d974034a5bd8a80f351d85",
+      "size_bytes": 6895
+    },
+    {
+      "path": "tests/test_grace_execution.py",
+      "revision": "1.0.9",
+      "sha256": "24ca27b4712569cc11478febd36e3929fd5bfe8f36545d9f0380f6f8b7a4429a",
+      "size_bytes": 48007
+    },
+    {
+      "path": "tests/test_worker_service.py",
+      "revision": "1.0.7",
+      "sha256": "eb98919d957666b19946ee3b6a9d39b075749f40cdf53eceb698e363d971a657",
+      "size_bytes": 6657
+    }
+  ],
+  "manifest_revision": "1.0.0",
+  "repository": "ppow1/Riverview-"
+}

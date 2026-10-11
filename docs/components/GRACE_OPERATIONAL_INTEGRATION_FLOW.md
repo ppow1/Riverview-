@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.8
+**Document Revision:** 1.0.11
 **Status:** PARTIALLY IMPLEMENTED — deterministic PostgreSQL objective/work-order infrastructure tested; no operational resident or live model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -89,6 +89,13 @@ flowchart LR
     g_rv_grace_operational_integration_work_order_authorization_829196dd["IMPLEMENTED — assignment.create exact grant precedes durable CME handoff"]
     g_rv_grace_operational_integration_independent_artifact_check_2502f001["IMPLEMENTED TEST ADAPTER — reopen artifact and verify digest, task identity, criteria, and provenance"]
     g_rv_grace_operational_integration_waiting_and_failure_0a7985d4[["IMPLEMENTED — unavailable/missing/oversized evidence and worker failures remain non-complete"]]
+    g_rv_grace_operational_integration_governed_objective_api_39b3aa23["Authenticated dashboard request plus exact objective.submit grant persists a bounded human objective; grounding may wait fail-closed"]
+    g_rv_grace_operational_integration_typed_proposal_api_9e97178a["Typed PlanProposal is persisted only after verified grounding and complete acceptance criteria; proposal does not grant authority"]
+    g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8["Supervised loop reloads durable objectives, dispatches eligible proposals, polls the existing leased worker, verifies outcomes, and records heartbeat"]
+    g_rv_grace_operational_integration_dispatch_retry_limit_3d51ab17{"Persist authorization/dispatch failures; stop automatic dispatch after three attempts and expose the proposal for operator attention"}
+    g_rv_grace_operational_integration_dashboard_objective_projection_4a2e9051["Authenticated dashboard reads bounded objective, assignment, artifact digest, verifier decision, and service freshness from PostgreSQL"]
+    g_rv_grace_operational_integration_worker_retry_ceiling_11dc0c66{"Apply the configured persistent retry-safe recovery ceiling; exhausted assignments remain blocked with a recovery record"}
+    g_rv_grace_operational_integration_verification_failure_isolation_cf6b467b[["Verifier invocation failures are persisted per attempt, capped at three, and skipped so unrelated verification candidates continue"]]
   end
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_cme_progress_and_recovery_observe_428defda["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -118,6 +125,19 @@ flowchart LR
   g_rv_grace_operational_integration_independent_artifact_check_2502f001 --> g_rv_grace_operational_integration_objective_check_1e4d916a
   g_rv_grace_operational_integration_independent_artifact_check_2502f001 -->|diagnostic_branch| g_rv_grace_operational_integration_waiting_and_failure_0a7985d4
   g_rv_grace_operational_integration_evidence_review_600fe7b4 --> g_rv_grace_operational_integration_independent_artifact_check_2502f001
+  g_rv_grace_operational_integration_governed_objective_api_39b3aa23 --> g_rv_grace_operational_integration_objective_intake_55567c14
+  g_rv_grace_operational_integration_objective_intake_55567c14 --> g_rv_grace_operational_integration_typed_proposal_api_9e97178a
+  g_rv_grace_operational_integration_typed_proposal_api_9e97178a --> g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8
+  g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8 --> g_rv_grace_operational_integration_work_order_authorization_829196dd
+  g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8 --> g_rv_grace_operational_integration_worker_dispatch_20506b72
+  g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8 --> g_rv_grace_operational_integration_independent_artifact_check_2502f001
+  g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8 -->|documentation| g_rv_grace_operational_integration_dashboard_objective_projection_4a2e9051
+  g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8 -->|diagnostic_branch| g_rv_grace_operational_integration_dispatch_retry_limit_3d51ab17
+  g_rv_grace_operational_integration_dispatch_retry_limit_3d51ab17 -->|escalation| g_rv_grace_operational_integration_waiting_and_failure_0a7985d4
+  g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8 -->|recovery_route| g_rv_grace_operational_integration_worker_retry_ceiling_11dc0c66
+  g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8 -->|diagnostic_branch| g_rv_grace_operational_integration_verification_failure_isolation_cf6b467b
+  g_rv_grace_operational_integration_verification_failure_isolation_cf6b467b -->|recovery_route| g_rv_grace_operational_integration_independent_artifact_check_2502f001
+  g_rv_grace_operational_integration_verification_failure_isolation_cf6b467b -->|documentation| g_rv_grace_operational_integration_dashboard_objective_projection_4a2e9051
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

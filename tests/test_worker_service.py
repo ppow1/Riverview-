@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_service.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.6
+# Revision: 1.0.7
 # Purpose: Enforce service identity, package paths, credentials and unit boundaries
 # Execution Model: Local contract tests; PostgreSQL behavior is covered separately
 # Observability: Safe configuration failure codes and reviewed unit properties
@@ -14,6 +14,7 @@
 # Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-TEST-CORRECTION | Assert imported capability definition rather than duplicated literal
 # Changed: 2026-10-11 UTC | RV-M33-VERIFIER-PACKAGE-ROOT | Require verifier service package-root pin
 # Changed: 2026-10-11 UTC | RV-M33-CREDENTIAL-NEWLINE | Cover the protected token file's single line terminator
+# Changed: 2026-10-11 UTC | RV-M4.4-SERVICE-PATH-CONTRACT | Require Grace unit to use its own release and runner path
 # Contracts: deploy/systemd/riverview-m33-worker.service; deploy/systemd/riverview-m33-verifier.service
 # Tests: This file
 # History: .riverview-backups/manifest.jsonl and Git
@@ -34,6 +35,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class WorkerServiceContractTests(unittest.TestCase):
+    def test_grace_unit_points_to_its_own_release_and_runner(self):
+        unit = (ROOT / "deploy/systemd/riverview-grace-execution.service").read_text()
+        release = "/opt/riverview-grace-execution/current"
+        self.assertIn(f"WorkingDirectory={release}", unit)
+        self.assertIn(f"PYTHONPATH={release}/src:{release}/scripts", unit)
+        self.assertIn(f"{release}/scripts/run_grace_execution_service.py", unit)
+        self.assertIn(f"RIVERVIEW_KNOWLEDGE_ROOT={release}", unit)
+        self.assertNotIn("/opt/riverview-m33/current", unit)
+
     def test_credential_reader_accepts_only_one_trailing_line_feed(self):
         token = "t" * 64
         with patch("riverview_core.worker_adapter.service._read_systemd_credential",

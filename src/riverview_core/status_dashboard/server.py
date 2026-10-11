@@ -2,12 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.7
-# Purpose: Serve authenticated live projections and bounded notification receipts
+# Revision: 1.0.9
+# Purpose: Serve authenticated operational projections and governed Grace objective intake
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
 # Dependencies: Python 3.10+; standard library; status_dashboard.projection
-# Authority: GET projections; narrow delivery/receipt POSTs have no decision effect
+# Authority: Dashboard credential protects views; objective API also requires exact objective.submit grant
+# Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-ERROR-SEMANTICS | Preserve conflict/dependency failure distinction
 # Changed: 2026-10-11 UTC | RV-M3.2-001 | Enforce the notification-specific maximum page size
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
@@ -38,6 +39,10 @@ _MAX_PAGE = 100
 _DOC_NAME = re.compile(r"^[A-Za-z0-9_-]+\.md$")
 _NOTICE_WRITE = re.compile(
     r"^/api/v1/notifications/([0-9a-fA-F-]{36})/(delivered|acknowledge)$")
+_OBJECTIVE_DETAIL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})$")
+_OBJECTIVE_PROPOSAL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/proposal$")
+_OBJECTIVE_CANCEL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/cancel$")
+_MAX_OBJECTIVE_BODY = 16 * 1024
 
 def _bounded_limit(value):
     try:
@@ -80,10 +85,12 @@ class _BoundedHTTPServer(HTTPServer):
     """Bound concurrent requests; saturation fails fast instead of growing threads."""
     request_queue_size = 64
 
-    def __init__(self, address, handler, *, token, projection, notification_service, static_dir):
+    def __init__(self, address, handler, *, token, projection, notification_service,
+                 objective_pipeline, static_dir):
         self._token = token
         self._projection = projection
         self._notification_service = notification_service
+        self._objective_pipeline = objective_pipeline
         self._static_dir = Path(static_dir)
         self._slots = threading.BoundedSemaphore(_MAX_THREADS)
         super().__init__(address, handler)
@@ -191,10 +198,17 @@ def make_handler():
             parsed = urlsplit(self.path)
             notification_write = (_NOTICE_WRITE.fullmatch(parsed.path)
                                   if self.command == "POST" else None)
+            objective_submit = (parsed.path == "/api/v1/objectives" and
+                                self.command == "POST")
+            objective_proposal = (_OBJECTIVE_PROPOSAL.fullmatch(parsed.path)
+                                  if self.command == "POST" else None)
+            objective_cancel = (_OBJECTIVE_CANCEL.fullmatch(parsed.path)
+                                if self.command == "POST" else None)
             if not self._host_ok():
                 self._error(400, "invalid_host", request_id)
                 return
-            if self.command not in {"GET", "HEAD"} and not notification_write:
+            if (self.command not in {"GET", "HEAD"} and not notification_write
+                    and not objective_submit and not objective_proposal and not objective_cancel):
                 self._error(405, "read_only_method", request_id)
                 return
             if parsed.path == "/":
@@ -265,6 +279,127 @@ def make_handler():
                 elif parsed.path == "/api/v1/attention":
                     page = self.server._projection.attention(limit=_bounded_limit(query.get("limit", [25])[0]))
                     self._json(200, page, request_id)
+                elif parsed.path == "/api/v1/objectives" and self.command in {"GET", "HEAD"}:
+                    self._json(200, self.server._projection.objectives(
+                        limit=_bounded_limit(query.get("limit", [25])[0])), request_id)
+                elif objective_submit:
+                    pipeline = self.server._objective_pipeline
+                    if pipeline is None:
+                        self._error(503, "objective_intake_not_initialized", request_id)
+                        return
+                    if self.headers.get("Transfer-Encoding") or not self.headers.get("Content-Length", "").isdigit():
+                        self._error(400, "objective_request_length_required", request_id)
+                        return
+                    length = int(self.headers["Content-Length"])
+                    if not 1 <= length <= _MAX_OBJECTIVE_BODY:
+                        self._error(413, "objective_request_too_large", request_id)
+                        return
+                    try:
+                        data = json.loads(self.rfile.read(length))
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        self._error(400, "invalid_objective_json", request_id)
+                        return
+                    if not isinstance(data, dict) or set(data) != {
+                            "objective_id", "request", "acceptance_criteria", "scope_ref"}:
+                        self._error(400, "invalid_objective_shape", request_id)
+                        return
+                    authority = self.headers.get("X-Riverview-Authority", "")
+                    try:
+                        pipeline.submit_objective(data["objective_id"], data["request"],
+                            data["acceptance_criteria"], credential=authority,
+                            scope_ref=data["scope_ref"])
+                    except Exception as exc:
+                        from riverview_core.resident_execution import ObjectiveNotAuthorized, ObjectiveStateError
+                        if isinstance(exc, ObjectiveNotAuthorized):
+                            self._error(403, "objective_submission_not_authorized", request_id)
+                        elif isinstance(exc, (ValueError, TypeError)):
+                            self._error(400, "invalid_objective", request_id)
+                        elif isinstance(exc, ObjectiveStateError):
+                            self._error(409, "objective_submission_conflict", request_id)
+                        else:
+                            self._error(503, "objective_submission_unavailable", request_id)
+                        return
+                    try:
+                        result = pipeline.ground_objective(data["objective_id"])
+                        self._json(202, {"objective_id": result["objective_id"],
+                            "status": result["status"], "source_revision": result["source_revision"],
+                            "source_sha256": result["source_sha256"]}, request_id)
+                    except Exception:
+                        result = pipeline.get_objective(data["objective_id"])
+                        if result and result["status"] == "WAITING_FOR_EVIDENCE":
+                            self._json(202, {"objective_id": result["objective_id"],
+                                "status": result["status"], "evidence": {
+                                    "status": result["evidence"].get("status"),
+                                    "error_code": result["evidence"].get("error_code"),
+                                    "source_references": result["evidence"].get("source_references", []),
+                                    "source_revision": result["evidence"].get("source_revision"),
+                                    "source_sha256": result["evidence"].get("source_sha256"),
+                                    "retrieval_complete": result["evidence"].get("retrieval_complete")}}, request_id)
+                        else:
+                            self._error(503, "objective_grounding_unavailable", request_id)
+                elif objective_proposal or objective_cancel:
+                    pipeline = self.server._objective_pipeline
+                    if pipeline is None:
+                        self._error(503, "objective_intake_not_initialized", request_id)
+                        return
+                    if self.headers.get("Transfer-Encoding") or not self.headers.get("Content-Length", "").isdigit():
+                        self._error(400, "objective_request_length_required", request_id)
+                        return
+                    length = int(self.headers["Content-Length"])
+                    if not 1 <= length <= _MAX_OBJECTIVE_BODY:
+                        self._error(413, "objective_request_too_large", request_id)
+                        return
+                    try:
+                        data = json.loads(self.rfile.read(length))
+                        if not isinstance(data, dict):
+                            raise ValueError("object required")
+                        objective_id = (objective_proposal or objective_cancel).group(1)
+                        if objective_proposal:
+                            from riverview_core.resident_reasoning import PlanProposal, PlanStep
+                            if set(data) != {"summary", "steps", "tokens_used"} or not isinstance(data["steps"], list):
+                                raise ValueError("invalid proposal shape")
+                            steps = []
+                            for step in data["steps"]:
+                                if not isinstance(step, dict) or set(step) != {
+                                        "step_id", "objective", "acceptance_criteria", "depends_on"}:
+                                    raise ValueError("invalid proposal step")
+                                steps.append(PlanStep(step["step_id"], step["objective"],
+                                    tuple(step["acceptance_criteria"]), tuple(step["depends_on"])))
+                            proposal = PlanProposal(data["summary"], tuple(steps), data["tokens_used"])
+                            objective = pipeline.get_objective(objective_id)
+                            if objective is None:
+                                self._error(404, "objective_not_found", request_id)
+                                return
+                            with pipeline.ledger.db.transaction(), pipeline.ledger.db.cursor() as cur:
+                                pipeline.ledger._set_search_path(cur)
+                                actor = pipeline.authorizer.require(cur,
+                                    self.headers.get("X-Riverview-Authority", ""),
+                                    "assignment.create", objective["scope_ref"])
+                            result = pipeline.record_proposal(objective_id, proposal,
+                                                              actor_id=actor["principal_id"])
+                            self._json(202, {"objective_id": objective_id,
+                                "status": result["status"], "assignment_id": result["assignment_id"]}, request_id)
+                        else:
+                            if set(data) != {"scope_ref"}:
+                                raise ValueError("invalid cancellation shape")
+                            result = pipeline.cancel_work_order(objective_id,
+                                credential=self.headers.get("X-Riverview-Authority", ""),
+                                authority_ref=data["scope_ref"])
+                            self._json(200, {"objective_id": objective_id,
+                                "status": result["status"]}, request_id)
+                    except Exception as exc:
+                        from riverview_core.resident_execution import (
+                            ObjectiveNotAuthorized, ObjectiveStateError)
+                        from riverview_core.institutional_authority import GrantCheckUnavailable, GrantDenied
+                        if isinstance(exc, (ObjectiveNotAuthorized, GrantDenied)):
+                            self._error(403, "objective_action_not_authorized", request_id)
+                        elif isinstance(exc, GrantCheckUnavailable):
+                            self._error(503, "authority_unavailable", request_id)
+                        elif isinstance(exc, (ValueError, TypeError, ObjectiveStateError)):
+                            self._error(409 if isinstance(exc, ObjectiveStateError) else 400,
+                                        "objective_transition_rejected", request_id)
+                        else:
+                            self._error(503, "objective_operation_unavailable", request_id)
                 elif parsed.path == "/api/v1/notifications" and self.command in {"GET", "HEAD"}:
                     service = self.server._notification_service
                     page = (service.list_notifications(limit=min(50, _bounded_limit(query.get("limit", [25])[0])))
@@ -334,6 +469,11 @@ def make_handler():
                     assignment_id = unquote(parsed.path.removeprefix("/api/v1/assignments/"), errors="strict")
                     result = self.server._projection.assignment_detail(assignment_id)
                     self._json(200, result, request_id) if result else self._error(404, "assignment_not_found", request_id)
+                elif (match := _OBJECTIVE_DETAIL.fullmatch(parsed.path)) and self.command in {"GET", "HEAD"}:
+                    rows = self.server._projection.objectives(
+                        limit=1, objective_id=match.group(1)).get("items", [])
+                    item = next((entry for entry in rows if entry["objective_id"] == match.group(1)), None)
+                    self._json(200, item, request_id) if item else self._error(404, "objective_not_found", request_id)
                 else:
                     self._error(404, "not_found", request_id)
             except ValueError:
@@ -365,7 +505,7 @@ class DashboardHTTPServer(_BoundedHTTPServer):
 
     def __init__(self, host: str, port: int, token_file: str | Path,
                  projection: DashboardProjection, static_dir: str | Path | None = None,
-                 notification_service=None):
+                 notification_service=None, objective_pipeline=None):
         if host not in {"127.0.0.1", "::1"}:
             raise ValueError("dashboard bind host must be a loopback IP literal")
         if not isinstance(port, int) or not 8700 <= port <= 8799:
@@ -375,6 +515,7 @@ class DashboardHTTPServer(_BoundedHTTPServer):
             static_dir = Path(__file__).with_name("static")
         super().__init__((host, port), make_handler(), token=credential,
                          projection=projection, notification_service=notification_service,
+                         objective_pipeline=objective_pipeline,
                          static_dir=static_dir)
 
 
@@ -399,10 +540,40 @@ def main():
     from riverview_core.notifications import NotificationService
     notification_service = NotificationService(
         dsn, schema=os.environ.get("RIVERVIEW_DATABASE_SCHEMA", "riverview_dev"))
+    from riverview_core.assignment_intake import AuthorizedAssignmentIntake
+    from riverview_core.institutional_authority import ExactGrantAuthorizer
+    from riverview_core.postgres_ledger import PostgresLedger
+    from riverview_core.resident_execution import GraceExecutionPipeline
+    from riverview_core.worker_adapter.knowledge import UnavailableKnowledgeProvider
+    from riverview_core.worker_adapter.resident_knowledge import TaskRelevantRepositoryKnowledgeProvider
+    import psycopg
+    repository_root = Path(os.environ.get("RIVERVIEW_KNOWLEDGE_ROOT", "/opt/riverview-core"))
+    pinned_commit = os.environ.get("RIVERVIEW_SOURCE_COMMIT", _release_commit())
+    objective_ledger = None
+    objective_pipeline = None
+    schema = os.environ.get("RIVERVIEW_DATABASE_SCHEMA", "riverview_dev")
+    try:
+        with psycopg.connect(dsn, connect_timeout=2) as probe, probe.cursor() as cur:
+            cur.execute("SELECT to_regclass(%s) IS NOT NULL AS present",
+                        (f"{schema}.grace_objectives",))
+            objective_schema_present = cur.fetchone()[0]
+        if objective_schema_present:
+            try:
+                knowledge = TaskRelevantRepositoryKnowledgeProvider(repository_root, pinned_commit)
+            except (OSError, ValueError, RuntimeError):
+                knowledge = UnavailableKnowledgeProvider()
+            objective_ledger = PostgresLedger(dsn, schema=schema)
+            objective_authorizer = ExactGrantAuthorizer(
+                os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority"))
+            objective_pipeline = GraceExecutionPipeline(objective_ledger, objective_authorizer,
+                AuthorizedAssignmentIntake(objective_ledger, objective_authorizer), knowledge)
+    except psycopg.Error:
+        objective_pipeline = None
     host = os.environ.get("RIVERVIEW_DASHBOARD_HOST", "127.0.0.1")
     port = int(os.environ.get("RIVERVIEW_DASHBOARD_PORT", "8766"))
     server = DashboardHTTPServer(host, port, token_path, projection,
-                                 notification_service=notification_service)
+                                 notification_service=notification_service,
+                                 objective_pipeline=objective_pipeline)
     print(json.dumps({"event": "dashboard_started", "host": host, "port": port,
                       "source_commit": projection.source_commit,
                       "deployment_id": projection.deployment_id}), flush=True)
@@ -410,6 +581,8 @@ def main():
         server.serve_forever(poll_interval=0.25)
     finally:
         server.server_close()
+        if objective_ledger is not None:
+            objective_ledger.close()
 
 
 if __name__ == "__main__":

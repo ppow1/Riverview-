@@ -1,12 +1,12 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.0.4
+// Revision: 1.0.5
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
   const state = {token: sessionStorage.getItem("rv.dashboard.token") || "", status: null,
     assignments: [], events: [], attention: [], attentionStatus: "unknown", workers: [], assignmentCursor: null,
     workerCursor: null, eventCursor: 0, olderEventCursor: null, notifications: [], notificationStatus: "unknown", activeView: "overview",
-    recentErrors: [], navSamples: [], lastFetch: 0, timer: null};
+    objectives: [], recentErrors: [], navSamples: [], lastFetch: 0, timer: null};
   const esc = (value) => String(value ?? "—").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   const human = (value) => String(value || "unknown").replaceAll("_", " ").replaceAll(".", " · ");
   const api = async (path, timeout = 2600, method = "GET") => {
@@ -46,7 +46,8 @@
       ["Assignments", String(s.assignments_total ?? "—"), assignments],
       ["Event cursor", s.event_cursor ?? "—", "Institution events only"],
       ["CME monitor", human(s.cme?.status), s.cme?.heartbeat_age_seconds == null ? "Heartbeat not observed" : `${s.cme.heartbeat_age_seconds}s since heartbeat`],
-      ["Workers", human(s.workers?.status), `${s.workers?.healthy_workers ?? 0} healthy · ${s.workers?.stale_workers ?? 0} stale · ${s.workers?.unknown_workers ?? 0} unknown`]
+      ["Workers", human(s.workers?.status), `${s.workers?.healthy_workers ?? 0} healthy · ${s.workers?.stale_workers ?? 0} stale · ${s.workers?.unknown_workers ?? 0} unknown`],
+      ["Grace execution", human(s.grace_execution?.status), s.grace_execution?.heartbeat_age_seconds == null ? "No heartbeat observed" : `${s.grace_execution.heartbeat_age_seconds}s since heartbeat · ${s.grace_execution.cycles_completed} cycles`]
     ].map(([label,value,sub]) => `<article class="metric"><div class="metric-label">${esc(label)}</div><div class="metric-value ${stateClass(value)}">${esc(value)}</div><div class="metric-sub">${esc(sub)}</div></article>`).join("");
     const cme = s.cme || {};
     $("cme-pill").className = `pill ${stateClass(cme.status || "unknown").replace("status-", "")}`;
@@ -154,6 +155,19 @@
     try { renderNotifications(await api("/api/v1/notifications?limit=25")); }
     catch (error) { state.notificationStatus = "unavailable"; $("notification-state").textContent = "Notification source unavailable"; $("notification-list").innerHTML = noData(`No delivery is claimed (${error.message}).`); }
   }
+  async function loadObjectives() {
+    if (!state.token) return;
+    try {
+      const page = await api("/api/v1/objectives?limit=25");
+      state.objectives = page.items || [];
+      $("objective-state").textContent = `Source ${human(page.status)} · ${state.objectives.length} observed`;
+      $("objective-list").innerHTML = state.objectives.length ? state.objectives.map((o) =>
+        `<article class="row"><div><strong>${esc(o.objective_id)}</strong><div class="row-meta">${esc(o.request)}</div></div><span class="pill ${stateClass(o.status)}">${esc(human(o.status))}</span><span class="row-meta">Assignment ${esc(o.assignment_state || "not dispatched")} · Verification ${esc(o.verification?.decision || "not recorded")} · dispatch failures ${esc(o.dispatch_failures || 0)} · verification failures ${esc(o.verification_failures || 0)}</span>${o.artifact ? `<span class="row-meta">Artifact ${esc(o.artifact.sha256)} · ${esc(o.artifact.reference)}</span>` : ""}<span class="row-meta">Source ${esc(o.source_revision || "unavailable")} · updated ${esc(when(o.updated_at))}</span></article>`).join("") : noData(page.status === "not_initialized" ? "Grace objective migrations are not initialized in this schema." : "No objectives have been recorded.");
+    } catch (error) {
+      $("objective-state").textContent = "Unavailable";
+      $("objective-list").innerHTML = noData(`Objective projection unavailable (${error.message}).`);
+    }
+  }
   async function loadWorkers(append = false) {
     if (!state.token) return;
     if (state.status?.workers?.status === "not_initialized") {
@@ -201,35 +215,38 @@
       sessionStorage.setItem("rv.dashboard.token", token);
       $("login-error").textContent = ""; showWorkspace(); renderStatus(s);
       await Promise.all([loadAssignments(), loadEvents()]);
+      await loadObjectives();
       await refreshStatus();
     state.timer = setInterval(() => { refreshStatus(); if (document.visibilityState === "visible") { loadEvents(true); } }, 5000);
     } catch (error) { state.token = ""; $("login-error").textContent = `Connection failed: ${error.message}. Check the source and credential.`; }
   }
   function navigate(name) {
     const start = performance.now();
-    const view = ["overview","assignments","activity","workflows","notifications"].includes(name) ? name : "overview";
+    const view = ["overview","assignments","objectives","activity","workflows","notifications"].includes(name) ? name : "overview";
     state.activeView = view;
     document.querySelectorAll(".view").forEach((node) => { const active = node.id === `view-${view}`; node.hidden = !active; node.classList.toggle("active", active); });
     document.querySelectorAll(".nav-item").forEach((node) => node.classList.toggle("selected", node.dataset.view === view));
-    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",activity:"Activity",workflows:"Process workflows",notifications:"Notifications"})[view];
+    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",objectives:"Grace objectives",activity:"Activity",workflows:"Process workflows",notifications:"Notifications"})[view];
     history.replaceState(null,"",`#${view}`);
     const duration = performance.now() - start;
     state.navSamples.push({view,ms:duration}); state.navSamples=state.navSamples.slice(-100);
     document.body.dataset.lastNavigationMs = duration.toFixed(2);
     if (state.lastFetch && performance.now() - state.lastFetch > 10000) refreshStatus();
     if (view === "assignments" && !state.assignments.length) loadAssignments();
+    if (view === "objectives") loadObjectives();
     if (view === "activity" && !state.events.length) loadEvents();
     if (view === "notifications") loadNotifications();
   }
   document.querySelectorAll(".nav-item").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.view)));
   document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.go)));
   $("login-form").addEventListener("submit", (event) => { event.preventDefault(); connect($("token").value.trim()); $("token").value = ""; });
-  $("refresh").addEventListener("click", () => { refreshStatus(); loadAssignments(); loadEvents(); loadWorkers(); });
+  $("refresh").addEventListener("click", () => { refreshStatus(); loadAssignments(); loadEvents(); loadWorkers(); loadObjectives(); });
   $("auth-open").addEventListener("click", () => { sessionStorage.removeItem("rv.dashboard.token"); state.token=""; if(state.timer)clearInterval(state.timer); $("workspace").hidden=true; $("login").hidden=false; $("token").focus(); });
   $("more-assignments").addEventListener("click", () => loadAssignments(true));
   $("more-events").addEventListener("click", () => loadOlderEvents());
   $("more-workers").addEventListener("click", () => loadWorkers(true));
   $("refresh-notifications").addEventListener("click", loadNotifications);
+  $("refresh-objectives").addEventListener("click", loadObjectives);
   $("snapshot").addEventListener("click", async () => {
     try {
       const bundle = await api("/api/v1/snapshot");

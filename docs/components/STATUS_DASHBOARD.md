@@ -2,12 +2,13 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.9
-Purpose: Specify the read-only live status projection and browser foundation
-Authority: Observes institution state; notification receipt writes cannot mutate assignments or decisions
+File Revision: 1.0.10
+Purpose: Specify operational projections and exact-grant Grace objective interfaces
+Authority: Reads require dashboard authentication; objective operations require exact institutional grants
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
 Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-CURRENT-DOCS-RELEASE | Define accurate code/deployment provenance for composite docs release
 Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-PROVENANCE-SECTION-ORDER | Place deployment provenance separately from the API route contract
+Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Add governed objective intake and result projections
 History: Git and revision/backup manifest
 -->
 # Steward status dashboard
@@ -16,7 +17,7 @@ History: Git and revision/backup manifest
 **Milestone:** M3.1 — Read-only status projection and browser dashboard  
 **Status:** Engineering implementation; commissioning evidence recorded separately.  
 **Source baseline:** `main` at `e9c66afabe88fe02403a35c8ede83eba54bca2e2` (M2.4 PR #14).  
-**Execution model:** Request-driven browser/API service; does not participate in CME execution.  
+**Execution model:** Request-driven browser/API projections and objective intake; durable execution is performed by the separately supervised CME/Grace worker service.
 **Port:** `127.0.0.1:8766`, reserved to `riverview-status-dashboard.service`.
 
 ## Reuse assessment
@@ -42,9 +43,10 @@ PostgreSQL ledger and CME projections.
 ## Read-only API contract `rv.dashboard.v1`
 
 The browser and future API/AI consumers share the same authenticated HTTP entry
-point. Status and operational projections are read-only. M3.2 adds only the two
-receipt-only notification POST operations shown below; they cannot mutate
-assignments or resolve/approve a pending request. Other mutating HTTP methods
+point. Status and operational projections are read-only. In addition to receipt
+operations, the routes below provide narrow objective submission, proposal and
+pre-execution cancellation operations. These require a second exact-grant
+authority credential; the dashboard bearer alone grants no institutional action. Other mutating HTTP methods
 return `405 read_only_method`; no direct browser database write exists. Every
 application API request is authenticated with a bearer token from a protected
 systemd credential. The source file is owner-only; systemd exposes a read-only
@@ -61,12 +63,19 @@ The service reads PostgreSQL in read-only transactions, with a two-second SQL
 statement timeout and short connection timeout. It uses only the configured
 schema identifier, bounded keyset/sequence pages (maximum 100), and stable
 allowlisted fields. `privacy_domain != institution` assignments/events are
-omitted. Event payloads, objective text/reference, authority grants, result
-content, credentials and private conversation content are not projected.
+omitted. Event payloads, authority grants, artifact content, credentials and
+private conversation content are not projected. Objective summaries show at
+most 512 characters of the authorized human request, lifecycle, artifact digest,
+verification decision and pinned source revision.
 
 | Route | Purpose | Parameters and limit |
 | --- | --- | --- |
 | `GET /api/v1/status` | Database/schema/migration identity, event cursor and lifecycle counts, CME heartbeat/freshness, aggregate per-worker health counts, verifier relation presence, source/deployment identity. | Fixed size. |
+| `GET /api/v1/objectives?limit=<n>` | Bounded objective, assignment, artifact, verification and source-revision summaries. | Default 25, max 100. |
+| `GET /api/v1/objectives/<id>` | One objective's persisted lifecycle and verified result summary. | Fixed summary; no artifact body. |
+| `POST /api/v1/objectives` | Persist a bounded human request and attempt commit-pinned grounding. | Dashboard bearer plus `X-Riverview-Authority` exact `objective.submit` grant for supplied scope; maximum JSON body 16 KiB. |
+| `POST /api/v1/objectives/<id>/proposal` | Persist a typed PlanProposal after grounding and human-criteria validation. | Dashboard bearer plus `X-Riverview-Authority` exact `assignment.create` grant for the objective scope. A proposal is not authority. |
+| `POST /api/v1/objectives/<id>/cancel` | Cancel only queued/ready pre-execution work. | Dashboard bearer plus exact `assignment.cancel` grant for the objective scope. |
 | `GET /api/v1/assignments?after=<id>&limit=<n>` | Keyset page of lifecycle, owner, workflow/step, version, correlation and last persisted progress event. | Default 25, max 100. No progress percent. |
 | `GET /api/v1/assignments/<id>` | One assignment, 20 latest visible lifecycle events, 5 attempts and 5 independent-verification summaries. | Fixed limits; no event payload/evidence URI. |
 | `GET /api/v1/events?after_seq=<n>&limit=<n>` | Institution event cursor page with event/correlation/causation identity. | Default 25, max 100; no payload. |
@@ -91,7 +100,7 @@ code commit and assign a new, unique `RIVERVIEW_DEPLOYMENT_ID`. Do not report a
 docs/graph commit as the dashboard code revision or reuse an existing release
 directory for changed bytes.
 
-The status response schema identifier is `rv.dashboard.status.v1`; the summary counts healthy, stale, unknown and future-dated unverified active workers. `GET /api/v1/workers` pages individual identities; each status uses the latest recorded assignment-lease heartbeat. No heartbeat is unknown, not healthy. The overview shows worker IDs, health and lease counts. List/detail
+The status response schema identifier is `rv.dashboard.status.v1`; it includes Grace execution heartbeat and freshness when the runtime migration is installed. The summary counts healthy, stale, unknown and future-dated unverified active workers. `GET /api/v1/workers` pages individual identities; each status uses the latest recorded assignment-lease heartbeat. No heartbeat is unknown, not healthy. The overview shows worker IDs, health and lease counts. List/detail
 responses carry `status`, bounded `items`, and pagination state. Database
 unavailability returns a status projection whose `projection_status` is
 `unavailable`; HTTP query failures return 503. A reachable PostgreSQL instance
