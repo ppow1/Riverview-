@@ -1,8 +1,21 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.41
+**Document Revision:** 1.0.42
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-001 / consolidated operations guide
+
+Decision: publish one dashboard-readable operational entry point while keeping
+component cookbooks authoritative for their contracts. Commands were checked
+against the live Camrui units, actual service boundaries, source migrations,
+existing M1.2/M1.3/M2.4 commissioning evidence, and worker/scheduler contracts.
+The guide distinguishes deployed PostgreSQL/event processor/CME/dashboard from
+library-only scheduler/worker code, documents only read-only SQL in diagnostics,
+and separates controlled backup/restore/migration actions from service restarts.
+Static dashboard links and route/render tests were added. No service, database,
+credential, migration, or assignment state was changed. Next: run the targeted
+dashboard tests, graph/revision checks, then begin M3.2 requirements/design.
 
 ## 2026-10-11 UTC — RV-M3.1-ACCEPTANCE / scoped Steward acceptance
 

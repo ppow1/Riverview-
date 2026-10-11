@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.6
+# Revision: 1.0.7
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL for integration class
 # Authority: Creates/drops only unique rvtest_* schemas; never accesses shared Riverview data
-# Changed: 2026-10-10 UTC | RV-M3.1-003 | Test safe docs rendering and canonical graph browser API
+# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Verify the consolidated cookbook is served safely and linked in dashboard navigation
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -144,6 +144,7 @@ class DashboardHTTPTests(unittest.TestCase):
         status, headers, body = self.request("GET", "/")
         self.assertEqual(status, 200)
         self.assertIn(b"Riverview", body)
+        self.assertIn(b"/docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md", body)
         header_map = dict(headers)
         self.assertEqual(header_map["Cache-Control"], "no-store")
         self.assertIn("default-src 'none'", header_map["Content-Security-Policy"])
@@ -181,6 +182,18 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("text/html", dict(headers)["Content-Type"])
         self.assertIn(b"<h1", body)
+        self.assertIn(b"<table>", body)
+        self.assertIn(b"<pre><code", body)
+        self.assertNotIn(b"Riverview~ Controlled Document", body)
+        self.assertNotIn(b"<!--", body)
+        status, headers, body = self.request("GET", "/docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", dict(headers)["Content-Type"])
+        self.assertIn(b'id="riverview-operations-and-recovery-guide"', body)
+        for heading in (b"PostgreSQL and ledger", b"Migrations, backups, and restoration",
+                        b"CME progress monitor", b"Event processor and durable cursor",
+                        b"Worker registration, scheduling, leases, assignments, verification"):
+            self.assertIn(heading, body)
         self.assertIn(b"<table>", body)
         self.assertIn(b"<pre><code", body)
         self.assertNotIn(b"Riverview~ Controlled Document", body)

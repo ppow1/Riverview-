@@ -1,13 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/verify_status_dashboard_browser.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Verify deployed dashboard in a real headless Firefox browser
 # Execution Model: Request-driven acceptance utility; starts and stops only its own geckodriver
 # Observability: Redacted JSON result; screenshots and no credentials
 # Dependencies: Python 3.10+, Firefox, geckodriver
 # Authority: Read-only dashboard APIs; no assignment or service mutations
-# Changed: 2026-10-10 UTC | RV-M3.1-004 | Add reproducible browser commissioning check
+# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Verify operational guide navigation, rendering, and document links
 # Contracts: docs/components/STATUS_DASHBOARD_API.schema.json
 # Tests: Camrui deployed Firefox acceptance
 # History: Git and .riverview-backups/manifest.jsonl
@@ -122,9 +122,9 @@ def main():
         documentation_tab = webdriver("POST", f"/session/{session_id}/window/new", {"type": "tab"})["value"]["handle"]
         webdriver("POST", f"/session/{session_id}/window", {"handle": documentation_tab})
         webdriver("POST", f"/session/{session_id}/url",
-                  {"url": args.base_url.rstrip("/") + "/docs/components/STATUS_DASHBOARD_COOKBOOK.md"})
+                  {"url": args.base_url.rstrip("/") + "/docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md"})
         wait_js(session_id, "document.querySelector('article.readable-doc h1') && document.querySelector('article.readable-doc h1').textContent")
-        docs = js(session_id, "return {title:document.title,headings:document.querySelectorAll('article.readable-doc h1,article.readable-doc h2,article.readable-doc h3').length,tables:document.querySelectorAll('article.readable-doc table').length,code_blocks:document.querySelectorAll('article.readable-doc pre code').length,raw_markdown:document.body.innerText.includes('<!-- Riverview~ Controlled Document'),scripts:document.querySelectorAll('article.readable-doc script').length,unsafe_links:[...document.querySelectorAll('article.readable-doc a')].filter(a=>!['http:','https:'].includes(a.protocol)&&!a.getAttribute('href').startsWith('/')).length}")
+        docs = js(session_id, "const links=[...document.querySelectorAll('article.readable-doc a[href^=\"/docs/components/\"]')].map(a=>a.getAttribute('href'));return Promise.all(links.map(h=>fetch(h).then(r=>({href:h,status:r.status})))).then(results=>({title:document.title,headings:document.querySelectorAll('article.readable-doc h1,article.readable-doc h2,article.readable-doc h3').length,tables:document.querySelectorAll('article.readable-doc table').length,code_blocks:document.querySelectorAll('article.readable-doc pre code').length,document_links:results,raw_markdown:document.body.innerText.includes('<!-- Riverview~ Controlled Document'),scripts:document.querySelectorAll('article.readable-doc script').length,unsafe_links:[...document.querySelectorAll('article.readable-doc a')].filter(a=>!['http:','https:'].includes(a.protocol)&&!a.getAttribute('href').startsWith('/')).length}))")
         docs_png = base64.b64decode(webdriver("GET", f"/session/{session_id}/screenshot")["value"])
         browser_errors = js(session_id, "return window.__rvBrowserErrors||[]")
         (args.output / "workflow-view.png").write_bytes(workflow_png)
@@ -158,7 +158,7 @@ def main():
         if not report["independent_verifications"]: failed.append("independent_verification")
         if report["attention_http_status"] != 200: failed.append("attention_endpoint")
         if report["graph"]["syntax"] != "valid" or report["graph"]["nodes"] < 1 or report["graph"]["decisions"] < 1 or report["graph"]["edges"] < 1 or report["graph"]["canonical_edges"] != report["graph"]["edges"] + report["graph"]["external_edges"] or any(node_id not in report["graph"]["jump_node_ids"] for node_id in report["graph"]["external_jump_sources"]): failed.append("workflow_graph")
-        if report["documentation"]["tables"] < 1 or report["documentation"]["code_blocks"] < 1 or report["documentation"]["raw_markdown"] or report["documentation"]["scripts"] or report["documentation"]["unsafe_links"]: failed.append("readable_documentation")
+        if report["documentation"]["headings"] < 10 or report["documentation"]["tables"] < 2 or report["documentation"]["code_blocks"] < 8 or report["documentation"]["raw_markdown"] or report["documentation"]["scripts"] or report["documentation"]["unsafe_links"] or any(item["status"] != 200 for item in report["documentation"]["document_links"]): failed.append("readable_documentation")
         if not report["jump_navigation"]: failed.append("cross_workflow_navigation")
         if report["browser_errors"]: failed.append("browser_errors")
         report["failed_checks"] = failed

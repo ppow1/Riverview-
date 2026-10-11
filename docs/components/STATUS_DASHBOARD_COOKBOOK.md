@@ -1,13 +1,15 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.6
+File Revision: 1.0.7
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
-Changed: 2026-10-10 UTC | RV-M3.1-004 | Add deployed browser acceptance and graph-viewer diagnostics
+Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
+
+The dashboard links to the [complete Riverview operations and recovery guide](RIVERVIEW_OPERATIONS_COOKBOOK.md), covering PostgreSQL, migrations, CME, event processing, workers, verification, and backups.
 
 **Task:** RV-M3.1-001 · **Component:** STEWARD-DASHBOARD · **Execution model:** request-driven.  
 The dashboard does not own assignments, dispatch workers, mutate the ledger, or
@@ -121,7 +123,7 @@ existing PostgreSQL credential.
 | --- | --- | --- |
 | `healthy` | A successful bounded read of the initialized ledger; a healthy CME/worker state additionally needs a fresh recorded heartbeat. | Check `observed_at`, source commit, service identity and component-specific heartbeat. |
 | `stale` | A persisted heartbeat is older than the configured 30-second freshness window. | Check only the owning service's unit/journal and database reachability; do not restart unrelated services. |
-| `degraded` | CME recorded a failure or missing successful scan while still reachable. | Use `systemctl status riverview-cme.service` if installed and the CME cookbook. Dashboard does not restart CME. |
+| `degraded` | CME recorded a failure or missing successful scan while still reachable. | Use `systemctl status riverview-cme-monitor.service` if installed and the CME cookbook. Dashboard does not restart CME. |
 | `not_initialized` | PostgreSQL is reachable but the requested component tables/health row do not exist. | Confirm selected database/schema/migration ledger. Never run DDL from dashboard startup. |
 | `unavailable` | No trustworthy current read was returned. Browser last-known data is not labelled healthy. | Check PostgreSQL and dashboard journal; retry after cause is resolved. |
 | `unknown` / `unverified` | No lease heartbeat exists or a timestamp is future-dated. | Preserve uncertainty; inspect source clock/lease evidence. |

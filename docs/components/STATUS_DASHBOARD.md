@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.5
+File Revision: 1.0.6
 Purpose: Specify the read-only live status projection and browser foundation
 Authority: Observes institution state; no assignment or policy mutation
-Changed: 2026-10-10 UTC | RV-M3.1-003 | Add safe diagnostic-document rendering and canonical workflow visualization
+Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Expose consolidated operations and recovery documentation from dashboard
 History: Git and revision/backup manifest
 -->
 # Steward status dashboard
