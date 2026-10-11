@@ -1,8 +1,8 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.87
+**Document Revision:** 1.0.88
 **Component:** ENG-RECORDS
-**Date:** 2026-10-10 UTC
+**Date:** 2026-10-11 UTC
 
 ## 2026-10-11 UTC — RV-M3.3-AUTHORITY-COOKBOOK-COMMISSIONING / dashboard route
 
@@ -1268,3 +1268,31 @@ Deployed an immutable documentation and synchronized-process-graph overlay at
 `/opt/riverview-status-dashboard/releases/8556598b19a7da4aa191a600c767d79d24432afe-docs-d2c145c`. The executable, scripts, static assets, systemd security controls, and PostgreSQL state were retained byte-for-byte from the prior release; the overlay is sourced from docs/process-graph commit `d2c145cb9c7fbfb983ea842199e204d03bfdf731`. Source identity and docs identity are separately recorded in the package manifest and systemd deployment ID. Package checksums passed.
 
 The first immediate HTTP probe raced systemd startup; the rollback guard restored the prior symlink and unit. A bounded readiness retry then passed without touching other services or database state. The service is active with `NRestarts=0`, `/api/v1/attention` returns 200, and the current release is the immutable docs overlay. Firefox 156.0.1 live-browser evidence shows a completed real assignment, one persisted attempt and independent verification, healthy CME projection, six attention items, 19 documentation links returning 200, rendered headings/tables/code blocks, no browser errors or unsafe links, and graph structure/navigation with live execution position truthfully shown as unknown. View-handler navigation timings in this single run were 64–210 ms; they are not paint benchmarks. Evidence, screenshots, service state, database read-only counts, checksums, and release manifest are retained in `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/`. This is operational dashboard documentation deployment evidence, not full dashboard Component DoD or milestone acceptance.
+
+
+## 2026-10-11 UTC — RV-M3.3-LIVE-COMMISSIONING / authorized unattended execution
+
+Deployed M3.3 release `47a79adafe1524b3e819148b70c02a1857f50dbf` with a
+loopback governed intake, exact-grant executor/verifier services, and immutable
+repository-backed knowledge package. An unauthorized request returned HTTP 403
+with zero target rows; the authorized route created a durable assignment and
+event. The scheduled executor ran the repository knowledge test suite, created a
+real protected report artifact, and the separately credentialed verifier
+independently reran and accepted it. PostgreSQL evidence includes complete
+VERIFIED grounding/preflight/regrounding; `record_learning` is UNAVAILABLE and
+was not claimed.
+
+The first service starts exposed the credential final-newline parser defect;
+systemd retries were stopped, source was corrected and regression-tested, package
+rebuilt, and the corrected release passed live execution. Later SIGKILL/restart
+left an already completed result with one attempt and one verification. During a
+separate bounded executor stop, two assignments remained queued, triggered durable
+CME stall/attention notices, and completed after restart with accepted independent
+verification; browser delivery receipts were persisted. No shared data was reset.
+
+Full isolated PostgreSQL suite passed 184/184 (zero skips); graph validation and
+synchronization passed at 16 workflows/311 nodes; exact-head GitHub CI passed.
+The recovered pair did not establish simultaneous multi-executor throughput, so
+the canonical M3.3 independent-concurrency criterion remains NOT VERIFIED.
+Evidence is `evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/`. PR #21
+remains draft/open/unmerged; no Steward acceptance is inferred.

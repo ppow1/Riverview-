@@ -9,6 +9,7 @@ Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Add redacted work
 Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Add bounded model execution and diagnosis steps
 Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Document the real isolated concurrent model acceptance and harness
 Changed: 2026-10-11 UTC | RV-M3.3-WORKER-SERVICE | Document separate executor/verifier systemd preflight and recovery
+Changed: 2026-10-11 UTC | RV-M3.3-LIVE-COMMISSIONING | Link confirmed Camrui deployment evidence and distinguish verified queue recovery from concurrency
 History: Git and revision backup manifest
 -->
 # Riverview~ worker adapter cookbook
@@ -177,9 +178,17 @@ repair by directly changing assignments, leases, attempts, or verifications.
 
 The versioned units are
 `deploy/systemd/riverview-m33-worker.service` and
-`deploy/systemd/riverview-m33-verifier.service`. They are source definitions,
-not proof of installation; check the deployment record before claiming either
-unit is active. The executor uses the fixed `deterministic.sha256.v1`
+`deploy/systemd/riverview-m33-verifier.service`. They are source definitions;
+check the deployment record before claiming a unit is active. Camrui live
+commissioning evidence for source `47a79adafe1524b3e819148b70c02a1857f50dbf`
+is retained in
+[`M3.3 live evidence`](../development/M3.3-001_REVISION_RECORD.md) and
+`evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/`. At the evidence
+capture, the governed intake, executor, verifier, event processor, CME monitor,
+notification dispatcher, and dashboard were active. The evidence demonstrates
+an authorized repository-test assignment, independent verification, artifact
+persistence, and safe queue recovery after restart. It does not demonstrate
+simultaneous multi-executor throughput or full M3.3 acceptance. The executor uses the fixed `deterministic.sha256.v1`
 capability and repository-backed provider pinned to an exact committed release.
 The verifier is a separate service identity and `assignment.verify.v1` worker.
 Both use root-owned systemd credential sources and PID 1 credential delivery;

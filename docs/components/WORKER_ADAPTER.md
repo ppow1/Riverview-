@@ -1,15 +1,16 @@
 # Riverview~ worker adapter contract
 
-**Document Revision:** 1.0.12
+**Document Revision:** 1.0.13
 **Component:** WORKER-ADAPTER
 **Milestone:** M2.1–M2.3
-**Status:** M4.3 isolated local-inference execution and independent verification passed; persistent Camrui worker service remains uncommissioned
+**Status:** M3.3 live governed execution chain commissioned on Camrui; canonical simultaneous multi-executor criterion and full Component DoD remain open. M4.3 local-inference execution remains isolated.
 **Implementation:** `src/riverview_core/worker_adapter/adapter.py`
 **Changed:** 2026-10-11 UTC | RV-M4.1-LIVE-EXACT-GRANT | Record deployed database function ACL while retaining undeployed worker service status
 **Changed:** 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Record verified isolated model execution and persistent-service limitation
 **Changed:** 2026-10-11 UTC | RV-M3.3-ASSIGNMENT-INTAKE | Record isolated grant-gated assignment creation and undeployed service boundary
 **Changed:** 2026-10-11 UTC | RV-M3.3-REPOSITORY-KNOWLEDGE | Specify pinned read-only repository provider and its fail-closed status
 **Changed:** 2026-10-11 UTC | RV-M3.3-WORKER-SERVICE | Specify executor/verifier systemd runner contracts and commissioning state
+**Changed:** 2026-10-11 UTC | RV-M3.3-LIVE-COMMISSIONING | Record live grant-bound repository test executor, verifier, artifact and recovery evidence
 
 ## Scope and trust boundaries
 
@@ -29,8 +30,10 @@ reveals credential digests. A missing grant denies; a missing function or DB
 error is `GrantCheckUnavailable` and denies. Isolated database-boundary tests
 confirm the runtime can execute this function but cannot read authority tables,
 while the manager cannot call the function. The Camrui migration and
-function-only ACL are now live and independently verified; the worker adapter
-has not been deployed into a service, so no live-worker execution claim is made.
+function-only ACL are now live and independently verified. M3.3 also commissions
+the repository-test executor and verifier services for one exact bounded work
+scope; see the live commissioning record below. This does not commission the
+M4.3 local-inference worker.
 
 The default executable task is `deterministic.sha256.v1`: hash caller-provided
 UTF-8 text and return its digest and byte count. The M4.3 `local.inference.v1`
@@ -52,9 +55,9 @@ lost-lease failure rather than accepting a stale worker result.
 The M2.1 migration is separate and explicit. No schema DDL is applied at adapter
 startup. The adapter accepts a separate `authority_schema`; production must use
 `riverview_authority`. Migration 0002 and its exact function ACL are applied to
-the shared authority schema. No worker service is commissioned.
-Steward-issued credential storage and worker process credential delivery remain
-explicit commissioning work.
+the shared authority schema. The scoped M3.3 test-work executor and verifier use
+separately granted identities and systemd credential delivery; this does not
+commission arbitrary capability execution or alter the migration/startup rule.
 
 ## Continuous worker and knowledge boundary
 
@@ -111,29 +114,45 @@ pin its exact package revision; absence or mismatch leaves the assignment in
 
 ### Supervised M3.3 executor and verifier services
 
-`scripts/run_worker_service.py` runs one continuous executor with the pinned
-repository provider and the existing scheduler. At startup it accepts only the
-registered worker service unit's systemd credentials, copies its protected
-PostgreSQL passfile into an exclusive service-private runtime path, and either
-registers the exact worker identity under its `worker.register` grant or checks
-that the existing active identity, credential digest, capabilities and scope
-match exactly. Any mismatch fails startup. The executor capability is fixed to
-`deterministic.sha256.v1`; no shell, arbitrary subprocess, network action, or
-model endpoint is exposed.
+`scripts/run_worker_service.py` runs a continuous, grant-bound executor with the
+pinned repository provider and existing scheduler. At startup it accepts only
+the registered unit's systemd credentials, copies the protected PostgreSQL
+passfile into an exclusive service-private runtime path, and either registers
+the exact worker under its `worker.register` grant or checks that the active
+identity, credential digest, capabilities and scope match. Any mismatch fails
+startup. The commissioned capability is `engineering.repository-check.v1`,
+which runs the bounded `tests.test_repository_knowledge` suite and writes a
+0600 JSON report beneath `/var/lib/riverview-m33-worker/artifacts/`. It does not
+run arbitrary shell commands, user-supplied code, network actions, or model
+inference.
 
-`scripts/run_verifier_service.py` runs under another systemd unit and bearer,
-identity, and exact `assignment.verify.v1` grant. It polls only durable
-successful deterministic attempts awaiting verification, then uses the
-existing `DeterministicSha256Verifier`. The database lock, distinct verifier
-identity and idempotency key preserve independent verification across process
-restart. Both units are non-root, use PID 1 credential delivery, restart after
-unexpected failure, and do not apply migrations. Source definitions are
-`deploy/systemd/riverview-m33-worker.service` and
-`deploy/systemd/riverview-m33-verifier.service`. These units are prepared but
-not installed or active on Camrui; no worker grant or credential is thereby
-implied. Live commissioning requires a pinned root-owned package, one exact
-assignment scope, separate short-lived executor/verifier grants, and independent
-post-restart evidence.
+`scripts/run_verifier_service.py` runs under another systemd unit, bearer,
+authorization principal, and exact `assignment.verify` grant. It polls durable
+successful attempts and uses `RepositoryContractTestVerifier` to validate the
+artifact metadata and independently rerun the registered test suite. Executor
+and verifier are separate logical identities and credentials, although both
+systemd processes run as the restricted Unix account `riverview`. The existing
+leases, database locks and idempotency keys preserve safe transitions across
+restart. The live units use PID 1 credential delivery, restart on unexpected
+failure, and do not apply migrations. Their source definitions are
+`deploy/systemd/riverview-m33-worker.service`,
+`deploy/systemd/riverview-m33-verifier.service`, and
+`deploy/systemd/riverview-assignment-intake.service`.
+
+Camrui commissioning on 2026-10-11 deployed immutable source
+`47a79adafe1524b3e819148b70c02a1857f50dbf` (package SHA-256
+`ce2179ecc4e840dceb8316eea8a6c4117a4ef6cdcca6314d76ad19da4b617d41`). The
+loopback intake, executor, verifier, event processor, CME monitor, notification
+dispatcher, and dashboard were active at the captured post-check. One authorized
+assignment and two recovery assignments completed with ACCEPTED independent
+verification. A deliberate executor SIGKILL restarted without duplicating the
+completed result; queued assignments and stall/resolution notices survived a
+separate bounded outage and were processed after recovery. This demonstrates
+queue recovery, not simultaneous multi-executor throughput. Current exact-scope
+grants are time-limited; inspect live authority records before operating.
+Evidence and outstanding M3.3 acceptance limits are in
+`evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/` and
+`docs/development/M3.3-001_REVISION_RECORD.md`.
 
 See the [workflow graph](WORKER_ADAPTER_FLOW.md),
 [operational cookbook](WORKER_ADAPTER_COOKBOOK.md), and

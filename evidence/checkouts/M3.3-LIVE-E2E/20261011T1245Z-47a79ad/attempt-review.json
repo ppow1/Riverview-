@@ -1,0 +1,30 @@
+{
+  "failed_or_corrected_attempts": [
+    {
+      "attempt": "worker startup retries before corrected release",
+      "cause": "commissioning credential ends in one LF but parser rejected trailing whitespace",
+      "correction_commit": "47a79adafe1524b3e819148b70c02a1857f50dbf",
+      "disposition": "fixed; corrected service started and completed live work",
+      "observed": "worker_credential_format_invalid; process exit 2; systemd retried",
+      "regression": "credential parser accepts one terminal LF and rejects CRLF, extra LF, and non-ASCII; focused worker-service test included"
+    },
+    {
+      "attempt": "unauthorized route request",
+      "disposition": "expected authorization denial; no state persisted",
+      "observed": "HTTP 403; target assignment/event count remained 0/0"
+    },
+    {
+      "attempt": "browser delivery harness retry",
+      "disposition": "instrumentation timing issue, not product failure; stable authenticated browser captures show delivered state and no browser errors",
+      "observed": "first screenshot harness hit stale-DOM read timing; later idempotent retry saw existing delivered receipt and therefore created no new delivery"
+    },
+    {
+      "attempt": "evidence full-suite rerun with wrong test database role",
+      "cause": "temporary PostgreSQL cluster lacked admin1 login; first DSN therefore rejected by PostgreSQL",
+      "correction": "created admin1 SUPERUSER LOGIN only in disposable /tmp/rv-m33-provider-pg cluster; reran exact full suite successfully, 184/184",
+      "disposition": "setup error recorded in first-rerun-failure-summary.txt; full original traceback was not retained because the subsequent corrected run reused the same output path; corrected run passed 184/184 and test-only cluster cleanup was verified",
+      "observed": "184 tests discovered; 75 DB connection errors, no assertion failures"
+    }
+  ],
+  "source": "Systemd journal, PostgreSQL event ledger, and instrumented live browser observations."
+}

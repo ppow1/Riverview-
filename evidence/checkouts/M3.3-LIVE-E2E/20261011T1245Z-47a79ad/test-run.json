@@ -1,0 +1,39 @@
+{
+  "cleanup_check": {
+    "rvtest_roles": 0,
+    "rvtest_schemas": 0
+  },
+  "command": "RIVERVIEW_TEST_PG_DSN='host=/tmp/rv-m33-provider-pg/socket port=55489 dbname=postgres user=admin1' PYTHONPATH=src python3 -m unittest discover -s tests -v",
+  "focused_regression": {
+    "command": "RIVERVIEW_TEST_PG_DSN='host=/tmp/rv-m33-provider-pg/socket port=55489 dbname=postgres user=admin1' PYTHONPATH=src python3 -m unittest tests.test_worker_service tests.test_status_dashboard.DashboardHTTPTests -v",
+    "duration_seconds": 6.386,
+    "errors": 0,
+    "failed": 0,
+    "output": "focused-regression.log",
+    "passed": 17,
+    "tests": 17
+  },
+  "github_ci": {
+    "check": "controlled-checkout",
+    "conclusion": "SUCCESS",
+    "head_sha": "47a79adafe1524b3e819148b70c02a1857f50dbf",
+    "run_id": "38140334555"
+  },
+  "initial_evidence_rerun": {
+    "cause": "disposable cluster initially had only postgres login role",
+    "command_dsn_user": "admin1",
+    "correction": "created admin1 SUPERUSER LOGIN only inside /tmp/rv-m33-provider-pg disposable cluster; no shared DB changes",
+    "result": "184 discovered; 75 database-connection errors, 0 assertion failures",
+    "retained_log": "first-rerun-failure-summary.txt (observed excerpt and result; full traceback was overwritten before separate preservation)"
+  },
+  "result": {
+    "duration_seconds": 56.796,
+    "errors": 0,
+    "failures": 0,
+    "passed": 184,
+    "skipped": 0,
+    "tests": 184
+  },
+  "runtime": "Python 3.12 system interpreter; Psycopg 3; PostgreSQL 16.15 disposable local cluster",
+  "source_commit": "47a79adafe1524b3e819148b70c02a1857f50dbf"
+}

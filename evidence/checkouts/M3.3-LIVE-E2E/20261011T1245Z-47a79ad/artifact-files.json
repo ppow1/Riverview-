@@ -1,0 +1,29 @@
+{
+  "artifact_root": "/var/lib/riverview-m33-worker/artifacts",
+  "files": [
+    {
+      "gid": 984,
+      "mode": "0o600",
+      "name": "repository-check-1512fe83e92788864679328af6ac7501444412e6fcc37803d1fc0a3c4c2379b3.json",
+      "sha256": "9bc152b4a6cda38e4ba8dd27c5490b40abfe357e6c505bcbd0f2604a482990ad",
+      "size_bytes": 2134,
+      "uid": 997
+    },
+    {
+      "gid": 984,
+      "mode": "0o600",
+      "name": "repository-check-1e65374a5cb56d4a56094cc47baebcfb060d8d20aa30cbfa048ca5813c16849c.json",
+      "sha256": "c74b2d4d7eb910a2aef3972161956cfe5b127bd85d8bd169fc164225d0cd7bd6",
+      "size_bytes": 2129,
+      "uid": 997
+    },
+    {
+      "gid": 984,
+      "mode": "0o600",
+      "name": "repository-check-a582685298dd02b619ea93f2f0a2f344dfaff5e955e618cd527ae234b806148f.json",
+      "sha256": "6b57be9a192e4db04ae8b4cc41705fd39ea802c8f9d87fb57af91804b1119ae1",
+      "size_bytes": 2134,
+      "uid": 997
+    }
+  ]
+}
