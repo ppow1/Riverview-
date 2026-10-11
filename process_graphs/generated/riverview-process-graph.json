@@ -2545,13 +2545,14 @@
     },
     {
       "graph_id": "rv:postgres-ledger:assignment-lifecycle",
-      "graph_revision": "1.0.0",
+      "graph_revision": "1.0.1",
       "component_id": "POSTGRES-LEDGER",
       "workflow_id": "assignment-lifecycle.v1",
       "diagram_order": 2,
       "source_references": [
         "src/riverview_core/ledger.py",
-        "src/riverview_core/postgres_ledger.py"
+        "src/riverview_core/postgres_ledger.py",
+        "src/riverview_core/assignment_intake.py"
       ],
       "documentation_references": [
         "docs/components/POSTGRES_LEDGER_FLOW.md",
@@ -2567,12 +2568,45 @@
           "type": "entry",
           "label": "Assignment intake",
           "source_references": [
-            "src/riverview_core/postgres_ledger.py"
+            "src/riverview_core/assignment_intake.py"
           ],
           "documentation_references": [
             "docs/components/POSTGRES_LEDGER_FLOW.md"
           ],
           "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:assignment-lifecycle:assignment-create-authority",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Exact assignment.create grant authorized",
+          "source_references": [
+            "src/riverview_core/assignment_intake.py",
+            "src/riverview_core/institutional_authority/grants.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/development/M3.3-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M3.3-ASSIGNMENT-INTAKE/acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:postgres-ledger:assignment-lifecycle:assignment-create-denied",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Denied or authority unavailable; no assignment persisted",
+          "source_references": [
+            "src/riverview_core/assignment_intake.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/development/M3.3-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M3.3-ASSIGNMENT-INTAKE/acceptance.json"
+          ]
         },
         {
           "id": "rv:postgres-ledger:assignment-lifecycle:queued",
@@ -2694,11 +2728,6 @@
       ],
       "edges": [
         {
-          "from": "rv:postgres-ledger:assignment-lifecycle:intake",
-          "to": "rv:postgres-ledger:assignment-lifecycle:queued",
-          "type": "runtime_transition"
-        },
-        {
           "from": "rv:postgres-ledger:assignment-lifecycle:queued",
           "to": "rv:postgres-ledger:assignment-lifecycle:ready",
           "type": "runtime_transition"
@@ -2798,6 +2827,23 @@
           "from": "rv:postgres-ledger:assignment-lifecycle:awaiting-steward",
           "to": "rv:postgres-ledger:assignment-lifecycle:cancelled",
           "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:intake",
+          "to": "rv:postgres-ledger:assignment-lifecycle:assignment-create-authority",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:assignment-create-authority",
+          "to": "rv:postgres-ledger:assignment-lifecycle:queued",
+          "type": "runtime_transition",
+          "label": "exact grant locked through assignment and event commit"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:assignment-create-authority",
+          "to": "rv:postgres-ledger:assignment-lifecycle:assignment-create-denied",
+          "type": "diagnostic_branch",
+          "label": "missing, revoked, wrong-scope or unavailable authority"
         }
       ]
     },
@@ -6334,6 +6380,8 @@
     "rv:outcome-verifier:independent-result:result-jump",
     "rv:outcome-verifier:independent-result:rework",
     "rv:outcome-verifier:independent-result:verification-intake",
+    "rv:postgres-ledger:assignment-lifecycle:assignment-create-authority",
+    "rv:postgres-ledger:assignment-lifecycle:assignment-create-denied",
     "rv:postgres-ledger:assignment-lifecycle:awaiting-steward",
     "rv:postgres-ledger:assignment-lifecycle:awaiting-verification",
     "rv:postgres-ledger:assignment-lifecycle:blocked",

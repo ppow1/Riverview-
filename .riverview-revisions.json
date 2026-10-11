@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.72",
+  "manifest_revision": "1.1.73",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.45",
+      "revision": "1.0.46",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "a785669500b9ab633a6a8511e805f69918a72b9c77d944dd38e11311a9a90544",
-      "size_bytes": 263478
+      "sha256": "fb5a81af3b30b00d584e4c46c5bf894945d73251232b10278ed3f9bd93526d51",
+      "size_bytes": 265636
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -14,10 +14,10 @@
       "size_bytes": 3203
     },
     "process_graphs/postgres-ledger/assignment-lifecycle.json": {
-      "revision": "1.0.0",
+      "revision": "1.0.1",
       "path": "process_graphs/postgres-ledger/assignment-lifecycle.json",
-      "sha256": "3cf4993bd5a07c8ad99cfbf2179d33b0fd606174b795624897c4f146bdc7e9bd",
-      "size_bytes": 6599
+      "sha256": "a227b8fed36571007eb02c9f0a9574d455efe759d7cf00579a89d5cbf4421fff",
+      "size_bytes": 10005
     },
     "process_graphs/postgres-ledger/migration.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 27724
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.72"
+      "revision": "1.1.73"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",

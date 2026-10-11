@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.15
+File Revision: 1.0.16
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -12,6 +12,7 @@ Changed: 2026-10-11 UTC | RV-M4.1-LEAST-PRIVILEGE | Require a dedicated registry
 Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER | Require the manager login to inherit no other database role grants
 Changed: 2026-10-11 UTC | RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER | Make authority migrations self-contained for a dedicated fresh schema
 Changed: 2026-10-11 UTC | RV-M4.1-OWNER-SCHEMA-USAGE | Grant protected table owner schema USAGE for PostgreSQL FK enforcement without CREATE
+Changed: 2026-10-11 UTC | RV-M3.3-ASSIGNMENT-INTAKE | Document isolated atomic exact assignment.create application boundary and live-route limitation
 Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Persist bootstrap bearer before commit and support safe restart
 Changed: 2026-10-11 UTC | RV-M4.1-LIVE-BOOTSTRAP-EVIDENCE | Record verified root-local live Steward bootstrap without claiming service integration
 Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT | Specify isolated runtime exact-grant function and current deployment boundary
@@ -105,11 +106,16 @@ function and cannot directly access authority tables. A rollback-only live
 runtime-role transaction verified exact allow, wrong-action deny, table-read
 deny and manager-function deny. Evidence:
 `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T090700Z-live-exact-grant/`.
-The worker adapter code is not yet installed in a worker service, assignment
-creation still lacks `assignment.create` enforcement, and no real approved
-worker/knowledge-provider end-to-end run exists. M3.3 remains blocked on those
-application-path and provider requirements. Direct inserts and invented
-authority scope strings remain prohibited. M4.1 does not implement chat,
+The worker adapter code is not yet installed in a worker service. The isolated
+`AuthorizedAssignmentIntake` application entry point now checks exact
+`assignment.create` and atomically holds the matching grant lock across
+assignment/event persistence; tests verify grant denial, attribution, replay,
+and fail-closed registry errors. This does not change the lower-level
+`PostgresLedger.create` persistence API or prevent direct SQL writes. Every
+application route must use the authorized intake. No live route/service or real
+approved worker/knowledge-provider end-to-end run exists. M3.3 remains blocked
+on those application integration and provider requirements. Direct inserts and
+invented authority scope strings remain prohibited. M4.1 does not implement chat,
 work-order promotion, provider routing, or the Grace director.
 
 ### Database privilege boundary package

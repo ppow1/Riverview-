@@ -1,12 +1,13 @@
 # Riverview~ worker adapter contract
 
-**Document Revision:** 1.0.9
+**Document Revision:** 1.0.10
 **Component:** WORKER-ADAPTER
 **Milestone:** M2.1–M2.3
 **Status:** M4.3 isolated local-inference execution and independent verification passed; persistent Camrui worker service remains uncommissioned
 **Implementation:** `src/riverview_core/worker_adapter/adapter.py`
 **Changed:** 2026-10-11 UTC | RV-M4.1-LIVE-EXACT-GRANT | Record deployed database function ACL while retaining undeployed worker service status
 **Changed:** 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Record verified isolated model execution and persistent-service limitation
+**Changed:** 2026-10-11 UTC | RV-M3.3-ASSIGNMENT-INTAKE | Record isolated grant-gated assignment creation and undeployed service boundary
 
 ## Scope and trust boundaries
 
@@ -152,9 +153,13 @@ registration grant, post-registration credential revocation, and manager/runtime
 SQL separation. A protected live backup/restore, migration 0002, function ACL,
 and rollback-only runtime-role allow/deny check now pass; see
 `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T090700Z-live-exact-grant/`. No
-worker service consumes this contract. M3.3 and M4.1 remain IN PROGRESS pending
-`assignment.create` authorization, deployment and commissioning of the worker
-adapter with an approved real worker, plus the real knowledge provider for M3.3.
+worker service consumes this contract. The isolated `AuthorizedAssignmentIntake`
+checks exact `assignment.create`, derives actor identity from the authority
+function, and holds that grant lock across assignment/event persistence. Its
+isolated PostgreSQL tests pass; this does not restrict raw `PostgresLedger.create`
+or direct SQL. No governed route or worker service uses it yet. M3.3 remains
+blocked on route/service integration, commissioning of an approved real worker,
+and the real knowledge provider.
 
 
 ## M4.3 local inference capability

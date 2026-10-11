@@ -1,8 +1,12 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.85
+**Document Revision:** 1.0.86
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-11 UTC — RV-M3.3-ASSIGNMENT-INTAKE / isolated authorized creation
+
+Added `AuthorizedAssignmentIntake`, which requires a current exact `assignment.create` grant, derives the assignment actor from the protected grant result, and holds the grant-row lock across the ledger write and created event in one PostgreSQL transaction. Focused isolated PostgreSQL integration tests passed 4/4, including idempotent replay and missing, wrong, revoked, unavailable, and forged-actor rejection. The disposable schema was removed. This is a callable application entry point, not a deployed route: raw `PostgresLedger.create` and direct SQL are still persistence-level bypass paths unless callers are constrained to this API. The shared schema/runtime privileges and live services were not changed. M3.3 remains BLOCKED pending governed request-path integration, a commissioned approved worker, and a real repository-backed institutional knowledge provider. Evidence: `evidence/checkouts/M3.3-ASSIGNMENT-INTAKE/`.
 
 ## 2026-10-11 UTC — RV-M4.3-LOCAL-INFERENCE / real concurrent CPU inference
 
