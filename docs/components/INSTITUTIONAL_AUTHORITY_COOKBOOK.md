@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.15
+File Revision: 1.0.16
 Purpose: Diagnose and safely recover institutional authority registry state
 Authority: Read-only diagnostics first; grant changes require authenticated Steward
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Keep evidence references as readable paths in safe dashboard renderer
@@ -16,6 +16,7 @@ Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER-DOC | Document NOINHERIT man
 Changed: 2026-10-11 UTC | RV-M4.1-OWNER-SCHEMA-USAGE | Diagnose and repair FK-check schema USAGE for protected table owner
 Changed: 2026-10-11 UTC | RV-M4.1-APPLY-REQUIRED-DRY-RUN | Verify read-only preflight reports incomplete grants before apply
 Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Document restart-safe Steward credential bootstrap
+Changed: 2026-10-11 UTC | RV-M4.1-LIVE-BOOTSTRAP-EVIDENCE | Record actual Camrui backup, restore, ACL and Steward bootstrap results
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional authority registry cookbook
@@ -311,10 +312,27 @@ disposable restore rehearsal passed before additive migrations and the isolated
 boundary omitted schema `USAGE` for the NOLOGIN relation owner; manager inserts
 with foreign keys then failed with SQLSTATE `42501`. The corrected provisioner
 grants the owner only `USAGE`, retains `CREATE=false`, and verifies this state.
-The isolated regression now exercises manager inserts through credential,
-grant and audit-event foreign keys. Live re-application and bootstrap are
-pending this commit's review and verification; do not infer they succeeded from
-the isolated test.
+The isolated regression exercises manager inserts through credential, grant
+and audit-event foreign keys. The current protected backup is
+`/var/lib/postgresql/backups/riverview/m4.1/rv-m41-fk-20261011T080500Z/riverview.dump`
+(SHA-256 `60ce7aa35c95871c510098b28126f6a738f63f1efde773bf9ad0a96e6f164444`,
+mode 0600). It restored into disposable database
+`rv_restore_m41_fk_20261011t080500z` with the recorded Core and authority counts;
+that exact restore database was verified idle and removed afterward.
+
+Commit `4276af8a8296b9c3042076a78881b2ec6d9b766e` passed CI before live use.
+The corrected boundary apply returned `APPLIED`; subsequent dry-run returned
+`apply_required=false`. Root-local helper returned `BOOTSTRAPPED` and a new
+process returned `ALREADY_BOOTSTRAPPED`. Independent protected-file digest
+verification found one matching active credential, exactly three
+institution-scoped bootstrap grants, and one bootstrap event. The token file is
+root:root mode 0600 and its contents were not logged. Runtime SELECT and manager
+CREATE attempts both returned permission denied; manager owner membership is
+false. PostgreSQL, event processor, CME monitor, notifications, dashboard and
+SSH remained active. `riverview_dev` still has nine migrations, four
+assignments, and eleven events. These are commissioning results for the
+database boundary and initial Steward identity only; no application service
+uses the authority registry yet.
 - **1.0.1 — 2026-10-11:** Add observed live ownership state, limited isolated role-boundary proof, and explicit non-deployment guidance.
 - **1.0.4 — 2026-10-11:** Present evidence references as readable paths supported by the dashboard's documentation-link policy.
 - **1.0.3 — 2026-10-11:** Record the executed read-only Camrui role preflight and result.

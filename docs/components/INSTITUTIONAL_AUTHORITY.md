@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.10
+File Revision: 1.0.11
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -13,12 +13,13 @@ Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER | Require the manager login 
 Changed: 2026-10-11 UTC | RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER | Make authority migrations self-contained for a dedicated fresh schema
 Changed: 2026-10-11 UTC | RV-M4.1-OWNER-SCHEMA-USAGE | Grant protected table owner schema USAGE for PostgreSQL FK enforcement without CREATE
 Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Persist bootstrap bearer before commit and support safe restart
+Changed: 2026-10-11 UTC | RV-M4.1-LIVE-BOOTSTRAP-EVIDENCE | Record verified root-local live Steward bootstrap without claiming service integration
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
 
 **Milestone:** M4.1 — Office, occupant, implementation and state separation
-**Status:** Additive live authority schema and privilege boundary installed; Steward bootstrap and service integration remain unverified
+**Status:** Additive live authority schema, privilege boundary, and root-local Steward bootstrap verified; service integration remains unverified
 **Implementation:** `src/riverview_core/institutional_authority/registry.py`
 **Migrations:** `0000_authority_migration_ledger.sql` bootstraps the checksum ledger if absent; `0001_institutional_authority.sql` creates the registry tables and trigger.
 **Process graph:** `rv:institutional-authority:identity-and-grants`
@@ -122,9 +123,12 @@ Camrui has an additive `riverview_authority` schema with migration ledger and
 protected manager credential; the existing `riverview_dev` schema and runtime
 tables remain outside the boundary. A dedicated live backup/restore rehearsal
 and isolated privilege testing were completed before applying the boundary.
-The initial Steward bootstrap is not yet verified, and no service uses this
-registry. The live boundary remains pending bootstrap, read/write authorization
-checks, runtime denial checks, and service-integration verification.
+The root-local Steward bootstrap, protected token persistence, manager
+authorization, and runtime SQL denial are verified in
+`evidence/checkouts/M4.1-DB-BOUNDARY/20261011T081700Z-live-bootstrap/`. No
+service uses this registry yet; live service integration, application-path
+authorization, recovery and remaining component Definition of Done verification
+remain open.
 See the [boundary procedure](INSTITUTIONAL_AUTHORITY_COOKBOOK.md#versioned-privilege-boundary-provisioner-isolated-controlled-use).
 
 ## Interfaces

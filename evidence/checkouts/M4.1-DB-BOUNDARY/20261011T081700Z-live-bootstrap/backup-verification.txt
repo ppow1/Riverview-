@@ -1,0 +1,2 @@
+60ce7aa35c95871c510098b28126f6a738f63f1efde773bf9ad0a96e6f164444  /var/lib/postgresql/backups/riverview/m4.1/rv-m41-fk-20261011T080500Z/riverview.dump
+owner=postgres:postgres mode=600 size=97300 path=/var/lib/postgresql/backups/riverview/m4.1/rv-m41-fk-20261011T080500Z/riverview.dump
