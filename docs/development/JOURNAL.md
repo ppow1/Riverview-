@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.77
+**Document Revision:** 1.0.78
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -1159,3 +1159,9 @@ its isolated schema. A subsequent source indentation error was caught at test
 collection and fixed before execution; no shared database was touched. No live
 roles, schema, credentials or identity state changed. Exact-head CI and final
 checkpoint evidence are pending.
+
+## 2026-10-11 UTC — RV-OVERNIGHT-20261011-DASHBOARD-DOCS-CHECK / live browser evidence
+
+Ran the controlled read-only Firefox check against the currently deployed dashboard release `8dcec2ada7d811a78f6cb28a1b81e6f8f59b1a9b`; all services remained active. The actual completed M3.1 assignment showed healthy/current projection, healthy CME, six attention records, one independent verification, and no failed checks or browser errors. The Operations Cookbook rendered 17 headings, 2 tables and 17 code blocks; all 21 linked component documents returned HTTP 200, with no raw Markdown, scripts or unsafe links. Graph view showed 12 nodes, 11 canonical edges and one decision, with correct unknown execution position. Navigation handler timings were 84/332/90/242 ms for Assignments/Activity/Overview/Workflows in this single run; not paint latency or a sustained benchmark. Durable report/screenshots and checksums: `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T082220Z-4b7c23d/`.
+
+The deployed release is based on the M3.3 repository-knowledge branch, while the present M4.2 PR source is based on the M4.1 database-boundary branch. The deployed cookbook has a repository-knowledge diagnosis absent in this checkout; this checkout has the observed PostgreSQL backup-path permission-failure procedure absent in the deployed package. Do not hot-edit or replace the working dashboard. Reconcile those controlled documents in the owning source branch before a later compatible package release. The current live read confirms documentation route health, but does not clear the docs/source divergence. Next: preserve the live run artifacts, then address the cookbook divergence through its owning source branch without altering database or service state.
