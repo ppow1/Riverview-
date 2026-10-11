@@ -2,12 +2,13 @@
 Riverview~ Controlled Document
 File: docs/development/OPERATIONS-COOKBOOK-001_REVISION_RECORD.md
 Component: RIVERVIEW-OPERATIONS
-File Revision: 1.0.8
+File Revision: 1.0.9
 Purpose: Record the consolidated operational guide deliverable and evidence
 Authority: Documentation and diagnostics; does not authorize shared-state mutation
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Record passing suite, live deployment, and browser evidence
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-CROSS-BRANCH-DOC-PORT | Port safe database, scheduler, and worker guidance without dropping M3.3 knowledge docs/graph
 Changed: 2026-10-11 UTC | RV-M1.4-LIVE-DEPENDENCY-CORRECTION | Correct live lease migration status while preserving the M1.4 acceptance boundary
+Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-DEPLOY-8DCEC2A | Commission updated operational cookbooks as a dashboard-only immutable release and verify in Firefox
 History: Git and revision/backup manifest
 -->
 # RV-OPS-COOKBOOK-001 — Consolidated operations and recovery guide
@@ -71,3 +72,27 @@ and graph. Deployment has not yet been attempted or claimed.
 
 - **1.0.0 — 2026-10-11:** Initial task record.
 - **1.0.8 — 2026-10-11:** Port the safe PostgreSQL/scheduler/worker guidance onto M3.3, record full isolated testing and graph evidence, and retain no-deployment status.
+
+
+## 2026-10-11 UTC — dashboard cookbook update deployment
+
+The verified documentation update was installed from exact source commit
+`8dcec2ada7d811a78f6cb28a1b81e6f8f59b1a9b` as a root-owned, read-only
+immutable dashboard release. Archive SHA-256:
+`047ee8e2a0bf4e64415199c9bff07cb79961b03bcba1b08dd3f28ea2275b0f60`. The
+prior release `7a9ff46e11edc54b1ffe46f63962754e6d2da765` remains intact. Only
+`riverview-status-dashboard.service` was restarted; it returned active/running,
+`ExecMainStatus=0`, `NRestarts=0`. PostgreSQL, event processor, CME monitor,
+notification dispatcher, and SSH remained active. One immediate HTTP probe raced
+listener bind; a bounded retry returned HTTP 200 without a service restart or
+other corrective action.
+
+Firefox 156.0.1 verified the live projection and readable operations cookbook:
+healthy projection and CME, six persisted attention items, completed actual worker
+assignment `m31-real-worker-2533f1c7dd1c433c95bd2cfa8a314d7c`, one independent
+verification, 17 headings, 2 tables, 17 code blocks, 21 documentation-link
+requests all HTTP 200, zero unsafe links/scripts/browser errors, and graph view
+position correctly unknown. Navigation calls measured 88–143 ms in this sample.
+Evidence and checksums are in
+`evidence/checkouts/OPERATIONS-COOKBOOK/20261011T062000Z-deployment-8dcec2a/`.
+No shared database state, credentials, workers, or assignments were changed.

@@ -1,0 +1,20 @@
+{
+  "task_id": "RV-OPS-COOKBOOK-DEPLOY-8DCEC2A",
+  "source_commit": "8dcec2ada7d811a78f6cb28a1b81e6f8f59b1a9b",
+  "previous_release": "/opt/riverview-status-dashboard/releases/7a9ff46e11edc54b1ffe46f63962754e6d2da765",
+  "active_release": "/opt/riverview-status-dashboard/releases/8dcec2ada7d811a78f6cb28a1b81e6f8f59b1a9b",
+  "package_archive": "/var/lib/riverview/deployments/dashboard/8dcec2ada7d811a78f6cb28a1b81e6f8f59b1a9b/source.tar.gz",
+  "package_archive_sha256": "047ee8e2a0bf4e64415199c9bff07cb79961b03bcba1b08dd3f28ea2275b0f60",
+  "release_owner_mode": "root:root; read-only",
+  "dashboard_unit_observation": "MainPID=284271\nNRestarts=0\nExecMainStatus=0\nActiveState=active\nSubState=running\nActiveEnterTimestamp=Sun 2026-10-11 02:17:54 EDT",
+  "related_units": {
+    "postgresql": "active",
+    "event_processor": "active",
+    "cme_monitor": "active",
+    "notification_dispatcher": "active",
+    "ssh": "active"
+  },
+  "readiness": "HTTP 200 on bounded retry after restart; first immediate probe raced bind (HTTP 000), service remained active; NRestarts=0",
+  "scope": "Dashboard-only release; application runtime bytes identical to previous active release, cookbook content updated; no DB/schema/credential/worker/assignment mutation.",
+  "external_effect": "none"
+}

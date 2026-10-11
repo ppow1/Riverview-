@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.68
+**Document Revision:** 1.0.69
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -1129,3 +1129,20 @@ logs and checksummed evidence are in
 `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T061300Z-m33-doc-update/`.
 The branch still requires exact-head CI and package compatibility review before
 any deployment; PR #19 remains open and unmerged.
+
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-DEPLOY-8DCEC2A / live documentation release
+
+Committed the cookbook integration on PR #19 (`8dcec2a`), then exact-head CI
+passed (run 38117449506). An immutable dashboard-only package from that commit
+was installed at `/opt/riverview-status-dashboard/releases/8dcec2ada7d811a78f6cb28a1b81e6f8f59b1a9b`;
+package SHA-256 is recorded in the deployment evidence. The immediately preceding
+release remains available. Dashboard restarted with active/running state, exit
+status zero, and no systemd restarts. A bounded listener check returned 200; its
+first instantaneous attempt had raced socket bind, consistent with the prior
+observed startup behavior. Firefox verified live healthy CME/projection, the
+completed actual worker assignment and independent verification, six attention
+items, 21 documentation fetches returning 200, rendered safe Markdown and no
+browser errors. Full results are retained in the linked deployment evidence.
+No database, worker, credential, or other service changes occurred. PR #19 is
+open/unmerged; M3.3 live authority/provider commissioning remains outstanding.

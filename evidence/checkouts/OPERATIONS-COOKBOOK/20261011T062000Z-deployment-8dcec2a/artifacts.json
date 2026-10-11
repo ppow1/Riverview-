@@ -1,0 +1,31 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-OPS-COOKBOOK-DEPLOY-8DCEC2A",
+  "source_commit": "8dcec2ada7d811a78f6cb28a1b81e6f8f59b1a9b",
+  "artifacts": {
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "6c905da45435b3112c6afe121065ed5fa7e3d2c99fff2eaf63b5af684ffa591d",
+      "size_bytes": 4057
+    },
+    "cookbook-view.png": {
+      "path": "cookbook-view.png",
+      "revision": "1.0.0",
+      "sha256": "ca033765521caf288d1582f0e00508ae8354c2c10220776ccdfec50d1eb9024a",
+      "size_bytes": 176770
+    },
+    "deployment.json": {
+      "path": "deployment.json",
+      "revision": "1.0.0",
+      "sha256": "3a68f7488902fa4727958ecc9e37b83eba1161285697185bf54afd6e6c2d6fe1",
+      "size_bytes": 1285
+    },
+    "workflow-view.png": {
+      "path": "workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "0b83a69482d5ea8a431a0c98237439bd63c471bbd242e7ce8a8da1afd7181e9c",
+      "size_bytes": 213078
+    }
+  }
+}
