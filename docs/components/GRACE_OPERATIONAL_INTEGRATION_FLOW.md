@@ -1,15 +1,16 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.11
-**Status:** PARTIALLY IMPLEMENTED — deterministic PostgreSQL objective/work-order infrastructure tested; no operational resident or live model commissioning.
+**Document Revision:** 1.0.14
+**Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
 
-This flow registers the objective intake, authority binding, reasoning, durable
-plan, assignment fanout, CME observation, artifact verification, follow-up, and
-genuine Steward escalation required by M4.4. The deterministic infrastructure
-slice described below is implemented and tested; operational resident reasoning,
-continuous follow-up, and live service integration remain planned.
+This flow registers the objective intake, authority binding, office-bound
+reasoning, durable plan, assignment fanout, CME observation, artifact
+verification, follow-up, and genuine Steward escalation required by M4.4. The
+deterministic infrastructure and isolated persistent-resident integration are
+implemented and tested; live resident commissioning, sustained follow-up, and
+operational Grace acceptance remain open.
 
 The implemented infrastructure slice is documented in
 docs/components/GRACE_EXECUTION_PIPELINE.md. It covers exact-grant objective
@@ -73,7 +74,7 @@ flowchart LR
   subgraph g_rv_grace_operational_integration["RESIDENT-ORCHESTRATION / grace-engineering-objective.v1"]
     g_rv_grace_operational_integration_objective_intake_55567c14(["IMPLEMENTED INFRASTRUCTURE — exact objective.submit grant persists objective and receipt event"])
     g_rv_grace_operational_integration_authority_check_71ce44bf["IMPLEMENTED — objective.submit and assignment.create use exact active grants; no proposal grants authority"]
-    g_rv_grace_operational_integration_reason_decompose_d48619ca["DETERMINISTIC CONTRACT TESTED — typed PlanProposal boundary; live model reasoning remains uncommissioned"]
+    g_rv_grace_operational_integration_reason_decompose_d48619ca["ISOLATED PERSISTENT INTEGRATION TESTED — existing ResidentReasoner handles grounded objectives and stores office-keyed plans; live model and supervised resident commissioning remain unverified"]
     g_rv_grace_operational_integration_durable_plan_26bc431c["IMPLEMENTED — objective, complete evidence provenance, and unapproved plan persist in PostgreSQL"]
     g_rv_grace_operational_integration_assignment_fanout_81ca8043["IMPLEMENTED SINGLE WORK ORDER — exact-grant intake links assignment and objective transactionally"]
     g_rv_grace_operational_integration_worker_dispatch_20506b72["DETERMINISTIC ADAPTER TESTED — lease-dispatched worker writes one bounded artifact; live executor remains outstanding"]
@@ -96,6 +97,9 @@ flowchart LR
     g_rv_grace_operational_integration_dashboard_objective_projection_4a2e9051["Authenticated dashboard reads bounded objective, assignment, artifact digest, verifier decision, and service freshness from PostgreSQL"]
     g_rv_grace_operational_integration_worker_retry_ceiling_11dc0c66{"Apply the configured persistent retry-safe recovery ceiling; exhausted assignments remain blocked with a recovery record"}
     g_rv_grace_operational_integration_verification_failure_isolation_cf6b467b[["Verifier invocation failures are persisted per attempt, capped at three, and skipped so unrelated verification candidates continue"]]
+    g_rv_grace_operational_integration_office_bound_resident_runtime_93950d11["ISOLATED INTEGRATION VERIFIED — persistent runtime authenticates the current office.state.write occupant grant and requires a bound office implementation before resident reasoning"]
+    g_rv_grace_operational_integration_office_state_restart_and_replacement_0c6a704e["ISOLATED INTEGRATION VERIFIED — reconstructed resident runtime resumes office-keyed plan under replacement binding; stale occupant grant is denied"]
+    g_rv_grace_operational_integration_stale_resident_denied_bacbbff8[["A stale resident grant is denied before grounding/provider use even if it is later reissued; office-state writes recheck the bound principal under a binding-row lock"]]
   end
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_cme_progress_and_recovery_observe_428defda["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -138,6 +142,10 @@ flowchart LR
   g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8 -->|diagnostic_branch| g_rv_grace_operational_integration_verification_failure_isolation_cf6b467b
   g_rv_grace_operational_integration_verification_failure_isolation_cf6b467b -->|recovery_route| g_rv_grace_operational_integration_independent_artifact_check_2502f001
   g_rv_grace_operational_integration_verification_failure_isolation_cf6b467b -->|documentation| g_rv_grace_operational_integration_dashboard_objective_projection_4a2e9051
+  g_rv_grace_operational_integration_office_bound_resident_runtime_93950d11 -->|prerequisite: exact office grant and current binding verified before resident proposal| g_rv_grace_operational_integration_reason_decompose_d48619ca
+  g_rv_grace_operational_integration_reason_decompose_d48619ca -->|plan and outcomes are stored under stable office identity| g_rv_grace_operational_integration_office_state_restart_and_replacement_0c6a704e
+  g_rv_grace_operational_integration_office_bound_resident_runtime_93950d11 -->|diagnostic_branch: revoked credential or unbound office fails closed| g_rv_grace_operational_integration_stale_resident_denied_bacbbff8
+  g_rv_grace_operational_integration_stale_resident_denied_bacbbff8 -->|recovery_route: record no proposal; replace/reissue only through existing authorized identity lifecycle| g_rv_grace_operational_integration_waiting_and_failure_0a7985d4
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

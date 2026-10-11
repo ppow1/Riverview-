@@ -1,0 +1,52 @@
+# Riverview~ controlled unit
+# File Revision: 1.0.1
+# Task: RV-M4.4-PERSISTENT-EXECUTION
+# Purpose: Run continuously supervised, least-privilege Grace execution reconciliation
+[Unit]
+Description=Riverview Grace persistent objective execution
+After=network.target postgresql.service riverview-event-processor.service
+Wants=postgresql.service riverview-event-processor.service
+
+[Service]
+Type=simple
+User=riverview
+Group=riverview
+WorkingDirectory=/opt/riverview-grace-execution/current
+Environment=PYTHONPATH=/opt/riverview-grace-execution/current/src:/opt/riverview-grace-execution/current/scripts
+Environment="RIVERVIEW_PG_DSN=host=127.0.0.1 port=5432 dbname=riverview user=riverview_core application_name=riverview-grace-execution"
+Environment=RIVERVIEW_PG_SCHEMA=riverview_dev
+Environment=RIVERVIEW_AUTHORITY_SCHEMA=riverview_authority
+Environment=RIVERVIEW_KNOWLEDGE_ROOT=/opt/riverview-grace-execution/current
+Environment=RIVERVIEW_ARTIFACT_DIR=/var/lib/riverview-grace/artifacts
+Environment=RIVERVIEW_GRACE_POLL_SECONDS=1
+Environment=RIVERVIEW_GRACE_MAX_DISPATCH_FAILURES=3
+Environment=RIVERVIEW_GRACE_MAX_WORKER_RECOVERIES=3
+EnvironmentFile=/etc/riverview/grace-execution.env
+LoadCredential=pgpass:/etc/riverview/pgpass
+LoadCredential=dispatch-token:/etc/riverview/worker/grace-dispatch.credential
+LoadCredential=worker-token:/etc/riverview/worker/grace-executor.credential
+LoadCredential=verifier-token:/etc/riverview/worker/grace-verifier.credential
+RuntimeDirectory=riverview-grace-execution
+RuntimeDirectoryMode=0700
+StateDirectory=riverview-grace
+StateDirectoryMode=0700
+ExecStart=/opt/riverview-core/.venv/bin/python /opt/riverview-grace-execution/current/scripts/run_grace_execution_service.py
+Restart=on-failure
+RestartSec=3s
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_INET AF_UNIX
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

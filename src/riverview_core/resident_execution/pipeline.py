@@ -2,15 +2,16 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
 # Execution Model: Request-driven orchestration over existing PostgreSQL authority and ledger
 # Observability: Append-only objective events linked to assignment and evidence provenance
 # Dependencies: Psycopg 3; AuthorizedAssignmentIntake; knowledge-provider v1
 # Authority: objective.submit and assignment.create exact grants; no proposal self-authorization
 # Changed: 2026-10-11 UTC | RV-M4.4-OBJECTIVE-WORKORDER-PIPELINE | Initial durable execution bridge
+# Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Expose bounded grounded objective context to ResidentReasoner
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
-# Tests: tests/test_grace_execution.py
+# Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
 """Durable, fail-closed objective intake and work-order handoff.
@@ -43,6 +44,16 @@ class ObjectiveNotAuthorized(ObjectiveError):
 
 class ObjectiveStateError(ObjectiveError):
     """The requested lifecycle transition is invalid or its evidence incomplete."""
+
+
+class ObjectiveContextReader:
+    """ResidentReasoner adapter over verified, office-scoped objective records."""
+
+    def __init__(self, pipeline):
+        self.pipeline = pipeline
+
+    def read(self, assignment_id):
+        return self.pipeline.read_reasoning_context(assignment_id)
 
 
 def _json(value):
@@ -331,6 +342,33 @@ class GraceExecutionPipeline:
             cur.execute("SELECT * FROM grace_objectives WHERE objective_id=%s", (objective_id,))
             row = cur.fetchone()
         return dict(row) if row else None
+
+    def grounded_objectives(self, *, scope_ref, limit=25):
+        """Return a bounded, stable queue of objectives ready for resident reasoning."""
+        if not isinstance(scope_ref, str) or not scope_ref or type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("exact scope and bounded objective limit are required")
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT objective_id,revision FROM grace_objectives
+                WHERE status='GROUNDED' AND scope_ref=%s
+                ORDER BY created_at,objective_id LIMIT %s""", (scope_ref, limit))
+            return cur.fetchall()
+
+    def read_reasoning_context(self, objective_id):
+        """Adapt a durable GROUNDED objective to ResidentReasoner's assignment contract."""
+        objective = self.get_objective(objective_id)
+        if (objective is None or objective["status"] != "GROUNDED"
+                or objective["evidence"].get("status") != KnowledgeStatus.VERIFIED.value
+                or objective["evidence"].get("retrieval_complete") is not True):
+            raise ObjectiveStateError("verified grounded objective context is required")
+        return {
+            "id": objective["objective_id"],
+            "revision": str(objective["revision"]),
+            "state": objective["status"],
+            "objective": objective["request"],
+            "acceptance_criteria": list(objective["acceptance_criteria"]),
+            "verified_evidence": objective["evidence"],
+        }
 
     def objective_events(self, objective_id):
         with self.ledger.db.cursor() as cur:

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.2
+# Revision: 1.0.4
 # Purpose: Reconcile durable Grace work orders through existing CME worker contracts
 # Execution Model: Persistent scheduled poll over PostgreSQL objective state
 # Observability: Objective events, worker attempts, verification records, dashboard projection
@@ -11,8 +11,10 @@
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Initial persistent reconciler
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-ISOLATION | Persist verifier errors and avoid per-cycle candidate starvation
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-TEST-SEAM | Keep verifier replaceable behind existing result contract
+# Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Bind optional resident reasoning to durable grounded objectives and office-scoped state
+# Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-FAIR-CYCLE | Attempt at most one grounded objective before continuing CME work
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
-# Tests: tests/test_grace_persistent_execution.py
+# Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
 """Persistent, idempotent orchestration over the existing assignment ledger."""
@@ -42,9 +44,12 @@ class GraceExecutionService:
 
     def __init__(self, pipeline, adapter, worker, *, dispatch_credential,
                  authority_ref, verifier_id, verifier_credential, artifact_root,
-                 max_dispatch_failures=3, verifier=None):
+                 max_dispatch_failures=3, verifier=None, resident_reasoner=None,
+                 resident_token_budget=256):
         if not 1 <= max_dispatch_failures <= 10:
             raise ValueError("dispatch failure limit must be between 1 and 10")
+        if type(resident_token_budget) is not int or not 1 <= resident_token_budget <= 4096:
+            raise ValueError("resident reasoning token budget must be bounded")
         self.pipeline = pipeline
         self.adapter = adapter
         self.worker = worker
@@ -54,7 +59,33 @@ class GraceExecutionService:
         self.verifier_credential = verifier_credential
         self.verifier = verifier or BoundedArtifactVerifier(artifact_root)
         self.max_dispatch_failures = max_dispatch_failures
+        self.resident_reasoner = resident_reasoner
+        self.resident_token_budget = resident_token_budget
         self.instance_id = uuid4()
+
+    def reason_one_grounded_objective(self):
+        """Propose for one verified objective; office authority never dispatches work."""
+        if self.resident_reasoner is None or not self.resident_reasoner.providers:
+            return False
+        from ..resident_reasoning import ReasoningStatus
+        rows = self.pipeline.grounded_objectives(scope_ref=self.authority_ref, limit=1)
+        if not rows:
+            return False
+        objective_id = rows[0]["objective_id"]
+        try:
+            result = self.resident_reasoner.propose(
+                objective_id, trigger="persistent_resident_cycle",
+                token_budget=self.resident_token_budget)
+            if result.status is ReasoningStatus.PROPOSED and result.proposal is not None:
+                self.pipeline.record_proposal(
+                    objective_id, result.proposal,
+                    actor_id="office:" + self.resident_reasoner.office_id)
+                return True
+        except Exception as exc:
+            LOG.warning(json.dumps({"event": "resident_reasoning_cycle_failed",
+                "objective_id": objective_id,
+                "failure_type": type(exc).__name__}, sort_keys=True))
+        return False
 
     def _heartbeat(self, status, error_type=None):
         """Update the durable external health projection; never logs request content."""
@@ -208,12 +239,13 @@ class GraceExecutionService:
     def run_once(self):
         """Run bounded dispatch, one existing leased worker poll and verification."""
         try:
+            reasoned = self.reason_one_grounded_objective()
             dispatched = self.dispatch_proposed()
             worker_result = self.worker.run_once()
             verified = self.verify_one()
             completed = self.reconcile_completions()
             self._heartbeat("healthy")
-            return {"dispatched": dispatched, "worker": worker_result,
+            return {"reasoned": reasoned, "dispatched": dispatched, "worker": worker_result,
                     "verified": verified, "completed": completed}
         except Exception as exc:
             self._heartbeat("degraded", type(exc).__name__)
@@ -226,7 +258,7 @@ class GraceExecutionService:
         while not shutdown_requested():
             try:
                 result = self.run_once()
-                if (not result["dispatched"] and result["worker"].get("status") == "IDLE"
+                if (not result["reasoned"] and not result["dispatched"] and result["worker"].get("status") == "IDLE"
                         and not result["verified"] and not result["completed"]):
                     sleep(poll_seconds)
             except Exception as exc:

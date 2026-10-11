@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.8
+# Revision: 1.0.9
 # Purpose: Regound institutional resident requests and route bounded plan proposals
 # Execution Model: Request-driven in-process runtime with replaceable reasoning providers
 # Observability: Office-scoped durable state stores grounding and provider outcomes
@@ -16,6 +16,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.2-ENFORCE-PER-ROUTE-TOKEN-BUDGET | Reject provider output that exceeds its allocated attempt budget
 # Changed: 2026-10-11 UTC | RV-M4.2-ROUTE-MINIMUM-BUDGET | Reject a configured route whose provider count cannot fit the requested total token budget
 # Changed: 2026-10-11 UTC | RV-M4.4-CONTEXT-FAILURE-CLASS | Distinguish oversize grounded input from JSON serialization failure
+# Changed: 2026-10-11 UTC | RV-M4.1-BOUND-OCCUPANT-WRITE | Reject stale/re-granted non-occupant credentials before grounding
 # Contracts: docs/components/RESIDENT_REASONING.md
 # Tests: tests/test_resident_reasoning.py
 # History: .riverview-backups/manifest.jsonl
@@ -265,9 +266,8 @@ class ResidentReasoner:
                 or type(token_budget) is not int or not 1 <= token_budget <= 100_000):
             raise ValueError("assignment, bounded trigger, and token budget are required")
         try:
-            self.registry.authorize(self._credential, "office.state.write",
-                                    "office:" + self.office_id)
-            snapshot = self.registry.office_snapshot(self.office_id)
+            snapshot = self.registry.authorize_office_state(
+                self._credential, self.office_id)
         except AuthorityDenied:
             return ReasoningResult(ReasoningStatus.AUTHORITY_DENIED, request_id,
                                   "OFFICE_STATE_GRANT_REQUIRED")

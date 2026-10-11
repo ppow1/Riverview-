@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/registry.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.8
+# Revision: 1.0.10
 # Purpose: Persist separated offices, occupants, implementations and scoped grants
 # Execution Model: Synchronous transactional PostgreSQL registry
 # Observability: Append-only authority events and office binding revisions
@@ -9,6 +9,8 @@
 # Authority: Exact active credential, principal, action and scope are required
 # Changed: 2026-10-11 UTC | RV-M4.1-001 | Validate expiry timestamps and object-shaped office state
 # Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Allow trusted root caller to persist random token before bootstrap transaction
+# Changed: 2026-10-11 UTC | RV-M4.1-BOUND-OCCUPANT-WRITE | Require the exact office-state writer to be the currently bound resident
+# Changed: 2026-10-11 UTC | RV-M4.1-RUNTIME-OFFICE-API | Route restricted runtime office reads/writes through exact-grant database functions
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: tests/test_institutional_authority.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -53,17 +55,19 @@ class AuthorityRegistry:
         ("office.manage", "institution"),
     )
 
-    def __init__(self, dsn, *, schema="public"):
+    def __init__(self, dsn, *, schema="public", runtime_safe=False):
         if not schema or not schema[0].isalpha() or not schema.replace("_", "").isalnum():
             raise ValueError("invalid schema")
         self.schema = schema
+        self.runtime_safe = bool(runtime_safe)
         try:
             self.db = psycopg.connect(dsn, row_factory=dict_row, autocommit=True)
-            with self.db.cursor() as cur:
-                cur.execute("SELECT to_regclass(%s) AS registry",
-                            (f"{schema}.institutional_principals",))
-                if cur.fetchone()["registry"] is None:
-                    raise RegistryUnavailable("institutional authority migration is not applied")
+            if not self.runtime_safe:
+                with self.db.cursor() as cur:
+                    cur.execute("SELECT to_regclass(%s) AS registry",
+                                (f"{schema}.institutional_principals",))
+                    if cur.fetchone()["registry"] is None:
+                        raise RegistryUnavailable("institutional authority migration is not applied")
         except Exception as exc:
             if hasattr(self, "db"):
                 self.db.close()
@@ -303,6 +307,57 @@ class AuthorityRegistry:
         except Exception as exc:
             raise RegistryUnavailable(type(exc).__name__) from None
 
+    def authorize_office_state(self, credential, office_id):
+        """Authenticate the exact grant and require its principal to occupy the office."""
+        if not isinstance(office_id, str) or not office_id:
+            raise ValueError("office identity is required")
+        if self.runtime_safe:
+            try:
+                with self.db.cursor() as cur:
+                    query = psycopg.sql.SQL("SELECT {}.{}(%s,%s) AS snapshot").format(
+                        psycopg.sql.Identifier(self.schema),
+                        psycopg.sql.Identifier("read_authorized_office_state"))
+                    cur.execute(query, (self._digest(credential), office_id))
+                    row = cur.fetchone()
+                if row is None or row["snapshot"] is None:
+                    raise AuthorityDenied("credential is not the current office occupant")
+                return dict(row["snapshot"])
+            except AuthorityDenied:
+                raise
+            except Exception as exc:
+                raise RegistryUnavailable(type(exc).__name__) from None
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    cur.execute("""SELECT o.office_id,o.office_role,b.occupant_id,
+                        p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+                        i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+                        s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+                        FROM institutional_offices o
+                        JOIN office_bindings b USING (office_id)
+                        JOIN resident_occupants r USING (occupant_id)
+                        JOIN institutional_principals p ON p.principal_id=r.principal_id
+                        JOIN resident_implementations i USING (implementation_id)
+                        JOIN office_runtime_state s ON s.office_id=o.office_id
+                        WHERE o.office_id=%s FOR SHARE OF b""", (office_id,))
+                    snapshot = cur.fetchone()
+                    if snapshot is None:
+                        raise IdentityConflict("office does not exist")
+                    principal = self._require(
+                        cur, credential, "office.state.write", "office:" + office_id)
+                    if (principal["principal_kind"] != "resident"
+                            or principal["principal_id"] != snapshot["principal_id"]
+                            or not snapshot["occupant_id"] or not snapshot["implementation_id"]):
+                        raise AuthorityDenied("credential principal is not the active office occupant")
+                    snapshot["state"] = dict(snapshot["state"])
+                    snapshot["state_updated_at"] = snapshot["state_updated_at"].isoformat()
+                    return snapshot
+        except (AuthorityDenied, IdentityConflict):
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
     def revoke_grant(self, steward_token, grant_id, *, reason_code="steward_revoked"):
         if not reason_code or len(reason_code) > 64:
             raise ValueError("reason_code must be a bounded non-empty code")
@@ -444,11 +499,41 @@ class AuthorityRegistry:
         encoded = json.dumps(state, sort_keys=True, separators=(",", ":"))
         if len(encoded.encode("utf-8")) > self.MAX_STATE_BYTES:
             raise ValueError("office state exceeds the bounded state limit")
+        if self.runtime_safe:
+            try:
+                with self.db.cursor() as cur:
+                    query = psycopg.sql.SQL("SELECT {}.{}(%s,%s,%s::jsonb,%s) AS revision").format(
+                        psycopg.sql.Identifier(self.schema),
+                        psycopg.sql.Identifier("write_authorized_office_state"))
+                    cur.execute(query, (self._digest(credential), office_id, encoded,
+                                        expected_revision))
+                    row = cur.fetchone()
+                if row is None or row["revision"] is None:
+                    raise AuthorityDenied("credential is not the current office occupant")
+                return row["revision"]
+            except (AuthorityDenied, ValueError):
+                raise
+            except psycopg.errors.SerializationFailure as exc:
+                raise IdentityConflict("office state revision conflict") from exc
+            except psycopg.Error as exc:
+                if exc.sqlstate == "22023":
+                    raise ValueError("office state is invalid or exceeds its bound") from None
+                raise RegistryUnavailable(type(exc).__name__) from None
         try:
             with self.db.transaction():
                 with self.db.cursor() as cur:
                     self._path(cur)
+                    cur.execute("""SELECT p.principal_id FROM office_bindings b
+                        JOIN resident_occupants r USING (occupant_id)
+                        JOIN institutional_principals p ON p.principal_id=r.principal_id
+                        WHERE b.office_id=%s FOR SHARE OF b""", (office_id,))
+                    binding = cur.fetchone()
+                    if binding is None:
+                        raise AuthorityDenied("office has no active resident binding")
                     principal = self._require(cur, credential, "office.state.write", f"office:{office_id}")
+                    if (principal["principal_kind"] != "resident"
+                            or principal["principal_id"] != binding["principal_id"]):
+                        raise AuthorityDenied("credential principal is not the active office occupant")
                     cur.execute("SELECT revision FROM office_runtime_state WHERE office_id=%s FOR UPDATE", (office_id,))
                     row = cur.fetchone()
                     if row is None:

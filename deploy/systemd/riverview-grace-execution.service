@@ -1,5 +1,5 @@
 # Riverview~ controlled unit
-# File Revision: 1.0.1
+# File Revision: 1.0.2
 # Task: RV-M4.4-PERSISTENT-EXECUTION
 # Purpose: Run continuously supervised, least-privilege Grace execution reconciliation
 [Unit]
@@ -26,6 +26,7 @@ LoadCredential=pgpass:/etc/riverview/pgpass
 LoadCredential=dispatch-token:/etc/riverview/worker/grace-dispatch.credential
 LoadCredential=worker-token:/etc/riverview/worker/grace-executor.credential
 LoadCredential=verifier-token:/etc/riverview/worker/grace-verifier.credential
+LoadCredential=resident-token:/etc/riverview/residents/grace-office.credential
 RuntimeDirectory=riverview-grace-execution
 RuntimeDirectoryMode=0700
 StateDirectory=riverview-grace

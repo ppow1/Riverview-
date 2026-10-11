@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.9
+# Revision: 1.0.12
 # Purpose: Exercise objective-to-authorized-worker-to-independent-verification pipeline
 # Execution Model: Isolated PostgreSQL schema, committed repository fixture, deterministic proposal
 # Observability: Durable objective/assignment events, worker attempt, artifact, verifier decision
@@ -18,6 +18,9 @@
 # Changed: 2026-10-11 UTC | RV-M4.4-PROCESS-RESTART-EVIDENCE | Exercise separate execution processes across queued-work recovery
 # Changed: 2026-10-11 UTC | RV-M4.4-SPAWNED-RESTART-TEST-FIX | Avoid sharing inherited libpq sockets across worker process restart
 # Changed: 2026-10-11 UTC | RV-M4.4-SPAWN-CONTEXT-RESTART-FIX | Launch fresh importable service target with spawn context
+# Changed: 2026-10-11 UTC | RV-M4.1-PERSISTENT-RUNTIME-INTEGRATION | Verify only complete grounded objectives enter resident context
+# Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-FAIR-CYCLE | Prove waiting reasoning does not delay existing worker execution
+# Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-FAIR-FIX | Advance queued work through the event processor before fairness assertion
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -46,7 +49,9 @@ from riverview_core.postgres_migrations import apply_migrations
 from riverview_core.resident_execution import (
     GraceExecutionPipeline, ObjectiveNotAuthorized, ObjectiveStateError,
 )
-from riverview_core.resident_reasoning import PlanProposal, PlanStep
+from riverview_core.resident_reasoning import (
+    PlanProposal, PlanStep, ReasoningResult, ReasoningStatus,
+)
 from riverview_core.worker_adapter import ContinuousWorker, PostgresWorkerAdapter
 from riverview_core.worker_adapter.repository_knowledge import RepositoryKnowledgeProvider
 from riverview_core.worker_adapter.resident_knowledge import TaskRelevantRepositoryKnowledgeProvider
@@ -229,6 +234,12 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(row["status"], "GROUNDED")
         self.assertEqual(row["source_revision"], self.commit)
         self.assertTrue(row["evidence"]["source_references"])
+        self.assertEqual(self.pipeline.grounded_objectives(scope_ref=self.scope),
+                         [{"objective_id": row["objective_id"], "revision": row["revision"]}])
+        context = self.pipeline.read_reasoning_context(row["objective_id"])
+        self.assertEqual(context["id"], row["objective_id"])
+        self.assertEqual(context["revision"], str(row["revision"]))
+        self.assertEqual(context["verified_evidence"]["status"], "VERIFIED")
         proposal = PlanProposal("Document worker retry contract", (
             PlanStep("document", "Create a bounded retry-contract work product",
                      ("artifact contains the task and verified repository provenance",)),), 0)
@@ -717,6 +728,62 @@ class GraceExecutionTests(unittest.TestCase):
             scheduler_thread.join(timeout=2)
             service_thread.join(timeout=2)
             scheduler_ledger.close()
+
+    def test_waiting_resident_reasoning_does_not_block_existing_cme_work(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+
+        for objective_id in ("objective:reasoning-wait-a", "objective:reasoning-wait-b"):
+            self.pipeline.submit_objective(
+                objective_id, "document verified worker provenance",
+                ["retain source provenance"], credential=self.credentials["steward"],
+                scope_ref=self.scope)
+            self.pipeline.ground_objective(objective_id)
+
+        execution_id = "objective:fair-cycle-execution"
+        criteria = ["artifact contains the requested task and verified repository provenance"]
+        self.pipeline.submit_objective(
+            execution_id, "record a bounded engineering result", criteria,
+            credential=self.credentials["steward"], scope_ref=self.scope)
+        self.pipeline.ground_objective(execution_id)
+        self.pipeline.record_proposal(execution_id, PlanProposal(
+            "Create bounded engineering result", (PlanStep(
+                "artifact", "Write the bounded engineering work product", tuple(criteria)),), 0))
+
+        artifact_root = self.root / "fair-cycle-artifacts"
+        engine = ContinuousWorker(self.adapter, self.worker_id, self.credentials["worker"],
+            knowledge=RepositoryKnowledgeProvider(self.repo, self.commit),
+            action=BoundedLocalCodingWorker(self.pipeline, artifact_root),
+            action_effect_class="retry_safe",
+            action_capability="engineering.bounded-artifact.v1")
+
+        class WaitingResident:
+            office_id = "office:grace-test"
+            providers = {"provider.test": object()}
+
+            def __init__(self):
+                self.calls = []
+
+            def propose(self, objective_id, **_kwargs):
+                self.calls.append(objective_id)
+                return ReasoningResult(ReasoningStatus.WAITING_FOR_EVIDENCE,
+                                       "request:test", "GROUNDING_UNAVAILABLE")
+
+        resident = WaitingResident()
+        service = GraceExecutionService(self.pipeline, self.adapter, engine,
+            dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
+            verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
+            artifact_root=artifact_root, resident_reasoner=resident)
+        self.assertEqual(service.dispatch_proposed(), 1)
+        assignment_id = self.pipeline.get_objective(execution_id)["assignment_id"]
+        self.ledger.transition(assignment_id, "ready", "event_processor_ready",
+            "fair-cycle-ready:" + assignment_id, actor_id="event-processor")
+        result = service.run_once()
+
+        self.assertEqual(resident.calls, ["objective:reasoning-wait-a"])
+        self.assertEqual(result["worker"]["status"], "AWAITING_VERIFICATION")
+        self.assertTrue(result["verified"])
+        self.assertEqual(self.pipeline.get_objective(execution_id)["status"], "COMPLETED")
+        self.assertEqual(self.pipeline.get_objective("objective:reasoning-wait-b")["status"], "GROUNDED")
 
     def test_separate_service_process_restarts_and_resumes_durable_queued_work(self):
         import psycopg

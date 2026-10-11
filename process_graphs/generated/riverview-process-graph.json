@@ -1329,7 +1329,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.4",
+      "graph_revision": "1.0.8",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -1347,7 +1347,9 @@
         "src/riverview_core/status_dashboard/projection.py",
         "src/riverview_core/worker_adapter/continuous.py",
         "src/riverview_core/worker_adapter/recovery.py",
-        "src/riverview_core/worker_adapter/migrations/0005_retry_limit.sql"
+        "src/riverview_core/worker_adapter/migrations/0005_retry_limit.sql",
+        "src/riverview_core/institutional_authority/migrations/0003_resident_office_state_api.sql",
+        "src/riverview_core/institutional_authority/db_boundary.py"
       ],
       "documentation_references": [
         "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
@@ -1358,7 +1360,8 @@
         "docs/components/GRACE_EXECUTION_COOKBOOK.md"
       ],
       "verification_evidence": [
-        "tests/test_grace_execution.py"
+        "tests/test_grace_execution.py",
+        "tests/test_institutional_authority_boundary.py"
       ],
       "nodes": [
         {
@@ -1392,18 +1395,22 @@
         },
         {
           "id": "rv:grace:operational-integration:reason-decompose",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "process",
-          "label": "DETERMINISTIC CONTRACT TESTED — typed PlanProposal boundary; live model reasoning remains uncommissioned",
+          "label": "ISOLATED PERSISTENT INTEGRATION TESTED — existing ResidentReasoner handles grounded objectives and stores office-keyed plans; live model and supervised resident commissioning remain unverified",
           "source_references": [
             "src/riverview_core/resident_reasoning.py",
-            "src/riverview_core/resident_execution/pipeline.py"
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/service.py"
           ],
           "documentation_references": [
             "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
             "docs/components/GRACE_EXECUTION_PIPELINE.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "tests/test_resident_reasoning.py",
+            "tests/test_grace_execution.py"
+          ]
         },
         {
           "id": "rv:grace:operational-integration:durable-plan",
@@ -1738,6 +1745,65 @@
           "verification_evidence": [
             "tests/test_grace_execution.py"
           ]
+        },
+        {
+          "id": "rv:grace:operational-integration:office-bound-resident-runtime",
+          "node_revision": "1.0.1",
+          "type": "verification",
+          "label": "ISOLATED INTEGRATION VERIFIED — persistent runtime authenticates the current office.state.write occupant grant and requires a bound office implementation before resident reasoning",
+          "source_references": [
+            "scripts/run_grace_execution_service.py",
+            "src/riverview_core/institutional_authority/registry.py",
+            "src/riverview_core/resident_execution/service.py",
+            "src/riverview_core/institutional_authority/db_boundary.py",
+            "src/riverview_core/institutional_authority/migrations/0003_resident_office_state_api.sql"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_reasoning.py",
+            "tests/test_institutional_authority_boundary.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:office-state-restart-and-replacement",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "ISOLATED INTEGRATION VERIFIED — reconstructed resident runtime resumes office-keyed plan under replacement binding; stale occupant grant is denied",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py",
+            "src/riverview_core/resident_execution/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_reasoning.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:stale-resident-denied",
+          "node_revision": "1.0.2",
+          "type": "failure",
+          "label": "A stale resident grant is denied before grounding/provider use even if it is later reissued; office-state writes recheck the bound principal under a binding-row lock",
+          "source_references": [
+            "src/riverview_core/institutional_authority/registry.py",
+            "src/riverview_core/resident_reasoning.py",
+            "src/riverview_core/resident_execution/service.py",
+            "src/riverview_core/institutional_authority/migrations/0003_resident_office_state_api.sql"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_institutional_authority.py",
+            "tests/test_resident_reasoning.py",
+            "tests/test_institutional_authority_boundary.py"
+          ]
         }
       ],
       "edges": [
@@ -1934,6 +2000,30 @@
           "from": "rv:grace:operational-integration:verification-failure-isolation",
           "to": "rv:grace:operational-integration:dashboard-objective-projection",
           "type": "documentation"
+        },
+        {
+          "from": "rv:grace:operational-integration:office-bound-resident-runtime",
+          "to": "rv:grace:operational-integration:reason-decompose",
+          "type": "prerequisite",
+          "label": "exact office grant and current binding verified before resident proposal"
+        },
+        {
+          "from": "rv:grace:operational-integration:reason-decompose",
+          "to": "rv:grace:operational-integration:office-state-restart-and-replacement",
+          "type": "runtime_transition",
+          "label": "plan and outcomes are stored under stable office identity"
+        },
+        {
+          "from": "rv:grace:operational-integration:office-bound-resident-runtime",
+          "to": "rv:grace:operational-integration:stale-resident-denied",
+          "type": "diagnostic_branch",
+          "label": "revoked credential or unbound office fails closed"
+        },
+        {
+          "from": "rv:grace:operational-integration:stale-resident-denied",
+          "to": "rv:grace:operational-integration:waiting-and-failure",
+          "type": "recovery_route",
+          "label": "record no proposal; replace/reissue only through existing authorized identity lifecycle"
         }
       ]
     },
@@ -7871,10 +7961,13 @@
     "rv:grace:operational-integration:objective-check",
     "rv:grace:operational-integration:objective-complete",
     "rv:grace:operational-integration:objective-intake",
+    "rv:grace:operational-integration:office-bound-resident-runtime",
+    "rv:grace:operational-integration:office-state-restart-and-replacement",
     "rv:grace:operational-integration:persistent-service-loop",
     "rv:grace:operational-integration:proposal-validation",
     "rv:grace:operational-integration:reason-decompose",
     "rv:grace:operational-integration:replan",
+    "rv:grace:operational-integration:stale-resident-denied",
     "rv:grace:operational-integration:steward-escalation",
     "rv:grace:operational-integration:typed-proposal-api",
     "rv:grace:operational-integration:verification-failure-isolation",

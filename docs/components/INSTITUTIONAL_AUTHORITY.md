@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.20
+File Revision: 1.0.23
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -18,6 +18,9 @@ Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Persist bootstrap bear
 Changed: 2026-10-11 UTC | RV-M4.1-LIVE-BOOTSTRAP-EVIDENCE | Record verified root-local live Steward bootstrap without claiming service integration
 Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT | Specify isolated runtime exact-grant function and current deployment boundary
 Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-RECORDS | Link migration 0002 in the component migration inventory
+Changed: 2026-10-11 UTC | RV-M4.1-BOUND-OCCUPANT-WRITE | Require the current occupant identity as well as an exact office-state grant
+Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Add runtime-safe exact-grant office snapshot and state API
+Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Distinguish live migration checksums from isolated migration 0003
 Changed: 2026-10-11 UTC | RV-M4.1-LIVE-EXACT-GRANT | Record deployed migration and function-only runtime ACL
 Changed: 2026-10-11 UTC | RV-M4.1-MIGRATION-CONTRACT-CURRENT-STATE | Document checksum ledger/registry/function migration order
 Changed: 2026-10-11 UTC | RV-M4.1-GRACE-BOOTSTRAP-STATUS | Clarify historical M3.3 blockers and current additive Grace identity bootstrap work
@@ -30,7 +33,7 @@ History: Git and .riverview-backups/manifest.jsonl
 **Milestone:** M4.1 — Office, occupant, implementation and state separation
 **Status:** Additive live authority schema, privilege boundary, and root-local Steward bootstrap verified; service integration remains unverified
 **Implementation:** `src/riverview_core/institutional_authority/registry.py`
-**Migrations:** `0000_authority_migration_ledger.sql` bootstraps the checksum ledger if absent; `0001_institutional_authority.sql` creates registry tables and trigger; `0002_exact_grant_authorization.sql` creates the protected runtime exact-grant function.
+**Migrations:** `0000_authority_migration_ledger.sql` bootstraps the checksum ledger if absent; `0001_institutional_authority.sql` creates registry tables and trigger; `0002_exact_grant_authorization.sql` creates the protected runtime exact-grant function; `0003_resident_office_state_api.sql` adds exact-grant snapshot and compare-and-swap state functions for the bound resident.
 **Process graph:** `rv:institutional-authority:identity-and-grants`
 
 ## Identity model
@@ -73,7 +76,12 @@ wildcards, inherited grants, implicit role grants, or guessed fallback.
 `valid_until` and credential expiration must be future timezone-aware times.
 Revoking a replaced occupant's office-scoped state grants is part of the
 transaction that changes the binding. The current occupant requires a separately
-issued grant.
+issued grant. Both resident authorization and each office-state write also
+compare the grant principal with the currently bound occupant principal under a
+binding-row lock. Reissuing an exact grant to a former occupant cannot restore
+its authority. This identity check occurs before resident knowledge/provider
+calls and again in the state-write transaction, so replacement races fail
+closed.
 
 Authority and binding events are append-only. Office state writes are bounded to
 64 KiB JSON objects and use an expected-revision compare-and-swap when supplied.
@@ -181,8 +189,16 @@ and cannot be a member of any other database role; it cannot create objects,
 drop tables, execute either protected function directly, or inherit the
 `NOLOGIN` table-owner role. After migration 0002 and a successful boundary
 apply, the runtime receives schema `USAGE` and function `EXECUTE` only for the
-exact-grant check; authority-table and trigger access remain denied. This
-function-only runtime ACL is deployed and verified on Camrui. The manager is still a
+exact-grant check; authority-table and trigger access remain denied. Migration
+0003 adds two similarly constrained `SECURITY DEFINER` functions: the runner
+can read the current authorized office snapshot and perform a bounded
+compare-and-swap write to office-keyed state. Both functions recheck the exact
+`office.state.write` grant against the active occupant while holding the office
+binding lock. The boundary provisioner verifies function ownership, pinned
+search path, and runtime/manager ACL drift. These new functions are only
+isolated-test verified in this increment; no shared-schema migration or
+Camrui service change is claimed. Migration 0002's exact-grant runtime ACL is
+deployed and verified on Camrui. The manager is still a
 trusted authority capability: a
 compromised manager can issue direct DML and bypass application-level grant
 checks, so its secret must be isolated from worker, CME, event-processor, and
@@ -217,7 +233,11 @@ See the [boundary procedure](INSTITUTIONAL_AUTHORITY_COOKBOOK.md#versioned-privi
   `bind_office(...)`, `office_snapshot(...)` — keep institutional role,
   occupant, implementation and state separate.
 - `set_office_state(credential, office_id, state, expected_revision=None)` —
-  persist bounded office-keyed state after an exact office-state grant.
+  persist bounded office-keyed state only when the exact grant principal is the
+  currently bound resident; stale/re-granted former occupants are denied.
+- `authorize_office_state(credential, office_id)` — atomically return the
+  current office snapshot only after exact grant and active occupant identity
+  match, locking the binding while validating.
 
 All routines are synchronous and transactional in the selected schema. No DDL
 runs at construction or service startup. Apply the versioned migration explicitly
@@ -226,10 +246,13 @@ The authority migration chain is self-contained for a fresh dedicated schema:
 `0000_authority_migration_ledger.sql` creates only `schema_migrations` if absent,
 `0001_institutional_authority.sql` creates the registry and append-only trigger,
 and `0002_exact_grant_authorization.sql` adds the protected exact-grant
-function. The runner records checksums and rejects later drift. Existing
+function; `0003_resident_office_state_api.sql` adds the two bound-office
+snapshot/CAS functions. The runner records checksums and rejects later drift. Existing
 schemas with a compatible ledger are preserved; the bootstrap migration uses
-`IF NOT EXISTS`. On Camrui all three checksums are recorded; the exact-grant
-function ACL is verified, while worker-service integration remains open.
+`IF NOT EXISTS`. On Camrui the 0000–0002 checksums are recorded; migration
+0003 is only applied in the isolated PostgreSQL integration test here. The
+exact-grant function ACL is verified, while resident-service commissioning
+remains open.
 
 See [the focused flow](INSTITUTIONAL_AUTHORITY_FLOW.md),
 [the operations cookbook](INSTITUTIONAL_AUTHORITY_COOKBOOK.md), and
