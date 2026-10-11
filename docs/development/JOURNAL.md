@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.57
+**Document Revision:** 1.0.58
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -1035,3 +1035,33 @@ returned zero remaining `rvtest_*` schemas. The private cluster's immediate
 shutdown checkpoint took about 16 seconds and completed; no system service was
 involved. M3.3 remains blocked on the live database authority boundary and
 commissioning; no shared database or live assignment was touched.
+
+## 2026-10-11 UTC — RV-M3.3-DASHBOARD-KNOWLEDGE / deployed docs and browser check
+
+Built Camrui package from exact commit `ea90d6778a5b6f7e431839a4b1b75fdc1b2b0ad5`
+(archive SHA-256 `ef44cbb892f8807cf9777624af40304343ce47cca027d5e38c6f73f5e49fd07b`);
+package manifest and Linux shell checks passed. Installed a root-owned,
+non-writable versioned dashboard release, retaining the preceding `b63f6d8`
+release. Restarted only `riverview-status-dashboard.service`. An immediate first
+HTTP probe raced listener bind and was refused; within two seconds the loopback
+listener returned HTTP 200, the process had exit status 0 and zero restarts, and
+Firefox 156.0.1 passed with healthy CME, six attention rows, no browser errors,
+valid graph projection, rendered cookbook, and 63–221 ms navigation calls. The
+repository-knowledge cookbook returned formatted safe HTML with four headings,
+one table, two code blocks, no scripts, and no raw Markdown. The bounded wait
+and troubleshooting response are documented in dashboard cookbook rev 1.0.9.
+
+Read-only PostgreSQL checks observed 9 migrations, 4 assignments, 11 events, 1
+attempt, 1 independent verification, 6 CME monitor events, and 3 notifications.
+PostgreSQL, event processor, CME monitor, notification dispatcher and dashboard
+remained active. The baseline oneshot retained `Result=success` and was not
+restarted. Evidence and screenshot hashes are indexed at
+`evidence/checkouts/M3.3-DASHBOARD-KNOWLEDGE/20261011T050205Z-ea90d67/`. The
+provider remains unconfigured for live work; no identity/grant, migration,
+worker, assignment, or shared database data was changed.
+
+Diagnostic corrections: one initial read-only SQL query used `USING
+(assignment_id)` although `assignments` names its key `id`; a second attempt had
+misquoted SQL literals. Both failed before any state change; corrected catalog
+inspection and an explicitly read-only count query succeeded. These command
+mistakes are not counted as functional-test failures.
