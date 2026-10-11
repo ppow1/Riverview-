@@ -1,8 +1,12 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.60
+**Document Revision:** 1.0.68
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-CROSS-BRANCH-DOC-PORT / M1.4 live-state correction
+
+Carried the tested password-safe PostgreSQL, expanded scheduler/worker diagnostics, and dashboard documentation-route assertions onto the existing M3.3 branch so a future exact-source dashboard package preserves its repository-knowledge docs and canonical graph. Read-only catalog evidence confirms shared `riverview_dev` contains `0001_assignment_leases`, applied `2026-10-10 18:27:04.341175-04:00`, checksum `ce29c2994904f54706db883f61127bf05ee195ecbdce90e7242886e86711b717`, equal to the checked-in SQL. This corrects “not applied” records but does not assert a standalone M1.4 scheduler service or acceptance. Exact evidence is `evidence/checkouts/M1.4-LIVE-MIGRATION/20261011T061100Z-read-only/`. The comprehensive M3.3 operations guide and knowledge-provider docs/graph were retained. No database mutation was performed.
 
 ## 2026-10-11 UTC — RV-M3.2-001 / durable visual notification design
 
@@ -1108,3 +1112,20 @@ and the focused retest passed. This failed attempt and fix are retained in the
 evidence bundle rather than omitted. M3.3 remains blocked on live
 database-enforced Steward authority; no live identity, grant, assignment,
 provider or service was changed by this experiment.
+
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-CROSS-BRANCH-DOC-PORT / M3.3 integration verification
+
+The safe PostgreSQL, scheduler, and worker procedures and dashboard-link assertions
+are integrated on the existing M3.3 branch while retaining the repository
+knowledge docs and process graph. The complete suite passed 143 tests with zero
+failures, errors, or skips on a disposable PostgreSQL 16.15 cluster; cleanup
+reported no remaining test schemas or roles. Focused dashboard documentation tests
+passed 12/12, and canonical graph validation passed 13 workflows / 235 nodes.
+Compileall and source diff checks passed. Read-only host evidence confirms the
+active dashboard is still release `7a9ff46e11edc54b1ffe46f63962754e6d2da765`;
+no candidate was left deployed and no shared database changes were made. Exact
+logs and checksummed evidence are in
+`evidence/checkouts/OPERATIONS-COOKBOOK/20261011T061300Z-m33-doc-update/`.
+The branch still requires exact-head CI and package compatibility review before
+any deployment; PR #19 remains open and unmerged.

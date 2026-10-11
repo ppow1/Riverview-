@@ -1,0 +1,31 @@
+2026-10-11 02:11:15.164 EDT [280475] LOG:  starting PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit
+2026-10-11 02:11:15.171 EDT [280475] LOG:  listening on Unix socket "/tmp/rv-ops-doc-port.2G2Weu/.s.PGSQL.55490"
+2026-10-11 02:11:15.200 EDT [280478] LOG:  database system was shut down at 2026-10-11 02:11:12 EDT
+2026-10-11 02:11:15.217 EDT [280475] LOG:  database system is ready to accept connections
+2026-10-11 02:11:28.627 EDT [280687] ERROR:  institutional_authority_events is append-only
+2026-10-11 02:11:28.627 EDT [280687] CONTEXT:  PL/pgSQL function rvtest_0fb577a9f2a14a3ebfe04052c1a4a086.reject_institutional_authority_event_mutation() line 3 at RAISE
+2026-10-11 02:11:28.627 EDT [280687] STATEMENT:  DELETE FROM "rvtest_0fb577a9f2a14a3ebfe04052c1a4a086".institutional_authority_events
+2026-10-11 02:11:38.086 EDT [280770] ERROR:  notification_events is append-only
+2026-10-11 02:11:38.086 EDT [280770] CONTEXT:  PL/pgSQL function reject_notification_event_mutation() line 3 at RAISE
+2026-10-11 02:11:38.086 EDT [280770] STATEMENT:  UPDATE notification_events SET event_type='delivery_confirmed'
+2026-10-11 02:11:38.088 EDT [280770] ERROR:  notification_events is append-only
+2026-10-11 02:11:38.088 EDT [280770] CONTEXT:  PL/pgSQL function reject_notification_event_mutation() line 3 at RAISE
+2026-10-11 02:11:38.088 EDT [280770] STATEMENT:  DELETE FROM notification_events
+2026-10-11 02:11:42.732 EDT [280831] ERROR:  injected event failure
+2026-10-11 02:11:42.732 EDT [280831] CONTEXT:  PL/pgSQL function reject_transition_event() line 3 at RAISE
+2026-10-11 02:11:42.732 EDT [280831] STATEMENT:  INSERT INTO events
+	               (event_id, schema, event_type, occurred_at, recorded_at,
+	                assignment_id, actor_id, correlation_id, causation_id,
+	                idempotency_key, authority_ref, privacy_domain, payload_schema, payload)
+	               VALUES ($1, 'rv.event.v1', $2, $3, $4, $5, $6, $7, $8,
+	                       $9, $10, $11, $12, $13)
+2026-10-11 02:12:07.431 EDT [281344] ERROR:  completion requires persisted independent verification
+2026-10-11 02:12:07.431 EDT [281344] CONTEXT:  PL/pgSQL function require_independent_verification_for_completion() line 8 at RAISE
+2026-10-11 02:12:07.431 EDT [281344] STATEMENT:  UPDATE assignments SET state='completed' WHERE id=$1
+2026-10-11 02:12:18.899 EDT [280475] LOG:  received fast shutdown request
+2026-10-11 02:12:18.907 EDT [280475] LOG:  aborting any active transactions
+2026-10-11 02:12:18.912 EDT [280475] LOG:  background worker "logical replication launcher" (PID 280481) exited with exit code 1
+2026-10-11 02:12:18.913 EDT [280476] LOG:  shutting down
+2026-10-11 02:12:18.920 EDT [280476] LOG:  checkpoint starting: shutdown immediate
+2026-10-11 02:12:26.930 EDT [280476] LOG:  checkpoint complete: wrote 1336 buffers (8.2%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.060 s, sync=7.803 s, total=8.018 s; sync files=3240, longest=0.011 s, average=0.003 s; distance=25259 kB, estimate=25259 kB; lsn=0/2D9E7E0, redo lsn=0/2D9E7E0
+2026-10-11 02:12:26.946 EDT [280475] LOG:  database system is shut down

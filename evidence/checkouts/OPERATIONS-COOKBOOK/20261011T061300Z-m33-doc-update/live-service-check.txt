@@ -1,0 +1,4 @@
+utc=2026-10-11T06:12:52Z
+current_dashboard_release=/opt/riverview-status-dashboard/releases/7a9ff46e11edc54b1ffe46f63962754e6d2da765
+active
+dashboard_http=200
