@@ -2,10 +2,12 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.7
+File Revision: 1.0.9
 Purpose: Specify the read-only live status projection and browser foundation
 Authority: Observes institution state; notification receipt writes cannot mutate assignments or decisions
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
+Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-CURRENT-DOCS-RELEASE | Define accurate code/deployment provenance for composite docs release
+Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-PROVENANCE-SECTION-ORDER | Place deployment provenance separately from the API route contract
 History: Git and revision/backup manifest
 -->
 # Steward status dashboard
@@ -77,6 +79,17 @@ content, credentials and private conversation content are not projected.
 | `GET /api/v1/graphs` | Index of registered canonical focused process graphs. | Reads versioned package registry; bounded by checked-in graph count. |
 | `GET /api/v1/graphs/<graph_id>` | Canonical nodes, typed edges, decisions, references, and execution-position state. | One registered focused workflow; no graph mutation. |
 | `GET /docs/components/<name>.md` | Safe, formatted view of an allowlisted component document. | Repository-controlled component Markdown only; raw HTML is escaped. |
+
+## Deployment identity
+
+`source_commit` identifies the dashboard service code revision. `deployment_id`
+identifies the exact installed release. A docs-only refresh may combine the
+unchanged dashboard code with newer component cookbooks and canonical process
+graphs; its root-owned release manifest must record each source revision and
+package checksum. In that case, set `RIVERVIEW_SOURCE_COMMIT` to the dashboard
+code commit and assign a new, unique `RIVERVIEW_DEPLOYMENT_ID`. Do not report a
+docs/graph commit as the dashboard code revision or reuse an existing release
+directory for changed bytes.
 
 The status response schema identifier is `rv.dashboard.status.v1`; the summary counts healthy, stale, unknown and future-dated unverified active workers. `GET /api/v1/workers` pages individual identities; each status uses the latest recorded assignment-lease heartbeat. No heartbeat is unknown, not healthy. The overview shows worker IDs, health and lease counts. List/detail
 responses carry `status`, bounded `items`, and pagination state. Database

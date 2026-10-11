@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.17
+# Revision: 1.0.18
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -12,6 +12,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ROUTE | Exercise updated authority diagnostics through the dashboard documentation route
 # Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ASSERTION | Match cookbook's documented DROP CASCADE warning text
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-SCHEDULER-DIAGNOSTICS | Assert expanded scheduler recovery docs render through dashboard route
+# Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-RELEASE-PROVENANCE | Assert composite docs deployment preserves exact code source and unique deployment ID
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Assert worker recovery diagnostics render through dashboard route
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-PG-SECRET-SAFETY | Assert PostgreSQL cookbook has no password-bearing command examples
 # Changed: 2026-10-11 UTC | RV-M1.4-LIVE-DEPENDENCY-CORRECTION | Assert scheduler docs distinguish shared migration from commissioning
@@ -84,6 +85,8 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         launcher = (ROOT / "scripts/run_status_dashboard.py").read_text()
         self.assertIn("RuntimeDirectory=riverview-status-dashboard", unit)
         self.assertIn("LoadCredential=pgpass:/etc/riverview/pgpass", unit)
+        self.assertIn("Environment=RIVERVIEW_SOURCE_COMMIT=8556598b19a7da4aa191a600c767d79d24432afe", unit)
+        self.assertIn("Environment=RIVERVIEW_DEPLOYMENT_ID=m3.1-camrui-docs-e26f937", unit)
         self.assertIn("scripts/run_status_dashboard.py", unit)
         self.assertIn("copy_systemd_credential(source, PASSFILE, identity.pw_uid)", launcher)
         self.assertNotIn("Environment=PGPASSFILE=%d/pgpass", unit)
