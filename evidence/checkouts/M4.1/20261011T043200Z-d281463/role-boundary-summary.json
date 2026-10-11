@@ -1,0 +1,23 @@
+{
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "environment": "disposable PostgreSQL 16.15 cluster, UTF8, Unix socket only, port 55462; cluster stopped after test",
+  "host": "Camrui",
+  "limits": [
+    "No source migration or production role/bootstrap package was created by this experiment.",
+    "No live riverview_dev objects, credentials, services, or rows were changed.",
+    "Service login credential handling and AuthorityRegistry integration are not tested.",
+    "This is a design feasibility experiment, not a deployable authority boundary."
+  ],
+  "next": "Create versioned provisioning and migration code with role ownership, privilege revocation, registry writer identity and worker authorization integration; then test exact service credential and schema-owner bypass denial in isolation before reviewing any shared deployment.",
+  "results": {
+    "runtime_insert_authority_event": "denied (InsufficientPrivilege)",
+    "runtime_select_authority_tables": "denied (InsufficientPrivilege)",
+    "separate_service_select": "allowed"
+  },
+  "setup": "Applied base and authority migration to disposable m41proof schema; altered authority relation owners to rv_m41_owner NOLOGIN; runtime-like rv_m41_runtime remained schema owner; service-like rv_m41_service was granted membership in owner role.",
+  "setup_failures": "Two initial scratch setup attempts failed before PostgreSQL start due temp-directory/log ownership; the corrected isolated setup passed. No shared or system service was affected.",
+  "source_commit": "d281463be36d203c2727c0e4c8e16df7b2e2990b",
+  "status": "PASS isolated role-separation mechanism proof; NOT live deployment or M4.1 acceptance",
+  "task_id": "RV-M4.1-001",
+  "timestamp_utc": "2026-10-11T04:32:50Z"
+}

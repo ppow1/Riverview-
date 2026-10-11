@@ -1,0 +1,23 @@
+exit_code: 0
+BEGIN
+ current_user 
+--------------
+ postgres
+(1 row)
+
+    nspname    |  schema_owner  
+---------------+----------------
+ riverview_dev | riverview_core
+(1 row)
+
+    rolname     | rolsuper | rolcreaterole | rolcreatedb | rolbypassrls 
+----------------+----------+---------------+-------------+--------------
+ riverview_core | f        | f             | f           | f
+(1 row)
+
+ authority_registry 
+--------------------
+ 
+(1 row)
+
+COMMIT

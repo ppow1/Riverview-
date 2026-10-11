@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.50
+**Document Revision:** 1.0.54
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -908,3 +908,54 @@ the full test suite, canonical graph synchronization, and controlled revision /
 predecessor verification. Evidence: `evidence/checkouts/M4.1/20261011T042919Z-e0fd888/github-ci.json`.
 M4.1 is still not operationally commissioned; live DB-role separation and
 worker/assignment integration remain open.
+
+## 2026-10-11 UTC — RV-M4.1-001 / isolated database privilege feasibility
+
+On a disposable PostgreSQL 16.15 Unix-socket cluster, applied the base ledger and
+M4.1 authority migration to an isolated schema. The application-like test role
+owned the schema but not the authority tables. A separate NOLOGIN relation owner
+owned the protected tables; the application-like role received no relation
+privileges, while the service-like role was granted owner membership. Direct
+SELECT and INSERT as the application-like role both returned
+`InsufficientPrivilege`; the service-like SELECT succeeded. The cluster shut down
+normally. Evidence is `evidence/checkouts/M4.1/20261011T043200Z-d281463/`.
+
+This verifies the PostgreSQL role mechanism in isolation only. No provisioning
+script, deployable migration, service credential, runtime integration, or shared
+`riverview_dev` change was made. Two scratch-cluster launch attempts failed before
+server start from temporary-directory/log ownership; corrected ownership then
+allowed the isolated experiment to pass. The failure was confined to `/tmp`; no
+Riverview or PostgreSQL service was affected. Next engineering step: produce a
+reviewable versioned role provisioning and authority-writer credential boundary,
+then test it with the actual registry connection before considering shared-schema
+commissioning.
+
+
+## 2026-10-11 UTC — RV-M4.1-001 / exact-head CI and cookbook correction
+
+GitHub controlled-checkout run 38111853146 passed on PR #18 source head
+`d281463be36d203c2727c0e4c8e16df7b2e2990b`, including tests, graph generation
+and revision/predecessor checks. The authority cookbook now documents the
+observed live role/schema ownership and limited isolated privilege-boundary
+result. A review found over-escaped SQL quotes in its read-only role preflight;
+the example was corrected and the exact Bash command was executed and exited 0; it reported the current
+schema owner and absent registry without changing state. Evidence: `evidence/checkouts/M4.1/20261011T043300Z-d281463/`.
+
+
+## 2026-10-11 UTC — RV-M4.1-001 / live read-only role preflight
+
+Executed the newly documented authority role diagnostic against Camrui using the
+`bash` shell so its line continuation remained intact. It exited 0 and observed
+`current_user=postgres`, schema owner `riverview_core`, the app role flags all
+false (not superuser/CREATEROLE/CREATEDB/BYPASSRLS), and a null authority
+registry relation. The earlier Python `shlex` harness split the shell line
+continuation incorrectly and produced a failed connection attempt; rerunning the
+exact snippet in Bash passed. No database state was changed. Captured stdout is
+`evidence/checkouts/M4.1/20261011T043300Z-d281463/authority-live-preflight.txt`.
+
+
+The dashboard documentation renderer allows links only to approved component
+Markdown and safe external HTTPS destinations. The new cookbook initially used
+Markdown links to evidence files, which correctly rendered as inert text. Those
+references are now plain readable repository paths instead of nonfunctional
+links. The HTML rendering check follows.

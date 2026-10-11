@@ -1,0 +1,5 @@
+{
+  "rv_m41_runtime:SELECT": "InsufficientPrivilege",
+  "rv_m41_runtime:INSERT": "InsufficientPrivilege",
+  "rv_m41_service:SELECT": "ALLOWED"
+}

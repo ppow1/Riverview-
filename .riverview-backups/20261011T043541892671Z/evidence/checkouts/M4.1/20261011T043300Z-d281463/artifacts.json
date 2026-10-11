@@ -1,0 +1,22 @@
+{
+  "artifacts": {
+    "authority-live-preflight.txt": {
+      "path": "authority-live-preflight.txt",
+      "revision": "1.0.0",
+      "sha256": "9eb92562225c9a6861cf6bc1e155fb102faf7ee0d8c0276ce2aa7f55eb29fe01",
+      "size_bytes": 451
+    },
+    "github-ci.json": {
+      "path": "github-ci.json",
+      "revision": "1.0.0",
+      "sha256": "31ccafc0e43a2eb26ffc3f7197d3068d4ecb1265136db4d677dcc851443eee68",
+      "size_bytes": 1582
+    }
+  },
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "decision": "PASS for exact-head CI and read-only preflight; authority deployment NOT VERIFIED",
+  "manifest_revision": "1.0.2",
+  "source_commit": "d281463be36d203c2727c0e4c8e16df7b2e2990b",
+  "target": "GitHub controlled-checkout CI plus Camrui read-only role/schema preflight",
+  "task_id": "RV-M4.1-001"
+}
