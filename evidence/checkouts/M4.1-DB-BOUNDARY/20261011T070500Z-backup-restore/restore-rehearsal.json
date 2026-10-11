@@ -1,0 +1,35 @@
+{
+  "task_id": "RV-M4.1-DB-RESTORE-PREFLIGHT",
+  "source_commit": "e486264ec49f5486b7b2838ea00a9074b7f2f82a",
+  "host": "Camrui",
+  "database": "riverview",
+  "postgresql": "16.15",
+  "backup": {
+    "path": "/var/lib/postgresql/backups/riverview/m4.1/riverview-20261011T070500Z.dump",
+    "format": "pg_dump custom",
+    "owner": "postgres:postgres",
+    "mode": "0600",
+    "size_bytes": 67180,
+    "sha256": "378a1a4cba4605a673d8cf22b8bfcbb4277bce272158cae6e79c7d6ecfd0720b",
+    "outside_git": true,
+    "contains_database_data": true
+  },
+  "restore": {
+    "target": "rv_m41_restore_20261011",
+    "isolated_new_database": true,
+    "pg_restore_exit": 0,
+    "source_counts": {"migrations": 9, "assignments": 4, "events": 11, "attempts": 1, "verifications": 1},
+    "restored_counts": {"migrations": 9, "assignments": 4, "events": 11, "attempts": 1, "verifications": 1},
+    "temporary_database_removed": true
+  },
+  "postcheck": {
+    "postgresql": "active",
+    "event_processor": "active",
+    "cme_monitor": "active",
+    "notification_dispatcher": "active",
+    "status_dashboard": "active",
+    "ssh": "active",
+    "shared_schema_migration_or_role_changes": false
+  },
+  "scope": "Protected local backup and disposable restore rehearsal only; no shared schema, migration, role, credential, assignment, worker, or service configuration was changed."
+}
