@@ -1,0 +1,10 @@
+utc=2026-10-11T06:03:00Z
+branch=codex/m4.1-db-privilege-boundary
+source_commit=6403e45d3489c1b3108b447eb1ebc0f1786bec0f
+active_release=/opt/riverview-status-dashboard/releases/7a9ff46e11edc54b1ffe46f63962754e6d2da765
+dashboard_unit_sha256=6fb11ab264ccbba74d0213f4e3e8d00eba8ca847fde046757d7906cc18cf88a0
+active_release_owner_mode=root:root 555
+dashboard_service=active
+postgres_event_cme_notify_ssh=active,active,active,active,active,
+dashboard_http=200
+package_sha256=ed63d9eb4ac05a4a236c82b40d7fd89078e3bfb6e58c022f02593256f0bb44fe

@@ -1,8 +1,14 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.65
+**Document Revision:** 1.0.66
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-DASHBOARD-PACKAGE-ROLLBACK / live compatibility correction
+
+Attempted a versioned dashboard-only deployment of `6403e45` after package manifest and shell checks passed. The new release started and the deployed Firefox run showed live healthy PostgreSQL/CME, a completed persisted assignment with one independent verification, 19 pre-existing documentation links returning HTTP 200, and no browser errors. An additional shell-link check then found that the M4.1 package omitted three repository-knowledge documents present in the active M3.3 release; the candidate link returned HTTP 404. Restored the recorded `7a9ff46` release through the dashboard symlink and restarted only the dashboard. After its brief readiness interval, dashboard was active/HTTP 200; PostgreSQL, event processor, CME monitor, notification dispatcher and SSH remained active; unit checksum unchanged. Candidate release/archive and browser screenshots were retained under `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T060100Z-dashboard-doc-release/`. No shared database or credential changed.
+
+The full-source package on the M4.1 branch cannot yet replace the active dashboard release without synchronizing the M3.3 documentation and canonical graph. The current deployed PostgreSQL cookbook still includes placeholder `PGPASSWORD`/credential-DSN examples. The corrected branch cookbook is safe, its local route regression passes, and the full 133-test suite passed CI before the package trial, but those revised pages have not been live deployed. Regression coverage now requires every documentation link in the static dashboard shell to resolve from the packaged tree. Continue with source/graph dependency reconciliation before retrying a deployment; preserve the previous live release meanwhile.
 
 ## 2026-10-11 UTC — RV-OPS-COOKBOOK-PG-SECRET-SAFETY / M1.4 live-state correction
 

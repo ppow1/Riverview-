@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/development/OPERATIONS-COOKBOOK-001_REVISION_RECORD.md
 Component: RIVERVIEW-OPERATIONS
-File Revision: 1.0.6
+File Revision: 1.0.7
 Purpose: Record the consolidated operational guide deliverable and evidence
 Authority: Documentation and diagnostics; does not authorize shared-state mutation
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Record passing suite, live deployment, and browser evidence
@@ -13,6 +13,7 @@ Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-CHECKOUT | Record full regressi
 History: Git and revision/backup manifest
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-PG-SECRET-SAFETY | Record safe credential-free PostgreSQL documentation and live peer-query evidence
 Changed: 2026-10-11 UTC | RV-M1.4-LIVE-DEPENDENCY-CORRECTION | Correct shared lease-migration status from read-only catalog evidence
+Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-DASHBOARD-PACKAGE-ROLLBACK | Preserve failed package check, restore prior release, and record remaining source-sync requirement
 -->
 # RV-OPS-COOKBOOK-001 — Consolidated operations and recovery guide
 
@@ -113,3 +114,4 @@ Component DoD remain open; exact-head GitHub CI is tracked on PR #20.
 - **1.0.4 — 2026-10-11:** Register the worker diagnostic improvement.
 - **1.0.5 — 2026-10-11:** Record isolated worker/verifier query smoke and checkout results.
 - **1.0.6 — 2026-10-11:** Record PostgreSQL cookbook secret-safety review and correct M1.4 migration-presence statement using live read-only evidence; no scheduler commissioning claim.
+- **1.0.7 — 2026-10-11:** Record dashboard candidate package 404, immediate symlink rollback, preserved services, and remaining M3.3 source-content integration requirement.

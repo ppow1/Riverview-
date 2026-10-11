@@ -1,0 +1,44 @@
+{
+  "component_id": "STEWARD-DASHBOARD / OPERATIONS-COOKBOOK",
+  "files": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "91643895b37c795cdec912d710e74b29d0304aadfb46abda8fc2211a473e3e94",
+      "size_bytes": 3650
+    },
+    "deployment-attempt.json": {
+      "path": "deployment-attempt.json",
+      "revision": "1.0.0",
+      "sha256": "5a4c5cfe4aa1e08d84c90edfab738f920a500ae15f4ba7ebaeebbfd0d5f17e5c",
+      "size_bytes": 1888
+    },
+    "package-content-diff.json": {
+      "path": "package-content-diff.json",
+      "revision": "1.0.0",
+      "sha256": "bc9458620ad8e21ae5d1dfaf5d5fdae077bb89ff9104858ce098e581829c1486",
+      "size_bytes": 762
+    },
+    "package-verification.json": {
+      "path": "package-verification.json",
+      "revision": "1.0.0",
+      "sha256": "6522fd46ab662f9b083a85eadec7e71fc3bf2eaae165710a2e6a8f79473820ff",
+      "size_bytes": 878
+    },
+    "postrollback-state.txt": {
+      "path": "postrollback-state.txt",
+      "revision": "1.0.0",
+      "sha256": "0d02241440408113a984b55d773b7fb9ce319631c742b879c8b70065904b769d",
+      "size_bytes": 378
+    },
+    "predeployment-state.txt": {
+      "path": "predeployment-state.txt",
+      "revision": "1.0.0",
+      "sha256": "ce08a00b4ac1ae93b9de35d532ce196cc568fea738c226201cb20d7ad6dfc6f8",
+      "size_bytes": 534
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "source_commit": "6403e45d3489c1b3108b447eb1ebc0f1786bec0f",
+  "task_id": "RV-OPS-COOKBOOK-DASHBOARD-PACKAGE-ROLLBACK"
+}
