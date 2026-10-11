@@ -1,19 +1,19 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.0.3
+// Revision: 1.0.4
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
   const state = {token: sessionStorage.getItem("rv.dashboard.token") || "", status: null,
     assignments: [], events: [], attention: [], attentionStatus: "unknown", workers: [], assignmentCursor: null,
-    workerCursor: null, eventCursor: 0, olderEventCursor: null,
+    workerCursor: null, eventCursor: 0, olderEventCursor: null, notifications: [], notificationStatus: "unknown", activeView: "overview",
     recentErrors: [], navSamples: [], lastFetch: 0, timer: null};
   const esc = (value) => String(value ?? "—").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   const human = (value) => String(value || "unknown").replaceAll("_", " ").replaceAll(".", " · ");
-  const api = async (path, timeout = 2600) => {
+  const api = async (path, timeout = 2600, method = "GET") => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
-      const response = await fetch(path, {headers: {Authorization: `Bearer ${state.token}`, Accept: "application/json"},
+      const response = await fetch(path, {method, headers: {Authorization: `Bearer ${state.token}`, Accept: "application/json"},
         cache: "no-store", credentials: "omit", signal: controller.signal});
       if (!response.ok) throw new Error(`http_${response.status}`);
       return await response.json();
@@ -118,6 +118,42 @@
     $("worker-page-note").textContent = state.workers.length ? `${state.workers.length} observed · page limit 25` : "";
     $("more-workers").hidden = !state.workerCursor;
   }
+  function renderNotifications(page) {
+    state.notifications = page.items || [];
+    state.notificationStatus = page.status || "unavailable";
+    const health = page.dispatcher?.status || "not_initialized";
+    $("notification-state").textContent = `Source ${human(page.status)} · dispatcher ${human(health)}`;
+    const rows = state.notifications.map((n) => {
+      const request = n.decision_request_id ? `<div class="row-meta">Decision request ${esc(n.decision_request_id)} · ${esc(n.decision_status || "unknown")}; receipt cannot resolve it.</div>` : "";
+      const receipt = n.delivery_status === "delivered" ? `<button class="secondary" data-acknowledge="${esc(n.notification_id)}">Acknowledge receipt</button>` :
+        `<span class="status-text status-accepted">${esc(human(n.delivery_status))}</span>`;
+      return `<article class="notification-row"><div><strong>${esc(human(n.event_type))}</strong><p>${esc(n.summary)}</p><div class="row-meta">${esc(n.assignment_id || "Service event")} · source ${esc(when(n.source_recorded_at))} · queued ${esc(when(n.created_at))}</div>${request}</div><div class="notification-actions"><span class="status-text ${stateClass(n.delivery_status)}">${esc(human(n.delivery_status))}</span>${receipt}</div></article>`;
+    });
+    const messages = {not_initialized:"Notification migration is not initialized.", unavailable:"Notification source is unavailable; no delivery is claimed.", available:"No durable notices in this bounded page."};
+    $("notification-list").innerHTML = rows.length ? rows.join("") : noData(messages[state.notificationStatus] || "No notification state observed.");
+    document.querySelectorAll("[data-delivered]").forEach((button) => button.addEventListener("click", async () => {
+      button.disabled = true;
+      try { await api(`/api/v1/notifications/${encodeURIComponent(button.dataset.delivered)}/delivered`, 2600, "POST"); await loadNotifications(); }
+      catch (error) { button.disabled = false; toast(`Render receipt not recorded: ${error.message}`); }
+    }));
+    document.querySelectorAll("[data-acknowledge]").forEach((button) => button.addEventListener("click", async () => {
+      button.disabled = true;
+      try { const receipt = await api(`/api/v1/notifications/${encodeURIComponent(button.dataset.acknowledge)}/acknowledge`, 2600, "POST"); await loadNotifications(); toast(receipt.authority_effect === "none" ? "Receipt recorded; no decision was made." : "Receipt result unavailable."); }
+      catch (error) { button.disabled = false; toast(`Receipt not recorded: ${error.message}`); }
+    }));
+    if (state.activeView === "notifications") requestAnimationFrame(() => {
+      if (state.activeView !== "notifications" || document.visibilityState !== "visible") return;
+      state.notifications.filter((n) => n.delivery_status === "queued").forEach(async (n) => {
+        try { await api(`/api/v1/notifications/${encodeURIComponent(n.notification_id)}/delivered`, 2600, "POST"); await loadNotifications(); }
+        catch (_) { /* Keep queued truthful; the next visible refresh may retry. */ }
+      });
+    });
+  }
+  async function loadNotifications() {
+    if (!state.token) return;
+    try { renderNotifications(await api("/api/v1/notifications?limit=25")); }
+    catch (error) { state.notificationStatus = "unavailable"; $("notification-state").textContent = "Notification source unavailable"; $("notification-list").innerHTML = noData(`No delivery is claimed (${error.message}).`); }
+  }
   async function loadWorkers(append = false) {
     if (!state.token) return;
     if (state.status?.workers?.status === "not_initialized") {
@@ -171,10 +207,11 @@
   }
   function navigate(name) {
     const start = performance.now();
-    const view = ["overview","assignments","activity","workflows"].includes(name) ? name : "overview";
+    const view = ["overview","assignments","activity","workflows","notifications"].includes(name) ? name : "overview";
+    state.activeView = view;
     document.querySelectorAll(".view").forEach((node) => { const active = node.id === `view-${view}`; node.hidden = !active; node.classList.toggle("active", active); });
     document.querySelectorAll(".nav-item").forEach((node) => node.classList.toggle("selected", node.dataset.view === view));
-    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",activity:"Activity",workflows:"Process workflows"})[view];
+    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",activity:"Activity",workflows:"Process workflows",notifications:"Notifications"})[view];
     history.replaceState(null,"",`#${view}`);
     const duration = performance.now() - start;
     state.navSamples.push({view,ms:duration}); state.navSamples=state.navSamples.slice(-100);
@@ -182,6 +219,7 @@
     if (state.lastFetch && performance.now() - state.lastFetch > 10000) refreshStatus();
     if (view === "assignments" && !state.assignments.length) loadAssignments();
     if (view === "activity" && !state.events.length) loadEvents();
+    if (view === "notifications") loadNotifications();
   }
   document.querySelectorAll(".nav-item").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.view)));
   document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.go)));
@@ -191,6 +229,7 @@
   $("more-assignments").addEventListener("click", () => loadAssignments(true));
   $("more-events").addEventListener("click", () => loadOlderEvents());
   $("more-workers").addEventListener("click", () => loadWorkers(true));
+  $("refresh-notifications").addEventListener("click", loadNotifications);
   $("snapshot").addEventListener("click", async () => {
     try {
       const bundle = await api("/api/v1/snapshot");

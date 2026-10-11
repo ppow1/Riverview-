@@ -1374,6 +1374,300 @@
       ]
     },
     {
+      "graph_id": "rv:notification-delivery:visual-attention",
+      "graph_revision": "1.0.0",
+      "component_id": "NOTIFICATION-DELIVERY",
+      "workflow_id": "visual-attention.v1",
+      "diagram_order": 1,
+      "source_references": [
+        "src/riverview_core/notifications/dispatcher.py",
+        "src/riverview_core/notifications/service.py",
+        "src/riverview_core/notifications/migrations/0006_durable_notifications.sql",
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "deploy/systemd/riverview-notification-dispatcher.service",
+        "scripts/run_notification_dispatcher.py",
+        "tests/test_notifications.py"
+      ],
+      "documentation_references": [
+        "docs/components/NOTIFICATION_DELIVERY.md",
+        "docs/components/NOTIFICATION_DELIVERY_COOKBOOK.md",
+        "docs/components/NOTIFICATION_DELIVERY_FLOW.md",
+        "docs/components/STATUS_DASHBOARD.md",
+        "process_graphs/README.md"
+      ],
+      "verification_evidence": [],
+      "nodes": [
+        {
+          "id": "rv:notification-delivery:visual-attention:cme-event",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "CME attention is durably observed",
+          "source_references": [
+            "src/riverview_core/notifications/dispatcher.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:filter",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Institution privacy and event allowlist pass?",
+          "source_references": [
+            "src/riverview_core/notifications/dispatcher.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:skip-private",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Skip private or unsupported source event",
+          "source_references": [
+            "src/riverview_core/notifications/dispatcher.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:queue-notice",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Idempotently queue fixed-summary notice",
+          "source_references": [
+            "src/riverview_core/notifications/dispatcher.py",
+            "src/riverview_core/notifications/migrations/0006_durable_notifications.sql"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:pending-request",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Create pending review request for awaiting-steward assignment",
+          "source_references": [
+            "src/riverview_core/notifications/dispatcher.py",
+            "src/riverview_core/notifications/migrations/0006_durable_notifications.sql"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:render",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Render bounded notice in visible dashboard view",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/status_dashboard/static/app.js"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:delivery-receipt",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Persist browser rendering receipt",
+          "source_references": [
+            "src/riverview_core/notifications/service.py",
+            "src/riverview_core/status_dashboard/server.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:ack-receipt",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Persist explicit receipt acknowledgment",
+          "source_references": [
+            "src/riverview_core/notifications/service.py",
+            "src/riverview_core/status_dashboard/static/app.js"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:no-authority-effect",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "Decision request stays pending; no authority effect",
+          "source_references": [
+            "src/riverview_core/notifications/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:unavailable",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Keep queued and show unavailable without success claim",
+          "source_references": [
+            "src/riverview_core/notifications/service.py",
+            "src/riverview_core/status_dashboard/server.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:retry",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Re-scan durable CME source after recovery",
+          "source_references": [
+            "src/riverview_core/notifications/dispatcher.py",
+            "deploy/systemd/riverview-notification-dispatcher.service"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:jump-cme",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "CME source workflow",
+          "jump_target_id": "rv:cme:progress-and-recovery:monitor-start",
+          "source_references": [
+            "src/riverview_core/notifications/dispatcher.py"
+          ],
+          "documentation_references": [
+            "docs/components/CME_MONITOR.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:jump-dashboard",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "Dashboard authenticated receipt client",
+          "jump_target_id": "rv:steward-dashboard:status:ingest",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md"
+          ],
+          "verification_evidence": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:notification-delivery:visual-attention:cme-event",
+          "to": "rv:notification-delivery:visual-attention:filter",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:filter",
+          "to": "rv:notification-delivery:visual-attention:queue-notice",
+          "type": "runtime_transition",
+          "label": "institutional and allowlisted"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:filter",
+          "to": "rv:notification-delivery:visual-attention:skip-private",
+          "type": "diagnostic_branch",
+          "label": "private or unsupported"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:queue-notice",
+          "to": "rv:notification-delivery:visual-attention:pending-request",
+          "type": "runtime_transition",
+          "label": "assignment is awaiting_steward"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:pending-request",
+          "to": "rv:notification-delivery:visual-attention:render",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:queue-notice",
+          "to": "rv:notification-delivery:visual-attention:render",
+          "type": "runtime_transition",
+          "label": "no decision request required"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:render",
+          "to": "rv:notification-delivery:visual-attention:delivery-receipt",
+          "type": "runtime_transition",
+          "label": "visible client render confirmed"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:delivery-receipt",
+          "to": "rv:notification-delivery:visual-attention:ack-receipt",
+          "type": "runtime_transition",
+          "label": "explicit receipt action"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:ack-receipt",
+          "to": "rv:notification-delivery:visual-attention:no-authority-effect",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:queue-notice",
+          "to": "rv:notification-delivery:visual-attention:unavailable",
+          "type": "diagnostic_branch",
+          "label": "projection or database unavailable"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:unavailable",
+          "to": "rv:notification-delivery:visual-attention:retry",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:retry",
+          "to": "rv:notification-delivery:visual-attention:queue-notice",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:cme-event",
+          "to": "rv:notification-delivery:visual-attention:jump-cme",
+          "type": "documentation"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:render",
+          "to": "rv:notification-delivery:visual-attention:jump-dashboard",
+          "type": "documentation"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:jump-cme",
+          "to": "rv:cme:progress-and-recovery:monitor-start",
+          "type": "jump"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:jump-dashboard",
+          "to": "rv:steward-dashboard:status:ingest",
+          "type": "jump"
+        }
+      ]
+    },
+    {
       "graph_id": "rv:outcome-verifier:independent-result",
       "graph_revision": "1.0.1",
       "component_id": "OUTCOME-VERIFIER",
@@ -4613,6 +4907,19 @@
     "rv:grace:operational-integration:steward-escalation",
     "rv:grace:operational-integration:verification-feedback",
     "rv:grace:operational-integration:worker-dispatch",
+    "rv:notification-delivery:visual-attention:ack-receipt",
+    "rv:notification-delivery:visual-attention:cme-event",
+    "rv:notification-delivery:visual-attention:delivery-receipt",
+    "rv:notification-delivery:visual-attention:filter",
+    "rv:notification-delivery:visual-attention:jump-cme",
+    "rv:notification-delivery:visual-attention:jump-dashboard",
+    "rv:notification-delivery:visual-attention:no-authority-effect",
+    "rv:notification-delivery:visual-attention:pending-request",
+    "rv:notification-delivery:visual-attention:queue-notice",
+    "rv:notification-delivery:visual-attention:render",
+    "rv:notification-delivery:visual-attention:retry",
+    "rv:notification-delivery:visual-attention:skip-private",
+    "rv:notification-delivery:visual-attention:unavailable",
     "rv:outcome-verifier:independent-result:accepted-record",
     "rv:outcome-verifier:independent-result:complete",
     "rv:outcome-verifier:independent-result:decision",

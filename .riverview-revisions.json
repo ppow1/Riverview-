@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.43",
+  "manifest_revision": "1.1.46",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.30",
+      "revision": "1.0.31",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "caf695b0df7092803ac541a10986c516d897abf8d858b06faa4a4be05275e5c2",
-      "size_bytes": 188682
+      "sha256": "c9a74fb8f04c5cf24cc1239c1edaffacbd88a2189e7a974639acb6b7706a3e16",
+      "size_bytes": 201021
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 27724
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.43"
+      "revision": "1.1.46"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -153,6 +153,18 @@
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
       "sha256": "4267b8d917010e65424b06d96d1b0e32c3b547649724d39a57645cb50c1fc7e6",
       "size_bytes": 12076
+    },
+    "process_graphs/notification-delivery/visual-attention.json": {
+      "revision": "1.0.0",
+      "path": "process_graphs/notification-delivery/visual-attention.json",
+      "sha256": "dfe1f15fb91fd7450abfda77ce1976a64ed1d7d3a391011ae24e8f432f352bc7",
+      "size_bytes": 8560
+    },
+    "docs/components/NOTIFICATION_DELIVERY_API.schema.json": {
+      "revision": "1.0.0",
+      "path": "docs/components/NOTIFICATION_DELIVERY_API.schema.json",
+      "sha256": "2e4d7446b1d64b13a76b3d0ce037465df182ca1c209b692c69cce881c5b28b7a",
+      "size_bytes": 2957
     }
   }
 }

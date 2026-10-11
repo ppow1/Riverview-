@@ -1,8 +1,58 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.43
+**Document Revision:** 1.0.45
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-11 UTC — RV-M3.2-001 / durable visual notification design
+
+Started M3.2 on `codex/m3.2-durable-notifications` from the M3.1 accepted
+commissioned branch tip `c8d93bc`; PR #16 remains open/draft and unmerged, so
+the M3.2 change remains a short dependency branch. The roadmap's sole explicit
+M3.2 pass criterion is truthful delivery and acknowledgment for a defined
+attention condition using a tested channel. The Core Contract requires durable
+decision requests and channels but places authority in the Steward-delegated
+institutional service. Decision: use one authenticated in-dashboard visual
+channel and durable Postgres records; use the existing service bearer only for
+transport authentication. A rendered-delivery receipt and client receipt
+acknowledgment must never be called a Steward decision. Create pending requests
+only from an authoritative `awaiting_steward` assignment; M4.1 identity/authority
+must own future request resolution. Keep CME as source, isolate the delivery
+worker, redact source details and privacy-domain data, and preserve the existing
+dashboard origin. No migration had been applied at intake.
+
+## 2026-10-11 UTC — RV-M3.2-001 / isolated notification implementation
+
+Implemented migration 0006, a separate bounded dispatcher, the visual notice
+projection and two receipt-only API operations. Receipt acknowledgment cannot
+change the pending decision-request status or assignment state. The browser
+records delivery only when the Notifications view is visible. Notice summaries
+are fixed and private-domain events are excluded. The database protects the
+receipt-event ledger against update/delete and provides an event scan index.
+
+Verification to date: seven notification tests passed in an isolated PostgreSQL
+16.15 UTF8 cluster; the complete suite passed 125 tests with zero failures,
+errors or skips. No `rvtest_*` schema remained and the socket-only cluster was
+stopped and removed. Process graphs validate at 11 workflows / 209 nodes and the
+controlled revision audit passes with zero issues. The first full-suite attempt
+was invalid: a no-locale cluster returned text as bytes, and a 40-connection
+cap exhausted during test setup. A corrected UTF8 cluster with the established
+100-connection cap passed; neither attempt touched production.
+
+Shared-schema preflight is read-only and compatible: PostgreSQL 16.15, eight
+existing migrations through 0005, four assignments, eleven ledger events, six
+CME monitor events, schema owner `riverview_core`; CME and dashboard are active.
+The event processor was observed inactive and was not modified. A protected
+custom-format backup was created at
+`/var/lib/postgresql/riverview-backup.m32-20261011T035934Z.ttrGjJUx/riverview.dump`
+(SHA-256 `129a405b72e20f5b0a736e8f02965da33fab6943dada52bac867a400c1466519`).
+The archive listed and restored successfully to a unique disposable database;
+pre/post row counts matched (4 assignments, 11 events, 8 migrations, 6 CME
+events), and only that disposable restore database was removed. Migration 0006
+remains unapplied to `riverview_dev`; no service or shared row was changed.
+Next: verify the migration under the existing database role on a restored clone,
+commit/build the root-owned release, then apply only after the exact preflight
+has passed and commission the dedicated dispatcher/dashboard integration.
 
 ## 2026-10-11 UTC — RV-OPS-COOKBOOK-001 / consolidated operations guide
 
