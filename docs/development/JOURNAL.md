@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.66
+**Document Revision:** 1.0.67
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -1116,3 +1116,24 @@ would downgrade the installed dashboard shell and drop working repository-
 knowledge links. Existing release 7a9ff46 and all operational services remain
 unchanged and healthy; shared authority tables/roles/credentials remain absent.
 M4.1 is isolated-engineering PASS, not live commissioning or component DONE.
+
+
+## 2026-10-11 UTC — RV-M4.1-ROLE-SCOPE-REVIEW / least-privilege correction
+
+Reviewed the M4.1 database boundary before live deployment. The prior design's
+manager membership in the `NOLOGIN` table-owner role granted DDL and could
+bypass registry controls. Reworked the helper to require a dedicated schema
+with only authority relations, migration ledger and trigger function; deny
+`PUBLIC`/ordinary-runtime schema access; require a NOINHERIT manager with no role
+memberships; and grant manager DML on the nine allowlisted tables only. Added
+fail-closed checks for unrelated tables/functions, manager membership and
+manager DDL, while retaining exact registry behavior and the schema-owner
+DROP-CASCADE proof in a disposable schema. The focused PostgreSQL integration
+passed and teardown left zero test schemas/roles; the prior complete isolated
+suite was 133/133. The process-graph tests passed 12/12, including new file-level
+revision generation tests. A first fixture run exposed the migration runner's
+required `schema_migrations` ledger; the fixture now creates that ledger inside
+its isolated schema. A subsequent source indentation error was caught at test
+collection and fixed before execution; no shared database was touched. No live
+roles, schema, credentials or identity state changed. Exact-head CI and final
+checkpoint evidence are pending.

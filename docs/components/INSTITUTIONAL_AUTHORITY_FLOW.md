@@ -2,11 +2,12 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_FLOW.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.2
+File Revision: 1.0.3
 Purpose: Map root-local bootstrap, authorization, office state and recovery
 Authority: Deny when principal, credential, grant, or source state is uncertain
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
 Changed: 2026-10-11 UTC | RV-M4.1-DB-BOUNDARY-GRAPH | Regenerate focused authority diagram for the database privilege boundary
+Changed: 2026-10-11 UTC | RV-M4.1-LEAST-PRIVILEGE | Render dedicated-schema gate and scoped manager DML path
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional authority and office continuity flow
@@ -31,10 +32,11 @@ flowchart LR
     g_rv_institutional_authority_identity_and_grants_recover_dedfc857["Restore authoritative DB availability and re-check grant before resuming"]
     g_rv_institutional_authority_identity_and_grants_complete_b22cd8fd(["Authorized operation completed with durable state/event evidence"])
     g_rv_institutional_authority_identity_and_grants_db_boundary_preflight_7ebcafd7(["DBA preflights exact authority-table privilege boundary"])
-    g_rv_institutional_authority_identity_and_grants_schema_owner_gate_a70328d4{"Runtime and authority manager are distinct from schema owner and cannot assume it?"}
-    g_rv_institutional_authority_identity_and_grants_transfer_protected_objects_ce82dd28["Transfer allowlisted authority relations to NOLOGIN owner and grant manager membership"]
-    g_rv_institutional_authority_identity_and_grants_runtime_denial_verified_c2b31279["Runtime SQL access denied and manager registry behavior verified"]
-    g_rv_institutional_authority_identity_and_grants_boundary_preflight_failure_44d08c3b[["Ownership or role precondition fails closed; do not apply DDL"]]
+    g_rv_institutional_authority_identity_and_grants_schema_owner_gate_a70328d4{"Runtime and NOINHERIT manager are distinct from schema owner and have no unsafe role memberships?"}
+    g_rv_institutional_authority_identity_and_grants_transfer_protected_objects_ce82dd28["Protect the dedicated schema and transfer allowlisted tables; grant manager DML only"]
+    g_rv_institutional_authority_identity_and_grants_runtime_denial_verified_c2b31279["Runtime schema/table access denied; manager DML works without DDL or owner inheritance"]
+    g_rv_institutional_authority_identity_and_grants_boundary_preflight_failure_44d08c3b[["Mixed schema, unsafe ownership/membership or incomplete role precondition fails closed"]]
+    g_rv_institutional_authority_identity_and_grants_dedicated_schema_gate_c3990d8d{"Schema contains only authority tables, migration ledger and append-only trigger?"}
   end
   g_rv_institutional_authority_identity_and_grants_bootstrap_a48d6fd3 -->|prerequisite: Trusted DB bootstrap requires reviewed schema| g_rv_institutional_authority_identity_and_grants_migration_ready_c4bb91b6
   g_rv_institutional_authority_identity_and_grants_migration_ready_c4bb91b6 --> g_rv_institutional_authority_identity_and_grants_principal_create_ee96873b
@@ -50,10 +52,12 @@ flowchart LR
   g_rv_institutional_authority_identity_and_grants_recover_dedfc857 -->|Re-check instead of reusing old decision| g_rv_institutional_authority_identity_and_grants_authorize_fa36becb
   g_rv_institutional_authority_identity_and_grants_deny_e8ae7e89 -->|escalation: Steward may issue a new narrow grant| g_rv_institutional_authority_identity_and_grants_grant_create_462e1d10
   g_rv_institutional_authority_identity_and_grants_migration_ready_c4bb91b6 -->|prerequisite: Reviewed privilege boundary follows migration readiness| g_rv_institutional_authority_identity_and_grants_db_boundary_preflight_7ebcafd7
-  g_rv_institutional_authority_identity_and_grants_db_boundary_preflight_7ebcafd7 --> g_rv_institutional_authority_identity_and_grants_schema_owner_gate_a70328d4
-  g_rv_institutional_authority_identity_and_grants_schema_owner_gate_a70328d4 -->|Preconditions pass and DBA explicitly applies| g_rv_institutional_authority_identity_and_grants_transfer_protected_objects_ce82dd28
-  g_rv_institutional_authority_identity_and_grants_schema_owner_gate_a70328d4 -->|diagnostic_branch: Schema owner/role boundary is unsafe or prerequisite absent| g_rv_institutional_authority_identity_and_grants_boundary_preflight_failure_44d08c3b
+  g_rv_institutional_authority_identity_and_grants_db_boundary_preflight_7ebcafd7 --> g_rv_institutional_authority_identity_and_grants_dedicated_schema_gate_c3990d8d
+  g_rv_institutional_authority_identity_and_grants_dedicated_schema_gate_c3990d8d -->|Dedicated schema and role checks pass; DBA explicitly applies| g_rv_institutional_authority_identity_and_grants_transfer_protected_objects_ce82dd28
+  g_rv_institutional_authority_identity_and_grants_dedicated_schema_gate_c3990d8d -->|diagnostic_branch: Mixed schema or unapproved object rejected| g_rv_institutional_authority_identity_and_grants_boundary_preflight_failure_44d08c3b
   g_rv_institutional_authority_identity_and_grants_transfer_protected_objects_ce82dd28 -->|verification| g_rv_institutional_authority_identity_and_grants_runtime_denial_verified_c2b31279
+  g_rv_institutional_authority_identity_and_grants_dedicated_schema_gate_c3990d8d -->|Dedicated schema contains no unrelated objects| g_rv_institutional_authority_identity_and_grants_schema_owner_gate_a70328d4
+  g_rv_institutional_authority_identity_and_grants_schema_owner_gate_a70328d4 -->|diagnostic_branch: Runtime/manager role or schema-owner relationship is unsafe| g_rv_institutional_authority_identity_and_grants_boundary_preflight_failure_44d08c3b
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

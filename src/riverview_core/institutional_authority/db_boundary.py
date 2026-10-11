@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/db_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.3
+# Revision: 1.0.5
 # Purpose: Separate authority relation ownership from the shared runtime role
 # Execution Model: Explicit PostgreSQL DBA operation; dry-run by default
 # Observability: Redacted JSON preflight and applied-relation report
@@ -11,6 +11,8 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-BOUNDARY-FORMAT-FIX | Escape PostgreSQL format tokens for Psycopg parameter parsing
 # Changed: 2026-10-11 UTC | RV-M4.1-BOUNDARY-VERIFY | Use catalog OIDs and explicit role casts in post-apply privilege verification
 # Changed: 2026-10-11 UTC | RV-M4.1-SCHEMA-OWNER-GATE | Reject runtime/manager schema ownership or membership that can bypass object ownership
+# Changed: 2026-10-11 UTC | RV-M4.1-LEAST-PRIVILEGE | Use dedicated schema, scoped manager DML grants, and deny manager DDL/owner inheritance
+# Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER | Require the manager LOGIN to inherit no PostgreSQL role memberships
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: tests/test_institutional_authority_boundary.py
 # History: .riverview-backups/manifest.jsonl
@@ -60,11 +62,13 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
     schema owner therefore remains a distinct migration/DBA identity.
 
     ``manager_role`` must be separately provisioned as a non-superuser LOGIN
-    with protected credential delivery. It receives membership in ``owner_role``
-    because the current registry implementation uses direct SQL. The ordinary
-    runtime role receives no table or trigger-function access. This does not
-    authorize assignments and does not remove a schema owner's CREATE/DROP
-    ability; it specifically prevents direct access to these table objects.
+    with protected credential delivery. It receives only USAGE on the dedicated
+    schema and SELECT/INSERT/UPDATE/DELETE on the nine allowlisted relations.
+    It must not inherit the NOLOGIN table owner: owner membership would permit
+    direct DDL and bypass append-only/registry controls. The ordinary runtime
+    receives neither schema visibility nor table/function access. The selected
+    schema may contain only these nine tables, the migration ledger, and the
+    append-only trigger function.
     """
     schema = _identifier(schema, "schema")
     runtime_role = _identifier(runtime_role, "runtime role")
@@ -112,8 +116,8 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
             if manager is None or not manager["rolcanlogin"]:
                 raise BoundaryPreflightError("separately provisioned manager LOGIN role is required")
             if (manager["rolsuper"] or manager["rolcreaterole"] or manager["rolcreatedb"]
-                    or manager["rolbypassrls"] or not manager["rolinherit"]):
-                raise BoundaryPreflightError("manager role must be a non-privileged, inheriting LOGIN")
+                    or manager["rolbypassrls"] or manager["rolinherit"]):
+                raise BoundaryPreflightError("manager role must be a non-privileged NOINHERIT LOGIN")
             if owner is not None and (owner["rolcanlogin"] or owner["rolsuper"]
                                       or owner["rolcreaterole"] or owner["rolcreatedb"]
                                       or owner["rolbypassrls"]):
@@ -130,6 +134,37 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                         (runtime_role, manager_role))
             if cur.fetchone()["member"]:
                 raise BoundaryPreflightError("runtime role can assume the manager role")
+            if owner is not None:
+                cur.execute("SELECT pg_has_role(%s,%s,'MEMBER') AS member",
+                            (manager_role, owner_role))
+                if cur.fetchone()["member"]:
+                    raise BoundaryPreflightError("manager role can assume the protected owner role")
+            cur.execute("""SELECT parent.rolname FROM pg_auth_members m
+                           JOIN pg_roles member ON member.oid=m.member
+                           JOIN pg_roles parent ON parent.oid=m.roleid
+                           WHERE member.rolname=%s""", (manager_role,))
+            inherited_roles = sorted(row["rolname"] for row in cur.fetchall())
+            if inherited_roles:
+                raise BoundaryPreflightError("manager role has unapproved memberships")
+
+            cur.execute("""SELECT c.relname, c.relkind FROM pg_class c
+                           JOIN pg_namespace n ON n.oid=c.relnamespace
+                           WHERE n.nspname=%s AND c.relkind IN ('r','p','v','m','S','f')""",
+                        (schema,))
+            allowed_objects = set(AUTHORITY_TABLES) | {"schema_migrations"}
+            unexpected_objects = sorted(row["relname"] for row in cur.fetchall()
+                                         if row["relname"] not in allowed_objects)
+            if unexpected_objects:
+                raise BoundaryPreflightError(
+                    "selected schema contains non-authority objects: " + ",".join(unexpected_objects))
+            cur.execute("""SELECT p.proname FROM pg_proc p
+                           JOIN pg_namespace n ON n.oid=p.pronamespace
+                           WHERE n.nspname=%s AND p.proname<>%s""",
+                        (schema, EVENT_TRIGGER_FUNCTION))
+            unexpected_functions = sorted(row["proname"] for row in cur.fetchall())
+            if unexpected_functions:
+                raise BoundaryPreflightError(
+                    "selected schema contains non-authority functions: " + ",".join(unexpected_functions))
 
             cur.execute("""SELECT tablename,tableowner FROM pg_tables
                            WHERE schemaname=%s AND tablename=ANY(%s)""",
@@ -170,23 +205,23 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
             if owner is None:
                 cur.execute(sql.SQL("CREATE ROLE {} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS").format(
                     sql.Identifier(owner_role)))
-            cur.execute(sql.SQL("GRANT USAGE,CREATE ON SCHEMA {} TO {}").format(
-                sql.Identifier(schema), sql.Identifier(owner_role)))
-            cur.execute(sql.SQL("GRANT {} TO {}").format(
-                sql.Identifier(owner_role), sql.Identifier(manager_role)))
+            cur.execute(sql.SQL("REVOKE ALL ON SCHEMA {} FROM PUBLIC,{},{}").format(
+                sql.Identifier(schema), sql.Identifier(runtime_role), sql.Identifier(owner_role)))
+            cur.execute(sql.SQL("GRANT USAGE ON SCHEMA {} TO {}").format(
+                sql.Identifier(schema), sql.Identifier(manager_role)))
             for table_name in AUTHORITY_TABLES:
                 cur.execute(sql.SQL("ALTER TABLE {}.{} OWNER TO {}").format(
                     sql.Identifier(schema), sql.Identifier(table_name), sql.Identifier(owner_role)))
                 cur.execute(sql.SQL("REVOKE ALL PRIVILEGES ON TABLE {}.{} FROM PUBLIC,{}").format(
-                    sql.Identifier(schema), sql.Identifier(table_name), sql.Identifier(runtime_role)))
+                    sql.Identifier(schema), sql.Identifier(table_name),
+                    sql.SQL("{},{}").format(sql.Identifier(runtime_role), sql.Identifier(manager_role))))
+                cur.execute(sql.SQL("GRANT SELECT,INSERT,UPDATE,DELETE ON TABLE {}.{} TO {}").format(
+                    sql.Identifier(schema), sql.Identifier(table_name), sql.Identifier(manager_role)))
             cur.execute(sql.SQL("ALTER FUNCTION {}.{}() OWNER TO {}").format(
                 sql.Identifier(schema), sql.Identifier(EVENT_TRIGGER_FUNCTION), sql.Identifier(owner_role)))
-            cur.execute(sql.SQL("REVOKE ALL PRIVILEGES ON FUNCTION {}.{}() FROM PUBLIC,{}").format(
-                sql.Identifier(schema), sql.Identifier(EVENT_TRIGGER_FUNCTION), sql.Identifier(runtime_role)))
-            cur.execute(sql.SQL("REVOKE CREATE ON SCHEMA {} FROM {}").format(
-                sql.Identifier(schema), sql.Identifier(owner_role)))
-            cur.execute(sql.SQL("GRANT USAGE ON SCHEMA {} TO {}").format(
-                sql.Identifier(schema), sql.Identifier(manager_role)))
+            cur.execute(sql.SQL("REVOKE ALL PRIVILEGES ON FUNCTION {}.{}() FROM PUBLIC,{},{}").format(
+                sql.Identifier(schema), sql.Identifier(EVENT_TRIGGER_FUNCTION),
+                sql.Identifier(runtime_role), sql.Identifier(manager_role)))
 
             cur.execute("""SELECT c.relname AS tablename,
                                   pg_get_userbyid(c.relowner) AS owner,
@@ -195,18 +230,30 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                                   has_table_privilege(%s::name,c.oid,'UPDATE') AS runtime_update,
                                   has_table_privilege(%s::name,c.oid,'DELETE') AS runtime_delete,
                                   has_table_privilege(%s::name,c.oid,'SELECT') AS manager_select,
-                                  has_table_privilege(%s::name,c.oid,'INSERT') AS manager_insert
+                                  has_table_privilege(%s::name,c.oid,'INSERT') AS manager_insert,
+                                  has_table_privilege(%s::name,c.oid,'UPDATE') AS manager_update,
+                                  has_table_privilege(%s::name,c.oid,'DELETE') AS manager_delete
                            FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
                            WHERE n.nspname=%s AND c.relkind='r' AND c.relname=ANY(%s)""",
                         (runtime_role, runtime_role, runtime_role, runtime_role,
-                         manager_role, manager_role, schema, list(AUTHORITY_TABLES)))
+                         manager_role, manager_role, manager_role, manager_role,
+                         schema, list(AUTHORITY_TABLES)))
             verification = cur.fetchall()
+            cur.execute("""SELECT has_schema_privilege(%s::name,%s,'USAGE') AS runtime_usage,
+                                  has_schema_privilege(%s::name,%s,'CREATE') AS runtime_create,
+                                  has_schema_privilege(%s::name,%s,'USAGE') AS manager_usage,
+                                  has_schema_privilege(%s::name,%s,'CREATE') AS manager_create""",
+                        (runtime_role, schema, runtime_role, schema,
+                         manager_role, schema, manager_role, schema))
+            schema_access = cur.fetchone()
             if (len(verification) != len(AUTHORITY_TABLES)
                     or any(row["owner"] != owner_role for row in verification)
                     or any(row[name] for row in verification
                            for name in ("runtime_select", "runtime_insert", "runtime_update", "runtime_delete"))
                     or any(not row[name] for row in verification
-                           for name in ("manager_select", "manager_insert"))):
+                           for name in ("manager_select", "manager_insert", "manager_update", "manager_delete"))
+                    or schema_access["runtime_usage"] or schema_access["runtime_create"]
+                    or not schema_access["manager_usage"] or schema_access["manager_create"]):
                 raise BoundaryPreflightError("post-apply privilege verification failed; transaction rolled back")
             return {
                 "status": "APPLIED",
@@ -215,6 +262,7 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                 "manager_role": manager_role,
                 "owner_role": owner_role,
                 "authority_tables": sorted(tables),
-                "runtime_table_access": "denied",
-                "manager_registry_access": "allowed",
+                "runtime_schema_and_table_access": "denied",
+                "manager_dml": "allowlisted tables only",
+                "manager_ddl_and_owner_inheritance": "denied",
             }

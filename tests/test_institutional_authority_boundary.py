@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_institutional_authority_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.6
+# Revision: 1.0.10
 # Purpose: Verify isolated M4.1 ownership separation denies runtime SQL bypass
 # Execution Model: PostgreSQL integration test using unique rvtest schema and roles
 # Observability: Protected object owners, runtime denial, manager registry authorization
@@ -15,6 +15,10 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-SCHEMA-OWNER-PROOF | Reproduce schema-owner DROP bypass in disposable schema
 # Changed: 2026-10-11 UTC | RV-M4.1-SCHEMA-OWNER-PROOF-FIX | Regrant fixture schema usage after owner transition and use dict result key
 # Changed: 2026-10-11 UTC | RV-M4.1-SCHEMA-OWNER-PROOF-ORDER | Verify transferred owners before isolated DROP-CASCADE experiment
+# Changed: 2026-10-11 UTC | RV-M4.1-LEAST-PRIVILEGE | Verify isolated authority schema, scoped manager DML, and no owner/DDL inheritance
+# Changed: 2026-10-11 UTC | RV-M4.1-ROLE-SCOPE-REVIEW-FIX | Correct fixture ledger setup for the dedicated authority schema
+# Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER-TEST | Model a NOINHERIT manager login in the boundary fixture
+# Changed: 2026-10-11 UTC | RV-M4.1-DEDICATED-SCHEMA-FUNCTION-TEST | Reject unrelated schema functions before privilege changes
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -56,14 +60,17 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
             if not identity or not identity["rolsuper"]:
                 self.skipTest("isolated test DSN needs CREATE ROLE authority for role-boundary test")
             self.admin.execute(sql.SQL(
-                "CREATE ROLE {} LOGIN PASSWORD {} NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS"
+                "CREATE ROLE {} LOGIN NOINHERIT PASSWORD {} NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS"
             ).format(sql.Identifier(self.runtime_role), sql.Literal(self.runtime_password)))
             self.admin.execute(sql.SQL(
-                "CREATE ROLE {} LOGIN PASSWORD {} NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS"
+                "CREATE ROLE {} LOGIN NOINHERIT PASSWORD {} NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS"
             ).format(sql.Identifier(self.manager_role), sql.Literal(self.manager_password)))
             self.admin.execute(sql.SQL("CREATE SCHEMA {} AUTHORIZATION CURRENT_USER").format(
                 sql.Identifier(self.schema)))
-            apply_migrations(DSN, schema=self.schema)
+            self.admin.execute(sql.SQL("""CREATE TABLE {}.schema_migrations(
+            version text PRIMARY KEY, checksum text NOT NULL,
+            applied_at timestamptz NOT NULL DEFAULT clock_timestamp())""").format(
+                sql.Identifier(self.schema)))
             migration_dir = (__import__("pathlib").Path(__file__).resolve().parents[1]
                              / "src/riverview_core/institutional_authority/migrations")
             apply_migrations(DSN, schema=self.schema, migrations_dir=migration_dir)
@@ -113,6 +120,26 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
         from riverview_core.institutional_authority.db_boundary import (
             BoundaryPreflightError, provision_authority_boundary)
 
+        # The authority registry gets a dedicated schema. Reject a target that
+        # contains unrelated application objects before any privilege changes.
+        self.admin.execute(self.sql.SQL("CREATE TABLE {}.unrelated_probe(id integer)").format(
+            self.sql.Identifier(self.schema)))
+        with self.assertRaisesRegex(BoundaryPreflightError, "non-authority objects"):
+            provision_authority_boundary(
+                self.admin, schema=self.schema, runtime_role=self.runtime_role,
+                manager_role=self.manager_role, owner_role=self.owner_role, apply=False)
+        self.admin.execute(self.sql.SQL("DROP TABLE {}.unrelated_probe").format(
+            self.sql.Identifier(self.schema)))
+        self.admin.execute(self.sql.SQL(
+            "CREATE FUNCTION {}.unrelated_probe() RETURNS integer LANGUAGE SQL AS 'SELECT 1'"
+        ).format(self.sql.Identifier(self.schema)))
+        with self.assertRaisesRegex(BoundaryPreflightError, "non-authority functions"):
+            provision_authority_boundary(
+                self.admin, schema=self.schema, runtime_role=self.runtime_role,
+                manager_role=self.manager_role, owner_role=self.owner_role, apply=False)
+        self.admin.execute(self.sql.SQL("DROP FUNCTION {}.unrelated_probe()").format(
+            self.sql.Identifier(self.schema)))
+
         self.admin.execute(self.sql.SQL("GRANT USAGE,CREATE ON SCHEMA {} TO {}").format(
             self.sql.Identifier(self.schema), self.sql.Identifier(self.runtime_role)))
         preview = provision_authority_boundary(
@@ -131,6 +158,30 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
             self.admin, schema=self.schema, runtime_role=self.runtime_role,
             manager_role=self.manager_role, owner_role=self.owner_role, apply=True)
         self.assertEqual(repeated["status"], "APPLIED")
+
+        with self.admin.cursor() as cur:
+            cur.execute("""SELECT pg_has_role(%s,%s,'MEMBER') AS manager_is_owner,
+                                  has_schema_privilege(%s,%s,'USAGE') AS runtime_usage,
+                                  has_schema_privilege(%s,%s,'CREATE') AS runtime_create,
+                                  has_schema_privilege(%s,%s,'USAGE') AS manager_usage,
+                                  has_schema_privilege(%s,%s,'CREATE') AS manager_create""",
+                        (self.manager_role, self.owner_role,
+                         self.runtime_role, self.schema, self.runtime_role, self.schema,
+                         self.manager_role, self.schema, self.manager_role, self.schema))
+            access = cur.fetchone()
+        self.assertFalse(access["manager_is_owner"])
+        self.assertFalse(access["runtime_usage"])
+        self.assertFalse(access["runtime_create"])
+        self.assertTrue(access["manager_usage"])
+        self.assertFalse(access["manager_create"])
+        self.admin.execute(self.sql.SQL("GRANT {} TO {}").format(
+            self.sql.Identifier(self.owner_role), self.sql.Identifier(self.manager_role)))
+        with self.assertRaisesRegex(BoundaryPreflightError, "manager role can assume"):
+            provision_authority_boundary(
+                self.admin, schema=self.schema, runtime_role=self.runtime_role,
+                manager_role=self.manager_role, owner_role=self.owner_role, apply=False)
+        self.admin.execute(self.sql.SQL("REVOKE {} FROM {}").format(
+            self.sql.Identifier(self.owner_role), self.sql.Identifier(self.manager_role)))
 
         self.admin.execute(self.sql.SQL("ALTER SCHEMA {} OWNER TO {}").format(
             self.sql.Identifier(self.schema), self.sql.Identifier(self.runtime_role)))
@@ -155,6 +206,11 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
         with self.psycopg.connect(self.runtime_dsn) as runtime:
             with self.assertRaises(InsufficientPrivilege):
                 runtime.execute(self.sql.SQL("DROP TABLE {}.authority_grants").format(
+                    self.sql.Identifier(self.schema)))
+        with self.psycopg.connect(self.manager_dsn) as manager:
+            manager.execute("SELECT count(*) FROM {}.institutional_principals".format(self.schema)).fetchone()
+            with self.assertRaises(InsufficientPrivilege):
+                manager.execute(self.sql.SQL("DROP TABLE {}.authority_grants").format(
                     self.sql.Identifier(self.schema)))
 
         from riverview_core.institutional_authority import AuthorityRegistry

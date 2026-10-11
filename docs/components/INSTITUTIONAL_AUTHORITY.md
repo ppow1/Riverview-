@@ -2,12 +2,14 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.4
+File Revision: 1.0.6
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
 Changed: 2026-10-11 UTC | RV-M4.1-DB-BOUNDARY | Specify separate schema, runtime, manager, and authority-owner identities
 Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ROUTE | Verify local dashboard documentation route for the expanded authority procedures
+Changed: 2026-10-11 UTC | RV-M4.1-LEAST-PRIVILEGE | Require a dedicated registry schema and scoped manager DML without owner or schema-create access
+Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER | Require the manager login to inherit no other database role grants
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
@@ -89,20 +91,27 @@ object-drop authority independently of relation ownership. The runtime must
 therefore have a distinct schema owner/migration identity; relation transfer
 alone is insufficient.
 
-The authority manager is a dedicated non-superuser LOGIN used by the current
-direct-SQL `AuthorityRegistry`; it inherits the `NOLOGIN` authority owner. Treat
-its credential as an authority capability and never give it to worker, CME,
-event-processor, or dashboard runtimes. It is not hardened against arbitrary
-SQL by a compromised manager. The ordinary runtime gets no direct rights to
-authority tables. The helper performs no identity/grant creation or work
+The authority registry must use a dedicated schema containing only its nine
+tables, its migration ledger, and its append-only event trigger. Never run the
+boundary helper against a mixed application schema: it revokes schema access
+from `PUBLIC` and the ordinary runtime as well as protecting each table. The
+manager is a dedicated non-superuser LOGIN. It receives only schema `USAGE` and
+`SELECT`/`INSERT`/`UPDATE`/`DELETE` on the nine registry tables. It is `NOINHERIT`
+and cannot be a member of any other database role; it cannot create objects,
+drop tables, execute the trigger function directly, or inherit the `NOLOGIN`
+table-owner role. The runtime receives no schema `USAGE` or table/function
+access. The manager is still a trusted authority capability: a
+compromised manager can issue direct DML and bypass application-level grant
+checks, so its secret must be isolated from worker, CME, event-processor, and
+dashboard runtimes. The helper performs no identity/grant creation or work
 authorization.
 
-This package has passed an isolated PostgreSQL integration test only. Camrui's
-shared `riverview_dev` schema is runtime-owned and fails the new preflight; no
-shared migration or role changes have been applied. Live deployment remains
-open until a distinct schema-owner/migration identity, protected manager
-credential and service integration, verified backup/restore rehearsal, and
-compatibility plan exist. See the [boundary procedure](INSTITUTIONAL_AUTHORITY_COOKBOOK.md#versioned-privilege-boundary-provisioner-isolated-controlled-use).
+This package has passed isolated PostgreSQL integration tests only. Camrui's
+shared `riverview_dev` schema is runtime-owned and contains unrelated application
+objects, so it must remain outside this boundary. A separate authority schema,
+protected manager credential and service integration, verified backup/restore
+rehearsal, and compatibility plan are required before live authorization use.
+See the [boundary procedure](INSTITUTIONAL_AUTHORITY_COOKBOOK.md#versioned-privilege-boundary-provisioner-isolated-controlled-use).
 
 ## Interfaces
 
