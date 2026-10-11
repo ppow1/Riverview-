@@ -1,0 +1,106 @@
+{
+  "authorization": {
+    "existing_read_send_grants_preserved": true,
+    "objective_or_assignment_grants_added": false,
+    "unauthorized_read": "403"
+  },
+  "backup": {
+    "disposable_restore": "PASS; removed by exact unique name",
+    "path": "/var/lib/postgresql/backups/riverview/grace-chat-durability-20261011T224800Z/riverview.dump",
+    "pg_restore_list": "PASS",
+    "sha256": "5ec548fddc2030db0bf0da2cc4bcd724964093e780f2f0c880149c053ad52581"
+  },
+  "browser": {
+    "dashboard_pid_after_restart": 656718,
+    "dashboard_pid_before_restart": 655174,
+    "history_survived_dashboard_restart": true,
+    "history_survived_refresh": true,
+    "pending_turn_restart_recovery": {
+      "api_event_count": 4,
+      "browser_refresh_rendered_interruption_and_followup": true,
+      "dashboard_pid_after_restart": 659149,
+      "dashboard_pid_before_restart": 656718,
+      "events": [
+        "user_message",
+        "response_interrupted",
+        "user_message",
+        "assistant_message"
+      ],
+      "independent_postgresql_event_count": 4,
+      "interrupted_status": "interrupted",
+      "interruption_error_code": "service_restarted",
+      "status": "PASS"
+    },
+    "real_model_responses_rendered": 3,
+    "unauthorized_conversation_read_http": 403
+  },
+  "credentials_recorded": false,
+  "dashboard_routes_http_200": [
+    "/api/v1/status",
+    "/api/v1/assignments",
+    "/api/v1/events",
+    "/api/v1/workers",
+    "/api/v1/attention",
+    "/api/v1/notifications",
+    "/api/v1/objectives"
+  ],
+  "database": {
+    "api_events_after_first_turn": 2,
+    "api_events_after_second_turn": 4,
+    "assignments_after": 9,
+    "assignments_before": 9,
+    "conversation_events_after": 12,
+    "conversations_after": 3,
+    "events_after_first_turn": 2,
+    "events_after_second_turn": 4,
+    "events_before_deployment": 4,
+    "grace_objectives_table_present": false,
+    "idle_in_transaction_sessions_after_requests": 0,
+    "name": "riverview",
+    "schema": "riverview_dev",
+    "source": "fresh independent TCP PostgreSQL connection",
+    "user_event_visible_before_inference_completed_for_each_turn": true
+  },
+  "deployment_id": "m3.4-camrui-chat-durable-30085f04",
+  "host": "Camrui",
+  "limitations": [
+    "CPU inference is a transient systemd unit and is not configured for automatic recovery after host reboot.",
+    "Isolated PostgreSQL tests cover eight concurrent conversations and interrupted-turn recovery; the live browser run exercised refresh and dashboard process restart.",
+    "Formal Steward acceptance and full Component Definition of Done remain open."
+  ],
+  "migration": {
+    "changed": false,
+    "checksum": "10597d1f0fb91814994ced2a0e3433a0e6aec97152416da3e493754f13033840",
+    "version": "0003_resident_conversation"
+  },
+  "model": {
+    "context_tokens": 4096,
+    "endpoint": "http://127.0.0.1:18796/v1",
+    "gpu_layers": 0,
+    "id": "qwen3-0.6b-q8_0-local",
+    "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031"
+  },
+  "outcome": "PASS",
+  "private_conversation_content_recorded": false,
+  "record_revision": "1.0.0",
+  "record_schema": "rv.grace-chat-live-acceptance.v1",
+  "source_commit": "30085f040d16c666ab8e715e2b9f8c384d1adf9c",
+  "systemd_units_active": [
+    "riverview-status-dashboard",
+    "riverview-event-processor",
+    "riverview-cme-monitor",
+    "riverview-notification-dispatcher",
+    "riverview-assignment-intake",
+    "riverview-m33-worker",
+    "riverview-m33-verifier",
+    "riverview-grace-cpu-inference"
+  ],
+  "test_runner_observation": {
+    "cause": "CPU inference completed after the browser wait predicate expired",
+    "fresh_browser_history_render": "PASS",
+    "independent_api_database_counts_match": true,
+    "model_timing_source": "llama.cpp journal reported 31.54 seconds total for the follow-up generation",
+    "outcome": "initial_followup_wait_timed_out_then_verified",
+    "wait_bound_seconds": 30
+  }
+}
