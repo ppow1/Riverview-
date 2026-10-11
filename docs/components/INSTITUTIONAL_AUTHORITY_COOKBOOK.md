@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.4
+File Revision: 1.0.5
 Purpose: Diagnose and safely recover institutional authority registry state
 Authority: Read-only diagnostics first; grant changes require authenticated Steward
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Keep evidence references as readable paths in safe dashboard renderer
+Changed: 2026-10-11 UTC | RV-M4.1-COOKBOOK-DB-BOUNDARY | Document isolated database boundary provisioning and schema-owner gate
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional authority registry cookbook
@@ -123,6 +124,86 @@ authority service can perform only its documented registry operations, and
 confirm every attempt (including denials) is retained in the authority event
 record. A passing isolated role experiment must not be reported as live
 commissioning.
+
+## Versioned privilege-boundary provisioner (isolated/controlled use)
+
+The reviewed helper is `scripts/provision_authority_boundary.py`. It accepts
+only a fixed allowlist of nine M4.1 relations and the append-only event trigger
+function. It does not provision credentials or identities, apply migrations,
+change grants, or authorize work. The default command is read-only. The target
+database credential is read only from `RIVERVIEW_AUTHORITY_DBA_DSN`; never put
+the DSN on the command line, in shell history, logs, evidence, or a report. Use
+the established protected secret delivery environment for an authorized DBA
+session.
+
+First inspect the target and ownership from a protected DBA session:
+
+```sh
+python3 scripts/provision_authority_boundary.py --schema riverview_dev
+```
+
+Expected on the current Camrui shared schema: a redacted error stating the
+authority migration is incomplete (or another exact unmet precondition). A
+nonzero result is a failed preflight, not permission to create objects by hand.
+For isolated testing, provide `RIVERVIEW_TEST_PG_DSN` and run:
+
+```sh
+RIVERVIEW_TEST_PG_DSN="$RIVERVIEW_TEST_PG_DSN" PYTHONPATH=src \
+  python3 -m unittest tests.test_institutional_authority_boundary -v
+```
+
+The integration test creates uniquely named disposable schema/roles and removes
+them in teardown. It checks idempotent application, relation ownership,
+runtime `SELECT`/DML/`DROP` denial, manager registry access and fail-closed
+behavior when the runtime owns the selected schema. A passing isolated test is
+not shared-schema commissioning.
+
+### Required role and ownership model
+
+| Identity | Requirement | Authority boundary |
+|---|---|---|
+| DBA provisioner | PostgreSQL superuser for this narrowly selected DDL operation; protected DBA credential | Executes dry-run first; applies only reviewed allowlisted ownership changes |
+| Schema owner | Distinct migration/DBA identity, not assumable by runtime or authority manager | Must not be the runtime or manager: PostgreSQL schema ownership can permit dropping contained objects |
+| Runtime role | Non-superuser, no CREATEROLE/CREATEDB/BYPASSRLS; may have ordinary app schema privileges | Must not own the schema or be a member of its owner role; receives no direct authority-table privileges |
+| Authority manager | Dedicated non-superuser LOGIN with protected secret, not the runtime role and not schema owner | Member of the NOLOGIN authority-table owner for current registry SQL; trusted and highly sensitive |
+| Authority owner | NOLOGIN, non-superuser role created by the helper | Owns exactly the nine allowlisted tables and append-only trigger function; has no schema CREATE after setup |
+
+The manager credential is a trusted authority capability: a compromised
+manager can perform registry operations through its table-owner membership.
+This helper does not make arbitrary SQL through that manager safe. Keep it out
+of the ordinary worker/CME/dashboard runtime and never reuse the shared runtime
+credential. The manager must later be bound to the registry service through an
+independently verified service credential path.
+
+`--apply` is DDL, requires a PostgreSQL superuser, and is not a harmless health
+check. Do not run it against `riverview_dev` until the exact schema-owner
+identity, manager credential delivery, protected full backup, restore rehearsal,
+migration state, application compatibility, rollback procedure, and separate
+service credential have been reviewed and recorded. The current live runtime
+owns `riverview_dev`; this provisioner now rejects that schema ownership. Do
+not transfer live schema ownership or install new roles/credentials by hand to
+make preflight pass. The exact remaining deployment prerequisites are recorded
+in `RV-M4.1-001`.
+
+After an authorized isolated apply, expected output has `status=APPLIED`, the
+nine table names, and runtime access `denied`; `manager_registry_access` is
+`allowed`. The test independently confirms denied SQL and successful exact
+registry authorization. Post-recovery checks must rerun the same test and
+confirm no `rvtest_*` schema or role remains:
+
+```sh
+psql "$RIVERVIEW_TEST_PG_DSN" -X -Atc \
+  "SELECT count(*) FROM pg_namespace WHERE nspname LIKE 'rvtest_%';"
+psql "$RIVERVIEW_TEST_PG_DSN" -X -Atc \
+  "SELECT count(*) FROM pg_roles WHERE rolname LIKE 'rvtest_%';"
+```
+
+Both counts must be `0`. If teardown fails, inspect only the uniquely generated
+test names from the test log and clean only those disposable objects using a
+DBA; never run broad `DROP ... CASCADE` against a shared schema. Escalate if the
+schema owner is the runtime/manager, manager credential delivery is unavailable,
+or a role can assume the DBA/schema-owner identity. No shared deployment was
+performed by this procedure in the current checkout.
 - **1.0.1 — 2026-10-11:** Add observed live ownership state, limited isolated role-boundary proof, and explicit non-deployment guidance.
 - **1.0.4 — 2026-10-11:** Present evidence references as readable paths supported by the dashboard's documentation-link policy.
 - **1.0.3 — 2026-10-11:** Record the executed read-only Camrui role preflight and result.

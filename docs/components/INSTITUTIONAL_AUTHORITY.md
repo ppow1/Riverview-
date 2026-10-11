@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.1
+File Revision: 1.0.2
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
+Changed: 2026-10-11 UTC | RV-M4.1-DB-BOUNDARY | Specify separate schema, runtime, manager, and authority-owner identities
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
@@ -75,6 +76,32 @@ This boundary is why the M3.3 shared assignment demonstration remains blocked;
 direct inserts or invented grant strings are not an acceptable substitute.
 M4.1 does not implement chat, work-order promotion, provider routing, or the
 Grace director.
+
+### Database privilege boundary package
+
+`src/riverview_core/institutional_authority/db_boundary.py` and
+`scripts/provision_authority_boundary.py` provide a DBA-operated, dry-run-first
+transition for the nine authority relations and append-only trigger function.
+The helper rejects a runtime or authority manager that owns the selected
+schema or can assume its owner role. PostgreSQL schema ownership can grant
+object-drop authority independently of relation ownership. The runtime must
+therefore have a distinct schema owner/migration identity; relation transfer
+alone is insufficient.
+
+The authority manager is a dedicated non-superuser LOGIN used by the current
+direct-SQL `AuthorityRegistry`; it inherits the `NOLOGIN` authority owner. Treat
+its credential as an authority capability and never give it to worker, CME,
+event-processor, or dashboard runtimes. It is not hardened against arbitrary
+SQL by a compromised manager. The ordinary runtime gets no direct rights to
+authority tables. The helper performs no identity/grant creation or work
+authorization.
+
+This package has passed an isolated PostgreSQL integration test only. Camrui's
+shared `riverview_dev` schema is runtime-owned and fails the new preflight; no
+shared migration or role changes have been applied. Live deployment remains
+open until a distinct schema-owner/migration identity, protected manager
+credential and service integration, verified backup/restore rehearsal, and
+compatibility plan exist. See the [boundary procedure](INSTITUTIONAL_AUTHORITY_COOKBOOK.md#versioned-privilege-boundary-provisioner-isolatedcontrolled-use).
 
 ## Interfaces
 

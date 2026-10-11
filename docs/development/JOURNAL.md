@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.55
+**Document Revision:** 1.0.57
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
 
@@ -990,3 +990,39 @@ reports decoded screenshot bytes. This dashboard deployment does not commission
 the authority registry: the shared database has no authority tables, and no
 identity/grant was created. M4.1 remains IN PROGRESS; M3.3 remains blocked on
 deployable database-enforced authority and a real verified knowledge provider.
+
+## 2026-10-11 UTC — RV-M4.1-DB-BOUNDARY / isolated PostgreSQL owner separation
+
+On `codex/m4.1-db-privilege-boundary`, implemented a dry-run-first provisioner
+for the fixed nine authority tables and append-only trigger function. Testing
+revealed PostgreSQL schema ownership can permit dropping contained objects
+even after relation ownership is transferred. Corrected the contract and
+preflight to require runtime and manager be distinct from, and unable to
+assume, schema ownership; the fixture models that distinct owner and tests
+runtime SQL denial and fail-closed schema-owner rejection. The corrected
+focused integration passed 1/1 and the complete disposable-PostgreSQL suite
+passed 133/133 with no skips, failures, or errors. `rvtest_*` schema/role counts
+were both zero after cleanup. Graph synchronization passed at 12 workflows/226
+nodes; Python compilation and controlled-revision audit passed. All checks are
+isolated; shared `riverview_dev` is unchanged. This is not a live boundary: the
+current Camrui runtime owns the shared schema, and no protected manager
+credential/service, migration, identity or grant was installed. The exact
+checkout evidence will be recorded after the coherent commit is finalized.
+Corrective experiments retained: initial post-apply catalog verification used
+untyped parameters with PostgreSQL's variadic `format()` and failed with
+`IndeterminateDatatype`; verification now checks relation OIDs and explicitly
+casts role parameters. A subsequent Psycopg test query contained a literal `%`
+in a `LIKE` pattern and failed its placeholder parser; it now uses a parameterized
+catalog name list. The first schema-owner reproduction fixture lost runtime
+schema usage after transferring ownership and exposed a `dict_row` indexing
+mistake; the fixture regrants only its test role the needed schema access and
+uses the named result. A verification assertion initially ran after the
+intentional `DROP ... CASCADE`; it was reordered before that destructive
+fixture-only proof. The focused test passed 1/1 and final full suite 133/133,
+zero skipped/failed/errored. One restart attempt initially found the private
+cluster already stopped; it was started from the same temporary data directory
+and tests passed. No issue involved the shared database.
+
+Next: capture commit-bound evidence, run GitHub CI, open (do not merge) a
+focused dependent PR, then continue M4.1 integration only after its documented
+role, credential, backup and compatibility prerequisites are met.

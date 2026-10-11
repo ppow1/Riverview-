@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.48",
+  "manifest_revision": "1.1.50",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.32",
+      "revision": "1.0.33",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "05efed6ccc4ea71e00282e4771fc78593957a2634830fdf954b80181bc5bc7b9",
-      "size_bytes": 212261
+      "sha256": "f6ddf2fb3905619f271ea143f3a6500297fa63c1c09d24225e72d82ace5c8920",
+      "size_bytes": 217115
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 27724
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.48"
+      "revision": "1.1.50"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -167,10 +167,10 @@
       "size_bytes": 2957
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
-      "revision": "1.0.0",
+      "revision": "1.0.1",
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
-      "sha256": "6f20823f4acd440e6f693411f2e7f688daeb31e1e4b6b1475cf03c6f090b45b0",
-      "size_bytes": 7848
+      "sha256": "303c376393802356a719af73b14bfc799b1f0a3bd7044e390d14fb3f3ccc0ddf",
+      "size_bytes": 13494
     }
   }
 }
