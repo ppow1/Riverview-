@@ -1,0 +1,8 @@
+test_runtime_cannot_read_or_mutate_authority_tables_and_schema_owner_is_distinct (tests.test_institutional_authority_boundary.InstitutionalAuthorityBoundaryTests.test_runtime_cannot_read_or_mutate_authority_tables_and_schema_owner_is_distinct) ... ok
+test_boundary_preflight_reports_safe_static_reason (tests.test_institutional_authority_boundary.PreflightDiagnosticTests.test_boundary_preflight_reports_safe_static_reason) ... ok
+test_database_error_reports_only_sqlstate (tests.test_institutional_authority_boundary.PreflightDiagnosticTests.test_database_error_reports_only_sqlstate) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 1.387s
+
+OK

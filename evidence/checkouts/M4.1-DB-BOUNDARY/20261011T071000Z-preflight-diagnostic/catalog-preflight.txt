@@ -1,0 +1,7 @@
+BEGIN
+authority_schema_exists=false
+authority_manager_role_exists=false
+authority_owner_role_exists=false
+runtime_schema_owner=riverview_core
+runtime_dev_object_count=67
+COMMIT
