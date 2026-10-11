@@ -1,12 +1,36 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.101
+**Document Revision:** 1.0.102
 **Component:** ENG-RECORDS
 **Date:** 2026-10-11 UTC
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
 **Changed:** 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-CHECKPOINT | Record persistent objective execution evidence and non-commissioning boundary
 **Changed:** 2026-10-11 UTC | RV-M4.1-M4.2-OCCUPANT-REPLACEMENT-INTEGRATION | Record isolated cross-component Grace identity replacement regression and limits
 **Changed:** 2026-10-11 UTC | RV-M4.1-CROSS-INTEGRATION-CI | Record exact-head CI run 38165302494 at commit 89752f7
+
+## 2026-10-11 UTC — RV-M3.4-GRACE-CHAT / isolated resident website conversation
+
+Verified clean PR #24 baseline `c5d694909bc88fb94c09658d57b8cc00d8f88d3b` and
+created `codex/m3.4-grace-web-conversation` stacked on that draft. The canonical
+roadmap describes M3.4 as a proposal; this implementation records the requested
+chat work as isolated engineering and does not claim formal proposal acceptance.
+The dashboard already separated its bearer from an `X-Riverview-Authority`
+credential on governed objective routes, and `AuthorityRegistry` already exposes
+office-bound occupant/model bindings. Reused those contracts and the existing
+loopback, model-name, and SHA-pinned local inference adapter. Conversation rows
+and append-only events were added to the resident-execution migration family.
+
+The website path now has explicit office-scoped read/send grants, server-side
+model binding resolution, message idempotency, bounded recent-history context,
+durable response/failure state, startup recovery for incomplete turns, and a
+chat view integrated into the existing dashboard shell. Ordinary chat has no
+objective or worker promotion call. Prior to edits, exact predecessor bytes and
+checksums were preserved by `scripts/revision_control.py` for the touched
+dashboard, provider, contract and journal files; new files start at revision
+1.0.0. The local Qwen3-0.6B GGUF and pinned llama.cpp binary are already present.
+No service, shared database, secret, external model endpoint, or 235B process was
+modified. PostgreSQL integration and real-model/browser commissioning results
+will be added only after those checks actually run.
 
 ## 2026-10-11 UTC — RV-M3.3-COURSE-CORRECTION / M3.3 commissioning and M4.2 checkpoint
 

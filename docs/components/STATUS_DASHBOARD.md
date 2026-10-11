@@ -2,13 +2,14 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.10
-Purpose: Specify operational projections and exact-grant Grace objective interfaces
-Authority: Reads require dashboard authentication; objective operations require exact institutional grants
+File Revision: 1.0.11
+Purpose: Specify operational projections and exact-grant Grace objective and conversation interfaces
+Authority: Reads require dashboard authentication; objective and resident conversation operations require exact institutional grants
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
 Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-CURRENT-DOCS-RELEASE | Define accurate code/deployment provenance for composite docs release
 Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-PROVENANCE-SECTION-ORDER | Place deployment provenance separately from the API route contract
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Add governed objective intake and result projections
+Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Integrate the isolated resident conversation view and versioned API
 History: Git and revision/backup manifest
 -->
 # Steward status dashboard
@@ -40,14 +41,14 @@ Source audit paths: `/tmp/rv-old-audit` and `/tmp/estate-audit` are temporary
 read-only clones, not repository dependencies. New Riverview status uses its own
 PostgreSQL ledger and CME projections.
 
-## Read-only API contract `rv.dashboard.v1`
+## Authenticated dashboard and bounded action API contract `rv.dashboard.v1`
 
 The browser and future API/AI consumers share the same authenticated HTTP entry
 point. Status and operational projections are read-only. In addition to receipt
-operations, the routes below provide narrow objective submission, proposal and
-pre-execution cancellation operations. These require a second exact-grant
-authority credential; the dashboard bearer alone grants no institutional action. Other mutating HTTP methods
-return `405 read_only_method`; no direct browser database write exists. Every
+operations, narrow objective and resident-conversation operations require a
+second exact-grant authority credential; the dashboard bearer alone grants no
+institutional action. Other mutating HTTP methods return `405 read_only_method`;
+no direct browser database write exists. Every
 application API request is authenticated with a bearer token from a protected
 systemd credential. The source file is owner-only; systemd exposes a read-only
 credential copy in its exact credential directory. Only that exact systemd
@@ -56,8 +57,9 @@ Symlinks are rejected and token reads use a no-follow file descriptor.
 Comparison is constant-time. The listener accepts only the
 IPv4/IPv6 loopback literal, validates the Host header, does not enable CORS, and
 does not place credentials in URLs. Authentication is per-service bearer access,
-not resident identity or delegated authority; future command APIs must integrate
-with the common governed identity/policy service before they can mutate state.
+not resident identity or delegated authority. Each existing narrow write
+independently resolves an exact AuthorityRegistry grant; chat cannot promote
+itself into executable work.
 
 The service reads PostgreSQL in read-only transactions, with a two-second SQL
 statement timeout and short connection timeout. It uses only the configured
@@ -167,6 +169,23 @@ timings from the current tab. It contains no token, headers, database DSN,
 payload body, unrestricted conversations, resident session, work-order or
 capability-registry data. Fields not implemented are named in `client_state` or
 omitted; absence is never represented as an empty healthy registry.
+
+## Grace resident conversation integration
+
+The shared dashboard serves the `Talk with Grace` view and versioned resident
+conversation routes specified in
+[`RESIDENT_CONVERSATION.md`](RESIDENT_CONVERSATION.md). Requests require the
+dashboard bearer plus `resident.conversation.read` or
+`resident.conversation.send` authority for `office:<office-id>`. Conversation
+events are stored with the existing resident execution records. Current model
+selection comes from the office implementation binding and must match the
+implementation revision. Model output cannot create or authorize an objective
+or work order.
+
+This is isolated engineering on the proposed, not formally accepted M3.4
+sequencing workstream. It does not claim shared-service deployment, Steward
+browser acceptance, M3.4 milestone acceptance, or full Component DoD. The
+conversation contract records configuration, troubleshooting, and recovery.
 
 ## Runtime and deployment
 
