@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Persist and serve office-bound, authorized Grace conversations
 # Execution Model: Authenticated request-driven completion with durable event history
 # Observability: Redacted response status and append-only PostgreSQL conversation events
@@ -10,6 +10,7 @@
 # Authority: Exact resident.conversation.read/send grants; chat never promotes work
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial bounded resident conversation service
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Limit ordinary CPU chat output to a short 64-token turn
+# Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Serialize shared PostgreSQL connection scopes across dashboard request threads
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: tests/test_resident_conversation.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -21,6 +22,8 @@ from __future__ import annotations
 import json
 import re
 import threading
+from contextlib import contextmanager
+from functools import wraps
 from uuid import UUID, uuid4
 
 import psycopg
@@ -50,6 +53,15 @@ class ConversationContextTooLarge(RuntimeError):
     """Required current conversation context exceeds the provider contract."""
 
 
+def _serialized_store_operation(method):
+    """Keep psycopg transaction scopes thread-local to one serialized connection use."""
+    @wraps(method)
+    def wrapped(self, *args, **kwargs):
+        with self._connection_operation():
+            return method(self, *args, **kwargs)
+    return wrapped
+
+
 class ConversationStore:
     """Append-only conversation events stored beside existing Grace execution state."""
 
@@ -57,17 +69,43 @@ class ConversationStore:
         if not isinstance(schema, str) or not _SCHEMA.fullmatch(schema):
             raise ValueError("invalid conversation schema")
         self.schema = schema
+        self._connection_lock = threading.RLock()
         try:
             self.db = psycopg.connect(dsn, autocommit=True, row_factory=dict_row)
         except psycopg.Error as exc:
             raise ConversationUnavailable(type(exc).__name__) from None
 
     def close(self):
-        self.db.close()
+        with self._connection_lock:
+            self.db.close()
+
+    @contextmanager
+    def _connection_operation(self):
+        """Serialize use and reject/rollback any transaction leaked by an operation."""
+        with self._connection_lock:
+            try:
+                yield
+            except BaseException:
+                self._rollback_if_open()
+                raise
+            self._require_idle_connection()
+
+    def _rollback_if_open(self):
+        try:
+            if self.db.info.transaction_status != psycopg.pq.TransactionStatus.IDLE:
+                self.db.rollback()
+        except psycopg.Error:
+            self.db.close()
+
+    def _require_idle_connection(self):
+        if self.db.info.transaction_status != psycopg.pq.TransactionStatus.IDLE:
+            self._rollback_if_open()
+            raise ConversationUnavailable("conversation database transaction did not close")
 
     def _path(self, cursor):
         cursor.execute("SELECT set_config('search_path', %s, false)", (self.schema,))
 
+    @_serialized_store_operation
     def begin_turn(self, *, office_id, principal_id, occupant, implementation,
                    message, conversation_id=None, client_message_id=None):
         """Persist the user message first; repeated browser retries are idempotent."""
@@ -128,6 +166,7 @@ class ConversationStore:
                     pass
             raise ConversationUnavailable(type(exc).__name__) from None
 
+    @_serialized_store_operation
     def find_turn(self, conversation_id, client_message_id):
         with self.db.cursor() as cur:
             self._path(cur)
@@ -141,6 +180,7 @@ class ConversationStore:
                         (row["request_id"],))
             return str(cur.fetchone()["conversation_id"]), str(row["request_id"]), True, []
 
+    @_serialized_store_operation
     def finish_turn(self, conversation_id, request_id, *, event_type, occupant,
                     implementation, provider_ref, model_id, body=None, error_code=None,
                     metadata=None):
@@ -179,6 +219,7 @@ class ConversationStore:
         except psycopg.Error as exc:
             raise ConversationUnavailable(type(exc).__name__) from None
 
+    @_serialized_store_operation
     def list_conversations(self, office_id, principal_id, *, limit=25):
         with self.db.cursor() as cur:
             self._path(cur)
@@ -189,6 +230,7 @@ class ConversationStore:
                      "created_at": row["created_at"].isoformat(),
                      "updated_at": row["updated_at"].isoformat()} for row in cur.fetchall()]
 
+    @_serialized_store_operation
     def history(self, conversation_id, office_id, principal_id, *, limit=100):
         with self.db.cursor() as cur:
             self._path(cur)
@@ -232,6 +274,7 @@ class ConversationStore:
         return {"schema_version": "rv.resident.response.v1", "status": state,
                 "request_id": str(request_id), "error_code": final["error_code"]}
 
+    @_serialized_store_operation
     def recover_pending(self):
         """Mark abandoned in-flight turns after a single service process restarts."""
         with self.db.cursor() as cur:
@@ -278,11 +321,13 @@ class ResidentConversationService:
         self.max_response_tokens = max_response_tokens
         self._conversation_locks = {}
         self._locks_guard = threading.Lock()
+        self._registry_lock = threading.RLock()
 
     def _authorize(self, credential, action):
         try:
-            with self.store.db.transaction(), self.store.db.cursor() as cur:
-                return self.authorizer.require(cur, credential, action, "office:" + self.office_id)
+            with self.store._connection_operation():
+                with self.store.db.transaction(), self.store.db.cursor() as cur:
+                    return self.authorizer.require(cur, credential, action, "office:" + self.office_id)
         except Exception as exc:
             from ..institutional_authority import GrantDenied, GrantCheckUnavailable
             if isinstance(exc, GrantDenied):
@@ -290,6 +335,13 @@ class ResidentConversationService:
             if isinstance(exc, GrantCheckUnavailable):
                 raise ConversationUnavailable("authority check unavailable") from None
             raise
+
+    def _authorize_office_binding(self):
+        # AuthorityRegistry also owns a persistent psycopg connection. Its runtime
+        # office-state read must not overlap another chat request on that connection.
+        with self._registry_lock:
+            return self.registry.authorize_office_state(
+                self._resident_credential, self.office_id)
 
     def list_conversations(self, credential):
         actor = self._authorize(credential, self.READ_ACTION)
@@ -329,8 +381,7 @@ class ResidentConversationService:
             raise ValueError("message must contain 1 to 8192 UTF-8 bytes")
         actor = self._authorize(credential, self.SEND_ACTION)
         try:
-            binding = self.registry.authorize_office_state(
-                self._resident_credential, self.office_id)
+            binding = self._authorize_office_binding()
         except Exception as exc:
             raise ConversationUnavailable("current resident binding unavailable") from None
         provider_ref = binding.get("provider_ref")
@@ -373,8 +424,7 @@ class ResidentConversationService:
                     or not completion.content.strip()
                     or len(completion.content.encode("utf-8")) > _MESSAGE_LIMIT):
                 raise ConversationUnavailable("model response incomplete")
-            current = self.registry.authorize_office_state(
-                self._resident_credential, self.office_id)
+            current = self._authorize_office_binding()
             if (current.get("binding_revision") != binding.get("binding_revision")
                     or current.get("implementation_revision") != binding.get("implementation_revision")):
                 return self._failed(conversation_id, request_id, binding, implementation,

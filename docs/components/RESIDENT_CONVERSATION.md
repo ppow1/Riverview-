@@ -2,13 +2,14 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.3
+File Revision: 1.0.4
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Set a short CPU-model response budget and record observed timeout evidence
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Document model-specific inference prefix and real browser verification approach
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Record committed-source local Firefox and PostgreSQL commissioning evidence
+Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Serialize shared PostgreSQL connection use and fail closed on leaked transactions
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
@@ -33,6 +34,8 @@ All endpoints also require the dashboard bearer. The exact office-scoped authori
 | `GET /api/v1/resident/conversations/{conversation_id}/responses/{request_id}` | Inspect one turn's durable response state | `rv.resident.response.v1` |
 
 `client_message_id` is a UUID used as an idempotency key. Repeating a submitted key never starts another inference call. Messages are limited to 8192 UTF-8 bytes. Conversation context is assembled from at most the 16 newest persisted user/assistant messages and the fixed office-resident system instruction. The resident sends at most 64 output tokens per turn and allows 120 seconds for inference. The serialized provider request must fit 32 KiB. If it does not, the user message remains recorded and the turn is marked `context_too_large`; required context is not silently truncated. Older history is visible through the bounded history API but is outside the explicitly stated recent-context policy.
+
+Each dashboard request runs on a bounded request thread. The conversation store and its exact-grant authorizer share one long-lived psycopg connection, so every operation on that connection is protected by a reentrant connection lock and a transaction-scope guard. The office-binding registry connection has a separate lock around its runtime binding reads. Locks are held only during database operations; model inference for distinct conversations remains concurrent. A database operation that returns with a non-idle transaction is rolled back and reported as unavailable, never acknowledged as successful. User-event persistence completes before inference starts. A successful API response is returned only after the assistant event's transaction exits; both events are expected to be visible from a fresh independent PostgreSQL connection at that point.
 
 Response states are `completed`, `pending`, `unavailable`, or `interrupted`. Provider identity, served model ID, model revision, token counts where supplied, and finish reason are stored with assistant events. Provider changes never rewrite previous records. An incomplete, wrong-model, over-bound, failed, or timed-out inference does not create an assistant success event; the user event and sanitized failure code remain visible.
 
@@ -61,7 +64,7 @@ Do not delete conversation rows or alter shared credentials as routine recovery.
 
 ## Verification status
 
-Isolated PostgreSQL tests exercise exact read/send grants, persistent history, retry idempotency, fake-provider implementation replacement with the same office and conversation, missing-model failure, oversized context, and restart reconciliation. A real Firefox run against committed source `1fa9d6104fc07609e3d8bbda8bf836b0b22e19c1` used the already-installed Qwen3-0.6B Q8_0 CPU model (pinned model SHA-256, 4096-token context, zero GPU layers, `/no_think` hint). Both browser turns generated and rendered: the initial turn took 31.95 seconds and the resumed turn took 27.92 seconds. PostgreSQL retained three user events, two assistant events, and one controlled interrupted event; ordinary chat created zero objectives. Browser refresh reloaded the same conversation. The isolated dashboard HTTP server and resident runtime objects were torn down and recreated against the same database, which reconciled the pending turn and allowed a subsequent response. The test does not establish a systemd or whole-host process restart.
+Isolated PostgreSQL tests exercise exact read/send grants, persistent history, retry idempotency, fake-provider implementation replacement with the same office and conversation, missing-model failure, oversized context, and restart reconciliation. Durability regressions additionally query through a new PostgreSQL connection before inference (user event) and after API acknowledgment (assistant event), stress concurrent independent conversation requests, compare API and committed row sequences, and assert the service connection is idle with no transaction after completed requests. A real Firefox run against committed source `1fa9d6104fc07609e3d8bbda8bf836b0b22e19c1` used the already-installed Qwen3-0.6B Q8_0 CPU model (pinned model SHA-256, 4096-token context, zero GPU layers, `/no_think` hint). Both browser turns generated and rendered: the initial turn took 31.95 seconds and the resumed turn took 27.92 seconds. PostgreSQL retained three user events, two assistant events, and one controlled interrupted event; ordinary chat created zero objectives. Browser refresh reloaded the same conversation. The isolated dashboard HTTP server and resident runtime objects were torn down and recreated against the same database, which reconciled the pending turn and allowed a subsequent response. The test does not establish a systemd or whole-host process restart.
 
 Evidence is `evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/`; its `artifacts.json` pins checksums and artifact revisions. Earlier failed commissioning attempts remain recorded in adjacent checkouts, with diagnosed harness/UI defects corrected and the final committed-source run passing. This is local isolated commissioning only: no shared dashboard deployment or Steward browser acceptance occurred. An actual alternate GGUF/model was not installed or used; replaceability is verified at the office-binding/provider contract with a deterministic fake replacement, while the real inference run used one model. Conversation privacy/retention policy approval, cross-process serialization, systemd restart commissioning, formal M3.4 sequencing decision, and full Component DoD remain open.
 

@@ -1,0 +1,29 @@
+{
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "a87febe70f8bd8a016be6ff7d382d97316abd28a99a832fd0ea162dca74aef4e",
+      "size_bytes": 4835
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "8f856f685bcd2fff25a88cfc07c617fdd4a1a32b664b87d13a90580102c08d33",
+      "size_bytes": 40498
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "d66882bdb93ad0a6848816dc07f02e40b9bc64c54079480db6828aeb1f8f777e",
+      "size_bytes": 55
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

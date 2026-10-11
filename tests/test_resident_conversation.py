@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -12,6 +12,7 @@
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Exercise authenticated chat endpoints and browser history restart path
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Match safe-rendered diagnostic documentation heading in route assertion
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Assert the resident's bounded 64-token chat request
+# Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Verify each acknowledged turn from fresh PostgreSQL connections under concurrency
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: python3 -m unittest tests.test_resident_conversation
 # History: Git and .riverview-backups/manifest.jsonl
@@ -26,6 +27,7 @@ from pathlib import Path
 import secrets
 import tempfile
 import threading
+import time
 import unittest
 from uuid import uuid4
 
@@ -41,11 +43,14 @@ class _ChatProvider:
         self.model_sha256 = digest
         self.answer = answer
         self.calls = []
+        self.during_completion = None
 
     def complete_chat(self, messages, *, max_tokens, expected_revision,
                       timeout_seconds=120):
         from riverview_core.local_reasoning_provider import ChatCompletion
         self.calls.append((messages, max_tokens, expected_revision))
+        if self.during_completion is not None:
+            self.during_completion(messages)
         return ChatCompletion(self.answer, self.model, 23, 9, "stop")
 
 
@@ -108,6 +113,28 @@ class ResidentConversationTests(unittest.TestCase):
             resident_credential=self.resident_token,
             providers={self.provider_a.provider_id: self.provider_a})
 
+    def _fresh_events(self, conversation_id):
+        import psycopg
+        from psycopg import sql
+        with psycopg.connect(DSN, autocommit=True) as fresh:
+            rows = fresh.execute(sql.SQL("""SELECT sequence,event_type,body
+                FROM {}.resident_conversation_events WHERE conversation_id=%s
+                ORDER BY sequence""").format(sql.Identifier(self.schema)),
+                (conversation_id,)).fetchall()
+        return rows
+
+    def _assert_connection_idle(self):
+        import psycopg
+        backend_pid = self.store.db.info.backend_pid
+        with psycopg.connect(DSN, autocommit=True) as fresh:
+            row = fresh.execute("""SELECT state,xact_start FROM pg_stat_activity
+                WHERE pid=%s""", (backend_pid,)).fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(row[0], "idle")
+        self.assertIsNone(row[1])
+        self.assertEqual(self.store.db.info.transaction_status,
+                         psycopg.pq.TransactionStatus.IDLE)
+
     def tearDown(self):
         from psycopg import sql
         self.store.close()
@@ -126,6 +153,9 @@ class ResidentConversationTests(unittest.TestCase):
                          ["user_message", "assistant_message"])
         self.assertEqual(history["events"][1]["implementation_revision"], self.model_a)
         self.assertEqual(history["events"][1]["metadata"]["completion_tokens"], 9)
+        self.assertEqual([row[1] for row in self._fresh_events(result["conversation_id"])],
+                         ["user_message", "assistant_message"])
+        self._assert_connection_idle()
         self.assertEqual(self.service.response_status(self.steward_token,
             result["conversation_id"], result["request_id"])["status"], "completed")
 
@@ -144,6 +174,81 @@ class ResidentConversationTests(unittest.TestCase):
         self.assertEqual(len(self.provider_a.calls), 1)
         self.assertEqual(len(self.service.history(self.steward_token,
             first["conversation_id"])["events"]), 2)
+
+    def test_user_event_is_committed_before_inference_and_assistant_before_ack(self):
+        message = "fresh-connection durability checkpoint"
+        observed = []
+        def inspect_before_reply(_messages):
+            import psycopg
+            from psycopg import sql
+            with psycopg.connect(DSN, autocommit=True) as fresh:
+                row = fresh.execute(sql.SQL("""SELECT count(*) FROM {}.resident_conversation_events
+                    WHERE event_type='user_message' AND body=%s""").format(
+                        sql.Identifier(self.schema)), (message,)).fetchone()
+            observed.append(row[0])
+        self.provider_a.during_completion = inspect_before_reply
+        result = self.service.send(self.steward_token, message=message,
+                                   client_message_id=str(uuid4()))
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(observed, [1], "user event must commit before invoking inference")
+        rows = self._fresh_events(result["conversation_id"])
+        self.assertEqual([row[1] for row in rows], ["user_message", "assistant_message"])
+        self.assertEqual(len(self.service.history(self.steward_token,
+            result["conversation_id"])["events"]), len(rows))
+        self._assert_connection_idle()
+
+    def test_concurrent_conversations_commit_all_acknowledged_events(self):
+        from concurrent.futures import ThreadPoolExecutor
+        self.provider_a.during_completion = lambda _messages: time.sleep(0.015)
+        count = 8
+        barrier = threading.Barrier(count)
+        def send_one(index):
+            barrier.wait(timeout=5)
+            result = self.service.send(self.steward_token,
+                message=f"independent parallel conversation {index}",
+                client_message_id=str(uuid4()))
+            self.assertEqual(result["status"], "completed")
+            api_events = self.service.history(self.steward_token,
+                result["conversation_id"])["events"]
+            committed = self._fresh_events(result["conversation_id"])
+            self.assertEqual([event["sequence"] for event in api_events],
+                             [row[0] for row in committed])
+            self.assertEqual([event["event_type"] for event in api_events],
+                             [row[1] for row in committed])
+            self.assertEqual([row[1] for row in committed],
+                             ["user_message", "assistant_message"])
+            return result["conversation_id"]
+        with ThreadPoolExecutor(max_workers=count) as pool:
+            conversations = list(pool.map(send_one, range(count)))
+        self.assertEqual(len(set(conversations)), count)
+        self._assert_connection_idle()
+
+    def test_acknowledged_failure_and_restart_recovery_are_independently_durable(self):
+        self.service.providers = {}
+        failed = self.service.send(self.steward_token, message="provider unavailable",
+                                   client_message_id=str(uuid4()))
+        self.assertEqual(failed["status"], "unavailable")
+        self.assertEqual([row[1] for row in self._fresh_events(failed["conversation_id"])],
+                         ["user_message", "response_failed"])
+        self._assert_connection_idle()
+        self.service.providers = {self.provider_a.provider_id: self.provider_a}
+        occupant = self.registry.authorize_office_state(self.resident_token, self.office_id)
+        conversation_id, request_id, duplicate, _ = self.store.begin_turn(
+            office_id=self.office_id, principal_id=self.steward_id, occupant=occupant,
+            implementation={"office_id": self.office_id, "implementation_id": self.impl_a,
+                "implementation_revision": self.model_a, "provider_ref": "local.inference.v1",
+                "model_id": "cpu-test-a"}, message="interrupted before model response",
+            client_message_id=str(uuid4()))
+        self.assertFalse(duplicate)
+        self.assertEqual([row[1] for row in self._fresh_events(conversation_id)], ["user_message"])
+        self.store.close()
+        from riverview_core.resident_execution.conversation import ConversationStore
+        self.store = ConversationStore(DSN, schema=self.schema)
+        self.service.store = self.store
+        self.assertEqual(self.store.recover_pending(), 1)
+        rows = self._fresh_events(conversation_id)
+        self.assertEqual([row[1] for row in rows], ["user_message", "response_interrupted"])
+        self._assert_connection_idle()
 
     def test_model_replacement_preserves_office_identity_and_conversation(self):
         first = self.service.send(self.steward_token, message="Remember this.",
