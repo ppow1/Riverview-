@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.7
+File Revision: 1.0.9
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -11,12 +11,13 @@ Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ROUTE | Verify local dashbo
 Changed: 2026-10-11 UTC | RV-M4.1-LEAST-PRIVILEGE | Require a dedicated registry schema and scoped manager DML without owner or schema-create access
 Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER | Require the manager login to inherit no other database role grants
 Changed: 2026-10-11 UTC | RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER | Make authority migrations self-contained for a dedicated fresh schema
+Changed: 2026-10-11 UTC | RV-M4.1-OWNER-SCHEMA-USAGE | Grant protected table owner schema USAGE for PostgreSQL FK enforcement without CREATE
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
 
 **Milestone:** M4.1 — Office, occupant, implementation and state separation
-**Status:** Isolated PostgreSQL implementation in progress; not live commissioned
+**Status:** Additive live authority schema and privilege boundary installed; Steward bootstrap and service integration remain unverified
 **Implementation:** `src/riverview_core/institutional_authority/registry.py`
 **Migrations:** `0000_authority_migration_ledger.sql` bootstraps the checksum ledger if absent; `0001_institutional_authority.sql` creates the registry tables and trigger.
 **Process graph:** `rv:institutional-authority:identity-and-grants`
@@ -97,7 +98,10 @@ tables, its migration ledger, and its append-only event trigger. Never run the
 boundary helper against a mixed application schema: it revokes schema access
 from `PUBLIC` and the ordinary runtime as well as protecting each table. The
 manager is a dedicated non-superuser LOGIN. It receives only schema `USAGE` and
-`SELECT`/`INSERT`/`UPDATE`/`DELETE` on the nine registry tables. It is `NOINHERIT`
+`SELECT`/`INSERT`/`UPDATE`/`DELETE` on the nine registry tables. The protected
+`NOLOGIN` table owner also requires schema `USAGE` for PostgreSQL foreign-key
+checks executed as relation owner; it does not receive schema `CREATE`. The
+manager is `NOINHERIT`
 and cannot be a member of any other database role; it cannot create objects,
 drop tables, execute the trigger function directly, or inherit the `NOLOGIN`
 table-owner role. The runtime receives no schema `USAGE` or table/function
@@ -107,11 +111,13 @@ checks, so its secret must be isolated from worker, CME, event-processor, and
 dashboard runtimes. The helper performs no identity/grant creation or work
 authorization.
 
-This package has passed isolated PostgreSQL integration tests only. Camrui's
-shared `riverview_dev` schema is runtime-owned and contains unrelated application
-objects, so it must remain outside this boundary. A separate authority schema,
-protected manager credential and service integration, verified backup/restore
-rehearsal, and compatibility plan are required before live authorization use.
+Camrui has an additive `riverview_authority` schema with migration ledger and
+protected manager credential; the existing `riverview_dev` schema and runtime
+tables remain outside the boundary. A dedicated live backup/restore rehearsal
+and isolated privilege testing were completed before applying the boundary.
+The initial Steward bootstrap is not yet verified, and no service uses this
+registry. The live boundary remains pending bootstrap, read/write authorization
+checks, runtime denial checks, and service-integration verification.
 See the [boundary procedure](INSTITUTIONAL_AUTHORITY_COOKBOOK.md#versioned-privilege-boundary-provisioner-isolated-controlled-use).
 
 ## Interfaces

@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.11
+File Revision: 1.0.13
 Purpose: Diagnose and safely recover institutional authority registry state
 Authority: Read-only diagnostics first; grant changes require authenticated Steward
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Keep evidence references as readable paths in safe dashboard renderer
@@ -13,6 +13,7 @@ Changed: 2026-10-11 UTC | RV-M4.1-DEDICATED-SCHEMA-COOKBOOK | Use null-safe cata
 Changed: 2026-10-11 UTC | RV-M4.1-PREFLIGHT-DIAGNOSTIC | Document safe boundary detail and SQLSTATE-only database failures
 Changed: 2026-10-11 UTC | RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER | Describe fresh-schema authority migration order and checksum ledger bootstrap
 Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER-DOC | Document NOINHERIT manager with no role memberships
+Changed: 2026-10-11 UTC | RV-M4.1-OWNER-SCHEMA-USAGE | Diagnose and repair FK-check schema USAGE for protected table owner
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional authority registry cookbook
@@ -193,7 +194,7 @@ The provisioner prints a JSON error with `status=ERROR` and a failure type. For 
 | Schema owner | Distinct migration/DBA identity, not assumable by runtime or authority manager | Must not be the runtime or manager: PostgreSQL schema ownership can permit dropping contained objects |
 | Runtime role | Non-superuser, no CREATEROLE/CREATEDB/BYPASSRLS; may have ordinary app schema privileges | Must not own the schema or be a member of its owner role; receives no direct authority-table privileges |
 | Authority manager | Dedicated non-superuser `NOINHERIT` LOGIN with protected secret, no role memberships | `USAGE` and `SELECT`/`INSERT`/`UPDATE`/`DELETE` only on nine authority tables; no schema CREATE, table ownership or owner-role membership |
-| Authority owner | NOLOGIN, non-superuser role created by the helper | Owns exactly the nine allowlisted tables and append-only trigger function; has no schema CREATE after setup |
+| Authority owner | NOLOGIN, non-superuser role created by the helper | Owns exactly the nine allowlisted tables and append-only trigger function; schema USAGE only for PostgreSQL FK checks; no schema CREATE |
 
 The manager credential is a trusted authority capability: a compromised
 manager can perform direct DML against authority tables and bypass application
@@ -231,7 +232,55 @@ test names from the test log and clean only those disposable objects using a
 DBA; never run broad `DROP ... CASCADE` against a shared schema. Escalate if the
 schema owner is the runtime/manager, manager credential delivery is unavailable,
 or a role can assume the DBA/schema-owner identity. No shared deployment was
-performed by this procedure in the current checkout.
+performed by the original procedure before 2026-10-11 07:51 UTC; see the
+current live addendum below.
+
+### Manager foreign-key insert fails with schema permission denied
+
+**Symptom:** The manager can query and directly insert into an authority table,
+but inserting a credential, grant, binding, or audit event fails with SQLSTATE
+`42501` and `permission denied for schema <authority_schema>`. PostgreSQL
+checks referenced keys as the table owner while enforcing a foreign key. The
+protected relation owner therefore needs schema `USAGE`, even though the manager
+itself already has schema `USAGE` and table DML.
+
+**Read-only diagnosis:** Connect through the protected DBA session, then inspect
+owner and grants without selecting secret data:
+
+```sql
+SELECT c.relname, pg_get_userbyid(c.relowner) AS table_owner,
+       has_schema_privilege(pg_get_userbyid(c.relowner), n.nspname, 'USAGE') AS owner_usage,
+       has_schema_privilege(pg_get_userbyid(c.relowner), n.nspname, 'CREATE') AS owner_create
+FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+WHERE n.nspname='riverview_authority' AND c.relkind='r'
+ORDER BY c.relname;
+```
+
+Expected after correction: all nine registry relations have the dedicated
+NOLOGIN owner, `owner_usage=true`, and `owner_create=false`. Runtime schema
+usage remains false; manager usage is true and manager create is false.
+
+**Recovery:** Preserve a current protected backup and verify its checksum and
+restore rehearsal. Run the reviewed boundary provisioner first without
+`--apply`; confirm only the dedicated authority schema is selected. If the
+preflight is clean, apply the idempotent boundary correction using the protected
+DBA credential. It grants schema `USAGE` to the protected relation owner while
+retaining no `CREATE`, manager membership, or runtime access. Do not grant
+schema usage to `PUBLIC` or the runtime, and do not change relation ownership.
+Repeat the manager FK-insert integration test, runtime-denial check, manager
+DDL-denial check, and boundary preflight. Stop if target identity, owner, or
+existing grants differ from the reviewed schema.
+
+**Camrui commissioning addendum, 2026-10-11:** A protected full backup and
+disposable restore rehearsal passed before additive migrations and the isolated
+`riverview_authority` boundary were applied to database `riverview`. The initial
+boundary omitted schema `USAGE` for the NOLOGIN relation owner; manager inserts
+with foreign keys then failed with SQLSTATE `42501`. The corrected provisioner
+grants the owner only `USAGE`, retains `CREATE=false`, and verifies this state.
+The isolated regression now exercises manager inserts through credential,
+grant and audit-event foreign keys. Live re-application and bootstrap are
+pending this commit's review and verification; do not infer they succeeded from
+the isolated test.
 - **1.0.1 — 2026-10-11:** Add observed live ownership state, limited isolated role-boundary proof, and explicit non-deployment guidance.
 - **1.0.4 — 2026-10-11:** Present evidence references as readable paths supported by the dashboard's documentation-link policy.
 - **1.0.3 — 2026-10-11:** Record the executed read-only Camrui role preflight and result.
