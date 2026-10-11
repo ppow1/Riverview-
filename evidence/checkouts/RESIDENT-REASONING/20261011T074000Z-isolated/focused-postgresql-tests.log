@@ -1,0 +1,15 @@
+test_assignment_revision_change_during_reasoning_discards_proposal (tests.test_resident_reasoning.ResidentReasoningTests.test_assignment_revision_change_during_reasoning_discards_proposal) ... ok
+test_credential_shaped_assignment_fields_never_reach_provider (tests.test_resident_reasoning.ResidentReasoningTests.test_credential_shaped_assignment_fields_never_reach_provider) ... ok
+test_only_explicit_timeout_fallback_is_used (tests.test_resident_reasoning.ResidentReasoningTests.test_only_explicit_timeout_fallback_is_used) ... ok
+test_plan_and_grounding_are_durable_across_runtime_replacement (tests.test_resident_reasoning.ResidentReasoningTests.test_plan_and_grounding_are_durable_across_runtime_replacement) ... ok
+test_provider_output_over_attempt_token_budget_is_not_persisted (tests.test_resident_reasoning.ResidentReasoningTests.test_provider_output_over_attempt_token_budget_is_not_persisted) ... ok
+test_provider_replacement_does_not_change_assignment_authority (tests.test_resident_reasoning.ResidentReasoningTests.test_provider_replacement_does_not_change_assignment_authority) ... ok
+test_revoked_office_state_grant_denies_before_provider_invocation (tests.test_resident_reasoning.ResidentReasoningTests.test_revoked_office_state_grant_denies_before_provider_invocation) ... ok
+test_total_budget_smaller_than_route_is_rejected_without_provider_call (tests.test_resident_reasoning.ResidentReasoningTests.test_total_budget_smaller_than_route_is_rejected_without_provider_call) ... ok
+test_unlisted_provider_is_unavailable_not_an_implicit_fallback (tests.test_resident_reasoning.ResidentReasoningTests.test_unlisted_provider_is_unavailable_not_an_implicit_fallback) ... ok
+test_unverified_grounding_waits_and_is_persisted (tests.test_resident_reasoning.ResidentReasoningTests.test_unverified_grounding_waits_and_is_persisted) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 7.261s
+
+OK

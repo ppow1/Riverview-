@@ -1,0 +1,9 @@
+{
+  "passed": false,
+  "issues": [
+    {
+      "path": "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/revision-audit.json",
+      "issue": "missing_revision"
+    }
+  ]
+}

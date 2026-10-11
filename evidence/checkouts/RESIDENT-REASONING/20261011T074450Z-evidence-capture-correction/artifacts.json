@@ -1,0 +1,22 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M4.2-EVIDENCE-CAPTURE-CORRECTION",
+  "component_id": "RESIDENT-REASONING",
+  "source_commit": "7d6923e4444e8c6a672a3a473a003441c39a0766",
+  "target": "Local controlled revision audit evidence capture",
+  "decision": "Capture sequencing failure retained; corrected report generation verified in 20261011T074000Z-isolated",
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "093ad57a7783cbafc2e5f61ef98986b9730f7f57451eef0909c40ca2a34b5f68",
+      "size_bytes": 911
+    },
+    "revision-audit-self-reference-failure.json": {
+      "path": "revision-audit-self-reference-failure.json",
+      "revision": "1.0.0",
+      "sha256": "95e1e3a10e34c79eff3449b7c5773235b1b28057b64b1ae32421a0c686e716b8",
+      "size_bytes": 188
+    }
+  }
+}

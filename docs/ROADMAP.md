@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.19
+**Document Revision:** 1.1.20
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-11
 **Component:** RV-ROADMAP  
@@ -161,10 +161,13 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 **M1.4 live dependency correction (2026-10-11 UTC):** A read-only `sudo -u postgres psql` inspection found the shared `riverview_dev.schema_migrations` row `0001_assignment_leases` applied at `2026-10-10 18:27:04.341175-04:00`, with SHA-256 `ce29c2994904f54706db883f61127bf05ee195ecbdce90e7242886e86711b717`, matching `src/riverview_core/assignment_scheduler/migrations/0001_assignment_leases.sql`. This was applied as part of the later worker and monitor migration chain. It corrects the earlier “no shared migration” statement without claiming M1.4 runtime commissioning; the standalone scheduler service, full M1.4 exit gate and Component DoD remain open. Exact read-only output is in `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T055428Z-pg-doc-safety/live-peer-inspection.txt`.
 
+**M4.2 isolated engineering checkpoint (2026-10-11):** A provider-neutral resident reasoning/regrounding contract and PostgreSQL-backed office-state persistence are implemented on dependent branch `codex/m4.2-resident-reasoning`, based on PR #20's M4.1 boundary head. Focused tests passed 10/10 and the complete suite passed 147/147 on disposable PostgreSQL 16.15; cleanup reported zero test schemas/roles, graph validation passed (13 workflows/255 nodes), compileall passed, and the controlled revision audit reported zero issues. This proves isolated behavior only: no live authority registry, reasoning provider, resident service, dashboard conversation or operational plan delegation was deployed. M4.2 remains IN PROGRESS; its full acceptance and DoD are open. The current cursor remains M3.3, blocked on separately required live authority integration and real knowledge-provider availability. PR #20 is still an unmerged dependency; no branch merge or operational-state modification is claimed.
+
 ## Revision history
 
 - **1.1.17 — 2026-10-11:** Record safe M4.1 preflight diagnostics, focused PostgreSQL regressions and exact-head CI; preserve live no-schema blocker.
 - **1.1.19 — 2026-10-11:** Record exact-head passing CI for the fresh-schema migration correction; retain live provisioning and M3.3 gates.
+- **1.1.20 — 2026-10-11:** Record M4.2 isolated PostgreSQL verification while preserving M3.3 as the earliest unaccepted cursor and retaining live authority/provider gates.
 - **1.1.18 — 2026-10-11:** Record fresh-dedicated-schema migration-ledger defect and 137-test isolated correction; preserve live provisioning and M3.3 gates.
 
 - **1.1.16 — 2026-10-11:** Record exact Camrui M4.1 catalog preflight and no-apply result; retain M4.1/M3.3 blockers.

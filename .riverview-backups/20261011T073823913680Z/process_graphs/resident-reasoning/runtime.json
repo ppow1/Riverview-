@@ -1,0 +1,610 @@
+{
+  "graph_id": "rv:resident-reasoning:runtime",
+  "graph_revision": "1.0.2",
+  "component_id": "RESIDENT-REASONING",
+  "workflow_id": "resident.reasoning.v1",
+  "diagram_order": 13,
+  "source_references": [
+    "src/riverview_core/resident_reasoning.py",
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
+    "src/riverview_core/institutional_authority/registry.py",
+    "tests/test_resident_reasoning.py"
+  ],
+  "documentation_references": [
+    "docs/components/RESIDENT_REASONING.md",
+    "docs/components/RESIDENT_REASONING_COOKBOOK.md",
+    "docs/development/M4.2-001_REVISION_RECORD.md"
+  ],
+  "verification_evidence": [
+    "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+  ],
+  "nodes": [
+    {
+      "id": "rv:resident-reasoning:runtime:request",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Resident reasoning request for one authoritative assignment",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:authorize-state",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Require exact active office.state.write grant before reading assignment context",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:authority-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Is the exact resident office-state grant active?",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:authority-denied",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Return AUTHORITY_DENIED without reading context or invoking provider",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:load-context",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Read current office binding and assignment revision; reject credential fields and oversized inputs",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:ground",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Ground the current assignment through knowledge-provider v1",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:reground",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Reground at the request trigger and retain source revision/hash",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:grounding-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Are grounding and regrounding both VERIFIED and complete?",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:evidence-wait",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Persist non-verified status and return WAITING_FOR_EVIDENCE",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:knowledge-contract-jump",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "Use the existing assignment knowledge provider contract",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ],
+      "jump_target_id": "rv:worker-adapter:deterministic-attempt:ground"
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:binding-jump",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "Read the durable office binding and state revision",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ],
+      "jump_target_id": "rv:institutional-authority:identity-and-grants:office-state"
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:select-provider",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Choose the provider matching the active office implementation provider_ref",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:route-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Is the primary provider and every configured fallback exact, registered and bounded?",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:route-unavailable",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Persist route failure and return UNAVAILABLE without inferred fallback",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:provider-call",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Call one provider under per-call timeout and divided token budget",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:fallback-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Did the call time out or fail before returning a plan?",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:fallback",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Try the next explicitly configured provider only; no implicit provider selection",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:proposal-gate",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Validate typed plan schema, ordered dependencies, and attempt token budget",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:proposal-invalid",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject malformed or over-budget output; do not persist a proposal",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:freshness-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Did office binding and assignment revision remain current?",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:stale-context",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Discard stale result and require a new authoritative grounding cycle",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:persist-plan",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Persist source references, statuses, request metadata and plan via office-state CAS",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:persistence-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Did exact-grant state write succeed against the expected revision?",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:state-conflict",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Return AUTHORITY_DENIED, STATE_CONFLICT or UNAVAILABLE; never report success",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:proposal-only",
+      "node_revision": "1.0.0",
+      "type": "exit",
+      "label": "Return PROPOSED; proposal is not an approved work order or executed action",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:budget-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Can the total budget provide at least one token to every primary/fallback attempt?",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:budget-insufficient",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject an undersized route before invoking any provider",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:resident-reasoning:runtime:request",
+      "to": "rv:resident-reasoning:runtime:authorize-state",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:authorize-state",
+      "to": "rv:resident-reasoning:runtime:authority-gate",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:authority-gate",
+      "to": "rv:resident-reasoning:runtime:load-context",
+      "type": "runtime_transition",
+      "label": "exact grant active"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:authority-gate",
+      "to": "rv:resident-reasoning:runtime:authority-denied",
+      "type": "diagnostic_branch",
+      "label": "missing or revoked grant"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:load-context",
+      "to": "rv:resident-reasoning:runtime:knowledge-contract-jump",
+      "type": "documentation"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:knowledge-contract-jump",
+      "to": "rv:worker-adapter:deterministic-attempt:ground",
+      "type": "jump"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:ground",
+      "to": "rv:resident-reasoning:runtime:reground",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:reground",
+      "to": "rv:resident-reasoning:runtime:grounding-gate",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:grounding-gate",
+      "to": "rv:resident-reasoning:runtime:select-provider",
+      "type": "runtime_transition",
+      "label": "both VERIFIED and complete"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:grounding-gate",
+      "to": "rv:resident-reasoning:runtime:evidence-wait",
+      "type": "diagnostic_branch",
+      "label": "otherwise"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:select-provider",
+      "to": "rv:resident-reasoning:runtime:binding-jump",
+      "type": "documentation"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:binding-jump",
+      "to": "rv:institutional-authority:identity-and-grants:office-state",
+      "type": "jump"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:route-gate",
+      "to": "rv:resident-reasoning:runtime:route-unavailable",
+      "type": "diagnostic_branch",
+      "label": "unknown or invalid route"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:provider-call",
+      "to": "rv:resident-reasoning:runtime:fallback-gate",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:fallback-gate",
+      "to": "rv:resident-reasoning:runtime:proposal-gate",
+      "type": "runtime_transition",
+      "label": "provider returned"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:fallback-gate",
+      "to": "rv:resident-reasoning:runtime:fallback",
+      "type": "recovery_route",
+      "label": "timeout/failure with configured next provider"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:fallback",
+      "to": "rv:resident-reasoning:runtime:provider-call",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:proposal-gate",
+      "to": "rv:resident-reasoning:runtime:freshness-gate",
+      "type": "runtime_transition",
+      "label": "schema and budget pass"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:proposal-gate",
+      "to": "rv:resident-reasoning:runtime:proposal-invalid",
+      "type": "diagnostic_branch",
+      "label": "invalid schema or token budget"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:freshness-gate",
+      "to": "rv:resident-reasoning:runtime:persist-plan",
+      "type": "runtime_transition",
+      "label": "binding and assignment revisions unchanged"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:freshness-gate",
+      "to": "rv:resident-reasoning:runtime:stale-context",
+      "type": "diagnostic_branch",
+      "label": "revision changed"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:persist-plan",
+      "to": "rv:resident-reasoning:runtime:persistence-gate",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:persistence-gate",
+      "to": "rv:resident-reasoning:runtime:proposal-only",
+      "type": "runtime_transition",
+      "label": "durable write committed"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:persistence-gate",
+      "to": "rv:resident-reasoning:runtime:state-conflict",
+      "type": "diagnostic_branch",
+      "label": "denial/conflict/unavailable/size limit"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:route-gate",
+      "to": "rv:resident-reasoning:runtime:budget-gate",
+      "type": "runtime_transition",
+      "label": "route is exact, registered and bounded"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:budget-gate",
+      "to": "rv:resident-reasoning:runtime:provider-call",
+      "type": "runtime_transition",
+      "label": "budget fits all candidates"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:budget-gate",
+      "to": "rv:resident-reasoning:runtime:budget-insufficient",
+      "type": "diagnostic_branch",
+      "label": "total token budget is smaller than route length"
+    }
+  ]
+}
