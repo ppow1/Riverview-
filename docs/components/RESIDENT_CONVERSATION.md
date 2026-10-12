@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.0
+File Revision: 1.1.1
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -16,6 +16,7 @@ Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Reproduce exact predeces
 Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Retain the exact predecessor reproduction source and sanitized result
 Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Specify complete conversational rendering, accessible controls, factual details, and safe copy behavior
 Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record dashboard-only live release and distinguish local commissioning from Steward Windows acceptance
+Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record deployed 390 CSS-pixel responsive fixture while retaining physical-device and Windows verification as pending
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
@@ -108,11 +109,12 @@ processing and multiline behavior, and long-message wrapping. It created no obje
 The report is
 [`browser-commissioning.json`](../../evidence/checkouts/RESIDENT-CONVERSATION/20261012T-ui-refinement-isolated-13/browser-commissioning.json).
 The same isolated environment ran the full automated suite: 228 passed, no skips or
-failures; graph and revision checks passed. The browser's minimum window was 500 CSS
-pixels, so the handset-sized 390-pixel Windows/mobile viewport remains to be checked on
-the Steward's device. This is isolated candidate evidence and does not constitute live
-Windows access verification, deployment commissioning, formal milestone acceptance, or
-full Component Definition of Done.
+failures; graph and revision checks passed. Firefox headless clamps its top-level window at 500 CSS pixels. A same-origin iframe
+loaded the deployed shell and production stylesheet at exactly 390 CSS pixels and verified
+a 378-pixel document width, active mobile breakpoint, full long-message rendering, visible
+composer/Send, and correct menu placement. Physical phone and Steward Windows-browser
+verification remain outstanding. This isolated/candidate evidence does not constitute
+formal milestone acceptance or full Component Definition of Done.
 
 
 ## 2026-10-12 controlled dashboard deployment
@@ -143,10 +145,11 @@ context. The prior isolated real-model test did send and persist two turns using
 Qwen3-0.6B CPU service, including restart recovery. Evidence and rollback provenance are
 in [`20261012T-ui-live-deployed`](../../evidence/checkouts/RESIDENT-CONVERSATION/20261012T-ui-live-deployed/).
 
-The Steward's Windows browser and an exact 390-pixel handset viewport have not been
-independently verified from Camrui. Refresh Talk with Grace in the existing Windows SSH
-browser session to verify the deployed rendering, then continue a message there to complete
-Steward-facing acceptance. This deployment is not formal Steward acceptance and does not
-close full Component Definition of Done obligations. Rollback consists of restoring the
+The deployed styles were checked at an exact 390-pixel CSS viewport using a same-origin
+Firefox iframe fixture, but a physical phone and the Steward's Windows browser have not
+been verified from Camrui. Refresh Talk with Grace in the existing Windows SSH browser
+session and send a message there to complete Steward-facing acceptance. This deployment is
+not formal Steward acceptance and does not close full Component Definition of Done
+obligations. Rollback consists of restoring the
 previous `current` symlink target, removing only the new 40 drop-in, daemon-reloading, and
 restarting the dashboard; preserve the candidate release and database state.

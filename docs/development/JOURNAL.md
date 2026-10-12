@@ -1,11 +1,12 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.110
+**Document Revision:** 1.0.112
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
 **Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record responsive conversation interface implementation and isolated real-model browser acceptance
 **Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record dashboard-only Camrui deployment and post-deployment browser/runtime evidence
+**Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record deployed 390 CSS-pixel responsive iframe verification; retain physical Windows check as pending
 **Changed:** 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-CHECKPOINT | Record persistent objective execution evidence and non-commissioning boundary
 **Changed:** 2026-10-11 UTC | RV-M4.1-M4.2-OCCUPANT-REPLACEMENT-INTEGRATION | Record isolated cross-component Grace identity replacement regression and limits
 **Changed:** 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Diagnose shared psycopg connection transaction interleaving; serialize database scopes and add independent-connection concurrency regressions
@@ -1561,6 +1562,5 @@ CME/worker/verifier, event processor, or notification service was modified. The 
 loopback Qwen CPU inference service remains on the same process and configuration. The
 Steward's Windows browser could not be controlled from this Camrui session; no message was
 sent with a human credential. The isolated real-model and PostgreSQL integration evidence
-remains distinct from live website interaction. Windows refresh-and-send confirmation and
-a true 390-pixel viewport remain outstanding. Technical UI deployment is verified;
+remains distinct from live website interaction. A 390-pixel same-origin responsive iframe fixture passed with complete text, visible controls, and no horizontal overflow. Windows refresh-and-send confirmation and physical-device verification remain outstanding. Technical UI deployment is verified;
 formal Steward acceptance and full Component DoD are not claimed.

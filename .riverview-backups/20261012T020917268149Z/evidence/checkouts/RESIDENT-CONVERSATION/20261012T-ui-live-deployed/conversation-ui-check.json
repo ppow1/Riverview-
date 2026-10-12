@@ -1,0 +1,16 @@
+{
+  "active_view": "view-grace-chat",
+  "browser": "Firefox 156.0.1",
+  "browser_errors": 0,
+  "chat_details_dialog_opened": true,
+  "composer_present": true,
+  "composer_preserves_line_breaks": "pre-wrap",
+  "deployment_source_commit": "5cbf315b95b5b644296910b4c7a16e5ae358e55b",
+  "invalid_conversation_credential_http_status": 403,
+  "live_conversation_submitted": false,
+  "menu_immediately_precedes_send": true,
+  "reason_live_message_not_submitted": "Steward office-scoped conversation credential is held only in the Steward browser; no credential was requested or read in this test.",
+  "result": "PASS",
+  "schema_version": "rv.grace.chat.live-ui-check.v1",
+  "send_present": true
+}

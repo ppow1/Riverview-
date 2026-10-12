@@ -15,6 +15,14 @@
       500,
       1280
     ],
+    "deployed_390_css_viewport_fixture": {
+      "document_scroll_width_css_px": 378,
+      "horizontal_overflow": false,
+      "long_text_complete": true,
+      "menu_and_controls_visible": true,
+      "physical_windows_or_phone": "NOT VERIFIED",
+      "result": "PASS"
+    },
     "independent_postgresql_event_counts": {
       "assistant_messages": 2,
       "response_interrupted": 1,

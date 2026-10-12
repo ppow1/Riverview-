@@ -8,10 +8,10 @@
     },
     "verification-summary.json": {
       "path": "verification-summary.json",
-      "revision": "1.0.1",
-      "sha256": "36e7ada0f2f5cee0d079d21163bb9573fa9dcfba44b321b3a3596af18d59a1cd",
-      "size_bytes": 2822
+      "revision": "1.0.2",
+      "sha256": "615227e1f2a896329314a7726e5454b39bb15a76379cd8f2642c504e4c55213c",
+      "size_bytes": 3100
     }
   },
-  "manifest_revision": "1.0.3"
+  "manifest_revision": "1.0.4"
 }
