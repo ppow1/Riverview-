@@ -1,5 +1,5 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.0.9
+// Revision: 1.1.0
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -7,7 +7,7 @@
     assignments: [], events: [], attention: [], attentionStatus: "unknown", workers: [], assignmentCursor: null,
     workerCursor: null, eventCursor: 0, olderEventCursor: null, notifications: [], notificationStatus: "unknown", activeView: "overview",
     objectives: [], recentErrors: [], navSamples: [], lastFetch: 0, timer: null,
-    chatConversationId: localStorage.getItem("rv.grace.conversation") || "", chatEvents: [], chatMeta: null, selectedEventId: null, chatInFlight: false, chatDialogReturnFocus: null};
+    chatConversationId: localStorage.getItem("rv.grace.conversation") || "", chatEvents: [], chatMeta: null, selectedEventId: null, chatInFlight: false, chatDialogReturnFocus: null, chatAuthRejected:false, chatLoading:false};
   const esc = (value) => String(value ?? "—").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   const human = (value) => String(value || "unknown").replaceAll("_", " ").replaceAll(".", " · ");
   const api = async (path, timeout = 2600, method = "GET", options = {}) => {
@@ -19,7 +19,7 @@
       if (options.body !== undefined) headers["Content-Type"] = "application/json";
       const response = await fetch(path, {method, headers,
         body: options.body === undefined ? undefined : JSON.stringify(options.body),
-        cache: "no-store", credentials: "omit", signal: controller.signal});
+        cache: "no-store", credentials: "same-origin", signal: controller.signal});
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) { const error = new Error(payload.error || `http_${response.status}`); error.payload = payload; throw error; }
       return payload;
@@ -345,11 +345,21 @@
     host.querySelectorAll("[data-message-copy]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageCopy)];state.selectedEventId=String(ev?.sequence??ev?.request_id??"");if(ev)copyChatText(ev.body||ev.error_code||"").catch(()=>toast("Clipboard access unavailable."));closeMessageMenus();}));
     host.querySelectorAll("[data-message-id-copy]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageIdCopy)];if(ev?.sequence!=null)copyChatText(String(ev.sequence)).catch(()=>toast("Clipboard access unavailable."));closeMessageMenus();}));
   }
+  function showChatAuthorization(message) {
+    state.chatAuthRejected=true;
+    $("chat-authority").value="";
+    $("chat-auth-form").hidden=false;
+    $("chat-disconnect").hidden=true;
+    $("chat-state").textContent=message;
+    $("chat-error").textContent="Conversation access needs to be reconnected. Automatic retries are paused.";
+  }
   async function loadGraceConversation() {
-    if (!chatAuthority()) { $("chat-state").textContent = "Enter an authorized conversation credential."; return; }
+    if (state.chatAuthRejected || state.chatLoading) return;
+    state.chatLoading=true;
     $("chat-state").textContent = "Loading persisted conversations…";
     try {
-      const page = await api("/api/v1/resident/conversations", 10000, "GET", {authority:chatAuthority()});
+      const page = await api("/api/v1/resident/conversations", 10000);
+      $("chat-auth-form").hidden=true;$("chat-disconnect").hidden=false;
       if (!state.chatConversationId && page.items?.length) state.chatConversationId = page.items[0].conversation_id;
       if (!state.chatConversationId) {
         state.chatMeta=null;state.chatEvents=[];
@@ -358,7 +368,7 @@
       } else {
         localStorage.setItem("rv.grace.conversation", state.chatConversationId);
         state.chatMeta=(page.items||[]).find((item)=>item.conversation_id===state.chatConversationId)||null;
-        const history = await api(`/api/v1/resident/conversations/${encodeURIComponent(state.chatConversationId)}`, 10000, "GET", {authority:chatAuthority()});
+        const history = await api(`/api/v1/resident/conversations/${encodeURIComponent(state.chatConversationId)}`, 10000);
         $("chat-title").textContent = `Conversation ${history.conversation_id}`;
         renderConversation(history.events || []);
         if (!$("chat-message").value) $("chat-message").value=sessionStorage.getItem("rv.grace.draft."+state.chatConversationId)||"";
@@ -366,11 +376,31 @@
       }
       if (!state.chatEvents.length) $("chat-state").textContent = "No saved messages yet.";
     } catch (error) {
-      $("chat-state").textContent = "Conversation status unavailable.";
-      $("chat-error").textContent = `History could not be loaded: ${error.message}. Check the exact conversation grant and service status.`;
-    }
+      if(error.payload?.error==="resident_conversation_not_authorized") showChatAuthorization("Grace access is not authorized or has expired. Connect with the Steward conversation credential.");
+      else { $("chat-state").textContent = "Conversation status unavailable.";$("chat-error").textContent = `History could not be loaded: ${error.message}.`; }
+    } finally { state.chatLoading=false; }
   }
-  $("chat-authority").addEventListener("change", loadGraceConversation);
+  $("chat-authority").addEventListener("input",()=>{state.chatAuthRejected=false;$("chat-error").textContent="";});
+  $("chat-auth-form").addEventListener("submit",async(event)=>{
+    event.preventDefault();const authority=chatAuthority();if(!authority)return;
+    const button=$("chat-connect");button.disabled=true;button.textContent="Connecting…";
+    try{
+      await api("/api/v1/resident/conversation-session",10000,"POST",{authority});
+      $("chat-authority").value="";state.chatAuthRejected=false;$("chat-error").textContent="";
+      $("chat-auth-form").hidden=true;$("chat-disconnect").hidden=false;
+      await loadGraceConversation();
+    }catch(error){
+      $("chat-authority").value="";
+      if(error.payload?.error==="resident_conversation_not_authorized")showChatAuthorization("This credential does not have both active Grace conversation grants. Automatic retries are paused.");
+      else{$("chat-state").textContent="Connection unavailable.";$("chat-error").textContent=`Grace connection failed (${error.message}); no credential was retained.`;}
+    }finally{button.disabled=false;button.textContent="Connect";}
+  });
+  $("chat-disconnect").addEventListener("click",async()=>{
+    try{await api("/api/v1/resident/conversation-session",5000,"DELETE");}catch(_){}
+    state.chatAuthRejected=true;state.chatEvents=[];$("chat-history").innerHTML=noData("Connect to load private conversation history.");
+    $("chat-auth-form").hidden=false;$("chat-disconnect").hidden=true;$("chat-state").textContent="Disconnected from Grace.";
+    $("chat-error").textContent="";$("chat-authority").focus();
+  });
   $("chat-refresh").addEventListener("click", loadGraceConversation);
   $("chat-new").addEventListener("click", () => {
     state.chatConversationId = "";state.chatMeta=null;state.chatEvents=[]; localStorage.removeItem("rv.grace.conversation");
@@ -380,12 +410,12 @@
   });
   $("chat-form").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const authority = chatAuthority(); const message = $("chat-message").value;
-    if (!authority || !message.trim()) { $("chat-error").textContent = "An authorized conversation credential and message are required."; return; }
+    const message = $("chat-message").value;
+    if (state.chatAuthRejected || !message.trim()) { $("chat-error").textContent = "Connect to Grace before sending a message."; return; }
     const send = $("chat-send"); send.disabled = true;state.chatInFlight=true;send.textContent="Sending…";$("chat-state").textContent = "Your message is being processed."; $("chat-error").textContent = "";renderConversation(state.chatEvents);
     const clientMessageId = crypto.randomUUID();
     try {
-      const result = await api("/api/v1/resident/conversations", 150000, "POST", {authority,
+      const result = await api("/api/v1/resident/conversations", 150000, "POST", {
         body:{conversation_id:state.chatConversationId || null, client_message_id:clientMessageId, message}});
       state.chatConversationId = result.conversation_id; localStorage.setItem("rv.grace.conversation", state.chatConversationId);
       sessionStorage.removeItem("rv.grace.draft."+state.chatConversationId);
@@ -393,11 +423,15 @@
       $("chat-message").value = ""; $("chat-state").textContent = `Response ${result.status}; request ${result.request_id}.`;
       await loadGraceConversation();
     } catch (error) {
+      if(error.payload?.error==="resident_conversation_not_authorized"){
+        showChatAuthorization("Grace access was denied. Reconnect before retrying; no automatic retry will be made.");
+        return;
+      }
       const result = error.payload || {};
       if (result.conversation_id) { state.chatConversationId = result.conversation_id; localStorage.setItem("rv.grace.conversation", state.chatConversationId); }
       $("chat-state").textContent = "Message result requires inspection.";
       $("chat-error").textContent = `Grace response failed (${result.error_code || error.message}). The request may be persisted; refresh history before retrying.`;
-      await loadGraceConversation();
+      if(error.payload?.error!=="resident_conversation_not_authorized")await loadGraceConversation();
     } finally { state.chatInFlight=false;send.disabled = false;send.textContent="Send message";renderConversation(state.chatEvents); }
   });
   function resizeChatComposer() {

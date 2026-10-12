@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.4
+# Revision: 1.0.6
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -13,6 +13,8 @@
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Match safe-rendered diagnostic documentation heading in route assertion
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Assert the resident's bounded 64-token chat request
 # Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Verify each acknowledged turn from fresh PostgreSQL connections under concurrency
+# Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Verify scoped persistent browser cookie uses both existing grants and survives service restart
+# Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Verify logout clearing and immediate exact-credential revocation
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: python3 -m unittest tests.test_resident_conversation
 # History: Git and .riverview-backups/manifest.jsonl
@@ -317,6 +319,7 @@ class ResidentConversationTests(unittest.TestCase):
 
     def test_authenticated_dashboard_chat_routes_survive_http_server_restart(self):
         from riverview_core.status_dashboard.server import DashboardHTTPServer
+        from psycopg import sql
         class Projection:
             pass
         static = ROOT / "src/riverview_core/status_dashboard/static"
@@ -338,12 +341,14 @@ class ResidentConversationTests(unittest.TestCase):
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
 
-            def request(method, path, *, dashboard=None, authority=None, body=None):
+            def request(method, path, *, dashboard=None, authority=None, cookie=None, body=None):
                 headers = {}
                 if dashboard:
                     headers["Authorization"] = "Bearer " + dashboard
                 if authority:
                     headers["X-Riverview-Authority"] = authority
+                if cookie:
+                    headers["Cookie"] = cookie
                 if body is not None:
                     headers["Content-Type"] = "application/json"
                 connection = HTTPConnection("127.0.0.1", port, timeout=4)
@@ -358,18 +363,47 @@ class ResidentConversationTests(unittest.TestCase):
                 self.assertEqual(request("GET", "/api/v1/resident/conversations")[0], 401)
                 self.assertEqual(request("GET", "/api/v1/resident/conversations",
                     dashboard=token)[0], 403)
+                denied_status, _ = request("POST", "/api/v1/resident/conversation-session",
+                    dashboard=token, authority="x" * 48)
+                self.assertEqual(denied_status, 403)
+                connection = HTTPConnection("127.0.0.1", port, timeout=4)
+                connection.request("POST", "/api/v1/resident/conversation-session", headers={
+                    "Authorization":"Bearer " + token,
+                    "X-Riverview-Authority":self.steward_token})
+                response = connection.getresponse()
+                session_status = response.status
+                session_payload = json.loads(response.read())
+                session_cookie = response.getheader("Set-Cookie", "")
+                connection.close()
+                self.assertEqual(session_status, 200)
+                self.assertEqual(session_payload["principal_id"], self.steward_id)
+                self.assertEqual(session_payload["scope_ref"], "office:" + self.office_id)
+                self.assertEqual(session_payload["expires_in_seconds"], 30 * 24 * 60 * 60)
+                self.assertNotIn(self.steward_token, json.dumps(session_payload))
+                self.assertTrue(session_cookie.startswith("rv_grace_authority="))
+                for attribute in ("HttpOnly", "Secure", "SameSite=Strict", "Path=/api/v1/resident/conversations"):
+                    self.assertIn(attribute, session_cookie)
+                cookie = session_cookie.split(";", 1)[0]
+                list_status, _ = request("GET", "/api/v1/resident/conversations",
+                    dashboard=token, cookie=cookie)
+                self.assertEqual(list_status, 200)
+                # An explicitly supplied bad grant must not fall back to a valid cookie.
+                self.assertEqual(request("GET", "/api/v1/resident/conversations",
+                    dashboard=token, authority="x" * 48, cookie=cookie)[0], 403)
+                self.assertEqual(request("POST", "/api/v1/resident/conversation-session",
+                    dashboard=token, authority="x" * 48)[0], 403)
                 page_status, shell = request("GET", "/", dashboard=token)
                 self.assertEqual(page_status, 200)
                 self.assertIn(b"Talk with Grace", shell)
                 response_status, response_body = request("POST", "/api/v1/resident/conversations",
-                    dashboard=token, authority=self.steward_token,
+                    dashboard=token, cookie=cookie,
                     body={"message":"Browser route check.", "client_message_id":str(uuid4())})
                 self.assertEqual(response_status, 201)
                 result = json.loads(response_body)
                 self.assertEqual(result["status"], "completed")
                 path = "/api/v1/resident/conversations/" + result["conversation_id"]
                 self.assertEqual(request("GET", path, dashboard=token,
-                    authority=self.steward_token)[0], 200)
+                    cookie=cookie)[0], 200)
                 doc_status, doc = request("GET", "/docs/components/RESIDENT_CONVERSATION.md")
                 self.assertEqual(doc_status, 200)
                 self.assertIn(b"Grace resident conversation", doc)
@@ -381,9 +415,25 @@ class ResidentConversationTests(unittest.TestCase):
                 restart_thread = threading.Thread(target=restarted.serve_forever, daemon=True)
                 restart_thread.start()
                 status, history = request("GET", path, dashboard=token,
-                                          authority=self.steward_token)
+                                          cookie=cookie)
                 self.assertEqual(status, 200)
                 self.assertIn(b"Browser route check.", history)
+                connection = HTTPConnection("127.0.0.1", port, timeout=4)
+                connection.request("DELETE", "/api/v1/resident/conversation-session",
+                    headers={"Authorization":"Bearer " + token})
+                response = connection.getresponse()
+                logout_body = json.loads(response.read())
+                clear_cookie = response.getheader("Set-Cookie", "")
+                connection.close()
+                self.assertEqual(logout_body["status"], "disconnected")
+                self.assertIn("Max-Age=0", clear_cookie)
+                self.assertEqual(request("GET", path, dashboard=token)[0], 403)
+                # The cookie carries no independent authority: revocation in the existing registry applies immediately.
+                with self.admin.cursor() as cur:
+                    cur.execute(sql.SQL("UPDATE {}.principal_credentials SET revoked_at=clock_timestamp() WHERE credential_sha256=%s").format(sql.Identifier(self.schema)),
+                        (hashlib.sha256(self.steward_token.encode()).digest(),))
+                self.assertEqual(request("GET", path, dashboard=token,
+                    cookie=cookie)[0], 403)
                 restarted.shutdown()
                 restarted.server_close()
                 restart_thread.join(timeout=3)

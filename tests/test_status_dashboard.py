@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.22
+# Revision: 1.0.23
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -10,6 +10,7 @@
 # Authority: Creates/drops only unique rvtest_* schemas; never accesses shared Riverview data
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Verify safe component links remain functional in the consolidated guide
 # Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ROUTE | Exercise updated authority diagnostics through the dashboard documentation route
+# Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Enforce browser-managed persistent grant cookie and denial retry suppression UI contract
 # Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ASSERTION | Match cookbook's documented DROP CASCADE warning text
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-SCHEDULER-DIAGNOSTICS | Assert expanded scheduler recovery docs render through dashboard route
 # Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-EXACT-DOCS-REVISION | Match the exact docs/graph source revision in the deployment contract
@@ -90,6 +91,10 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         css = (static / "app.css").read_text(encoding="utf-8")
         self.assertIn('id="chat-history" class="conversation-timeline"', html)
         self.assertIn('id="chat-message" rows="2"', html)
+        self.assertIn('id="chat-auth-form"', html)
+        self.assertIn('autocomplete="current-password"', html)
+        self.assertIn("HttpOnly, same-origin cookie", html)
+        self.assertIn('id="chat-disconnect"', html)
         self.assertIn("Shift+Enter adds a line", html)
         self.assertLess(html.index('class="chat-more"'), html.index('id="chat-send"'))
         self.assertIn('data-chat-option="details"', html)
@@ -101,6 +106,10 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertNotIn("textContent.slice", js[js.index("function renderConversation"):js.index("async function loadGraceConversation")])
         self.assertIn("chat-details-dialog", html)
         self.assertIn("message-details-dialog", html)
+        self.assertIn('credentials: "same-origin"', js)
+        self.assertIn("state.chatAuthRejected || state.chatLoading", js)
+        self.assertIn('resident_conversation_not_authorized', js)
+        self.assertIn('rv_grace_authority', (ROOT / "src/riverview_core/status_dashboard/server.py").read_text())
 
     def test_unit_uses_private_runtime_pgpass_delivery(self):
         unit = (ROOT / "deploy/riverview-status-dashboard.service").read_text()

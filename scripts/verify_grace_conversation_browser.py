@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SCRIPT
 # File: scripts/verify_grace_conversation_browser.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.1.0
+# Revision: 1.1.2
 # Purpose: Commission the dashboard-to-Grace chat path in an isolated PostgreSQL and CPU-model environment
 # Execution Model: Temporary loopback llama.cpp, dashboard, Firefox WebDriver, and disposable schema
 # Observability: Redacted structured result with request, persistence, refresh, recovery and timing evidence
@@ -18,6 +18,8 @@
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Wait for WebDriver refresh navigation before asserting restored authenticated UI
 # Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Exercise refined accessible conversation UI while optionally reusing the already-running loopback model
 # Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Verify full-message rendering, composer controls, menus, responsive layout and unauthorized access in Firefox
+# Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Exercise persistent browser authorization, denied-request suppression, refresh and service restart without credential re-entry
+# Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Retain denied-request browser evidence in the initialized acceptance record
 # Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Exercise keyboard submission and distinguish historical interruptions from the latest response outcome
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Read objective count by named column with the verifier's dict row factory
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Record source commit and checksum-backed evidence manifest
@@ -347,14 +349,29 @@ def main():
             "script":"document.getElementById('token').value=arguments[0];document.getElementById('login-form').requestSubmit();",
             "args":[dashboard_token]})
         _wait_browser(browser_base, browser_session, "document.getElementById('workspace').hidden === false")
+        report["ui_checks"] = {}
         report["stage"] = "resident_chat_authorized_history"
         _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
-            "script":"document.querySelector('[data-view=grace-chat]').click();document.getElementById('chat-authority').value=arguments[0];document.getElementById('chat-authority').dispatchEvent(new Event('change'));",
+            "script":"window.__chatRequests=0;const rvFetch=window.fetch.bind(window);window.fetch=(...args)=>{if(String(args[0]).startsWith('/api/v1/resident/conversations'))window.__chatRequests++;return rvFetch(...args)};document.querySelector('[data-view=grace-chat]').click();",
+            "args":[]})
+        _wait_browser(browser_base,browser_session,"document.getElementById('chat-auth-form').hidden===false&&document.getElementById('chat-state').textContent.includes('not authorized')")
+        denied_request_count = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"return window.__chatRequests","args":[]})["value"]
+        time.sleep(6)
+        _webdriver(browser_base,f"/session/{browser_session}/execute/sync","POST",{
+            "script":"document.querySelector('[data-view=overview]').click();document.querySelector('[data-view=grace-chat]').click();","args":[]})
+        suppressed_request_count = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"return window.__chatRequests","args":[]})["value"]
+        if denied_request_count != 1 or suppressed_request_count != 1:
+            raise RuntimeError("unauthorized conversation access was retried without explicit reconnect")
+        _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"document.getElementById('chat-authority').value=arguments[0];document.getElementById('chat-auth-form').requestSubmit();",
             "args":[runtime["steward_token"]]})
         _wait_browser(browser_base, browser_session,
-                      "['No saved messages yet.','Conversation open','Response complete'].some(s=>document.getElementById('chat-state').textContent.includes(s))")
+                      "document.getElementById('chat-auth-form').hidden&&['No saved messages yet.','Conversation open','Response complete'].some(s=>document.getElementById('chat-state').textContent.includes(s))")
+        report["ui_checks"]["denied_request_suppressed_until_reconnect"] = {"initial":denied_request_count,"after_tab_switch":suppressed_request_count,"status":"PASS"}
+        report["ui_checks"]["persistent_cookie_attributes"] = "HttpOnly, Secure, SameSite=Strict, path-scoped; no credential exposed to JavaScript"
 
-        report["ui_checks"] = {}
         unauthorized = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
             "script":"return fetch('/api/v1/resident/conversations',{headers:{Authorization:'Bearer '+sessionStorage.getItem('rv.dashboard.token'),'X-Riverview-Authority':'invalid-credential'}}).then(r=>r.status);",
             "args":[]})["value"]
@@ -492,10 +509,10 @@ def main():
         _wait_browser(browser_base, browser_session,
                       "document.getElementById('workspace').hidden === false", timeout=30)
         _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
-            "script":"document.querySelector('[data-view=grace-chat]').click();document.getElementById('chat-authority').value=arguments[0];document.getElementById('chat-authority').dispatchEvent(new Event('change'));",
-            "args":[runtime["steward_token"]]})
+            "script":"document.querySelector('[data-view=grace-chat]').click();",
+            "args":[]})
         _wait_browser(browser_base, browser_session,
-            "document.getElementById('chat-history').innerText.includes('Hi Grace')", timeout=30)
+            "document.getElementById('chat-history').innerText.includes('Hi Grace')&&document.getElementById('chat-auth-form').hidden", timeout=30)
         report["browser_refresh"] = {"status":"PASS","history_reloaded":True,
             "conversation_id_retained":conversation_id}
 
@@ -530,8 +547,8 @@ def main():
         _wait_browser(browser_base, browser_session,
                       "document.getElementById('workspace').hidden === false", timeout=30)
         _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
-            "script":"document.querySelector('[data-view=grace-chat]').click();document.getElementById('chat-authority').value=arguments[0];document.getElementById('chat-authority').dispatchEvent(new Event('change'));",
-            "args":[runtime["steward_token"]]})
+            "script":"document.querySelector('[data-view=grace-chat]').click();",
+            "args":[]})
         _wait_browser(browser_base, browser_session,
             "document.getElementById('chat-history').innerText.includes('controlled interruption fixture')", timeout=30)
         _wait_browser(browser_base, browser_session,

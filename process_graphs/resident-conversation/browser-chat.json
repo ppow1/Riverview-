@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-conversation:browser-chat",
-  "graph_revision": "1.0.2",
+  "graph_revision": "1.0.4",
   "component_id": "RESIDENT-CONVERSATION",
   "workflow_id": "resident.conversation.v1",
   "diagram_order": 14,
@@ -25,7 +25,8 @@
     "scripts/verify_grace_conversation_browser.py",
     "tests/test_local_reasoning_provider.py",
     "tests/test_resident_conversation.py",
-    "tests/test_status_dashboard.py"
+    "tests/test_status_dashboard.py",
+    "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json"
   ],
   "nodes": [
     {
@@ -346,6 +347,75 @@
       "verification_evidence": [
         "scripts/verify_grace_conversation_browser.py"
       ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:session-present",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Does this browser have a persistent conversation cookie?",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "tests/test_status_dashboard.py",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:session-connect",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Validate read and send grants once, then set a scoped HttpOnly cookie",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:session-cookie",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Resume exact credential from same-origin cookie; recheck grants on each API request",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:auth-denial-latch",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Pause automatic history requests after 403 until explicit reconnect",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json"
+      ]
     }
   ],
   "edges": [
@@ -479,6 +549,44 @@
       "from": "rv:resident-conversation:browser-chat:browser-render",
       "to": "rv:resident-conversation:browser-chat:responsive-a11y",
       "type": "verification"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:dashboard-auth",
+      "to": "rv:resident-conversation:browser-chat:session-present",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:session-present",
+      "to": "rv:resident-conversation:browser-chat:session-cookie",
+      "type": "runtime_transition",
+      "label": "Cookie present"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:session-present",
+      "to": "rv:resident-conversation:browser-chat:session-connect",
+      "type": "diagnostic_branch",
+      "label": "No cookie; explicit connect required"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:session-cookie",
+      "to": "rv:resident-conversation:browser-chat:exact-grant",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:session-connect",
+      "to": "rv:resident-conversation:browser-chat:exact-grant",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:deny",
+      "to": "rv:resident-conversation:browser-chat:auth-denial-latch",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:auth-denial-latch",
+      "to": "rv:resident-conversation:browser-chat:session-connect",
+      "type": "recovery_route",
+      "label": "User reconnects with an authorized credential"
     }
   ]
 }

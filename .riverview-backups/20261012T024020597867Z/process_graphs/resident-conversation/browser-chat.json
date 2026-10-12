@@ -1,0 +1,484 @@
+{
+  "graph_id": "rv:resident-conversation:browser-chat",
+  "graph_revision": "1.0.2",
+  "component_id": "RESIDENT-CONVERSATION",
+  "workflow_id": "resident.conversation.v1",
+  "diagram_order": 14,
+  "source_references": [
+    "scripts/verify_grace_conversation_browser.py",
+    "src/riverview_core/local_reasoning_provider.py",
+    "src/riverview_core/resident_execution/conversation.py",
+    "src/riverview_core/resident_execution/migrations/0003_resident_conversation.sql",
+    "src/riverview_core/status_dashboard/server.py",
+    "src/riverview_core/status_dashboard/static/app.css",
+    "src/riverview_core/status_dashboard/static/app.js",
+    "src/riverview_core/status_dashboard/static/index.html",
+    "tests/test_resident_conversation.py"
+  ],
+  "documentation_references": [
+    "docs/components/RESIDENT_CONVERSATION.md",
+    "docs/components/RESIDENT_CONVERSATION_FLOW.md",
+    "docs/components/STATUS_DASHBOARD.md"
+  ],
+  "verification_evidence": [
+    "evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/browser-commissioning.json",
+    "scripts/verify_grace_conversation_browser.py",
+    "tests/test_local_reasoning_provider.py",
+    "tests/test_resident_conversation.py",
+    "tests/test_status_dashboard.py"
+  ],
+  "nodes": [
+    {
+      "id": "rv:resident-conversation:browser-chat:browser-submit",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Authenticated browser submits a bounded conversation turn",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:dashboard-auth",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Require existing dashboard bearer before resident API access",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:exact-grant",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Does the human principal hold the exact office conversation grant?",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:deny",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject request without persisting or invoking a model",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:office-binding",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Read current bound occupant and model implementation through AuthorityRegistry",
+      "source_references": [
+        "src/riverview_core/institutional_authority/registry.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:provider-match",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Does the registered provider match the exact implementation revision?",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/local_reasoning_provider.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "tests/test_local_reasoning_provider.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:persist-user",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Append user event and idempotency key before inference",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/resident_execution/migrations/0003_resident_conversation.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:context-bound",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Assemble recent persisted history and reject serialized context above 32 KiB",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:inference",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Call the current loopback model adapter; no tools or work-order operation exists",
+      "source_references": [
+        "src/riverview_core/local_reasoning_provider.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_local_reasoning_provider.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:provider-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Persist a sanitized unavailable or incomplete response outcome",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:binding-recheck",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Reject a result if the office implementation changed during inference",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:persist-response",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Append assistant message with model and token provenance",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/resident_execution/migrations/0003_resident_conversation.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:restart-recovery",
+      "node_revision": "1.0.1",
+      "type": "recovery",
+      "label": "After service restart mark unfinished request interrupted without automatic duplicate inference",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/browser-commissioning.json"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:browser-history",
+      "node_revision": "1.0.1",
+      "type": "exit",
+      "label": "Return durable response/status and render persisted conversation in dashboard",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md",
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py",
+        "tests/test_resident_conversation.py",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/browser-commissioning.json"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:future-objective-jump",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "Future explicit authorization remains a separate objective submission path",
+      "jump_target_id": "rv:grace:operational-integration:objective-intake",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md",
+        "docs/components/GRACE_EXECUTION_PIPELINE.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:browser-render",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render complete persisted messages with role, status, timestamp and provenance",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/index.html",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/static/app.css"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_grace_conversation_browser.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:composer",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Keep an editable local draft; Enter submits and Shift+Enter inserts a line break",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/index.html",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/static/app.css"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_grace_conversation_browser.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:chat-details",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Show persisted conversation metadata with local and UTC timestamps",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/index.html",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/static/app.css"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_grace_conversation_browser.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:message-actions",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Allow local copy and detail inspection without forwarding private content",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/index.html",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/static/app.css"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_grace_conversation_browser.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:responsive-a11y",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Keep message text and controls accessible on narrow and desktop viewports",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/index.html",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/static/app.css"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_grace_conversation_browser.py"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:resident-conversation:browser-chat:browser-submit",
+      "to": "rv:resident-conversation:browser-chat:dashboard-auth",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:dashboard-auth",
+      "to": "rv:resident-conversation:browser-chat:exact-grant",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:exact-grant",
+      "to": "rv:resident-conversation:browser-chat:deny",
+      "type": "diagnostic_branch",
+      "label": "No exact active read/send grant"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:exact-grant",
+      "to": "rv:resident-conversation:browser-chat:office-binding",
+      "type": "runtime_transition",
+      "label": "Authorized"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:office-binding",
+      "to": "rv:resident-conversation:browser-chat:provider-match",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:provider-match",
+      "to": "rv:resident-conversation:browser-chat:deny",
+      "type": "diagnostic_branch",
+      "label": "Provider or model revision unavailable"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:provider-match",
+      "to": "rv:resident-conversation:browser-chat:persist-user",
+      "type": "runtime_transition",
+      "label": "Current implementation matched"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:persist-user",
+      "to": "rv:resident-conversation:browser-chat:context-bound",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:context-bound",
+      "to": "rv:resident-conversation:browser-chat:provider-failure",
+      "type": "diagnostic_branch",
+      "label": "Context too large; model is not called"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:context-bound",
+      "to": "rv:resident-conversation:browser-chat:inference",
+      "type": "runtime_transition",
+      "label": "Within context bound"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:inference",
+      "to": "rv:resident-conversation:browser-chat:provider-failure",
+      "type": "diagnostic_branch",
+      "label": "Timeout, unavailable or incomplete response"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:inference",
+      "to": "rv:resident-conversation:browser-chat:binding-recheck",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:binding-recheck",
+      "to": "rv:resident-conversation:browser-chat:provider-failure",
+      "type": "diagnostic_branch",
+      "label": "Office binding changed during inference"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:binding-recheck",
+      "to": "rv:resident-conversation:browser-chat:persist-response",
+      "type": "runtime_transition",
+      "label": "Same current binding"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:persist-response",
+      "to": "rv:resident-conversation:browser-chat:browser-history",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:provider-failure",
+      "to": "rv:resident-conversation:browser-chat:browser-history",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:restart-recovery",
+      "to": "rv:resident-conversation:browser-chat:browser-history",
+      "type": "recovery_route"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:browser-history",
+      "to": "rv:resident-conversation:browser-chat:future-objective-jump",
+      "type": "documentation",
+      "label": "Conversation does not promote work"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:future-objective-jump",
+      "to": "rv:grace:operational-integration:objective-intake",
+      "type": "jump",
+      "label": "Separate explicit objective path; no conversation-triggered call"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:browser-history",
+      "to": "rv:resident-conversation:browser-chat:browser-render",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:browser-render",
+      "to": "rv:resident-conversation:browser-chat:composer",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:browser-render",
+      "to": "rv:resident-conversation:browser-chat:chat-details",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:browser-render",
+      "to": "rv:resident-conversation:browser-chat:message-actions",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:browser-render",
+      "to": "rv:resident-conversation:browser-chat:responsive-a11y",
+      "type": "verification"
+    }
+  ]
+}

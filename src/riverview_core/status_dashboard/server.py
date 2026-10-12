@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.1.1
+# Revision: 1.1.3
 # Purpose: Serve authenticated operational projections, objective intake, and resident conversation
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -11,6 +11,8 @@
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-ERROR-SEMANTICS | Preserve conflict/dependency failure distinction
 # Changed: 2026-10-11 UTC | RV-M3.2-001 | Enforce the notification-specific maximum page size
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Add exact-grant resident conversation API and restart reconciliation
+# Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Persist exact-grant browser access in a scoped HttpOnly cookie with revocation checks
+# Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Restrict cookie issuance to URL-safe credentials to prevent response-header injection
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
 # History: Git and revision/backup manifest
@@ -44,6 +46,10 @@ _OBJECTIVE_DETAIL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{
 _OBJECTIVE_PROPOSAL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/proposal$")
 _OBJECTIVE_CANCEL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/cancel$")
 _CONVERSATION_ID = re.compile(r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})$")
+_CONVERSATION_SESSION = "/api/v1/resident/conversation-session"
+_CONVERSATION_COOKIE = "rv_grace_authority"
+_CONVERSATION_COOKIE_MAX_AGE = 30 * 24 * 60 * 60
+_COOKIE_CREDENTIAL = re.compile(r"^[A-Za-z0-9_-]{32,512}$")
 _CONVERSATION_STATUS = re.compile(
     r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/responses/([0-9a-fA-F-]{36})$")
 _MAX_CHAT_BODY = 12 * 1024
@@ -155,12 +161,35 @@ def make_handler():
             if self.command != "HEAD":
                 self.wfile.write(body)
 
-        def _json(self, status: int, data, request_id: str):
+        def _json(self, status: int, data, request_id: str, extra_headers=()):
             body = json.dumps(data, separators=(",", ":"), ensure_ascii=True,
                               default=str).encode("utf-8")
             if len(body) > 256 * 1024:
                 status, body = 500, b'{"error":"response_too_large"}'
-            self._send(status, body, "application/json; charset=utf-8", request_id)
+            self._send(status, body, "application/json; charset=utf-8", request_id,
+                       extra_headers=extra_headers)
+
+        def _conversation_authority(self):
+            """Use explicit legacy header first, otherwise the path-scoped browser cookie."""
+            explicit = self.headers.get("X-Riverview-Authority")
+            if explicit is not None:
+                return explicit
+            raw = self.headers.get("Cookie", "")
+            if len(raw) > 8192:
+                return ""
+            values = []
+            for item in raw.split(";"):
+                key, sep, value = item.strip().partition("=")
+                if sep and key == _CONVERSATION_COOKIE:
+                    values.append(value)
+            return values[0] if len(values) == 1 and 32 <= len(values[0]) <= 512 else ""
+
+        @staticmethod
+        def _conversation_cookie(value, *, clear=False):
+            age = 0 if clear else _CONVERSATION_COOKIE_MAX_AGE
+            content = "" if clear else value
+            return (f"{_CONVERSATION_COOKIE}={content}; Max-Age={age}; "
+                    "Path=/api/v1/resident/conversations; Secure; HttpOnly; SameSite=Strict")
 
         def _error(self, status, code, request_id):
             self._json(status, {"error": code, "request_id": request_id}, request_id)
@@ -212,12 +241,14 @@ def make_handler():
                                 if self.command == "POST" else None)
             conversation_send = (parsed.path == "/api/v1/resident/conversations"
                                  and self.command == "POST")
+            conversation_session = (parsed.path == _CONVERSATION_SESSION
+                                     and self.command in {"POST", "DELETE"})
             if not self._host_ok():
                 self._error(400, "invalid_host", request_id)
                 return
             if (self.command not in {"GET", "HEAD"} and not notification_write
                     and not objective_submit and not objective_proposal and not objective_cancel
-                    and not conversation_send):
+                    and not conversation_send and not conversation_session):
                 self._error(405, "read_only_method", request_id)
                 return
             if parsed.path == "/":
@@ -267,7 +298,32 @@ def make_handler():
                 return
             try:
                 query = parse_qs(parsed.query, keep_blank_values=False, max_num_fields=12)
-                if parsed.path == "/api/v1/status":
+                if parsed.path == _CONVERSATION_SESSION and self.command == "POST":
+                    service = self.server._conversation_service
+                    if service is None:
+                        self._error(503, "resident_conversation_unavailable", request_id)
+                        return
+                    if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Length", "0") != "0":
+                        self._error(400, "conversation_session_body_not_allowed", request_id)
+                        return
+                    credential = self.headers.get("X-Riverview-Authority", "")
+                    if not _COOKIE_CREDENTIAL.fullmatch(credential):
+                        self._error(403, "resident_conversation_not_authorized", request_id)
+                        return
+                    try:
+                        identity = service.authorize_browser_session(credential)
+                    except Exception as exc:
+                        self._conversation_error(exc, request_id)
+                        return
+                    cookie = self._conversation_cookie(credential)
+                    self._json(200, {"schema_version":"rv.resident.conversation-session.v1",
+                                     **identity, "expires_in_seconds":_CONVERSATION_COOKIE_MAX_AGE},
+                               request_id, extra_headers=(("Set-Cookie", cookie),))
+                elif parsed.path == _CONVERSATION_SESSION and self.command == "DELETE":
+                    self._json(200, {"schema_version":"rv.resident.conversation-session.v1",
+                                     "status":"disconnected"}, request_id,
+                               extra_headers=(("Set-Cookie", self._conversation_cookie("", clear=True)),))
+                elif parsed.path == "/api/v1/status":
                     self._json(200, self.server._projection.status(), request_id)
                 elif parsed.path == "/api/v1/assignments":
                     page = self.server._projection.assignments(
@@ -423,8 +479,7 @@ def make_handler():
                         self._error(503, "resident_conversation_unavailable", request_id)
                         return
                     try:
-                        result = service.list_conversations(
-                            self.headers.get("X-Riverview-Authority", ""))
+                        result = service.list_conversations(self._conversation_authority())
                     except Exception as exc:
                         self._conversation_error(exc, request_id)
                         return
@@ -448,7 +503,7 @@ def make_handler():
                                 or not isinstance(data.get("message"), str)):
                             raise ValueError("invalid conversation request")
                         result = service.send(
-                            self.headers.get("X-Riverview-Authority", ""),
+                            self._conversation_authority(),
                             message=data["message"], conversation_id=data.get("conversation_id"),
                             client_message_id=data.get("client_message_id"))
                         status = 201 if result.get("status") == "completed" else 503
@@ -462,7 +517,7 @@ def make_handler():
                         return
                     try:
                         result = service.response_status(
-                            self.headers.get("X-Riverview-Authority", ""),
+                            self._conversation_authority(),
                             conversation_match.group(1), conversation_match.group(2))
                     except Exception as exc:
                         self._conversation_error(exc, request_id)
@@ -475,7 +530,7 @@ def make_handler():
                         return
                     try:
                         result = service.history(
-                            self.headers.get("X-Riverview-Authority", ""),
+                            self._conversation_authority(),
                             conversation_match.group(1))
                     except Exception as exc:
                         self._conversation_error(exc, request_id)

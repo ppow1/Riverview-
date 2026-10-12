@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.99",
+  "manifest_revision": "1.1.101",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.67",
+      "revision": "1.0.69",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "715e8813a2376a5ad706d7caed52a823f3e1ba1e3b7ae1d0bb9d1614321b89f8",
-      "size_bytes": 361880
+      "sha256": "02117d1a17824359907f8fa699f2d0e3cf72b6546f18721dab20ddcce9bad654",
+      "size_bytes": 366914
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 27724
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.99"
+      "revision": "1.1.101"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -197,10 +197,10 @@
       "size_bytes": 18530
     },
     "process_graphs/resident-conversation/browser-chat.json": {
-      "revision": "1.0.2",
+      "revision": "1.0.4",
       "path": "process_graphs/resident-conversation/browser-chat.json",
-      "sha256": "3578412af0b472efc224e51e3c9065bea738a20bd7270f2bf36934003d1054e1",
-      "size_bytes": 17961
+      "sha256": "2eee4f75c2bcd2b3257f3ab3757ea0fc34d5307ee6230e3705075b2b654e0a6a",
+      "size_bytes": 22318
     }
   }
 }
