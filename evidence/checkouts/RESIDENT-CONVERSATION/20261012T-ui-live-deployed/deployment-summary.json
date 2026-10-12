@@ -1,0 +1,69 @@
+{
+  "Steward_Windows_browser_verification": "PENDING",
+  "active_release": "/opt/riverview-status-dashboard/releases/5cbf315b95b5b644296910b4c7a16e5ae358e55b-grace-chat-ui",
+  "candidate_commit": "5cbf315b95b5b644296910b4c7a16e5ae358e55b",
+  "ci_run": "https://github.com/ppow1/Riverview-/actions/runs/38193890852",
+  "conversation_credentials_changed_or_read": false,
+  "evidence_revision": "1.0.1",
+  "live_browser": "dashboard-browser-acceptance.json",
+  "live_conversation_ui": "conversation-ui-check.json",
+  "live_state": {
+    "attention_count": 10,
+    "attention_http_status": 200,
+    "browser_errors": 0,
+    "cme": "healthy",
+    "completed_assignment_attempts": 1,
+    "dashboard_port": "127.0.0.1:8766",
+    "documentation_links_http_200": true,
+    "independent_verifications": 1,
+    "projection": "healthy"
+  },
+  "migrations_applied": false,
+  "model": {
+    "process_pid": 654501,
+    "restarted_or_reconfigured": false,
+    "served_id": "qwen3-0.6b-q8_0-local"
+  },
+  "other_services": {
+    "postgresql": "active",
+    "riverview-cme-monitor": "active",
+    "riverview-event-processor": "active",
+    "riverview-grace-cpu-inference": "active",
+    "riverview-m33-verifier": "active",
+    "riverview-m33-worker": "active",
+    "riverview-notification-dispatcher": "active"
+  },
+  "previous_release": "/opt/riverview-status-dashboard/releases/30085f040d16c666ab8e715e2b9f8c384d1adf9c-grace-chat-durability",
+  "pull_request": {
+    "controlled_checkout_ci": "PASS",
+    "run": "https://github.com/ppow1/Riverview-/actions/runs/38193890852",
+    "state": "OPEN_DRAFT",
+    "url": "https://github.com/ppow1/Riverview-/pull/27"
+  },
+  "rollback_target": "/opt/riverview-status-dashboard/releases/30085f040d16c666ab8e715e2b9f8c384d1adf9c-grace-chat-durability",
+  "schema_version": "rv.grace.chat.ui-deployment.v1",
+  "static_asset_hashes": {
+    "app.css": {
+      "deployed_sha256": "67f438779db8a95b43f30c5bf3479985e3e5e828bae13fa9d3b0fd70641481f1",
+      "repository_sha256": "67f438779db8a95b43f30c5bf3479985e3e5e828bae13fa9d3b0fd70641481f1"
+    },
+    "app.js": {
+      "deployed_sha256": "8c158e4d492ae36ab72a78215d4fcdd1a1df65f22274e2090e801e4979fc2a44",
+      "repository_sha256": "8c158e4d492ae36ab72a78215d4fcdd1a1df65f22274e2090e801e4979fc2a44"
+    },
+    "index.html": {
+      "deployed_sha256": "2b858f3ea104c6326f3b61e16fc3bcf40d2cd581ed0920fd5c15fbff114f1ab8",
+      "repository_sha256": "2b858f3ea104c6326f3b61e16fc3bcf40d2cd581ed0920fd5c15fbff114f1ab8"
+    }
+  },
+  "systemd": {
+    "active": "active",
+    "deployment_id": "m3.4-camrui-chat-ui-5cbf315",
+    "drop_in": "/etc/systemd/system/riverview-status-dashboard.service.d/40-grace-chat-ui.conf",
+    "drop_in_revision": "1.0.0",
+    "drop_in_sha256": "bbd8d9b1994522e12e15c563347bb1ff4579e734c90b7eaefa372179201090b4",
+    "restart_count": 0,
+    "unit": "riverview-status-dashboard.service"
+  },
+  "task_id": "RV-GRACE-CHAT-UX-001"
+}

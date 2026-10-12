@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.9
+File Revision: 1.1.0
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -15,6 +15,7 @@ Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Record live pending-turn
 Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Reproduce exact predecessor six-versus-four event visibility gap in isolated PostgreSQL
 Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Retain the exact predecessor reproduction source and sanitized result
 Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Specify complete conversational rendering, accessible controls, factual details, and safe copy behavior
+Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record dashboard-only live release and distinguish local commissioning from Steward Windows acceptance
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
@@ -112,3 +113,40 @@ pixels, so the handset-sized 390-pixel Windows/mobile viewport remains to be che
 the Steward's device. This is isolated candidate evidence and does not constitute live
 Windows access verification, deployment commissioning, formal milestone acceptance, or
 full Component Definition of Done.
+
+
+## 2026-10-12 controlled dashboard deployment
+
+After isolated browser and full-suite acceptance plus PR #27 controlled-checkout CI, the
+Steward dashboard was deployed on Camrui using a new root-owned release
+`/opt/riverview-status-dashboard/releases/5cbf315b95b5b644296910b4c7a16e5ae358e55b-grace-chat-ui`.
+The package was cloned from the prior immutable `30085f...` runtime release and only
+`index.html`, `app.css`, and `app.js` were replaced with the three matching files from
+commit `5cbf315b95b5b644296910b4c7a16e5ae358e55b`; all three SHA-256 values matched
+repository and deployed bytes. The old release remains intact at
+`/opt/riverview-status-dashboard/releases/30085f040d16c666ab8e715e2b9f8c384d1adf9c-grace-chat-durability`
+and is the rollback target. A separate root-owned systemd drop-in,
+`/etc/systemd/system/riverview-status-dashboard.service.d/40-grace-chat-ui.conf`
+(revision 1.0.0), updates only dashboard source/deployment identity. No migrations,
+credentials, inference configuration, CME, worker, verifier, event processor, notification,
+or assignment services were changed. Only `riverview-status-dashboard.service` was
+restarted; it remained active with zero systemd restart failures.
+
+Post-deployment read-only Firefox acceptance on `127.0.0.1:8766` observed a healthy
+projection and CME, completed assignment with one attempt and an independent verification,
+attention HTTP 200, all checked cookbook links HTTP 200, valid canonical workflow view,
+responsive navigation, and zero browser errors. A second browser session opened Talk with
+Grace and verified the composer, Send button, menu placement, pre-wrapped text, details
+dialog, and 403 denial for an invalid conversation credential. It did not send a live
+message because the Steward office-scoped credential was not present in this execution
+context. The prior isolated real-model test did send and persist two turns using the active
+Qwen3-0.6B CPU service, including restart recovery. Evidence and rollback provenance are
+in [`20261012T-ui-live-deployed`](../../evidence/checkouts/RESIDENT-CONVERSATION/20261012T-ui-live-deployed/).
+
+The Steward's Windows browser and an exact 390-pixel handset viewport have not been
+independently verified from Camrui. Refresh Talk with Grace in the existing Windows SSH
+browser session to verify the deployed rendering, then continue a message there to complete
+Steward-facing acceptance. This deployment is not formal Steward acceptance and does not
+close full Component Definition of Done obligations. Rollback consists of restoring the
+previous `current` symlink target, removing only the new 40 drop-in, daemon-reloading, and
+restarting the dashboard; preserve the candidate release and database state.

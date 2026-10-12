@@ -6,7 +6,8 @@
     "failed": 0,
     "passed": 228,
     "result": "PASS",
-    "skipped": 0
+    "skipped": 0,
+    "source_commit": "5cbf315b95b5b644296910b4c7a16e5ae358e55b"
   },
   "baseline_commit": "ed0ea269297ab3be56287e6618db64adb25a43bc",
   "browser_integration": {
@@ -30,9 +31,10 @@
     "windows_steward_browser_tested": false
   },
   "deployment": {
-    "current_dashboard_preserved": true,
-    "rollback": "existing immutable dashboard release remains active",
-    "status": "NOT DEPLOYED"
+    "rollback_target": "/opt/riverview-status-dashboard/releases/30085f040d16c666ab8e715e2b9f8c384d1adf9c-grace-chat-durability",
+    "source_commit": "5cbf315b95b5b644296910b4c7a16e5ae358e55b",
+    "status": "DEPLOYED",
+    "windows_steward_browser": "PENDING"
   },
   "process_graph": {
     "globally_unique_nodes": 353,
@@ -46,13 +48,8 @@
     "result": "PASS"
   },
   "schema_version": "rv.grace.chat.ui-refinement.verification.v1",
+  "source_commit": "5cbf315b95b5b644296910b4c7a16e5ae358e55b",
   "source_files": {
-    "docs/components/RESIDENT_CONVERSATION.md": {
-      "sha256": "b077b8d930f3c985b0044006aa8d4bd05e3c91d75a7fcdf846ab0c805a82fcf0"
-    },
-    "docs/development/JOURNAL.md": {
-      "sha256": "53cdd2905b5f7faf0f4b0854427209e1f214e3b264d092075dd671c687f84eb3"
-    },
     "process_graphs/resident-conversation/browser-chat.json": {
       "sha256": "3578412af0b472efc224e51e3c9065bea738a20bd7270f2bf36934003d1054e1"
     },
@@ -72,6 +69,6 @@
       "sha256": "5f785ac091d7ac716eb956923b0fbc918448dfca97fbef20bcc85d1570b69b4a"
     }
   },
-  "source_tree_state": "candidate working tree tested before commit; file SHA-256 values pin the exact tested content",
+  "source_tree_state": "committed candidate verified byte-for-byte against the tested working tree; hashes pin the relevant implementation and graph files",
   "task_id": "RV-GRACE-CHAT-UX-001"
 }
