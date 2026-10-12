@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SCRIPT
 # File: scripts/verify_grace_conversation_browser.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.8
+# Revision: 1.1.0
 # Purpose: Commission the dashboard-to-Grace chat path in an isolated PostgreSQL and CPU-model environment
 # Execution Model: Temporary loopback llama.cpp, dashboard, Firefox WebDriver, and disposable schema
 # Observability: Redacted structured result with request, persistence, refresh, recovery and timing evidence
@@ -16,6 +16,9 @@
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Apply repository-documented Qwen no-think prefix in isolated CPU commissioning
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Wait for the current browser turn rather than an older persisted attention event
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Wait for WebDriver refresh navigation before asserting restored authenticated UI
+# Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Exercise refined accessible conversation UI while optionally reusing the already-running loopback model
+# Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Verify full-message rendering, composer controls, menus, responsive layout and unauthorized access in Firefox
+# Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Exercise keyboard submission and distinguish historical interruptions from the latest response outcome
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Read objective count by named column with the verifier's dict row factory
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Record source commit and checksum-backed evidence manifest
 # Contracts: docs/components/RESIDENT_CONVERSATION.md; docs/components/STATUS_DASHBOARD.md
@@ -38,7 +41,7 @@ import subprocess
 import tempfile
 import threading
 import time
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 from uuid import uuid4
@@ -109,8 +112,12 @@ def _webdriver(base, path, method="GET", body=None):
     data = json.dumps(body).encode() if body is not None else None
     request = Request(base + path, data=data,
         headers={"Content-Type": "application/json"} if data else {}, method=method)
-    with urlopen(request, timeout=30) as response:
-        return json.loads(response.read())
+    try:
+        with urlopen(request, timeout=30) as response:
+            return json.loads(response.read())
+    except HTTPError as exc:
+        detail = exc.read().decode("utf-8", "replace")[:160]
+        raise RuntimeError(f"WebDriver HTTP {exc.code}: {detail}") from exc
 
 
 def _wait_browser(base, session, expression, *, timeout=30):
@@ -124,9 +131,21 @@ def _wait_browser(base, session, expression, *, timeout=30):
     raise RuntimeError("browser acceptance condition timed out")
 
 
+def _click_browser_selector(base, session, selector):
+    found = _webdriver(base, f"/session/{session}/element", "POST",
+                       {"using":"css selector", "value":selector})["value"]
+    element_id = found.get("element-6066-11e4-a52e-4f735466cecf")
+    if not element_id:
+        raise RuntimeError("browser element lookup failed")
+    try:
+        _webdriver(base, f"/session/{session}/element/{element_id}/click", "POST", {})
+    except Exception as exc:
+        raise RuntimeError(f"browser click failed for {selector[:72]}: {exc}") from exc
+
+
 def _browser_diagnostic(base, session):
     """Return bounded UI state labels only; never capture conversation text."""
-    script = "return {ready:document.readyState,workspaceHidden:document.getElementById('workspace')?.hidden,loginError:document.getElementById('login-error')?.textContent.slice(0,120),chatState:document.getElementById('chat-state')?.textContent.slice(0,120),chatError:document.getElementById('chat-error')?.textContent.slice(0,120),visibleMessages:document.querySelectorAll('#chat-history article.row').length,activeView:document.querySelector('.view.active')?.id};"
+    script = "return {ready:document.readyState,workspaceHidden:document.getElementById('workspace')?.hidden,loginError:document.getElementById('login-error')?.textContent.slice(0,120),chatState:document.getElementById('chat-state')?.textContent.slice(0,120),chatError:document.getElementById('chat-error')?.textContent.slice(0,120),visibleMessages:document.querySelectorAll('#chat-history article.message-row').length,activeView:document.querySelector('.view.active')?.id};"
     try:
         return _webdriver(base, f"/session/{session}/execute/sync", "POST",
                           {"script":script,"args":[]}).get("value", {})
@@ -215,13 +234,16 @@ def main():
     parser.add_argument("--dsn", required=True, help="isolated private PostgreSQL test DSN")
     parser.add_argument("--server", default="/tmp/rv-llama-build/bin/llama-server")
     parser.add_argument("--model", default=str(Path.home() / ".cache/riverview/models/Qwen3-0.6B-Q8_0.gguf"))
+    parser.add_argument("--reuse-model-endpoint", help="reuse an already-running loopback /v1 endpoint without starting or stopping it")
     parser.add_argument("--output", required=True, help="new evidence directory under evidence/checkouts")
     args = parser.parse_args()
     _isolated_dsn(args.dsn)
-    server_binary = Path(args.server).resolve(strict=True)
     model_path = Path(args.model).resolve(strict=True)
-    if not os.access(server_binary, os.X_OK):
-        raise RuntimeError("the specified local llama.cpp binary is not executable")
+    server_binary = None
+    if not args.reuse_model_endpoint:
+        server_binary = Path(args.server).resolve(strict=True)
+        if not os.access(server_binary, os.X_OK):
+            raise RuntimeError("the specified local llama.cpp binary is not executable")
     model_sha = hashlib.sha256(model_path.read_bytes()).hexdigest()
     if model_sha != EXPECTED_MODEL_SHA:
         raise RuntimeError("the local model file does not match the pinned SHA-256")
@@ -232,7 +254,16 @@ def main():
         raise RuntimeError("evidence output must be a new repository evidence checkout directory")
     output.mkdir(parents=True, exist_ok=False)
     schema = "rvtest_chat_" + uuid4().hex
-    model_port = _free_port()
+    if args.reuse_model_endpoint:
+        from urllib.parse import urlsplit
+        parsed_model = urlsplit(args.reuse_model_endpoint)
+        if (parsed_model.scheme != "http" or parsed_model.hostname != "127.0.0.1" or
+                not parsed_model.port or parsed_model.path not in ("", "/") or
+                parsed_model.username or parsed_model.password or parsed_model.query or parsed_model.fragment):
+            raise RuntimeError("reused inference endpoint must be an uncredentialed loopback HTTP origin")
+        model_port = parsed_model.port
+    else:
+        model_port = _free_port()
     dashboard_port = _free_port(8700, 8799)
     driver_binary = shutil.which("geckodriver")
     if not driver_binary:
@@ -243,12 +274,12 @@ def main():
         "source_commit":os.environ.get("RIVERVIEW_SOURCE_COMMIT", "unknown"),
         "status":"FAIL", "database_schema":schema,
         "database_socket":"private /tmp/rv-m43-sock-* test cluster",
-        "model":{"id":MODEL_ID,"sha256":model_sha,"binary_sha256":hashlib.sha256(server_binary.read_bytes()).hexdigest(),
+        "model":{"id":MODEL_ID,"sha256":model_sha,"binary_sha256":hashlib.sha256(server_binary.read_bytes()).hexdigest() if server_binary else "observed_existing_service_not_restarted",
             "endpoint":"loopback only","gpu_layers":0,"context_size":4096},
         "ports":{"model_loopback":model_port,"dashboard_loopback":dashboard_port,
             "geckodriver_loopback":driver_port}, "turns":[], "recovery":{},
         "stage":"preflight",
-        "cleanup":{"test_schema_dropped":False,"model_process_stopped":False,
+        "cleanup":{"test_schema_dropped":False,"model_process_stopped":False if args.reuse_model_endpoint else False,
             "dashboard_process_stopped":False,"browser_session_closed":False}}
     model_process = driver_process = None
     runtime = browser_session = dashboard = dashboard_thread = None
@@ -257,19 +288,31 @@ def main():
     browser_base = f"http://127.0.0.1:{driver_port}"
     schema_catalog = None
     try:
-        command = [str(server_binary), "--model", str(model_path), "--alias", MODEL_ID,
-            "--host", "127.0.0.1", "--port", str(model_port), "--jinja",
-            "--threads", "2", "--threads-batch", "2", "--parallel", "1",
-            "--ctx-size", "4096", "--n-predict", "512", "--n-gpu-layers", "0", "--no-webui"]
-        model_process = subprocess.Popen(command, stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True)
         model_endpoint = f"http://127.0.0.1:{model_port}/v1"
         report["stage"] = "wait_local_cpu_model"
-        _wait_http(f"http://127.0.0.1:{model_port}/health", model_process)
+        if args.reuse_model_endpoint:
+            with urlopen(f"http://127.0.0.1:{model_port}/health", timeout=4) as response:
+                if response.status != 200:
+                    raise RuntimeError("reused CPU inference health check failed")
+            report["model"]["management"]="existing loopback service reused; not started, stopped, or reconfigured by this harness"
+        else:
+            command = [str(server_binary), "--model", str(model_path), "--alias", MODEL_ID,
+                "--host", "127.0.0.1", "--port", str(model_port), "--jinja",
+                "--threads", "2", "--threads-batch", "2", "--parallel", "1",
+                "--ctx-size", "4096", "--n-predict", "512", "--n-gpu-layers", "0", "--no-webui"]
+            model_process = subprocess.Popen(command, stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True)
+            _wait_http(f"http://127.0.0.1:{model_port}/health", model_process)
         with urlopen(f"http://127.0.0.1:{model_port}/props", timeout=5) as response:
             props = json.loads(response.read())
         report["model"]["runtime_context"] = props.get("default_generation_settings", {}).get("n_ctx")
         report["model"]["loaded_model"] = props.get("model_alias", props.get("model_path", "observed"))
+        with urlopen(model_endpoint + "/models", timeout=5) as response:
+            served_models=json.loads(response.read())
+        served_ids=[item.get("id") for item in served_models.get("data",[]) if isinstance(item,dict)]
+        report["model"]["served_ids"]=served_ids
+        if MODEL_ID not in served_ids:
+            raise RuntimeError("the served model identity does not match the pinned resident implementation")
 
         runtime = _provision(args.dsn, schema, model_sha, model_endpoint)
         schema_created = True
@@ -287,8 +330,11 @@ def main():
             "--port", str(driver_port)], stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True)
         _wait_http(browser_base + "/status", driver_process, timeout=15)
-        session = _webdriver(browser_base, "/session", "POST", {"capabilities":{"alwaysMatch":{
-            "browserName":"firefox","moz:firefoxOptions":{"args":["-headless"]}}}})
+        capabilities = {"capabilities":{"alwaysMatch":{
+            "browserName":"firefox","moz:firefoxOptions":{
+                "args":["-headless","--width=390","--height=844"],
+                "prefs":{"layout.css.devPixelsPerPx":"1.3"}}}}}
+        session = _webdriver(browser_base, "/session", "POST", capabilities)
         browser_session = session["value"].get("sessionId") or session.get("sessionId")
         if not browser_session:
             raise RuntimeError("Firefox WebDriver session was not created")
@@ -306,31 +352,136 @@ def main():
             "script":"document.querySelector('[data-view=grace-chat]').click();document.getElementById('chat-authority').value=arguments[0];document.getElementById('chat-authority').dispatchEvent(new Event('change'));",
             "args":[runtime["steward_token"]]})
         _wait_browser(browser_base, browser_session,
-                      "document.getElementById('chat-state').textContent.includes('PostgreSQL')")
+                      "['No saved messages yet.','Conversation open','Response complete'].some(s=>document.getElementById('chat-state').textContent.includes(s))")
+
+        report["ui_checks"] = {}
+        unauthorized = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"return fetch('/api/v1/resident/conversations',{headers:{Authorization:'Bearer '+sessionStorage.getItem('rv.dashboard.token'),'X-Riverview-Authority':'invalid-credential'}}).then(r=>r.status);",
+            "args":[]})["value"]
+        if unauthorized != 403:
+            raise RuntimeError("unauthorized conversation credential was not rejected with 403")
+        report["ui_checks"]["unauthorized_conversation_access"] = "403"
+        ordering = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"const m=document.querySelector('.chat-more summary').getBoundingClientRect(),s=document.getElementById('chat-send').getBoundingClientRect();return {menu_before_send:m.right<=s.left,menu_width:m.width,send_width:s.width};",
+            "args":[]})["value"]
+        if not ordering["menu_before_send"]:
+            raise RuntimeError("conversation options menu is not immediately before Send")
+        report["ui_checks"]["more_menu_precedes_send"] = True
+        _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"document.querySelector('.chat-more summary').click();document.querySelector('[data-chat-option=details]').click();return document.getElementById('chat-details-dialog').open;",
+            "args":[]})
+        _wait_browser(browser_base, browser_session, "document.getElementById('chat-details-dialog').open")
+        report["ui_checks"]["chat_details_dialog"] = "PASS"
+        _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"document.querySelector('#chat-details-dialog [data-close-dialog]').click();const image=Array.from(document.querySelectorAll('.chat-more-menu button')).find(x=>x.textContent.includes('Image generation'));return {imageDisabled:image?.disabled,imageLabel:image?.textContent};",
+            "args":[]})
+        disabled = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"const image=Array.from(document.querySelectorAll('.chat-more-menu button')).find(x=>x.textContent.includes('Image generation'));return image?.disabled===true&&image.textContent.includes('coming later');",
+            "args":[]})["value"]
+        if not disabled:
+            raise RuntimeError("future image capability is not clearly disabled")
+        report["ui_checks"]["future_capability_disabled"] = True
+        # Exercise complete-content wrapping independently of model response length.
+        layout = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"const host=document.getElementById('chat-history'),fixture='layout-check '.repeat(500);const row=document.createElement('article');row.className='message-row grace';row.innerHTML='<div class=message-bubble><div class=message-content></div></div>';row.querySelector('.message-content').textContent=fixture;host.append(row);const c=row.querySelector('.message-content');const result={complete:c.textContent===fixture,noHorizontalOverflow:host.scrollWidth<=host.clientWidth};row.remove();return result;",
+            "args":[]})["value"]
+        if not layout["complete"] or not layout["noHorizontalOverflow"]:
+            raise RuntimeError("long message rendering truncated content or overflowed horizontally")
+        report["ui_checks"]["long_message_rendering_fixture"] = layout
+        _webdriver(browser_base, f"/session/{browser_session}/window/rect", "POST", {"width":390,"height":844,"x":0,"y":0})
+        mobile = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"return {viewport:innerWidth,documentWidth:document.documentElement.scrollWidth,sendVisible:document.getElementById('chat-send').getBoundingClientRect().width>0,composerVisible:document.getElementById('chat-message').getBoundingClientRect().width>0};",
+            "args":[]})["value"]
+        if mobile["documentWidth"] > mobile["viewport"] or not mobile["sendVisible"] or not mobile["composerVisible"]:
+            raise RuntimeError("mobile viewport clips controls or has horizontal page overflow")
+        report["ui_checks"]["mobile_layout"] = mobile
+        _webdriver(browser_base, f"/session/{browser_session}/window/rect", "POST", {"width":1280,"height":900,"x":0,"y":0})
+        desktop = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"return {viewport:innerWidth,documentWidth:document.documentElement.scrollWidth,sendVisible:document.getElementById('chat-send').getBoundingClientRect().width>0};",
+            "args":[]})["value"]
+        if desktop["documentWidth"] > desktop["viewport"] or not desktop["sendVisible"]:
+            raise RuntimeError("desktop viewport has horizontal overflow or clipped Send button")
+        report["ui_checks"]["desktop_layout"] = desktop
 
         def browser_turn(message):
             report["stage"] = "browser_chat_model_turn"
             started = time.monotonic()
             before = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
-                "script":"window.__rvTurnStart=performance.now();window.__rvBeforeChatCount=document.querySelectorAll('#chat-history article.row').length;document.getElementById('chat-message').value=arguments[0];document.getElementById('chat-form').requestSubmit();",
+                "script":"window.__rvTurnStart=performance.now();window.__rvBeforeChatCount=document.querySelectorAll('#chat-history article.message-row:not([aria-label])').length;const box=document.getElementById('chat-message');box.value=arguments[0];box.dispatchEvent(new Event('input'));box.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));const state=document.getElementById('chat-state').textContent;return {sendDisabled:document.getElementById('chat-send').disabled,processing:state.includes('processing')||state.includes('Generating response')};",
                 "args":[message]})
+            if not before.get("value", {}).get("sendDisabled"):
+                raise RuntimeError("composer did not enter a duplicate-protected processing state")
             _wait_browser(browser_base, browser_session,
-                "(document.getElementById('chat-history').querySelectorAll('article.row').length >= window.__rvBeforeChatCount + 2 || (!document.getElementById('chat-send').disabled && document.getElementById('chat-error').textContent.includes('Grace response failed'))) && document.getElementById('chat-state').textContent.includes('PostgreSQL')",
+                "(document.getElementById('chat-history').querySelectorAll('article.message-row:not([aria-label])').length >= window.__rvBeforeChatCount + 2 || (!document.getElementById('chat-send').disabled && document.getElementById('chat-error').textContent.includes('Grace response failed'))) && document.getElementById('chat-state').textContent.length > 0",
                 timeout=150)
             failure = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
                 "script":"return document.getElementById('chat-error').textContent;","args":[]})["value"]
             if failure:
                 raise RuntimeError("browser chat returned a failed response: " + str(failure)[:100])
             values = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
-                "script":"return {messages:Array.from(document.querySelectorAll('#chat-history article.row')).map(x=>x.innerText),elapsed_ms:performance.now()-window.__rvTurnStart,conversation:localStorage.getItem('rv.grace.conversation')};",
-                "args":[]})["value"]
+                "script":"const messages=Array.from(document.querySelectorAll('#chat-history article.message-row:not([aria-label])')).map(x=>x.querySelector('.message-content')?.textContent||'');const actual=messages[messages.length-2]||'';const expected=arguments[0];const norm=x=>x.replace(/\\r\\n?/g,'\\n');let mismatch=-1;for(let i=0;i<Math.min(actual.length,expected.length);i++){if(actual[i]!==expected[i]){mismatch=i;break;}}return {messages,elapsed_ms:performance.now()-window.__rvTurnStart,conversation:localStorage.getItem('rv.grace.conversation'),userExact:norm(actual)===norm(expected),userMultiline:actual.includes(String.fromCharCode(10)),userMismatchIndex:mismatch,actualCode:mismatch<0?null:actual.charCodeAt(mismatch),expectedCode:mismatch<0?null:expected.charCodeAt(mismatch)};",
+                "args":[message]})["value"]
             return {"elapsed_wall_ms":round((time.monotonic()-started)*1000,2),
                 "browser_elapsed_ms":round(values["elapsed_ms"],2),
                 "conversation_id":values["conversation"],
-                "last_message":str(values["messages"][-1])[:500]}
+                "last_message_chars":len(str(values["messages"][-1])),
+                "last_message_complete":bool(values["messages"][-1].strip()),
+                "user_message_chars":len(str(values["messages"][-2])),
+                "user_message_exactly_rendered":values["userExact"],
+                "user_message_multiline_rendered":values["userMultiline"],
+                "user_message_mismatch_index":values["userMismatchIndex"],
+                "processing_indicator_observed":bool(before.get("value", {}).get("processing"))}
 
-        first = browser_turn("Hi Grace. Reply with one short greeting and identify your resident role.")
+        long_message = "Hi Grace. Reply with one short greeting and identify your resident role.\nPlease preserve this second line in the conversation history.\n" + ("Bounded engineering context for layout verification. " * 11) + "Bounded engineering context for layout verification."
+        first = browser_turn(long_message)
         report["turns"].append({"phase":"first_browser_inference",**first})
+        if (first["last_message_chars"] < 1 or not first["last_message_complete"]
+                or not first["user_message_exactly_rendered"] or not first["user_message_multiline_rendered"]):
+            raise RuntimeError("complete model response or long multiline Steward message was not rendered")
+        _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"document.querySelector('.chat-more summary').click();document.querySelector('[data-chat-option=details]').click();","args":[]})
+        detail_checks = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"const d=document.getElementById('chat-details-content').innerText;return {conversationId:d.includes(arguments[0]),servedModel:d.includes('qwen3-0.6b-q8_0-local'),utcIncluded:d.includes('UTC'),status:d.includes('Response complete')};",
+            "args":[first["conversation_id"]]})["value"]
+        if not all(detail_checks.values()):
+            raise RuntimeError("Chat Details did not match persisted conversation/model/status metadata")
+        report["ui_checks"]["chat_details_accuracy"] = "PASS"
+        _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"document.querySelector('#chat-details-dialog [data-close-dialog]').click();","args":[]})
+        message_actions = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"const row=document.querySelector('#chat-history .message-row.grace:not([aria-label])');row.querySelector('.message-actions summary').click();row.querySelector('[data-message-details]').click();return {dialog:document.getElementById('message-details-dialog').open,hasTimestamp:document.getElementById('message-details-content').innerText.includes('Timestamp'),hasModel:document.getElementById('message-details-content').innerText.includes('Model')};",
+            "args":[]})["value"]
+        if not message_actions["dialog"] or not message_actions["hasTimestamp"] or not message_actions["hasModel"]:
+            raise RuntimeError("message details omitted timestamp or model provenance")
+        report["ui_checks"]["message_details"] = "PASS"
+        _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"document.querySelector('#message-details-dialog [data-close-dialog]').click();","args":[]})
+        _wait_browser(browser_base, browser_session, "!document.getElementById('message-details-dialog').open")
+        _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"document.querySelector('#chat-history .message-row.grace:not([aria-label]) .message-actions summary').scrollIntoView({block:'center'});","args":[]})
+        _click_browser_selector(browser_base, browser_session,
+            "#chat-history .message-row.grace:not([aria-label]) .message-actions summary")
+        _click_browser_selector(browser_base, browser_session,
+            "#chat-history .message-row.grace:not([aria-label]) [data-message-copy]")
+        _wait_browser(browser_base, browser_session,
+            "['Copied to clipboard.','Clipboard access unavailable.'].includes(document.getElementById('toast').textContent)",timeout=5)
+        copied = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"return document.getElementById('toast').textContent;","args":[]})["value"]
+        if copied != "Copied to clipboard.":
+            raise RuntimeError("message copy action did not report a local clipboard copy")
+        report["ui_checks"]["message_copy"] = "PASS"
+        composer_behavior = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"document.querySelector('#message-details-dialog [data-close-dialog]').click();const box=document.getElementById('chat-message');box.value='first';box.dispatchEvent(new Event('input'));const before=document.querySelectorAll('#chat-history .message-row:not([aria-label])').length;box.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',shiftKey:true,bubbles:true,cancelable:true}));const unchanged=document.querySelectorAll('#chat-history .message-row:not([aria-label])').length===before;document.getElementById('chat-newline').click();return {shiftEnterDidNotSubmit:unchanged,newlineInserted:box.value.includes(String.fromCharCode(10)),height:parseFloat(box.style.height)};",
+            "args":[]})["value"]
+        if not composer_behavior["shiftEnterDidNotSubmit"] or not composer_behavior["newlineInserted"]:
+            raise RuntimeError("multiline composer newline/send behavior is incorrect")
+        composer_check = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"const box=document.getElementById('chat-message');return {draftPreserved:box.value.length>0,expanded:parseFloat(box.style.height)>=56};",
+            "args":[]})["value"]
+        report["ui_checks"]["composer"] = composer_check
+        _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"document.getElementById('chat-message').value='';document.getElementById('chat-message').dispatchEvent(new Event('input'));",
+            "args":[]})
         conversation_id = first["conversation_id"]
         if not conversation_id:
             raise RuntimeError("browser did not retain the conversation identifier")

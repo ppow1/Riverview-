@@ -4538,16 +4538,19 @@
     },
     {
       "graph_id": "rv:resident-conversation:browser-chat",
-      "graph_revision": "1.0.1",
+      "graph_revision": "1.0.2",
       "component_id": "RESIDENT-CONVERSATION",
       "workflow_id": "resident.conversation.v1",
       "diagram_order": 14,
       "source_references": [
+        "scripts/verify_grace_conversation_browser.py",
+        "src/riverview_core/local_reasoning_provider.py",
         "src/riverview_core/resident_execution/conversation.py",
         "src/riverview_core/resident_execution/migrations/0003_resident_conversation.sql",
-        "src/riverview_core/local_reasoning_provider.py",
         "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.css",
         "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/static/index.html",
         "tests/test_resident_conversation.py"
       ],
       "documentation_references": [
@@ -4556,10 +4559,11 @@
         "docs/components/STATUS_DASHBOARD.md"
       ],
       "verification_evidence": [
-        "tests/test_resident_conversation.py",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/browser-commissioning.json",
+        "scripts/verify_grace_conversation_browser.py",
         "tests/test_local_reasoning_provider.py",
-        "tests/test_status_dashboard.py",
-        "evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/browser-commissioning.json"
+        "tests/test_resident_conversation.py",
+        "tests/test_status_dashboard.py"
       ],
       "nodes": [
         {
@@ -4795,6 +4799,91 @@
             "docs/components/GRACE_EXECUTION_PIPELINE.md"
           ],
           "verification_evidence": []
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:browser-render",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Render complete persisted messages with role, status, timestamp and provenance",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/index.html",
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/status_dashboard/static/app.css"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_grace_conversation_browser.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:composer",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Keep an editable local draft; Enter submits and Shift+Enter inserts a line break",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/index.html",
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/status_dashboard/static/app.css"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_grace_conversation_browser.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:chat-details",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Show persisted conversation metadata with local and UTC timestamps",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/index.html",
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/status_dashboard/static/app.css"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_grace_conversation_browser.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:message-actions",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Allow local copy and detail inspection without forwarding private content",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/index.html",
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/status_dashboard/static/app.css"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_grace_conversation_browser.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:responsive-a11y",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Keep message text and controls accessible on narrow and desktop viewports",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/index.html",
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/status_dashboard/static/app.css"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_grace_conversation_browser.py"
+          ]
         }
       ],
       "edges": [
@@ -4903,6 +4992,31 @@
           "to": "rv:grace:operational-integration:objective-intake",
           "type": "jump",
           "label": "Separate explicit objective path; no conversation-triggered call"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:browser-history",
+          "to": "rv:resident-conversation:browser-chat:browser-render",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:browser-render",
+          "to": "rv:resident-conversation:browser-chat:composer",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:browser-render",
+          "to": "rv:resident-conversation:browser-chat:chat-details",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:browser-render",
+          "to": "rv:resident-conversation:browser-chat:message-actions",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:browser-render",
+          "to": "rv:resident-conversation:browser-chat:responsive-a11y",
+          "type": "verification"
         }
       ]
     },
@@ -8461,18 +8575,23 @@
     "rv:repository-knowledge-provider:pinned-worker-contracts:worker-wait",
     "rv:resident-conversation:browser-chat:binding-recheck",
     "rv:resident-conversation:browser-chat:browser-history",
+    "rv:resident-conversation:browser-chat:browser-render",
     "rv:resident-conversation:browser-chat:browser-submit",
+    "rv:resident-conversation:browser-chat:chat-details",
+    "rv:resident-conversation:browser-chat:composer",
     "rv:resident-conversation:browser-chat:context-bound",
     "rv:resident-conversation:browser-chat:dashboard-auth",
     "rv:resident-conversation:browser-chat:deny",
     "rv:resident-conversation:browser-chat:exact-grant",
     "rv:resident-conversation:browser-chat:future-objective-jump",
     "rv:resident-conversation:browser-chat:inference",
+    "rv:resident-conversation:browser-chat:message-actions",
     "rv:resident-conversation:browser-chat:office-binding",
     "rv:resident-conversation:browser-chat:persist-response",
     "rv:resident-conversation:browser-chat:persist-user",
     "rv:resident-conversation:browser-chat:provider-failure",
     "rv:resident-conversation:browser-chat:provider-match",
+    "rv:resident-conversation:browser-chat:responsive-a11y",
     "rv:resident-conversation:browser-chat:restart-recovery",
     "rv:resident-reasoning:runtime:authority-denied",
     "rv:resident-reasoning:runtime:authority-gate",

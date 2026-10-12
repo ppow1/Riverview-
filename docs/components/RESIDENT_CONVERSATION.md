@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.8
+File Revision: 1.0.9
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -14,6 +14,7 @@ Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Record successful Camrui
 Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Record live pending-turn interruption recovery and verified browser rendering
 Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Reproduce exact predecessor six-versus-four event visibility gap in isolated PostgreSQL
 Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Retain the exact predecessor reproduction source and sanitized result
+Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Specify complete conversational rendering, accessible controls, factual details, and safe copy behavior
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
@@ -53,6 +54,18 @@ For an isolated development run, the previously installed Qwen3-0.6B Q8_0 GGUF i
 
 The dashboard service enables chat only when its protected `resident-token`, office ID, loopback model endpoint, model identifier, and SHA configuration are all present. Database migrations are an explicit operator action; API startup never applies schema changes. No unit file, installed service, shared database, secret, or running model was modified for this implementation.
 
+## Browser conversation workspace
+
+The Talk with Grace view renders every persisted Steward and Grace message in separate responsive bubbles. Content is escaped as text, preserves line breaks and paragraphs, wraps long unbroken strings, and is not shortened with ellipses. The history pane scrolls vertically; refresh reloads the authoritative event history. New content scrolls into view only when the reader was already near the bottom. Interrupted and failed turns remain visible as distinct system messages, and an active request shows a generating indicator.
+
+The multiline composer grows with entered text up to a viewport-bounded height. Enter submits and Shift+Enter inserts a newline; the visible “Insert line break” button provides a touch-friendly alternative. Submission disables duplicate sends. An unsent draft is kept in the browser session's sessionStorage under the conversation identifier and is cleared only after the API acknowledges a response. A failed request keeps the typed text and instructs the user to refresh before retrying because the request may already be durable.
+
+The three-dot menu beside Send provides factual conversation details from persisted conversation/event metadata: identifier, creation and activity times, current turn status, latest model/provider/revision, measured duration when event timestamps permit it, and recorded interruption information. Local timestamps include UTC in details. Each message menu provides details, copy text, and copy persisted event sequence where available. Copy is local to the user's clipboard; it does not forward or transmit content. The UI does not edit committed events. Historical edit/resubmit, forwarding, attachments, image upload/generation, and engineering-proposal actions remain disabled or explicitly unavailable; ordinary chat never grants work authority.
+
+Keyboard focus is returned to the opening control after dialogs close, and native details/summary controls support keyboard activation. Layout adapts to narrow viewports and keeps message text and composer controls within the viewport. Copy uses the browser Clipboard API with a local document-copy fallback. No credential value is placed in message metadata or operational logs.
+
+The UI can later host an inline engineering proposal card, but no approval card, objective creation, or executor is implied by this presentation change. Proposal generation and governed approval remain owned by the separate conversation-to-engineering integration. Actual assistant output length remains bounded by the bound provider's configured output limit; layout tests do not claim the model produced that length.
+
 ## Recovery and troubleshooting
 
 | Symptom | Diagnostic | Expected interpretation | Safe recovery | Escalate when |
@@ -80,3 +93,22 @@ The exact original six-versus-four symptom was reproduced against preserved pre-
 The CPU inference service is a transient systemd unit bound to loopback and is not configured to restart on host reboot. Dashboard restart recovery was tested while that model unit remained active; host-reboot model recovery is not claimed. An alternate real model was not used. Conversation privacy/retention policy approval, multi-process connection coordination, formal M3.4 sequencing decision, and full Component Definition of Done remain open. This live commissioning is technical evidence only; it does not itself claim formal roadmap acceptance.
 
 Process graph: [`RESIDENT_CONVERSATION_FLOW.md`](RESIDENT_CONVERSATION_FLOW.md), graph ID `rv:resident-conversation:browser-chat`.
+
+
+## 2026-10-12 interface refinement verification
+
+A Firefox/WebDriver integration run exercised the changed browser workspace against a
+disposable PostgreSQL schema and the already-running local CPU model. It verified a real
+model response, exact rendering of a 770-character multiline user message, persisted
+history after refresh, explicit interruption after a controlled supporting-service
+restart, a successful follow-up response, independent PostgreSQL event counts, unauthorized
+403, factual conversation/model details, message details and local Copy, composer
+processing and multiline behavior, and long-message wrapping. It created no objectives.
+The report is
+[`browser-commissioning.json`](../../evidence/checkouts/RESIDENT-CONVERSATION/20261012T-ui-refinement-isolated-13/browser-commissioning.json).
+The same isolated environment ran the full automated suite: 228 passed, no skips or
+failures; graph and revision checks passed. The browser's minimum window was 500 CSS
+pixels, so the handset-sized 390-pixel Windows/mobile viewport remains to be checked on
+the Steward's device. This is isolated candidate evidence and does not constitute live
+Windows access verification, deployment commissioning, formal milestone acceptance, or
+full Component Definition of Done.

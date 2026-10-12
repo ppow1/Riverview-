@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION_FLOW.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.2
+File Revision: 1.0.3
 Purpose: Generated focused flow for persistent Grace browser conversation
 Authority: Canonical graph JSON; diagram generated and not hand-edited
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Register generated chat workflow view
@@ -32,6 +32,11 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_restart_recovery_57f09430["After service restart mark unfinished request interrupted without automatic duplicate inference"]
     g_rv_resident_conversation_browser_chat_browser_history_c2d99277(["Return durable response/status and render persisted conversation in dashboard"])
     g_rv_resident_conversation_browser_chat_future_objective_jump_be36018d["Future explicit authorization remains a separate objective submission path"]
+    g_rv_resident_conversation_browser_chat_browser_render_ce223021["Render complete persisted messages with role, status, timestamp and provenance"]
+    g_rv_resident_conversation_browser_chat_composer_47498ab0["Keep an editable local draft; Enter submits and Shift+Enter inserts a line break"]
+    g_rv_resident_conversation_browser_chat_chat_details_710b7072["Show persisted conversation metadata with local and UTC timestamps"]
+    g_rv_resident_conversation_browser_chat_message_actions_c4e90ab2["Allow local copy and detail inspection without forwarding private content"]
+    g_rv_resident_conversation_browser_chat_responsive_a11y_4d7e53d6["Keep message text and controls accessible on narrow and desktop viewports"]
   end
   g_rv_grace_operational_integration_objective_intake_55567c14["Registered target<br/>rv:grace:operational-integration"]
   g_rv_resident_conversation_browser_chat_browser_submit_e4a0bb86 --> g_rv_resident_conversation_browser_chat_dashboard_auth_1ec7b499
@@ -53,5 +58,10 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_restart_recovery_57f09430 -->|recovery_route| g_rv_resident_conversation_browser_chat_browser_history_c2d99277
   g_rv_resident_conversation_browser_chat_browser_history_c2d99277 -->|documentation: Conversation does not promote work| g_rv_resident_conversation_browser_chat_future_objective_jump_be36018d
   g_rv_resident_conversation_browser_chat_future_objective_jump_be36018d -->|jump: Separate explicit objective path; no conversation-triggered call| g_rv_grace_operational_integration_objective_intake_55567c14
+  g_rv_resident_conversation_browser_chat_browser_history_c2d99277 --> g_rv_resident_conversation_browser_chat_browser_render_ce223021
+  g_rv_resident_conversation_browser_chat_browser_render_ce223021 --> g_rv_resident_conversation_browser_chat_composer_47498ab0
+  g_rv_resident_conversation_browser_chat_browser_render_ce223021 --> g_rv_resident_conversation_browser_chat_chat_details_710b7072
+  g_rv_resident_conversation_browser_chat_browser_render_ce223021 --> g_rv_resident_conversation_browser_chat_message_actions_c4e90ab2
+  g_rv_resident_conversation_browser_chat_browser_render_ce223021 -->|verification| g_rv_resident_conversation_browser_chat_responsive_a11y_4d7e53d6
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

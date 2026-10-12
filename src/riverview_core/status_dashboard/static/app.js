@@ -1,5 +1,5 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.0.7
+// Revision: 1.0.9
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -7,7 +7,7 @@
     assignments: [], events: [], attention: [], attentionStatus: "unknown", workers: [], assignmentCursor: null,
     workerCursor: null, eventCursor: 0, olderEventCursor: null, notifications: [], notificationStatus: "unknown", activeView: "overview",
     objectives: [], recentErrors: [], navSamples: [], lastFetch: 0, timer: null,
-    chatConversationId: localStorage.getItem("rv.grace.conversation") || ""};
+    chatConversationId: localStorage.getItem("rv.grace.conversation") || "", chatEvents: [], chatMeta: null, selectedEventId: null, chatInFlight: false, chatDialogReturnFocus: null};
   const esc = (value) => String(value ?? "—").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   const human = (value) => String(value || "unknown").replaceAll("_", " ").replaceAll(".", " · ");
   const api = async (path, timeout = 2600, method = "GET", options = {}) => {
@@ -255,23 +255,95 @@
   $("refresh-notifications").addEventListener("click", loadNotifications);
   $("refresh-objectives").addEventListener("click", loadObjectives);
   function chatAuthority() { return $("chat-authority").value.trim(); }
+  const chatTime = (value) => {
+    if (!value) return {local:"Unavailable",utc:"Unavailable"};
+    const date = new Date(value);
+    if (Number.isNaN(date.valueOf())) return {local:"Unavailable",utc:"Unavailable"};
+    return {local:date.toLocaleString(),utc:date.toISOString()};
+  };
+  function eventDuration(events,event) {
+    if (!event.request_id || event.event_type === "user_message") return null;
+    const user=events.find((candidate)=>candidate.request_id===event.request_id&&candidate.event_type==="user_message");
+    if (!user?.occurred_at || !event.occurred_at) return null;
+    const ms=new Date(event.occurred_at)-new Date(user.occurred_at);
+    return Number.isFinite(ms)&&ms>=0 ? `${(ms/1000).toFixed(1)} seconds` : null;
+  }
+  function conversationStatus(events) {
+    const terminal=new Set(events.filter((e)=>["assistant_message","response_failed","response_interrupted"].includes(e.event_type)).map((e)=>e.request_id));
+    const pending=events.some((e)=>e.event_type==="user_message"&&!terminal.has(e.request_id));
+    if (state.chatInFlight || pending) return "Generating response";
+    const last=[...events].reverse().find((e)=>["assistant_message","response_failed","response_interrupted"].includes(e.event_type));
+    if (!last) return events.length ? "Conversation open" : "No messages yet";
+    return last.event_type==="assistant_message" ? "Response complete" : last.event_type==="response_interrupted" ? "Response interrupted" : "Response failed";
+  }
+  function closeChatMenus(except=null) {
+    document.querySelectorAll(".message-actions[open],.chat-more[open]").forEach((menu)=>{if(menu!==except)menu.open=false;});
+  }
+  async function copyChatText(text) {
+    try { await navigator.clipboard.writeText(text); toast("Copied to clipboard."); }
+    catch (_) { const box=document.createElement("textarea");box.value=text;box.setAttribute("readonly","");box.style.position="fixed";box.style.opacity="0";document.body.append(box);box.select();const ok=document.execCommand("copy");box.remove();if(!ok)throw new Error("clipboard_unavailable");toast("Copied to clipboard."); }
+  }
+  function openChatDetails() {
+    state.chatDialogReturnFocus=document.activeElement;
+    const events=state.chatEvents||[];const latest=[...events].reverse().find((e)=>e.event_type==="assistant_message");
+    const interrupted=[...events].reverse().find((e)=>e.event_type==="response_interrupted");
+    const lastPersisted=events.length?events[events.length-1].occurred_at:null;
+    const created=chatTime(state.chatMeta?.created_at),updated=chatTime(state.chatMeta?.updated_at||lastPersisted);
+    const values=[
+      ["Conversation ID",state.chatConversationId||"Unavailable"],
+      ["Created",`${created.local} · UTC ${created.utc}`],
+      ["Last activity",`${updated.local} · UTC ${updated.utc}`],
+      ["Status",conversationStatus(events)],
+      ["Model identity",latest?.model_id||"Unavailable"],
+      ["Model revision",latest?.implementation_revision||"Unavailable"],
+      ["Provider",latest?.provider_ref||"Unavailable"],
+      ["Most recent response duration",latest?eventDuration(events,latest)||"Unavailable":"Unavailable"],
+      ["Last interrupted response",interrupted?`${chatTime(interrupted.occurred_at).local} · UTC ${chatTime(interrupted.occurred_at).utc} · ${interrupted.error_code||"reason unavailable"}`:"None recorded"],
+      ["Recovery",interrupted?"Interrupted turn persisted; response is not automatically replayed.":"No interruption recorded in loaded history."]
+    ];
+    $("chat-details-content").innerHTML=values.map(([label,value])=>`<div class="chat-detail"><div class="chat-detail-label">${esc(label)}</div><div class="chat-detail-value">${esc(value)}</div></div>`).join("");
+    $("chat-details-dialog").showModal();
+  }
+  function showMessageDetails(event) {
+    const time=chatTime(event.occurred_at),duration=eventDuration(state.chatEvents,event);
+    const values=[["Message ID",event.sequence??"Unavailable"],["Request ID",event.request_id||"Unavailable"],
+      ["Role",event.event_type||"Unavailable"],["Timestamp",`${time.local} · UTC ${time.utc}`],
+      ["Model",event.model_id||"Not applicable"],["Provider",event.provider_ref||"Not applicable"],
+      ["Model revision",event.implementation_revision||"Not applicable"],["Response duration",duration||"Unavailable"],
+      ["Outcome",event.error_code|| (event.event_type==="assistant_message"?"completed":event.event_type==="user_message"?"submitted":"unavailable")],
+      ["Message",event.body||event.error_code||"No response content was recorded."]];
+    $("message-details-content").innerHTML=values.map(([label,value])=>`<div class="chat-detail"><div class="chat-detail-label">${esc(label)}</div><div class="chat-detail-value ${label==="Message"?"message-detail-copy":""}">${esc(value)}</div></div>`).join("");
+    $("message-details-dialog").showModal();
+  }
+  function closeMessageMenus() {
+    document.querySelectorAll(".message-actions[open]").forEach((menu)=>{menu.open=false;});
+  }
   function renderConversation(events) {
-    const timeline = events.filter((event) => ["user_message","assistant_message","response_failed","response_interrupted"].includes(event.event_type));
-    const failures = timeline.map((event, index) => ({event,index})).filter(({event}) =>
-      ["response_failed","response_interrupted"].includes(event.event_type));
-    const latestUser = timeline.reduce((index,event,i) => event.event_type === "user_message" ? i : index, -1);
-    const latestAssistant = timeline.reduce((index,event,i) => event.event_type === "assistant_message" ? i : index, -1);
-    const currentFailure = failures.filter(({index}) => index > latestAssistant && index > latestUser).at(-1)?.event;
-    $("chat-history").innerHTML = timeline.length ? timeline.map((event) => {
-      const failed = ["response_failed","response_interrupted"].includes(event.event_type);
-      const label = event.event_type === "assistant_message" ? "Grace" :
-        event.event_type === "user_message" ? "You" : "Response status";
-      const content = failed ? `Response ${event.error_code || "unavailable"}; your message remains saved.` : event.body;
-      return `<article class="row"><strong>${label}</strong><div class="row-main" style="white-space:pre-wrap">${esc(content)}</div><span class="row-meta">${esc(when(event.occurred_at))} · ${esc(event.model_id || "conversation")}</span></article>`;
-    }).join("") : noData("No persisted messages in this conversation.");
-    $("chat-error").textContent = currentFailure ?
-      `Response ${currentFailure.error_code || "unavailable"}; your message remains saved.` : "";
-    $("chat-history").scrollTop = $("chat-history").scrollHeight;
+    state.chatEvents=events;
+    const host=$("chat-history"), wasNearBottom=host.scrollHeight-host.scrollTop-host.clientHeight<120;
+    const timeline=events.filter((event)=>["user_message","assistant_message","response_failed","response_interrupted"].includes(event.event_type));
+    const pendingIds=new Set(timeline.filter((e)=>e.event_type==="user_message").map((e)=>e.request_id));
+    for(const event of timeline.filter((e)=>["assistant_message","response_failed","response_interrupted"].includes(e.event_type)))pendingIds.delete(event.request_id);
+    host.innerHTML=timeline.length?timeline.map((event,index)=>{
+      const isUser=event.event_type==="user_message", failed=["response_failed","response_interrupted"].includes(event.event_type);
+      const role=isUser?"steward":failed?"system":"grace";
+      const label=isUser?"You":failed?(event.event_type==="response_interrupted"?"Interrupted":"Response status"):"Grace";
+      const time=chatTime(event.occurred_at),duration=eventDuration(events,event);
+      const status=isUser?(pendingIds.has(event.request_id)?"Awaiting response":"Submitted"):failed?(event.event_type==="response_interrupted"?"Interrupted":"Failed"):"Completed";
+      const body=failed?`Response ${event.error_code||"unavailable"}; your message remains saved.`:event.body||"";
+      const provenance=!isUser&&!failed?`${event.model_id||"Model unavailable"}${event.provider_ref?` · ${event.provider_ref}`:""}`:"";
+      return `<article class="message-row ${role}${pendingIds.has(event.request_id)?" pending":""}" data-message-row="${index}" data-event-id="${esc(event.sequence??event.request_id)}"><div class="message-bubble"><div class="message-meta"><strong class="message-speaker">${label}</strong><time datetime="${esc(event.occurred_at||"")}" title="UTC ${esc(time.utc)}">${esc(time.local)}</time>${duration?`<span>${esc(duration)}</span>`:""}<span class="message-state">${esc(status)}</span>${provenance?`<span>${esc(provenance)}</span>`:""}</div><div class="message-content">${esc(body)}</div></div><details class="message-actions"><summary aria-label="More options for ${label} message" title="Message options">⋯</summary><div class="message-action-menu" role="menu"><button type="button" role="menuitem" data-message-details="${index}">View message details</button><button type="button" role="menuitem" data-message-copy="${index}">Copy message text</button><button type="button" role="menuitem" data-message-id-copy="${index}" ${event.sequence==null?"disabled":""}>Copy message ID</button><button type="button" role="menuitem" disabled>Edit and resubmit — future capability</button><button type="button" role="menuitem" disabled>Forward / create engineering request — unavailable</button></div></details></article>`;
+    }).join(""):noData("No persisted messages in this conversation.");
+    if(state.chatInFlight||pendingIds.size){host.insertAdjacentHTML("beforeend",`<article class="message-row grace pending" aria-label="Grace is generating a response"><div class="message-bubble"><div class="message-state"><span>Grace is responding</span><span class="typing-dots" aria-hidden="true"><i class="typing-dot"></i><i class="typing-dot"></i><i class="typing-dot"></i></span></div></div></article>`);}
+    $("chat-state").textContent=conversationStatus(events);
+    const lastFailure=timeline.length&&["response_failed","response_interrupted"].includes(timeline[timeline.length-1].event_type)?timeline[timeline.length-1]:null;
+    $("chat-error").textContent=lastFailure?.error_code||"";
+    if(wasNearBottom||!host.dataset.initialized)host.scrollTop=host.scrollHeight;
+    host.dataset.initialized="true";
+    host.querySelectorAll("[data-message-row]").forEach((row)=>row.addEventListener("click",(event)=>{if(event.target.closest("details"))return;state.selectedEventId=row.dataset.eventId;host.querySelectorAll(".message-row").forEach((r)=>r.classList.toggle("selected",r===row));}));
+    host.querySelectorAll("[data-message-details]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageDetails)];state.chatDialogReturnFocus=button;if(ev)showMessageDetails(ev);closeMessageMenus();}));
+    host.querySelectorAll("[data-message-copy]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageCopy)];state.selectedEventId=String(ev?.sequence??ev?.request_id??"");if(ev)copyChatText(ev.body||ev.error_code||"").catch(()=>toast("Clipboard access unavailable."));closeMessageMenus();}));
+    host.querySelectorAll("[data-message-id-copy]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageIdCopy)];if(ev?.sequence!=null)copyChatText(String(ev.sequence)).catch(()=>toast("Clipboard access unavailable."));closeMessageMenus();}));
   }
   async function loadGraceConversation() {
     if (!chatAuthority()) { $("chat-state").textContent = "Enter an authorized conversation credential."; return; }
@@ -280,15 +352,19 @@
       const page = await api("/api/v1/resident/conversations", 10000, "GET", {authority:chatAuthority()});
       if (!state.chatConversationId && page.items?.length) state.chatConversationId = page.items[0].conversation_id;
       if (!state.chatConversationId) {
+        state.chatMeta=null;state.chatEvents=[];
         $("chat-title").textContent = "New Grace conversation";
         $("chat-history").innerHTML = noData("A conversation is created when you send the first message.");
       } else {
         localStorage.setItem("rv.grace.conversation", state.chatConversationId);
+        state.chatMeta=(page.items||[]).find((item)=>item.conversation_id===state.chatConversationId)||null;
         const history = await api(`/api/v1/resident/conversations/${encodeURIComponent(state.chatConversationId)}`, 10000, "GET", {authority:chatAuthority()});
         $("chat-title").textContent = `Conversation ${history.conversation_id}`;
         renderConversation(history.events || []);
+        if (!$("chat-message").value) $("chat-message").value=sessionStorage.getItem("rv.grace.draft."+state.chatConversationId)||"";
+        resizeChatComposer();
       }
-      $("chat-state").textContent = "History is loaded from PostgreSQL.";
+      if (!state.chatEvents.length) $("chat-state").textContent = "No saved messages yet.";
     } catch (error) {
       $("chat-state").textContent = "Conversation status unavailable.";
       $("chat-error").textContent = `History could not be loaded: ${error.message}. Check the exact conversation grant and service status.`;
@@ -297,21 +373,23 @@
   $("chat-authority").addEventListener("change", loadGraceConversation);
   $("chat-refresh").addEventListener("click", loadGraceConversation);
   $("chat-new").addEventListener("click", () => {
-    state.chatConversationId = ""; localStorage.removeItem("rv.grace.conversation");
+    state.chatConversationId = "";state.chatMeta=null;state.chatEvents=[]; localStorage.removeItem("rv.grace.conversation");
     $("chat-title").textContent = "New Grace conversation";
     $("chat-history").innerHTML = noData("A new persisted conversation will begin with your next message.");
     $("chat-error").textContent = "";
   });
   $("chat-form").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const authority = chatAuthority(); const message = $("chat-message").value.trim();
-    if (!authority || !message) { $("chat-error").textContent = "An authorized conversation credential and message are required."; return; }
-    const send = $("chat-send"); send.disabled = true; $("chat-state").textContent = "Grace is responding…"; $("chat-error").textContent = "";
+    const authority = chatAuthority(); const message = $("chat-message").value;
+    if (!authority || !message.trim()) { $("chat-error").textContent = "An authorized conversation credential and message are required."; return; }
+    const send = $("chat-send"); send.disabled = true;state.chatInFlight=true;send.textContent="Sending…";$("chat-state").textContent = "Your message is being processed."; $("chat-error").textContent = "";renderConversation(state.chatEvents);
     const clientMessageId = crypto.randomUUID();
     try {
       const result = await api("/api/v1/resident/conversations", 150000, "POST", {authority,
         body:{conversation_id:state.chatConversationId || null, client_message_id:clientMessageId, message}});
       state.chatConversationId = result.conversation_id; localStorage.setItem("rv.grace.conversation", state.chatConversationId);
+      sessionStorage.removeItem("rv.grace.draft."+state.chatConversationId);
+      sessionStorage.removeItem("rv.grace.draft.new");
       $("chat-message").value = ""; $("chat-state").textContent = `Response ${result.status}; request ${result.request_id}.`;
       await loadGraceConversation();
     } catch (error) {
@@ -320,7 +398,48 @@
       $("chat-state").textContent = "Message result requires inspection.";
       $("chat-error").textContent = `Grace response failed (${result.error_code || error.message}). The request may be persisted; refresh history before retrying.`;
       await loadGraceConversation();
-    } finally { send.disabled = false; }
+    } finally { state.chatInFlight=false;send.disabled = false;send.textContent="Send message";renderConversation(state.chatEvents); }
+  });
+  function resizeChatComposer() {
+    const box=$("chat-message");box.style.height="auto";
+    box.style.height=Math.min(box.scrollHeight,Math.floor(window.innerHeight*.35))+"px";
+  }
+  const composer=$("chat-message");
+  composer.addEventListener("input",()=>{resizeChatComposer();sessionStorage.setItem(state.chatConversationId?"rv.grace.draft."+state.chatConversationId:"rv.grace.draft.new",composer.value);});
+  composer.addEventListener("keydown",(event)=>{
+    if(event.key==="Enter"&&!event.shiftKey&&!event.isComposing){
+      event.preventDefault();
+      if($("chat-send").disabled)return;
+      if($("chat-form").requestSubmit)$("chat-form").requestSubmit();else $("chat-send").click();
+    }
+  });
+  $("chat-newline").addEventListener("click",()=>{
+    const start=composer.selectionStart,end=composer.selectionEnd,value=composer.value;
+    composer.value=value.slice(0,start)+"\n"+value.slice(end);
+    composer.selectionStart=composer.selectionEnd=start+1;
+    composer.dispatchEvent(new Event("input"));composer.focus();
+  });
+  if(!state.chatConversationId&&!composer.value)composer.value=sessionStorage.getItem("rv.grace.draft.new")||"";
+  resizeChatComposer();
+  document.querySelectorAll("[data-chat-option]").forEach((button)=>button.addEventListener("click",async()=>{
+    document.querySelectorAll(".chat-more[open]").forEach((menu)=>{menu.open=false;});
+    const option=button.dataset.chatOption;
+    if(option==="details"){state.chatDialogReturnFocus=button;openChatDetails();}
+    if(option==="copy-selected"){
+      const event=state.chatEvents.find((item)=>String(item.sequence??item.request_id)===String(state.selectedEventId));
+      if(!event){toast("Select a message before copying.");return;}
+      try{await copyChatText(event.body||event.error_code||"");}catch(_){toast("Clipboard access unavailable.");}
+    }
+    if(option==="copy-conversation"){
+      const transcript=state.chatEvents.filter((item)=>["user_message","assistant_message","response_failed","response_interrupted"].includes(item.event_type))
+        .map((item)=>(item.event_type==="user_message"?"Steward":"Grace")+" · "+chatTime(item.occurred_at).local+"\n"+(item.body||item.error_code||"")).join("\n\n");
+      try{await copyChatText(transcript);}catch(_){toast("Clipboard access unavailable.");}
+    }
+  }));
+  document.querySelectorAll("[data-close-dialog]").forEach((button)=>button.addEventListener("click",()=>button.closest("dialog").close()));
+  document.querySelectorAll("dialog.chat-dialog").forEach((dialog)=>{
+    dialog.addEventListener("click",(event)=>{if(event.target===dialog)dialog.close();});
+    dialog.addEventListener("close",()=>{if(state.chatDialogReturnFocus?.isConnected)state.chatDialogReturnFocus.focus();else {const trigger=document.querySelector("[data-chat-option='details']");if(trigger)trigger.focus();}state.chatDialogReturnFocus=null;});
   });
   $("snapshot").addEventListener("click", async () => {
     try {
