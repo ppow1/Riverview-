@@ -4538,7 +4538,7 @@
     },
     {
       "graph_id": "rv:resident-conversation:browser-chat",
-      "graph_revision": "1.0.4",
+      "graph_revision": "1.0.5",
       "component_id": "RESIDENT-CONVERSATION",
       "workflow_id": "resident.conversation.v1",
       "diagram_order": 14,
@@ -4564,7 +4564,8 @@
         "tests/test_local_reasoning_provider.py",
         "tests/test_resident_conversation.py",
         "tests/test_status_dashboard.py",
-        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json"
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-live-0382ce1/commissioning-summary.json"
       ],
       "nodes": [
         {
@@ -4901,7 +4902,8 @@
           "verification_evidence": [
             "tests/test_resident_conversation.py",
             "tests/test_status_dashboard.py",
-            "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json"
+            "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json",
+            "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-live-0382ce1/commissioning-summary.json"
           ]
         },
         {
@@ -4919,7 +4921,8 @@
           ],
           "verification_evidence": [
             "tests/test_resident_conversation.py",
-            "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json"
+            "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json",
+            "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-live-0382ce1/commissioning-summary.json"
           ]
         },
         {
@@ -4936,7 +4939,8 @@
           ],
           "verification_evidence": [
             "tests/test_resident_conversation.py",
-            "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json"
+            "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json",
+            "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-live-0382ce1/commissioning-summary.json"
           ]
         },
         {
@@ -4952,7 +4956,8 @@
           ],
           "verification_evidence": [
             "tests/test_status_dashboard.py",
-            "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json"
+            "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json",
+            "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-live-0382ce1/commissioning-summary.json"
           ]
         }
       ],

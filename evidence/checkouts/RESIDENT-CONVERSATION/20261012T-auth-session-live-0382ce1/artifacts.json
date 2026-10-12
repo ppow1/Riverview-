@@ -1,0 +1,11 @@
+{
+  "artifacts": {
+    "commissioning-summary.json": {
+      "path": "commissioning-summary.json",
+      "revision": "1.0.0",
+      "sha256": "4752f32d5eaf71812d7558e6573f0effca66d8a7aa4ff5267f67168f213fb55b",
+      "size_bytes": 5831
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

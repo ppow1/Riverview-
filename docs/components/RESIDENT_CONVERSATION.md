@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.3
+File Revision: 1.1.4
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -19,6 +19,7 @@ Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record dashboard-only live rele
 Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record deployed 390 CSS-pixel responsive fixture while retaining physical-device and Windows verification as pending
 Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Add persistent same-origin browser credential transport, exact-grant rechecks, and denial retry suppression
 Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Record diagnosed credential retention gap, grant audit, and browser restart evidence
+Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Record Camrui live Firefox inference, PostgreSQL durability, and dashboard restart recovery
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
@@ -59,6 +60,10 @@ The Windows snapshot at 02:33 UTC showed repeated 403 responses from the convers
 Read-only live verification through the protected authority function confirms the installed `steward:camrui` token currently receives ALLOW for both `resident.conversation.read` and `resident.conversation.send`, each scoped exactly to `office:office:grace`. No grant, principal, credential file, or database record was changed during that check. The fix establishes a 30-day host-only `Secure; HttpOnly; SameSite=Strict` cookie scoped to conversation API paths, only after both grants validate for one principal. The cookie contains the same registry credential, is inaccessible to page JavaScript, and grants no authority of its own; the same grants are checked on every request and revocation applies immediately. Dashboard bearer auth remains separately required. A stale/invalid browser token is rejected and automatic conversation retries stop.
 
 Isolated PostgreSQL + Firefox verification uses the real already-running loopback Qwen CPU service and demonstrates one initial denied request, no retry after six seconds and a tab switch, authorized cookie connection, real persisted model turns, page refresh and dashboard-process restart without credential re-entry, 403 for an explicit invalid header even when a cookie exists, logout clearing, and immediate rejection after test-credential revocation. Evidence: [`20261012T-auth-session-browser-isolated-1`](../../evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/). This is isolated commissioning evidence; Windows Steward browser confirmation remains distinct.
+
+The controlled Camrui release `m3.4-camrui-grace-auth-0382ce1` was then exercised in Firefox using the installed protected Steward credential (held in process memory and never emitted). The browser established the cookie, accessed the latest conversation, received a real `qwen3-0.6b-q8_0-local` response, returned HTTP 403 for an invalid explicit authority header, refreshed with history restored and the input cleared, then survived a dashboard service restart and completed another model turn without re-entry. A fresh independent PostgreSQL connection reconciled 5 user events, 4 assistant events, and the prior interrupted event; the latest assistant event carried the expected model ID, provider, and pinned model SHA. No database migration, grant, credential file, or other service was changed. Full evidence, including the pseudonymous conversation reference and rollback steps, is [`20261012T-auth-session-live-0382ce1`](../../evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-live-0382ce1/).
+
+This Camrui Firefox verification does not prove the Steward's Windows browser profile already has the new cookie. The Windows browser needs one explicit Connect using its current authorized credential if no valid browser credential is autofilled; after that, the cookie survives refreshes and dashboard releases until expiry or grant revocation. Do not copy the credential to chat, URLs, logs, or snapshots. Physical Windows-browser confirmation remains pending.
 
 ## Model adapter and binding
 
