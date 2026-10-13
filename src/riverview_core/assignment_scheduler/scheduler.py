@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/assignment_scheduler/scheduler.py
 # Component: ASSIGNMENT-SCHEDULER
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Claim ready assignments fairly and fence stale lease holders
 # Execution Model: PostgreSQL transactional request interface
 # Observability: Durable lease generations and causally linked ledger events
@@ -10,6 +10,7 @@
 # Authority: Does not validate grants or independently verify worker results
 # Changed: 2026-10-10 UTC | RV-M2.1-001 | Add scope-filtered lease claim integration
 # Contracts: docs/development/M1.4-001_REVISION_RECORD.md
+# Changed: 2026-10-13 UTC | RV-LEDGER-GRAPH-POSITION | Persist canonical assignment lifecycle node on lease-bound transitions
 # Tests: tests/test_assignment_scheduler.py
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -20,7 +21,7 @@ from datetime import timedelta
 from psycopg.rows import dict_row
 
 from ..ledger import TRANSITIONS
-from ..postgres_ledger import PostgresLedger
+from ..postgres_ledger import PostgresLedger, assignment_process_position
 
 
 class SchedulerError(RuntimeError):
@@ -146,17 +147,23 @@ class PostgresAssignmentScheduler:
                 existing = cur.fetchone()
                 if existing:
                     prior = existing["payload"]
+                    graph_id, node_id = assignment_process_position(to_state)
                     if (existing["assignment_id"] != assignment_id or
                             existing["event_type"] != "assignment.transitioned" or
                             prior.get("to") != to_state or prior.get("step") != step or
                             prior.get("actor_id") != worker_id or
                             prior.get("verified_claim") is not bool(verified) or
-                            prior.get("privacy_domain") != privacy_domain):
+                            prior.get("privacy_domain") != privacy_domain or
+                            (("process_graph_id" in prior or "process_node_id" in prior) and
+                             (prior.get("process_graph_id") != graph_id or
+                              prior.get("process_node_id") != node_id))):
                         raise SchedulerError("idempotency key collision")
                     return self.ledger.get(assignment_id)
                 payload = {"from": assignment["state"], "to": to_state, "step": step,
                            "actor_id": worker_id, "verified_claim": bool(verified),
                            "privacy_domain": privacy_domain}
+                graph_id, node_id = assignment_process_position(to_state)
+                payload.update({"process_graph_id": graph_id, "process_node_id": node_id})
                 if to_state not in TRANSITIONS[assignment["state"]]:
                     raise SchedulerError(f"invalid transition: {assignment['state']} -> {to_state}")
                 if to_state == "completed" and not verified:
@@ -164,8 +171,10 @@ class PostgresAssignmentScheduler:
                 cur.execute("SELECT event_id FROM events WHERE assignment_id=%s ORDER BY seq DESC LIMIT 1",
                             (assignment_id,))
                 cause = cur.fetchone()["event_id"]
-                cur.execute("UPDATE assignments SET state=%s,workflow_step=%s,updated_at=clock_timestamp(),version=version+1 WHERE id=%s",
-                            (to_state, step, assignment_id))
+                cur.execute("""UPDATE assignments SET state=%s,workflow_step=%s,
+                    process_graph_id=%s,process_node_id=%s,updated_at=clock_timestamp(),
+                    version=version+1 WHERE id=%s""",
+                    (to_state, step, graph_id, node_id, assignment_id))
                 self.ledger._append_event(
                     cur, assignment_id=assignment_id, event_type="assignment.transitioned",
                     idempotency_key=idempotency_key, actor_id=worker_id,

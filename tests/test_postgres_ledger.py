@@ -2,13 +2,15 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_postgres_ledger.py
 # Component: POSTGRES-LEDGER
-# Revision: 1.1.3
+# Revision: 1.1.5
 # Purpose: Verify migration safety and durable PostgreSQL assignment/event behavior
 # Execution Model: Request-driven tests against isolated disposable schemas
 # Observability: unittest results and PostgreSQL records
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL test database
 # Authority: Creates and drops only uniquely named rvtest_* schemas
 # Changed: 2026-10-10 UTC | RV-M1.2-001 | Exercise versioned schema and contract metadata
+# Changed: 2026-10-13 UTC | RV-LEDGER-GRAPH-POSITION | Verify durable graph/node identity on creation and transitions
+# Changed: 2026-10-13 UTC | RV-LEDGER-GRAPH-POSITION-UNIT | Verify the complete state-to-node mapping without PostgreSQL
 # Contracts: docs/components/POSTGRES_LEDGER.md; docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md
 # Tests: This file
 # History: .riverview-backups/manifest.jsonl and Git
@@ -57,7 +59,8 @@ class PostgresLedgerTests(unittest.TestCase):
     def test_versioned_migration_is_idempotent_and_rejects_drift(self):
         from riverview_core.postgres_migrations import MigrationError, apply_migrations
 
-        self.assertEqual(self.migrations, ["0001_assignment_event_ledger"])
+        self.assertEqual(self.migrations, ["0001_assignment_event_ledger",
+                                           "0002_assignment_process_position"])
         self.assertEqual(apply_migrations(DSN, schema=self.schema), [])
         original = Path(__file__).resolve().parents[1] / "src/riverview_core/migrations"
         with tempfile.TemporaryDirectory() as temp:
@@ -79,6 +82,10 @@ class PostgresLedgerTests(unittest.TestCase):
         self.assertEqual(created["authority_ref"], "grant:engineering")
         self.assertEqual(created["objective_ref"], "objective:521")
         self.assertEqual(created["workflow_id"], "workflow:first-slice")
+        self.assertEqual(created["process_graph_id"],
+                         "rv:postgres-ledger:assignment-lifecycle")
+        self.assertEqual(created["process_node_id"],
+                         "rv:postgres-ledger:assignment-lifecycle:queued")
         self.assertEqual(len(self.ledger.events()), 1)
 
         self.ledger.transition("521", "ready", "dispatch", "ready-521", actor_id="worker:one")
@@ -89,6 +96,12 @@ class PostgresLedgerTests(unittest.TestCase):
         assignment = self.ledger.get("521")
         events = self.ledger.events()
         self.assertEqual(assignment["state"], "running")
+        self.assertEqual(assignment["process_node_id"],
+                         "rv:postgres-ledger:assignment-lifecycle:running")
+        self.assertEqual(events[-1]["payload"]["process_graph_id"],
+                         "rv:postgres-ledger:assignment-lifecycle")
+        self.assertEqual(events[-1]["payload"]["process_node_id"],
+                         "rv:postgres-ledger:assignment-lifecycle:running")
         self.assertEqual(assignment["version"], 3)
         self.assertEqual(len(events), 3)
         self.assertEqual(events[0]["schema"], "rv.event.v1")
@@ -149,6 +162,27 @@ class PostgresLedgerTests(unittest.TestCase):
                                actor_id="worker:two", verified=True)
         self.assertEqual(self.ledger.get("522")["state"], "completed")
         self.assertTrue(self.ledger.events()[-1]["payload"]["verified_claim"])
+
+
+class AssignmentProcessPositionTests(unittest.TestCase):
+    def test_every_assignment_state_maps_to_one_canonical_ledger_node(self):
+        from riverview_core.postgres_ledger import (
+            ASSIGNMENT_LIFECYCLE_GRAPH_ID, assignment_process_position,
+        )
+        expected = {
+            "queued": "queued", "ready": "ready", "running": "running",
+            "awaiting_verification": "awaiting-verification",
+            "rework_required": "rework", "blocked": "blocked",
+            "awaiting_steward": "awaiting-steward", "completed": "completed",
+            "cancelled": "cancelled",
+        }
+        for state, suffix in expected.items():
+            with self.subTest(state=state):
+                self.assertEqual(assignment_process_position(state),
+                    (ASSIGNMENT_LIFECYCLE_GRAPH_ID,
+                     f"{ASSIGNMENT_LIFECYCLE_GRAPH_ID}:{suffix}"))
+        with self.assertRaisesRegex(ValueError, "no canonical process node"):
+            assignment_process_position("unknown")
 
 
 if __name__ == "__main__":

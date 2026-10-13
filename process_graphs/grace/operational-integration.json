@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:grace:operational-integration",
-  "graph_revision": "1.1.3",
+  "graph_revision": "1.1.5",
   "component_id": "RESIDENT-ORCHESTRATION",
   "workflow_id": "grace-engineering-objective.v1",
   "diagram_order": 9,
@@ -501,11 +501,13 @@
     },
     {
       "id": "rv:grace:operational-integration:codex-capability-check",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "decision",
-      "label": "NOT COMMISSIONED — determine whether the versioned Codex artifact capability is registered and usable",
+      "label": "SOURCE INTEGRATED — exact Codex artifact capability is registered through the existing worker registry; deployment remains blocked on service identity and grants",
       "source_references": [
         "src/riverview_core/resident_execution/codex_cli.py",
+        "src/riverview_core/resident_execution/codex_workflow.py",
+        "src/riverview_core/worker_adapter/adapter.py",
         "tests/test_codex_cli_adapter.py"
       ],
       "documentation_references": [
@@ -518,11 +520,14 @@
     },
     {
       "id": "rv:grace:operational-integration:codex-resource-check",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.2",
       "type": "decision",
-      "label": "NOT READY — require dedicated service identity/CODEX_HOME, pinned executable, isolated workspace, capacity, and fresh dependency evidence",
+      "label": "COMMISSIONING BLOCKED — startup checks dedicated executable/CODEX_HOME, pinned repository, isolated workspace and artifact directory; live dependency readiness awaits a service heartbeat",
       "source_references": [
         "src/riverview_core/resident_execution/codex_cli.py",
+        "scripts/run_grace_execution_service.py",
+        "deploy/systemd/riverview-grace-execution.service",
+        "deploy/grace-execution.env.example",
         "tests/test_codex_cli_adapter.py"
       ],
       "documentation_references": [
@@ -535,11 +540,13 @@
     },
     {
       "id": "rv:grace:operational-integration:codex-authority-gate",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.2",
       "type": "decision",
-      "label": "NOT ENABLED — exact worker.register and assignment.execute grants must be active for the Engineering scope",
+      "label": "FAIL CLOSED — existing worker.register and assignment.execute checks remain mandatory in the exact Engineering scope",
       "source_references": [
-        "src/riverview_core/resident_execution/codex_cli.py"
+        "src/riverview_core/resident_execution/codex_cli.py",
+        "src/riverview_core/worker_adapter/adapter.py",
+        "deploy/grace-execution.env.example"
       ],
       "documentation_references": [
         "docs/components/GRACE_EXECUTION_PIPELINE.md",
@@ -549,11 +556,14 @@
     },
     {
       "id": "rv:grace:operational-integration:codex-cli-run",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "process",
-      "label": "SOURCE ONLY — run one pinned-repository Codex job in a fresh workspace with network disabled and fixed deliverable path",
+      "label": "INTEGRATED SOURCE — persistent leased worker can run the pinned-repository Codex job in a fresh workspace with network disabled and fixed deliverable path",
       "source_references": [
         "src/riverview_core/resident_execution/codex_cli.py",
+        "src/riverview_core/resident_execution/codex_workflow.py",
+        "src/riverview_core/resident_execution/service.py",
+        "scripts/run_grace_execution_service.py",
         "tests/test_codex_cli_adapter.py"
       ],
       "documentation_references": [
@@ -565,11 +575,13 @@
     },
     {
       "id": "rv:grace:operational-integration:codex-artifact-verification",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "verification",
-      "label": "NOT INTEGRATED — independent verifier must reopen the output and evaluate the registered acceptance procedure before completion",
+      "label": "INTEGRATED SOURCE — separate verifier reopens the assignment-bound Markdown artifact and checks mode, size, digest, provenance and literal acceptance criteria",
       "source_references": [
         "src/riverview_core/resident_execution/codex_cli.py",
+        "src/riverview_core/resident_execution/codex_workflow.py",
+        "src/riverview_core/resident_execution/service.py",
         "tests/test_codex_cli_adapter.py"
       ],
       "documentation_references": [
@@ -587,6 +599,7 @@
       "label": "Codex preflight, authorization, timeout, output bounds, or workspace integrity failed; assignment must remain durable and non-complete",
       "source_references": [
         "src/riverview_core/resident_execution/codex_cli.py",
+        "src/riverview_core/resident_execution/codex_workflow.py",
         "tests/test_codex_cli_adapter.py"
       ],
       "documentation_references": [
@@ -603,6 +616,7 @@
       "label": "PLANNED — retain objective and assignment; resume only after resource or authority regrounding through normal CME recovery",
       "source_references": [
         "src/riverview_core/resident_execution/codex_cli.py",
+        "src/riverview_core/resident_execution/codex_workflow.py",
         "tests/test_codex_cli_adapter.py"
       ],
       "documentation_references": [

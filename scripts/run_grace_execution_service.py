@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.1
+# Revision: 1.0.3
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd-supervised repeated PostgreSQL polling
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -11,6 +11,8 @@
 # Authority: Exact grants for Grace dispatch, executor registration/execution, and verification
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Add supervised runtime entry point
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Bind runtime to current Grace office grant and persisted office state
+# Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Select bounded Codex worker/verifier only from explicit service configuration
+# Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH-CREDENTIAL | Load the dedicated Codex API key from systemd credentials without logging it
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -34,6 +36,9 @@ from riverview_core.resident_execution import GraceExecutionPipeline
 from riverview_core.resident_execution.pipeline import ObjectiveContextReader
 from riverview_core.resident_execution.service import GraceExecutionService
 from riverview_core.resident_execution.worker import BoundedLocalCodingWorker
+from riverview_core.resident_execution.codex_cli import CAPABILITY as CODEX_CAPABILITY
+from riverview_core.resident_execution.codex_cli import CodexCLIExecutionAdapter
+from riverview_core.resident_execution.codex_workflow import CodexMarkdownVerifier, CodexWorkAction
 from riverview_core.worker_adapter import ContinuousWorker, PostgresWorkerAdapter
 from riverview_core.worker_adapter.repository_knowledge import RepositoryKnowledgeProvider
 from riverview_core.worker_adapter.resident_knowledge import TaskRelevantRepositoryKnowledgeProvider
@@ -90,15 +95,46 @@ def main() -> int:
             resident_credential=resident_token, assignments=ObjectiveContextReader(pipeline),
             knowledge=resident_knowledge, providers=providers,
             timeout_seconds=float(os.environ.get("RIVERVIEW_RESIDENT_REASONING_TIMEOUT", "5")))
+        adapter_mode = os.environ.get("RIVERVIEW_ENGINEERING_ADAPTER", "bounded-artifact")
+        execution_capability = "engineering.bounded-artifact.v1"
+        execution_action = BoundedLocalCodingWorker(pipeline, artifact_root)
+        outcome_verifier = None
+        if adapter_mode == "codex-cli":
+            executable = os.environ.get("RIVERVIEW_CODEX_EXECUTABLE", "")
+            codex_home = os.environ.get("RIVERVIEW_CODEX_HOME", "")
+            codex_workspace = os.environ.get("RIVERVIEW_CODEX_WORKSPACE_DIR", "")
+            codex_repository = os.environ.get("RIVERVIEW_CODEX_REPOSITORY_PATH", "")
+            repository_reference = os.environ.get("RIVERVIEW_CODEX_REPOSITORY_REF", "")
+            if not all((executable, codex_home, codex_workspace, codex_repository,
+                        repository_reference)):
+                raise WorkerServiceConfigurationError("codex_adapter_configuration_incomplete")
+            codex_adapter = CodexCLIExecutionAdapter(
+                executable=executable, repository_path=codex_repository,
+                repository_reference=repository_reference, codex_home=codex_home,
+                workspace_root=codex_workspace, artifact_root=artifact_root,
+                api_key=read_worker_credential(SERVICE_UNIT, "codex-api-key"))
+            if Path(executable).resolve().is_relative_to(Path("/home/admin1").resolve()):
+                raise WorkerServiceConfigurationError("personal_codex_executable_forbidden")
+            try:
+                codex_adapter._preflight()
+            except Exception:
+                raise WorkerServiceConfigurationError("codex_adapter_resource_preflight_failed") from None
+            execution_capability = CODEX_CAPABILITY
+            execution_action = CodexWorkAction(
+                pipeline, codex_adapter, repository_reference,
+                timeout_seconds=int(os.environ.get("RIVERVIEW_CODEX_TIMEOUT_SECONDS", "180")))
+            outcome_verifier = CodexMarkdownVerifier(artifact_root)
+        elif adapter_mode != "bounded-artifact":
+            raise WorkerServiceConfigurationError("engineering_adapter_not_registered")
         ensure_registered(adapter, worker_id, worker_token,
-            ("engineering.bounded-artifact.v1",), scope_ref)
+            (execution_capability,), scope_ref)
         ensure_registered(adapter, verifier_id, verifier_token,
             ("assignment.verify.v1",), scope_ref)
         engine = ContinuousWorker(adapter, worker_id, worker_token,
             knowledge=RepositoryKnowledgeProvider(repo_root, commit),
-            action=BoundedLocalCodingWorker(pipeline, artifact_root),
-            action_effect_class="retry_safe",
-            action_capability="engineering.bounded-artifact.v1",
+            action=execution_action,
+            action_effect_class="external_uncertain" if adapter_mode == "codex-cli" else "retry_safe",
+            action_capability=execution_capability,
             recovery_max_retries=int(os.environ.get("RIVERVIEW_GRACE_MAX_WORKER_RECOVERIES", "3")))
         service = GraceExecutionService(pipeline, adapter, engine,
             dispatch_credential=dispatch_token, authority_ref=scope_ref,
@@ -106,7 +142,8 @@ def main() -> int:
             artifact_root=artifact_root,
             max_dispatch_failures=int(os.environ.get("RIVERVIEW_GRACE_MAX_DISPATCH_FAILURES", "3")),
             resident_reasoner=resident_reasoner,
-            resident_token_budget=int(os.environ.get("RIVERVIEW_RESIDENT_REASONING_TOKENS", "256")))
+            resident_token_budget=int(os.environ.get("RIVERVIEW_RESIDENT_REASONING_TOKENS", "256")),
+            verifier=outcome_verifier, execution_capability=execution_capability)
         stop = threading.Event()
         signal.signal(signal.SIGTERM, lambda *_: stop.set())
         signal.signal(signal.SIGINT, lambda *_: stop.set())
@@ -116,6 +153,7 @@ def main() -> int:
             "resident_occupant_id": office["occupant_id"],
             "resident_binding_revision": office["binding_revision"],
             "resident_provider_ref": office["provider_ref"],
+            "engineering_adapter": adapter_mode,
             "reasoning_provider_configured": bool(providers),
             "source_revision": commit, "scope_ref": scope_ref},
             sort_keys=True))

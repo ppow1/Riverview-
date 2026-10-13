@@ -1,8 +1,9 @@
 <!--
 Riverview~ Controlled Document
 File: docs/components/POSTGRES_LEDGER.md
-Revision: 1.0.6
+Revision: 1.0.7
 Migration: ENG-REV-002
+Changed: 2026-10-13 UTC | RV-LEDGER-GRAPH-POSITION | Persist canonical process graph/node identity on newly observed assignment lifecycle events
 -->
 # PostgreSQL assignment ledger — component contract
 
@@ -25,12 +26,13 @@ Before inserting any event, the writer also takes one transaction-scoped event-l
 
 ## Schema
 `schema_migrations`: version (PK), immutable source-file SHA-256 checksum, applied timestamp.
-`assignments`: id (PK), constrained state, owner, occupant_id, authority_ref, objective_ref, contract_ref, workflow_id, workflow_step, correlation_id, updated_at, version.
+`assignments`: id (PK), constrained state, owner, occupant_id, authority_ref, objective_ref, contract_ref, workflow_id, workflow_step, correlation_id, nullable `process_graph_id` / `process_node_id`, updated_at, version. Migration `0002_assignment_process_position` adds the paired nullable identity columns without backfilling historical rows. New creates and explicit legal state transitions write the stable node identity from `rv:postgres-ledger:assignment-lifecycle` to both the assignment row and causal event payload. Unknown historical position remains NULL.
 `events`: seq (identity PK), unique event_id, `rv.event.v1` schema, type, occurred/recorded times, assignment, actor, correlation/causation, unique idempotency key, authority reference, privacy domain, payload schema, and JSONB payload.
 
 ## Limitations and open work
 - `verified=True` is only an untrusted caller assertion, **not independent verification**. Never expose this API to untrusted callers or connect it directly to hardware dispatch.
 - No authentication or authorization layer, authority grant validation, independent verifier, audit of readers, connection pooling, automatic reconnect, continuous backups, outbox, worker, service, or health endpoint. The one-time pre-migration backup restore drill passed; automated operational backups remain M5.4 work.
+- `0002_assignment_process_position` is source-only until the controlled migration procedure applies it. It is additive; rollback to older application code leaves the unused columns and recorded identities intact. Do not drop them during application rollback.
 - Migration `0001_assignment_event_ledger` is applied to shared development schema `riverview_dev`; its authorized preflight, backup/restore drill, checksum, idempotent rerun, empty-ledger connection and preserved M1.1 baseline are recorded in [live migration evidence](../../evidence/checkouts/POSTGRES-LEDGER/20261010T1615Z-3fd6fd2/checkout.md). M1.2 technical criteria are verified. This does not complete the component DoD: no event processor, live Steward dashboard, independent verifier, or end-to-end autonomous operation exists yet.
 - `list_assignments()` and `events()` are unbounded and intended for small development datasets; use pagination for real dashboard use.
 - Steward readout currently is an **on-demand snapshot**, not a continuously refreshed Steward dashboard.

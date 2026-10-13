@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Reconcile durable Grace work orders through existing CME worker contracts
 # Execution Model: Persistent scheduled poll over PostgreSQL objective state
 # Observability: Objective events, worker attempts, verification records, dashboard projection
@@ -13,6 +13,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-TEST-SEAM | Keep verifier replaceable behind existing result contract
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Bind optional resident reasoning to durable grounded objectives and office-scoped state
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-FAIR-CYCLE | Attempt at most one grounded objective before continuing CME work
+# Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Select registered execution capability for worker and verification queries
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -45,7 +46,7 @@ class GraceExecutionService:
     def __init__(self, pipeline, adapter, worker, *, dispatch_credential,
                  authority_ref, verifier_id, verifier_credential, artifact_root,
                  max_dispatch_failures=3, verifier=None, resident_reasoner=None,
-                 resident_token_budget=256):
+                 resident_token_budget=256, execution_capability=CAPABILITY):
         if not 1 <= max_dispatch_failures <= 10:
             raise ValueError("dispatch failure limit must be between 1 and 10")
         if type(resident_token_budget) is not int or not 1 <= resident_token_budget <= 4096:
@@ -61,6 +62,9 @@ class GraceExecutionService:
         self.max_dispatch_failures = max_dispatch_failures
         self.resident_reasoner = resident_reasoner
         self.resident_token_budget = resident_token_budget
+        if not isinstance(execution_capability, str) or not execution_capability:
+            raise ValueError("a registered execution capability is required")
+        self.execution_capability = execution_capability
         self.instance_id = uuid4()
 
     def reason_one_grounded_objective(self):
@@ -170,7 +174,7 @@ class GraceExecutionService:
                 WHERE a.state='awaiting_verification' AND wa.status='succeeded'
                   AND wa.capability=%s
                 ORDER BY a.updated_at,wa.started_at,wa.attempt_id LIMIT 25""",
-                (CAPABILITY,))
+                (self.execution_capability,))
             candidates = cur.fetchall()
         for candidate in candidates:
             attempt_id = str(candidate["attempt_id"])

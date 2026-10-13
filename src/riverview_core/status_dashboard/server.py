@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.2
+# Revision: 1.3.3
 # Purpose: Serve account-authenticated operational projections and existing bounded APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -22,6 +22,7 @@
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password sessions, approval grants and Steward email configuration routes
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Bind authenticated Steward sessions to existing exact office grants
 # Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING | Add explicit conversation-to-objective intake gate
+# Changed: 2026-10-13 UTC | RV-LEDGER-GRAPH-POSITION | Read live execution position only from persisted canonical ledger identity
 # Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING-DENIALS | Preserve conversation authorization and unavailable distinctions at promotion boundary
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Expose only the scoped verification endpoint for local bootstrap challenges
 # Contracts: docs/components/STATUS_DASHBOARD.md
@@ -974,10 +975,13 @@ def make_handler():
                     if selected is None:
                         self._error(404, "process_graph_not_found", request_id)
                         return
-                    selected["execution_position"] = {
-                        "status": "unknown",
-                        "reason": "The assignment ledger does not currently persist a graph node identity; no node is highlighted.",
-                    }
+                    position_reader = getattr(self.server._projection,
+                                              "graph_execution_position", None)
+                    selected["execution_position"] = (position_reader(graph_id)
+                        if callable(position_reader) else {
+                            "status": "unknown",
+                            "reason": "The active projection does not expose recorded graph-node identity.",
+                        })
                     self._json(200, {"schema_version": "rv.dashboard.graph.v1",
                                      "status": "available", "graph": selected}, request_id)
                 elif parsed.path.startswith("/api/v1/assignments/"):

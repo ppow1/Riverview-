@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_cli.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Run a bounded Codex CLI assignment in an isolated pinned repository copy
 # Execution Model: One noninteractive sandboxed Codex invocation per durable assignment
 # Observability: Typed result and artifact digest; prompt and CLI output are not logged
 # Dependencies: Git; pinned Codex CLI; dedicated service CODEX_HOME
 # Authority: Engineering dispatch only; no authority or approval is created here
 # Changed: 2026-10-13 UTC | RV-CODEX-CLI-ADAPTER-001 | Initial bounded artifact-producing adapter
+# Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Accept a dedicated protected API credential only through the child provider environment
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; process_graphs/grace/operational-integration.json
 # Tests: tests/test_codex_cli_adapter.py
 # History: Git
@@ -103,6 +104,7 @@ class CodexCLIExecutionAdapter:
     def __init__(self, *, executable: str, repository_path: str | Path,
                  repository_reference: str, codex_home: str | Path,
                  workspace_root: str | Path, artifact_root: str | Path,
+                 api_key: str | None = None,
                  ):
         self.executable = Path(executable)
         self.repository_path = Path(repository_path)
@@ -110,6 +112,11 @@ class CodexCLIExecutionAdapter:
         self.codex_home = Path(codex_home)
         self.workspace_root = Path(workspace_root)
         self.artifact_root = Path(artifact_root)
+        if api_key is not None and (not isinstance(api_key, str) or
+                                    not 32 <= len(api_key) <= 512 or
+                                    any(character.isspace() for character in api_key)):
+            raise ValueError("dedicated Codex API credential format is invalid")
+        self._api_key = api_key
         # Intentionally reject both the active user's personal home and the
         # known interactive administrator's Codex tree, including descendants.
         personal_homes = (Path.home() / ".codex", Path("/home/admin1/.codex"))
@@ -212,6 +219,8 @@ class CodexCLIExecutionAdapter:
                 env = {"PATH": "/usr/local/bin:/usr/bin:/bin",
                        "HOME": str(self.codex_home), "CODEX_HOME": str(self.codex_home),
                        "TMPDIR": str(run_root)}
+                if self._api_key is not None:
+                    env["OPENAI_API_KEY"] = self._api_key
                 argv = [str(binary), "exec", "--sandbox", "workspace-write",
                         "--ephemeral", "--ignore-user-config",
                         "-c", 'approval_policy="never"',

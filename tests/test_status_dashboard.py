@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.24
+# Revision: 1.0.25
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -55,6 +55,10 @@ ROOT = Path(__file__).resolve().parents[1]
 class _FakeProjection:
     def __init__(self):
         self.last_limit = None
+        self.execution_position = {"status": "unknown", "reason": "No recorded node."}
+
+    def graph_execution_position(self, graph_id):
+        return self.execution_position
 
     def status(self):
         return {"schema_version":"rv.dashboard.status.v1", "component_id":"STEWARD-DASHBOARD",
@@ -342,7 +346,7 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(status, 404)
         self.assertNotIn(b"README", body)
 
-    def test_canonical_graph_api_is_authenticated_and_never_fabricates_live_position(self):
+    def test_canonical_graph_api_uses_only_persisted_live_position(self):
         from urllib.parse import quote
         status, _, _ = self.request("GET", "/api/v1/graphs")
         self.assertEqual(status, 401)
@@ -364,7 +368,16 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertTrue(any(item["type"] == "decision" for item in graph["nodes"]))
         self.assertTrue(any(item["type"] == "runtime_transition" for item in graph["edges"]))
         self.assertEqual(graph["execution_position"]["status"], "unknown")
-        self.assertIn("does not currently persist", graph["execution_position"]["reason"])
+        self.assertEqual(graph["execution_position"]["reason"], "No recorded node.")
+        self.projection.execution_position = {"status": "current",
+            "assignment_id": "assignment:recorded", "state": "running",
+            "node_id": "rv:postgres-ledger:assignment-lifecycle:running",
+            "recorded_at": "2026-10-13T00:00:00+00:00"}
+        status, _, body = self.request("GET", "/api/v1/graphs/" + graph_id, token=self.token)
+        self.assertEqual(status, 200)
+        graph = json.loads(body)["graph"]
+        self.assertEqual(graph["execution_position"]["node_id"],
+                         "rv:postgres-ledger:assignment-lifecycle:running")
         status, _, body = self.request("GET", "/api/v1/graphs/rv%3Anot-registered%3Anone", token=self.token)
         self.assertEqual(status, 404)
 

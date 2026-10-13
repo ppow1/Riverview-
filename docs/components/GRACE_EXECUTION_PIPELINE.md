@@ -2,12 +2,14 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.3
+File Revision: 1.0.6
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
 Authority: Engineering contract; not evidence of production Grace commissioning
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Link persistent reconciliation and authenticated dashboard handoff
 Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER-CONTRACT | Document explicit message-origin objective intake and its exact Steward grant
 Changed: 2026-10-13 UTC | RV-CODEX-CLI-ADAPTER-001 | Record the source-only bounded Codex artifact adapter and commissioning gates
+Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Wire a registered Codex capability through leased execution and independent Markdown verification
+Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH-CREDENTIAL | Bind the Codex API key to a protected systemd credential and exact Engineering scope
 -->
 # Grace Execution Pipeline — infrastructure slice
 
@@ -88,17 +90,33 @@ returns only the assignment, source revision, artifact digest, and a
 `verification_required` result. Synthetic tests use a fake executable; they do
 not prove real Codex authentication or model execution.
 
-This adapter is **not selected by the persistent service**, registered in the
-live capability records, integrated with assignment attempt/result persistence
-and an independent verifier, or deployed. The current service still uses
-`BoundedLocalCodingWorker`. A dedicated Riverview-owned Codex executable and
-service identity, credential isolation review, exact registered capability,
-resource readiness record, and the existing exact `worker.register` and
-`assignment.execute` decisions are required before enablement. The Steward's
-four in-principle grants do not create grant rows. The Grace execution service
-is inactive, and the installed Codex binary is under admin1's personal home;
-neither is used by this adapter. The first safe demonstration needs a
-non-destructive assignment, an independent verifier, and durable return of its
-artifact and evidence to Grace.
+`scripts/run_grace_execution_service.py` can now select this adapter only when
+`RIVERVIEW_ENGINEERING_ADAPTER=codex-cli` is explicitly set. It registers the
+exact `engineering.codex-cli-artifact.v1` capability through the existing
+worker registry; worker registration and every claim/execution still require
+the exact `worker.register` and `assignment.execute` grants in the assignment
+scope. Startup preflight requires a configured executable, dedicated
+`CODEX_HOME`, isolated workspace, pinned repository, and artifact directory.
+The normal CME lease, preflight/regrounding, execution-intent, attempt/result,
+and independent verification records remain the execution path. The
+`CodexMarkdownVerifier` independently reopens the assignment-bound file,
+checks ownership/mode/size/digest, objective binding, source provenance, and
+literal acceptance criteria. The result path and digest are retained in the
+worker result and Grace objective completion event/projection.
+
+The capability registry records capability, active worker, and exact authority
+scope; startup preflight plus the current Grace execution health heartbeat
+provide dependency/readiness evidence. Its required resources are a dedicated
+Codex executable and credential home, pinned local repository, isolated
+workspace, writable private artifact filesystem, and a separate API credential
+loaded from `/etc/riverview/codex/api-key.credential` through systemd
+`LoadCredential` via the Codex-only systemd drop-in `deploy/systemd/riverview-grace-execution-codex-credentials.conf`; install that drop-in only when Codex mode is commissioned. The base unit remains startable without a Codex credential. The runner passes the key only in the child process
+environment; it does not appear in logs, arguments, or source files. No capacity reservation
+or throughput claim is made. The code path and fake-CLI verifier contract are
+implemented, but the service is not commissioned: no system Codex executable
+outside admin1's personal installation, dedicated service credential home,
+dedicated registered executor/verifier principals, or active exact grants are
+present. No live objective or artifact has been produced. Those are explicit
+commissioning blockers, not inferred approvals.
 
 The generated workflow below is a projection of process_graphs/grace/operational-integration.json. Regenerate with python3 scripts/process_graph.py generate; verify with python3 scripts/process_graph.py check.

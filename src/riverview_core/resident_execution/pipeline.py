@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
 # Execution Model: Request-driven orchestration over existing PostgreSQL authority and ledger
 # Observability: Append-only objective events linked to assignment and evidence provenance
@@ -11,6 +11,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.4-OBJECTIVE-WORKORDER-PIPELINE | Initial durable execution bridge
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Expose bounded grounded objective context to ResidentReasoner
 # Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER | Accept authenticated principals and retain conversation origin
+# Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Carry independently verified artifact location into Grace completion event
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -303,6 +304,18 @@ class GraceExecutionPipeline:
         payload = {"assignment_id": assignment_id, "decision": verification["decision"],
                    "verifier_revision": verification["verifier_revision"],
                    "evidence_references": list(verification["evidence_references"])}
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT wr.result FROM worker_attempts wa
+                JOIN worker_results wr USING(attempt_id)
+                WHERE wa.assignment_id=%s AND wa.status='succeeded'
+                ORDER BY wa.started_at DESC LIMIT 1""", (assignment_id,))
+            artifact_row = cur.fetchone()
+        artifact = artifact_row["result"] if artifact_row else None
+        if isinstance(artifact, dict):
+            payload["artifact"] = {key: artifact[key] for key in
+                ("artifact_name", "artifact_path", "artifact_sha256", "artifact_bytes")
+                if key in artifact}
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
