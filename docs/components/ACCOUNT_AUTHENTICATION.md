@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/components/ACCOUNT_AUTHENTICATION.md
 Component: WEBSITE-ACCOUNT-AUTH
-File Revision: 1.1.0
+File Revision: 1.2.0
 Purpose: Specify verified enrollment, password access, Steward approval, grants, sessions and reusable email configuration
 Authority: Website roles protect the dashboard only; engineering authority remains exact-grant based
 Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Specify password login, access grants and SMTP administration
+Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-COMMISSION | Permit root commissioning through an allocated SSH TTY with hidden-input fail-closed behavior
 History: Git and revision/backup manifest
 -->
 # Riverview website account authentication
@@ -38,7 +39,7 @@ Audit rows record decision/action, subject, actor, role/grant metadata and times
 
 ## Email provider configuration
 
-Steward-only settings UI supports SMTP host and port, TLS mode, sender address and display name, administrator notification address, reply-to, username, password update, test message, and delivery/test status. Password is never returned to the browser. It is encrypted in PostgreSQL using a Fernet key held in a root-controlled local key file and supplied to the service through a systemd credential. The local-only `scripts/configure_account_email_provider.py` wizard creates/uses this key and stores settings without printing the password. Blank password on update retains the existing encrypted value.
+Steward-only settings UI supports SMTP host and port, TLS mode, sender address and display name, administrator notification address, reply-to, username, password update, test message, and delivery/test status. Password is never returned to the browser. It is encrypted in PostgreSQL using a Fernet key held in a root-controlled local key file and supplied to the service through a systemd credential. The root-only `scripts/configure_account_email_provider.py` wizard creates/uses this key and stores settings without printing the password. It accepts a local console or allocated SSH TTY; if Python cannot disable terminal echo, it aborts rather than falling back to echoed input. Blank password on update retains the existing encrypted value.
 
 The provider is a reusable transport abstraction. Only account authentication uses it in this campaign; no autonomous Grace or Riverview email workflows are enabled. Real sending remains disabled until the SMTP key and database settings are commissioned. Delivery acceptance must be followed by receipt verification; a configured host or successful test API response alone is not proof of mailbox delivery. Test failures and delivery outcomes are stored without credentials or message bodies.
 
@@ -46,7 +47,7 @@ CueMastery public DNS currently advertises `mx.stackmail.com` and SPF `include:s
 
 ## Steward bootstrap and recovery
 
-The existing institutional `steward:camrui` identity can be linked only through `scripts/bootstrap_account_steward.py`, an explicitly authorized local root console process. It checks the active principal, rejects SSH/non-TTY use, requires an exact confirmation phrase, and sends a single-use verification challenge to the supplied email. It never grants Steward to a public applicant and creates no default password. After challenge verification, set a password through the emailed setup link. Do not disable the dashboard bearer recovery path until the new Steward has signed in and demonstrated account administration.
+The existing institutional `steward:camrui` identity can be linked only through `scripts/bootstrap_account_steward.py`, an explicitly authorized root TTY process. It checks the active principal, rejects non-TTY use, requires an exact confirmation phrase, and sends a single-use verification challenge to the supplied email. It never grants Steward to a public applicant and creates no default password. After challenge verification, set a password through the emailed setup link. Do not disable the dashboard bearer recovery path until the new Steward has signed in and demonstrated account administration.
 
 ## API surface
 

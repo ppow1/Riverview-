@@ -1,14 +1,15 @@
 # =============================================================================
 # RIVERVIEW~ CONTROLLED TEST
-# File: tests/test_stackmail_mailbox.py
+# File: tests/test_stackmail_tty_security.py
 # Component: WEBSITE-ACCOUNT-AUTH
-# Revision: 1.0.0
+# Revision: 1.1.0
 # Purpose: Verify secure interactive Stackmail test behavior without network access
 # Execution Model: Mocked local unit tests; no provider, database, or service use
 # Observability: unittest assertions and exit status; test credentials are synthetic
 # Dependencies: Python 3.10+
 # Authority: None; all network transports are mocked
 # Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-TTY | Cover SSH TTY, refusal and redacted failures
+# Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-COMMISSION | Avoid discovery name collision with standalone script
 # Contracts: docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md
 # Tests: This file
 # History: Git and revision/backup manifest

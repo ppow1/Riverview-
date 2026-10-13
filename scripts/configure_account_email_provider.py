@@ -3,13 +3,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/configure_account_email_provider.py
 # Component: SHARED-EMAIL-DELIVERY
-# Revision: 1.0.0
+# Revision: 1.1.0
 # Purpose: Securely provision initial SMTP settings before the first Steward portal account exists
-# Execution Model: Root-only local-console CLI; no SSH and no pseudo-terminal
+# Execution Model: Root-only interactive TTY CLI; local console or SSH with an allocated pseudo-terminal
 # Observability: Sanitized result only; never prints credentials or message bodies
 # Dependencies: PostgreSQL account schema migration 0002; cryptography; private pgpass
 # Authority: Exact typed console confirmation; writes only account email configuration and local key
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add first-provider bootstrap commissioning helper
+# Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-COMMISSION | Permit hidden entry from an allocated SSH TTY; abort if getpass cannot disable echo
 # Contracts: docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md
 # Tests: tests/test_email_delivery.py
 # History: Git and revision/backup manifest
@@ -24,6 +25,7 @@ from pathlib import Path
 import re
 import stat
 import sys
+import warnings
 
 from cryptography.fernet import Fernet
 
@@ -39,9 +41,17 @@ def _local_console():
         tty=os.ttyname(sys.stdin.fileno())
     except OSError:
         return False
-    return (os.geteuid()==0 and sys.stdin.isatty() and
-            (tty=="/dev/console" or re.fullmatch(r"/dev/tty[0-9]+",tty)) and
-            not os.environ.get("SSH_CONNECTION"))
+    local_terminal = tty == "/dev/console" or re.fullmatch(r"/dev/tty[0-9]+", tty)
+    allocated_ssh_terminal = re.fullmatch(r"/dev/pts/[0-9]+", tty)
+    return (os.name == "posix" and os.geteuid() == 0 and sys.stdin.isatty()
+            and sys.stdout.isatty() and bool(local_terminal or allocated_ssh_terminal))
+
+
+def _hidden_input(prompt):
+    """Fail closed instead of allowing getpass to fall back to echoed input."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", getpass.GetPassWarning)
+        return getpass.getpass(prompt)
 
 
 def _key():
@@ -64,7 +74,7 @@ def _key():
 
 def main():
     if not _local_console():
-        print("Email provider bootstrap requires the root-owned Camrui local console.",file=sys.stderr)
+        print("Email provider configuration requires root and an interactive TTY (use ssh -tt for SSH).",file=sys.stderr)
         return 2
     if input("Type CONFIGURE RIVERVIEW EMAIL to continue: ")!="CONFIGURE RIVERVIEW EMAIL":
         print("Email provider configuration was not authorized.",file=sys.stderr)
@@ -80,7 +90,7 @@ def main():
         reply_to=input("Reply-to email address (optional): ").strip()
         reply_to=normalize_email(reply_to) if reply_to else ""
         username=input("SMTP mailbox username: ").strip()
-        password=getpass.getpass("SMTP mailbox password: ")
+        password=_hidden_input("SMTP mailbox password (input hidden): ")
         port=int(port_text)
         if (not re.fullmatch(r"[A-Za-z0-9.-]{1,253}",host) or not 1<=port<=65535
                 or tls_mode not in {"starttls","implicit"} or not sender_name

@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md
 Component: WEBSITE-ACCOUNT-AUTH
-File Revision: 1.5.0
+File Revision: 1.6.0
 Purpose: Safely commission and diagnose Riverview account access and reusable SMTP configuration
 Authority: Inspection is read-only; provider setup and Steward bootstrap require explicit local authorization
 Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Document password login, grants and email-provider commissioning
@@ -10,6 +10,7 @@ Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-COMMIT-AND-STACKMAIL-PREP | Prepare ca
 Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-STACKMAIL-LOCAL-TEST | Document predeployment isolated SMTP and mailbox receipt test
 Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-STACKMAIL-LOCAL-TEST-REVIEW | Keep mailbox selection interactive in the isolated tester
 Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-TTY | Document secure SSH TTY mailbox-test invocation
+Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-COMMISSION | Document root SSH TTY setup and Steward bootstrap prompts
 History: Git and revision/backup manifest
 -->
 # Account authentication diagnostics and commissioning
@@ -36,15 +37,15 @@ Public DNS currently points email to `mx.stackmail.com`, with SPF including `spf
 
 | Setting | Candidate value | Verification still needed |
 | --- | --- | --- |
-| SMTP host | `smtp.stackmail.com` | Confirm it is the active outgoing host for the CueMastery mailbox. |
-| Port | `465` | Confirm outbound connection is allowed from Camrui. |
-| TLS mode | `implicit` (TLS from connection start) | Confirm certificate and account policy with Stackmail. |
-| Username | `social@cuemastery.com` | Confirm the mailbox exists and is the authorized SMTP account. |
-| Sender address | `social@cuemastery.com` | Confirm the account may send as this address. |
-| Administrator notification address | `social@cuemastery.com` | Steward-specified destination; confirm it receives mail. |
+| SMTP host | `smtp.stackmail.com` | Steward reports successful SMTP authentication and delivery. |
+| Port | `465` | Steward reports successful test from Camrui. |
+| TLS mode | `implicit` (TLS from connection start) | Steward reports successful TLS test and IMAP receipt verification. |
+| Username | `social@cuemastery.com` | Steward reports successful mailbox authentication. |
+| Sender address | `social@cuemastery.com` | Steward reports successful self-addressed delivery. |
+| Administrator notification address | `social@cuemastery.com` | Steward-designated inbox; production notification still requires commissioning verification. |
 | Password | Enter only at the hidden prompt in the local root-console wizard | Never send it in chat, command arguments, shell history, source, or reports. |
 
-20i also documents port 587 with STARTTLS; the proposed profile above uses port 465. These remain candidate settings, not verified account credentials or delivery readiness. No mail server or paid provider is being introduced.
+20i also documents port 587 with STARTTLS; the approved profile above uses port 465. Successful isolated delivery verifies the tested mailbox path only; it does not prove production SMTP configuration or application-generated approval messages. No mail server or paid provider is being introduced.
 
 ## Isolated predeployment SMTP test
 
@@ -62,7 +63,7 @@ This sends one real email but changes no Riverview database or dashboard configu
 
 ## Commissioning sequence
 
-1. Publish/checkout the reviewed release to Camrui only after commissioning approval. Then have the local PostgreSQL administrator inspect and apply the additive schema provisioning plan:
+1. Stage the reviewed immutable release from the approved account-authentication commit, preserve the current release and dashboard unit, and verify the package before switching the `current` symlink. Then have the local PostgreSQL administrator inspect and apply the additive schema provisioning plan:
 
    ```bash
    sudo -u postgres python3 /opt/riverview-status-dashboard/current/scripts/provision_account_auth_schema.py
@@ -72,11 +73,11 @@ This sends one real email but changes no Riverview database or dashboard configu
    ```
 
    The dedicated schema owner is NOLOGIN; the dashboard runtime receives only necessary DML grants. Never put account tables in `public`, `riverview_dev`, or `riverview_authority`. Do not migrate the live database until the release is reviewed and deployment is authorized.
-2. Use Camrui's **local physical root console** to configure provider settings, after the reviewed release and schema migration are commissioned. Run `sudo python3 /opt/riverview-status-dashboard/current/scripts/configure_account_email_provider.py`. The root wizard requires the exact phrase `CONFIGURE RIVERVIEW EMAIL`; it creates an owner-only Fernet key, prompts for the candidate SMTP settings above, and reads the password using hidden terminal input before storing it encrypted in PostgreSQL. It rejects SSH/non-TTY execution and sends no message during initial configuration. Install the matching systemd credential drop-in only after the key exists. Enter the initial requested administrator inbox `social@cuemastery.com` at setup time; source and UI do not default to that address.
+2. Configure provider settings after the reviewed release and schema migration are commissioned. The root wizard accepts a local console or allocated SSH TTY (`ssh -tt`); non-TTY and non-root execution are rejected, and password input aborts if echo cannot be disabled. Run `sudo python3 /opt/riverview-status-dashboard/current/scripts/configure_account_email_provider.py`. Enter the exact phrase `CONFIGURE RIVERVIEW EMAIL`, then the approved Stackmail values in the table above. It creates an owner-only Fernet key, stores the password encrypted in PostgreSQL, and sends no message during initial configuration. Install the matching systemd LoadCredential drop-in only after the key exists. The administrator notification address is explicitly entered; source and UI do not default to it.
 3. Confirm authority to send through the CueMastery mailbox, and use the SMTP test-email function to a controlled inbox. Confirm actual receipt, sender/reply-to, TLS delivery, and success/failure status. SMTP acceptance alone is not proof of inbox delivery. Check that a wrong password or unavailable relay is reported without exposing credentials.
 4. Request access using a controlled test address. Verify the ownership challenge, pending state, and administrator notification. Open the notification link while signed out and confirm it does not expose the request or perform a decision. Sign in as Steward and review the request.
 5. Exercise denial and each grant choice (one-time, 90 days, one year, permanent), roles, applicant notices, expiry/revocation behavior, and the one-session-only rule. A one-time grant allows only the first session ever, with a maximum 24-hour session; logout, expiry or revocation never makes a second session available.
-6. Run the local-only `scripts/bootstrap_account_steward.py` from a physical root console after real delivery is verified. It requires the exact confirmation phrase, checks `steward:camrui`, and emails a one-use password-setup link. Complete the link, sign in, and verify queue, email settings, role/grant controls, recovery-token login, and exact-grant engineering boundaries before changing any recovery mechanism.
+6. Run `sudo python3 /opt/riverview-status-dashboard/current/scripts/bootstrap_account_steward.py` from a root local console or allocated SSH TTY. It asks for the Steward login email through hidden input, requires the exact phrase `BOOTSTRAP steward:camrui`, checks the active institutional principal and migration, and emails a single-use verification/setup link. The authorized initial login email is `w@wjs1.com`; the SMTP sender and administrator notification inbox are `social@cuemastery.com`. Complete the link, set the password in the browser, sign in, and verify queue, email settings, role/grant controls, recovery-token login, and exact-grant engineering boundaries before changing any recovery mechanism.
 
 The systemd credential source path in the checked-in drop-in is `/etc/riverview/account-email-config.key`; its content must stay root-owned and mode 0600. Runtime access is via systemd's credential directory and does not expose the key to the browser or logs. Do not place SMTP credentials in environment variables, source control, or browser configuration. Do not enable autonomous Grace/Riverview mail workflows as part of this commissioning.
 

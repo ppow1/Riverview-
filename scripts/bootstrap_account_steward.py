@@ -3,9 +3,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/bootstrap_account_steward.py
 # Component: WEBSITE-ACCOUNT-AUTH
-# Revision: 1.1.0
+# Revision: 1.2.0
 # Purpose: Explicitly authorize and email-verify the first account linked to steward:camrui
-# Execution Model: Local, interactive one-time commissioning command
+# Execution Model: Interactive one-time commissioning command on local console or allocated SSH TTY
 # Observability: Sanitized account audit rows; fixed status output
 # Dependencies: PostgreSQL; protected /etc/riverview/pgpass; approved email transport
 # Authority: Root local TTY, no SSH session, exact typed confirmation, active Steward principal
@@ -13,6 +13,7 @@
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Require a physical/serial console TTY rather than a pseudo-terminal
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Align local bootstrap authority boundary with account audit changes
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Use encrypted configurable email provider and password setup link
+# Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-COMMISSION | Permit root interactive SSH TTY and fail closed on getpass echo fallback
 # Contracts: docs/components/ACCOUNT_AUTHENTICATION.md
 # Tests: tests/test_account_auth.py
 # History: Git and revision/backup manifest
@@ -24,6 +25,8 @@ from __future__ import annotations
 import getpass
 import os
 import sys
+import re
+import warnings
 from pathlib import Path
 
 from riverview_core.account_auth import (
@@ -35,6 +38,25 @@ from riverview_core.email_delivery import ConfiguredEmailTransport
 
 DSN = "host=127.0.0.1 port=5432 dbname=riverview user=riverview_core application_name=riverview-account-bootstrap"
 PRINCIPAL_ID = "steward:camrui"
+
+
+def _interactive_root_tty():
+    if os.name != "posix" or os.geteuid() != 0 or not sys.stdin.isatty() or not sys.stdout.isatty():
+        return False
+    try:
+        terminal = os.ttyname(sys.stdin.fileno())
+    except OSError:
+        return False
+    return bool(terminal == "/dev/console"
+                or re.fullmatch(r"/dev/tty[0-9]+", terminal)
+                or re.fullmatch(r"/dev/pts/[0-9]+", terminal))
+
+
+def _hidden_input(prompt):
+    """Fail closed instead of allowing getpass to fall back to echoed input."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", getpass.GetPassWarning)
+        return getpass.getpass(prompt)
 
 
 def _email_transport(connection_factory):
@@ -52,17 +74,14 @@ def _email_transport(connection_factory):
 
 
 def main():
-    try:
-        terminal = os.ttyname(sys.stdin.fileno())
-    except OSError:
-        terminal = ""
-    local_terminal = terminal in {"/dev/console"} or terminal.startswith("/dev/tty")
-    remote_terminal = terminal.startswith("/dev/pts/")
-    if (os.geteuid() != 0 or not sys.stdin.isatty() or not local_terminal
-            or remote_terminal or os.environ.get("SSH_CONNECTION")):
-        print("Bootstrap requires a root-owned local console, not SSH or a pseudo-terminal.", file=sys.stderr)
+    if not _interactive_root_tty():
+        print("Bootstrap requires root and an interactive TTY (use ssh -tt for SSH).", file=sys.stderr)
         return 2
-    email = getpass.getpass("Steward email address: ")
+    try:
+        email = _hidden_input("Steward email address (input hidden): ")
+    except getpass.GetPassWarning:
+        print("Bootstrap needs a TTY that supports hidden input; no request was created.", file=sys.stderr)
+        return 2
     confirmation = input("Type BOOTSTRAP steward:camrui to authorize this email: ")
     if confirmation != "BOOTSTRAP steward:camrui":
         print("Bootstrap was not authorized.", file=sys.stderr)
