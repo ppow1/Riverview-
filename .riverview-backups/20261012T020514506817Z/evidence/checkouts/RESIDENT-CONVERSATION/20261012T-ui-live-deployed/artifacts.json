@@ -1,0 +1,23 @@
+{
+  "artifacts": {
+    "conversation-ui-check.json": {
+      "path": "conversation-ui-check.json",
+      "revision": "1.0.0",
+      "sha256": "876e2241b04db4fcd41cb2628bf616058d717e658db185ecc4e5d9f913120074",
+      "size_bytes": 691
+    },
+    "dashboard-browser-acceptance.json": {
+      "path": "dashboard-browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "2ba9e48590611b76513815bef7408afb58f9cb6c5275fb14c97fd8922611c0a1",
+      "size_bytes": 3822
+    },
+    "deployment-summary.json": {
+      "path": "deployment-summary.json",
+      "revision": "1.0.0",
+      "sha256": "57b4316073438d042f804c5524b9c3902184f5dc0968b438ea74df87c71f238c",
+      "size_bytes": 2735
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

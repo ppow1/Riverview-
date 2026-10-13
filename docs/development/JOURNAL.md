@@ -1,9 +1,14 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.108
+**Document Revision:** 1.0.114
 **Component:** ENG-RECORDS
-**Date:** 2026-10-11 UTC
+**Date:** 2026-10-12 UTC
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
+**Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record responsive conversation interface implementation and isolated real-model browser acceptance
+**Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record dashboard-only Camrui deployment and post-deployment browser/runtime evidence
+**Changed:** 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Diagnose transient credential loss, confirm exact Steward grants, and test persistent same-origin cookie authorization
+**Changed:** 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Commission dashboard release and verify real model turn, exact denial, PostgreSQL persistence, and service restart recovery
+**Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record deployed 390 CSS-pixel responsive iframe verification; retain physical Windows check as pending
 **Changed:** 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-CHECKPOINT | Record persistent objective execution evidence and non-commissioning boundary
 **Changed:** 2026-10-11 UTC | RV-M4.1-M4.2-OCCUPANT-REPLACEMENT-INTEGRATION | Record isolated cross-component Grace identity replacement regression and limits
 **Changed:** 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Diagnose shared psycopg connection transaction interleaving; serialize database scopes and add independent-connection concurrency regressions
@@ -1495,3 +1500,69 @@ Steward review with formal acceptance pending. Next work remains M4.1 runtime
 integration in dependency order. Exact-head GitHub CI passed for source commit
 `89752f79487cf9178484db6451a4c36fd107b80a` in run
 [38165302494](https://github.com/ppow1/Riverview-/actions/runs/38165302494).
+
+
+## 2026-10-12 UTC — RV-GRACE-CHAT-UX-001
+
+Refined the existing Talk with Grace workspace without changing its conversation API,
+identity, grants, provider binding, or PostgreSQL writes. The browser now renders full
+multiline history as role-distinct bubbles, preserves an unsent browser-session draft,
+provides Enter/Shift+Enter and touch line-break controls, response states, factual detail
+dialogs, per-message details/copy, and explicitly disabled future actions. A historical
+interruption is retained in the transcript but no longer appears as the current error
+after a subsequent successful response. The canonical browser-chat graph and generated
+focused/aggregate views were synchronized.
+
+The isolated Firefox/WebDriver acceptance run reused the existing loopback
+`qwen3-0.6b-q8_0-local` service (4096 context; it was not restarted or reconfigured) and
+a dedicated disposable PostgreSQL 16 cluster. A 770-character multiline Steward input
+was rendered exactly; two actual model responses (89 characters each) completed at
+11.38 s and 14.91 s browser elapsed time. A controlled pending turn was reconciled as
+interrupted across a supporting dashboard restart; the following turn succeeded.
+PostgreSQL independently contained 3 user events, 2 assistant events, and 1 interruption,
+with zero objectives. The test passed unauthorized access as HTTP 403; Chat Details
+matched persisted conversation/model/status and included UTC; message Details and Copy
+passed; future capabilities were disabled; composer sizing/duplicate protection/newline
+behavior passed; long-content layout did not truncate or overflow; 500-pixel narrow and
+1280-pixel desktop layouts kept controls visible without horizontal page overflow. Firefox
+headless clamped the requested 390-pixel window to a 500-pixel CSS viewport, so a physical
+390-pixel Windows/mobile browser check remains outstanding.
+
+Full repository suite: 228 passed, 0 failures, 0 skips in 140.169 s with isolated
+PostgreSQL configured. Graph validation/synchronization: 17 graphs / 353 globally unique
+nodes, PASS. Controlled revision audit against clean baseline `ed0ea269` reported no
+issues. Exact evidence is in
+`evidence/checkouts/RESIDENT-CONVERSATION/20261012T-ui-refinement-isolated-13/`; the
+browser report contains no message body or credential value. The first test-harness
+iteration exposed stale expected status text, prior-interruption presentation, untrusted
+synthetic clipboard clicks, and a modal/scroll interaction; each was diagnosed, corrected
+in the harness or UI, and retested. The successful result is not Windows-browser
+commissioning or Steward acceptance. The currently deployed dashboard has not yet been
+replaced; rollback deployment remains to be performed only after packaging and provenance
+checks.
+
+
+## 2026-10-12 UTC — RV-GRACE-CHAT-UX-001 / controlled deployment
+
+PR #27 (`5cbf315b95b5b644296910b4c7a16e5ae358e55b`) passed controlled-checkout CI
+(run `38193890852`) and was deployed without merge as a versioned dashboard-only release.
+The prior dashboard release and symlink target are retained. The release's three changed
+static files were checksum-matched to the committed branch, and a revision 1.0.0
+root-owned drop-in updates dashboard source/deployment identity. A single dashboard service
+restart succeeded; the dashboard remained active, PostgreSQL projection and CME reported
+healthy, attention returned HTTP 200, and the deployed Firefox browser check found no
+errors. The check verified a real completed assignment/attempt/independent-verification
+projection, workflow navigation, and documentation rendering/link status. A second live
+Firefox check exercised the actual Talk with Grace shell, composer/menu/details, and
+invalid-grant HTTP 403. Evidence is
+`evidence/checkouts/RESIDENT-CONVERSATION/20261012T-ui-live-deployed/`; operational
+Firefox screenshots and report are retained under the private
+`/home/admin1/.local/state/riverview/commissioning/grace-chat-ui-5cbf315/` directory.
+
+No PostgreSQL migration, human or resident credential, conversation content, model server,
+CME/worker/verifier, event processor, or notification service was modified. The existing
+loopback Qwen CPU inference service remains on the same process and configuration. The
+Steward's Windows browser could not be controlled from this Camrui session; no message was
+sent with a human credential. The isolated real-model and PostgreSQL integration evidence
+remains distinct from live website interaction. A 390-pixel same-origin responsive iframe fixture passed with complete text, visible controls, and no horizontal overflow. Windows refresh-and-send confirmation and physical-device verification remain outstanding. Technical UI deployment is verified;
+formal Steward acceptance and full Component DoD are not claimed.

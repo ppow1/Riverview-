@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.21
+# Revision: 1.0.23
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -10,12 +10,14 @@
 # Authority: Creates/drops only unique rvtest_* schemas; never accesses shared Riverview data
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Verify safe component links remain functional in the consolidated guide
 # Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ROUTE | Exercise updated authority diagnostics through the dashboard documentation route
+# Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Enforce browser-managed persistent grant cookie and denial retry suppression UI contract
 # Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ASSERTION | Match cookbook's documented DROP CASCADE warning text
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-SCHEDULER-DIAGNOSTICS | Assert expanded scheduler recovery docs render through dashboard route
 # Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-EXACT-DOCS-REVISION | Match the exact docs/graph source revision in the deployment contract
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Assert worker recovery diagnostics render through dashboard route
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-PG-SECRET-SAFETY | Assert PostgreSQL cookbook has no password-bearing command examples
 # Changed: 2026-10-11 UTC | RV-M1.4-LIVE-DEPENDENCY-CORRECTION | Assert scheduler docs distinguish shared migration from commissioning
+# Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Assert complete conversational controls, accessibility hooks, and disabled future actions
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-DASHBOARD-REPOSITORY-LINK | Preserve installed knowledge-cookbook navigation in source shell
 # Changed: 2026-10-11 UTC | RV-M4.1-DB-RESTORE-COOKBOOK | Verify observed backup path incident renders safely through docs route
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-PACKAGE-ROUTE-INTEGRITY | Require every dashboard shell documentation link to resolve
@@ -82,6 +84,33 @@ class _FakeProjection:
 
 
 class DashboardDeploymentContractTests(unittest.TestCase):
+    def test_grace_conversation_workspace_controls_and_complete_rendering_contract(self):
+        static = Path(__file__).resolve().parents[1] / "src/riverview_core/status_dashboard/static"
+        html = (static / "index.html").read_text(encoding="utf-8")
+        js = (static / "app.js").read_text(encoding="utf-8")
+        css = (static / "app.css").read_text(encoding="utf-8")
+        self.assertIn('id="chat-history" class="conversation-timeline"', html)
+        self.assertIn('id="chat-message" rows="2"', html)
+        self.assertIn('id="chat-auth-form"', html)
+        self.assertIn('autocomplete="current-password"', html)
+        self.assertIn("HttpOnly, same-origin cookie", html)
+        self.assertIn('id="chat-disconnect"', html)
+        self.assertIn("Shift+Enter adds a line", html)
+        self.assertLess(html.index('class="chat-more"'), html.index('id="chat-send"'))
+        self.assertIn('data-chat-option="details"', html)
+        self.assertIn("Image generation — coming later", html)
+        self.assertIn("disabled", html[html.index("Image generation — coming later")-80:html.index("Image generation — coming later")])
+        self.assertIn("white-space:pre-wrap", css)
+        self.assertIn("overflow-wrap:anywhere", css)
+        self.assertIn("<div class=\"message-content\">${esc(body)}</div>", js)
+        self.assertNotIn("textContent.slice", js[js.index("function renderConversation"):js.index("async function loadGraceConversation")])
+        self.assertIn("chat-details-dialog", html)
+        self.assertIn("message-details-dialog", html)
+        self.assertIn('credentials: "same-origin"', js)
+        self.assertIn("state.chatAuthRejected || state.chatLoading", js)
+        self.assertIn('resident_conversation_not_authorized', js)
+        self.assertIn('rv_grace_authority', (ROOT / "src/riverview_core/status_dashboard/server.py").read_text())
+
     def test_unit_uses_private_runtime_pgpass_delivery(self):
         unit = (ROOT / "deploy/riverview-status-dashboard.service").read_text()
         launcher = (ROOT / "scripts/run_status_dashboard.py").read_text()

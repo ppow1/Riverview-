@@ -1,0 +1,82 @@
+{
+  "automated_suite": {
+    "command": "RIVERVIEW_TEST_PG_DSN=<private disposable PostgreSQL socket DSN> PYTHONPATH=src python3 -m unittest discover -s tests -p test_*.py -v",
+    "duration_seconds": 140.169,
+    "errors": 0,
+    "failed": 0,
+    "passed": 228,
+    "result": "PASS",
+    "skipped": 0,
+    "source_commit": "5cbf315b95b5b644296910b4c7a16e5ae358e55b"
+  },
+  "baseline_commit": "ed0ea269297ab3be56287e6618db64adb25a43bc",
+  "browser_integration": {
+    "browser_widths_css_px": [
+      500,
+      1280
+    ],
+    "deployed_390_css_viewport_fixture": {
+      "document_scroll_width_css_px": 378,
+      "horizontal_overflow": false,
+      "long_text_complete": true,
+      "menu_and_controls_visible": true,
+      "physical_windows_or_phone": "NOT VERIFIED",
+      "result": "PASS"
+    },
+    "independent_postgresql_event_counts": {
+      "assistant_messages": 2,
+      "response_interrupted": 1,
+      "user_messages": 3
+    },
+    "model": "qwen3-0.6b-q8_0-local",
+    "model_context": 4096,
+    "model_service_restarted": false,
+    "model_sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+    "objectives_created": 0,
+    "report": "browser-commissioning.json",
+    "requested_mobile_width_css_px": 390,
+    "result": "PASS",
+    "windows_steward_browser_tested": false
+  },
+  "deployment": {
+    "rollback_target": "/opt/riverview-status-dashboard/releases/30085f040d16c666ab8e715e2b9f8c384d1adf9c-grace-chat-durability",
+    "source_commit": "5cbf315b95b5b644296910b4c7a16e5ae358e55b",
+    "status": "DEPLOYED",
+    "windows_steward_browser": "PENDING"
+  },
+  "process_graph": {
+    "globally_unique_nodes": 353,
+    "graphs": 17,
+    "synchronization": "PASS",
+    "validation": "PASS"
+  },
+  "revision_audit": {
+    "baseline_commit": "ed0ea269297ab3be56287e6618db64adb25a43bc",
+    "issues": 0,
+    "result": "PASS"
+  },
+  "schema_version": "rv.grace.chat.ui-refinement.verification.v1",
+  "source_commit": "5cbf315b95b5b644296910b4c7a16e5ae358e55b",
+  "source_files": {
+    "process_graphs/resident-conversation/browser-chat.json": {
+      "sha256": "3578412af0b472efc224e51e3c9065bea738a20bd7270f2bf36934003d1054e1"
+    },
+    "scripts/verify_grace_conversation_browser.py": {
+      "sha256": "78c4dcaa7ca96308a8503e29c01f2645c0ab48928ded3a3d5802c6941d887cb5"
+    },
+    "src/riverview_core/status_dashboard/static/app.css": {
+      "sha256": "67f438779db8a95b43f30c5bf3479985e3e5e828bae13fa9d3b0fd70641481f1"
+    },
+    "src/riverview_core/status_dashboard/static/app.js": {
+      "sha256": "8c158e4d492ae36ab72a78215d4fcdd1a1df65f22274e2090e801e4979fc2a44"
+    },
+    "src/riverview_core/status_dashboard/static/index.html": {
+      "sha256": "2b858f3ea104c6326f3b61e16fc3bcf40d2cd581ed0920fd5c15fbff114f1ab8"
+    },
+    "tests/test_status_dashboard.py": {
+      "sha256": "5f785ac091d7ac716eb956923b0fbc918448dfca97fbef20bcc85d1570b69b4a"
+    }
+  },
+  "source_tree_state": "committed candidate verified byte-for-byte against the tested working tree; hashes pin the relevant implementation and graph files",
+  "task_id": "RV-GRACE-CHAT-UX-001"
+}
