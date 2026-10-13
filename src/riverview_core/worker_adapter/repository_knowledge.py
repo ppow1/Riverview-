@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/repository_knowledge.py
 # Component: REPOSITORY-KNOWLEDGE-PROVIDER
-# Revision: 1.0.1
+# Revision: 1.0.3
 # Purpose: Provide bounded, commit-pinned retrieval of approved worker contracts
 # Execution Model: Synchronous in-process read-only provider
 # Observability: KnowledgeResult status, source refs, pinned commit and SHA-256
@@ -10,6 +10,8 @@
 # Authority: Read-only knowledge; never grants identity or assignment authority
 # Changed: 2026-10-11 UTC | RV-M3.3-REPOSITORY-KNOWLEDGE | Initial bounded provider
 # Changed: 2026-10-11 UTC | RV-M33-ENGINEERING-ARTIFACT | Bind the fixed repository test action to the verified worker contract
+# Changed: 2026-10-11 UTC | RV-M4.4-RESIDENT-KNOWLEDGE-INDEX | Add a separate commit-pinned resident knowledge corpus
+# Changed: 2026-10-11 UTC | RV-M4.4-BOUNDED-ARTIFACT-WORKER | Bind the bounded artifact action to the verified worker contract
 # Contracts: docs/components/WORKER_ADAPTER.md; knowledge-provider v1 contract
 # Tests: tests/test_repository_knowledge.py; tests/test_worker_adapter.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -36,6 +38,7 @@ class RepositoryKnowledgeProvider:
     """Retrieve the pinned worker contract from a clean local Git checkout."""
 
     WORKER_CONTRACT = "repo://riverview/worker-adapter-contract.v1"
+    RESIDENT_CONTRACT = "repo://riverview/resident-engineering.v1"
     CONTRACTS = {
         WORKER_CONTRACT: (
             "docs/components/WORKER_ADAPTER.md",
@@ -43,11 +46,22 @@ class RepositoryKnowledgeProvider:
             "src/riverview_core/worker_adapter/continuous.py",
             "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
             "src/riverview_core/worker_adapter/repository_knowledge.py",
+        ),
+        RESIDENT_CONTRACT: (
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "src/riverview_core/resident_reasoning.py",
+            "src/riverview_core/local_reasoning_provider.py",
+            "src/riverview_core/worker_adapter/repository_knowledge.py",
+            "docs/ROADMAP.md",
         )
     }
     ACTIONS = {
         "deterministic.sha256.v1": WORKER_CONTRACT,
         "engineering.repository-check.v1": WORKER_CONTRACT,
+        "engineering.bounded-artifact.v1": WORKER_CONTRACT,
+        "resident.reasoning.v1": RESIDENT_CONTRACT,
     }
     MAX_SOURCE_BYTES = 256 * 1024
     MAX_TOTAL_BYTES = 768 * 1024

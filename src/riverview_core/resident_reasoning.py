@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Regound institutional resident requests and route bounded plan proposals
 # Execution Model: Request-driven in-process runtime with replaceable reasoning providers
 # Observability: Office-scoped durable state stores grounding and provider outcomes
@@ -15,6 +15,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.2-AUTHORITY-DENIAL-STATUS | Expose a typed authority-denied result when the resident office-state grant is absent or revoked
 # Changed: 2026-10-11 UTC | RV-M4.2-ENFORCE-PER-ROUTE-TOKEN-BUDGET | Reject provider output that exceeds its allocated attempt budget
 # Changed: 2026-10-11 UTC | RV-M4.2-ROUTE-MINIMUM-BUDGET | Reject a configured route whose provider count cannot fit the requested total token budget
+# Changed: 2026-10-11 UTC | RV-M4.4-CONTEXT-FAILURE-CLASS | Distinguish oversize grounded input from JSON serialization failure
 # Contracts: docs/components/RESIDENT_REASONING.md
 # Tests: tests/test_resident_reasoning.py
 # History: .riverview-backups/manifest.jsonl
@@ -280,6 +281,7 @@ class ResidentReasoner:
                                     code="OFFICE_UNBOUND")
             return self._result_after_record(revision, ReasoningStatus.WAITING_FOR_EVIDENCE,
                                              request_id, "OFFICE_UNBOUND")
+        context_failure_code = "ASSIGNMENT_CONTEXT_UNAVAILABLE"
         try:
             ok, raw_assignment = self._timed_call.run(
                 lambda: self.assignments.read(assignment_id), self.timeout_seconds)
@@ -289,7 +291,9 @@ class ResidentReasoner:
             if assignment.get("id") != assignment_id or not assignment.get("revision"):
                 raise ValueError("assignment identity or revision is missing")
             if self._contains_secret_key(assignment):
+                context_failure_code = "ASSIGNMENT_CONTEXT_REDACTION_REJECTED"
                 raise ValueError("assignment context contains a protected credential field")
+            context_failure_code = None
             grounded = self._call_knowledge("ground_assignment", assignment)
             regrounded = self._call_knowledge("reground_assignment", assignment, trigger)
         except Exception:
@@ -298,21 +302,31 @@ class ResidentReasoner:
         if grounded.status is not KnowledgeStatus.VERIFIED or regrounded.status is not KnowledgeStatus.VERIFIED:
             revision = self._record(snapshot, assignment_id, request_id,
                                     ReasoningStatus.WAITING_FOR_EVIDENCE, trigger,
-                                    grounded, regrounded, code="GROUNDING_NOT_VERIFIED")
+                                    grounded, regrounded,
+                                    code=context_failure_code or "GROUNDING_NOT_VERIFIED")
             return self._result_after_record(revision, ReasoningStatus.WAITING_FOR_EVIDENCE,
-                                             request_id, "GROUNDING_NOT_VERIFIED")
+                                             request_id, context_failure_code or "GROUNDING_NOT_VERIFIED")
         try:
             serialized_context = json.dumps(
                 [assignment, grounded.value, regrounded.value], ensure_ascii=False)
-            if (len(serialized_context.encode("utf-8")) > self.MAX_CONTEXT_BYTES
-                    or self._contains_secret_key([grounded.value, regrounded.value])):
-                raise ValueError("verified context exceeds input boundary")
         except (TypeError, ValueError):
             revision = self._record(snapshot, assignment_id, request_id,
                                     ReasoningStatus.WAITING_FOR_EVIDENCE, trigger,
                                     grounded, regrounded, code="KNOWLEDGE_NOT_SERIALIZABLE")
             return self._result_after_record(revision, ReasoningStatus.WAITING_FOR_EVIDENCE,
                                              request_id, "KNOWLEDGE_NOT_SERIALIZABLE")
+        if len(serialized_context.encode("utf-8")) > self.MAX_CONTEXT_BYTES:
+            revision = self._record(snapshot, assignment_id, request_id,
+                                    ReasoningStatus.WAITING_FOR_EVIDENCE, trigger,
+                                    grounded, regrounded, code="CONTEXT_TOO_LARGE")
+            return self._result_after_record(revision, ReasoningStatus.WAITING_FOR_EVIDENCE,
+                                             request_id, "CONTEXT_TOO_LARGE")
+        if self._contains_secret_key([grounded.value, regrounded.value]):
+            revision = self._record(snapshot, assignment_id, request_id,
+                                    ReasoningStatus.WAITING_FOR_EVIDENCE, trigger,
+                                    grounded, regrounded, code="KNOWLEDGE_REDACTION_REJECTED")
+            return self._result_after_record(revision, ReasoningStatus.WAITING_FOR_EVIDENCE,
+                                             request_id, "KNOWLEDGE_REDACTION_REJECTED")
 
         implementation_revision = snapshot.get("implementation_revision")
         provider_ref = snapshot.get("provider_ref")

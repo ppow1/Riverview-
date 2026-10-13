@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.8
+# Revision: 1.0.9
 # Purpose: Verify resident regrounding, bounded provider routing and durable resume
 # Execution Model: Isolated PostgreSQL authority registry integration tests
 # Observability: Assertions inspect persisted office state and provider outcomes
@@ -19,6 +19,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.2-ENFORCE-PER-ROUTE-TOKEN-BUDGET | Verify a provider cannot exceed its allocated share before planning is persisted
 # Changed: 2026-10-11 UTC | RV-M4.2-COMPLETE-ROUTE-TEST | Configure the explicit fallback target in the token-budget boundary test
 # Changed: 2026-10-11 UTC | RV-M4.2-ROUTE-MINIMUM-BUDGET | Verify too-small total budget rejects the route before provider invocation
+# Changed: 2026-10-11 UTC | RV-M4.4-CONTEXT-FAILURE-CLASS | Verify oversized evidence and unserializable evidence have distinct outcomes
 # =============================================================================
 
 import hashlib
@@ -228,6 +229,7 @@ class ResidentReasoningTests(unittest.TestCase):
         result = self._runtime({"provider.a": provider}).propose(
             self.assignments.current["id"], trigger="before_reasoning", token_budget=100)
         self.assertEqual(result.status, ReasoningStatus.WAITING_FOR_EVIDENCE)
+        self.assertEqual(result.detail_code, "ASSIGNMENT_CONTEXT_REDACTION_REJECTED")
         self.assertEqual(provider.requests, [])
         state = self.registry.office_snapshot(self.office_id)["state"]["resident_reasoning_v1"]
         self.assertEqual(state["outcomes"][-1]["grounding"]["status"], "UNAVAILABLE")
@@ -289,6 +291,37 @@ class ResidentReasoningTests(unittest.TestCase):
         self.assertEqual(result.detail_code, "BUDGET_TOO_SMALL_FOR_ROUTE")
         self.assertEqual(primary.requests, [])
         self.assertEqual(secondary.requests, [])
+
+    def test_oversized_and_unserializable_grounding_are_reported_distinctly(self):
+        from riverview_core.resident_reasoning import ReasoningStatus, ResidentReasoner
+        from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
+
+        class FixedKnowledge:
+            def __init__(self, value):
+                self.value = value
+            def ground_assignment(self, assignment):
+                return KnowledgeResult(KnowledgeStatus.VERIFIED, self.value,
+                    ("repo://docs/evidence.md",), "a" * 40, "b" * 64, True)
+            def reground_assignment(self, assignment, trigger):
+                return self.ground_assignment(assignment)
+
+        provider = _Provider("provider.a")
+        too_large = {"evidence": "x" * (ResidentReasoner.MAX_CONTEXT_BYTES + 1)}
+        large_result = self._runtime({"provider.a": provider},
+            knowledge=FixedKnowledge(too_large)).propose(
+                self.assignments.current["id"], trigger="context_test", token_budget=20)
+        self.assertEqual(large_result.status, ReasoningStatus.WAITING_FOR_EVIDENCE)
+        self.assertEqual(large_result.detail_code, "CONTEXT_TOO_LARGE")
+        self.assertEqual(provider.requests, [])
+
+        class NotJson:
+            pass
+        invalid_result = self._runtime({"provider.a": provider},
+            knowledge=FixedKnowledge({"evidence": NotJson()})).propose(
+                self.assignments.current["id"], trigger="serialization_test", token_budget=20)
+        self.assertEqual(invalid_result.status, ReasoningStatus.WAITING_FOR_EVIDENCE)
+        self.assertEqual(invalid_result.detail_code, "KNOWLEDGE_NOT_SERIALIZABLE")
+        self.assertEqual(provider.requests, [])
 
 
 if __name__ == "__main__":

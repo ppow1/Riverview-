@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.95
+**Document Revision:** 1.0.98
 **Component:** ENG-RECORDS
 **Date:** 2026-10-11 UTC
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
@@ -1381,3 +1381,31 @@ registration and synchronized views now pass with 16 workflows/318 nodes.
 This advances M4.1 identity bootstrap only; a continuous resident service and
 Grace-directed end-to-end execution are still absent. Proceed with authority-
 bound resident service integration and restart/replacement verification.
+
+## 2026-10-11 UTC — RV-M4.4-OBJECTIVE-WORKORDER-PIPELINE / deterministic infrastructure slice
+
+Implemented bounded, commit-pinned resident evidence selection and distinct
+CONTEXT_TOO_LARGE versus KNOWLEDGE_NOT_SERIALIZABLE reasoning outcomes.
+Added a PostgreSQL objective/event record and a typed proposal bridge that keeps
+objective submission (objective.submit) separate from assignment dispatch
+(assignment.create). Assignment creation, its ledger event, and the objective
+link share the existing ledger transaction. Added one fixed, no-shell artifact
+worker capability and an independent verifier that reopens the on-disk artifact.
+
+Verified in a private temporary PostgreSQL 16 cluster and random disposable
+schemas. Positive flow persisted a scoped objective, commit-pinned evidence,
+unapproved proposal, authorized assignment, worker attempt, actual mode-0600
+artifact file, accepted independent verification, and completed objective. Denied
+authorization, missing evidence, over-budget context, worker failure, and
+completion before persisted verification were rejected. Selector tests passed
+against a temporary committed Git repository. No live model, service, shared
+database, or OctoMiner endpoint was contacted. This is infrastructure test
+evidence only; real resident reasoning, commissioned coding worker service,
+dashboard interaction, unattended repetition, and M4.4 acceptance remain open.
+
+The complete test suite subsequently passed 205/205 with zero skips against the
+same isolated PostgreSQL 16 cluster. Process-graph synchronization and validation
+passed for 16 workflows / 323 nodes. The controlled-source revision audit against
+the clean 6a326279 baseline returned zero issues. These results qualify this
+working-tree implementation only; CI and a reviewable feature commit are still
+required before a merge-ready claim.

@@ -1,0 +1,40 @@
+{
+  "artifact_path": "bounded-work-product.json",
+  "artifact_sha256": "9842377acb5da2233c0ab4b995cf7739a2efad03374c5db91764db1266ad3c16",
+  "artifact_size_bytes": 1011,
+  "assignment_id": "assignment:addd3e0dac4b4bba94983c5290563878",
+  "assignment_status": "completed",
+  "attempt_id": "87ca4440-84d9-438f-9d1f-d131f7a64ef1",
+  "component_id": "RESIDENT-ORCHESTRATION",
+  "evidence_schema": "rv.grace.execution-checkout.v1",
+  "mode": "isolated model-independent deterministic integration test",
+  "objective_event_types": [
+    "objective.received",
+    "objective.grounded",
+    "work_order.proposed",
+    "work_order.dispatched",
+    "objective.completed"
+  ],
+  "objective_id": "objective:grace-e2e",
+  "objective_status": "COMPLETED",
+  "postgresql_version": "PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu",
+  "recorded_at": "2026-10-11T16:45:11.922153+00:00",
+  "repository_revision": "96d9e792af9f48f4a986a07e160b93546eaddb1f",
+  "repository_sha256": "72a5066a8cb0788591c1e9df3003ce62d999318b5bd73934be2f1cde074772f2",
+  "shared_services_modified": false,
+  "source_checkout_status": "PRECOMMIT_WORKTREE; source_commit identifies parent commit, implementation changes were uncommitted during this run",
+  "source_commit": "6a326279aa4e81211b8a4fdc998d1e94c2361370",
+  "test_schema": "rvtest_caf9c5ecdf504cf9a2099d95aa8dd6c9",
+  "verifier_criteria": {
+    "artifact_digest_matches": true,
+    "artifact_reference_is_safe": true,
+    "assignment_contract_matches": true,
+    "attempt_succeeded": true,
+    "executor_capability_matches": true,
+    "source_provenance_present": true,
+    "work_product_is_complete": true,
+    "worker_report_succeeded": true
+  },
+  "verifier_revision": "1.0.0",
+  "verifier_status": "ACCEPTED"
+}

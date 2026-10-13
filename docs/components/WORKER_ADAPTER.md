@@ -1,6 +1,6 @@
 # Riverview~ worker adapter contract
 
-**Document Revision:** 1.0.15
+**Document Revision:** 1.0.16
 **Component:** WORKER-ADAPTER
 **Milestone:** M2.1–M2.3
 **Status:** M3.3 scoped technical acceptance criteria PASS and ready for Steward review; no simultaneous executor-process throughput claim. Formal acceptance and full Component DoD remain open; M4.3 local-inference execution remains isolated.
@@ -13,6 +13,7 @@
 **Changed:** 2026-10-11 UTC | RV-M3.3-LIVE-COMMISSIONING | Record live grant-bound repository test executor, verifier, artifact and recovery evidence
 **Changed:** 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION | Record live unavailable-knowledge isolation while eligible work continues
 **Changed:** 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-STATUS | Align current scoped technical status and distinguish process concurrency claims
+**Changed:** 2026-10-11 UTC | RV-M4.4-OBJECTIVE-WORKORDER-PIPELINE | Document bounded artifact capability as deterministic infrastructure test adapter only
 
 ## Scope and trust boundaries
 
@@ -235,6 +236,20 @@ or direct SQL. No governed route or worker service uses it yet. M3.3 remains
 blocked on route/service integration, commissioning of an approved real worker,
 and the real knowledge provider.
 
+
+## Grace bounded artifact capability
+
+The additional engineering.bounded-artifact.v1 mapping is an explicit
+capability/action grant mapping, not arbitrary code execution. The deterministic
+BoundedLocalCodingWorker is used for model-independent infrastructure tests:
+it accepts a persisted, verified proposal through the CME lease, writes one
+assignment-derived JSON artifact to an owner-controlled mode-0700 directory,
+and invokes no shell, command, network, or caller-selected path. The
+BoundedArtifactVerifier lives in a separate module and reopens the file before
+persisted completion. Exact assignment.execute and assignment.verify grants
+remain required. This adapter produces a bounded work-product record; it is not
+a general coding executor and does not establish a commissioned Grace worker
+service or M4.4 operational acceptance.
 
 ## M4.3 local inference capability
 
