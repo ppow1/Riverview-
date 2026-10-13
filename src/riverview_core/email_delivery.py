@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/email_delivery.py
 # Component: SHARED-EMAIL-DELIVERY
-# Revision: 1.1.0
+# Revision: 1.2.0
 # Purpose: Reusable SMTP delivery backed by encrypted PostgreSQL settings and a systemd key credential
 # Execution Model: Request-driven SMTP submission; no autonomous sending loop
 # Observability: Stable outcomes without credential or message logging
 # Dependencies: Python standard library; cryptography; PostgreSQL DB-API; TLS SMTP relay
 # Authority: Explicit caller supplies each recipient and message
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add reusable configured SMTP sender
+# Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SYSTEMD-KEY-ACL | Accept systemd's private service ACL credential mode
 # Contracts: docs/components/ACCOUNT_AUTHENTICATION.md
 # Tests: tests/test_account_auth.py; tests.test_account_auth.AccountAuthPostgresTests.test_email_settings_encrypt_secret_redact_readback_and_record_test
 # History: Git and revision/backup manifest
@@ -25,15 +26,37 @@ from cryptography.fernet import Fernet, InvalidToken
 
 from .account_auth import EmailTransportUnavailable, SMTPEmailTransport
 
+SYSTEMD_CREDENTIALS_ROOT = Path("/run/credentials")
+
+
+def _is_systemd_email_key(key_path: Path, info) -> bool:
+    """Accept systemd's root-owned, service-scoped read-only credential file."""
+    configured = os.environ.get("CREDENTIALS_DIRECTORY", "")
+    if not configured or key_path.name != "account-email-config-key" or info.st_uid != 0:
+        return False
+    try:
+        credentials_dir = Path(configured).resolve(strict=True)
+        root = SYSTEMD_CREDENTIALS_ROOT.resolve(strict=True)
+        directory_info = credentials_dir.stat()
+        return (credentials_dir.parent == root
+                and stat.S_ISDIR(directory_info.st_mode)
+                and directory_info.st_uid == 0
+                and not directory_info.st_mode & 0o022
+                and key_path.parent.resolve(strict=True) == credentials_dir
+                and info.st_mode in {stat.S_IFREG | 0o400, stat.S_IFREG | 0o440})
+    except OSError:
+        return False
+
 
 def read_key(path: str | Path) -> bytes:
-    """Read an owner-only Fernet key, refusing symlinks and permissive files."""
+    """Read a private Fernet key, including a service-scoped systemd credential."""
     key_path = Path(path)
     descriptor = os.open(key_path, os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
                          | getattr(os, "O_NOFOLLOW", 0))
     try:
         info = os.fstat(descriptor)
-        if not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077:
+        if (not stat.S_ISREG(info.st_mode)
+                or (info.st_mode & 0o077 and not _is_systemd_email_key(key_path, info))):
             raise EmailTransportUnavailable()
         with os.fdopen(descriptor, "rb", closefd=False) as stream:
             raw = stream.read(256).strip()

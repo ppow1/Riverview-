@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_account_auth.py
 # Component: WEBSITE-ACCOUNT-AUTH
-# Revision: 1.2.0
+# Revision: 1.4.0
 # Purpose: Verify account input, transport, and role boundary behavior
 # Execution Model: Request-driven unit tests; no Camrui service or database mutation
 # Observability: unittest assertions and exit status
@@ -14,6 +14,8 @@
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Reject email header delimiters and malformed dot segments
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Cover password reset, scoped grants and administrator notification links
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Verify SMTP settings encryption, redaction and test delivery audit
+# Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SYSTEMD-KEY-ACL | Cover systemd credential ACL acceptance
+# Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SYSTEMD-KEY-ACL-TEST-FIX | Create fixture before making directory read-only
 # Contracts: docs/components/ACCOUNT_AUTHENTICATION.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -21,9 +23,11 @@
 """Unit tests for account authentication primitives and safe mail configuration."""
 
 import os
+import stat
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from uuid import uuid4
 
 from riverview_core.account_auth import (
@@ -109,6 +113,28 @@ class AccountPrimitiveTests(unittest.TestCase):
             path.chmod(0o644)
             with self.assertRaises(EmailTransportUnavailable):
                 read_key(path)
+
+    def test_systemd_email_key_requires_exact_private_credential_location_and_acl_mode(self):
+        from types import SimpleNamespace
+        from riverview_core.email_delivery import _is_systemd_email_key
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            credentials = root / "riverview-status-dashboard.service"
+            credentials.mkdir(mode=0o700)
+            key = credentials / "account-email-config-key"
+            key.write_bytes(b"test-only-not-an-email-key")
+            key.chmod(0o440)
+            credentials.chmod(0o500)
+            directory_info = SimpleNamespace(st_mode=stat.S_IFDIR | 0o500, st_uid=0)
+            allowed_info = SimpleNamespace(st_mode=stat.S_IFREG | 0o440, st_uid=0)
+            with patch.dict(os.environ, {"CREDENTIALS_DIRECTORY": str(credentials)}), \
+                 patch("riverview_core.email_delivery.SYSTEMD_CREDENTIALS_ROOT", root), \
+                 patch.object(Path, "stat", return_value=directory_info):
+                self.assertTrue(_is_systemd_email_key(key, allowed_info))
+                self.assertFalse(_is_systemd_email_key(key, SimpleNamespace(
+                    st_mode=stat.S_IFREG | 0o640, st_uid=0)))
+                self.assertFalse(_is_systemd_email_key(root / "outside-key", allowed_info))
 
 
 class _MemoryEmailTransport:
