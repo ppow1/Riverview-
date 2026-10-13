@@ -1,0 +1,88 @@
+{
+  "record_schema": "rv.m33.scoped-technical-acceptance-review.v1",
+  "reviewed_at_utc": "2026-10-11T13:47:05.779133+00:00",
+  "deployed_source_commit": "47a79adafe1524b3e819148b70c02a1857f50dbf",
+  "scope": "M3.3 operational vertical slice only; not full Component DoD, formal Steward acceptance, or merge approval",
+  "criteria": [
+    {
+      "criterion": "governed authorized request accepted; unauthorized request denied with no assignment/event writes",
+      "result": "PASS",
+      "evidence": [
+        "evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/acceptance.json",
+        "evidence/checkouts/M3.3-WAITING-ISOLATION/20261011T1310Z-47a79ad/governed-request-results.json"
+      ]
+    },
+    {
+      "criterion": "durable assignment/event persisted transactionally",
+      "result": "PASS",
+      "evidence": [
+        "evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/database-state.json"
+      ]
+    },
+    {
+      "criterion": "commissioned service acquires and executes through scheduler without interactive invocation",
+      "result": "PASS",
+      "evidence": [
+        "evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/deployment.json",
+        "evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/m33-service-journal.txt"
+      ]
+    },
+    {
+      "criterion": "actual bounded repository engineering artifact produced",
+      "result": "PASS",
+      "evidence": [
+        "evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/artifact-files.json",
+        "evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/database-state.json"
+      ]
+    },
+    {
+      "criterion": "separate independent verifier accepted result",
+      "result": "PASS",
+      "evidence": [
+        "evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/database-state.json",
+        "evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/attempt-review.json"
+      ]
+    },
+    {
+      "criterion": "PostgreSQL lifecycle, attempt/result, knowledge provenance persisted",
+      "result": "PASS",
+      "evidence": [
+        "evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/database-state.json"
+      ]
+    },
+    {
+      "criterion": "authenticated dashboard projects completed and waiting assignments truthfully",
+      "result": "PASS",
+      "evidence": [
+        "evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/dashboard-browser.json",
+        "evidence/checkouts/M3.3-WAITING-ISOLATION/20261011T1310Z-47a79ad/dashboard-projections.json"
+      ]
+    },
+    {
+      "criterion": "process interruption, safe restart/recovery, and queued-work recovery exercised",
+      "result": "PASS",
+      "evidence": [
+        "evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/recovery-evidence.json"
+      ]
+    },
+    {
+      "criterion": "complete regression, CI, graph synchronization, revision audit and live services verified",
+      "result": "PASS",
+      "evidence": [
+        "evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/full-suite.log",
+        "evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/revision-audit.json",
+        "evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/process-graph-check.json",
+        "evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1344Z-fce3c30/full-suite.log",
+        "evidence/checkouts/M3.3-COURSE-CORRECTION/20261011T1346Z-fce3c30/process-graph-check.json",
+        "evidence/checkouts/M3.3-COURSE-CORRECTION/20261011T1346Z-fce3c30/revision-audit.json"
+      ]
+    }
+  ],
+  "limitations": [
+    "No simultaneous throughput across multiple executor processes was measured; the documented criterion is independent progress of concurrent assignments, demonstrated by a WAITING_FOR_EVIDENCE assignment coexisting with a distinct assignment completing through the scheduler.",
+    "Knowledge record_learning returned UNAVAILABLE and is explicitly not claimed as completed learning.",
+    "Full Component DoD and formal Steward acceptance remain open."
+  ],
+  "assessment": "READY_FOR_STEWARD_REVIEW",
+  "steward_acceptance": "NOT_CLAIMED"
+}

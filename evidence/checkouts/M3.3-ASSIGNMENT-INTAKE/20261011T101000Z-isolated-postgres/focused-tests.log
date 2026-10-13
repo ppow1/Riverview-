@@ -1,0 +1,9 @@
+test_authority_unavailable_fails_closed (tests.test_assignment_intake.AuthorizedAssignmentIntakeTests.test_authority_unavailable_fails_closed) ... ok
+test_exact_grant_creates_attributed_assignment_and_idempotent_event (tests.test_assignment_intake.AuthorizedAssignmentIntakeTests.test_exact_grant_creates_attributed_assignment_and_idempotent_event) ... ok
+test_missing_wrong_scope_and_revoked_grants_fail_closed_without_rows (tests.test_assignment_intake.AuthorizedAssignmentIntakeTests.test_missing_wrong_scope_and_revoked_grants_fail_closed_without_rows) ... ok
+test_request_cannot_choose_a_different_actor (tests.test_assignment_intake.AuthorizedAssignmentIntakeTests.test_request_cannot_choose_a_different_actor) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 1.442s
+
+OK

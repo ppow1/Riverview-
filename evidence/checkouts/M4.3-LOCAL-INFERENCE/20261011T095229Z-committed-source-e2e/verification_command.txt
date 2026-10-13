@@ -1,0 +1,1 @@
+PYTHONPATH=src python3 scripts/verify_local_inference.py --dsn 'host=/tmp/rv-m43-sock-20261011T092845Z-utf8 port=55489 dbname=postgres user=admin1' --server /tmp/rv-llama-build/bin/llama-server --model /home/admin1/.cache/riverview/models/Qwen3-0.6B-Q8_0.gguf --output <this-evidence-directory>

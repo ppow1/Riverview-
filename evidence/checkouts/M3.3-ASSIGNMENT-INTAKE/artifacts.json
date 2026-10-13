@@ -1,0 +1,11 @@
+{
+  "artifacts": {
+    "acceptance.json": {
+      "path": "acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "70968bc70a5d4abfde462b38e7fb9b55a31129050d1591904ebdc4bc5749364d",
+      "size_bytes": 3103
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

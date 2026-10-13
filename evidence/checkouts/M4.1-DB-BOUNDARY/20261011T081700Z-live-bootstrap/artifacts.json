@@ -1,0 +1,22 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M4.1-LIVE-BOOTSTRAP-EVIDENCE",
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "source_commit": "4276af8a8296b9c3042076a78881b2ec6d9b766e",
+  "boundary_apply_source_commit": "d3a0ed4fdec3061923964451ce2fccff18fadca7",
+  "target": "Camrui PostgreSQL 16.15, database riverview; additive riverview_authority schema; runtime/service state preserved",
+  "decision": "PASS live privilege boundary and initial Steward bootstrap; no application service integration or full M4.1 acceptance claimed",
+  "artifacts": {
+    "checkout.md": {"path":"checkout.md","revision":"1.0.0","sha256":"dea6d2ccd66a67c30419dd01f402718a42cab665efc4587abf0a9d4117bf353f","size_bytes":3831},
+    "preflight.txt": {"path":"preflight.txt","revision":"1.0.0","sha256":"1d1595a521f3880db3ca4b1867f233c050e6d4b53145233601af9238aebfe26c","size_bytes":487},
+    "bootstrap-restart.txt": {"path":"bootstrap-restart.txt","revision":"1.0.0","sha256":"9119228d92829d942b56bd42c1c6497c052c43989d61944cdcd29b25e30ec390","size_bytes":152},
+    "token-file-metadata.txt": {"path":"token-file-metadata.txt","revision":"1.0.0","sha256":"e869bd5d059c72ee55baac730f53e9d44e7a1ee8474b0539dc1ebdebff8e12f0","size_bytes":27},
+    "independent-credential-check.txt": {"path":"independent-credential-check.txt","revision":"1.0.0","sha256":"b6d497d5ce359becddf8c2eb2ee4b6708c0d20f4a03c4f3316bd9bdd67a9ceba","size_bytes":140},
+    "access-denials.txt": {"path":"access-denials.txt","revision":"1.0.0","sha256":"f1a4e6cea3132386b8e3ef15735eae5dfc3ee2130959512a0cc92081910201d8","size_bytes":369},
+    "authority-and-core-state.txt": {"path":"authority-and-core-state.txt","revision":"1.0.0","sha256":"d5fae6ab59c0f96c8d3cc937a93114f47544886188e8637974406daec5690308","size_bytes":141},
+    "service-status.txt": {"path":"service-status.txt","revision":"1.0.0","sha256":"7cf2f1c2beefeb984e485857763da5a9b5e8079291c9f5e110d3bbf4d8e10704","size_bytes":42},
+    "backup-verification.txt": {"path":"backup-verification.txt","revision":"1.0.0","sha256":"b62d3fbee1e6a6d4e189defb09c911a1a81a532f02eede020a609b8a16f05d83","size_bytes":285},
+    "restore-cleanup.txt": {"path":"restore-cleanup.txt","revision":"1.0.0","sha256":"9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa","size_bytes":2},
+    "source-files.sha256": {"path":"source-files.sha256","revision":"1.0.0","sha256":"cb1ce49464324a06ab7852b161c9e565a1cc76b4577e9adc31f6cbef2f82700e","size_bytes":694}
+  }
+}

@@ -1,0 +1,354 @@
+{
+  "graph_id": "rv:worker-adapter:supervised-services",
+  "graph_revision": "1.0.0",
+  "component_id": "WORKER-ADAPTER",
+  "workflow_id": "supervised-services.v1",
+  "diagram_order": 8,
+  "source_references": [
+    "deploy/systemd/riverview-assignment-intake.service",
+    "deploy/systemd/riverview-m33-verifier.service",
+    "deploy/systemd/riverview-m33-worker.service",
+    "scripts/run_assignment_intake.py",
+    "scripts/run_verifier_service.py",
+    "scripts/run_worker_service.py",
+    "src/riverview_core/assignment_intake.py",
+    "src/riverview_core/assignment_intake_http.py",
+    "src/riverview_core/worker_adapter/service.py"
+  ],
+  "documentation_references": [
+    "docs/components/WORKER_ADAPTER.md",
+    "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+    "docs/components/WORKER_ADAPTER_FLOW.md"
+  ],
+  "verification_evidence": [],
+  "nodes": [
+    {
+      "id": "rv:worker-adapter:supervised-services:start",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "systemd starts the exact M3.3 service",
+      "source_references": [
+        "src/riverview_core/worker_adapter/service.py",
+        "scripts/run_worker_service.py",
+        "scripts/run_verifier_service.py",
+        "scripts/run_assignment_intake.py",
+        "deploy/systemd/riverview-m33-worker.service",
+        "deploy/systemd/riverview-m33-verifier.service",
+        "deploy/systemd/riverview-assignment-intake.service"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:supervised-services:credential-gate",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "validate root-owned PID 1 credentials and private database passfile",
+      "source_references": [
+        "src/riverview_core/worker_adapter/service.py",
+        "scripts/run_worker_service.py",
+        "scripts/run_verifier_service.py",
+        "scripts/run_assignment_intake.py",
+        "deploy/systemd/riverview-m33-worker.service",
+        "deploy/systemd/riverview-m33-verifier.service",
+        "deploy/systemd/riverview-assignment-intake.service"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:supervised-services:config-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "are exact identity, scope, package pin, and database preflight valid?",
+      "source_references": [
+        "src/riverview_core/worker_adapter/service.py",
+        "scripts/run_worker_service.py",
+        "scripts/run_verifier_service.py",
+        "scripts/run_assignment_intake.py",
+        "deploy/systemd/riverview-m33-worker.service",
+        "deploy/systemd/riverview-m33-verifier.service",
+        "deploy/systemd/riverview-assignment-intake.service"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:supervised-services:startup-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "fail closed without exposing credentials or continuing work",
+      "source_references": [
+        "src/riverview_core/worker_adapter/service.py",
+        "scripts/run_worker_service.py",
+        "scripts/run_verifier_service.py",
+        "scripts/run_assignment_intake.py",
+        "deploy/systemd/riverview-m33-worker.service",
+        "deploy/systemd/riverview-m33-verifier.service",
+        "deploy/systemd/riverview-assignment-intake.service"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:supervised-services:registration",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "verify or idempotently register the exact scoped worker identity",
+      "source_references": [
+        "src/riverview_core/worker_adapter/service.py",
+        "scripts/run_worker_service.py",
+        "scripts/run_verifier_service.py",
+        "scripts/run_assignment_intake.py",
+        "deploy/systemd/riverview-m33-worker.service",
+        "deploy/systemd/riverview-m33-verifier.service",
+        "deploy/systemd/riverview-assignment-intake.service"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:supervised-services:executor-loop",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "enter the persistent assignment executor loop",
+      "source_references": [
+        "scripts/run_worker_service.py",
+        "scripts/run_verifier_service.py",
+        "scripts/run_assignment_intake.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:supervised-services:restart-reconcile",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "reconcile expired durable attempts before later claims",
+      "source_references": [
+        "scripts/run_worker_service.py",
+        "scripts/run_verifier_service.py",
+        "scripts/run_assignment_intake.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:supervised-services:verifier-poll",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "poll only successful deterministic results awaiting verification",
+      "source_references": [
+        "scripts/run_worker_service.py",
+        "scripts/run_verifier_service.py",
+        "scripts/run_assignment_intake.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:supervised-services:verification-handoff",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "submit result under distinct verifier identity and grant",
+      "source_references": [
+        "scripts/run_worker_service.py",
+        "scripts/run_verifier_service.py",
+        "scripts/run_assignment_intake.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER_FLOW.md"
+      ],
+      "verification_evidence": [],
+      "jump_target_id": "rv:outcome-verifier:independent-result:verification-intake"
+    },
+    {
+      "id": "rv:worker-adapter:supervised-services:intake-start",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "start bounded loopback-only governed assignment request API",
+      "source_references": [
+        "deploy/systemd/riverview-assignment-intake.service",
+        "src/riverview_core/assignment_intake_http.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:supervised-services:intake-auth",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "persist only through exact assignment.create authority check",
+      "source_references": [
+        "src/riverview_core/assignment_intake_http.py",
+        "src/riverview_core/assignment_intake.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:supervised-services:intake-denied",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "reject unauthorized request without ledger mutation",
+      "source_references": [
+        "src/riverview_core/assignment_intake_http.py",
+        "src/riverview_core/assignment_intake.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:supervised-services:intake-persist",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "persist authorized assignment and creation event atomically",
+      "source_references": [
+        "src/riverview_core/assignment_intake.py",
+        "src/riverview_core/assignment_intake_http.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER_FLOW.md"
+      ],
+      "verification_evidence": [],
+      "jump_target_id": "rv:event-processor:assignment-progression:created"
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:worker-adapter:supervised-services:start",
+      "to": "rv:worker-adapter:supervised-services:credential-gate",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:worker-adapter:supervised-services:credential-gate",
+      "to": "rv:worker-adapter:supervised-services:config-gate",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:worker-adapter:supervised-services:config-gate",
+      "to": "rv:worker-adapter:supervised-services:startup-failure",
+      "type": "diagnostic_branch",
+      "label": "credential, database, identity, or pin invalid"
+    },
+    {
+      "from": "rv:worker-adapter:supervised-services:config-gate",
+      "to": "rv:worker-adapter:supervised-services:registration",
+      "type": "diagnostic_branch",
+      "label": "all preflight conditions pass"
+    },
+    {
+      "from": "rv:worker-adapter:supervised-services:registration",
+      "to": "rv:worker-adapter:supervised-services:executor-loop",
+      "type": "runtime_transition",
+      "label": "executor unit"
+    },
+    {
+      "from": "rv:worker-adapter:supervised-services:registration",
+      "to": "rv:worker-adapter:supervised-services:verifier-poll",
+      "type": "runtime_transition",
+      "label": "verifier unit"
+    },
+    {
+      "from": "rv:worker-adapter:supervised-services:executor-loop",
+      "to": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+      "type": "documentation",
+      "label": "lifecycle implementation is in the deterministic-attempt workflow"
+    },
+    {
+      "from": "rv:worker-adapter:supervised-services:restart-reconcile",
+      "to": "rv:worker-adapter:deterministic-attempt:cycle-recovery",
+      "type": "recovery_route",
+      "label": "recover expired leases before assignment claim"
+    },
+    {
+      "from": "rv:worker-adapter:supervised-services:verifier-poll",
+      "to": "rv:worker-adapter:supervised-services:verification-handoff",
+      "type": "runtime_transition",
+      "label": "candidate result available"
+    },
+    {
+      "from": "rv:worker-adapter:supervised-services:verification-handoff",
+      "to": "rv:outcome-verifier:independent-result:verification-intake",
+      "type": "jump",
+      "label": "independent verifier contract"
+    },
+    {
+      "from": "rv:worker-adapter:supervised-services:intake-start",
+      "to": "rv:worker-adapter:supervised-services:intake-auth",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:worker-adapter:supervised-services:intake-auth",
+      "to": "rv:worker-adapter:supervised-services:intake-denied",
+      "type": "diagnostic_branch",
+      "label": "missing, invalid, or wrong-scope grant"
+    },
+    {
+      "from": "rv:worker-adapter:supervised-services:intake-auth",
+      "to": "rv:worker-adapter:supervised-services:intake-persist",
+      "type": "diagnostic_branch",
+      "label": "exact assignment.create grant held through transaction"
+    },
+    {
+      "from": "rv:worker-adapter:supervised-services:intake-persist",
+      "to": "rv:event-processor:assignment-progression:created",
+      "type": "jump",
+      "label": "durable assignment.created event"
+    },
+    {
+      "from": "rv:worker-adapter:supervised-services:registration",
+      "to": "rv:worker-adapter:supervised-services:restart-reconcile",
+      "type": "runtime_transition",
+      "label": "executor startup"
+    }
+  ]
+}

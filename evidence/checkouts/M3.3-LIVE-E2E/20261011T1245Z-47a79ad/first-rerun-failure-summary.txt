@@ -1,0 +1,5 @@
+Attempt: full suite evidence rerun with test DSN user admin1 before test-only role existed.
+Observed terminal excerpt: psycopg.OperationalError: connection failed: FATAL: role "admin1" does not exist
+Observed result: Ran 184 tests in 15.647s; FAILED (errors=75). The errors were database connection setup errors, not assertion failures.
+Correction: created the admin1 SUPERUSER LOGIN role only inside the disposable /tmp/rv-m33-provider-pg test cluster, reran using the same documented DSN and exact suite command; 184/184 passed.
+Retention note: the terminal failure excerpt and structured failure record are retained here. The full first-rerun traceback file was overwritten by the corrected rerun before it was separately copied; no claim is made that its complete stdout/stderr was preserved.

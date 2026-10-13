@@ -1,0 +1,6 @@
+Observed first regression assertion failure (preserved as a concise failure record):
+
+Test: DashboardHTTPTests.test_assignment_intake_cookbook_renders_without_broken_evidence_link
+Assertion: expected the literal byte string `exact `assignment.create` grant` in returned HTML.
+Observed response: HTTP 200 and rendered HTML represented inline Markdown code as `<code>assignment.create</code>`.
+Diagnosis: assertion expected source Markdown rather than correct HTML rendering. The product renderer behaved as designed. Updated the test to assert the rendered code element; subsequent focused test and full DashboardHTTPTests class passed.

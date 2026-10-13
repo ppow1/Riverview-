@@ -1,0 +1,42 @@
+test_only_explicit_timeout_fallback_is_used (tests.test_resident_reasoning.ResidentReasoningTests.test_only_explicit_timeout_fallback_is_used) ... FAIL
+test_plan_and_grounding_are_durable_across_runtime_replacement (tests.test_resident_reasoning.ResidentReasoningTests.test_plan_and_grounding_are_durable_across_runtime_replacement) ... FAIL
+test_provider_replacement_does_not_change_assignment_authority (tests.test_resident_reasoning.ResidentReasoningTests.test_provider_replacement_does_not_change_assignment_authority) ... FAIL
+test_unlisted_provider_is_unavailable_not_an_implicit_fallback (tests.test_resident_reasoning.ResidentReasoningTests.test_unlisted_provider_is_unavailable_not_an_implicit_fallback) ... FAIL
+test_unverified_grounding_waits_and_is_persisted (tests.test_resident_reasoning.ResidentReasoningTests.test_unverified_grounding_waits_and_is_persisted) ... ok
+
+======================================================================
+FAIL: test_only_explicit_timeout_fallback_is_used (tests.test_resident_reasoning.ResidentReasoningTests.test_only_explicit_timeout_fallback_is_used)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/admin1/projects/Riverview-New-Core/tests/test_resident_reasoning.py", line 189, in test_only_explicit_timeout_fallback_is_used
+    self.assertEqual(result.status, ReasoningStatus.PROPOSED)
+AssertionError: <ReasoningStatus.WAITING_FOR_EVIDENCE: 'WAITING_FOR_EVIDENCE'> != <ReasoningStatus.PROPOSED: 'PROPOSED'>
+
+======================================================================
+FAIL: test_plan_and_grounding_are_durable_across_runtime_replacement (tests.test_resident_reasoning.ResidentReasoningTests.test_plan_and_grounding_are_durable_across_runtime_replacement)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/admin1/projects/Riverview-New-Core/tests/test_resident_reasoning.py", line 155, in test_plan_and_grounding_are_durable_across_runtime_replacement
+    self.assertEqual(first.status, ReasoningStatus.PROPOSED)
+AssertionError: <ReasoningStatus.WAITING_FOR_EVIDENCE: 'WAITING_FOR_EVIDENCE'> != <ReasoningStatus.PROPOSED: 'PROPOSED'>
+
+======================================================================
+FAIL: test_provider_replacement_does_not_change_assignment_authority (tests.test_resident_reasoning.ResidentReasoningTests.test_provider_replacement_does_not_change_assignment_authority)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/admin1/projects/Riverview-New-Core/tests/test_resident_reasoning.py", line 202, in test_provider_replacement_does_not_change_assignment_authority
+    self.assertEqual(result.status, ReasoningStatus.PROPOSED)
+AssertionError: <ReasoningStatus.WAITING_FOR_EVIDENCE: 'WAITING_FOR_EVIDENCE'> != <ReasoningStatus.PROPOSED: 'PROPOSED'>
+
+======================================================================
+FAIL: test_unlisted_provider_is_unavailable_not_an_implicit_fallback (tests.test_resident_reasoning.ResidentReasoningTests.test_unlisted_provider_is_unavailable_not_an_implicit_fallback)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/admin1/projects/Riverview-New-Core/tests/test_resident_reasoning.py", line 213, in test_unlisted_provider_is_unavailable_not_an_implicit_fallback
+    self.assertEqual(result.status, ReasoningStatus.UNAVAILABLE)
+AssertionError: <ReasoningStatus.WAITING_FOR_EVIDENCE: 'WAITING_FOR_EVIDENCE'> != <ReasoningStatus.UNAVAILABLE: 'UNAVAILABLE'>
+
+----------------------------------------------------------------------
+Ran 5 tests in 3.828s
+
+FAILED (failures=4)

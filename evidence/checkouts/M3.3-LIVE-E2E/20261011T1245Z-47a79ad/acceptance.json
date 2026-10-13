@@ -1,0 +1,63 @@
+{
+  "component_id": "M3.3-FIRST-END-TO-END-UNATTENDED-DEMONSTRATION",
+  "criterion_results": [
+    {
+      "criterion": "authorized governed request persists assignment and event atomically",
+      "evidence": "database-state.json; unauthorized request was HTTP 403 with no target rows; authorized route request HTTP 200",
+      "result": "PASS"
+    },
+    {
+      "criterion": "commissioned worker service acquires through scheduler and executes unattended",
+      "evidence": "deployment.json; m33-service-journal.txt; database-state.json",
+      "result": "PASS"
+    },
+    {
+      "criterion": "real bounded repository engineering artifact produced",
+      "evidence": "artifact-files.json; worker_results in database-state.json; three mode-0600 test reports",
+      "result": "PASS"
+    },
+    {
+      "criterion": "independent verification",
+      "evidence": "three distinct assignment verification records ACCEPTED with all ten criteria true; verifier has separate service unit, credential and authorization principal",
+      "result": "PASS"
+    },
+    {
+      "criterion": "repository-backed knowledge provenance and failure behavior",
+      "evidence": "complete VERIFIED ground/preflight/reground observations pinned to deployed source revision and SHA-256; unavailable record_learning remains explicitly UNAVAILABLE",
+      "result": "PASS scoped"
+    },
+    {
+      "criterion": "durable PostgreSQL state and lifecycle events",
+      "evidence": "database-state.json: three completed assignments; 15 ordered lifecycle events; attempts, results, verification and knowledge observations",
+      "result": "PASS"
+    },
+    {
+      "criterion": "dashboard visibility",
+      "evidence": "dashboard-browser.json and retained authenticated screenshots",
+      "result": "PASS"
+    },
+    {
+      "criterion": "restart and safe recovery",
+      "evidence": "recovery-evidence.json; process SIGKILL/restart and queued work recovery; CME stall/resolve notifications persisted",
+      "result": "PASS"
+    },
+    {
+      "criterion": "two assignments execute concurrently on distinct workers",
+      "evidence": "two assignments coexisted queued and independently recovered after a single worker restart; concurrent distinct executor throughput not demonstrated",
+      "result": "NOT VERIFIED"
+    },
+    {
+      "criterion": "automated tests, graphs, CI and revision audit",
+      "evidence": "full-suite.log; process-graph-check.txt; revision-audit.json; PR #21 exact-head CI",
+      "result": "PASS"
+    }
+  ],
+  "deployed_commit": "47a79adafe1524b3e819148b70c02a1857f50dbf",
+  "merge": "NOT AUTHORIZED; PR #21 remains open draft",
+  "source_commit": "47a79adafe1524b3e819148b70c02a1857f50dbf",
+  "status": "IN PROGRESS \u2014 core authorized unattended vertical slice technically demonstrated; canonical full M3.3 acceptance remains open because simultaneous independent execution is not evidenced and full Component DoD remains open.",
+  "steward_acceptance": "NOT CLAIMED",
+  "target": "Camrui; PostgreSQL riverview/riverview_dev; dashboard-only endpoint on existing service",
+  "task_id": "RV-M3.3-LIVE-COMMISSIONING",
+  "usage_meter": "not available to this execution; no usage threshold claim"
+}

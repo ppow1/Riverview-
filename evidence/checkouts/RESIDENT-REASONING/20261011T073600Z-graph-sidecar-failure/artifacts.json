@@ -1,0 +1,34 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M4.2-001-GRAPH-SIDECAR-FIX",
+  "component_id": "RESIDENT-REASONING",
+  "source_commit": "7d6923e4444e8c6a672a3a473a003441c39a0766",
+  "target": "Private PostgreSQL 16.15 integration suite plus canonical graph revision audit",
+  "decision": "Failed run retained; new graph missing its sidecar registration; isolated fixtures left no schema or role",
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "dbfeabaca54c3a8a80819e10cfc8af5e6036a30745a6c43342e93a3aaac703e5",
+      "size_bytes": 1315
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "604d44499faa03426ba25a974aa405d0dab5f4b03f89d454cc62248c95df902a",
+      "size_bytes": 24001
+    },
+    "role-cleanup-graph-failure.txt": {
+      "path": "role-cleanup-graph-failure.txt",
+      "revision": "1.0.0",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "size_bytes": 2
+    },
+    "schema-cleanup-graph-failure.txt": {
+      "path": "schema-cleanup-graph-failure.txt",
+      "revision": "1.0.0",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "size_bytes": 2
+    }
+  }
+}

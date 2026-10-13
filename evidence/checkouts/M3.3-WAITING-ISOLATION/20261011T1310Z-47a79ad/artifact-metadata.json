@@ -1,0 +1,28 @@
+{
+  "files": [
+    {
+      "mode": "0o600",
+      "name": "repository-check-1512fe83e92788864679328af6ac7501444412e6fcc37803d1fc0a3c4c2379b3.json",
+      "sha256": "9bc152b4a6cda38e4ba8dd27c5490b40abfe357e6c505bcbd0f2604a482990ad",
+      "size_bytes": 2134
+    },
+    {
+      "mode": "0o600",
+      "name": "repository-check-1e65374a5cb56d4a56094cc47baebcfb060d8d20aa30cbfa048ca5813c16849c.json",
+      "sha256": "c74b2d4d7eb910a2aef3972161956cfe5b127bd85d8bd169fc164225d0cd7bd6",
+      "size_bytes": 2129
+    },
+    {
+      "mode": "0o600",
+      "name": "repository-check-924350e83a6849a75bd830f40057791c5628590e8b8c5e95ee7bc8156ac2b5b4.json",
+      "sha256": "a5cc5c8225fba58f97f28c3f070121d4e3ece72893d728588985d0a2950db1d5",
+      "size_bytes": 2138
+    },
+    {
+      "mode": "0o600",
+      "name": "repository-check-a582685298dd02b619ea93f2f0a2f344dfaff5e955e618cd527ae234b806148f.json",
+      "sha256": "6b57be9a192e4db04ae8b4cc41705fd39ea802c8f9d87fb57af91804b1119ae1",
+      "size_bytes": 2134
+    }
+  ]
+}

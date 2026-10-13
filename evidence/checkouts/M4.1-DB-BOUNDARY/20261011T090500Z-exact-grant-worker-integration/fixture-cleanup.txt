@@ -1,0 +1,3 @@
+rvtest_schemas=0
+test_roles=0
+Private PostgreSQL 16.15 cluster at /tmp/rv-m41-authcheck-pg, port 55441, stopped cleanly; socket absent.

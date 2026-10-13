@@ -1,0 +1,56 @@
+2026-10-11T08:41:07-04:00 admin1-Default-string systemd[1]: Started riverview-m33-worker.service - Riverview M3.3 grant-bound assignment executor.
+2026-10-11T08:41:08-04:00 admin1-Default-string python[402347]: {"event": "worker_service_configuration_error", "failure_code": "worker_credential_format_invalid"}
+2026-10-11T08:41:08-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+2026-10-11T08:41:08-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Failed with result 'exit-code'.
+2026-10-11T08:41:08-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Consumed 1.093s CPU time, 1.4M memory peak, 0B memory swap peak.
+2026-10-11T08:41:11-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Scheduled restart job, restart counter is at 1.
+2026-10-11T08:41:12-04:00 admin1-Default-string systemd[1]: Started riverview-m33-worker.service - Riverview M3.3 grant-bound assignment executor.
+2026-10-11T08:41:13-04:00 admin1-Default-string python[402387]: {"event": "worker_service_configuration_error", "failure_code": "worker_credential_format_invalid"}
+2026-10-11T08:41:13-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+2026-10-11T08:41:13-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Failed with result 'exit-code'.
+2026-10-11T08:41:13-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Consumed 1.033s CPU time, 9.0M memory peak, 0B memory swap peak.
+2026-10-11T08:41:16-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Scheduled restart job, restart counter is at 2.
+2026-10-11T08:41:16-04:00 admin1-Default-string systemd[1]: Started riverview-m33-worker.service - Riverview M3.3 grant-bound assignment executor.
+2026-10-11T08:41:17-04:00 admin1-Default-string python[402430]: {"event": "worker_service_configuration_error", "failure_code": "worker_credential_format_invalid"}
+2026-10-11T08:41:17-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+2026-10-11T08:41:17-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Failed with result 'exit-code'.
+2026-10-11T08:41:20-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Scheduled restart job, restart counter is at 3.
+2026-10-11T08:41:20-04:00 admin1-Default-string systemd[1]: Started riverview-m33-worker.service - Riverview M3.3 grant-bound assignment executor.
+2026-10-11T08:41:21-04:00 admin1-Default-string python[402453]: {"event": "worker_service_configuration_error", "failure_code": "worker_credential_format_invalid"}
+2026-10-11T08:41:21-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+2026-10-11T08:41:21-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Failed with result 'exit-code'.
+2026-10-11T08:41:24-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Scheduled restart job, restart counter is at 4.
+2026-10-11T08:41:24-04:00 admin1-Default-string systemd[1]: Started riverview-m33-worker.service - Riverview M3.3 grant-bound assignment executor.
+2026-10-11T08:41:25-04:00 admin1-Default-string python[402479]: {"event": "worker_service_configuration_error", "failure_code": "worker_credential_format_invalid"}
+2026-10-11T08:41:25-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+2026-10-11T08:41:25-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Failed with result 'exit-code'.
+2026-10-11T08:41:28-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Scheduled restart job, restart counter is at 5.
+2026-10-11T08:41:28-04:00 admin1-Default-string systemd[1]: Started riverview-m33-worker.service - Riverview M3.3 grant-bound assignment executor.
+2026-10-11T08:41:29-04:00 admin1-Default-string python[402508]: {"event": "worker_service_configuration_error", "failure_code": "worker_credential_format_invalid"}
+2026-10-11T08:41:29-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+2026-10-11T08:41:29-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Failed with result 'exit-code'.
+2026-10-11T08:41:32-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Scheduled restart job, restart counter is at 6.
+2026-10-11T08:41:32-04:00 admin1-Default-string systemd[1]: Started riverview-m33-worker.service - Riverview M3.3 grant-bound assignment executor.
+2026-10-11T08:41:33-04:00 admin1-Default-string python[402534]: {"event": "worker_service_configuration_error", "failure_code": "worker_credential_format_invalid"}
+2026-10-11T08:41:33-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+2026-10-11T08:41:33-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Failed with result 'exit-code'.
+2026-10-11T08:41:36-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Scheduled restart job, restart counter is at 7.
+2026-10-11T08:41:36-04:00 admin1-Default-string systemd[1]: Started riverview-m33-worker.service - Riverview M3.3 grant-bound assignment executor.
+2026-10-11T08:41:36-04:00 admin1-Default-string systemd[1]: Stopping riverview-m33-worker.service - Riverview M3.3 grant-bound assignment executor...
+2026-10-11T08:41:36-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Deactivated successfully.
+2026-10-11T08:41:36-04:00 admin1-Default-string systemd[1]: Stopped riverview-m33-worker.service - Riverview M3.3 grant-bound assignment executor.
+2026-10-11T08:43:32-04:00 admin1-Default-string systemd[1]: Started riverview-m33-worker.service - Riverview M3.3 grant-bound assignment executor.
+2026-10-11T08:43:33-04:00 admin1-Default-string python[404582]: {"capability": "engineering.repository-check.v1", "event": "worker_service_started", "schema": "riverview_dev", "source_revision": "47a79adafe1524b3e819148b70c02a1857f50dbf", "worker_id": "worker:m33:executor:e92ec51590b34cd3"}
+2026-10-11T08:44:59-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Sent signal SIGKILL to main process 404582 (python) on client request.
+2026-10-11T08:44:59-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Main process exited, code=killed, status=9/KILL
+2026-10-11T08:44:59-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Failed with result 'signal'.
+2026-10-11T08:44:59-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Consumed 7.438s CPU time, 49.2M memory peak, 0B memory swap peak.
+2026-10-11T08:45:03-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Scheduled restart job, restart counter is at 1.
+2026-10-11T08:45:03-04:00 admin1-Default-string systemd[1]: Started riverview-m33-worker.service - Riverview M3.3 grant-bound assignment executor.
+2026-10-11T08:45:04-04:00 admin1-Default-string python[405426]: {"capability": "engineering.repository-check.v1", "event": "worker_service_started", "schema": "riverview_dev", "source_revision": "47a79adafe1524b3e819148b70c02a1857f50dbf", "worker_id": "worker:m33:executor:e92ec51590b34cd3"}
+2026-10-11T08:48:35-04:00 admin1-Default-string systemd[1]: Stopping riverview-m33-worker.service - Riverview M3.3 grant-bound assignment executor...
+2026-10-11T08:48:36-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Deactivated successfully.
+2026-10-11T08:48:36-04:00 admin1-Default-string systemd[1]: Stopped riverview-m33-worker.service - Riverview M3.3 grant-bound assignment executor.
+2026-10-11T08:48:36-04:00 admin1-Default-string systemd[1]: riverview-m33-worker.service: Consumed 12.878s CPU time, 8.2M memory peak, 0B memory swap peak.
+2026-10-11T08:53:57-04:00 admin1-Default-string systemd[1]: Started riverview-m33-worker.service - Riverview M3.3 grant-bound assignment executor.
+2026-10-11T08:53:58-04:00 admin1-Default-string python[409593]: {"capability": "engineering.repository-check.v1", "event": "worker_service_started", "schema": "riverview_dev", "source_revision": "47a79adafe1524b3e819148b70c02a1857f50dbf", "worker_id": "worker:m33:executor:e92ec51590b34cd3"}

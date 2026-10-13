@@ -1,0 +1,40 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M4.2-001-TEST-FIXTURE",
+  "component_id": "RESIDENT-REASONING",
+  "source_commit": "7d6923e4444e8c6a672a3a473a003441c39a0766",
+  "target": "Private local PostgreSQL 16.15 socket-only test cluster",
+  "decision": "Initial failure retained; test fake status exhaustion diagnosed; isolated fixtures cleaned and private server stopped",
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "065ccceed68efdd3640ea74e693636c4ca8ed68ed685c90ccbd1a106b678310a",
+      "size_bytes": 1237
+    },
+    "role-cleanup.txt": {
+      "path": "role-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "size_bytes": 2
+    },
+    "schema-cleanup.txt": {
+      "path": "schema-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "size_bytes": 2
+    },
+    "stopped-probe.txt": {
+      "path": "stopped-probe.txt",
+      "revision": "1.0.0",
+      "sha256": "21f71bab24f261c90e39734f39adfe72d2ff9cb695d0971046ee18411f5b9651",
+      "size_bytes": 49
+    },
+    "tests.log": {
+      "path": "tests.log",
+      "revision": "1.0.0",
+      "sha256": "7aae375bc19b8baff2c920e559e2679741c40467e0250916673096349128b7ea",
+      "size_bytes": 1699
+    }
+  }
+}

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_process_graph.py
 # Component: RV-PROCESS-GRAPH
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Verify global identity, references, typed edges, schema and synchronized views
 # Execution Model: Request-driven unittest suite
 # Observability: Assertion failures identify violated process graph contract
@@ -10,6 +10,7 @@
 # Authority: Test-only graph fixtures; no database or service access
 # Changed: 2026-10-10 UTC | RV-GRAPH-001 | Initial graph validation regression suite
 # Changed: 2026-10-11 UTC | RV-GRAPH-FILE-REVISION-FIX | Verify generation increments file headers without changing body revisions
+# Changed: 2026-10-11 UTC | RV-GRAPH-SIDECAR-INCREMENT | Verify changed canonical JSON increments its sidecar revision
 # Contracts: process_graphs/README.md; process_graphs/schema/riverview-process-graph.schema.json
 # Tests: python3 -m unittest tests.test_process_graph -v
 # History: Git and .riverview-backups/manifest.jsonl
@@ -17,6 +18,7 @@
 """Regression tests for canonical process graph validation and generated views."""
 
 import copy
+import hashlib
 from pathlib import Path
 import tempfile
 import unittest
@@ -98,6 +100,21 @@ class ProcessGraphTests(unittest.TestCase):
         sidecar = {"files": {"graph.json": {"revision": "1.0.0", "sha256": "0" * 64, "size_bytes": 5}}}
         with self.assertRaisesRegex(process_graph.GraphError, "checksum mismatch"):
             process_graph.validate_sidecar_entry("graph.json", b"{}", sidecar)
+
+    def test_changed_canonical_json_increments_its_file_specific_revision(self):
+        old = b'{"graph_revision":"1.0.0"}\n'
+        new = b'{"graph_revision":"1.0.1"}\n'
+        manifest = {"files": {"process_graphs/example/flow.json": {
+            "revision": "3.2.4", "sha256": hashlib.sha256(old).hexdigest(),
+            "size_bytes": len(old)}}}
+        process_graph.record_json_manifest_entry(
+            manifest, "process_graphs/example/flow.json", new)
+        entry = manifest["files"]["process_graphs/example/flow.json"]
+        self.assertEqual(entry["revision"], "3.2.5")
+        self.assertEqual(entry["sha256"], hashlib.sha256(new).hexdigest())
+        process_graph.record_json_manifest_entry(
+            manifest, "process_graphs/example/flow.json", new)
+        self.assertEqual(entry["revision"], "3.2.5")
 
     def test_generated_flow_increments_file_revision_not_body_revision(self):
         with tempfile.TemporaryDirectory(dir=process_graph.ROOT) as directory:

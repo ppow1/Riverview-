@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_institutional_authority_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.11
+# Revision: 1.0.17
 # Purpose: Verify isolated M4.1 ownership separation denies runtime SQL bypass
 # Execution Model: PostgreSQL integration test using unique rvtest schema and roles
 # Observability: Protected object owners, runtime denial, manager registry authorization
@@ -20,6 +20,11 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER-TEST | Model a NOINHERIT manager login in the boundary fixture
 # Changed: 2026-10-11 UTC | RV-M4.1-DEDICATED-SCHEMA-FUNCTION-TEST | Reject unrelated schema functions before privilege changes
 # Changed: 2026-10-11 UTC | RV-M4.1-PREFLIGHT-DIAGNOSTIC | Assert safe static target failures and SQLSTATE-only diagnostics
+# Changed: 2026-10-11 UTC | RV-M4.1-OWNER-SCHEMA-USAGE | Exercise manager FK checks while owner retains USAGE but not CREATE
+# Changed: 2026-10-11 UTC | RV-M4.1-APPLY-REQUIRED-DRY-RUN | Require preflight to detect missing owner schema USAGE before apply
+# Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT | Verify exact-grant function is the runtime's sole authority access
+# Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-FIX | Read default tuple rows by position
+# Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-TEST-FIX | Revoke only a separate test credential
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -173,6 +178,20 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
         self.assertEqual(applied["status"], "APPLIED")
         self.assertEqual(len(applied["authority_tables"]), 9)
 
+        # A previously transferred boundary can still be incomplete. The
+        # read-only preflight must detect the missing table-owner schema USAGE
+        # required for later foreign-key checks, then an idempotent apply fixes it.
+        self.admin.execute(self.sql.SQL("REVOKE USAGE ON SCHEMA {} FROM {}").format(
+            self.sql.Identifier(self.schema), self.sql.Identifier(self.owner_role)))
+        incomplete = provision_authority_boundary(
+            self.admin, schema=self.schema, runtime_role=self.runtime_role,
+            manager_role=self.manager_role, owner_role=self.owner_role, apply=False)
+        self.assertTrue(incomplete["apply_required"])
+        repaired = provision_authority_boundary(
+            self.admin, schema=self.schema, runtime_role=self.runtime_role,
+            manager_role=self.manager_role, owner_role=self.owner_role, apply=True)
+        self.assertEqual(repaired["status"], "APPLIED")
+
         # Repeated application must be safe and report the protected state.
         repeated = provision_authority_boundary(
             self.admin, schema=self.schema, runtime_role=self.runtime_role,
@@ -184,16 +203,53 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
                                   has_schema_privilege(%s,%s,'USAGE') AS runtime_usage,
                                   has_schema_privilege(%s,%s,'CREATE') AS runtime_create,
                                   has_schema_privilege(%s,%s,'USAGE') AS manager_usage,
-                                  has_schema_privilege(%s,%s,'CREATE') AS manager_create""",
+                                  has_schema_privilege(%s,%s,'CREATE') AS manager_create,
+                                  has_schema_privilege(%s,%s,'USAGE') AS owner_usage,
+                                  has_schema_privilege(%s,%s,'CREATE') AS owner_create""",
                         (self.manager_role, self.owner_role,
                          self.runtime_role, self.schema, self.runtime_role, self.schema,
-                         self.manager_role, self.schema, self.manager_role, self.schema))
+                         self.manager_role, self.schema, self.manager_role, self.schema,
+                         self.owner_role, self.schema, self.owner_role, self.schema))
             access = cur.fetchone()
         self.assertFalse(access["manager_is_owner"])
-        self.assertFalse(access["runtime_usage"])
+        self.assertTrue(access["runtime_usage"])
         self.assertFalse(access["runtime_create"])
         self.assertTrue(access["manager_usage"])
         self.assertFalse(access["manager_create"])
+        self.assertTrue(access["owner_usage"])
+        self.assertFalse(access["owner_create"])
+        from psycopg.errors import InsufficientPrivilege
+        digest = hashlib.sha256(self.worker_token.encode("utf-8")).digest()
+        check_sql = self.sql.SQL(
+            "SELECT principal_id,grant_id FROM {}.authorize_exact_grant(%s,%s,%s)"
+        ).format(self.sql.Identifier(self.schema))
+        with self.psycopg.connect(self.runtime_dsn) as runtime:
+            valid = runtime.execute(check_sql, (digest, "assignment.execute",
+                                                "assignment:boundary-test")).fetchone()
+            self.assertEqual(valid[0], "worker:boundary-test")
+            self.assertEqual(valid[1], "boundary-test-grant")
+            self.assertIsNone(runtime.execute(check_sql, (digest, "assignment.execute",
+                                                          "assignment:other")).fetchone())
+            self.assertIsNone(runtime.execute(check_sql, (digest, "assignment.verify",
+                                                          "assignment:boundary-test")).fetchone())
+            self.assertIsNone(runtime.execute(check_sql, (b"bad", "assignment.execute",
+                                                          "assignment:boundary-test")).fetchone())
+        with self.psycopg.connect(self.manager_dsn) as manager:
+            with self.assertRaises(InsufficientPrivilege):
+                manager.execute(check_sql, (digest, "assignment.execute",
+                                             "assignment:boundary-test")).fetchone()
+        revoked_digest = hashlib.sha256(secrets.token_bytes(32)).digest()
+        self.admin.execute(self.sql.SQL(
+            "INSERT INTO {}.principal_credentials(credential_id,principal_id,credential_sha256) "
+            "VALUES (%s,'worker:boundary-test',%s)"
+        ).format(self.sql.Identifier(self.schema)), (uuid4(), revoked_digest))
+        self.admin.execute(self.sql.SQL(
+            "UPDATE {}.principal_credentials SET revoked_at=clock_timestamp() "
+            "WHERE credential_sha256=%s"
+        ).format(self.sql.Identifier(self.schema)), (revoked_digest,))
+        with self.psycopg.connect(self.runtime_dsn) as runtime:
+            self.assertIsNone(runtime.execute(check_sql, (revoked_digest, "assignment.execute",
+                                                          "assignment:boundary-test")).fetchone())
         self.admin.execute(self.sql.SQL("GRANT {} TO {}").format(
             self.sql.Identifier(self.owner_role), self.sql.Identifier(self.manager_role)))
         with self.assertRaisesRegex(BoundaryPreflightError, "manager role can assume"):
@@ -229,6 +285,27 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
                     self.sql.Identifier(self.schema)))
         with self.psycopg.connect(self.manager_dsn) as manager:
             manager.execute("SELECT count(*) FROM {}.institutional_principals".format(self.schema)).fetchone()
+            principal_id = "service:fk-boundary-test"
+            credential_id = uuid4()
+            grant_id = "fk-boundary-test-grant"
+            manager.execute(self.sql.SQL("""INSERT INTO {}.institutional_principals
+                (principal_id,principal_kind) VALUES (%s,'service')""").format(
+                    self.sql.Identifier(self.schema)), (principal_id,))
+            manager.execute(self.sql.SQL("""INSERT INTO {}.principal_credentials
+                (credential_id,principal_id,credential_sha256) VALUES (%s,%s,%s)""").format(
+                    self.sql.Identifier(self.schema)),
+                (credential_id, principal_id, hashlib.sha256(secrets.token_bytes(32)).digest()))
+            manager.execute(self.sql.SQL("""INSERT INTO {}.authority_grants
+                (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+                VALUES (%s,%s,'probe','probe',%s,'rv.policy:test.v1')""").format(
+                    self.sql.Identifier(self.schema)), (grant_id, principal_id, principal_id))
+            manager.execute(self.sql.SQL("""INSERT INTO {}.institutional_authority_events
+                (event_id,event_type,actor_id,subject_id,grant_id,payload)
+                VALUES (%s,'authority_granted',%s,%s,%s,'{{}}'::jsonb)""").format(
+                    self.sql.Identifier(self.schema)),
+                (uuid4(), principal_id, principal_id, grant_id))
+            manager.commit()
+        with self.psycopg.connect(self.manager_dsn) as manager:
             with self.assertRaises(InsufficientPrivilege):
                 manager.execute(self.sql.SQL("DROP TABLE {}.authority_grants").format(
                     self.sql.Identifier(self.schema)))

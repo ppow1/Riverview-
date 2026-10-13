@@ -1,0 +1,28 @@
+{
+  "record_schema": "rv.m42-local-reasoning-provider-evidence.v1",
+  "base_commit": "fce3c30e568dfb29ce7733ec05ff9b94b620974c",
+  "branch": "codex/m4.2-resident-reasoning",
+  "provider_source_file_revision": "1.0.7",
+  "provider_source_sha256": "00ec811a768a90d1e7897165da82dd9af67174269abe4056b27bb79ec928d9ab",
+  "contract_tests": "6 passed with ResourceWarning promoted to error; no database, credential, model or service used",
+  "complete_suite": "196 passed; zero skips/failures/errors on isolated PostgreSQL 16.15; one ResourceWarning localized to existing M4.3 test_local_inference threaded-server replacement fixture",
+  "isolated_cluster_cleanup": {
+    "schemas": 0,
+    "roles": 0
+  },
+  "actual_local_model_attempt": {
+    "result": "UNAVAILABLE",
+    "reason": "endpoint_unavailable after bounded 30-second request; the model server returned at the completion-token limit without an accepted complete typed plan",
+    "model_alias": "qwen3-0.6b-q8_0-local",
+    "model_sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+    "model_provider_source_commit": "d81235049384534c167caea52b85a694f6103d14",
+    "endpoint": "127.0.0.1:8767/v1",
+    "authority": "No ResidentReasoner call or office state write; no plan produced; temporary loopback server stopped"
+  },
+  "operational_effects": {
+    "M3.3_services_modified": false,
+    "database_modified": false,
+    "persistent_inference_service_installed": false,
+    "resident_identity_modified": false
+  }
+}

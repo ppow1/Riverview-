@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.59",
+  "manifest_revision": "1.1.84",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.37",
+      "revision": "1.0.53",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "23177a899ba16d9953c474b365239599376bdabd7920124f75cd97839e8469e6",
-      "size_bytes": 219776
+      "sha256": "f4fea58af2b4deb24d4dcf8353054a07cdfe71221ea1870950a4b1bdf870f625",
+      "size_bytes": 319849
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -14,10 +14,10 @@
       "size_bytes": 3203
     },
     "process_graphs/postgres-ledger/assignment-lifecycle.json": {
-      "revision": "1.0.0",
+      "revision": "1.0.1",
       "path": "process_graphs/postgres-ledger/assignment-lifecycle.json",
-      "sha256": "3cf4993bd5a07c8ad99cfbf2179d33b0fd606174b795624897c4f146bdc7e9bd",
-      "size_bytes": 6599
+      "sha256": "a227b8fed36571007eb02c9f0a9574d455efe759d7cf00579a89d5cbf4421fff",
+      "size_bytes": 10005
     },
     "process_graphs/postgres-ledger/migration.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 27724
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.59"
+      "revision": "1.1.84"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -89,10 +89,10 @@
       "size_bytes": 724
     },
     "process_graphs/worker-adapter/deterministic-attempt.json": {
-      "revision": "1.0.7",
+      "revision": "1.0.13",
       "path": "process_graphs/worker-adapter/deterministic-attempt.json",
-      "sha256": "f9576ede49fe6a9ce7ee20e9198f5c0ee52528d1ec23f02bc059817654d6e9fa",
-      "size_bytes": 30113
+      "sha256": "5e029cba24141ac68c689774b6ca18024edb5ddc7af9253dbe07d7f4b8f3d296",
+      "size_bytes": 35845
     },
     "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json": {
       "revision": "1.0.0",
@@ -167,10 +167,34 @@
       "size_bytes": 2957
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
-      "revision": "1.0.5",
+      "revision": "1.0.10",
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
-      "sha256": "a2cfa08f3abbc2d6d4e873ea9e4125266f2afbb56edec2228ce5aacc56c94b01",
-      "size_bytes": 15802
+      "sha256": "c8d042282ac10af0e824ad8a6f0790e4408746cdf53b0ac09b10e97c05140540",
+      "size_bytes": 32672
+    },
+    "process_graphs/resident-reasoning/runtime.json": {
+      "revision": "1.0.4",
+      "path": "process_graphs/resident-reasoning/runtime.json",
+      "sha256": "e4fbdd12ab117b6e0959290d0a3f6850b04f83b772ba097791e64df3b7d3fb9c",
+      "size_bytes": 22331
+    },
+    "process_graphs/knowledge-provider/repository-contracts.json": {
+      "revision": "1.0.3",
+      "path": "process_graphs/knowledge-provider/repository-contracts.json",
+      "sha256": "33a20a32e75197886d2b8e8ab3c4a4ccdd8bc1a82f12360a29be146954bf1cd4",
+      "size_bytes": 11764
+    },
+    "process_graphs/assignment-intake/governed-request.json": {
+      "revision": "1.0.0",
+      "path": "process_graphs/assignment-intake/governed-request.json",
+      "sha256": "a90a852c01150fdabfe714e053e55dbbef38ca3687ae863d2a3cff9bd30d4df8",
+      "size_bytes": 8451
+    },
+    "process_graphs/worker-adapter/supervised-services.json": {
+      "revision": "1.0.1",
+      "path": "process_graphs/worker-adapter/supervised-services.json",
+      "sha256": "e2e5911aae9b98d37c139995030103ebb8f29d891ea80c398411591a455f7b80",
+      "size_bytes": 18530
     }
   }
 }

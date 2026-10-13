@@ -1,0 +1,139 @@
+{
+  "artifacts": {
+    "acceptance.json": {
+      "path": "acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "506cef938e51e0175448a17caae3025c27b2561ab73717ec9d19054bec17eaa9",
+      "size_bytes": 3211
+    },
+    "artifact-files.json": {
+      "path": "artifact-files.json",
+      "revision": "1.0.0",
+      "sha256": "f984b35d934b22fc4894902b865da89682be666ff514df3fcd4c1118cb1fbd69",
+      "size_bytes": 937
+    },
+    "attempt-review.json": {
+      "path": "attempt-review.json",
+      "revision": "1.0.0",
+      "sha256": "a473c29c49b336eac0d8afe5cf6b99ee9e9911aab02689044254eeb9143da0ce",
+      "size_bytes": 1997
+    },
+    "dashboard-browser.json": {
+      "path": "dashboard-browser.json",
+      "revision": "1.0.0",
+      "sha256": "466c380762b2c2f2ba8223f94a2d88a73bdfff88a3deb75b6bd8269c30554a58",
+      "size_bytes": 1526
+    },
+    "dashboard-completed-assignment.png": {
+      "path": "dashboard-completed-assignment.png",
+      "revision": "1.0.0",
+      "sha256": "b495ef3cb908c9a0ac50907127e7f9d2c11ad0aa56f047d0d90d3015a4de600c",
+      "size_bytes": 270176
+    },
+    "dashboard-notifications.png": {
+      "path": "dashboard-notifications.png",
+      "revision": "1.0.0",
+      "sha256": "765a435bdefdb847b788ade5a54438119f137443518cab3791df747f6f7b9d43",
+      "size_bytes": 276431
+    },
+    "database-state.json": {
+      "path": "database-state.json",
+      "revision": "1.0.0",
+      "sha256": "ea179b0280d71ec88053596f2891ea1b19927e61222da36704cde35c5f3a2b47",
+      "size_bytes": 16737
+    },
+    "deployment.json": {
+      "path": "deployment.json",
+      "revision": "1.0.0",
+      "sha256": "4ab89240f7093de856aa15e1dbe96736d66a0475988d4b14c84b82cd51d9c97a",
+      "size_bytes": 2235
+    },
+    "first-rerun-failure-summary.txt": {
+      "path": "first-rerun-failure-summary.txt",
+      "revision": "1.0.0",
+      "sha256": "02e072e775a181205c7cb2dd03cd823078e4e0e077c739909d3ef053b4bacc3e",
+      "size_bytes": 797
+    },
+    "focused-regression.log": {
+      "path": "focused-regression.log",
+      "revision": "1.0.0",
+      "sha256": "844ce693531b3e0050e25dfe0f6a1a72d97b459ef51774d0e1d2deab1cb049ef",
+      "size_bytes": 3291
+    },
+    "full-suite-recheck.log": {
+      "path": "full-suite-recheck.log",
+      "revision": "1.0.0",
+      "sha256": "2cf3ff9997079d19c768053e9cc4a113326459865dc79bdf38043bb5c467ecbf",
+      "size_bytes": 31592
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "c5fcba1f34fd1da3f51d3ad53caacef24c01d2a93e8843144e37db90ca1f2fc2",
+      "size_bytes": 31592
+    },
+    "m33-service-journal.txt": {
+      "path": "m33-service-journal.txt",
+      "revision": "1.0.0",
+      "sha256": "9f05d1c0a0e950472b12628847823029ecdae109ee333f9ca2f6cb0fe8672abe",
+      "size_bytes": 8508
+    },
+    "package-verification.json": {
+      "path": "package-verification.json",
+      "revision": "1.0.0",
+      "sha256": "f048cdd7d1b1b94b64e75f4dbde176e25aded04102d4c06bef7822dbdf3c58f9",
+      "size_bytes": 878
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "e2e70831ded7b370762ce616cb04ca132e9f8e6fb10607236ba4f171956708ec",
+      "size_bytes": 55
+    },
+    "process-graph-validate.json": {
+      "path": "process-graph-validate.json",
+      "revision": "1.0.0",
+      "sha256": "5141ab715e2fd189f9c47a72e229726a5f8f610ff5bb9825af7746f3ca880544",
+      "size_bytes": 39
+    },
+    "recovery-evidence.json": {
+      "path": "recovery-evidence.json",
+      "revision": "1.0.0",
+      "sha256": "c119d1275ec3e96fbd789e6f781f1be1201f079e3b8e8338b657d569b160f4eb",
+      "size_bytes": 1393
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "systemd-unit-verification.txt": {
+      "path": "systemd-unit-verification.txt",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "test-run.json": {
+      "path": "test-run.json",
+      "revision": "1.0.0",
+      "sha256": "5bea902bdfac170dd7bb293f3835420b2e60f8a7fd2506978ba89925b5b5fcfa",
+      "size_bytes": 1627
+    },
+    "test-summary.txt": {
+      "path": "test-summary.txt",
+      "revision": "1.0.0",
+      "sha256": "3ec4b44878e82478a6a0e500614c47a49ae6a9cfdc5fc239a5e757f33c228bfe",
+      "size_bytes": 686
+    }
+  },
+  "checkout": {
+    "component_id": "CME-FIRST-VERTICAL-SLICE",
+    "decision": "Scoped live execution chain PASS; simultaneous multi-executor/full-DoD gates NOT VERIFIED; no Steward acceptance claimed",
+    "operator": "Codex CLI local commissioning",
+    "source_commit": "47a79adafe1524b3e819148b70c02a1857f50dbf",
+    "target": "Camrui Ubuntu; PostgreSQL riverview/riverview_dev; authenticated Firefox dashboard",
+    "task_id": "RV-M3.3-LIVE-COMMISSIONING"
+  },
+  "manifest_revision": "1.0.0"
+}

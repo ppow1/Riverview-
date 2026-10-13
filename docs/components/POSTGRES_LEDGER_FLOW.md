@@ -1,7 +1,7 @@
 <!--
 Riverview~ Controlled Document
 File: docs/components/POSTGRES_LEDGER_FLOW.md
-Revision: 1.0.1
+Revision: 1.0.2
 Migration: ENG-REV-002
 -->
 # PostgreSQL ledger — component flow and Steward projection
@@ -79,6 +79,8 @@ flowchart LR
 flowchart LR
   subgraph g_rv_postgres_ledger_assignment_lifecycle["POSTGRES-LEDGER / assignment-lifecycle.v1"]
     g_rv_postgres_ledger_assignment_lifecycle_intake_c1d0abf1(["Assignment intake"])
+    g_rv_postgres_ledger_assignment_lifecycle_assignment_create_authority_6a12b540{"Exact assignment.create grant authorized"}
+    g_rv_postgres_ledger_assignment_lifecycle_assignment_create_denied_313388c8[["Denied or authority unavailable; no assignment persisted"]]
     g_rv_postgres_ledger_assignment_lifecycle_queued_76a5fc02["queued"]
     g_rv_postgres_ledger_assignment_lifecycle_ready_acdb1cd3["ready"]
     g_rv_postgres_ledger_assignment_lifecycle_running_f1fef545["running"]
@@ -89,7 +91,6 @@ flowchart LR
     g_rv_postgres_ledger_assignment_lifecycle_completed_ce6019ed(["completed (caller verification flag is only a claim)"])
     g_rv_postgres_ledger_assignment_lifecycle_cancelled_d91a0270(["cancelled"])
   end
-  g_rv_postgres_ledger_assignment_lifecycle_intake_c1d0abf1 --> g_rv_postgres_ledger_assignment_lifecycle_queued_76a5fc02
   g_rv_postgres_ledger_assignment_lifecycle_queued_76a5fc02 --> g_rv_postgres_ledger_assignment_lifecycle_ready_acdb1cd3
   g_rv_postgres_ledger_assignment_lifecycle_queued_76a5fc02 --> g_rv_postgres_ledger_assignment_lifecycle_blocked_aab5861d
   g_rv_postgres_ledger_assignment_lifecycle_queued_76a5fc02 --> g_rv_postgres_ledger_assignment_lifecycle_cancelled_d91a0270
@@ -110,6 +111,9 @@ flowchart LR
   g_rv_postgres_ledger_assignment_lifecycle_blocked_aab5861d --> g_rv_postgres_ledger_assignment_lifecycle_awaiting_steward_96976db9
   g_rv_postgres_ledger_assignment_lifecycle_awaiting_steward_96976db9 --> g_rv_postgres_ledger_assignment_lifecycle_ready_acdb1cd3
   g_rv_postgres_ledger_assignment_lifecycle_awaiting_steward_96976db9 --> g_rv_postgres_ledger_assignment_lifecycle_cancelled_d91a0270
+  g_rv_postgres_ledger_assignment_lifecycle_intake_c1d0abf1 --> g_rv_postgres_ledger_assignment_lifecycle_assignment_create_authority_6a12b540
+  g_rv_postgres_ledger_assignment_lifecycle_assignment_create_authority_6a12b540 -->|exact grant locked through assignment and event commit| g_rv_postgres_ledger_assignment_lifecycle_queued_76a5fc02
+  g_rv_postgres_ledger_assignment_lifecycle_assignment_create_authority_6a12b540 -->|diagnostic_branch: missing, revoked, wrong-scope or unavailable authority| g_rv_postgres_ledger_assignment_lifecycle_assignment_create_denied_313388c8
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

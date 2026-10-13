@@ -1,0 +1,34 @@
+{
+  "evidence_id": "RV-M3.3-AUTHORITY-COOKBOOK-20261011",
+  "status": "PASS scoped dashboard documentation route and rendering regression",
+  "source_commit": "76b05f2f2ea2dff1e4a6f2a9c4cf296e2795dbe6",
+  "environment": "Camrui local Python HTTP component tests; temporary loopback listener; filesystem documentation source from checkout",
+  "commands": [
+    "PYTHONPATH=src python3 -m unittest tests.test_status_dashboard.DashboardHTTPTests.test_assignment_intake_cookbook_renders_without_broken_evidence_link -v",
+    "PYTHONPATH=src python3 -m unittest tests.test_status_dashboard.DashboardHTTPTests -v"
+  ],
+  "results": {
+    "focused_route_test": {
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    "dashboard_http_class": {
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "verified": [
+    "HTTP 200 and text/html for the authority cookbook route",
+    "visible heading and fenced shell code render as HTML",
+    "repository evidence path remains readable text with no unsupported /evidence hyperlink",
+    "controlled-document HTML comments are omitted"
+  ],
+  "failed_attempt": "Initial assertion expected Markdown inline-code delimiters in rendered HTML; diagnosis in 20261011T101500Z-route-check/initial-assertion-failure.txt. It was a test expectation defect, not a renderer failure.",
+  "limitations": [
+    "This is local HTTP component testing with a fake dashboard projection, not browser verification against live PostgreSQL or the installed dashboard service.",
+    "No service, credential, or shared database was changed."
+  ],
+  "source_worktree_note": "Cookbook and regression implementation are committed at source_commit; this evidence bundle is committed separately."
+}

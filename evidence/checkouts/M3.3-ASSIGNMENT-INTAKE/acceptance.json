@@ -1,0 +1,57 @@
+{
+  "evidence_id": "RV-M3.3-ASSIGNMENT-INTAKE-20261011",
+  "scope": "isolated PostgreSQL exact-grant assignment intake integration",
+  "status": "PASS",
+  "source_commit": "0c5ea4adc62056057a99c77a330196fe605c6226",
+  "environment": "Camrui Ubuntu 24.04; disposable PostgreSQL 16.15 UTF8 socket-only test cluster; unique rvtest schema per test",
+  "focused_tests": {
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "log": "20261011T101000Z-isolated-postgres/focused-tests.log"
+  },
+  "coverage": [
+    "authorized exact assignment.create persists grant-derived actor and one idempotent assignment.created event",
+    "missing, wrong-scope, and revoked grants deny without persisting assignment or event",
+    "authority function unavailable fails closed",
+    "caller cannot choose a forged actor identity"
+  ],
+  "cleanup": "All per-test rvtest schemas were removed (count 0); the private PostgreSQL cluster at /tmp/rv-m43-pg-20261011T092845Z-utf8 was fast-stopped successfully. Shared riverview_dev and operational services were not accessed or changed.",
+  "limitations": [
+    "No live governed route currently calls AuthorizedAssignmentIntake.",
+    "PostgresLedger.create and direct SQL remain non-authorizing persistence paths.",
+    "No commissioned worker service or real repository-backed knowledge provider exists; no live M3.3 assignment was created."
+  ],
+  "complete_suite": {
+    "passed": 159,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "duration_seconds": 49.78,
+    "exit_code": 0,
+    "log": "20261011T101000Z-isolated-postgres/full-suite-rerun.log"
+  },
+  "first_suite_attempt": {
+    "status": "FAIL_TRANSIENT_CHECKOUT_RACE",
+    "log": "20261011T101000Z-isolated-postgres/full-suite.log",
+    "cause": "The graph was regenerated concurrently with the suite, so a test read the canonical graph during the interval before its revision sidecar was refreshed. No code assertion failed. The graph was regenerated, then the full suite was rerun with the tree stable and passed."
+  },
+  "commands": [
+    "RIVERVIEW_TEST_PG_DSN='host=/tmp/rv-m43-sock-20261011T092845Z-utf8 port=55489 dbname=postgres user=admin1' PYTHONPATH=src python3 -m unittest tests.test_assignment_intake -v",
+    "RIVERVIEW_TEST_PG_DSN='host=/tmp/rv-m43-sock-20261011T092845Z-utf8 port=55489 dbname=postgres user=admin1' PYTHONPATH=src python3 -m unittest discover -s tests -v",
+    "python3 scripts/process_graph.py check",
+    "python3 scripts/revision_control.py check --baseline evidence/checkouts/ENG-REVISION-CONTROL/20261010T1530Z-27a8c55/baseline-inventory.json",
+    "python3 -m compileall -q src scripts tests"
+  ],
+  "operator": "Codex on Camrui (admin1)",
+  "tool_versions": {
+    "python": "3.12.3",
+    "postgresql": "16.15",
+    "psycopg": "3.1.17"
+  },
+  "graph_check": "PASS; 13 workflows / 271 nodes",
+  "controlled_revision_audit": "PASS; zero issues",
+  "compileall": "PASS",
+  "residual_test_schema_count": 0,
+  "source_worktree_note": "Implementation, graph, records and predecessor backups are committed at source_commit; this evidence bundle is committed separately."
+}

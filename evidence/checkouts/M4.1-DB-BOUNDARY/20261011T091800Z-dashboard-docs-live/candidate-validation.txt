@@ -1,0 +1,8 @@
+Candidate validation: PASS
+- Package SHA-256 file: 3afe126a33c726681a7ebd7e306a04f332cb6e03b101c5b8b230d562c9a0ebeb
+- Candidate package checksum verification: passed before deployment.
+- Dashboard executable, scripts and static asset comparisons against prior immutable release: zero differences.
+- Component documentation: 37 files; canonical workflow graph files: 13.
+- Focused candidate HTTP validation: documentation route and graph-index routes served; graph references resolved; authority focused graph: 29 nodes / 38 edges; execution position explicitly unknown.
+- systemd unit verification: passed.
+- Candidate was immutable/root-owned before pointer change; previous release retained.

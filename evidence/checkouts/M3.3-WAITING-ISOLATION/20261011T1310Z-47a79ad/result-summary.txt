@@ -1,0 +1,4 @@
+Live result: PASS for waiting isolation and independent eligible progress.
+Two authorized governed requests were submitted through the real loopback intake. The first requested an unregistered repository contract; the actual provider returned NO_MATCH, and PostgreSQL stored WAITING_FOR_EVIDENCE with no attempt. While it remained waiting, the same scheduled worker service processed a second eligible repository-check assignment, wrote a protected artifact, and the separate verifier reran and accepted it. The dashboard returned HTTP 200 for status and both assignment details.
+No direct database state changes, service restarts, credential edits, or configuration changes were made during this scenario.
+See database-state.json, dashboard-projections.json, governed-request-results.json, service-state.json, artifact-metadata.json. This establishes independent progress at assignment level; it does not claim simultaneous execution by multiple executor processes.

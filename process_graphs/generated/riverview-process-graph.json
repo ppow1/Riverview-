@@ -3,6 +3,239 @@
   "aggregate_id": "rv:riverview:all-workflows",
   "graphs": [
     {
+      "graph_id": "rv:assignment-intake:governed-request",
+      "graph_revision": "1.0.0",
+      "component_id": "ASSIGNMENT-INTAKE",
+      "workflow_id": "governed-request.v1",
+      "diagram_order": 1,
+      "source_references": [
+        "src/riverview_core/assignment_intake_http.py",
+        "src/riverview_core/assignment_intake.py",
+        "scripts/run_assignment_intake.py",
+        "deploy/systemd/riverview-assignment-intake.service",
+        "tests/test_assignment_intake_http.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+      ],
+      "verification_evidence": [
+        "tests/test_assignment_intake_http.py",
+        "tests/test_assignment_intake.py"
+      ],
+      "nodes": [
+        {
+          "id": "rv:assignment-intake:governed-request:request",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Loopback Steward assignment request",
+          "source_references": [
+            "src/riverview_core/assignment_intake_http.py",
+            "src/riverview_core/assignment_intake.py",
+            "scripts/run_assignment_intake.py",
+            "deploy/systemd/riverview-assignment-intake.service"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+          ],
+          "verification_evidence": [
+            "tests/test_assignment_intake_http.py",
+            "tests/test_assignment_intake.py"
+          ]
+        },
+        {
+          "id": "rv:assignment-intake:governed-request:bounded-request",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Require JSON type, bounded body and allowed request fields",
+          "source_references": [
+            "src/riverview_core/assignment_intake_http.py"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+          ],
+          "verification_evidence": [
+            "tests/test_assignment_intake_http.py",
+            "tests/test_assignment_intake.py"
+          ]
+        },
+        {
+          "id": "rv:assignment-intake:governed-request:grant-decision",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Require active exact assignment.create grant for authority_ref",
+          "source_references": [
+            "src/riverview_core/assignment_intake.py",
+            "src/riverview_core/institutional_authority/grants.py"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+          ],
+          "verification_evidence": [
+            "tests/test_assignment_intake_http.py",
+            "tests/test_assignment_intake.py"
+          ]
+        },
+        {
+          "id": "rv:assignment-intake:governed-request:exact-grant-jump",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "Resolve exact action and scope in the Authority registry",
+          "source_references": [
+            "src/riverview_core/assignment_intake.py"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+          ],
+          "verification_evidence": [],
+          "jump_target_id": "rv:institutional-authority:identity-and-grants:runtime-grant-check"
+        },
+        {
+          "id": "rv:assignment-intake:governed-request:reject-request",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Reject malformed, unauthorized or unavailable request without assignment rows",
+          "source_references": [
+            "src/riverview_core/assignment_intake_http.py",
+            "src/riverview_core/assignment_intake.py"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+          ],
+          "verification_evidence": [
+            "tests/test_assignment_intake_http.py",
+            "tests/test_assignment_intake.py"
+          ]
+        },
+        {
+          "id": "rv:assignment-intake:governed-request:atomic-write",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Persist assignment and created event under the grant row lock",
+          "source_references": [
+            "src/riverview_core/assignment_intake.py",
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+          ],
+          "verification_evidence": [
+            "tests/test_assignment_intake_http.py",
+            "tests/test_assignment_intake.py"
+          ]
+        },
+        {
+          "id": "rv:assignment-intake:governed-request:accepted",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "Return bounded assignment identity and lifecycle state",
+          "source_references": [
+            "src/riverview_core/assignment_intake_http.py"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+          ],
+          "verification_evidence": [
+            "tests/test_assignment_intake_http.py",
+            "tests/test_assignment_intake.py"
+          ]
+        },
+        {
+          "id": "rv:assignment-intake:governed-request:recovery",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Retry an ambiguous response with identical idempotency key",
+          "source_references": [
+            "src/riverview_core/assignment_intake_http.py",
+            "src/riverview_core/postgres_ledger.py"
+          ],
+          "documentation_references": [
+            "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+          ],
+          "verification_evidence": [
+            "tests/test_assignment_intake_http.py",
+            "tests/test_assignment_intake.py"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:assignment-intake:governed-request:request",
+          "to": "rv:assignment-intake:governed-request:bounded-request",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:assignment-intake:governed-request:bounded-request",
+          "to": "rv:assignment-intake:governed-request:grant-decision",
+          "type": "runtime_transition",
+          "label": "Valid bounded request"
+        },
+        {
+          "from": "rv:assignment-intake:governed-request:bounded-request",
+          "to": "rv:assignment-intake:governed-request:reject-request",
+          "type": "diagnostic_branch",
+          "label": "Invalid or oversized request"
+        },
+        {
+          "from": "rv:assignment-intake:governed-request:grant-decision",
+          "to": "rv:assignment-intake:governed-request:exact-grant-jump",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:assignment-intake:governed-request:exact-grant-jump",
+          "to": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+          "type": "jump"
+        },
+        {
+          "from": "rv:assignment-intake:governed-request:grant-decision",
+          "to": "rv:assignment-intake:governed-request:atomic-write",
+          "type": "runtime_transition",
+          "label": "Exact active grant"
+        },
+        {
+          "from": "rv:assignment-intake:governed-request:grant-decision",
+          "to": "rv:assignment-intake:governed-request:reject-request",
+          "type": "diagnostic_branch",
+          "label": "Denied or authority unavailable"
+        },
+        {
+          "from": "rv:assignment-intake:governed-request:atomic-write",
+          "to": "rv:assignment-intake:governed-request:accepted",
+          "type": "runtime_transition",
+          "label": "Transaction committed"
+        },
+        {
+          "from": "rv:assignment-intake:governed-request:atomic-write",
+          "to": "rv:assignment-intake:governed-request:recovery",
+          "type": "diagnostic_branch",
+          "label": "Client response lost or commit ambiguous"
+        },
+        {
+          "from": "rv:assignment-intake:governed-request:recovery",
+          "to": "rv:assignment-intake:governed-request:request",
+          "type": "recovery_route",
+          "label": "Replay identical idempotent request"
+        }
+      ]
+    },
+    {
       "graph_id": "rv:assignment-scheduler:independent-claims",
       "graph_revision": "1.0.4",
       "component_id": "ASSIGNMENT-SCHEDULER",
@@ -1375,7 +1608,7 @@
     },
     {
       "graph_id": "rv:institutional-authority:identity-and-grants",
-      "graph_revision": "1.0.5",
+      "graph_revision": "1.0.10",
       "component_id": "INSTITUTIONAL-AUTHORITY",
       "workflow_id": "identity-and-grants.v1",
       "diagram_order": 1,
@@ -1386,16 +1619,26 @@
         "tests/test_institutional_authority.py",
         "src/riverview_core/institutional_authority/db_boundary.py",
         "scripts/provision_authority_boundary.py",
-        "tests/test_institutional_authority_boundary.py"
+        "tests/test_institutional_authority_boundary.py",
+        "scripts/bootstrap_authority_steward.py",
+        "src/riverview_core/institutional_authority/grants.py",
+        "src/riverview_core/institutional_authority/migrations/0002_exact_grant_authorization.sql",
+        "src/riverview_core/worker_adapter/adapter.py",
+        "tests/test_worker_adapter.py",
+        "scripts/provision_grace_resident.py",
+        "tests/test_grace_provisioning.py"
       ],
       "documentation_references": [
         "docs/components/INSTITUTIONAL_AUTHORITY.md",
         "docs/components/INSTITUTIONAL_AUTHORITY_FLOW.md",
         "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
         "docs/development/M4.1-001_REVISION_RECORD.md",
-        "process_graphs/README.md"
+        "process_graphs/README.md",
+        "docs/components/WORKER_ADAPTER.md"
       ],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/identity-verification.json"
+      ],
       "nodes": [
         {
           "id": "rv:institutional-authority:identity-and-grants:bootstrap",
@@ -1653,6 +1896,256 @@
             "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
           ],
           "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Create or reuse and fsync the root-only bearer file before DB commit",
+          "source_references": [
+            "scripts/bootstrap_authority_steward.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:bootstrap-record-commit",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Persist the initial Steward digest, exact grants and audit event transactionally",
+          "source_references": [
+            "src/riverview_core/institutional_authority/registry.py",
+            "scripts/bootstrap_authority_steward.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:bootstrap-token-verify",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Verify persisted bearer authorizes exact bootstrap grant and only its digest is stored",
+          "source_references": [
+            "scripts/bootstrap_authority_steward.py",
+            "tests/test_institutional_authority.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:bootstrap-error",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Bootstrap outcome unavailable or secret persistence failed; retain protected token and fail closed",
+          "source_references": [
+            "scripts/bootstrap_authority_steward.py",
+            "src/riverview_core/institutional_authority/registry.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:bootstrap-retry",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Resume with the same protected token after interruption",
+          "source_references": [
+            "scripts/bootstrap_authority_steward.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:runtime-worker-registration",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Worker registration or a scoped worker action begins with a grant-bound credential",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Protected exact-grant function validates active credential, action, and exact scope",
+          "source_references": [
+            "src/riverview_core/institutional_authority/grants.py",
+            "src/riverview_core/institutional_authority/migrations/0002_exact_grant_authorization.sql"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:runtime-grant-allowed",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Exact active grant allows this transaction-bound worker operation",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "tests/test_worker_adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:runtime-grant-denied",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Missing, revoked, expired, wrong-action, or wrong-scope credential is denied",
+          "source_references": [
+            "src/riverview_core/institutional_authority/grants.py",
+            "tests/test_worker_adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:runtime-grant-unavailable",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Protected grant function or PostgreSQL is unavailable; worker action fails closed",
+          "source_references": [
+            "src/riverview_core/institutional_authority/grants.py",
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:grace-provision-request",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Root-local request to bind the fixed Grace resident identity",
+          "source_references": [
+            "scripts/provision_grace_resident.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/development/M4.1-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:grace-provision-preflight",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Validate root credentials, local model and fixed authority schema preconditions",
+          "source_references": [
+            "scripts/provision_grace_resident.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/development/M4.1-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/identity-verification.json"
+          ]
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:grace-provision-registry",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Idempotently create the Grace office, resident, occupant, model binding and exact office-state grant",
+          "source_references": [
+            "scripts/provision_grace_resident.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/development/M4.1-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/identity-verification.json"
+          ]
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:grace-provision-verify",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Independently confirm the bound identity and exact office-state grant",
+          "source_references": [
+            "scripts/provision_grace_resident.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/development/M4.1-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/identity-verification.json"
+          ]
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:grace-provision-failure",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Fail closed on unavailable credentials, conflicting identity, or unsafe protected path",
+          "source_references": [
+            "scripts/provision_grace_resident.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/development/M4.1-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:grace-provision-recovery",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Revoke orphan resident bearer records and retry safely after interrupted credential delivery",
+          "source_references": [
+            "scripts/provision_grace_resident.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/development/M4.1-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1320Z-611a19a/full-suite.log"
+          ]
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:grace-identity-bound",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "Identity-only bootstrap verified; resident runtime and Grace objective execution remain separate work",
+          "source_references": [
+            "scripts/provision_grace_resident.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/development/M4.1-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/identity-verification.json"
+          ]
         }
       ],
       "edges": [
@@ -1773,6 +2266,466 @@
           "to": "rv:institutional-authority:identity-and-grants:boundary-preflight-failure",
           "type": "diagnostic_branch",
           "label": "Runtime/manager role or schema-owner relationship is unsafe"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:bootstrap",
+          "to": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+          "type": "runtime_transition",
+          "label": "Root-only commissioning helper"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:migration-ready",
+          "to": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+          "type": "prerequisite",
+          "label": "Dedicated migration and privilege boundary verified"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+          "to": "rv:institutional-authority:identity-and-grants:bootstrap-record-commit",
+          "type": "runtime_transition",
+          "label": "File fsync precedes transaction"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+          "to": "rv:institutional-authority:identity-and-grants:bootstrap-error",
+          "type": "diagnostic_branch",
+          "label": "Unsafe path or persistence failure"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:bootstrap-record-commit",
+          "to": "rv:institutional-authority:identity-and-grants:bootstrap-token-verify",
+          "type": "verification",
+          "label": "Database commit succeeds"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:bootstrap-record-commit",
+          "to": "rv:institutional-authority:identity-and-grants:bootstrap-error",
+          "type": "diagnostic_branch",
+          "label": "Transaction unavailable or ambiguous"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:bootstrap-error",
+          "to": "rv:institutional-authority:identity-and-grants:bootstrap-retry",
+          "type": "recovery_route",
+          "label": "Preserve token file; investigate DB result"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:bootstrap-retry",
+          "to": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+          "type": "runtime_transition",
+          "label": "Reuse existing token; never rotate on uncertain commit"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:bootstrap-token-verify",
+          "to": "rv:institutional-authority:identity-and-grants:complete",
+          "type": "runtime_transition",
+          "label": "Initial authority verified"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:runtime-worker-registration",
+          "to": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+          "type": "runtime_transition",
+          "label": "Check worker.register or the capability-mapped action and exact scope"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+          "to": "rv:institutional-authority:identity-and-grants:runtime-grant-allowed",
+          "type": "runtime_transition",
+          "label": "Active credential and exact grant match"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+          "to": "rv:institutional-authority:identity-and-grants:runtime-grant-denied",
+          "type": "diagnostic_branch",
+          "label": "No exact active grant"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+          "to": "rv:institutional-authority:identity-and-grants:runtime-grant-unavailable",
+          "type": "diagnostic_branch",
+          "label": "Function or database unavailable"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:runtime-grant-allowed",
+          "to": "rv:institutional-authority:identity-and-grants:authorized-action",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:runtime-grant-denied",
+          "to": "rv:institutional-authority:identity-and-grants:deny",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:runtime-grant-unavailable",
+          "to": "rv:institutional-authority:identity-and-grants:unavailable",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:recover",
+          "to": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+          "type": "recovery_route",
+          "label": "Revalidate the exact grant in the resumed operation"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:grace-provision-request",
+          "to": "rv:institutional-authority:identity-and-grants:grace-provision-preflight",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:grace-provision-preflight",
+          "to": "rv:institutional-authority:identity-and-grants:grace-provision-registry",
+          "type": "runtime_transition",
+          "label": "All root-owned inputs and exact schema preconditions pass"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:grace-provision-preflight",
+          "to": "rv:institutional-authority:identity-and-grants:grace-provision-failure",
+          "type": "diagnostic_branch",
+          "label": "Credential, model, database or path precondition fails"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:grace-provision-registry",
+          "to": "rv:institutional-authority:identity-and-grants:grace-provision-verify",
+          "type": "verification"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:grace-provision-registry",
+          "to": "rv:institutional-authority:identity-and-grants:grace-provision-failure",
+          "type": "diagnostic_branch",
+          "label": "Registry mutation conflicts or becomes unavailable"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:grace-provision-failure",
+          "to": "rv:institutional-authority:identity-and-grants:grace-provision-recovery",
+          "type": "recovery_route",
+          "label": "Reconcile durable registry state and protected credential file"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:grace-provision-recovery",
+          "to": "rv:institutional-authority:identity-and-grants:grace-provision-registry",
+          "type": "runtime_transition",
+          "label": "Retry fixed identities idempotently; orphan bearer is revoked before replacement"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:grace-provision-verify",
+          "to": "rv:institutional-authority:identity-and-grants:grace-identity-bound",
+          "type": "runtime_transition",
+          "label": "One exact office.state.write grant and matching binding verified"
+        }
+      ]
+    },
+    {
+      "graph_id": "rv:repository-knowledge-provider:pinned-worker-contracts",
+      "graph_revision": "1.0.3",
+      "component_id": "REPOSITORY-KNOWLEDGE-PROVIDER",
+      "workflow_id": "pinned-worker-contracts.v1",
+      "diagram_order": 1,
+      "source_references": [
+        "src/riverview_core/worker_adapter/repository_knowledge.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
+        "tests/test_repository_knowledge.py",
+        "tests/test_worker_adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md",
+        "docs/components/REPOSITORY_KNOWLEDGE_FLOW.md",
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_repository_knowledge.py"
+      ],
+      "nodes": [
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:intake",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Worker requests one registered contract reference",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:resolve",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Resolve exact allowlisted contract or action mapping",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:pin",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Require full source commit to match the approved pin",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:integrity",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Are all configured source bytes clean and checksum-valid?",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:read",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Read only the bounded fixed source set",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:verified",
+          "node_revision": "1.0.2",
+          "type": "measurement",
+          "label": "Return complete source refs, revision and aggregate hash",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": [
+            "tests/test_repository_knowledge.py"
+          ]
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:no-match",
+          "node_revision": "1.0.1",
+          "type": "failure",
+          "label": "Unknown contract or action returns NO_MATCH",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:unverified",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Pin or source integrity failure returns UNVERIFIED",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:incomplete",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Source exceeds a fixed retrieval bound",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:unavailable",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Git, package metadata or source read unavailable",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:wait",
+          "node_revision": "1.0.1",
+          "type": "escalation",
+          "label": "Non-VERIFIED lookups keep only this assignment waiting",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:worker-ground",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "Return source evidence to the existing worker grounding gate",
+          "jump_target_id": "rv:worker-adapter:deterministic-attempt:ground",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:worker-wait",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "Route non-verified outcomes to the existing assignment-local wait",
+          "jump_target_id": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:repository-knowledge-provider:pinned-worker-contracts:learning-unavailable",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Learning write is explicitly unavailable in this read-only provider",
+          "source_references": [
+            "src/riverview_core/worker_adapter/repository_knowledge.py"
+          ],
+          "documentation_references": [
+            "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md"
+          ],
+          "verification_evidence": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:intake",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:resolve",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:resolve",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:no-match",
+          "type": "diagnostic_branch",
+          "label": "No registered contract/action"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:resolve",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:pin",
+          "type": "runtime_transition",
+          "label": "Known mapping"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:pin",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:integrity",
+          "type": "runtime_transition",
+          "label": "Exact commit"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:pin",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:unverified",
+          "type": "diagnostic_branch",
+          "label": "Commit mismatch"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:integrity",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:read",
+          "type": "runtime_transition",
+          "label": "Sources clean and checksummed"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:integrity",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:unverified",
+          "type": "diagnostic_branch",
+          "label": "Dirty/tampered bytes"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:read",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:verified",
+          "type": "verification"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:read",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:incomplete",
+          "type": "diagnostic_branch",
+          "label": "Size limit"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:read",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:unavailable",
+          "type": "diagnostic_branch",
+          "label": "Read/metadata failure"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:verified",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:worker-ground",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:worker-ground",
+          "to": "rv:worker-adapter:deterministic-attempt:ground",
+          "type": "jump"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:no-match",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:wait",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:unverified",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:wait",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:incomplete",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:wait",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:unavailable",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:wait",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:wait",
+          "to": "rv:repository-knowledge-provider:pinned-worker-contracts:worker-wait",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:worker-wait",
+          "to": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+          "type": "jump"
+        },
+        {
+          "from": "rv:repository-knowledge-provider:pinned-worker-contracts:learning-unavailable",
+          "to": "rv:worker-adapter:deterministic-attempt:learning",
+          "type": "documentation"
         }
       ]
     },
@@ -2298,13 +3251,14 @@
     },
     {
       "graph_id": "rv:postgres-ledger:assignment-lifecycle",
-      "graph_revision": "1.0.0",
+      "graph_revision": "1.0.1",
       "component_id": "POSTGRES-LEDGER",
       "workflow_id": "assignment-lifecycle.v1",
       "diagram_order": 2,
       "source_references": [
         "src/riverview_core/ledger.py",
-        "src/riverview_core/postgres_ledger.py"
+        "src/riverview_core/postgres_ledger.py",
+        "src/riverview_core/assignment_intake.py"
       ],
       "documentation_references": [
         "docs/components/POSTGRES_LEDGER_FLOW.md",
@@ -2320,12 +3274,45 @@
           "type": "entry",
           "label": "Assignment intake",
           "source_references": [
-            "src/riverview_core/postgres_ledger.py"
+            "src/riverview_core/assignment_intake.py"
           ],
           "documentation_references": [
             "docs/components/POSTGRES_LEDGER_FLOW.md"
           ],
           "verification_evidence": []
+        },
+        {
+          "id": "rv:postgres-ledger:assignment-lifecycle:assignment-create-authority",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Exact assignment.create grant authorized",
+          "source_references": [
+            "src/riverview_core/assignment_intake.py",
+            "src/riverview_core/institutional_authority/grants.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/development/M3.3-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M3.3-ASSIGNMENT-INTAKE/acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:postgres-ledger:assignment-lifecycle:assignment-create-denied",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Denied or authority unavailable; no assignment persisted",
+          "source_references": [
+            "src/riverview_core/assignment_intake.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/development/M3.3-001_REVISION_RECORD.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M3.3-ASSIGNMENT-INTAKE/acceptance.json"
+          ]
         },
         {
           "id": "rv:postgres-ledger:assignment-lifecycle:queued",
@@ -2447,11 +3434,6 @@
       ],
       "edges": [
         {
-          "from": "rv:postgres-ledger:assignment-lifecycle:intake",
-          "to": "rv:postgres-ledger:assignment-lifecycle:queued",
-          "type": "runtime_transition"
-        },
-        {
           "from": "rv:postgres-ledger:assignment-lifecycle:queued",
           "to": "rv:postgres-ledger:assignment-lifecycle:ready",
           "type": "runtime_transition"
@@ -2551,6 +3533,23 @@
           "from": "rv:postgres-ledger:assignment-lifecycle:awaiting-steward",
           "to": "rv:postgres-ledger:assignment-lifecycle:cancelled",
           "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:intake",
+          "to": "rv:postgres-ledger:assignment-lifecycle:assignment-create-authority",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:assignment-create-authority",
+          "to": "rv:postgres-ledger:assignment-lifecycle:queued",
+          "type": "runtime_transition",
+          "label": "exact grant locked through assignment and event commit"
+        },
+        {
+          "from": "rv:postgres-ledger:assignment-lifecycle:assignment-create-authority",
+          "to": "rv:postgres-ledger:assignment-lifecycle:assignment-create-denied",
+          "type": "diagnostic_branch",
+          "label": "missing, revoked, wrong-scope or unavailable authority"
         }
       ]
     },
@@ -3113,6 +4112,622 @@
           "from": "rv:postgres-ledger:migration:dashboard-jump",
           "to": "rv:steward-dashboard:status:ingest",
           "type": "jump"
+        }
+      ]
+    },
+    {
+      "graph_id": "rv:resident-reasoning:runtime",
+      "graph_revision": "1.0.4",
+      "component_id": "RESIDENT-REASONING",
+      "workflow_id": "resident.reasoning.v1",
+      "diagram_order": 13,
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
+        "src/riverview_core/institutional_authority/registry.py",
+        "tests/test_resident_reasoning.py",
+        "src/riverview_core/local_reasoning_provider.py",
+        "tests/test_local_reasoning_provider.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md",
+        "docs/development/M4.2-001_REVISION_RECORD.md",
+        "docs/components/RESIDENT_REASONING_FLOW.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md",
+        "evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1340Z-fce3c30/result-summary.json"
+      ],
+      "nodes": [
+        {
+          "id": "rv:resident-reasoning:runtime:request",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Resident reasoning request for one authoritative assignment",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:authorize-state",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Require exact active office.state.write grant before reading assignment context",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:authority-gate",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Is the exact resident office-state grant active?",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:authority-denied",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Return AUTHORITY_DENIED without reading context or invoking provider",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:load-context",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Read current office binding and assignment revision; reject credential fields and oversized inputs",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:ground",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Ground the current assignment through knowledge-provider v1",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:reground",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Reground at the request trigger and retain source revision/hash",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:grounding-gate",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Are grounding and regrounding both VERIFIED and complete?",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:evidence-wait",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Persist non-verified status and return WAITING_FOR_EVIDENCE",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:knowledge-contract-jump",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "Use the existing assignment knowledge provider contract",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ],
+          "jump_target_id": "rv:worker-adapter:deterministic-attempt:ground"
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:binding-jump",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "Read the durable office binding and state revision",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ],
+          "jump_target_id": "rv:institutional-authority:identity-and-grants:office-state"
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:select-provider",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Choose the provider matching the active office implementation provider_ref",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:route-gate",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Is the primary provider and every configured fallback exact, registered and bounded?",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:route-unavailable",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Persist route failure and return UNAVAILABLE without inferred fallback",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:provider-call",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Call one provider under per-call timeout and divided token budget",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py",
+            "src/riverview_core/local_reasoning_provider.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md",
+            "evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1340Z-fce3c30/result-summary.json"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:fallback-gate",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Did the call time out or fail before returning a plan?",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:fallback",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Try the next explicitly configured provider only; no implicit provider selection",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:proposal-gate",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Validate typed plan schema, ordered dependencies, and attempt token budget",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:proposal-invalid",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Reject malformed or over-budget output; do not persist a proposal",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:freshness-gate",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Did office binding and assignment revision remain current?",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:stale-context",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Discard stale result and require a new authoritative grounding cycle",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:persist-plan",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Persist source references, statuses, request metadata and plan via office-state CAS",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:persistence-gate",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Did exact-grant state write succeed against the expected revision?",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:state-conflict",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Return AUTHORITY_DENIED, STATE_CONFLICT or UNAVAILABLE; never report success",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:proposal-only",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "Return PROPOSED; proposal is not an approved work order or executed action",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:budget-gate",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Can the total budget provide at least one token to every primary/fallback attempt?",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:budget-insufficient",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Reject an undersized route before invoking any provider",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:resident-reasoning:runtime:request",
+          "to": "rv:resident-reasoning:runtime:authorize-state",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:authorize-state",
+          "to": "rv:resident-reasoning:runtime:authority-gate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:authority-gate",
+          "to": "rv:resident-reasoning:runtime:load-context",
+          "type": "runtime_transition",
+          "label": "exact grant active"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:authority-gate",
+          "to": "rv:resident-reasoning:runtime:authority-denied",
+          "type": "diagnostic_branch",
+          "label": "missing or revoked grant"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:load-context",
+          "to": "rv:resident-reasoning:runtime:knowledge-contract-jump",
+          "type": "documentation"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:knowledge-contract-jump",
+          "to": "rv:worker-adapter:deterministic-attempt:ground",
+          "type": "jump"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:ground",
+          "to": "rv:resident-reasoning:runtime:reground",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:reground",
+          "to": "rv:resident-reasoning:runtime:grounding-gate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:grounding-gate",
+          "to": "rv:resident-reasoning:runtime:select-provider",
+          "type": "runtime_transition",
+          "label": "both VERIFIED and complete"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:grounding-gate",
+          "to": "rv:resident-reasoning:runtime:evidence-wait",
+          "type": "diagnostic_branch",
+          "label": "otherwise"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:select-provider",
+          "to": "rv:resident-reasoning:runtime:binding-jump",
+          "type": "documentation"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:binding-jump",
+          "to": "rv:institutional-authority:identity-and-grants:office-state",
+          "type": "jump"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:route-gate",
+          "to": "rv:resident-reasoning:runtime:route-unavailable",
+          "type": "diagnostic_branch",
+          "label": "unknown or invalid route"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:provider-call",
+          "to": "rv:resident-reasoning:runtime:fallback-gate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:fallback-gate",
+          "to": "rv:resident-reasoning:runtime:proposal-gate",
+          "type": "runtime_transition",
+          "label": "provider returned"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:fallback-gate",
+          "to": "rv:resident-reasoning:runtime:fallback",
+          "type": "recovery_route",
+          "label": "timeout/failure with configured next provider"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:fallback",
+          "to": "rv:resident-reasoning:runtime:provider-call",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:proposal-gate",
+          "to": "rv:resident-reasoning:runtime:freshness-gate",
+          "type": "runtime_transition",
+          "label": "schema and budget pass"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:proposal-gate",
+          "to": "rv:resident-reasoning:runtime:proposal-invalid",
+          "type": "diagnostic_branch",
+          "label": "invalid schema or token budget"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:freshness-gate",
+          "to": "rv:resident-reasoning:runtime:persist-plan",
+          "type": "runtime_transition",
+          "label": "binding and assignment revisions unchanged"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:freshness-gate",
+          "to": "rv:resident-reasoning:runtime:stale-context",
+          "type": "diagnostic_branch",
+          "label": "revision changed"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:persist-plan",
+          "to": "rv:resident-reasoning:runtime:persistence-gate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:persistence-gate",
+          "to": "rv:resident-reasoning:runtime:proposal-only",
+          "type": "runtime_transition",
+          "label": "durable write committed"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:persistence-gate",
+          "to": "rv:resident-reasoning:runtime:state-conflict",
+          "type": "diagnostic_branch",
+          "label": "denial/conflict/unavailable/size limit"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:route-gate",
+          "to": "rv:resident-reasoning:runtime:budget-gate",
+          "type": "runtime_transition",
+          "label": "route is exact, registered and bounded"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:budget-gate",
+          "to": "rv:resident-reasoning:runtime:provider-call",
+          "type": "runtime_transition",
+          "label": "budget fits all candidates"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:budget-gate",
+          "to": "rv:resident-reasoning:runtime:budget-insufficient",
+          "type": "diagnostic_branch",
+          "label": "total token budget is smaller than route length"
         }
       ]
     },
@@ -4456,7 +6071,7 @@
     },
     {
       "graph_id": "rv:worker-adapter:deterministic-attempt",
-      "graph_revision": "1.0.6",
+      "graph_revision": "1.0.11",
       "component_id": "WORKER-ADAPTER",
       "workflow_id": "deterministic-attempt.v1",
       "diagram_order": 7,
@@ -4466,11 +6081,23 @@
         "src/riverview_core/worker_adapter/continuous.py",
         "src/riverview_core/worker_adapter/knowledge.py",
         "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
+        "src/riverview_core/worker_adapter/local_inference.py",
         "src/riverview_core/worker_adapter/migrations/0001_worker_attempts.sql",
         "src/riverview_core/worker_adapter/migrations/0002_knowledge_observations.sql",
         "src/riverview_core/worker_adapter/migrations/0004_failure_recovery.sql",
         "src/riverview_core/worker_adapter/recovery.py",
-        "tests/test_worker_adapter.py"
+        "tests/test_local_inference.py",
+        "tests/test_worker_adapter.py",
+        "scripts/verify_local_inference.py",
+        "src/riverview_core/worker_adapter/repository_knowledge.py",
+        "src/riverview_core/worker_adapter/service.py",
+        "scripts/run_worker_service.py",
+        "scripts/run_verifier_service.py",
+        "deploy/systemd/riverview-m33-worker.service",
+        "deploy/systemd/riverview-m33-verifier.service",
+        "tests/test_worker_service.py",
+        "src/riverview_core/worker_adapter/engineering_artifact.py",
+        "src/riverview_core/worker_adapter/verifier.py"
       ],
       "documentation_references": [
         "docs/components/WORKER_ADAPTER.md",
@@ -4478,11 +6105,17 @@
         "docs/components/WORKER_ADAPTER_FLOW.md",
         "docs/development/M2.1-001_REVISION_RECORD.md",
         "docs/development/M2.3-001_REVISION_RECORD.md",
+        "docs/development/M4.3-001_REVISION_RECORD.md",
         "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
       ],
       "verification_evidence": [
         "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json",
-        "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+        "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json",
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/acceptance.json",
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log",
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094446Z-cpu-e2e/acceptance.json",
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094446Z-cpu-e2e/failure_review.json",
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/acceptance.json"
       ],
       "nodes": [
         {
@@ -4787,10 +6420,12 @@
           "id": "rv:worker-adapter:deterministic-attempt:action",
           "node_revision": "1.0.1",
           "type": "process",
-          "label": "Invoke action only after durable effect-classified intent",
+          "label": "Invoke the assigned, preflighted execution capability",
           "source_references": [
             "src/riverview_core/worker_adapter/continuous.py",
-            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+            "src/riverview_core/worker_adapter/engineering_artifact.py",
+            "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
+            "src/riverview_core/worker_adapter/local_inference.py"
           ],
           "documentation_references": [
             "docs/components/WORKER_ADAPTER.md",
@@ -4991,6 +6626,75 @@
           ],
           "verification_evidence": [],
           "jump_target_id": "rv:outcome-verifier:independent-result:verification-intake"
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:local-endpoint-check",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Require literal loopback endpoint and bounded complete response",
+          "source_references": [
+            "src/riverview_core/worker_adapter/local_inference.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/acceptance.json",
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log",
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:local-inference-call",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Run registered local inference capability on grounded input",
+          "source_references": [
+            "src/riverview_core/worker_adapter/local_inference.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/acceptance.json",
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log",
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:local-inference-failure",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Reject unavailable, oversized, malformed, or truncated inference output",
+          "source_references": [
+            "src/riverview_core/worker_adapter/local_inference.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094446Z-cpu-e2e/acceptance.json",
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094446Z-cpu-e2e/failure_review.json",
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:structured-artifact",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Persist bounded JSON output and canonical digest under current lease",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/acceptance.json",
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log",
+            "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/acceptance.json"
+          ]
         }
       ],
       "edges": [
@@ -5250,11 +6954,537 @@
           "to": "rv:worker-adapter:deterministic-attempt:learning",
           "type": "runtime_transition",
           "label": "durable result"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:action",
+          "to": "rv:worker-adapter:deterministic-attempt:local-inference-call",
+          "type": "runtime_transition",
+          "label": "capability is local.inference.v1"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:local-inference-call",
+          "to": "rv:worker-adapter:deterministic-attempt:local-endpoint-check",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:local-endpoint-check",
+          "to": "rv:worker-adapter:deterministic-attempt:local-inference-failure",
+          "type": "diagnostic_branch",
+          "label": "endpoint or response validation fails"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:local-inference-failure",
+          "to": "rv:worker-adapter:deterministic-attempt:action-failure",
+          "type": "recovery_route",
+          "label": "fail this assignment; retry-safe recovery only"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:local-endpoint-check",
+          "to": "rv:worker-adapter:deterministic-attempt:structured-artifact",
+          "type": "runtime_transition",
+          "label": "complete bounded response"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:structured-artifact",
+          "to": "rv:worker-adapter:deterministic-attempt:complete-check",
+          "type": "runtime_transition",
+          "label": "exact grant and current lease rechecked"
+        }
+      ]
+    },
+    {
+      "graph_id": "rv:worker-adapter:supervised-services",
+      "graph_revision": "1.0.1",
+      "component_id": "WORKER-ADAPTER",
+      "workflow_id": "supervised-services.v1",
+      "diagram_order": 8,
+      "source_references": [
+        "deploy/systemd/riverview-assignment-intake.service",
+        "deploy/systemd/riverview-m33-verifier.service",
+        "deploy/systemd/riverview-m33-worker.service",
+        "scripts/run_assignment_intake.py",
+        "scripts/run_verifier_service.py",
+        "scripts/run_worker_service.py",
+        "src/riverview_core/assignment_intake.py",
+        "src/riverview_core/assignment_intake_http.py",
+        "src/riverview_core/worker_adapter/service.py",
+        "src/riverview_core/worker_adapter/engineering_artifact.py",
+        "src/riverview_core/worker_adapter/verifier.py",
+        "src/riverview_core/worker_adapter/adapter.py",
+        "src/riverview_core/worker_adapter/continuous.py",
+        "tests/test_engineering_artifact.py",
+        "tests/test_worker_adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER_FLOW.md"
+      ],
+      "verification_evidence": [],
+      "nodes": [
+        {
+          "id": "rv:worker-adapter:supervised-services:start",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "systemd starts the exact M3.3 service",
+          "source_references": [
+            "src/riverview_core/worker_adapter/service.py",
+            "scripts/run_worker_service.py",
+            "scripts/run_verifier_service.py",
+            "scripts/run_assignment_intake.py",
+            "deploy/systemd/riverview-m33-worker.service",
+            "deploy/systemd/riverview-m33-verifier.service",
+            "deploy/systemd/riverview-assignment-intake.service"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+            "docs/components/WORKER_ADAPTER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:supervised-services:credential-gate",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "validate root-owned PID 1 credentials and private database passfile",
+          "source_references": [
+            "src/riverview_core/worker_adapter/service.py",
+            "scripts/run_worker_service.py",
+            "scripts/run_verifier_service.py",
+            "scripts/run_assignment_intake.py",
+            "deploy/systemd/riverview-m33-worker.service",
+            "deploy/systemd/riverview-m33-verifier.service",
+            "deploy/systemd/riverview-assignment-intake.service"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+            "docs/components/WORKER_ADAPTER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:supervised-services:config-gate",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "are exact identity, scope, package pin, and database preflight valid?",
+          "source_references": [
+            "src/riverview_core/worker_adapter/service.py",
+            "scripts/run_worker_service.py",
+            "scripts/run_verifier_service.py",
+            "scripts/run_assignment_intake.py",
+            "deploy/systemd/riverview-m33-worker.service",
+            "deploy/systemd/riverview-m33-verifier.service",
+            "deploy/systemd/riverview-assignment-intake.service"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+            "docs/components/WORKER_ADAPTER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:supervised-services:startup-failure",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "fail closed without exposing credentials or continuing work",
+          "source_references": [
+            "src/riverview_core/worker_adapter/service.py",
+            "scripts/run_worker_service.py",
+            "scripts/run_verifier_service.py",
+            "scripts/run_assignment_intake.py",
+            "deploy/systemd/riverview-m33-worker.service",
+            "deploy/systemd/riverview-m33-verifier.service",
+            "deploy/systemd/riverview-assignment-intake.service"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+            "docs/components/WORKER_ADAPTER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:supervised-services:registration",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "verify or idempotently register the exact scoped worker identity",
+          "source_references": [
+            "src/riverview_core/worker_adapter/service.py",
+            "scripts/run_worker_service.py",
+            "scripts/run_verifier_service.py",
+            "scripts/run_assignment_intake.py",
+            "deploy/systemd/riverview-m33-worker.service",
+            "deploy/systemd/riverview-m33-verifier.service",
+            "deploy/systemd/riverview-assignment-intake.service"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+            "docs/components/WORKER_ADAPTER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:supervised-services:executor-loop",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "enter the persistent assignment executor loop",
+          "source_references": [
+            "scripts/run_worker_service.py",
+            "scripts/run_verifier_service.py",
+            "scripts/run_assignment_intake.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+            "docs/components/WORKER_ADAPTER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:supervised-services:restart-reconcile",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "reconcile expired durable attempts before later claims",
+          "source_references": [
+            "scripts/run_worker_service.py",
+            "scripts/run_verifier_service.py",
+            "scripts/run_assignment_intake.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+            "docs/components/WORKER_ADAPTER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:supervised-services:verifier-poll",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "poll only successful deterministic results awaiting verification",
+          "source_references": [
+            "scripts/run_worker_service.py",
+            "scripts/run_verifier_service.py",
+            "scripts/run_assignment_intake.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+            "docs/components/WORKER_ADAPTER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:supervised-services:verification-handoff",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "submit result under distinct verifier identity and grant",
+          "source_references": [
+            "scripts/run_worker_service.py",
+            "scripts/run_verifier_service.py",
+            "scripts/run_assignment_intake.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+            "docs/components/WORKER_ADAPTER_FLOW.md"
+          ],
+          "verification_evidence": [],
+          "jump_target_id": "rv:outcome-verifier:independent-result:verification-intake"
+        },
+        {
+          "id": "rv:worker-adapter:supervised-services:intake-start",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "start bounded loopback-only governed assignment request API",
+          "source_references": [
+            "deploy/systemd/riverview-assignment-intake.service",
+            "src/riverview_core/assignment_intake_http.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+            "docs/components/WORKER_ADAPTER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:supervised-services:intake-auth",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "persist only through exact assignment.create authority check",
+          "source_references": [
+            "src/riverview_core/assignment_intake_http.py",
+            "src/riverview_core/assignment_intake.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+            "docs/components/WORKER_ADAPTER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:supervised-services:intake-denied",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "reject unauthorized request without ledger mutation",
+          "source_references": [
+            "src/riverview_core/assignment_intake_http.py",
+            "src/riverview_core/assignment_intake.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+            "docs/components/WORKER_ADAPTER_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:supervised-services:intake-persist",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "persist authorized assignment and creation event atomically",
+          "source_references": [
+            "src/riverview_core/assignment_intake.py",
+            "src/riverview_core/assignment_intake_http.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+            "docs/components/WORKER_ADAPTER_FLOW.md"
+          ],
+          "verification_evidence": [],
+          "jump_target_id": "rv:event-processor:assignment-progression:created"
+        },
+        {
+          "id": "rv:worker-adapter:supervised-services:repository-test",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Run only the pinned repository knowledge regression module with a bounded timeout",
+          "source_references": [
+            "src/riverview_core/worker_adapter/engineering_artifact.py",
+            "scripts/run_worker_service.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:supervised-services:test-failure",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Persist this assignment failure and keep the continuous worker polling",
+          "source_references": [
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/engineering_artifact.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:supervised-services:artifact-file",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Atomically preserve the actual bounded test report under the private StateDirectory",
+          "source_references": [
+            "src/riverview_core/worker_adapter/engineering_artifact.py",
+            "deploy/systemd/riverview-m33-worker.service"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:supervised-services:artifact-check",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Reopen file, check package/source/result digests, and independently rerun the pinned suite",
+          "source_references": [
+            "src/riverview_core/worker_adapter/verifier.py",
+            "scripts/run_verifier_service.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:supervised-services:artifact-rejected",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Reject missing, changed, incomplete, or failing report and leave assignment for rework",
+          "source_references": [
+            "src/riverview_core/worker_adapter/verifier.py",
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:worker-adapter:supervised-services:start",
+          "to": "rv:worker-adapter:supervised-services:credential-gate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:credential-gate",
+          "to": "rv:worker-adapter:supervised-services:config-gate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:config-gate",
+          "to": "rv:worker-adapter:supervised-services:startup-failure",
+          "type": "diagnostic_branch",
+          "label": "credential, database, identity, or pin invalid"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:config-gate",
+          "to": "rv:worker-adapter:supervised-services:registration",
+          "type": "diagnostic_branch",
+          "label": "all preflight conditions pass"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:registration",
+          "to": "rv:worker-adapter:supervised-services:executor-loop",
+          "type": "runtime_transition",
+          "label": "executor unit"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:registration",
+          "to": "rv:worker-adapter:supervised-services:verifier-poll",
+          "type": "runtime_transition",
+          "label": "verifier unit"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:executor-loop",
+          "to": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+          "type": "documentation",
+          "label": "lifecycle implementation is in the deterministic-attempt workflow"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:restart-reconcile",
+          "to": "rv:worker-adapter:deterministic-attempt:cycle-recovery",
+          "type": "recovery_route",
+          "label": "recover expired leases before assignment claim"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:verifier-poll",
+          "to": "rv:worker-adapter:supervised-services:verification-handoff",
+          "type": "runtime_transition",
+          "label": "candidate result available"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:verification-handoff",
+          "to": "rv:outcome-verifier:independent-result:verification-intake",
+          "type": "jump",
+          "label": "independent verifier contract"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:intake-start",
+          "to": "rv:worker-adapter:supervised-services:intake-auth",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:intake-auth",
+          "to": "rv:worker-adapter:supervised-services:intake-denied",
+          "type": "diagnostic_branch",
+          "label": "missing, invalid, or wrong-scope grant"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:intake-auth",
+          "to": "rv:worker-adapter:supervised-services:intake-persist",
+          "type": "diagnostic_branch",
+          "label": "exact assignment.create grant held through transaction"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:intake-persist",
+          "to": "rv:event-processor:assignment-progression:created",
+          "type": "jump",
+          "label": "durable assignment.created event"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:registration",
+          "to": "rv:worker-adapter:supervised-services:restart-reconcile",
+          "type": "runtime_transition",
+          "label": "executor startup"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:executor-loop",
+          "to": "rv:worker-adapter:supervised-services:repository-test",
+          "type": "runtime_transition",
+          "label": "claimed, VERIFIED assignment reaches fixed engineering action"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:repository-test",
+          "to": "rv:worker-adapter:supervised-services:test-failure",
+          "type": "diagnostic_branch",
+          "label": "timeout, unsafe package, or test execution error"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:repository-test",
+          "to": "rv:worker-adapter:supervised-services:artifact-file",
+          "type": "runtime_transition",
+          "label": "persist actual test output and run metadata"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:artifact-file",
+          "to": "rv:worker-adapter:supervised-services:verifier-poll",
+          "type": "runtime_transition",
+          "label": "result is durably awaiting independent verification"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:verifier-poll",
+          "to": "rv:worker-adapter:supervised-services:artifact-check",
+          "type": "runtime_transition",
+          "label": "verifier selects a persisted result"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:artifact-check",
+          "to": "rv:worker-adapter:supervised-services:artifact-rejected",
+          "type": "diagnostic_branch",
+          "label": "artifact or independent rerun fails"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:artifact-check",
+          "to": "rv:worker-adapter:supervised-services:verification-handoff",
+          "type": "runtime_transition",
+          "label": "all independently evaluated report criteria pass"
+        },
+        {
+          "from": "rv:worker-adapter:supervised-services:test-failure",
+          "to": "rv:worker-adapter:deterministic-attempt:action-failure",
+          "type": "recovery_route",
+          "label": "assignment-local failure; return to later polling"
         }
       ]
     }
   ],
   "node_registry": [
+    "rv:assignment-intake:governed-request:accepted",
+    "rv:assignment-intake:governed-request:atomic-write",
+    "rv:assignment-intake:governed-request:bounded-request",
+    "rv:assignment-intake:governed-request:exact-grant-jump",
+    "rv:assignment-intake:governed-request:grant-decision",
+    "rv:assignment-intake:governed-request:recovery",
+    "rv:assignment-intake:governed-request:reject-request",
+    "rv:assignment-intake:governed-request:request",
     "rv:assignment-scheduler:independent-claims:candidate",
     "rv:assignment-scheduler:independent-claims:claim",
     "rv:assignment-scheduler:independent-claims:empty",
@@ -5313,11 +7543,23 @@
     "rv:institutional-authority:identity-and-grants:authorize",
     "rv:institutional-authority:identity-and-grants:authorized-action",
     "rv:institutional-authority:identity-and-grants:bootstrap",
+    "rv:institutional-authority:identity-and-grants:bootstrap-error",
+    "rv:institutional-authority:identity-and-grants:bootstrap-record-commit",
+    "rv:institutional-authority:identity-and-grants:bootstrap-retry",
+    "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+    "rv:institutional-authority:identity-and-grants:bootstrap-token-verify",
     "rv:institutional-authority:identity-and-grants:boundary-preflight-failure",
     "rv:institutional-authority:identity-and-grants:complete",
     "rv:institutional-authority:identity-and-grants:db-boundary-preflight",
     "rv:institutional-authority:identity-and-grants:dedicated-schema-gate",
     "rv:institutional-authority:identity-and-grants:deny",
+    "rv:institutional-authority:identity-and-grants:grace-identity-bound",
+    "rv:institutional-authority:identity-and-grants:grace-provision-failure",
+    "rv:institutional-authority:identity-and-grants:grace-provision-preflight",
+    "rv:institutional-authority:identity-and-grants:grace-provision-recovery",
+    "rv:institutional-authority:identity-and-grants:grace-provision-registry",
+    "rv:institutional-authority:identity-and-grants:grace-provision-request",
+    "rv:institutional-authority:identity-and-grants:grace-provision-verify",
     "rv:institutional-authority:identity-and-grants:grant-create",
     "rv:institutional-authority:identity-and-grants:migration-ledger-bootstrap",
     "rv:institutional-authority:identity-and-grants:migration-ready",
@@ -5326,6 +7568,11 @@
     "rv:institutional-authority:identity-and-grants:recover",
     "rv:institutional-authority:identity-and-grants:replace-binding",
     "rv:institutional-authority:identity-and-grants:runtime-denial-verified",
+    "rv:institutional-authority:identity-and-grants:runtime-grant-allowed",
+    "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+    "rv:institutional-authority:identity-and-grants:runtime-grant-denied",
+    "rv:institutional-authority:identity-and-grants:runtime-grant-unavailable",
+    "rv:institutional-authority:identity-and-grants:runtime-worker-registration",
     "rv:institutional-authority:identity-and-grants:schema-owner-gate",
     "rv:institutional-authority:identity-and-grants:transfer-protected-objects",
     "rv:institutional-authority:identity-and-grants:unavailable",
@@ -5352,6 +7599,8 @@
     "rv:outcome-verifier:independent-result:result-jump",
     "rv:outcome-verifier:independent-result:rework",
     "rv:outcome-verifier:independent-result:verification-intake",
+    "rv:postgres-ledger:assignment-lifecycle:assignment-create-authority",
+    "rv:postgres-ledger:assignment-lifecycle:assignment-create-denied",
     "rv:postgres-ledger:assignment-lifecycle:awaiting-steward",
     "rv:postgres-ledger:assignment-lifecycle:awaiting-verification",
     "rv:postgres-ledger:assignment-lifecycle:blocked",
@@ -5390,6 +7639,47 @@
     "rv:postgres-ledger:migration:stop",
     "rv:postgres-ledger:migration:transaction",
     "rv:postgres-ledger:migration:update",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:incomplete",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:intake",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:integrity",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:learning-unavailable",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:no-match",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:pin",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:read",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:resolve",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:unavailable",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:unverified",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:verified",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:wait",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:worker-ground",
+    "rv:repository-knowledge-provider:pinned-worker-contracts:worker-wait",
+    "rv:resident-reasoning:runtime:authority-denied",
+    "rv:resident-reasoning:runtime:authority-gate",
+    "rv:resident-reasoning:runtime:authorize-state",
+    "rv:resident-reasoning:runtime:binding-jump",
+    "rv:resident-reasoning:runtime:budget-gate",
+    "rv:resident-reasoning:runtime:budget-insufficient",
+    "rv:resident-reasoning:runtime:evidence-wait",
+    "rv:resident-reasoning:runtime:fallback",
+    "rv:resident-reasoning:runtime:fallback-gate",
+    "rv:resident-reasoning:runtime:freshness-gate",
+    "rv:resident-reasoning:runtime:ground",
+    "rv:resident-reasoning:runtime:grounding-gate",
+    "rv:resident-reasoning:runtime:knowledge-contract-jump",
+    "rv:resident-reasoning:runtime:load-context",
+    "rv:resident-reasoning:runtime:persist-plan",
+    "rv:resident-reasoning:runtime:persistence-gate",
+    "rv:resident-reasoning:runtime:proposal-gate",
+    "rv:resident-reasoning:runtime:proposal-invalid",
+    "rv:resident-reasoning:runtime:proposal-only",
+    "rv:resident-reasoning:runtime:provider-call",
+    "rv:resident-reasoning:runtime:reground",
+    "rv:resident-reasoning:runtime:request",
+    "rv:resident-reasoning:runtime:route-gate",
+    "rv:resident-reasoning:runtime:route-unavailable",
+    "rv:resident-reasoning:runtime:select-provider",
+    "rv:resident-reasoning:runtime:stale-context",
+    "rv:resident-reasoning:runtime:state-conflict",
     "rv:runtime-baseline:commissioning:accept-decision",
     "rv:runtime-baseline:commissioning:accept-hold",
     "rv:runtime-baseline:commissioning:acceptance",
@@ -5466,6 +7756,9 @@
     "rv:worker-adapter:deterministic-attempt:learning",
     "rv:worker-adapter:deterministic-attempt:lease",
     "rv:worker-adapter:deterministic-attempt:lease-jump",
+    "rv:worker-adapter:deterministic-attempt:local-endpoint-check",
+    "rv:worker-adapter:deterministic-attempt:local-inference-call",
+    "rv:worker-adapter:deterministic-attempt:local-inference-failure",
     "rv:worker-adapter:deterministic-attempt:loss-query",
     "rv:worker-adapter:deterministic-attempt:lost",
     "rv:worker-adapter:deterministic-attempt:preflight",
@@ -5482,6 +7775,25 @@
     "rv:worker-adapter:deterministic-attempt:request",
     "rv:worker-adapter:deterministic-attempt:result",
     "rv:worker-adapter:deterministic-attempt:steward-shutdown",
-    "rv:worker-adapter:deterministic-attempt:verification-jump"
+    "rv:worker-adapter:deterministic-attempt:structured-artifact",
+    "rv:worker-adapter:deterministic-attempt:verification-jump",
+    "rv:worker-adapter:supervised-services:artifact-check",
+    "rv:worker-adapter:supervised-services:artifact-file",
+    "rv:worker-adapter:supervised-services:artifact-rejected",
+    "rv:worker-adapter:supervised-services:config-gate",
+    "rv:worker-adapter:supervised-services:credential-gate",
+    "rv:worker-adapter:supervised-services:executor-loop",
+    "rv:worker-adapter:supervised-services:intake-auth",
+    "rv:worker-adapter:supervised-services:intake-denied",
+    "rv:worker-adapter:supervised-services:intake-persist",
+    "rv:worker-adapter:supervised-services:intake-start",
+    "rv:worker-adapter:supervised-services:registration",
+    "rv:worker-adapter:supervised-services:repository-test",
+    "rv:worker-adapter:supervised-services:restart-reconcile",
+    "rv:worker-adapter:supervised-services:start",
+    "rv:worker-adapter:supervised-services:startup-failure",
+    "rv:worker-adapter:supervised-services:test-failure",
+    "rv:worker-adapter:supervised-services:verification-handoff",
+    "rv:worker-adapter:supervised-services:verifier-poll"
   ]
 }

@@ -1,0 +1,5 @@
+2026-10-11 05:28:27.983 EDT [355555] LOG:  starting PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit
+2026-10-11 05:28:27.983 EDT [355555] LOG:  listening on Unix socket "/tmp/rv-m43-sock-20261011T092823Z/.s.PGSQL.55489"
+2026-10-11 05:28:27.991 EDT [355559] LOG:  database system was shut down at 2026-10-11 05:28:25 EDT
+2026-10-11 05:28:28.003 EDT [355555] LOG:  database system is ready to accept connections
+2026-10-11 05:28:28.054 EDT [355564] FATAL:  database "admin1" does not exist

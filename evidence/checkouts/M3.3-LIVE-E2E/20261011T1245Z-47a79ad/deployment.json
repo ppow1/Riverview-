@@ -1,0 +1,73 @@
+{
+  "artifact_files": 3,
+  "captured_at_utc": "2026-10-11T13:01:36.606500+00:00",
+  "current_symlink": "releases/47a79adafe1524b3e819148b70c02a1857f50dbf",
+  "package_sha256": "ce2179ecc4e840dceb8316eea8a6c4117a4ef6cdcca6314d76ad19da4b617d41",
+  "release": "/opt/riverview-m33/releases/47a79adafe1524b3e819148b70c02a1857f50dbf",
+  "source_commit": "47a79adafe1524b3e819148b70c02a1857f50dbf",
+  "units": [
+    {
+      "ActiveState": "active",
+      "ExecMainStatus": "0",
+      "InvocationID": "4e022bd57d0341cc8b5d18ed4c328f8b",
+      "MainPID": "404579",
+      "NRestarts": "0",
+      "SubState": "running",
+      "unit": "riverview-assignment-intake.service"
+    },
+    {
+      "ActiveState": "active",
+      "ExecMainStatus": "0",
+      "InvocationID": "bb87b664690a4d96bf0bf24e367055ed",
+      "MainPID": "409593",
+      "NRestarts": "0",
+      "SubState": "running",
+      "unit": "riverview-m33-worker.service"
+    },
+    {
+      "ActiveState": "active",
+      "ExecMainStatus": "0",
+      "InvocationID": "aef7ceee79634d22910f6d58b2d6d8c9",
+      "MainPID": "404580",
+      "NRestarts": "0",
+      "SubState": "running",
+      "unit": "riverview-m33-verifier.service"
+    },
+    {
+      "ActiveState": "active",
+      "ExecMainStatus": "0",
+      "InvocationID": "161b6587b43c4d63b77f3c17d34c441c",
+      "MainPID": "61932",
+      "NRestarts": "0",
+      "SubState": "running",
+      "unit": "riverview-event-processor.service"
+    },
+    {
+      "ActiveState": "active",
+      "ExecMainStatus": "0",
+      "InvocationID": "a894cf173fad4f94967bbcbd289de33f",
+      "MainPID": "139749",
+      "NRestarts": "1",
+      "SubState": "running",
+      "unit": "riverview-cme-monitor.service"
+    },
+    {
+      "ActiveState": "active",
+      "ExecMainStatus": "0",
+      "InvocationID": "a6adebf67527417b966275561d868cd1",
+      "MainPID": "222915",
+      "NRestarts": "0",
+      "SubState": "running",
+      "unit": "riverview-notification-dispatcher.service"
+    },
+    {
+      "ActiveState": "active",
+      "ExecMainStatus": "0",
+      "InvocationID": "a224f15ff2764bba8f0b37588eb778bd",
+      "MainPID": "351052",
+      "NRestarts": "0",
+      "SubState": "running",
+      "unit": "riverview-status-dashboard.service"
+    }
+  ]
+}

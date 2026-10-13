@@ -1,0 +1,233 @@
+{
+  "graph_id": "rv:assignment-intake:governed-request",
+  "graph_revision": "1.0.0",
+  "component_id": "ASSIGNMENT-INTAKE",
+  "workflow_id": "governed-request.v1",
+  "diagram_order": 1,
+  "source_references": [
+    "src/riverview_core/assignment_intake_http.py",
+    "src/riverview_core/assignment_intake.py",
+    "scripts/run_assignment_intake.py",
+    "deploy/systemd/riverview-assignment-intake.service",
+    "tests/test_assignment_intake_http.py"
+  ],
+  "documentation_references": [
+    "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+    "docs/components/INSTITUTIONAL_AUTHORITY.md",
+    "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+  ],
+  "verification_evidence": [
+    "tests/test_assignment_intake_http.py",
+    "tests/test_assignment_intake.py"
+  ],
+  "nodes": [
+    {
+      "id": "rv:assignment-intake:governed-request:request",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Loopback Steward assignment request",
+      "source_references": [
+        "src/riverview_core/assignment_intake_http.py",
+        "src/riverview_core/assignment_intake.py",
+        "scripts/run_assignment_intake.py",
+        "deploy/systemd/riverview-assignment-intake.service"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+      ],
+      "verification_evidence": [
+        "tests/test_assignment_intake_http.py",
+        "tests/test_assignment_intake.py"
+      ]
+    },
+    {
+      "id": "rv:assignment-intake:governed-request:bounded-request",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Require JSON type, bounded body and allowed request fields",
+      "source_references": [
+        "src/riverview_core/assignment_intake_http.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+      ],
+      "verification_evidence": [
+        "tests/test_assignment_intake_http.py",
+        "tests/test_assignment_intake.py"
+      ]
+    },
+    {
+      "id": "rv:assignment-intake:governed-request:grant-decision",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Require active exact assignment.create grant for authority_ref",
+      "source_references": [
+        "src/riverview_core/assignment_intake.py",
+        "src/riverview_core/institutional_authority/grants.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+      ],
+      "verification_evidence": [
+        "tests/test_assignment_intake_http.py",
+        "tests/test_assignment_intake.py"
+      ]
+    },
+    {
+      "id": "rv:assignment-intake:governed-request:exact-grant-jump",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "Resolve exact action and scope in the Authority registry",
+      "source_references": [
+        "src/riverview_core/assignment_intake.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+      ],
+      "verification_evidence": [],
+      "jump_target_id": "rv:institutional-authority:identity-and-grants:runtime-grant-check"
+    },
+    {
+      "id": "rv:assignment-intake:governed-request:reject-request",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject malformed, unauthorized or unavailable request without assignment rows",
+      "source_references": [
+        "src/riverview_core/assignment_intake_http.py",
+        "src/riverview_core/assignment_intake.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+      ],
+      "verification_evidence": [
+        "tests/test_assignment_intake_http.py",
+        "tests/test_assignment_intake.py"
+      ]
+    },
+    {
+      "id": "rv:assignment-intake:governed-request:atomic-write",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Persist assignment and created event under the grant row lock",
+      "source_references": [
+        "src/riverview_core/assignment_intake.py",
+        "src/riverview_core/postgres_ledger.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+      ],
+      "verification_evidence": [
+        "tests/test_assignment_intake_http.py",
+        "tests/test_assignment_intake.py"
+      ]
+    },
+    {
+      "id": "rv:assignment-intake:governed-request:accepted",
+      "node_revision": "1.0.0",
+      "type": "exit",
+      "label": "Return bounded assignment identity and lifecycle state",
+      "source_references": [
+        "src/riverview_core/assignment_intake_http.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+      ],
+      "verification_evidence": [
+        "tests/test_assignment_intake_http.py",
+        "tests/test_assignment_intake.py"
+      ]
+    },
+    {
+      "id": "rv:assignment-intake:governed-request:recovery",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Retry an ambiguous response with identical idempotency key",
+      "source_references": [
+        "src/riverview_core/assignment_intake_http.py",
+        "src/riverview_core/postgres_ledger.py"
+      ],
+      "documentation_references": [
+        "docs/components/ASSIGNMENT_INTAKE_COOKBOOK.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/ASSIGNMENT_INTAKE_FLOW.md"
+      ],
+      "verification_evidence": [
+        "tests/test_assignment_intake_http.py",
+        "tests/test_assignment_intake.py"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:assignment-intake:governed-request:request",
+      "to": "rv:assignment-intake:governed-request:bounded-request",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:assignment-intake:governed-request:bounded-request",
+      "to": "rv:assignment-intake:governed-request:grant-decision",
+      "type": "runtime_transition",
+      "label": "Valid bounded request"
+    },
+    {
+      "from": "rv:assignment-intake:governed-request:bounded-request",
+      "to": "rv:assignment-intake:governed-request:reject-request",
+      "type": "diagnostic_branch",
+      "label": "Invalid or oversized request"
+    },
+    {
+      "from": "rv:assignment-intake:governed-request:grant-decision",
+      "to": "rv:assignment-intake:governed-request:exact-grant-jump",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:assignment-intake:governed-request:exact-grant-jump",
+      "to": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+      "type": "jump"
+    },
+    {
+      "from": "rv:assignment-intake:governed-request:grant-decision",
+      "to": "rv:assignment-intake:governed-request:atomic-write",
+      "type": "runtime_transition",
+      "label": "Exact active grant"
+    },
+    {
+      "from": "rv:assignment-intake:governed-request:grant-decision",
+      "to": "rv:assignment-intake:governed-request:reject-request",
+      "type": "diagnostic_branch",
+      "label": "Denied or authority unavailable"
+    },
+    {
+      "from": "rv:assignment-intake:governed-request:atomic-write",
+      "to": "rv:assignment-intake:governed-request:accepted",
+      "type": "runtime_transition",
+      "label": "Transaction committed"
+    },
+    {
+      "from": "rv:assignment-intake:governed-request:atomic-write",
+      "to": "rv:assignment-intake:governed-request:recovery",
+      "type": "diagnostic_branch",
+      "label": "Client response lost or commit ambiguous"
+    },
+    {
+      "from": "rv:assignment-intake:governed-request:recovery",
+      "to": "rv:assignment-intake:governed-request:request",
+      "type": "recovery_route",
+      "label": "Replay identical idempotent request"
+    }
+  ]
+}

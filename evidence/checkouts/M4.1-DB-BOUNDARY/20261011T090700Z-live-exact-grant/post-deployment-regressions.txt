@@ -1,0 +1,2 @@
+Command: PYTHONPATH=src python3 -m unittest tests.test_status_dashboard.DashboardHTTPTests.test_component_cookbook_is_rendered_as_readable_safe_html tests.test_status_dashboard.DashboardHTTPTests.test_markdown_renderer_escapes_html_and_rejects_unsafe_link_schemes tests.test_process_graph -v
+Result: 15 tests passed, zero failures/errors/skips after current cookbook and authority contract documentation updates. This verifies safe readable HTML rendering, unsafe markup/link rejection, canonical graph schema/reference/synchronization behavior.

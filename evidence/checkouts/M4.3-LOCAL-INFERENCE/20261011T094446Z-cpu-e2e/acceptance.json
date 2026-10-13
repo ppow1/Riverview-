@@ -1,0 +1,69 @@
+{
+  "assignments": [
+    {
+      "artifact_hash_valid": true,
+      "assignment_id": "m43-authentication-8400f9a865524fd7a233f908dcbd22b9",
+      "attempt_finished_at": "2026-10-11T05:45:19.080720-04:00",
+      "attempt_id": "a738c35b-5391-407e-867b-59c00a1160cc",
+      "attempt_started_at": "2026-10-11T05:45:19.051295-04:00",
+      "attempt_status": "succeeded",
+      "capability": "local.inference.v1",
+      "claimed_assignment_id": "m43-authentication-8400f9a865524fd7a233f908dcbd22b9",
+      "elapsed_ms": 23618.7,
+      "model_execution_ms": 29.4,
+      "outcome": {
+        "assignment_id": "m43-authentication-8400f9a865524fd7a233f908dcbd22b9",
+        "attempt_id": "a738c35b-5391-407e-867b-59c00a1160cc",
+        "result_sha256": "72dcac217e416b16bbeb1d2078e754f86ff2c8aeef057ae9642893e20ae28215",
+        "status": "AWAITING_VERIFICATION"
+      },
+      "queue_delay_ms": 23659.8,
+      "queued_at": "2026-10-11T05:44:55.391474-04:00",
+      "result": {
+        "finish_reason": "stop",
+        "model_revision": "23749fefcc72300e3a2ad315e1317431b06b590a",
+        "model_sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+        "output": "AUTH",
+        "provider": "llama.cpp-compatible",
+        "requested_model": "qwen3-0.6b-q8_0-local",
+        "served_model": "qwen3-0.6b-q8_0-local"
+      },
+      "result_sha256": "72dcac217e416b16bbeb1d2078e754f86ff2c8aeef057ae9642893e20ae28215",
+      "state": "completed",
+      "verification": "ACCEPTED",
+      "verifier_id": "worker:m43-independent-verifier",
+      "worker_id": "worker:m43-local-1"
+    },
+    {
+      "assignment_id": "m43-storage-0e7de2b992a64f41adb5a6cdde82cabc",
+      "claimed_assignment_id": "m43-storage-0e7de2b992a64f41adb5a6cdde82cabc",
+      "elapsed_ms": 23949.7,
+      "outcome": {
+        "assignment_id": "m43-storage-0e7de2b992a64f41adb5a6cdde82cabc",
+        "attempt_id": "d8de483c-a7a7-4865-9a3e-d6db73aa4bad",
+        "result_sha256": "72dcac217e416b16bbeb1d2078e754f86ff2c8aeef057ae9642893e20ae28215",
+        "status": "AWAITING_VERIFICATION"
+      },
+      "worker_id": "worker:m43-local-2"
+    }
+  ],
+  "cleanup": {
+    "schema_dropped": false,
+    "server_stopped": true
+  },
+  "component": "LOCAL-INFERENCE-WORKER",
+  "endpoint_host": "127.0.0.1",
+  "failure_detail": "'attempt_started_at'",
+  "failure_type": "KeyError",
+  "fixture_knowledge_provider": "fixed test cases only; not institutional retrieval",
+  "llama_cpp_source_commit": "d81235049384534c167caea52b85a694f6103d14",
+  "llama_server_sha256": "dc82364c7428bcfa22ca07d2e6edf958a16bb1b7294920a749bf6fbf9ab70b57",
+  "model_revision": "23749fefcc72300e3a2ad315e1317431b06b590a",
+  "model_sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+  "port": 49347,
+  "schema": "rvtest_m43_ae36f4ee9ade46d5a073",
+  "server_exit_code": 0,
+  "source_commit": "aa659e93a3307ad46db0a322227998e4587539fa",
+  "source_tree_dirty": true,
+  "status": "FAIL"
+}

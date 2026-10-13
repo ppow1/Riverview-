@@ -1,0 +1,23 @@
+{
+  "artifacts": {
+    "dashboard-http-tests.log": {
+      "path": "dashboard-http-tests.log",
+      "revision": "1.0.0",
+      "sha256": "955fcd6c24eaef43a1750103cd64b784d8c5312285d7b10712512c4094f70515",
+      "size_bytes": 2335
+    },
+    "focused-render-test.log": {
+      "path": "focused-render-test.log",
+      "revision": "1.0.0",
+      "sha256": "67d5d37f1d5fc326d671a8dc6386e47d7ef08e1b73b2e6ed9ff8c6f49dea054f",
+      "size_bytes": 291
+    },
+    "initial-assertion-failure.txt": {
+      "path": "initial-assertion-failure.txt",
+      "revision": "1.0.0",
+      "sha256": "a3c627adbbb8c0769a0b7bd2dde1aa6b3101ac56b2a4a62c6069d6e33ab79824",
+      "size_bytes": 636
+    }
+  },
+  "manifest_revision": "1.0.0"
+}
