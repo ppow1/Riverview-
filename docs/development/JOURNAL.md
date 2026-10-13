@@ -1,8 +1,42 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.55
+**Document Revision:** 1.0.74
 **Component:** ENG-RECORDS
 **Date:** 2026-10-10 UTC
+
+## 2026-10-11 UTC — RV-M4.1-FRESH-SCHEMA-CI-RESULT / controlled checkout passed
+
+Exact-head GitHub controlled-checkout run 38121104825 passed on `73613cea5d0e1c179d33eebf576ef3931efdf5a3`, covering the complete suite, canonical graph validation and controlled revision/predecessor audit after the fresh-schema ledger correction and its retained backups. The implementation suite passed 137/137 on isolated PostgreSQL 16.15, zero skips/failures/errors. PR #20 stays open/draft and unmerged. No live authority schema or credential was provisioned; deployed services and shared state remain unchanged.
+
+## 2026-10-11 UTC — RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER / empty-schema acceptance defect
+
+The authority integration fixture had applied Core migrations before the dedicated authority migrations, masking a fresh-install defect: the dedicated schema had no `schema_migrations` checksum ledger. Added idempotent authority migration `0000_authority_migration_ledger.sql` and changed the registry fixture to begin with a genuinely empty schema. Focused registry tests passed 7/7; the full isolated PostgreSQL 16.15 suite passed 137/137 with zero skips, failures or errors. Test cleanup left zero fixture schemas/roles; the private cluster socket was absent after shutdown. Canonical graph synchronization/check passed (12 workflows/228 nodes), compileall passed and controlled revision audit had zero issues. Evidence is in `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T072000Z-fresh-schema-ledger/`. The live Camrui authority schema/roles remain absent; no shared database, identity, credential, service, assignment or deployment was changed. This repairs isolated installation readiness, not M4.1 commissioning or M3.3's live gate.
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-DASHBOARD-PACKAGE-ROLLBACK / live compatibility correction
+
+Attempted a versioned dashboard-only deployment of `6403e45` after package manifest and shell checks passed. The new release started and the deployed Firefox run showed live healthy PostgreSQL/CME, a completed persisted assignment with one independent verification, 19 pre-existing documentation links returning HTTP 200, and no browser errors. An additional shell-link check then found that the M4.1 package omitted three repository-knowledge documents present in the active M3.3 release; the candidate link returned HTTP 404. Restored the recorded `7a9ff46` release through the dashboard symlink and restarted only the dashboard. After its brief readiness interval, dashboard was active/HTTP 200; PostgreSQL, event processor, CME monitor, notification dispatcher and SSH remained active; unit checksum unchanged. Candidate release/archive and browser screenshots were retained under `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T060100Z-dashboard-doc-release/`. No shared database or credential changed.
+
+The full-source package on the M4.1 branch cannot yet replace the active dashboard release without synchronizing the M3.3 documentation and canonical graph. The current deployed PostgreSQL cookbook still includes placeholder `PGPASSWORD`/credential-DSN examples. The corrected branch cookbook is safe, its local route regression passes, and the full 133-test suite passed CI before the package trial, but those revised pages have not been live deployed. Regression coverage now requires every documentation link in the static dashboard shell to resolve from the packaged tree. Continue with source/graph dependency reconciliation before retrying a deployment; preserve the previous live release meanwhile.
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-PG-SECRET-SAFETY / M1.4 live-state correction
+
+Revised the PostgreSQL ledger cookbook to remove password-bearing `PGPASSWORD` and credential-DSN examples and accurately identify the `riverview_dev` application schema. Added route regression assertions; the focused safe Markdown route passed. Read-only peer inspection of the commissioned local PostgreSQL instance confirmed nine migrations, including `0001_assignment_leases` applied at `2026-10-10 18:27:04.341175-04:00`; its recorded SHA-256 matches the checked-in migration. This corrects prior roadmap/M1.4 record/cookbook claims that it was absent. The observed migration was applied as a later worker/monitor dependency and does not prove a standalone scheduler service or M1.4 commissioning. No shared DB mutation occurred.
+
+On an isolated socket-only PostgreSQL 16.15 cluster, full suite passed 133/133 with no skips; focused documentation route passed 1/1. Isolated cluster teardown left zero `rvtest_*` schemas/roles. Graph validation and controlled revision audit are being rerun after these final record edits. Evidence, including the exact peer query result and test log, is retained in `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T055428Z-pg-doc-safety/`. The earlier scheduler and worker cookbook query/test evidence remains in their linked checkout folders. Existing live services and database were not changed.
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS / persisted worker records
+
+Continued in `codex/m4.1-db-privilege-boundary` after scheduler cookbook checkout. Added a controlled worker cookbook revision with isolated-schema preflight and redacted read-only views of registry capabilities, attempts/results, independent verification, execution intents, and recovery decisions. Added a dashboard-route assertion for its rendered documentation. Existing architecture confirms there is no commissioned live worker service or enrollment CLI; the guide directs enrollment only through the trusted control-plane workflow and prohibits manual live row insertion or bearer export.
+
+On a private PostgreSQL 16 socket-only test cluster, all 133 tests passed with zero failures/errors/skips. An isolated schema with the full ledger/scheduler/worker migration chain registered separate synthetic executor and verifier identities; `ContinuousWorker` wrote a deterministic persisted result; independent SHA-256 verification accepted it and the test assignment reached `completed`. The exact diagnostic query showed both identities, one succeeded attempt/result digest, distinct accepted verifier, successful `retry_safe` intent, and no recovery row, without returning tokens, input, event payload, evidence references or result JSON. The fixture schema was explicitly removed, catalog counts reported zero `rvtest_` schemas/roles, and the cluster was stopped and deleted. The safe dashboard route passed 1/1; graph validation passed 12 workflows/226 nodes; controlled revision audit passed with zero findings; compileall and source diff-check passed. Evidence: `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T055053Z-worker-docs/`. Exact-head CI and PR status will follow the final commit. No shared database or service changed, and this isolated worker execution is not live commissioning or Grace acceptance.
+
+## 2026-10-11 UTC — RV-OPS-COOKBOOK-SCHEDULER-DIAGNOSTICS / safe operator diagnosis
+
+On `codex/m4.1-db-privilege-boundary` at `fe4aa3cf5919485c5c5620d76a5ec766213b289f`, confirmed PR #20 remains open/draft and exact-head CI run 38115573864 passed. The shared PostgreSQL/CME/event-processor/dashboard/notification services remained active. Reviewed the scheduler cookbook and identified that its generic “query ready assignments and lease expiries” instruction lacked a concrete bounded read-only query and decision table. Added those diagnostics with an explicit isolated-schema boundary: M1.4 has not been deployed into `riverview_dev`.
+
+Preserved predecessor bytes and checksums for the cookbook, dashboard route test, operations record, and journal before changes. The first focused unittest selector named a nonexistent test class and returned exit 1 before running tests. Corrected the selector to `DashboardHTTPTests`; focused HTML route test passed 1/1. A private socket-only PostgreSQL 16 cluster on port 55486 ran the complete suite: 133 passed, zero failures/errors/skips. The suite left zero `rvtest_` schemas/roles; the cluster was fast-stopped and its disposable directory removed. A separate isolated cluster executed the documented migration and lease queries against one synthetic ready assignment/current lease and returned the expected safe metadata; explicit fixture teardown left zero test schemas. Graph validation reported 12 workflows/226 nodes PASS, controlled revision audit had no findings, and compileall returned exit 0. Immutable logs/checksums are linked in `docs/development/OPERATIONS-COOKBOOK-001_REVISION_RECORD.md` and under `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T054342Z-scheduler-docs/`.
+
+No live shared-schema, credential, role, service, assignment, or worker state changed. M4.1 remains isolated-engineering PASS / live commissioning OPEN, M3.3 remains blocked on real live authorization and knowledge preflight, and PR #20 remains unmerged. Next safe work: preserve the tested docs route through a compatible versioned package and continue M4.1 contract/commissioning preparation without changing the shared database boundary.
 
 ## 2026-10-11 UTC — RV-M3.2-001 / durable visual notification design
 
@@ -990,3 +1024,124 @@ reports decoded screenshot bytes. This dashboard deployment does not commission
 the authority registry: the shared database has no authority tables, and no
 identity/grant was created. M4.1 remains IN PROGRESS; M3.3 remains blocked on
 deployable database-enforced authority and a real verified knowledge provider.
+
+## 2026-10-11 UTC — RV-M4.1-DB-BOUNDARY / isolated PostgreSQL owner separation
+
+On `codex/m4.1-db-privilege-boundary`, implemented a dry-run-first provisioner
+for the fixed nine authority tables and append-only trigger function. Testing
+revealed PostgreSQL schema ownership can permit dropping contained objects
+even after relation ownership is transferred. Corrected the contract and
+preflight to require runtime and manager be distinct from, and unable to
+assume, schema ownership; the fixture models that distinct owner and tests
+runtime SQL denial and fail-closed schema-owner rejection. The corrected
+focused integration passed 1/1 and the complete disposable-PostgreSQL suite
+passed 133/133 with no skips, failures, or errors. `rvtest_*` schema/role counts
+were both zero after cleanup. Graph synchronization passed at 12 workflows/226
+nodes; Python compilation and controlled-revision audit passed. All checks are
+isolated; shared `riverview_dev` is unchanged. This is not a live boundary: the
+current Camrui runtime owns the shared schema, and no protected manager
+credential/service, migration, identity or grant was installed. The exact
+checkout evidence will be recorded after the coherent commit is finalized.
+Corrective experiments retained: initial post-apply catalog verification used
+untyped parameters with PostgreSQL's variadic `format()` and failed with
+`IndeterminateDatatype`; verification now checks relation OIDs and explicitly
+casts role parameters. A subsequent Psycopg test query contained a literal `%`
+in a `LIKE` pattern and failed its placeholder parser; it now uses a parameterized
+catalog name list. The first schema-owner reproduction fixture lost runtime
+schema usage after transferring ownership and exposed a `dict_row` indexing
+mistake; the fixture regrants only its test role the needed schema access and
+uses the named result. A verification assertion initially ran after the
+intentional `DROP ... CASCADE`; it was reordered before that destructive
+fixture-only proof. The focused test passed 1/1 and final full suite 133/133,
+zero skipped/failed/errored. One restart attempt initially found the private
+cluster already stopped; it was started from the same temporary data directory
+and tests passed. No issue involved the shared database.
+
+Next: capture commit-bound evidence, run GitHub CI, open (do not merge) a
+focused dependent PR, then continue M4.1 integration only after its documented
+role, credential, backup and compatibility prerequisites are met.
+
+Commit `411bff91f383f9a518cd5fda8116e6cbf7bc9c86` was rechecked on the exact
+committed tree: full PostgreSQL-backed suite 133/133, zero skipped/failed/
+errored; compileall exit 0; canonical graph 12 workflows/226 nodes; controlled
+revision audit zero findings; test schema and role cleanup zero. PostgreSQL
+test cluster stopped cleanly. Immutable logs, commands and SHA-256 manifest:
+`evidence/checkouts/M4.1-DB-BOUNDARY/20261011T053022Z-411bff9/`. The process
+graph verification node references the checkout report. M4.1 stays in
+progress and no shared live objects or services changed.
+
+## 2026-10-11 UTC — RV-M4.1-DASHBOARD-ROUTE / preserve deployed interface
+
+Added an HTTP-handler regression for the expanded authority cookbook and its
+component link. The first assertion expected the phrase `DROP TABLE`, while the
+actual warning is `DROP ... CASCADE`; corrected the assertion to match the
+documented command warning. The focused dashboard route test now passes 1/1,
+checking HTTP 200, rendered headings/table/code, expected security guidance,
+and absence of source metadata comments.
+
+Before any dashboard deployment, compared the committed M4.1 package against
+the active root-owned release. The M4.1 source branch's `static/index.html` is
+revision 1.0.5; Camrui's deployed M3.3 release `7a9ff46` contains revision 1.0.6
+with additional repository-knowledge cookbook links. Installing the M4.1
+archive would roll back the active shell. Package archive/path/checksum/shell
+verification passed, but deployment was correctly withheld; no active symlink,
+service, DB, or credential changed. The new cookbook route was tested in the
+source handler, not claimed live in the browser. Refresh from the current
+dashboard source before deployment. PR #20 remains draft; no merge performed.
+
+Post-change verification on commit `9c96e7869c57165705392525b8be0f80575112ed`:
+full isolated suite passed 133/133 with no skips/errors/failures; dashboard
+cookbook route focus passed 1/1; compileall, graph sync (12/226), and controlled
+revision audit passed. Exact-head GitHub CI run 38115330159 passed. Read-only
+Camrui status at 05:37 UTC showed PostgreSQL, event processor, CME monitor,
+notification dispatcher and dashboard active; baseline oneshot `Result=success`;
+dashboard HTTP 200 on existing release 7a9ff46. Ledger counts: nine
+migrations, four assignments, 11 events, one attempt, one verification, six
+monitor events, three notices. An initial read-only query used the guessed
+`assignment_events` name and failed; `pg_tables` confirmed the canonical table
+is `events`, and the corrected read-only query returned these counts.
+
+Attempted to create a follow-up exact-commit Camrui package before committing
+the required predecessor records; `build_camrui_package.py` refused its clean
+working-tree precondition because the backup manifest was intentionally dirty.
+It created no archive. Commit records/backups first, then rebuild and verify the
+exact committed source. This is a safe packaging precondition, not a test or
+deployment failure; no active host path changed.
+
+## 2026-10-11 UTC — RV-M4.1-167 / exact commit verification checkpoint
+
+Committed and pushed the latest records as `167e63b9969a5cdbb1e4d3abee33e3e503bba11f`.
+From its clean tree, built and verified the exact-source Camrui archive
+(SHA-256 `04abf2a8a6ce4efcc3c741548df76fac77ea7b7b0833b439fe9580d9458f5d52`);
+manifest, shell bytes, and path scan passed. Repeated the PostgreSQL-backed
+suite (133/133, zero skips), focused docs route test (1/1), compileall, graph
+check (12 workflows/226 nodes), revision audit (zero findings), and fixture
+cleanup (zero `rvtest_*` schema/roles). Exact-head CI run 38115448463 passed.
+Evidence is `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T054020Z-167e63b/`.
+
+Deployment remains deliberately withheld because the verified full archive
+would downgrade the installed dashboard shell and drop working repository-
+knowledge links. Existing release 7a9ff46 and all operational services remain
+unchanged and healthy; shared authority tables/roles/credentials remain absent.
+M4.1 is isolated-engineering PASS, not live commissioning or component DONE.
+
+
+## 2026-10-11 UTC — RV-M4.1-ROLE-SCOPE-REVIEW / least-privilege correction
+
+Reviewed the M4.1 database boundary before live deployment. The prior design's
+manager membership in the `NOLOGIN` table-owner role granted DDL and could
+bypass registry controls. Reworked the helper to require a dedicated schema
+with only authority relations, migration ledger and trigger function; deny
+`PUBLIC`/ordinary-runtime schema access; require a NOINHERIT manager with no role
+memberships; and grant manager DML on the nine allowlisted tables only. Added
+fail-closed checks for unrelated tables/functions, manager membership and
+manager DDL, while retaining exact registry behavior and the schema-owner
+DROP-CASCADE proof in a disposable schema. The focused PostgreSQL integration
+passed and teardown left zero test schemas/roles; the prior complete isolated
+suite was 133/133. The process-graph tests passed 12/12, including new file-level
+revision generation tests. A first fixture run exposed the migration runner's
+required `schema_migrations` ledger; the fixture now creates that ledger inside
+its isolated schema. A subsequent source indentation error was caught at test
+collection and fixed before execution; no shared database was touched. No live
+roles, schema, credentials or identity state changed. Exact-head CI and final
+checkpoint evidence are pending.

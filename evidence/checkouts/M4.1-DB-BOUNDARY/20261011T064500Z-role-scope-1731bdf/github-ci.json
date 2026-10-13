@@ -1,0 +1,16 @@
+{
+  "headRefOid": "1731bdfb470337158a920e1dbd4b80ffb7f66e79",
+  "statusCheckRollup": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-11T06:45:32Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/ppow1/Riverview-/actions/runs/38119049973/job/114409806840",
+      "name": "controlled-checkout",
+      "startedAt": "2026-10-11T06:44:41Z",
+      "status": "COMPLETED",
+      "workflowName": "Controlled checkout"
+    }
+  ],
+  "url": "https://github.com/ppow1/Riverview-/pull/20"
+}

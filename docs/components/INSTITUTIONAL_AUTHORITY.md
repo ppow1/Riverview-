@@ -2,10 +2,15 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.1
+File Revision: 1.0.7
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
+Changed: 2026-10-11 UTC | RV-M4.1-DB-BOUNDARY | Specify separate schema, runtime, manager, and authority-owner identities
+Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ROUTE | Verify local dashboard documentation route for the expanded authority procedures
+Changed: 2026-10-11 UTC | RV-M4.1-LEAST-PRIVILEGE | Require a dedicated registry schema and scoped manager DML without owner or schema-create access
+Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER | Require the manager login to inherit no other database role grants
+Changed: 2026-10-11 UTC | RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER | Make authority migrations self-contained for a dedicated fresh schema
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
@@ -13,7 +18,7 @@ History: Git and .riverview-backups/manifest.jsonl
 **Milestone:** M4.1 — Office, occupant, implementation and state separation
 **Status:** Isolated PostgreSQL implementation in progress; not live commissioned
 **Implementation:** `src/riverview_core/institutional_authority/registry.py`
-**Migration:** `src/riverview_core/institutional_authority/migrations/0001_institutional_authority.sql`
+**Migrations:** `0000_authority_migration_ledger.sql` bootstraps the checksum ledger if absent; `0001_institutional_authority.sql` creates the registry tables and trigger.
 **Process graph:** `rv:institutional-authority:identity-and-grants`
 
 ## Identity model
@@ -76,6 +81,39 @@ direct inserts or invented grant strings are not an acceptable substitute.
 M4.1 does not implement chat, work-order promotion, provider routing, or the
 Grace director.
 
+### Database privilege boundary package
+
+`src/riverview_core/institutional_authority/db_boundary.py` and
+`scripts/provision_authority_boundary.py` provide a DBA-operated, dry-run-first
+transition for the nine authority relations and append-only trigger function.
+The helper rejects a runtime or authority manager that owns the selected
+schema or can assume its owner role. PostgreSQL schema ownership can grant
+object-drop authority independently of relation ownership. The runtime must
+therefore have a distinct schema owner/migration identity; relation transfer
+alone is insufficient.
+
+The authority registry must use a dedicated schema containing only its nine
+tables, its migration ledger, and its append-only event trigger. Never run the
+boundary helper against a mixed application schema: it revokes schema access
+from `PUBLIC` and the ordinary runtime as well as protecting each table. The
+manager is a dedicated non-superuser LOGIN. It receives only schema `USAGE` and
+`SELECT`/`INSERT`/`UPDATE`/`DELETE` on the nine registry tables. It is `NOINHERIT`
+and cannot be a member of any other database role; it cannot create objects,
+drop tables, execute the trigger function directly, or inherit the `NOLOGIN`
+table-owner role. The runtime receives no schema `USAGE` or table/function
+access. The manager is still a trusted authority capability: a
+compromised manager can issue direct DML and bypass application-level grant
+checks, so its secret must be isolated from worker, CME, event-processor, and
+dashboard runtimes. The helper performs no identity/grant creation or work
+authorization.
+
+This package has passed isolated PostgreSQL integration tests only. Camrui's
+shared `riverview_dev` schema is runtime-owned and contains unrelated application
+objects, so it must remain outside this boundary. A separate authority schema,
+protected manager credential and service integration, verified backup/restore
+rehearsal, and compatibility plan are required before live authorization use.
+See the [boundary procedure](INSTITUTIONAL_AUTHORITY_COOKBOOK.md#versioned-privilege-boundary-provisioner-isolated-controlled-use).
+
 ## Interfaces
 
 `AuthorityRegistry` provides:
@@ -97,6 +135,11 @@ Grace director.
 All routines are synchronous and transactional in the selected schema. No DDL
 runs at construction or service startup. Apply the versioned migration explicitly
 only after backup, restore rehearsal, owner/privilege review, and a release plan.
+The authority migration chain is self-contained for a fresh dedicated schema:
+`0000_authority_migration_ledger.sql` creates only `schema_migrations` if absent,
+then `0001_institutional_authority.sql` creates the registry. The runner records
+checksums and rejects later drift. Existing schemas with a compatible ledger are
+preserved; the bootstrap migration uses `IF NOT EXISTS`.
 
 See [the focused flow](INSTITUTIONAL_AUTHORITY_FLOW.md),
 [the operations cookbook](INSTITUTIONAL_AUTHORITY_COOKBOOK.md), and

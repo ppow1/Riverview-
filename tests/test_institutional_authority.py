@@ -1,13 +1,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_institutional_authority.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Verify durable identity separation and fail-closed exact scoped grants
 # Execution Model: PostgreSQL integration tests in rvtest_* disposable schemas
 # Observability: unittest evidence, authority events, binding/state revisions
 # Dependencies: RIVERVIEW_TEST_PG_DSN; PostgreSQL 16; Psycopg 3
 # Authority: Creates/drops only unique test schemas
 # Changed: 2026-10-11 UTC | RV-M4.1-001 | Verify expiry validation and Steward recovery credential
+# Changed: 2026-10-11 UTC | RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER | Run authority tests against fresh schema with no precreated ledger
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -35,8 +36,8 @@ class InstitutionalAuthorityTests(unittest.TestCase):
         self.schema = "rvtest_" + uuid4().hex
         self.admin = psycopg.connect(DSN, autocommit=True)
         self.admin.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(self.schema)))
-        apply_migrations(DSN, schema=self.schema)
         migration = Path(__file__).resolve().parents[1] / "src/riverview_core/institutional_authority/migrations"
+        # A dedicated new authority schema has no shared Core migration ledger.
         self.migrations = apply_migrations(DSN, schema=self.schema, migrations_dir=migration)
         self.registry = AuthorityRegistry(DSN, schema=self.schema)
         # Fixture setup is the trusted authority boundary in this disposable schema.
@@ -61,7 +62,7 @@ class InstitutionalAuthorityTests(unittest.TestCase):
         from riverview_core.institutional_authority import AuthorityDenied, IdentityConflict
         from riverview_core.postgres_migrations import apply_migrations
         migration = Path(__file__).resolve().parents[1] / "src/riverview_core/institutional_authority/migrations"
-        self.assertEqual(self.migrations, ["0001_institutional_authority"])
+        self.assertEqual(self.migrations, ["0000_authority_migration_ledger", "0001_institutional_authority"])
         self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
         if os.geteuid() != 0:
             with self.assertRaises(AuthorityDenied):

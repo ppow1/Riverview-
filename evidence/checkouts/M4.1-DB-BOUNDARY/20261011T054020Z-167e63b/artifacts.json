@@ -1,0 +1,112 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M4.1-DB-BOUNDARY",
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "source_commit": "167e63b9969a5cdbb1e4d3abee33e3e503bba11f",
+  "target": "Camrui Ubuntu 24.04; isolated PostgreSQL 16.15 plus read-only live diagnostics",
+  "decision": "Isolated engineering PASS; M4.1 live commissioning OPEN; dashboard deployment withheld to avoid shell regression",
+  "artifacts": {
+    "candidate-deployment.txt": {
+      "path": "candidate-deployment.txt",
+      "revision": "1.0.0",
+      "sha256": "3c4e8f1e5e0eec9e23e5f9c8fb58e23aa136fd9058c6205d93ab6e50d7cd6c9f",
+      "size_bytes": 742
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "efa01f96dba2dec0776e8bcbb37eea99a53e23e78930d77e5504da3ebc6b08c5",
+      "size_bytes": 2150
+    },
+    "compileall.txt": {
+      "path": "compileall.txt",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "dashboard-route.log": {
+      "path": "dashboard-route.log",
+      "revision": "1.0.0",
+      "sha256": "3a3208e1544e212482161ce2fba49af9beb6790c175c4d93d7da143519f13ae0",
+      "size_bytes": 269
+    },
+    "disposable-cleanup.txt": {
+      "path": "disposable-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "81f0e5ff6680949ab2139e25890ed30ddcdef74390cd87335954df6e34165d3d",
+      "size_bytes": 18
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "9229fdcad263c6576158ceb2c51d0cb1eafa1c0c9394e9511d40a53ea3dd98c3",
+      "size_bytes": 22132
+    },
+    "github-ci.json": {
+      "path": "github-ci.json",
+      "revision": "1.0.0",
+      "sha256": "2e1f85ca4f9f64587160a3dce90f5482da7ebb84a79760f6426395f782203ed4",
+      "size_bytes": 252
+    },
+    "live-dashboard-release.txt": {
+      "path": "live-dashboard-release.txt",
+      "revision": "1.0.0",
+      "sha256": "3f316e3684281fdfafd6582feabce0aad1ad9c1562eb2223bbb5218ee3246ac8",
+      "size_bytes": 101
+    },
+    "live-db-counts.txt": {
+      "path": "live-db-counts.txt",
+      "revision": "1.0.0",
+      "sha256": "a764af01cba9eecf1b8a89ce21aa61c2f0b5a45a17ce3812f54448bfd7dcc9a8",
+      "size_bytes": 362
+    },
+    "live-service-health.txt": {
+      "path": "live-service-health.txt",
+      "revision": "1.0.0",
+      "sha256": "dda9a872729ccc0fd2f0a9f3979a474c54d187de10ea591efdf5c2fb63a4fbf8",
+      "size_bytes": 779
+    },
+    "package-build.txt": {
+      "path": "package-build.txt",
+      "revision": "1.0.0",
+      "sha256": "5212ec443c8b0233ca0651371590f093b3b46d602a3184d43e83eb9657f7b6ca",
+      "size_bytes": 135
+    },
+    "package-path-check.txt": {
+      "path": "package-path-check.txt",
+      "revision": "1.0.0",
+      "sha256": "5edb7357a91fd2372893f44e12f47b5458774a0f95782653855e8d4bc56b5564",
+      "size_bytes": 19
+    },
+    "package-verification.json": {
+      "path": "package-verification.json",
+      "revision": "1.0.0",
+      "sha256": "23df595a341bac1ddde90077650c2048b9ff9ed743437373fa26e2769e90f6ee",
+      "size_bytes": 878
+    },
+    "postgres-start.log": {
+      "path": "postgres-start.log",
+      "revision": "1.0.0",
+      "sha256": "94d99714a3aec99494110f429be18dc66d337c843e0dfffd72be9983a82bb5f8",
+      "size_bytes": 4150
+    },
+    "postgres-stop.log": {
+      "path": "postgres-stop.log",
+      "revision": "1.0.0",
+      "sha256": "995da923f1983b4a23ce7813e935ea086b2b984eb2c152b6af4245ede950e496",
+      "size_bytes": 63
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "ee97fbdd8a2cb539b0b56e0b4369ddde874cfc1b778acf7bfd199595f833d06f",
+      "size_bytes": 55
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    }
+  }
+}

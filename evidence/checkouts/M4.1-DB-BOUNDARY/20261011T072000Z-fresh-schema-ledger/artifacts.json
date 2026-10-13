@@ -1,0 +1,70 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER",
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "source_commit": "2efaedf115ce7bef5d7fa25bc57d99f43e96f8a1",
+  "target": "Private socket-only PostgreSQL 16.15 cluster; fresh authority-only disposable schemas",
+  "decision": "Fresh dedicated authority migration is self-contained; full 137-test suite, process graph and controlled revision audit pass; live shared-schema provisioning remains not started",
+  "artifacts": {
+    "compileall.log": {
+      "path": "compileall.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "fixture-cleanup.txt": {
+      "path": "fixture-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "52f96c26a39ed25108a6db43d6e11c6051eba8a498a5baab1891adfa7ac7c262",
+      "size_bytes": 4
+    },
+    "fixture-cluster-stopped.txt": {
+      "path": "fixture-cluster-stopped.txt",
+      "revision": "1.0.0",
+      "sha256": "eeb9fbce724d5cb925ab96cf1a03c703a841a52a598fa3082b55b43ba97e9424",
+      "size_bytes": 32
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "66ef2933998730470c3659f0dc635f4744bd383855454e0212d7238bab955986",
+      "size_bytes": 22788
+    },
+    "postgres-initdb.log": {
+      "path": "postgres-initdb.log",
+      "revision": "1.0.0",
+      "sha256": "b93fd47b40f6e4d946fbd08bb3750192f68b41f6b3c98625a93184ee4315de5b",
+      "size_bytes": 875
+    },
+    "postgres-server.log": {
+      "path": "postgres-server.log",
+      "revision": "1.0.0",
+      "sha256": "28c0854f72918f3179d7d0162dd4ee3d7c4b49705480d9849ea92d6b38eb1a63",
+      "size_bytes": 4195
+    },
+    "postgres-start.log": {
+      "path": "postgres-start.log",
+      "revision": "1.0.0",
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "size_bytes": 52
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "1bbad9715ceaa93ade9783180cc038970a95ac3444f74eee1525eb94350b9cbc",
+      "size_bytes": 55
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "970a41451927ba2f3b766ad2edaa511b2ec4d1eec3e7c8bb3762f17205914406",
+      "size_bytes": 2121
+    }
+  }
+}
