@@ -1,0 +1,104 @@
+{
+  "component_id": "OPERATIONS-COOKBOOK / ASSIGNMENT-SCHEDULER / POSTGRES-LEDGER",
+  "files": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.1",
+      "sha256": "04d496299a5388e41601f702d4e3516add5116be6d8ecb3033a98c284b060103",
+      "size_bytes": 3148
+    },
+    "compileall.log": {
+      "path": "compileall.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "dashboard-route-final.log": {
+      "path": "dashboard-route-final.log",
+      "revision": "1.0.0",
+      "sha256": "a36e442fdd2b60a0fe2c1ce3d25a15787a5d24c5daa5dce77a93d4cfdf592e89",
+      "size_bytes": 2141
+    },
+    "dashboard-route.log": {
+      "path": "dashboard-route.log",
+      "revision": "1.0.0",
+      "sha256": "aa939fab36eba0c3e2986e88e37cd03fa850b9733f7c7782b8954d19ce6d056f",
+      "size_bytes": 269
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "f0314b7d0a3ec6e410e2e5c774ee522f1e6364a6a7e6b2a1a5614fdcf46a5983",
+      "size_bytes": 22132
+    },
+    "live-peer-inspection.txt": {
+      "path": "live-peer-inspection.txt",
+      "revision": "1.0.0",
+      "sha256": "5c786c793525d9667b2de03eb52af7b2efa784084e8572ca89861817687f0869",
+      "size_bytes": 2254
+    },
+    "live-service-check.txt": {
+      "path": "live-service-check.txt",
+      "revision": "1.0.0",
+      "sha256": "591ea3b9ce1ff847cb4aa21ce7d81a3b732b064a6db6f2b96209f1ca040b29a0",
+      "size_bytes": 54
+    },
+    "postgres-cleanup.txt": {
+      "path": "postgres-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "574e5ff26ed495457a5948897244e629113370b041c434923925183a6828c8f0",
+      "size_bytes": 32
+    },
+    "postgres-initdb.log": {
+      "path": "postgres-initdb.log",
+      "revision": "1.0.0",
+      "sha256": "d95121e582b9eedf90aa201dcc3c7615f9b0c64eb9ecd6dbb18b9bff8e86223c",
+      "size_bytes": 862
+    },
+    "postgres-server.log": {
+      "path": "postgres-server.log",
+      "revision": "1.0.0",
+      "sha256": "d36196aae850c04409ff59b170c563308675085dc7c5ef4195c14f5df73bf151",
+      "size_bytes": 3991
+    },
+    "postgres-start.log": {
+      "path": "postgres-start.log",
+      "revision": "1.0.0",
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "size_bytes": 52
+    },
+    "postgres-stop.log": {
+      "path": "postgres-stop.log",
+      "revision": "1.0.0",
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d",
+      "size_bytes": 56
+    },
+    "private-cluster-path.txt": {
+      "path": "private-cluster-path.txt",
+      "revision": "1.0.0",
+      "sha256": "f5d903b6939c0e7a083369c021166912faf10e62ed26d6beeb10e6d9796bf262",
+      "size_bytes": 33
+    },
+    "process-graph.json": {
+      "path": "process-graph.json",
+      "revision": "1.0.0",
+      "sha256": "ee97fbdd8a2cb539b0b56e0b4369ddde874cfc1b778acf7bfd199595f833d06f",
+      "size_bytes": 55
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "source-diff-check.log": {
+      "path": "source-diff-check.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "source_commit": "efc687769ebe683adb5e0f3e3c14dbd15480f3e3",
+  "task_id": "RV-OPS-COOKBOOK-PG-SECRET-SAFETY / RV-M1.4-LIVE-DEPENDENCY-CORRECTION"
+}

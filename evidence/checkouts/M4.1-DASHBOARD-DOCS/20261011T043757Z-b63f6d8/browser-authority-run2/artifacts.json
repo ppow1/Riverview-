@@ -1,0 +1,22 @@
+{
+  "artifacts": {
+    "authority-workflow-browser.json": {
+      "path": "authority-workflow-browser.json",
+      "revision": "1.0.0",
+      "sha256": "1810bba628648b1f7be36eb045870900727e05221d691061c90002d50774d731",
+      "size_bytes": 675
+    },
+    "authority-workflow-view.png": {
+      "path": "authority-workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "b760016114a966c21be82e3d9af613e77c346d8ae869e91adfdc9f7baab4f2f7",
+      "size_bytes": 300298
+    }
+  },
+  "component_id": "INSTITUTIONAL-AUTHORITY graph view",
+  "decision": "PASS; read-only graph view; execution position unknown",
+  "manifest_revision": "1.0.0",
+  "source_commit": "b63f6d85e7837caaa03265aa19164b57c818c8d9",
+  "target": "Camrui loopback Firefox 156.0.1",
+  "task_id": "RV-M4.1-001"
+}

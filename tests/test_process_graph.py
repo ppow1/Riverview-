@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_process_graph.py
 # Component: RV-PROCESS-GRAPH
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Verify global identity, references, typed edges, schema and synchronized views
 # Execution Model: Request-driven unittest suite
 # Observability: Assertion failures identify violated process graph contract
 # Dependencies: Python 3.10+; jsonschema 4.10.3
 # Authority: Test-only graph fixtures; no database or service access
 # Changed: 2026-10-10 UTC | RV-GRAPH-001 | Initial graph validation regression suite
+# Changed: 2026-10-11 UTC | RV-GRAPH-FILE-REVISION-FIX | Verify generation increments file headers without changing body revisions
 # Contracts: process_graphs/README.md; process_graphs/schema/riverview-process-graph.schema.json
 # Tests: python3 -m unittest tests.test_process_graph -v
 # History: Git and .riverview-backups/manifest.jsonl
@@ -16,7 +17,10 @@
 """Regression tests for canonical process graph validation and generated views."""
 
 import copy
+from pathlib import Path
+import tempfile
 import unittest
+from unittest.mock import patch
 
 import scripts.process_graph as process_graph
 
@@ -94,6 +98,29 @@ class ProcessGraphTests(unittest.TestCase):
         sidecar = {"files": {"graph.json": {"revision": "1.0.0", "sha256": "0" * 64, "size_bytes": 5}}}
         with self.assertRaisesRegex(process_graph.GraphError, "checksum mismatch"):
             process_graph.validate_sidecar_entry("graph.json", b"{}", sidecar)
+
+    def test_generated_flow_increments_file_revision_not_body_revision(self):
+        with tempfile.TemporaryDirectory(dir=process_graph.ROOT) as directory:
+            path = Path(directory) / "flow.md"
+            old = "<!--\nFile Revision: 1.2.3\n-->\n\n**Document Revision:** 9.8.7\nold view\n"
+            path.write_text(old, encoding="utf-8")
+            new = old.replace("old view", "new view")
+            with patch.object(process_graph, "revision_backup") as backup:
+                process_graph.write_markdown_output(path, new)
+            result = path.read_text(encoding="utf-8")
+            self.assertIn("File Revision: 1.2.4", result)
+            self.assertIn("**Document Revision:** 9.8.7", result)
+            backup.assert_called_once()
+
+    def test_generated_aggregate_increments_document_revision(self):
+        with tempfile.TemporaryDirectory(dir=process_graph.ROOT) as directory:
+            path = Path(directory) / "aggregate.md"
+            old = "**Document Revision:** 2.4.8\nold view\n"
+            path.write_text(old, encoding="utf-8")
+            new = old.replace("old view", "new view")
+            with patch.object(process_graph, "revision_backup"):
+                process_graph.write_markdown_output(path, new)
+            self.assertIn("**Document Revision:** 2.4.9", path.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

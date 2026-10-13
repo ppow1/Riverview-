@@ -1,0 +1,64 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M4.1-DB-BOUNDARY",
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "source_commit": "411bff91f383f9a518cd5fda8116e6cbf7bc9c86",
+  "target": "Camrui Ubuntu 24.04; isolated PostgreSQL 16.15",
+  "decision": "Isolated engineering PASS; live commissioning NOT VERIFIED",
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "2f858a69b878479d616a09a9e1acc57ac963058d65f21aaf0005509035ffe290",
+      "size_bytes": 1963
+    },
+    "compileall.txt": {
+      "path": "compileall.txt",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "corrective-experiments.txt": {
+      "path": "corrective-experiments.txt",
+      "revision": "1.0.0",
+      "sha256": "00fcccf96b1bee160d6478ff867f8b0a237a85437a50b9f18579e6498cba0bce",
+      "size_bytes": 1292
+    },
+    "disposable-cleanup.txt": {
+      "path": "disposable-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "81f0e5ff6680949ab2139e25890ed30ddcdef74390cd87335954df6e34165d3d",
+      "size_bytes": 18
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "2ed383041ca86d9c37d79c192dee89048431368a487a643e3b8ddb3cab19de3a",
+      "size_bytes": 22132
+    },
+    "postgres-start.log": {
+      "path": "postgres-start.log",
+      "revision": "1.0.0",
+      "sha256": "8e3cd7df768dcf41d671c29c0c116f7c53b9ed860991f1b3e287fca89c98d7bb",
+      "size_bytes": 4045
+    },
+    "postgres-stop.log": {
+      "path": "postgres-stop.log",
+      "revision": "1.0.0",
+      "sha256": "995da923f1983b4a23ce7813e935ea086b2b984eb2c152b6af4245ede950e496",
+      "size_bytes": 63
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "ee97fbdd8a2cb539b0b56e0b4369ddde874cfc1b778acf7bfd199595f833d06f",
+      "size_bytes": 55
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    }
+  }
+}

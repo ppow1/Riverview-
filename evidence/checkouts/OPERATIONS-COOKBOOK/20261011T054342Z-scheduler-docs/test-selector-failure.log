@@ -1,0 +1,12 @@
+Command:
+PYTHONPATH=src python3 -m unittest tests.test_status_dashboard.DashboardHandlerTests.test_component_cookbook_is_rendered_as_readable_safe_html -v
+
+Observed result:
+DashboardHandlerTests (unittest.loader._FailedTest.DashboardHandlerTests) ... ERROR
+AttributeError: module 'tests.test_status_dashboard' has no attribute 'DashboardHandlerTests'. Did you mean: 'DashboardHTTPTests'?
+Ran 1 test in 0.001s
+FAILED (errors=1)
+
+Disposition:
+This was a test selector typo; no application test ran. Corrected class name to
+DashboardHTTPTests; the focused route test then passed. See dashboard-route.log.

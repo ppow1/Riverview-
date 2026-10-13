@@ -1,0 +1,80 @@
+{
+  "authority_graph_browser": {
+    "browser_errors": [],
+    "decisions": 1,
+    "edges": 13,
+    "execution_position": "unknown; zero live node highlights",
+    "nodes": 12,
+    "report": "browser-authority-run2/authority-workflow-browser.json",
+    "screenshot": "browser-authority-run2/authority-workflow-view.png",
+    "selected_stable_node": "rv:institutional-authority:identity-and-grants:bootstrap"
+  },
+  "branch": "codex/m4.1-institutional-authority",
+  "browser_acceptance": {
+    "all_document_links_http_200": true,
+    "attempts": 1,
+    "attention_http": 200,
+    "attention_items": 6,
+    "browser": "Firefox 156.0.1",
+    "browser_errors": [],
+    "cme": "healthy",
+    "component_document_links": 19,
+    "existing_completed_assignment": "m31-real-worker-2533f1c7dd1c433c95bd2cfa8a314d7c",
+    "failed_checks": [],
+    "independent_verifications": 1,
+    "main_dashboard_report": "browser/browser-acceptance.json",
+    "navigation_call_ms": [
+      48,
+      47,
+      55,
+      49
+    ],
+    "projection": "healthy"
+  },
+  "ci_run": {
+    "id": 38112124146,
+    "status": "success",
+    "url": "https://github.com/ppow1/Riverview-/actions/runs/38112124146"
+  },
+  "component_id": "INSTITUTIONAL-AUTHORITY / STEWARD-DASHBOARD",
+  "decision": "Dashboard documentation and graph-view delivery verified locally. M4.1 registry remains isolated/in progress; M3.3 live proof remains blocked pending deployable DB authority separation and real verified knowledge provider. No external Windows browser check is claimed for this release.",
+  "deployment": {
+    "credentials_changed": false,
+    "migration_applied": false,
+    "other_services_restarted": false,
+    "package_sha256": "4bb7941d363e65b1641e369a1bc0fe051a2c8d9614e82a27d99adb208ff98b0e",
+    "predecessor": "/opt/riverview-status-dashboard/releases/0fd10357ccdf2c9a0c87ba4a6f41e37ecff33ce9",
+    "release": "/opt/riverview-status-dashboard/releases/b63f6d85e7837caaa03265aa19164b57c818c8d9",
+    "rollback_copy": "/var/lib/riverview/deployments/dashboard/b63f6d85e7837caaa03265aa19164b57c818c8d9/source-package.tar",
+    "scope": "new dashboard release containing M4.1 cookbook and canonical graph; dashboard runtime code unchanged from deployed M3.2 release",
+    "unit_changed": false
+  },
+  "host": "Camrui Ubuntu 24.04",
+  "live_checks": {
+    "cookbook": "HTTP 200; safely rendered article/table/code; 9497 response bytes",
+    "dashboard": "active/running; MainPID 236766; NRestarts 0; port 8766 loopback; root HTTP 200",
+    "dependencies": "PostgreSQL, event processor, CME monitor, notification dispatcher active",
+    "read_only_database_counts": {
+      "assignments": 4,
+      "attempts": 1,
+      "decision_requests": 0,
+      "events": 11,
+      "independent_verifications": 1,
+      "institutional_authority_tables": "absent",
+      "migrations": 9,
+      "notices": 3,
+      "notification_events": 9
+    },
+    "startup": "first request before socket bind failed immediately after systemd restart; dashboard_started logged at next second; subsequent availability/browser checks passed; no rollback required"
+  },
+  "pull_request": "https://github.com/ppow1/Riverview-/pull/18",
+  "security_boundary": {
+    "m4_1_live_security": "NOT VERIFIED",
+    "no_authority_migration": "true",
+    "no_identity_or_grant_created": "true",
+    "no_shared_database_change": "true"
+  },
+  "source_commit": "b63f6d85e7837caaa03265aa19164b57c818c8d9",
+  "task_id": "RV-M4.1-001",
+  "timestamp_utc": "2026-10-11T04:40:45Z"
+}

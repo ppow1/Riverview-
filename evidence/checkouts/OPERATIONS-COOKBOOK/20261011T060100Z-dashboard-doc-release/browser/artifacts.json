@@ -1,0 +1,26 @@
+{
+  "component_id": "STEWARD-DASHBOARD candidate release",
+  "files": {
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "e36273cd1ec63916b87c1c72f3d2633b7dcce7919b86dd027a9f5c230848c8a6",
+      "size_bytes": 3843
+    },
+    "cookbook-view.png": {
+      "path": "cookbook-view.png",
+      "revision": "1.0.0",
+      "sha256": "ca033765521caf288d1582f0e00508ae8354c2c10220776ccdfec50d1eb9024a",
+      "size_bytes": 176770
+    },
+    "workflow-view.png": {
+      "path": "workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "df507eb3c2b075cb16241abaad2c9a146f86185bbd9c47f1acf2367fcef69ecc",
+      "size_bytes": 233933
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "source_commit": "6403e45d3489c1b3108b447eb1ebc0f1786bec0f",
+  "task_id": "RV-OPS-COOKBOOK-DASHBOARD-PACKAGE-ROLLBACK-CANDIDATE-BROWSER"
+}

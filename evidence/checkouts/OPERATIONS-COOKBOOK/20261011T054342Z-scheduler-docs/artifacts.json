@@ -1,0 +1,124 @@
+{
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "478c1171e59750c17950739c44258ca918dbec9b822ba4a61ce2217bea699055",
+      "size_bytes": 4309
+    },
+    "compileall.txt": {
+      "path": "compileall.txt",
+      "revision": "1.0.0",
+      "sha256": "df938fa5fa03c274d051b5b3720e1b0c54063860291840909f5c6c05b7d05e6f",
+      "size_bytes": 51
+    },
+    "dashboard-route.log": {
+      "path": "dashboard-route.log",
+      "revision": "1.0.0",
+      "sha256": "eef4677c9921cc16f8a4e998a4ec2050614fcaf457abd4cc4b513375070416ab",
+      "size_bytes": 269
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "27502dd3b1493269fd877151511b757835ffc7b3c7c6e00dff1093a8b999658d",
+      "size_bytes": 22132
+    },
+    "github-ci.json": {
+      "path": "github-ci.json",
+      "revision": "1.0.0",
+      "sha256": "7c43b3033627c2bbec5fcd0171aa767d6db727f2d1cd2e3dbd558d67dd37de93",
+      "size_bytes": 384
+    },
+    "host.txt": {
+      "path": "host.txt",
+      "revision": "1.0.0",
+      "sha256": "9c6869e16d5ff2a393d83f0e7abb278e910102fc9d1036d4ef9e030ee6292563",
+      "size_bytes": 41
+    },
+    "live-dashboard-http.txt": {
+      "path": "live-dashboard-http.txt",
+      "revision": "1.0.0",
+      "sha256": "8c22db8454897b6b1eccc1e2da5964ba5b099d4d17b800013ff9267803d7dab6",
+      "size_bytes": 19
+    },
+    "live-dashboard-release.txt": {
+      "path": "live-dashboard-release.txt",
+      "revision": "1.0.0",
+      "sha256": "ff6ce1c5c5137e080acba65629b0ccae500ba15ba17c32ae52744624ced792f6",
+      "size_bytes": 82
+    },
+    "live-service-health.txt": {
+      "path": "live-service-health.txt",
+      "revision": "1.0.0",
+      "sha256": "663940bd3c2e5ebe57e7bd354a7cfeef6cc4bb431b6101d993689cb524778888",
+      "size_bytes": 502
+    },
+    "postgres-cleanup.txt": {
+      "path": "postgres-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "574e5ff26ed495457a5948897244e629113370b041c434923925183a6828c8f0",
+      "size_bytes": 32
+    },
+    "postgres-initdb.log": {
+      "path": "postgres-initdb.log",
+      "revision": "1.0.0",
+      "sha256": "2cdc77d4b0e2a587d4f02b976f05abe5ca52e97e0073fb9089dbc911419bf6b3",
+      "size_bytes": 858
+    },
+    "postgres-server.log": {
+      "path": "postgres-server.log",
+      "revision": "1.0.0",
+      "sha256": "f862ee91142df3ed90f9d0694fc86ac139d7a50af28025c16e9f64a3c02e3691",
+      "size_bytes": 4197
+    },
+    "postgres-start.log": {
+      "path": "postgres-start.log",
+      "revision": "1.0.0",
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "size_bytes": 52
+    },
+    "postgres-stop.log": {
+      "path": "postgres-stop.log",
+      "revision": "1.0.0",
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d",
+      "size_bytes": 56
+    },
+    "private-cluster-path.txt": {
+      "path": "private-cluster-path.txt",
+      "revision": "1.0.0",
+      "sha256": "75180e86b4a36366d0f1a081a5f13d4776bc4108bbfba6dd7cd7178d66885483",
+      "size_bytes": 31
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "ee97fbdd8a2cb539b0b56e0b4369ddde874cfc1b778acf7bfd199595f833d06f",
+      "size_bytes": 55
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "test-dsn.txt": {
+      "path": "test-dsn.txt",
+      "revision": "1.0.0",
+      "sha256": "e6d154e2193260cb4508be9416aa4359e53cd8023d11629d44c0a7fe29e4ccc9",
+      "size_bytes": 82
+    },
+    "test-selector-failure.log": {
+      "path": "test-selector-failure.log",
+      "revision": "1.0.0",
+      "sha256": "238bc61cce623e6cd77d5a4c0a31ec7524766680c0f0e4fd8ab837f057d57efc",
+      "size_bytes": 602
+    }
+  },
+  "component_id": "RIVERVIEW-OPERATIONS",
+  "decision": "PASS for isolated documentation implementation and verification; no milestone acceptance or deployment claimed",
+  "manifest_revision": "1.0.1",
+  "source_commit": "ffea38e10c3205318d6fa040f2525629e6d08234",
+  "target": "admin1-Default-string Ubuntu 24.04.3; isolated PostgreSQL 16 plus read-only local service health",
+  "task_id": "RV-OPS-COOKBOOK-SCHEDULER-DIAGNOSTICS"
+}

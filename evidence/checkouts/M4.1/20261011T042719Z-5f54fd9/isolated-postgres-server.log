@@ -1,0 +1,123 @@
+2026-10-11 00:17:37.629 EDT [230340] LOG:  starting PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit
+2026-10-11 00:17:37.637 EDT [230340] LOG:  listening on Unix socket "/tmp/rv-m41-pgsock-20261011/.s.PGSQL.55461"
+2026-10-11 00:17:37.666 EDT [230343] LOG:  database system was shut down at 2026-10-11 00:17:35 EDT
+2026-10-11 00:17:37.683 EDT [230340] LOG:  database system is ready to accept connections
+2026-10-11 00:17:38.852 EDT [230350] ERROR:  institutional_authority_events is append-only
+2026-10-11 00:17:38.852 EDT [230350] CONTEXT:  PL/pgSQL function rvtest_9b4214f66e844a1f858616588e8dc3e1.reject_institutional_authority_event_mutation() line 3 at RAISE
+2026-10-11 00:17:38.852 EDT [230350] STATEMENT:  DELETE FROM "rvtest_9b4214f66e844a1f858616588e8dc3e1".institutional_authority_events
+2026-10-11 00:17:41.516 EDT [230379] ERROR:  insert or update on table "institutional_authority_events" violates foreign key constraint "institutional_authority_events_subject_id_fkey"
+2026-10-11 00:17:41.516 EDT [230379] DETAIL:  Key (subject_id)=(occupant:grace-1) is not present in table "institutional_principals".
+2026-10-11 00:17:41.516 EDT [230379] STATEMENT:  INSERT INTO institutional_authority_events
+	               (event_id,event_type,actor_id,subject_id,grant_id,office_id,payload)
+	               VALUES ($1,$2,$3,$4,$5,$6,$7)
+2026-10-11 00:17:42.220 EDT [230385] ERROR:  common column name "office_id" appears more than once in left table
+2026-10-11 00:17:42.220 EDT [230385] STATEMENT:  SELECT o.office_id,o.office_role,b.occupant_id,
+	                    p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+	                    i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+	                    s.state,s.revision AS state_revision,s.updated_at
+	                    FROM institutional_offices o LEFT JOIN office_bindings b USING (office_id)
+	                    LEFT JOIN resident_occupants r USING (occupant_id)
+	                    LEFT JOIN institutional_principals p ON p.principal_id=r.principal_id
+	                    LEFT JOIN resident_implementations i USING (implementation_id)
+	                    JOIN office_runtime_state s USING (office_id) WHERE o.office_id=$1
+2026-10-11 00:17:58.478 EDT [230446] ERROR:  institutional_authority_events is append-only
+2026-10-11 00:17:58.478 EDT [230446] CONTEXT:  PL/pgSQL function rvtest_72f81c7422a54c99bb1c11e341d543a6.reject_institutional_authority_event_mutation() line 3 at RAISE
+2026-10-11 00:17:58.478 EDT [230446] STATEMENT:  DELETE FROM "rvtest_72f81c7422a54c99bb1c11e341d543a6".institutional_authority_events
+2026-10-11 00:18:01.268 EDT [230474] ERROR:  common column name "office_id" appears more than once in left table
+2026-10-11 00:18:01.268 EDT [230474] STATEMENT:  SELECT o.office_id,o.office_role,b.occupant_id,
+	                    p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+	                    i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+	                    s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+	                    FROM institutional_offices o LEFT JOIN office_bindings b USING (office_id)
+	                    LEFT JOIN resident_occupants r USING (occupant_id)
+	                    LEFT JOIN institutional_principals p ON p.principal_id=r.principal_id
+	                    LEFT JOIN resident_implementations i USING (implementation_id)
+	                    JOIN office_runtime_state s USING (office_id) WHERE o.office_id=$1
+2026-10-11 00:18:01.981 EDT [230482] ERROR:  common column name "office_id" appears more than once in left table
+2026-10-11 00:18:01.981 EDT [230482] STATEMENT:  SELECT o.office_id,o.office_role,b.occupant_id,
+	                    p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+	                    i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+	                    s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+	                    FROM institutional_offices o LEFT JOIN office_bindings b USING (office_id)
+	                    LEFT JOIN resident_occupants r USING (occupant_id)
+	                    LEFT JOIN institutional_principals p ON p.principal_id=r.principal_id
+	                    LEFT JOIN resident_implementations i USING (implementation_id)
+	                    JOIN office_runtime_state s USING (office_id) WHERE o.office_id=$1
+2026-10-11 00:18:12.179 EDT [230515] ERROR:  institutional_authority_events is append-only
+2026-10-11 00:18:12.179 EDT [230515] CONTEXT:  PL/pgSQL function rvtest_6c1c68eecd204a5c9c7c2d45c4f5751a.reject_institutional_authority_event_mutation() line 3 at RAISE
+2026-10-11 00:18:12.179 EDT [230515] STATEMENT:  DELETE FROM "rvtest_6c1c68eecd204a5c9c7c2d45c4f5751a".institutional_authority_events
+2026-10-11 00:19:21.561 EDT [230761] ERROR:  institutional_authority_events is append-only
+2026-10-11 00:19:21.561 EDT [230761] CONTEXT:  PL/pgSQL function rvtest_dfafc2d4d50c4fc08ec3b9add8ab8991.reject_institutional_authority_event_mutation() line 3 at RAISE
+2026-10-11 00:19:21.561 EDT [230761] STATEMENT:  DELETE FROM "rvtest_dfafc2d4d50c4fc08ec3b9add8ab8991".institutional_authority_events
+2026-10-11 00:19:44.834 EDT [230872] ERROR:  institutional_authority_events is append-only
+2026-10-11 00:19:44.834 EDT [230872] CONTEXT:  PL/pgSQL function rvtest_aaaaa0f051af480a814dbb53fb6814d4.reject_institutional_authority_event_mutation() line 3 at RAISE
+2026-10-11 00:19:44.834 EDT [230872] STATEMENT:  DELETE FROM "rvtest_aaaaa0f051af480a814dbb53fb6814d4".institutional_authority_events
+2026-10-11 00:20:13.622 EDT [231002] ERROR:  institutional_authority_events is append-only
+2026-10-11 00:20:13.622 EDT [231002] CONTEXT:  PL/pgSQL function rvtest_3936dc935769401db3d101152a8467cd.reject_institutional_authority_event_mutation() line 3 at RAISE
+2026-10-11 00:20:13.622 EDT [231002] STATEMENT:  DELETE FROM "rvtest_3936dc935769401db3d101152a8467cd".institutional_authority_events
+2026-10-11 00:20:35.760 EDT [231100] ERROR:  institutional_authority_events is append-only
+2026-10-11 00:20:35.760 EDT [231100] CONTEXT:  PL/pgSQL function rvtest_15a4cf5a655d4120a9aa78cb8a3fa053.reject_institutional_authority_event_mutation() line 3 at RAISE
+2026-10-11 00:20:35.760 EDT [231100] STATEMENT:  DELETE FROM "rvtest_15a4cf5a655d4120a9aa78cb8a3fa053".institutional_authority_events
+2026-10-11 00:22:14.539 EDT [231512] LOG:  could not send data to client: Broken pipe
+2026-10-11 00:22:14.540 EDT [231512] FATAL:  connection to client lost
+2026-10-11 00:22:21.705 EDT [231638] ERROR:  institutional_authority_events is append-only
+2026-10-11 00:22:21.705 EDT [231638] CONTEXT:  PL/pgSQL function rvtest_b9cbbc0f340c44c7a677ce05648fa3f7.reject_institutional_authority_event_mutation() line 3 at RAISE
+2026-10-11 00:22:21.705 EDT [231638] STATEMENT:  DELETE FROM "rvtest_b9cbbc0f340c44c7a677ce05648fa3f7".institutional_authority_events
+2026-10-11 00:22:32.721 EDT [231722] ERROR:  notification_events is append-only
+2026-10-11 00:22:32.721 EDT [231722] CONTEXT:  PL/pgSQL function reject_notification_event_mutation() line 3 at RAISE
+2026-10-11 00:22:32.721 EDT [231722] STATEMENT:  UPDATE notification_events SET event_type='delivery_confirmed'
+2026-10-11 00:22:32.723 EDT [231722] ERROR:  notification_events is append-only
+2026-10-11 00:22:32.723 EDT [231722] CONTEXT:  PL/pgSQL function reject_notification_event_mutation() line 3 at RAISE
+2026-10-11 00:22:32.723 EDT [231722] STATEMENT:  DELETE FROM notification_events
+2026-10-11 00:22:36.743 EDT [231779] ERROR:  injected event failure
+2026-10-11 00:22:36.743 EDT [231779] CONTEXT:  PL/pgSQL function reject_transition_event() line 3 at RAISE
+2026-10-11 00:22:36.743 EDT [231779] STATEMENT:  INSERT INTO events
+	               (event_id, schema, event_type, occurred_at, recorded_at,
+	                assignment_id, actor_id, correlation_id, causation_id,
+	                idempotency_key, authority_ref, privacy_domain, payload_schema, payload)
+	               VALUES ($1, 'rv.event.v1', $2, $3, $4, $5, $6, $7, $8,
+	                       $9, $10, $11, $12, $13)
+2026-10-11 00:22:37.355 EDT [230341] LOG:  checkpoint starting: time
+2026-10-11 00:22:59.764 EDT [232192] ERROR:  completion requires persisted independent verification
+2026-10-11 00:22:59.764 EDT [232192] CONTEXT:  PL/pgSQL function require_independent_verification_for_completion() line 8 at RAISE
+2026-10-11 00:22:59.764 EDT [232192] STATEMENT:  UPDATE assignments SET state='completed' WHERE id=$1
+2026-10-11 00:23:15.041 EDT [230340] LOG:  received fast shutdown request
+2026-10-11 00:23:15.049 EDT [230340] LOG:  aborting any active transactions
+2026-10-11 00:23:15.054 EDT [230340] LOG:  background worker "logical replication launcher" (PID 230346) exited with exit code 1
+2026-10-11 00:23:29.463 EDT [230341] LOG:  checkpoint complete: wrote 560 buffers (3.4%); 0 WAL file(s) added, 0 removed, 2 recycled; write=37.674 s, sync=14.201 s, total=52.108 s; sync files=5902, longest=0.010 s, average=0.003 s; distance=34600 kB, estimate=34600 kB; lsn=0/43183F8, redo lsn=0/36BDB78
+2026-10-11 00:23:29.465 EDT [230341] LOG:  shutting down
+2026-10-11 00:23:29.472 EDT [230341] LOG:  checkpoint starting: shutdown immediate
+2026-10-11 00:23:29.695 EDT [230341] LOG:  checkpoint complete: wrote 507 buffers (3.1%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.026 s, sync=0.085 s, total=0.230 s; sync files=34, longest=0.007 s, average=0.003 s; distance=12650 kB, estimate=32405 kB; lsn=0/4318470, redo lsn=0/4318470
+2026-10-11 00:23:29.714 EDT [230340] LOG:  database system is shut down
+2026-10-11 00:24:17.283 EDT [232532] LOG:  starting PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit
+2026-10-11 00:24:17.292 EDT [232532] LOG:  listening on Unix socket "/tmp/rv-m41-pgsock-20261011/.s.PGSQL.55461"
+2026-10-11 00:24:17.320 EDT [232535] LOG:  database system was shut down at 2026-10-11 00:23:29 EDT
+2026-10-11 00:24:17.338 EDT [232532] LOG:  database system is ready to accept connections
+2026-10-11 00:24:24.988 EDT [232617] LOG:  unexpected EOF on client connection with an open transaction
+2026-10-11 00:24:32.266 EDT [232742] ERROR:  institutional_authority_events is append-only
+2026-10-11 00:24:32.266 EDT [232742] CONTEXT:  PL/pgSQL function rvtest_787c4bfdc96343bea5b940521f4b394e.reject_institutional_authority_event_mutation() line 3 at RAISE
+2026-10-11 00:24:32.266 EDT [232742] STATEMENT:  DELETE FROM "rvtest_787c4bfdc96343bea5b940521f4b394e".institutional_authority_events
+2026-10-11 00:24:42.076 EDT [232824] ERROR:  notification_events is append-only
+2026-10-11 00:24:42.076 EDT [232824] CONTEXT:  PL/pgSQL function reject_notification_event_mutation() line 3 at RAISE
+2026-10-11 00:24:42.076 EDT [232824] STATEMENT:  UPDATE notification_events SET event_type='delivery_confirmed'
+2026-10-11 00:24:42.077 EDT [232824] ERROR:  notification_events is append-only
+2026-10-11 00:24:42.077 EDT [232824] CONTEXT:  PL/pgSQL function reject_notification_event_mutation() line 3 at RAISE
+2026-10-11 00:24:42.077 EDT [232824] STATEMENT:  DELETE FROM notification_events
+2026-10-11 00:24:45.635 EDT [232878] ERROR:  injected event failure
+2026-10-11 00:24:45.635 EDT [232878] CONTEXT:  PL/pgSQL function reject_transition_event() line 3 at RAISE
+2026-10-11 00:24:45.635 EDT [232878] STATEMENT:  INSERT INTO events
+	               (event_id, schema, event_type, occurred_at, recorded_at,
+	                assignment_id, actor_id, correlation_id, causation_id,
+	                idempotency_key, authority_ref, privacy_domain, payload_schema, payload)
+	               VALUES ($1, 'rv.event.v1', $2, $3, $4, $5, $6, $7, $8,
+	                       $9, $10, $11, $12, $13)
+2026-10-11 00:25:08.439 EDT [233292] ERROR:  completion requires persisted independent verification
+2026-10-11 00:25:08.439 EDT [233292] CONTEXT:  PL/pgSQL function require_independent_verification_for_completion() line 8 at RAISE
+2026-10-11 00:25:08.439 EDT [233292] STATEMENT:  UPDATE assignments SET state='completed' WHERE id=$1
+2026-10-11 00:25:18.673 EDT [232532] LOG:  received fast shutdown request
+2026-10-11 00:25:18.682 EDT [232532] LOG:  aborting any active transactions
+2026-10-11 00:25:18.687 EDT [232532] LOG:  background worker "logical replication launcher" (PID 232538) exited with exit code 1
+2026-10-11 00:25:18.694 EDT [232533] LOG:  shutting down
+2026-10-11 00:25:18.701 EDT [232533] LOG:  checkpoint starting: shutdown immediate
+2026-10-11 00:25:26.683 EDT [232533] LOG:  checkpoint complete: wrote 847 buffers (5.2%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.234 s, sync=7.539 s, total=7.989 s; sync files=3121, longest=0.043 s, average=0.003 s; distance=25566 kB, estimate=25566 kB; lsn=0/5C0FC80, redo lsn=0/5C0FC80
+2026-10-11 00:25:26.699 EDT [232532] LOG:  database system is shut down

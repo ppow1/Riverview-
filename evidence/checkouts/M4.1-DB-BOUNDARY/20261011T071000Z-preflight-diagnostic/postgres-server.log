@@ -1,0 +1,20 @@
+2026-10-11 03:09:10.039 EDT [302645] LOG:  starting PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit
+2026-10-11 03:09:10.047 EDT [302645] LOG:  listening on Unix socket "/tmp/rv-m41-target-7D6gDN/socket/.s.PGSQL.55441"
+2026-10-11 03:09:10.077 EDT [302649] LOG:  database system was shut down at 2026-10-11 03:09:07 EDT
+2026-10-11 03:09:10.094 EDT [302645] LOG:  database system is ready to accept connections
+2026-10-11 03:09:11.758 EDT [302665] ERROR:  permission denied for table institutional_principals
+2026-10-11 03:09:11.758 EDT [302665] STATEMENT:  SELECT count(*) FROM "rvtest_73ad9fc1b03c478eb0af3bacf73cdc9c".institutional_principals
+2026-10-11 03:09:11.772 EDT [302666] ERROR:  permission denied for table institutional_authority_events
+2026-10-11 03:09:11.772 EDT [302666] STATEMENT:  INSERT INTO "rvtest_73ad9fc1b03c478eb0af3bacf73cdc9c".institutional_authority_events
+	                    (event_id,event_type,actor_id) VALUES ($1,'principal_created','worker:boundary-test')
+2026-10-11 03:09:11.782 EDT [302667] ERROR:  must be owner of table authority_grants
+2026-10-11 03:09:11.782 EDT [302667] STATEMENT:  DROP TABLE "rvtest_73ad9fc1b03c478eb0af3bacf73cdc9c".authority_grants
+2026-10-11 03:09:11.795 EDT [302668] ERROR:  must be owner of table authority_grants
+2026-10-11 03:09:11.795 EDT [302668] STATEMENT:  DROP TABLE "rvtest_73ad9fc1b03c478eb0af3bacf73cdc9c".authority_grants
+2026-10-11 03:09:12.074 EDT [302645] LOG:  received fast shutdown request
+2026-10-11 03:09:12.082 EDT [302645] LOG:  aborting any active transactions
+2026-10-11 03:09:12.089 EDT [302645] LOG:  background worker "logical replication launcher" (PID 302652) exited with exit code 1
+2026-10-11 03:09:12.091 EDT [302647] LOG:  shutting down
+2026-10-11 03:09:12.098 EDT [302647] LOG:  checkpoint starting: shutdown immediate
+2026-10-11 03:09:13.113 EDT [302647] LOG:  checkpoint complete: wrote 971 buffers (5.9%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.101 s, sync=0.875 s, total=1.022 s; sync files=362, longest=0.008 s, average=0.003 s; distance=4676 kB, estimate=4676 kB; lsn=0/1984E38, redo lsn=0/1984E38
+2026-10-11 03:09:13.133 EDT [302645] LOG:  database system is shut down

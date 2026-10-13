@@ -1,0 +1,2 @@
+rvtest_schemas=0
+rvtest_roles=0

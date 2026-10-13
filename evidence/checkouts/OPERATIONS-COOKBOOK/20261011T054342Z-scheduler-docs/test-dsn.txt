@@ -1,0 +1,1 @@
+host=/tmp/rv-ops-cookbook-pg.9uLVJJ/socket port=55486 dbname=postgres user=admin1

@@ -1,0 +1,2 @@
+/opt/riverview-status-dashboard/releases/7a9ff46e11edc54b1ffe46f63962754e6d2da765
+dashboard_http=200

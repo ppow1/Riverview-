@@ -1,0 +1,94 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M4.1-ROLE-SCOPE-REVIEW",
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "source_commit": "1731bdfb470337158a920e1dbd4b80ffb7f66e79",
+  "target": "Camrui; isolated PostgreSQL 16.15",
+  "decision": "Isolated engineering PASS; live commissioning OPEN",
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "17523a7dbc44c0c7ec8db8fb0f8d7fb79de49c756ff871b3f95770e148d6cff0",
+      "size_bytes": 1568
+    },
+    "compileall.log": {
+      "path": "compileall.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "fixture-cleanup.txt": {
+      "path": "fixture-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "52f96c26a39ed25108a6db43d6e11c6051eba8a498a5baab1891adfa7ac7c262",
+      "size_bytes": 4
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "da9816725b2a52dd88499a4578bacdf8b41acf3e029413c744f8aa2e07c916e5",
+      "size_bytes": 22458
+    },
+    "github-ci.json": {
+      "path": "github-ci.json",
+      "revision": "1.0.0",
+      "sha256": "991c48a6e3d6f09915f2153fd6e8765f67f0175fbffe4f80477e399dedf00a6a",
+      "size_bytes": 523
+    },
+    "isolation.md": {
+      "path": "isolation.md",
+      "revision": "1.0.0",
+      "sha256": "bb836b1183213ad6c06a0744d1b75942c4986bca0313302d9cfcd6b66292b74e",
+      "size_bytes": 71
+    },
+    "postgres-initdb.log": {
+      "path": "postgres-initdb.log",
+      "revision": "1.0.0",
+      "sha256": "522f3b0267715ecc0e8ccdb13aeb8dba0f12e31bb188555ee5384ad8b85855f9",
+      "size_bytes": 866
+    },
+    "postgres-server.log": {
+      "path": "postgres-server.log",
+      "revision": "1.0.0",
+      "sha256": "4855cadbf49af6bd6a2a62307a338038fde8403b7e89b6778dc19aff2fb38ac9",
+      "size_bytes": 4294
+    },
+    "postgres-start.log": {
+      "path": "postgres-start.log",
+      "revision": "1.0.0",
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "size_bytes": 52
+    },
+    "postgres-stop.log": {
+      "path": "postgres-stop.log",
+      "revision": "1.0.0",
+      "sha256": "f2c0faedef0a01ab1cc16ffea304c9d5e661dd13b60122fecd895a586042b79a",
+      "size_bytes": 64
+    },
+    "private-cluster-path.txt": {
+      "path": "private-cluster-path.txt",
+      "revision": "1.0.0",
+      "sha256": "038b904852979596d8f4af5ea6459ffd6ec75f5a2fef6b4f39763b3fa29d01fd",
+      "size_bytes": 24
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "880df8d0d37d404b02c2b8750a027b028d90790143d0e3db351d92c3932a9530",
+      "size_bytes": 55
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "test-target.txt": {
+      "path": "test-target.txt",
+      "revision": "1.0.0",
+      "sha256": "0424742ab101239687b6ca73a019ca94d52d3ff1f8e83eced4b9e391146b2b37",
+      "size_bytes": 81
+    }
+  }
+}

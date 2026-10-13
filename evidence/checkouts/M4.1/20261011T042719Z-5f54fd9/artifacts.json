@@ -1,0 +1,70 @@
+{
+  "artifacts": {
+    "commissioning-summary.json": {
+      "path": "commissioning-summary.json",
+      "revision": "1.0.0",
+      "sha256": "6071b1d2a69b58d8c9bc3c6df45419ec83261451e088b42689547004b66a2f10",
+      "size_bytes": 1329
+    },
+    "compileall.txt": {
+      "path": "compileall.txt",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "0dad2800abf09f336f36c64e6fc89810ad22c1d4087df35b3f16ba10a37be427",
+      "size_bytes": 21887
+    },
+    "isolated-postgres-initdb.log": {
+      "path": "isolated-postgres-initdb.log",
+      "revision": "1.0.0",
+      "sha256": "cd75481e75e1e69c87cfbe6064d8e9f0823ef09553748693230f9ff2045f02d5",
+      "size_bytes": 842
+    },
+    "isolated-postgres-server.log": {
+      "path": "isolated-postgres-server.log",
+      "revision": "1.0.0",
+      "sha256": "57060cb0ea9c299b876a9dbed0d437ed903f730a654ede4e73e0311043d815a2",
+      "size_bytes": 13096
+    },
+    "markdown-render-check.txt": {
+      "path": "markdown-render-check.txt",
+      "revision": "1.0.0",
+      "sha256": "2c1679a2913dfdc59e8f4ae26e5ad11c4582cf874ecea34e0f6c5278b35a80c1",
+      "size_bytes": 346
+    },
+    "postgresql-client-version.txt": {
+      "path": "postgresql-client-version.txt",
+      "revision": "1.0.0",
+      "sha256": "8d2fbd1563e83a8d85fdd33b035d76c8dd85d81b8338526969a06dcdc2674b4f",
+      "size_bytes": 56
+    },
+    "process-graph-check.txt": {
+      "path": "process-graph-check.txt",
+      "revision": "1.0.0",
+      "sha256": "0fb24048ffc40dd676cac927fc4e1da72b9a8c325763998d27477c46826a2b14",
+      "size_bytes": 55
+    },
+    "python-version.txt": {
+      "path": "python-version.txt",
+      "revision": "1.0.0",
+      "sha256": "5b3e43dc38ca01e3f5a7854ba50d4330864b0c1e0f646650b2c78cf072acc366",
+      "size_bytes": 14
+    },
+    "test-cluster-stopped.txt": {
+      "path": "test-cluster-stopped.txt",
+      "revision": "1.0.0",
+      "sha256": "18ca5edcc6c56cada8d3a939823ccba8b3e63d318b87068aba12bc94a6515e06",
+      "size_bytes": 196
+    }
+  },
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "decision": "PASS isolated engineering; live commissioning and full DoD OPEN",
+  "manifest_revision": "1.0.0",
+  "source_commit": "5f54fd9abaf7cc27f514e41461ee188c0d57ea91",
+  "target": "Camrui Ubuntu 24.04; disposable PostgreSQL 16 socket cluster",
+  "task_id": "RV-M4.1-001"
+}

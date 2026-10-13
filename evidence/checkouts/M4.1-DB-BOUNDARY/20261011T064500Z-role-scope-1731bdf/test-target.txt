@@ -1,0 +1,1 @@
+host=/tmp/rv-m41-full-KcSXdN/socket port=55439 dbname=riverview_test user=admin1

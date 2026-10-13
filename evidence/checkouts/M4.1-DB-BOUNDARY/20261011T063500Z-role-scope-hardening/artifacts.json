@@ -1,0 +1,64 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M4.1-ROLE-SCOPE-REVIEW",
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "source_commit": "1731bdfb470337158a920e1dbd4b80ffb7f66e79",
+  "target": "Camrui; isolated PostgreSQL 16.15",
+  "decision": "Supplemental incomplete local test run; superseded by exact committed full verification",
+  "artifacts": {
+    "fixture-cleanup.txt": {
+      "path": "fixture-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "52f96c26a39ed25108a6db43d6e11c6051eba8a498a5baab1891adfa7ac7c262",
+      "size_bytes": 4
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "9fe384696c2a98340ef253725da4919a3663ea0e253ff6c9bb81fdeee40b97d8",
+      "size_bytes": 22132
+    },
+    "isolation.md": {
+      "path": "isolation.md",
+      "revision": "1.0.0",
+      "sha256": "031810447ab3bd51ef367233c52e8ddae8d4e5730b5fd9e61690560769c583a5",
+      "size_bytes": 68
+    },
+    "postgres-initdb.log": {
+      "path": "postgres-initdb.log",
+      "revision": "1.0.0",
+      "sha256": "76c8b0121fd0dadd28c5a4526e084cb35cf917d71a292236d5e085c98eebcc91",
+      "size_bytes": 866
+    },
+    "postgres-server.log": {
+      "path": "postgres-server.log",
+      "revision": "1.0.0",
+      "sha256": "dfaeb2ac044894945410e8a7af87449e827db40af2217dda0157ebb5bc94c1eb",
+      "size_bytes": 4190
+    },
+    "postgres-start.log": {
+      "path": "postgres-start.log",
+      "revision": "1.0.0",
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "size_bytes": 52
+    },
+    "postgres-stop.log": {
+      "path": "postgres-stop.log",
+      "revision": "1.0.0",
+      "sha256": "f2c0faedef0a01ab1cc16ffea304c9d5e661dd13b60122fecd895a586042b79a",
+      "size_bytes": 64
+    },
+    "private-cluster-path.txt": {
+      "path": "private-cluster-path.txt",
+      "revision": "1.0.0",
+      "sha256": "1e59a0a1cd4086503c7f3c5c85252d3b44bf0f209543ad78fccd4d1d3a84af33",
+      "size_bytes": 24
+    },
+    "test-target.txt": {
+      "path": "test-target.txt",
+      "revision": "1.0.0",
+      "sha256": "fe5796a19a5f102d754ae9d8e4ba28744401d725b5c9c403bd14cc85c5e328e6",
+      "size_bytes": 81
+    }
+  }
+}

@@ -1,0 +1,2 @@
+pg_ctl: server is running (PID: 235342)
+/usr/lib/postgresql/16/bin/postgres "-D" "/tmp/rv-m41-roleproof.xUJ7YJMP/data" "-k" "/tmp/rv-m41-roleproof.xUJ7YJMP/socket" "-p" "55462" "-h" ""

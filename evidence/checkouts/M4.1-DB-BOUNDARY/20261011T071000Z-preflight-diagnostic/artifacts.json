@@ -1,0 +1,106 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M4.1-PREFLIGHT-DIAGNOSTIC",
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "source_commit": "31aa3873d1247923ea523ebd4c503b8188d7d8cd",
+  "target": "Camrui PostgreSQL 16.15 read-only preflight plus disposable isolated tests",
+  "decision": "Safe preflight diagnostics and isolated boundary integration PASS; live registry provisioning NOT STARTED because prerequisites absent",
+  "artifacts": {
+    "boundary-tests.log": {
+      "path": "boundary-tests.log",
+      "revision": "1.0.0",
+      "sha256": "c9365f43480bb23fbe10a13ecb22714c7b67adb85079739b5bffa415eeb4ff38",
+      "size_bytes": 691
+    },
+    "catalog-preflight.txt": {
+      "path": "catalog-preflight.txt",
+      "revision": "1.0.0",
+      "sha256": "28c60e6a51dcbc75aca6b6bfac34205f6ca8919c2f852ceb5fa043df8165908a",
+      "size_bytes": 177
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "d66b8a47a8d2188f1fc9a3d46b77ea6145b0b5dabd4efd0aa42f295c03e62e4d",
+      "size_bytes": 1363
+    },
+    "compileall.log": {
+      "path": "compileall.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "fixture-cleanup.txt": {
+      "path": "fixture-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "52f96c26a39ed25108a6db43d6e11c6051eba8a498a5baab1891adfa7ac7c262",
+      "size_bytes": 4
+    },
+    "github-ci.json": {
+      "path": "github-ci.json",
+      "revision": "1.0.0",
+      "sha256": "02fb1ace015530a19d967fe56e4788ffa7c74e3c9d2ad092c717cfc6d8d56781",
+      "size_bytes": 523
+    },
+    "helper-source.sha256": {
+      "path": "helper-source.sha256",
+      "revision": "1.0.0",
+      "sha256": "c20f521785792aa902e75c8fa5b78dfa2f2bc0d1b6b515d7dce41f3f51374799",
+      "size_bytes": 106
+    },
+    "live-helper-preflight.exit": {
+      "path": "live-helper-preflight.exit",
+      "revision": "1.0.0",
+      "sha256": "cf205dbb8cea84897b488abcc281bf96698d5e94b1096b16657b4caba9082a22",
+      "size_bytes": 7
+    },
+    "live-helper-preflight.json": {
+      "path": "live-helper-preflight.json",
+      "revision": "1.0.0",
+      "sha256": "6fa3c3aa5c79707b1ff7af776612973f0f524e891ca1e6fb33802e03933d9c58",
+      "size_bytes": 106
+    },
+    "live-helper-preflight.stderr": {
+      "path": "live-helper-preflight.stderr",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "postgres-initdb.log": {
+      "path": "postgres-initdb.log",
+      "revision": "1.0.0",
+      "sha256": "f7cce9c62c342cd19463f8968b8a3aabb0ad77a99ae34f27f4a9a4a78e54c46a",
+      "size_bytes": 870
+    },
+    "postgres-server.log": {
+      "path": "postgres-server.log",
+      "revision": "1.0.0",
+      "sha256": "bd2b7aed06bcbeedc6e2572a49b388018dabe0fe3f7c5581276be706274fd4b5",
+      "size_bytes": 2274
+    },
+    "postgres-start.log": {
+      "path": "postgres-start.log",
+      "revision": "1.0.0",
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "size_bytes": 52
+    },
+    "postgres-stop.log": {
+      "path": "postgres-stop.log",
+      "revision": "1.0.0",
+      "sha256": "e7b24f63c690806243625ca8cb53f81f1a71a030c6c34a3820e76021c6810564",
+      "size_bytes": 57
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "880df8d0d37d404b02c2b8750a027b028d90790143d0e3db351d92c3932a9530",
+      "size_bytes": 55
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    }
+  }
+}

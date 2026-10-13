@@ -1,0 +1,29 @@
+BEGIN
+version
+0001_assignment_event_ledger
+0001_assignment_leases
+0001_worker_attempts
+0002_event_processor_cursor
+0002_knowledge_observations
+0003_independent_verification
+0004_failure_recovery
+0005_cme_monitoring
+0006_durable_notifications
+(9 rows)
+state	count
+completed	1
+ready	3
+(2 rows)
+active	count
+f	2
+(1 row)
+knowledge_observations
+4
+(1 row)
+institutional_principals	authority_grants
+	
+(1 row)
+current_user	current_database	nspname	schema_owner
+postgres	riverview	riverview_dev	riverview_core
+(1 row)
+COMMIT
