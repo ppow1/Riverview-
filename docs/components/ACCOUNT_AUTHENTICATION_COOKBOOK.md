@@ -2,12 +2,13 @@
 Riverview~ Controlled Document
 File: docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md
 Component: WEBSITE-ACCOUNT-AUTH
-File Revision: 1.3.0
+File Revision: 1.4.0
 Purpose: Safely commission and diagnose Riverview account access and reusable SMTP configuration
 Authority: Inspection is read-only; provider setup and Steward bootstrap require explicit local authorization
 Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Document password login, grants and email-provider commissioning
 Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-COMMIT-AND-STACKMAIL-PREP | Prepare candidate Stackmail SMTP profile and secure local entry command
 Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-STACKMAIL-LOCAL-TEST | Document predeployment isolated SMTP and mailbox receipt test
+Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-STACKMAIL-LOCAL-TEST-REVIEW | Keep mailbox selection interactive in the isolated tester
 History: Git and revision/backup manifest
 -->
 # Account authentication diagnostics and commissioning
@@ -46,7 +47,7 @@ Public DNS currently points email to `mx.stackmail.com`, with SPF including `spf
 
 ## Isolated predeployment SMTP test
 
-The dashboard's provider test reads settings from the account database and systemd key credential, so it cannot be safely used before account-schema commissioning. Use `scripts/test_stackmail_mailbox.py` from Camrui's **local physical terminal, outside SSH and outside Codex**. It has no database/service dependency. It prompts for an explicit one-message confirmation, accepts the mailbox password through hidden terminal input, authenticates to `smtp.stackmail.com:465` with implicit TLS, and sends exactly one test message from the mailbox to itself. It does not persist the password or settings. It then asks for the password again and searches INBOX read-only over IMAP for the unique Message-ID; it prints only authentication/submission/receipt outcomes and sanitized exception classes. If IMAP verification fails or times out, inspect Inbox and Junk manually. Do not put the password in shell arguments, environment variables, scripts, Codex input, or terminal recording.
+The dashboard's provider test reads settings from the account database and systemd key credential, so it cannot be safely used before account-schema commissioning. Use `scripts/test_stackmail_mailbox.py` from Camrui's **local physical terminal, outside SSH and outside Codex**. It has no database/service dependency. It prompts visibly for the mailbox address and an explicit one-message confirmation, accepts the mailbox password through hidden terminal input, authenticates to `smtp.stackmail.com:465` with implicit TLS, and sends exactly one test message from the mailbox to itself. It does not persist the password or settings. It then asks for the password again and searches INBOX read-only over IMAP for the unique Message-ID; it prints only authentication/submission/receipt outcomes and sanitized exception classes. If IMAP verification fails or times out, inspect Inbox and Junk manually. Do not put the password in shell arguments, environment variables, scripts, Codex input, or terminal recording.
 
 Run it as:
 

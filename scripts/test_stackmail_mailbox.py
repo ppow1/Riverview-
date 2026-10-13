@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/test_stackmail_mailbox.py
 # Component: WEBSITE-ACCOUNT-AUTH
-# Revision: 1.0.0
+# Revision: 1.1.0
 # Purpose: Privately test Stackmail SMTP authentication, self-delivery and inbox receipt
 # Execution Model: Explicit one-shot local console test; no application database or service use
 # Observability: Sanitized outcome only; never logs credentials or server response text
@@ -30,7 +30,6 @@ import sys
 import time
 
 
-MAILBOX = "social@cuemastery.com"
 SMTP_HOST = "smtp.stackmail.com"
 SMTP_PORT = 465
 IMAP_HOST = "imap.stackmail.com"
@@ -42,10 +41,10 @@ def _local_tty() -> bool:
             and not any(os.environ.get(name) for name in ("SSH_CONNECTION", "SSH_CLIENT", "SSH_TTY")))
 
 
-def _receipt_seen(password: str, message_id: str) -> bool:
+def _receipt_seen(mailbox: str, password: str, message_id: str) -> bool:
     client = imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT, ssl_context=ssl.create_default_context(), timeout=15)
     try:
-        client.login(MAILBOX, password)
+        client.login(mailbox, password)
         status, _ = client.select("INBOX", readonly=True)
         if status != "OK":
             return False
@@ -70,15 +69,20 @@ def main() -> int:
         print("No test email sent.")
         return 2
 
-    password = getpass.getpass(f"Password for {MAILBOX} (input hidden): ")
+    mailbox = input("Authorized Stackmail mailbox address: ").strip()
+    if (not mailbox or len(mailbox) > 254 or "\r" in mailbox or "\n" in mailbox
+            or mailbox.count("@") != 1 or " " in mailbox):
+        print("Mailbox address is invalid; no test email sent.")
+        return 2
+    password = getpass.getpass(f"Password for {mailbox} (input hidden): ")
     if not password:
         print("No password entered; no test email sent.")
         return 2
 
     message_id = make_msgid(domain="cuemastery.com")
     message = EmailMessage()
-    message["From"] = MAILBOX
-    message["To"] = MAILBOX
+    message["From"] = mailbox
+    message["To"] = mailbox
     message["Subject"] = "Riverview Stackmail SMTP verification " + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     message["Message-ID"] = message_id
     message.set_content("This one-time message verifies Riverview's proposed Stackmail transport. It contains no credentials.")
@@ -88,7 +92,7 @@ def main() -> int:
     try:
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=20,
                               context=ssl.create_default_context()) as smtp:
-            smtp.login(MAILBOX, password)
+            smtp.login(mailbox, password)
             smtp_authenticated = True
             refused = smtp.send_message(message)
             relay_accepted = not refused
@@ -109,7 +113,7 @@ def main() -> int:
     print("SMTP relay accepted one test message to the same mailbox.")
 
     try:
-        received = _receipt_seen(getpass.getpass(
+        received = _receipt_seen(mailbox, getpass.getpass(
             "Re-enter mailbox password to check INBOX over read-only IMAP (input hidden): "), message_id)
     except Exception as exc:
         print(f"Inbox receipt: NOT VERIFIED ({type(exc).__name__}); check the mailbox manually.")
