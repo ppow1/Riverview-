@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.0
+# Revision: 1.3.1
 # Purpose: Serve account-authenticated operational projections and existing bounded APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -20,6 +20,7 @@
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Stop dispatch after account-specific HTTP responses
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001-CSRF-PATH | Make the CSRF cookie readable to same-origin dashboard code
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password sessions, approval grants and Steward email configuration routes
+# Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Bind authenticated Steward sessions to existing exact office grants
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Expose only the scoped verification endpoint for local bootstrap challenges
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
@@ -193,10 +194,16 @@ def make_handler():
                        extra_headers=extra_headers)
 
         def _conversation_authority(self):
-            """Use explicit legacy header first, otherwise the path-scoped browser cookie."""
+            """Use authenticated linked Steward identity or the retained legacy credential."""
             explicit = self.headers.get("X-Riverview-Authority")
             if explicit is not None:
                 return explicit
+            identity = getattr(self, "_account_identity", None)
+            if (getattr(self, "_account_cookie_authenticated", False) and identity
+                    and "steward" in identity.get("roles", ())
+                    and identity.get("authority_principal_id")):
+                from riverview_core.institutional_authority.grants import InstitutionalPrincipal
+                return InstitutionalPrincipal(identity["authority_principal_id"])
             raw = self.headers.get("Cookie", "")
             if len(raw) > 8192:
                 return ""
@@ -478,7 +485,9 @@ def make_handler():
                     if not self._account_identity:
                         self._error(401, "authentication_required", request_id)
                     else:
-                        self._json(200, {"status": "authenticated", "identity": self._account_identity}, request_id)
+                        identity = {key:self._account_identity[key] for key in
+                                    ("account_id", "email", "roles") if key in self._account_identity}
+                        self._json(200, {"status": "authenticated", "identity": identity}, request_id)
                     return
                 elif auth_logout:
                     if not self._account_public_origin_ok():
@@ -586,11 +595,23 @@ def make_handler():
                     if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Length", "0") != "0":
                         self._error(400, "conversation_session_body_not_allowed", request_id)
                         return
-                    credential = self.headers.get("X-Riverview-Authority", "")
-                    if not _COOKIE_CREDENTIAL.fullmatch(credential):
-                        self._error(403, "resident_conversation_not_authorized", request_id)
-                        return
                     try:
+                        account_identity = getattr(self, "_account_identity", None)
+                        if account_identity is not None and "X-Riverview-Authority" not in self.headers:
+                            from riverview_core.institutional_authority.grants import InstitutionalPrincipal
+                            if ("steward" not in account_identity.get("roles", ())
+                                    or not account_identity.get("authority_principal_id")):
+                                self._error(403, "resident_conversation_not_authorized", request_id)
+                                return
+                            identity = service.authorize_browser_session(
+                                InstitutionalPrincipal(account_identity["authority_principal_id"]))
+                            self._json(200, {"schema_version":"rv.resident.conversation-session.v1",
+                                             **identity, "transport":"authenticated_account_session"}, request_id)
+                            return
+                        credential = self.headers.get("X-Riverview-Authority", "")
+                        if not _COOKIE_CREDENTIAL.fullmatch(credential):
+                            self._error(403, "resident_conversation_not_authorized", request_id)
+                            return
                         identity = service.authorize_browser_session(credential)
                     except Exception as exc:
                         self._conversation_error(exc, request_id)

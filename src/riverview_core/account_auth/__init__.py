@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/account_auth/__init__.py
 # Component: WEBSITE-ACCOUNT-AUTH
-# Revision: 1.3.0
+# Revision: 1.3.1
 # Purpose: Durable email enrollment, Steward review, role and browser session lifecycle
 # Execution Model: Request-driven API service
 # Observability: PostgreSQL account audit events and fixed HTTP outcome codes
@@ -16,6 +16,7 @@
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Keep absent schema counts explicitly unknown
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Restrict email syntax to prevent header injection
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add scoped approval grants, passwords and shared mail settings
+# Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Include linked institutional principal in server-validated session identity
 # Contracts: docs/components/ACCOUNT_AUTHENTICATION.md
 # Tests: tests/test_account_auth.py
 # History: Git and revision/backup manifest
@@ -593,7 +594,7 @@ class AccountAuthService:
             raise AuthDenied()
 
         def read(cur):
-            cur.execute(f"SELECT s.session_id, a.account_id, a.email, s.csrf_hash "
+            cur.execute(f"SELECT s.session_id, a.account_id, a.email, s.csrf_hash, a.authority_principal_id "
                         f"FROM {self._table('sessions')} s JOIN {self._table('accounts')} a USING (account_id) "
                         "WHERE s.token_hash=%s AND s.revoked_at IS NULL "
                         "AND s.expires_at > clock_timestamp() AND a.disabled_at IS NULL "
@@ -603,7 +604,7 @@ class AccountAuthService:
             row = cur.fetchone()
             if not row:
                 return None
-            session_id, account_id, email, csrf_hash = row
+            session_id, account_id, email, csrf_hash, authority_principal_id = row
             if state_changing and not hmac.compare_digest(bytes(csrf_hash), _digest(csrf_token)):
                 raise AuthDenied()
             cur.execute(f"SELECT role FROM {self._table('account_roles')} WHERE account_id=%s ORDER BY role",
@@ -612,7 +613,8 @@ class AccountAuthService:
             if not roles:
                 return None
             return {"session_id": str(session_id), "account_id": str(account_id),
-                    "email": email, "roles": roles}
+                    "email": email, "roles": roles,
+                    "authority_principal_id": authority_principal_id}
         return self._execute(read)
 
     def status(self):

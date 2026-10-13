@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Persist and serve office-bound, authorized Grace conversations
 # Execution Model: Authenticated request-driven completion with durable event history
 # Observability: Redacted response status and append-only PostgreSQL conversation events
@@ -11,7 +11,7 @@
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial bounded resident conversation service
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Limit ordinary CPU chat output to a short 64-token turn
 # Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Serialize shared PostgreSQL connection scopes across dashboard request threads
-# Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Validate both exact conversation grants for a persistent browser session
+# Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Reuse the authenticated linked Steward principal for exact conversation grant checks
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: tests/test_resident_conversation.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -30,6 +30,7 @@ from uuid import UUID, uuid4
 import psycopg
 from psycopg import sql
 from psycopg.rows import dict_row
+from ..institutional_authority.grants import InstitutionalPrincipal
 
 
 _SCHEMA = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,62}$")
@@ -328,6 +329,9 @@ class ResidentConversationService:
         try:
             with self.store._connection_operation():
                 with self.store.db.transaction(), self.store.db.cursor() as cur:
+                    if isinstance(credential, InstitutionalPrincipal):
+                        return self.authorizer.require_principal(
+                            cur, credential.principal_id, action, "office:" + self.office_id)
                     return self.authorizer.require(cur, credential, action, "office:" + self.office_id)
         except Exception as exc:
             from ..institutional_authority import GrantDenied, GrantCheckUnavailable

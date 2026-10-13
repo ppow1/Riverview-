@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_institutional_authority.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.10
+# Revision: 1.0.11
 # Purpose: Verify durable identity separation and fail-closed exact scoped grants
 # Execution Model: PostgreSQL integration tests in rvtest_* disposable schemas
 # Observability: unittest evidence, authority events, binding/state revisions
@@ -13,6 +13,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-EXACT-GRANT-MIGRATION-EXPECTATION | Include runtime exact-grant migration in idempotency assertion
 # Changed: 2026-10-11 UTC | RV-M4.1-BOUND-OCCUPANT-WRITE | Bind office-state persistence tests to the current occupant identity
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Include resident office-state API migration in migration sequence assertion
+# Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Include linked-principal exact-grant migration in migration sequence assertion
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -71,6 +72,7 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "0001_institutional_authority",
             "0002_exact_grant_authorization",
             "0003_resident_office_state_api",
+            "0004_exact_principal_grant_authorization",
         ])
         self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
         if os.geteuid() != 0:

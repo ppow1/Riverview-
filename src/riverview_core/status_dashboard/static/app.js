@@ -1,6 +1,7 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.3.0
+// Revision: 1.3.1
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
+// Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Use linked Steward account session for exact-grant Grace connection
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password login, grant decisions and email configuration UI
 (() => {
   "use strict";
@@ -248,6 +249,7 @@
     try {
       const result = await api("/api/v1/auth/session");
       state.accountIdentity = result.identity;
+      state.chatAuthRejected=false;
       showWorkspace();
       await connectAccountWorkspace();
       if(state.pendingEnrollmentId&&state.accountIdentity.roles.includes("steward")) navigate("account");
@@ -485,7 +487,7 @@
   function showChatAuthorization(message) {
     state.chatAuthRejected=true;
     $("chat-authority").value="";
-    $("chat-auth-form").hidden=false;
+    $("chat-auth-form").hidden=Boolean(state.accountIdentity);
     $("chat-disconnect").hidden=true;
     $("chat-state").textContent=message;
     $("chat-error").textContent="Conversation access needs to be reconnected. Automatic retries are paused.";
@@ -495,6 +497,9 @@
     state.chatLoading=true;
     $("chat-state").textContent = "Loading persisted conversations…";
     try {
+      if (state.accountIdentity) {
+        await api("/api/v1/resident/conversation-session",10000,"POST");
+      }
       const page = await api("/api/v1/resident/conversations", 10000);
       $("chat-auth-form").hidden=true;$("chat-disconnect").hidden=false;
       if (!state.chatConversationId && page.items?.length) state.chatConversationId = page.items[0].conversation_id;
@@ -513,7 +518,7 @@
       }
       if (!state.chatEvents.length) $("chat-state").textContent = "No saved messages yet.";
     } catch (error) {
-      if(error.payload?.error==="resident_conversation_not_authorized") showChatAuthorization("Grace access is not authorized or has expired. Connect with the Steward conversation credential.");
+      if(error.payload?.error==="resident_conversation_not_authorized") showChatAuthorization(state.accountIdentity?"Your Steward account does not have both active exact Grace conversation grants.":"Grace access is not authorized or has expired. Connect with the Steward conversation credential.");
       else { $("chat-state").textContent = "Conversation status unavailable.";$("chat-error").textContent = `History could not be loaded: ${error.message}.`; }
     } finally { state.chatLoading=false; }
   }

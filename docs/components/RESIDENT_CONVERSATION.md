@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.4
+File Revision: 1.1.5
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -20,6 +20,7 @@ Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record deployed 390 CSS-pixel r
 Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Add persistent same-origin browser credential transport, exact-grant rechecks, and denial retry suppression
 Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Record diagnosed credential retention gap, grant audit, and browser restart evidence
 Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Record Camrui live Firefox inference, PostgreSQL durability, and dashboard restart recovery
+Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Connect linked account Steward sessions to existing exact conversation grants
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
@@ -30,16 +31,16 @@ History: Git and .riverview-backups/manifest.jsonl
 
 The resident office, currently bound occupant, model implementation, and human conversation owner are separate records. Conversation rows are keyed by office and authenticated human principal. Rebinding an office to another occupant or model does not delete history. The current resident runtime reads its binding through `AuthorityRegistry.authorize_office_state`; the caller must independently hold an exact active `resident.conversation.read` or `resident.conversation.send` grant for `office:<office-id>`.
 
-The dashboard bearer authenticates access to the API entry point. The `X-Riverview-Authority` header supplies the second, exact-grant credential, following the established objective API pattern. Missing, revoked, wrong-scope, or unavailable authority fails closed. On first use, `POST /api/v1/resident/conversation-session` validates both conversation grants for the same principal and returns a 30-day, host-only, `Secure`, `HttpOnly`, `SameSite=Strict` cookie scoped only to `/api/v1/resident/conversations`. The cookie transports the existing authority credential; it creates no new grant or principal. Every history, response-status, and send operation rechecks the current exact database grant, so revocation takes effect immediately. The browser JavaScript cannot read the cookie; it is never put in local/session storage, a URL, an application log, or an operational snapshot. `DELETE /api/v1/resident/conversation-session` clears it. A 403 stops automatic history retries until the Steward explicitly reconnects. The separate resident service credential remains provisioned only through protected service credentials. Neither a message nor a model response promotes or approves an objective or work order.
+The dashboard authentication cookie authenticates the API entry point. For the linked Steward account, the dashboard takes `authority_principal_id` only from the server-validated account session; it validates `resident.conversation.read` and `resident.conversation.send` against that principal using the protected institutional authority function. No role implies either grant, and the account identity is revalidated on every request. The legacy Connect to Grace path remains available to recovery-token sessions and continues to use `X-Riverview-Authority` plus the existing path-scoped `Secure`, `HttpOnly`, `SameSite=Strict` cookie. Both paths call the same exact-grant decision and fail closed for missing, revoked, wrong-scope, expired, or unavailable authority. The linked account path issues no second authority credential and creates no grant or principal. Every history, response-status, and send operation rechecks the current exact database grants, so grant revocation takes effect on the next request. The separate resident service credential remains provisioned only through protected service credentials. Neither a message nor a model response promotes or approves an objective or work order.
 
 ## Versioned HTTP contract `rv.resident.conversation.v1`
 
-All endpoints also require the dashboard bearer. The exact office-scoped authority credential is sent in `X-Riverview-Authority`.
+All endpoints require the existing dashboard bearer or an active account session. The linked Steward account path derives its principal from that server-validated session; recovery-token sessions continue to use the exact office-scoped credential in `X-Riverview-Authority`.
 
 | Method and route | Purpose | Result |
 | --- | --- | --- |
 | `GET /api/v1/resident/conversations` | List the caller's recent office conversations | `rv.resident.conversations.v1`, bounded item list |
-| `POST /api/v1/resident/conversation-session` | Validate both exact grants and establish/refresh this browser's protected credential cookie | `rv.resident.conversation-session.v1`; returns principal, exact scope, expiry; never returns the credential |
+| `POST /api/v1/resident/conversation-session` | Validate both exact grants for the linked Steward session or legacy credential | `rv.resident.conversation-session.v1`; returns principal and exact scope, never a credential |
 | `DELETE /api/v1/resident/conversation-session` | Clear the current browser's conversation cookie | `rv.resident.conversation-session.v1`, status `disconnected` |
 | `POST /api/v1/resident/conversations` | Send a message, creating a conversation if needed | `rv.resident.response.v1`; body has only `conversation_id?`, `client_message_id`, and `message` |
 | `GET /api/v1/resident/conversations/{conversation_id}` | Retrieve the latest 100 durable events | `rv.resident.conversation.v1` |
@@ -64,6 +65,10 @@ Isolated PostgreSQL + Firefox verification uses the real already-running loopbac
 The controlled Camrui release `m3.4-camrui-grace-auth-0382ce1` was then exercised in Firefox using the installed protected Steward credential (held in process memory and never emitted). The browser established the cookie, accessed the latest conversation, received a real `qwen3-0.6b-q8_0-local` response, returned HTTP 403 for an invalid explicit authority header, refreshed with history restored and the input cleared, then survived a dashboard service restart and completed another model turn without re-entry. A fresh independent PostgreSQL connection reconciled 5 user events, 4 assistant events, and the prior interrupted event; the latest assistant event carried the expected model ID, provider, and pinned model SHA. No database migration, grant, credential file, or other service was changed. Full evidence, including the pseudonymous conversation reference and rollback steps, is [`20261012T-auth-session-live-0382ce1`](../../evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-live-0382ce1/).
 
 This Camrui Firefox verification does not prove the Steward's Windows browser profile already has the new cookie. The Windows browser needs one explicit Connect using its current authorized credential if no valid browser credential is autofilled; after that, the cookie survives refreshes and dashboard releases until expiry or grant revocation. Do not copy the credential to chat, URLs, logs, or snapshots. Physical Windows-browser confirmation remains pending.
+
+## 2026-10-13 linked Steward account authorization
+
+The account login is linked to the active `steward:camrui` institutional principal, which already holds both exact `office:office:grace` conversation grants. The former browser connector required the legacy principal credential separately and did not use the account session. The revised dashboard obtains the linked principal only from the currently validated account session and calls a protected principal-keyed exact-grant function for both actions. The same check runs for every conversation operation; there is no role-derived grant, grant issuance, or alternate conversation authorization store. The recovery-token bearer and legacy Connect flow remain available. Migration `0004_exact_principal_grant_authorization.sql` and the boundary provisioner provide runtime execute access while leaving the manager unable to call either authorization function. Deployment and live browser acceptance are reported separately from this source contract.
 
 ## Model adapter and binding
 

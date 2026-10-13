@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md
 Component: WEBSITE-ACCOUNT-AUTH
-File Revision: 1.7.0
+File Revision: 1.7.1
 Purpose: Safely commission and diagnose Riverview account access and reusable SMTP configuration
 Authority: Inspection is read-only; provider setup and Steward bootstrap require explicit local authorization
 Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Document password login, grants and email-provider commissioning
@@ -12,11 +12,12 @@ Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-STACKMAIL-LOCAL-TEST-REVIEW | Keep mai
 Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-TTY | Document secure SSH TTY mailbox-test invocation
 Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-COMMISSION | Document root SSH TTY setup and Steward bootstrap prompts
 Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SMTP-PREFILL | Record approved prefilled provider settings and two-input wizard
+Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Reconcile the live deployed account-authentication state and Grace authority linkage
 History: Git and revision/backup manifest
 -->
 # Account authentication diagnostics and commissioning
 
-This guide distinguishes repository verification from live readiness. Camrui has no account schema migration or configured account email provider. Website account login is therefore not deployed. The dashboard bearer recovery path remains active.
+This guide distinguishes repository verification from live readiness. Camrui has the account-authentication schema and dashboard release installed; Stackmail SMTP authentication and delivery were verified, and the Steward reports that the linked `w@wjs1.com` account login succeeded. The protected dashboard bearer recovery path remains active. Grace conversation authorization still requires its separate exact institutional grants; the account role alone does not create them. The 2026-10-13 account-session integration is tracked in `docs/components/RESIDENT_CONVERSATION.md` and its active release state must be checked before claiming browser acceptance.
 
 ## Read-only diagnosis
 

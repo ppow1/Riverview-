@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION_FLOW.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.4
+File Revision: 1.0.5
 Purpose: Generated focused flow for persistent Grace browser conversation
 Authority: Canonical graph JSON; diagram generated and not hand-edited
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Register generated chat workflow view
@@ -37,9 +37,9 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_chat_details_710b7072["Show persisted conversation metadata with local and UTC timestamps"]
     g_rv_resident_conversation_browser_chat_message_actions_c4e90ab2["Allow local copy and detail inspection without forwarding private content"]
     g_rv_resident_conversation_browser_chat_responsive_a11y_4d7e53d6["Keep message text and controls accessible on narrow and desktop viewports"]
-    g_rv_resident_conversation_browser_chat_session_present_9bde9509{"Does this browser have a persistent conversation cookie?"}
-    g_rv_resident_conversation_browser_chat_session_connect_2f037c66["Validate read and send grants once, then set a scoped HttpOnly cookie"]
-    g_rv_resident_conversation_browser_chat_session_cookie_158419c1["Resume exact credential from same-origin cookie; recheck grants on each API request"]
+    g_rv_resident_conversation_browser_chat_session_present_9bde9509{"Does this browser have an authenticated linked Steward session or a legacy conversation cookie?"}
+    g_rv_resident_conversation_browser_chat_session_connect_2f037c66["Validate both exact grants through the linked Steward principal or retained legacy credential"]
+    g_rv_resident_conversation_browser_chat_session_cookie_158419c1["Revalidate linked account session and exact grants on every request; legacy cookie also remains supported"]
     g_rv_resident_conversation_browser_chat_auth_denial_latch_1556f60c[["Pause automatic history requests after 403 until explicit reconnect"]]
   end
   g_rv_grace_operational_integration_objective_intake_55567c14["Registered target<br/>rv:grace:operational-integration"]
@@ -69,7 +69,7 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_browser_render_ce223021 -->|verification| g_rv_resident_conversation_browser_chat_responsive_a11y_4d7e53d6
   g_rv_resident_conversation_browser_chat_dashboard_auth_1ec7b499 --> g_rv_resident_conversation_browser_chat_session_present_9bde9509
   g_rv_resident_conversation_browser_chat_session_present_9bde9509 -->|Cookie present| g_rv_resident_conversation_browser_chat_session_cookie_158419c1
-  g_rv_resident_conversation_browser_chat_session_present_9bde9509 -->|diagnostic_branch: No cookie; explicit connect required| g_rv_resident_conversation_browser_chat_session_connect_2f037c66
+  g_rv_resident_conversation_browser_chat_session_present_9bde9509 -->|diagnostic_branch: No linked Steward session or legacy cookie; explicit legacy Connect remains available| g_rv_resident_conversation_browser_chat_session_connect_2f037c66
   g_rv_resident_conversation_browser_chat_session_cookie_158419c1 --> g_rv_resident_conversation_browser_chat_exact_grant_77017003
   g_rv_resident_conversation_browser_chat_session_connect_2f037c66 --> g_rv_resident_conversation_browser_chat_exact_grant_77017003
   g_rv_resident_conversation_browser_chat_deny_c9c85a36 --> g_rv_resident_conversation_browser_chat_auth_denial_latch_1556f60c

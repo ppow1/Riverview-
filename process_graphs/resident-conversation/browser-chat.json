@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-conversation:browser-chat",
-  "graph_revision": "1.0.5",
+  "graph_revision": "1.0.6",
   "component_id": "RESIDENT-CONVERSATION",
   "workflow_id": "resident.conversation.v1",
   "diagram_order": 14,
@@ -13,7 +13,10 @@
     "src/riverview_core/status_dashboard/static/app.css",
     "src/riverview_core/status_dashboard/static/app.js",
     "src/riverview_core/status_dashboard/static/index.html",
-    "tests/test_resident_conversation.py"
+    "tests/test_resident_conversation.py",
+    "src/riverview_core/account_auth/__init__.py",
+    "src/riverview_core/institutional_authority/grants.py",
+    "src/riverview_core/institutional_authority/migrations/0004_exact_principal_grant_authorization.sql"
   ],
   "documentation_references": [
     "docs/components/RESIDENT_CONVERSATION.md",
@@ -351,12 +354,13 @@
     },
     {
       "id": "rv:resident-conversation:browser-chat:session-present",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "decision",
-      "label": "Does this browser have a persistent conversation cookie?",
+      "label": "Does this browser have an authenticated linked Steward session or a legacy conversation cookie?",
       "source_references": [
         "src/riverview_core/status_dashboard/server.py",
-        "src/riverview_core/status_dashboard/static/app.js"
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/account_auth/__init__.py"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_CONVERSATION.md"
@@ -370,13 +374,15 @@
     },
     {
       "id": "rv:resident-conversation:browser-chat:session-connect",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "process",
-      "label": "Validate read and send grants once, then set a scoped HttpOnly cookie",
+      "label": "Validate both exact grants through the linked Steward principal or retained legacy credential",
       "source_references": [
         "src/riverview_core/status_dashboard/server.py",
         "src/riverview_core/resident_execution/conversation.py",
-        "src/riverview_core/status_dashboard/static/app.js"
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/institutional_authority/grants.py",
+        "src/riverview_core/institutional_authority/migrations/0004_exact_principal_grant_authorization.sql"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_CONVERSATION.md"
@@ -389,12 +395,13 @@
     },
     {
       "id": "rv:resident-conversation:browser-chat:session-cookie",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "verification",
-      "label": "Resume exact credential from same-origin cookie; recheck grants on each API request",
+      "label": "Revalidate linked account session and exact grants on every request; legacy cookie also remains supported",
       "source_references": [
         "src/riverview_core/status_dashboard/server.py",
-        "src/riverview_core/status_dashboard/static/app.js"
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/account_auth/__init__.py"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_CONVERSATION.md"
@@ -570,7 +577,7 @@
       "from": "rv:resident-conversation:browser-chat:session-present",
       "to": "rv:resident-conversation:browser-chat:session-connect",
       "type": "diagnostic_branch",
-      "label": "No cookie; explicit connect required"
+      "label": "No linked Steward session or legacy cookie; explicit legacy Connect remains available"
     },
     {
       "from": "rv:resident-conversation:browser-chat:session-cookie",

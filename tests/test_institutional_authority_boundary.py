@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_institutional_authority_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.19
+# Revision: 1.0.22
 # Purpose: Verify isolated M4.1 ownership separation denies runtime SQL bypass
 # Execution Model: PostgreSQL integration test using unique rvtest schema and roles
 # Observability: Protected object owners, runtime denial, manager registry authorization
@@ -27,6 +27,9 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-TEST-FIX | Revoke only a separate test credential
 # Changed: 2026-10-11 UTC | RV-M4.1-RUNTIME-OFFICE-API | Exercise least-privilege office snapshot and state CAS functions
 # Changed: 2026-10-11 UTC | RV-M4.1-OFFICE-FUNCTION-DRIFT | Verify preflight repairs resident office function ACL drift
+# Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Verify principal-based grant checks share the protected function ACL
+# Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Isolate each denied manager function call in a clean database transaction
+# Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Require principal-keyed checks to target a Steward principal
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -120,6 +123,11 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
                 self.admin.execute(sql.SQL("""INSERT INTO {}.authority_grants
                     (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
                     VALUES ('boundary-test-grant','worker:boundary-test','assignment.execute',
+                            'assignment:boundary-test','steward:boundary-test','rv.policy:test.v1')""").format(
+                                sql.Identifier(self.schema)))
+                self.admin.execute(sql.SQL("""INSERT INTO {}.authority_grants
+                    (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+                    VALUES ('boundary-test-steward-grant','steward:boundary-test','assignment.execute',
                             'assignment:boundary-test','steward:boundary-test','rv.policy:test.v1')""").format(
                                 sql.Identifier(self.schema)))
                 self.admin.execute(sql.SQL("INSERT INTO {}.institutional_offices(office_id,office_role) VALUES ('office:boundary-test','resident test')").format(sql.Identifier(self.schema)))
@@ -261,6 +269,9 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
         check_sql = self.sql.SQL(
             "SELECT principal_id,grant_id FROM {}.authorize_exact_grant(%s,%s,%s)"
         ).format(self.sql.Identifier(self.schema))
+        principal_check_sql = self.sql.SQL(
+            "SELECT principal_id,grant_id FROM {}.authorize_exact_principal_grant(%s,%s,%s)"
+        ).format(self.sql.Identifier(self.schema))
         with self.psycopg.connect(self.runtime_dsn) as runtime:
             valid = runtime.execute(check_sql, (digest, "assignment.execute",
                                                 "assignment:boundary-test")).fetchone()
@@ -272,6 +283,13 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
                                                           "assignment:boundary-test")).fetchone())
             self.assertIsNone(runtime.execute(check_sql, (b"bad", "assignment.execute",
                                                           "assignment:boundary-test")).fetchone())
+            self.assertEqual(runtime.execute(principal_check_sql,
+                ("steward:boundary-test", "assignment.execute", "assignment:boundary-test")).fetchone(),
+                ("steward:boundary-test", "boundary-test-steward-grant"))
+            self.assertIsNone(runtime.execute(principal_check_sql,
+                ("worker:boundary-test", "assignment.execute", "assignment:boundary-test")).fetchone())
+            self.assertIsNone(runtime.execute(principal_check_sql,
+                ("steward:boundary-test", "assignment.verify", "assignment:boundary-test")).fetchone())
 
         from riverview_core.institutional_authority import (
             AuthorityDenied, AuthorityRegistry, IdentityConflict)
@@ -323,6 +341,10 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
             with self.assertRaises(InsufficientPrivilege):
                 manager.execute(check_sql, (digest, "assignment.execute",
                                              "assignment:boundary-test")).fetchone()
+        with self.psycopg.connect(self.manager_dsn) as manager:
+            with self.assertRaises(InsufficientPrivilege):
+                manager.execute(principal_check_sql, ("steward:boundary-test", "assignment.execute",
+                                                       "assignment:boundary-test")).fetchone()
         revoked_digest = hashlib.sha256(secrets.token_bytes(32)).digest()
         self.admin.execute(self.sql.SQL(
             "INSERT INTO {}.principal_credentials(credential_id,principal_id,credential_sha256) "

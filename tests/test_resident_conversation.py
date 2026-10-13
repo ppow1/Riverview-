@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.6
+# Revision: 1.0.8
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -15,6 +15,8 @@
 # Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Verify each acknowledged turn from fresh PostgreSQL connections under concurrency
 # Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Verify scoped persistent browser cookie uses both existing grants and survives service restart
 # Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Verify logout clearing and immediate exact-credential revocation
+# Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Verify linked Steward principal uses exact grants without legacy secret
+# Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Exercise linked-account API session, persistence and denial through dashboard routes
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: python3 -m unittest tests.test_resident_conversation
 # History: Git and .riverview-backups/manifest.jsonl
@@ -166,6 +168,21 @@ class ResidentConversationTests(unittest.TestCase):
         with self.assertRaises(ConversationDenied):
             self.service.send(secrets.token_urlsafe(32), message="unauthorized")
         self.assertEqual(self.provider_a.calls, [])
+
+    def test_authenticated_steward_principal_uses_existing_exact_grants(self):
+        from riverview_core.institutional_authority.grants import InstitutionalPrincipal
+        from riverview_core.resident_execution.conversation import ConversationDenied
+
+        identity = InstitutionalPrincipal(self.steward_id)
+        browser = self.service.authorize_browser_session(identity)
+        self.assertEqual(browser["principal_id"], self.steward_id)
+        sent = self.service.send(identity, message="Account session conversation test.",
+                                 client_message_id=str(uuid4()))
+        history = self.service.history(identity, sent["conversation_id"])
+        self.assertEqual(history["events"][-1]["body"], "Grace is ready to help.")
+        self.assertEqual(len(self._fresh_events(sent["conversation_id"])), 2)
+        with self.assertRaises(ConversationDenied):
+            self.service.list_conversations(InstitutionalPrincipal("steward:ungranted"))
 
     def test_client_retry_is_idempotent_and_does_not_repeat_inference(self):
         key = str(uuid4())
@@ -324,6 +341,24 @@ class ResidentConversationTests(unittest.TestCase):
             pass
         static = ROOT / "src/riverview_core/status_dashboard/static"
         token = "D" * 43
+        account_session = "A" * 43
+        csrf_token = "C" * 43
+        class AccountSessions:
+            def authenticate(self, verifier, *, csrf_token=None, state_changing=False):
+                if verifier == account_session:
+                    if state_changing and csrf_token != "C" * 43:
+                        from riverview_core.account_auth import AuthDenied
+                        raise AuthDenied()
+                    return {"session_id":"test-session", "account_id":"account-test",
+                        "email":"steward@example.org", "roles":("steward",),
+                        "authority_principal_id":self.principal_id}
+                return None
+            def require_role(self, identity, *roles):
+                if not set(identity.get("roles", ())) & set(roles):
+                    from riverview_core.account_auth import AuthDenied
+                    raise AuthDenied()
+        account_sessions = AccountSessions()
+        account_sessions.principal_id = self.steward_id
         with tempfile.TemporaryDirectory() as temp:
             token_path = Path(temp) / "dashboard-token"
             token_path.write_text(token, encoding="ascii")
@@ -332,7 +367,8 @@ class ResidentConversationTests(unittest.TestCase):
             for port in range(8799, 8699, -1):
                 try:
                     server = DashboardHTTPServer("127.0.0.1", port, token_path,
-                        Projection(), static, conversation_service=self.service)
+                        Projection(), static, conversation_service=self.service,
+                        account_auth_service=account_sessions)
                     break
                 except OSError:
                     continue
@@ -341,7 +377,8 @@ class ResidentConversationTests(unittest.TestCase):
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
 
-            def request(method, path, *, dashboard=None, authority=None, cookie=None, body=None):
+            def request(method, path, *, dashboard=None, authority=None, cookie=None,
+                        csrf=None, body=None):
                 headers = {}
                 if dashboard:
                     headers["Authorization"] = "Bearer " + dashboard
@@ -349,6 +386,8 @@ class ResidentConversationTests(unittest.TestCase):
                     headers["X-Riverview-Authority"] = authority
                 if cookie:
                     headers["Cookie"] = cookie
+                if csrf:
+                    headers["X-Riverview-CSRF"] = csrf
                 if body is not None:
                     headers["Content-Type"] = "application/json"
                 connection = HTTPConnection("127.0.0.1", port, timeout=4)
@@ -363,6 +402,36 @@ class ResidentConversationTests(unittest.TestCase):
                 self.assertEqual(request("GET", "/api/v1/resident/conversations")[0], 401)
                 self.assertEqual(request("GET", "/api/v1/resident/conversations",
                     dashboard=token)[0], 403)
+                linked_cookie = "rv_account_session=" + account_session
+                linked_status, linked_body = request("POST", "/api/v1/resident/conversation-session",
+                    cookie=linked_cookie, csrf=csrf_token)
+                self.assertEqual(linked_status, 200)
+                self.assertEqual(json.loads(linked_body)["transport"], "authenticated_account_session")
+                linked_list_status, _ = request("GET", "/api/v1/resident/conversations",
+                    cookie=linked_cookie)
+                self.assertEqual(linked_list_status, 200)
+                linked_send_status, linked_send_body = request("POST", "/api/v1/resident/conversations",
+                    cookie=linked_cookie, csrf=csrf_token,
+                    body={"message":"Linked Steward account session test.",
+                          "client_message_id":str(uuid4())})
+                self.assertEqual(linked_send_status, 201)
+                linked_result = json.loads(linked_send_body)
+                linked_history_status, linked_history = request("GET",
+                    "/api/v1/resident/conversations/" + linked_result["conversation_id"],
+                    cookie=linked_cookie)
+                self.assertEqual(linked_history_status, 200)
+                self.assertIn("Linked Steward account session test.", linked_history.decode())
+                sessions = AccountSessions()
+                server._account_auth_service = type("RejectUnlinkedGrant", (), {
+                    "authenticate": lambda _self, verifier, **_kwargs:
+                        {"session_id":"denied", "account_id":"account-denied",
+                         "email":"denied@example.org", "roles":("steward",),
+                         "authority_principal_id":"steward:ungranted"}
+                        if verifier == "N" * 43 else None,
+                })()
+                self.assertEqual(request("GET", "/api/v1/resident/conversations",
+                    cookie="rv_account_session=" + "N" * 43)[0], 403)
+                server._account_auth_service = account_sessions
                 denied_status, _ = request("POST", "/api/v1/resident/conversation-session",
                     dashboard=token, authority="x" * 48)
                 self.assertEqual(denied_status, 403)
