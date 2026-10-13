@@ -1,0 +1,61 @@
+{
+  "artifacts": {
+    "checkout.md": {
+      "path": "evidence/checkouts/M4.1-RESIDENT-RUNTIME/20261011T192400Z-final/checkout.md",
+      "revision": "1.0.0",
+      "sha256": "5b44455bc65085fe9d7cd890a5eff35f80ef51271f496143dde84ec957c06c22",
+      "size_bytes": 1047
+    },
+    "compile-check.json": {
+      "path": "evidence/checkouts/M4.1-RESIDENT-RUNTIME/20261011T192400Z-final/compile-check.json",
+      "revision": "1.0.0",
+      "sha256": "7a453f0a38db63393a28c7490bafa1c1eca690cfe79d3648761a9f2ab5436918",
+      "size_bytes": 125
+    },
+    "full-suite.log": {
+      "path": "evidence/checkouts/M4.1-RESIDENT-RUNTIME/20261011T192400Z-final/full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "6ea30eb3c76f0479dd317073875130ca7f7264ddc7fbc11f1747ce72fa03be42",
+      "size_bytes": 37879
+    },
+    "isolated-postgres.log": {
+      "path": "evidence/checkouts/M4.1-RESIDENT-RUNTIME/20261011T192400Z-final/isolated-postgres.log",
+      "revision": "1.0.0",
+      "sha256": "36a9fa5a62bcc4d375bba7addfb7fbc14d8df61028d8b36afb9407c6ee7e16a6",
+      "size_bytes": 422
+    },
+    "process-graph-check.json": {
+      "path": "evidence/checkouts/M4.1-RESIDENT-RUNTIME/20261011T192400Z-final/process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "c8939a0d465882bd332e653b291bb20461df40b6460c5cf580ee13daf15c8eb9",
+      "size_bytes": 55
+    },
+    "process-graph-tests.log": {
+      "path": "evidence/checkouts/M4.1-RESIDENT-RUNTIME/20261011T192400Z-final/process-graph-tests.log",
+      "revision": "1.0.0",
+      "sha256": "089462ad8e3132defa5759c4d0146fb812a596897a196858aa6b3ae12ca3fa43",
+      "size_bytes": 2115
+    },
+    "process-graph-validation.json": {
+      "path": "evidence/checkouts/M4.1-RESIDENT-RUNTIME/20261011T192400Z-final/process-graph-validation.json",
+      "revision": "1.0.0",
+      "sha256": "5141ab715e2fd189f9c47a72e229726a5f8f610ff5bb9825af7746f3ca880544",
+      "size_bytes": 39
+    },
+    "result-summary.json": {
+      "path": "evidence/checkouts/M4.1-RESIDENT-RUNTIME/20261011T192400Z-final/result-summary.json",
+      "revision": "1.0.0",
+      "sha256": "d9ef42ea74500e5d634919c26f0cd6f6c5bfb120cef70c40f6054db23010979e",
+      "size_bytes": 1039
+    },
+    "revision-audit.json": {
+      "path": "evidence/checkouts/M4.1-RESIDENT-RUNTIME/20261011T192400Z-final/revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "4060003751685ac80a5f4a7645ab7da56b3dbd6e069bcfa7704eaa7ce94509c4",
+      "size_bytes": 102
+    }
+  },
+  "evidence_id": "RV-M4.1-RUNTIME-API-VERIFICATION-20261011T192400Z",
+  "manifest_revision": "1.0.1",
+  "source_commit": "79ec48140aca1111b4ccfb88b0dd845eec09fb7f"
+}

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/continuous.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.8
+# Revision: 1.0.9
 # Purpose: Execute bounded capability work with pinned source-digest provenance
 # Execution Model: Repeatable poll cycle; durable claims and outcomes in PostgreSQL
 # Observability: Assignment state, knowledge observations, attempts, and results
@@ -11,6 +11,7 @@
 # Changed: 2026-10-10 UTC | RV-M2.3-001 | Persist effect class before invoking worker action
 # Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Route registered action capability and persist structured artifacts
 # Changed: 2026-10-11 UTC | RV-M33-GROUNDED-PROVENANCE-BOUND | Persist source digest and references instead of duplicating full grounded documents in the attempt input
+# Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Support configured bounded lease-recovery retry limit
 # Contracts: docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -38,7 +39,8 @@ class ContinuousWorker:
     def __init__(self, adapter: PostgresWorkerAdapter, worker_id: str,
                  credential: str, *, knowledge=None, lease_seconds=30,
                  action=None, action_effect_class=None, poll_interval=0.5,
-                 knowledge_timeout_seconds=5.0, action_capability=None):
+                 knowledge_timeout_seconds=5.0, action_capability=None,
+                 recovery_max_retries=None):
         if poll_interval <= 0 or knowledge_timeout_seconds <= 0:
             raise ValueError("poll and knowledge timeout values must be positive")
         self.adapter = adapter
@@ -56,6 +58,10 @@ class ContinuousWorker:
             raise ValueError("action_effect_class must be retry_safe or external_uncertain")
         self.poll_interval = poll_interval
         self.knowledge_timeout_seconds = knowledge_timeout_seconds
+        if recovery_max_retries is not None and (
+                type(recovery_max_retries) is not int or not 0 <= recovery_max_retries <= 100):
+            raise ValueError("recovery_max_retries must be None or an integer from 0 to 100")
+        self.recovery_max_retries = recovery_max_retries
         self._knowledge_slots = threading.BoundedSemaphore(4)
 
     @staticmethod
@@ -109,7 +115,8 @@ class ContinuousWorker:
 
     def run_once(self):
         """Recover expired work, then process at most one newly claimable assignment."""
-        recovery = PostgresRecoveryCoordinator(self.adapter.dsn, schema=self.adapter.schema)
+        recovery = PostgresRecoveryCoordinator(self.adapter.dsn, schema=self.adapter.schema,
+                                               max_retries=self.recovery_max_retries)
         try:
             recovery.reconcile_expired()
         finally:

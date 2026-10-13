@@ -1,0 +1,29 @@
+{
+  "artifacts": {
+    "checkout.md": {
+      "path": "evidence/checkouts/M4.4-PERSISTENT-EXECUTION/20261011T1740Z-cc548e6/checkout.md",
+      "revision": "1.0.0",
+      "sha256": "e7e4e00fa240ddd024e9c82b7f58778cfe4942e4c5d723fa54548976179ca8cf",
+      "size_bytes": 1230
+    },
+    "integration-result.json": {
+      "path": "evidence/checkouts/M4.4-PERSISTENT-EXECUTION/20261011T1740Z-cc548e6/integration-result.json",
+      "revision": "1.0.0",
+      "sha256": "e8be1e2bb8e62ddbee7ce168d3cbc85e1e1b87d8ca61b6ecdf8141ab8455ff3a",
+      "size_bytes": 2217
+    },
+    "source-manifest.json": {
+      "path": "evidence/checkouts/M4.4-PERSISTENT-EXECUTION/20261011T1740Z-cc548e6/source-manifest.json",
+      "revision": "1.0.0",
+      "sha256": "e232f00c9daa2150d6bff964aabaf44641adaf2a5384908dba71eb98297afc4e",
+      "size_bytes": 5277
+    },
+    "test-output.log": {
+      "path": "evidence/checkouts/M4.4-PERSISTENT-EXECUTION/20261011T1740Z-cc548e6/test-output.log",
+      "revision": "1.0.0",
+      "sha256": "fea5b7fa4ffa27ceaa6bec659928ce78836f90b32f3bce16b909b35300dbedaf",
+      "size_bytes": 36861
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

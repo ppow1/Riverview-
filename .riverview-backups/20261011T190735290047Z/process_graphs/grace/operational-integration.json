@@ -1,0 +1,686 @@
+{
+  "graph_id": "rv:grace:operational-integration",
+  "graph_revision": "1.0.5",
+  "component_id": "RESIDENT-ORCHESTRATION",
+  "workflow_id": "grace-engineering-objective.v1",
+  "diagram_order": 9,
+  "source_references": [
+    "docs/ROADMAP.md",
+    "docs/architecture/CORE_CONTRACT.md",
+    "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md",
+    "docs/standards/COMPONENT_DEFINITION_OF_DONE.md",
+    "src/riverview_core/resident_execution/pipeline.py",
+    "src/riverview_core/resident_execution/worker.py",
+    "src/riverview_core/resident_execution/verifier.py",
+    "src/riverview_core/resident_execution/service.py",
+    "scripts/run_grace_execution_service.py",
+    "src/riverview_core/status_dashboard/server.py",
+    "src/riverview_core/status_dashboard/projection.py",
+    "src/riverview_core/worker_adapter/continuous.py",
+    "src/riverview_core/worker_adapter/recovery.py",
+    "src/riverview_core/worker_adapter/migrations/0005_retry_limit.sql"
+  ],
+  "documentation_references": [
+    "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+    "docs/ROADMAP.md",
+    "docs/standards/COMPONENT_DEFINITION_OF_DONE.md",
+    "docs/components/GRACE_EXECUTION_PIPELINE.md",
+    "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+    "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+  ],
+  "verification_evidence": [
+    "tests/test_grace_execution.py"
+  ],
+  "nodes": [
+    {
+      "id": "rv:grace:operational-integration:objective-intake",
+      "node_revision": "1.0.1",
+      "type": "entry",
+      "label": "IMPLEMENTED INFRASTRUCTURE \u2014 exact objective.submit grant persists objective and receipt event",
+      "source_references": [
+        "src/riverview_core/resident_execution/pipeline.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+        "docs/components/GRACE_EXECUTION_PIPELINE.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:authority-check",
+      "node_revision": "1.0.1",
+      "type": "verification",
+      "label": "IMPLEMENTED \u2014 objective.submit and assignment.create use exact active grants; no proposal grants authority",
+      "source_references": [
+        "src/riverview_core/resident_execution/pipeline.py",
+        "src/riverview_core/assignment_intake.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+        "docs/components/GRACE_EXECUTION_PIPELINE.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:reason-decompose",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "DETERMINISTIC CONTRACT TESTED \u2014 typed PlanProposal boundary; live model reasoning remains uncommissioned",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py",
+        "src/riverview_core/resident_execution/pipeline.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+        "docs/components/GRACE_EXECUTION_PIPELINE.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:durable-plan",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "IMPLEMENTED \u2014 objective, complete evidence provenance, and unapproved plan persist in PostgreSQL",
+      "source_references": [
+        "src/riverview_core/resident_execution/pipeline.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+        "docs/components/GRACE_EXECUTION_PIPELINE.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:assignment-fanout",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "IMPLEMENTED SINGLE WORK ORDER \u2014 exact-grant intake links assignment and objective transactionally",
+      "source_references": [
+        "src/riverview_core/resident_execution/pipeline.py",
+        "src/riverview_core/assignment_intake.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+        "docs/components/GRACE_EXECUTION_PIPELINE.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:worker-dispatch",
+      "node_revision": "1.0.2",
+      "type": "jump",
+      "label": "DETERMINISTIC ADAPTER TESTED \u2014 lease-dispatched worker writes one bounded artifact; live executor remains outstanding",
+      "jump_target_id": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+      "source_references": [
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/adapter.py",
+        "src/riverview_core/resident_execution/worker.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+        "docs/components/GRACE_EXECUTION_PIPELINE.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:cme-progress",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "PLANNED \u2014 subscribe to durable progress, stall, and recovery events from CME",
+      "jump_target_id": "rv:cme:progress-and-recovery:observe",
+      "source_references": [
+        "docs/ROADMAP.md"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:evidence-review",
+      "node_revision": "1.0.1",
+      "type": "measurement",
+      "label": "IMPLEMENTED TEST PATH \u2014 independently reopened artifact and accepted verifier record determine completion",
+      "source_references": [
+        "src/riverview_core/resident_execution/verifier.py",
+        "src/riverview_core/worker_adapter/adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+        "docs/components/GRACE_EXECUTION_PIPELINE.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:verification-feedback",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "PLANNED \u2014 consume independent verifier decision and evidence",
+      "jump_target_id": "rv:outcome-verifier:independent-result:decision",
+      "source_references": [
+        "docs/ROADMAP.md"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:objective-check",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "PLANNED \u2014 determine whether objective acceptance criteria are independently met",
+      "source_references": [
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:replan",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "PLANNED \u2014 revise plan and initiate follow-up work after evidence or failure",
+      "source_references": [
+        "docs/ROADMAP.md"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:steward-escalation",
+      "node_revision": "1.0.0",
+      "type": "escalation",
+      "label": "PLANNED \u2014 request only genuine Steward decision or authority",
+      "source_references": [
+        "docs/ROADMAP.md"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:objective-complete",
+      "node_revision": "1.0.1",
+      "type": "exit",
+      "label": "TEST VERIFIED \u2014 objective closes only after persisted independent ACCEPTED verification",
+      "source_references": [
+        "src/riverview_core/resident_execution/pipeline.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+        "docs/components/GRACE_EXECUTION_PIPELINE.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:bounded-evidence-selection",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "IMPLEMENTED \u2014 select complete task-relevant passages from commit-pinned repository sources",
+      "source_references": [
+        "src/riverview_core/worker_adapter/repository_knowledge.py",
+        "src/riverview_core/worker_adapter/resident_knowledge.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_EXECUTION_PIPELINE.md",
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:proposal-validation",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "IMPLEMENTED \u2014 persist only typed proposals after complete VERIFIED grounding",
+      "source_references": [
+        "src/riverview_core/resident_execution/pipeline.py",
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_EXECUTION_PIPELINE.md",
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:work-order-authorization",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "IMPLEMENTED \u2014 assignment.create exact grant precedes durable CME handoff",
+      "source_references": [
+        "src/riverview_core/resident_execution/pipeline.py",
+        "src/riverview_core/assignment_intake.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_EXECUTION_PIPELINE.md",
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:independent-artifact-check",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "IMPLEMENTED TEST ADAPTER \u2014 reopen artifact and verify digest, task identity, criteria, and provenance",
+      "source_references": [
+        "src/riverview_core/resident_execution/verifier.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_EXECUTION_PIPELINE.md",
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:waiting-and-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "IMPLEMENTED \u2014 unavailable/missing/oversized evidence and worker failures remain non-complete",
+      "source_references": [
+        "src/riverview_core/resident_execution/pipeline.py",
+        "src/riverview_core/worker_adapter/continuous.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_EXECUTION_PIPELINE.md",
+        "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:grace:operational-integration:governed-objective-api",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Authenticated dashboard request plus exact objective.submit grant persists a bounded human objective; grounding may wait fail-closed",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/resident_execution/pipeline.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+        "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_grace_execution.py"
+      ]
+    },
+    {
+      "id": "rv:grace:operational-integration:typed-proposal-api",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Typed PlanProposal is persisted only after verified grounding and complete acceptance criteria; proposal does not grant authority",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/resident_execution/pipeline.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_grace_execution.py"
+      ]
+    },
+    {
+      "id": "rv:grace:operational-integration:persistent-service-loop",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Supervised loop reloads durable objectives, dispatches eligible proposals, polls the existing leased worker, verifies outcomes, and records heartbeat",
+      "source_references": [
+        "src/riverview_core/resident_execution/service.py",
+        "scripts/run_grace_execution_service.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+        "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_grace_execution.py"
+      ]
+    },
+    {
+      "id": "rv:grace:operational-integration:dispatch-retry-limit",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Persist authorization/dispatch failures; stop automatic dispatch after three attempts and expose the proposal for operator attention",
+      "source_references": [
+        "src/riverview_core/resident_execution/service.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+        "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_grace_execution.py"
+      ]
+    },
+    {
+      "id": "rv:grace:operational-integration:dashboard-objective-projection",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Authenticated dashboard reads bounded objective, assignment, artifact digest, verifier decision, and service freshness from PostgreSQL",
+      "source_references": [
+        "src/riverview_core/status_dashboard/projection.py",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_grace_execution.py"
+      ]
+    },
+    {
+      "id": "rv:grace:operational-integration:worker-retry-ceiling",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Apply the configured persistent retry-safe recovery ceiling; exhausted assignments remain blocked with a recovery record",
+      "source_references": [
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/recovery.py",
+        "src/riverview_core/worker_adapter/migrations/0005_retry_limit.sql",
+        "scripts/run_grace_execution_service.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+        "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_grace_execution.py"
+      ]
+    },
+    {
+      "id": "rv:grace:operational-integration:verification-failure-isolation",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Verifier invocation failures are persisted per attempt, capped at three, and skipped so unrelated verification candidates continue",
+      "source_references": [
+        "src/riverview_core/resident_execution/service.py",
+        "src/riverview_core/status_dashboard/projection.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+        "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_grace_execution.py"
+      ]
+    },
+    {
+      "id": "rv:grace:operational-integration:office-bound-resident-runtime",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "ISOLATED INTEGRATION VERIFIED \u2014 persistent runtime authenticates the current office.state.write occupant grant and requires a bound office implementation before resident reasoning",
+      "source_references": [
+        "scripts/run_grace_execution_service.py",
+        "src/riverview_core/institutional_authority/registry.py",
+        "src/riverview_core/resident_execution/service.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_reasoning.py"
+      ]
+    },
+    {
+      "id": "rv:grace:operational-integration:office-state-restart-and-replacement",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "ISOLATED INTEGRATION VERIFIED \u2014 reconstructed resident runtime resumes office-keyed plan under replacement binding; stale occupant grant is denied",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py",
+        "src/riverview_core/resident_execution/service.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_reasoning.py"
+      ]
+    },
+    {
+      "id": "rv:grace:operational-integration:stale-resident-denied",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "A revoked or stale resident exact grant cannot persist a proposal; CME worker and verifier authorization remain separate",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py",
+        "src/riverview_core/resident_execution/service.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_reasoning.py"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:grace:operational-integration:objective-intake",
+      "to": "rv:grace:operational-integration:authority-check",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:authority-check",
+      "to": "rv:grace:operational-integration:reason-decompose",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:reason-decompose",
+      "to": "rv:grace:operational-integration:durable-plan",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:durable-plan",
+      "to": "rv:grace:operational-integration:assignment-fanout",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:assignment-fanout",
+      "to": "rv:grace:operational-integration:worker-dispatch",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:worker-dispatch",
+      "to": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+      "type": "jump"
+    },
+    {
+      "from": "rv:grace:operational-integration:assignment-fanout",
+      "to": "rv:grace:operational-integration:cme-progress",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:cme-progress",
+      "to": "rv:cme:progress-and-recovery:observe",
+      "type": "jump"
+    },
+    {
+      "from": "rv:grace:operational-integration:evidence-review",
+      "to": "rv:grace:operational-integration:objective-check",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:evidence-review",
+      "to": "rv:grace:operational-integration:verification-feedback",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:verification-feedback",
+      "to": "rv:outcome-verifier:independent-result:decision",
+      "type": "jump"
+    },
+    {
+      "from": "rv:grace:operational-integration:objective-check",
+      "to": "rv:grace:operational-integration:objective-complete",
+      "type": "verification",
+      "label": "PLANNED \u2014 all criteria independently verified"
+    },
+    {
+      "from": "rv:grace:operational-integration:objective-check",
+      "to": "rv:grace:operational-integration:replan",
+      "type": "recovery_route",
+      "label": "PLANNED \u2014 unmet criteria or new evidence"
+    },
+    {
+      "from": "rv:grace:operational-integration:objective-check",
+      "to": "rv:grace:operational-integration:steward-escalation",
+      "type": "escalation",
+      "label": "PLANNED \u2014 genuine decision required"
+    },
+    {
+      "from": "rv:grace:operational-integration:replan",
+      "to": "rv:grace:operational-integration:durable-plan",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:steward-escalation",
+      "to": "rv:grace:operational-integration:durable-plan",
+      "type": "runtime_transition",
+      "label": "PLANNED \u2014 resume after recorded decision"
+    },
+    {
+      "from": "rv:grace:operational-integration:objective-intake",
+      "to": "rv:grace:operational-integration:bounded-evidence-selection",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:bounded-evidence-selection",
+      "to": "rv:grace:operational-integration:proposal-validation",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:bounded-evidence-selection",
+      "to": "rv:grace:operational-integration:waiting-and-failure",
+      "type": "diagnostic_branch"
+    },
+    {
+      "from": "rv:grace:operational-integration:proposal-validation",
+      "to": "rv:grace:operational-integration:work-order-authorization",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:work-order-authorization",
+      "to": "rv:grace:operational-integration:assignment-fanout",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:work-order-authorization",
+      "to": "rv:grace:operational-integration:waiting-and-failure",
+      "type": "diagnostic_branch"
+    },
+    {
+      "from": "rv:grace:operational-integration:independent-artifact-check",
+      "to": "rv:grace:operational-integration:objective-check",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:independent-artifact-check",
+      "to": "rv:grace:operational-integration:waiting-and-failure",
+      "type": "diagnostic_branch"
+    },
+    {
+      "from": "rv:grace:operational-integration:evidence-review",
+      "to": "rv:grace:operational-integration:independent-artifact-check",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:governed-objective-api",
+      "to": "rv:grace:operational-integration:objective-intake",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:objective-intake",
+      "to": "rv:grace:operational-integration:typed-proposal-api",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:typed-proposal-api",
+      "to": "rv:grace:operational-integration:persistent-service-loop",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:persistent-service-loop",
+      "to": "rv:grace:operational-integration:work-order-authorization",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:persistent-service-loop",
+      "to": "rv:grace:operational-integration:worker-dispatch",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:persistent-service-loop",
+      "to": "rv:grace:operational-integration:independent-artifact-check",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:persistent-service-loop",
+      "to": "rv:grace:operational-integration:dashboard-objective-projection",
+      "type": "documentation"
+    },
+    {
+      "from": "rv:grace:operational-integration:persistent-service-loop",
+      "to": "rv:grace:operational-integration:dispatch-retry-limit",
+      "type": "diagnostic_branch"
+    },
+    {
+      "from": "rv:grace:operational-integration:dispatch-retry-limit",
+      "to": "rv:grace:operational-integration:waiting-and-failure",
+      "type": "escalation"
+    },
+    {
+      "from": "rv:grace:operational-integration:persistent-service-loop",
+      "to": "rv:grace:operational-integration:worker-retry-ceiling",
+      "type": "recovery_route"
+    },
+    {
+      "from": "rv:grace:operational-integration:persistent-service-loop",
+      "to": "rv:grace:operational-integration:verification-failure-isolation",
+      "type": "diagnostic_branch"
+    },
+    {
+      "from": "rv:grace:operational-integration:verification-failure-isolation",
+      "to": "rv:grace:operational-integration:independent-artifact-check",
+      "type": "recovery_route"
+    },
+    {
+      "from": "rv:grace:operational-integration:verification-failure-isolation",
+      "to": "rv:grace:operational-integration:dashboard-objective-projection",
+      "type": "documentation"
+    },
+    {
+      "from": "rv:grace:operational-integration:office-bound-resident-runtime",
+      "to": "rv:grace:operational-integration:reason-decompose",
+      "type": "prerequisite",
+      "label": "exact office grant and current binding verified before resident proposal"
+    },
+    {
+      "from": "rv:grace:operational-integration:reason-decompose",
+      "to": "rv:grace:operational-integration:office-state-restart-and-replacement",
+      "type": "runtime_transition",
+      "label": "plan and outcomes are stored under stable office identity"
+    },
+    {
+      "from": "rv:grace:operational-integration:office-bound-resident-runtime",
+      "to": "rv:grace:operational-integration:stale-resident-denied",
+      "type": "diagnostic_branch",
+      "label": "revoked credential or unbound office fails closed"
+    },
+    {
+      "from": "rv:grace:operational-integration:stale-resident-denied",
+      "to": "rv:grace:operational-integration:waiting-and-failure",
+      "type": "recovery_route",
+      "label": "record no proposal; replace/reissue only through existing authorized identity lifecycle"
+    }
+  ]
+}

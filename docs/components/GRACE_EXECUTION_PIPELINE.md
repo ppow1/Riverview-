@@ -2,14 +2,20 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
 Authority: Engineering contract; not evidence of production Grace commissioning
-Changed: 2026-10-11 UTC | RV-M4.4-OBJECTIVE-WORKORDER-PIPELINE | Define persisted objective, evidence, proposal, worker, and verifier interfaces
+Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Link persistent reconciliation and authenticated dashboard handoff
 -->
 # Grace Execution Pipeline — infrastructure slice
 
 **Status:** Implemented for deterministic, isolated integration; not a commissioned operational Grace resident.
+
+The persistent reconciliation loop, governed dashboard routes, objective projections,
+restart behavior, and the bounded-retry dispatch policy are specified in
+[`GRACE_PERSISTENT_EXECUTION.md`](GRACE_PERSISTENT_EXECUTION.md). Diagnosis and recovery
+steps are in [`GRACE_EXECUTION_COOKBOOK.md`](GRACE_EXECUTION_COOKBOOK.md). Neither document
+claims live installation or Camrui commissioning.
 
 **Source:** src/riverview_core/resident_execution/ and the existing assignment, scheduler, worker, and verifier modules.
 

@@ -1,0 +1,27 @@
+{
+  "manifest_revision": "1.0.0",
+  "evidence_id": "RV-M4.1-PERSISTENT-RESIDENT-RUNTIME-20261011T191004Z",
+  "source_commit": "27d18cc15fbc8d6c093014709f6cfe5c04b3cfb6",
+  "artifacts": [
+    {
+      "path": "checkout.md",
+      "size_bytes": 2110,
+      "sha256": "65cf9f3ef7818c96d8c9e273f262e6f75291476a2b8ab1f1c428035d2a3398dd"
+    },
+    {
+      "path": "result-summary.json",
+      "size_bytes": 907,
+      "sha256": "e6dd0ebab851b58fab139e4b718ecc6d3e66f80b3923c382291fad1dc3871586"
+    },
+    {
+      "path": "full-suite.log",
+      "size_bytes": 37407,
+      "sha256": "0aabd13924078e378f23753c140860c6cf900c4de9ce1da2f314eda49a5eaa17"
+    },
+    {
+      "path": "isolated-postgres.log",
+      "size_bytes": 24500,
+      "sha256": "85739a04827d73f05a59ebd9d9649583aa1bc8d6c9105e1682c9479de91cd7e7"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "branch": "codex/grace-persistent-execution",
+  "compileall": "PASS",
+  "evidence_schema": "rv.m41.resident-runtime-checkout.v1",
+  "full_suite": {
+    "command": "PYTHONPATH=src python3 -m unittest discover -s tests -v",
+    "duration_seconds": 75.839,
+    "errors": 0,
+    "failures": 0,
+    "passed": 214,
+    "skipped": 0,
+    "tests": 214
+  },
+  "git_diff_check": "PASS",
+  "live_commissioning": "NOT VERIFIED",
+  "postgresql": {
+    "cluster_stopped": true,
+    "mode": "private socket-only test cluster",
+    "remaining_rvtest_schemas": 0,
+    "version": "16.15"
+  },
+  "process_graph": {
+    "check": "PASS",
+    "focused_test_command": "PYTHONPATH=src python3 -m unittest tests.test_process_graph -v",
+    "focused_tests": 13,
+    "graphs": 16,
+    "nodes": 333,
+    "validate": "PASS"
+  },
+  "revision_audit": {
+    "baseline_commit": "27d18cc15fbc8d6c093014709f6cfe5c04b3cfb6",
+    "issues": 0,
+    "status": "PASS"
+  },
+  "source_commit": "79ec48140aca1111b4ccfb88b0dd845eec09fb7f",
+  "steward_acceptance": "NOT CLAIMED"
+}

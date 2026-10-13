@@ -2,14 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/service.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Validate systemd worker credentials and idempotent registry state
 # Execution Model: Shared startup preflight for supervised executor/verifier units
 # Observability: Safe identity/configuration errors without bearer disclosure
 # Dependencies: Python 3.10+; Psycopg; systemd credentials
 # Authority: Service identity and exact scope remain Steward-grant controlled
 # Changed: 2026-10-11 UTC | RV-M3.3-WORKER-SERVICE | Initial systemd service preflight
-# Changed: 2026-10-11 UTC | RV-M33-CREDENTIAL-NEWLINE | Accept exactly one file-terminating LF from protected credential provisioning
+# Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Permit fixed Grace executor credential names and unit
 # Contracts: docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_service.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -34,9 +34,10 @@ class WorkerServiceConfigurationError(RuntimeError):
 
 
 def _read_systemd_credential(name: str, service_unit: str) -> bytes:
-    if name not in {"pgpass", "worker-token", "verifier-token"}:
+    if name not in {"pgpass", "worker-token", "verifier-token", "dispatch-token"}:
         raise WorkerServiceConfigurationError("credential_name_invalid")
-    if service_unit not in {"riverview-m33-worker.service", "riverview-m33-verifier.service"}:
+    if service_unit not in {"riverview-m33-worker.service", "riverview-m33-verifier.service",
+                            "riverview-grace-execution.service"}:
         raise WorkerServiceConfigurationError("credential_unit_invalid")
     expected = Path("/run/credentials") / service_unit
     configured = os.environ.get("CREDENTIALS_DIRECTORY")

@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_institutional_authority.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.8
+# Revision: 1.0.10
 # Purpose: Verify durable identity separation and fail-closed exact scoped grants
 # Execution Model: PostgreSQL integration tests in rvtest_* disposable schemas
 # Observability: unittest evidence, authority events, binding/state revisions
@@ -11,6 +11,8 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-FRESH-SCHEMA-MIGRATION-LEDGER | Run authority tests against fresh schema with no precreated ledger
 # Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Verify pre-persistable root bootstrap token is stored only as a digest
 # Changed: 2026-10-11 UTC | RV-M4.1-EXACT-GRANT-MIGRATION-EXPECTATION | Include runtime exact-grant migration in idempotency assertion
+# Changed: 2026-10-11 UTC | RV-M4.1-BOUND-OCCUPANT-WRITE | Bind office-state persistence tests to the current occupant identity
+# Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Include resident office-state API migration in migration sequence assertion
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -68,6 +70,7 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "0000_authority_migration_ledger",
             "0001_institutional_authority",
             "0002_exact_grant_authorization",
+            "0003_resident_office_state_api",
         ])
         self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
         if os.geteuid() != 0:
@@ -215,6 +218,15 @@ class InstitutionalAuthorityTests(unittest.TestCase):
         from riverview_core.institutional_authority import IdentityConflict
         self.registry.create_office(self.steward_token, "office:restart", "specialist")
         token = self.registry.create_principal(self.steward_token, "resident:restart", "resident")
+        occupant = "occupant:restart"
+        implementation = "implementation:restart"
+        self.registry.create_occupant(self.steward_token, occupant,
+                                      principal_id="resident:restart")
+        self.registry.create_implementation(self.steward_token, implementation,
+                                            kind="tool", provider_ref="test.runtime",
+                                            revision="restart-v1")
+        self.registry.bind_office(self.steward_token, "office:restart", occupant,
+                                  implementation)
         self.registry.grant(self.steward_token, "resident:restart", "office.state.write",
                             "office:office:restart", policy_ref="rv.policy:state.v1")
         self.registry.set_office_state(token, "office:restart", {"plan_revision": 1}, expected_revision=1)

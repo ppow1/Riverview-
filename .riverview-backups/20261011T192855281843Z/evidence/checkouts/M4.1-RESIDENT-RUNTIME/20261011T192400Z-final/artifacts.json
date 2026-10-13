@@ -1,0 +1,52 @@
+{
+  "artifacts": [
+    {
+      "path": "checkout.md",
+      "sha256": "5b44455bc65085fe9d7cd890a5eff35f80ef51271f496143dde84ec957c06c22",
+      "size_bytes": 1047
+    },
+    {
+      "path": "compile-check.json",
+      "sha256": "7a453f0a38db63393a28c7490bafa1c1eca690cfe79d3648761a9f2ab5436918",
+      "size_bytes": 125
+    },
+    {
+      "path": "full-suite.log",
+      "sha256": "6ea30eb3c76f0479dd317073875130ca7f7264ddc7fbc11f1747ce72fa03be42",
+      "size_bytes": 37879
+    },
+    {
+      "path": "isolated-postgres.log",
+      "sha256": "36a9fa5a62bcc4d375bba7addfb7fbc14d8df61028d8b36afb9407c6ee7e16a6",
+      "size_bytes": 422
+    },
+    {
+      "path": "process-graph-check.json",
+      "sha256": "c8939a0d465882bd332e653b291bb20461df40b6460c5cf580ee13daf15c8eb9",
+      "size_bytes": 55
+    },
+    {
+      "path": "process-graph-tests.log",
+      "sha256": "089462ad8e3132defa5759c4d0146fb812a596897a196858aa6b3ae12ca3fa43",
+      "size_bytes": 2115
+    },
+    {
+      "path": "process-graph-validation.json",
+      "sha256": "5141ab715e2fd189f9c47a72e229726a5f8f610ff5bb9825af7746f3ca880544",
+      "size_bytes": 39
+    },
+    {
+      "path": "result-summary.json",
+      "sha256": "d9ef42ea74500e5d634919c26f0cd6f6c5bfb120cef70c40f6054db23010979e",
+      "size_bytes": 1039
+    },
+    {
+      "path": "revision-audit.json",
+      "sha256": "4060003751685ac80a5f4a7645ab7da56b3dbd6e069bcfa7704eaa7ce94509c4",
+      "size_bytes": 102
+    }
+  ],
+  "evidence_id": "RV-M4.1-RUNTIME-API-VERIFICATION-20261011T192400Z",
+  "manifest_revision": "1.0.0",
+  "source_commit": "79ec48140aca1111b4ccfb88b0dd845eec09fb7f"
+}
