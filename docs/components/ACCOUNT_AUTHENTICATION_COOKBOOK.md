@@ -2,11 +2,12 @@
 Riverview~ Controlled Document
 File: docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md
 Component: WEBSITE-ACCOUNT-AUTH
-File Revision: 1.2.0
+File Revision: 1.3.0
 Purpose: Safely commission and diagnose Riverview account access and reusable SMTP configuration
 Authority: Inspection is read-only; provider setup and Steward bootstrap require explicit local authorization
 Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Document password login, grants and email-provider commissioning
 Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-COMMIT-AND-STACKMAIL-PREP | Prepare candidate Stackmail SMTP profile and secure local entry command
+Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-STACKMAIL-LOCAL-TEST | Document predeployment isolated SMTP and mailbox receipt test
 History: Git and revision/backup manifest
 -->
 # Account authentication diagnostics and commissioning
@@ -36,10 +37,25 @@ Public DNS currently points email to `mx.stackmail.com`, with SPF including `spf
 | SMTP host | `smtp.stackmail.com` | Confirm it is the active outgoing host for the CueMastery mailbox. |
 | Port | `465` | Confirm outbound connection is allowed from Camrui. |
 | TLS mode | `implicit` (TLS from connection start) | Confirm certificate and account policy with Stackmail. |
-| Username | Full authorized sending mailbox address | Confirm mailbox exists and may send as the selected sender. |
+| Username | `social@cuemastery.com` | Confirm the mailbox exists and is the authorized SMTP account. |
+| Sender address | `social@cuemastery.com` | Confirm the account may send as this address. |
+| Administrator notification address | `social@cuemastery.com` | Steward-specified destination; confirm it receives mail. |
 | Password | Enter only at the hidden prompt in the local root-console wizard | Never send it in chat, command arguments, shell history, source, or reports. |
 
 20i also documents port 587 with STARTTLS; the proposed profile above uses port 465. These remain candidate settings, not verified account credentials or delivery readiness. No mail server or paid provider is being introduced.
+
+## Isolated predeployment SMTP test
+
+The dashboard's provider test reads settings from the account database and systemd key credential, so it cannot be safely used before account-schema commissioning. Use `scripts/test_stackmail_mailbox.py` from Camrui's **local physical terminal, outside SSH and outside Codex**. It has no database/service dependency. It prompts for an explicit one-message confirmation, accepts the mailbox password through hidden terminal input, authenticates to `smtp.stackmail.com:465` with implicit TLS, and sends exactly one test message from the mailbox to itself. It does not persist the password or settings. It then asks for the password again and searches INBOX read-only over IMAP for the unique Message-ID; it prints only authentication/submission/receipt outcomes and sanitized exception classes. If IMAP verification fails or times out, inspect Inbox and Junk manually. Do not put the password in shell arguments, environment variables, scripts, Codex input, or terminal recording.
+
+Run it as:
+
+```bash
+cd /home/admin1/projects/Riverview-New-Core
+python3 scripts/test_stackmail_mailbox.py
+```
+
+This sends one real email but changes no Riverview database or dashboard configuration. A PASS from SMTP means authenticated relay submission; only the read-only mailbox search or manual mailbox inspection confirms receipt.
 
 ## Commissioning sequence
 
