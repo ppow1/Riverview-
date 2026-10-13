@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:grace:operational-integration",
-  "graph_revision": "1.1.2",
+  "graph_revision": "1.1.3",
   "component_id": "RESIDENT-ORCHESTRATION",
   "workflow_id": "grace-engineering-objective.v1",
   "diagram_order": 9,
@@ -481,7 +481,7 @@
     },
     {
       "id": "rv:grace:operational-integration:conversation-origin-intake",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "verification",
       "label": "Explicit Steward promotion validates a persisted principal-authored Grace message, conversation read grant, and exact objective.submit grant on work-order:engineering",
       "source_references": [
@@ -495,7 +495,9 @@
         "docs/components/GRACE_EXECUTION_PIPELINE.md",
         "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
     },
     {
       "id": "rv:grace:operational-integration:codex-capability-check",
