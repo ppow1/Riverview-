@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:grace:operational-integration",
-  "graph_revision": "1.1.5",
+  "graph_revision": "1.1.7",
   "component_id": "RESIDENT-ORCHESTRATION",
   "workflow_id": "grace-engineering-objective.v1",
   "diagram_order": 9,
@@ -22,7 +22,10 @@
     "src/riverview_core/worker_adapter/continuous.py",
     "src/riverview_core/worker_adapter/migrations/0005_retry_limit.sql",
     "src/riverview_core/worker_adapter/recovery.py",
-    "tests/test_codex_cli_adapter.py"
+    "tests/test_codex_cli_adapter.py",
+    "src/riverview_core/assignment_scheduler/scheduler.py",
+    "tests/test_supervised_codex_dispatch.py",
+    "scripts/run_supervised_grace_execution.sh"
   ],
   "documentation_references": [
     "docs/ROADMAP.md",
@@ -35,7 +38,8 @@
   ],
   "verification_evidence": [
     "tests/test_grace_execution.py",
-    "tests/test_institutional_authority_boundary.py"
+    "tests/test_institutional_authority_boundary.py",
+    "tests/test_supervised_codex_dispatch.py"
   ],
   "nodes": [
     {
@@ -520,9 +524,9 @@
     },
     {
       "id": "rv:grace:operational-integration:codex-resource-check",
-      "node_revision": "1.0.2",
+      "node_revision": "1.0.3",
       "type": "decision",
-      "label": "COMMISSIONING BLOCKED — startup checks dedicated executable/CODEX_HOME, pinned repository, isolated workspace and artifact directory; live dependency readiness awaits a service heartbeat",
+      "label": "COMMISSIONING BLOCKED — dedicated service auth or an owning-user supervised ChatGPT TTY; pinned repository, exact objective, isolated workspace and artifact path are required",
       "source_references": [
         "src/riverview_core/resident_execution/codex_cli.py",
         "scripts/run_grace_execution_service.py",
@@ -556,18 +560,24 @@
     },
     {
       "id": "rv:grace:operational-integration:codex-cli-run",
-      "node_revision": "1.0.1",
+      "node_revision": "1.0.3",
       "type": "process",
-      "label": "INTEGRATED SOURCE — persistent leased worker can run the pinned-repository Codex job in a fresh workspace with network disabled and fixed deliverable path",
+      "label": "INTEGRATED SOURCE — one TTY-supervised selected proposal uses the existing ChatGPT session, exact assignment lease, network-disabled workspace, and fixed deliverable path",
       "source_references": [
         "src/riverview_core/resident_execution/codex_cli.py",
         "src/riverview_core/resident_execution/codex_workflow.py",
         "src/riverview_core/resident_execution/service.py",
         "scripts/run_grace_execution_service.py",
-        "tests/test_codex_cli_adapter.py"
+        "tests/test_codex_cli_adapter.py",
+        "src/riverview_core/assignment_scheduler/scheduler.py",
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/adapter.py",
+        "tests/test_supervised_codex_dispatch.py",
+        "scripts/run_supervised_grace_execution.sh"
       ],
       "documentation_references": [
-        "docs/components/GRACE_EXECUTION_PIPELINE.md"
+        "docs/components/GRACE_EXECUTION_PIPELINE.md",
+        "docs/components/GRACE_EXECUTION_COOKBOOK.md"
       ],
       "verification_evidence": [
         "tests/test_codex_cli_adapter.py"
@@ -594,9 +604,9 @@
     },
     {
       "id": "rv:grace:operational-integration:codex-execution-failed",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "failure",
-      "label": "Codex preflight, authorization, timeout, output bounds, or workspace integrity failed; assignment must remain durable and non-complete",
+      "label": "Codex auth/session, exact-scope authorization, timeout, output bounds, or workspace integrity failed; objective remains durable and non-complete",
       "source_references": [
         "src/riverview_core/resident_execution/codex_cli.py",
         "src/riverview_core/resident_execution/codex_workflow.py",
@@ -606,7 +616,8 @@
         "docs/components/GRACE_EXECUTION_PIPELINE.md"
       ],
       "verification_evidence": [
-        "tests/test_codex_cli_adapter.py"
+        "tests/test_codex_cli_adapter.py",
+        "tests/test_supervised_codex_dispatch.py"
       ]
     },
     {

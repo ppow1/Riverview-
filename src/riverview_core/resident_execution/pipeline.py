@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
 # Execution Model: Request-driven orchestration over existing PostgreSQL authority and ledger
 # Observability: Append-only objective events linked to assignment and evidence provenance
@@ -12,6 +12,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Expose bounded grounded objective context to ResidentReasoner
 # Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER | Accept authenticated principals and retain conversation origin
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Carry independently verified artifact location into Grace completion event
+# Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Filter grounded resident reasoning to one objective
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -373,15 +374,20 @@ class GraceExecutionPipeline:
             row = cur.fetchone()
         return dict(row) if row else None
 
-    def grounded_objectives(self, *, scope_ref, limit=25):
+    def grounded_objectives(self, *, scope_ref, limit=25, objective_id=None):
         """Return a bounded, stable queue of objectives ready for resident reasoning."""
         if not isinstance(scope_ref, str) or not scope_ref or type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError("exact scope and bounded objective limit are required")
+        if objective_id is not None and (not isinstance(objective_id, str) or
+                not re.fullmatch(r"objective:[A-Za-z0-9._:-]{1,120}", objective_id)):
+            raise ValueError("objective identity is invalid")
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
             cur.execute("""SELECT objective_id,revision FROM grace_objectives
                 WHERE status='GROUNDED' AND scope_ref=%s
-                ORDER BY created_at,objective_id LIMIT %s""", (scope_ref, limit))
+                  AND (%s::text IS NULL OR objective_id=%s)
+                ORDER BY created_at,objective_id LIMIT %s""",
+                (scope_ref, objective_id, objective_id, limit))
             return cur.fetchall()
 
     def read_reasoning_context(self, objective_id):

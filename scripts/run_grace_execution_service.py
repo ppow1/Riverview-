@@ -3,16 +3,16 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.3
+# Revision: 1.0.5
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
-# Execution Model: systemd-supervised repeated PostgreSQL polling
+# Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
 # Dependencies: PostgreSQL; protected systemd credentials; pinned Riverview release
 # Authority: Exact grants for Grace dispatch, executor registration/execution, and verification
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Add supervised runtime entry point
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Bind runtime to current Grace office grant and persisted office state
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Select bounded Codex worker/verifier only from explicit service configuration
-# Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH-CREDENTIAL | Load the dedicated Codex API key from systemd credentials without logging it
+# Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Remove API-key auth and permit only interactive owning-user subscription mode
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -24,8 +24,10 @@ from __future__ import annotations
 import json
 import logging
 import os
+import pwd
 import re
 import signal
+import sys
 import threading
 from pathlib import Path
 
@@ -99,20 +101,37 @@ def main() -> int:
         execution_capability = "engineering.bounded-artifact.v1"
         execution_action = BoundedLocalCodingWorker(pipeline, artifact_root)
         outcome_verifier = None
+        codex_auth_mode = os.environ.get("RIVERVIEW_CODEX_AUTH_MODE", "service")
+        if codex_auth_mode not in {"service", "supervised-chatgpt"}:
+            raise WorkerServiceConfigurationError("codex_auth_mode_invalid")
+        if codex_auth_mode == "supervised-chatgpt" and adapter_mode != "codex-cli":
+            raise WorkerServiceConfigurationError("supervised_mode_requires_codex_adapter")
         if adapter_mode == "codex-cli":
             executable = os.environ.get("RIVERVIEW_CODEX_EXECUTABLE", "")
             codex_home = os.environ.get("RIVERVIEW_CODEX_HOME", "")
             codex_workspace = os.environ.get("RIVERVIEW_CODEX_WORKSPACE_DIR", "")
             codex_repository = os.environ.get("RIVERVIEW_CODEX_REPOSITORY_PATH", "")
             repository_reference = os.environ.get("RIVERVIEW_CODEX_REPOSITORY_REF", "")
+            if codex_auth_mode == "supervised-chatgpt":
+                if (pwd.getpwuid(os.geteuid()).pw_name != "admin1" or
+                        not sys.stdin.isatty()):
+                    raise WorkerServiceConfigurationError("supervised_codex_requires_admin1_tty")
+                operator_state = Path.home() / ".local" / "share" / "riverview-grace"
+                codex_home = str(Path.home() / ".codex")
+                codex_workspace = str(operator_state / "workspaces")
+                artifact_root = operator_state / "artifacts"
             if not all((executable, codex_home, codex_workspace, codex_repository,
                         repository_reference)):
                 raise WorkerServiceConfigurationError("codex_adapter_configuration_incomplete")
+            supervised_chatgpt = codex_auth_mode == "supervised-chatgpt"
+            if supervised_chatgpt and (pwd.getpwuid(os.geteuid()).pw_name != "admin1"
+                                       or not sys.stdin.isatty()):
+                raise WorkerServiceConfigurationError("supervised_codex_requires_admin1_tty")
             codex_adapter = CodexCLIExecutionAdapter(
                 executable=executable, repository_path=codex_repository,
                 repository_reference=repository_reference, codex_home=codex_home,
                 workspace_root=codex_workspace, artifact_root=artifact_root,
-                api_key=read_worker_credential(SERVICE_UNIT, "codex-api-key"))
+                supervised_chatgpt_session=supervised_chatgpt)
             if Path(executable).resolve().is_relative_to(Path("/home/admin1").resolve()):
                 raise WorkerServiceConfigurationError("personal_codex_executable_forbidden")
             try:
@@ -144,6 +163,33 @@ def main() -> int:
             resident_reasoner=resident_reasoner,
             resident_token_budget=int(os.environ.get("RIVERVIEW_RESIDENT_REASONING_TOKENS", "256")),
             verifier=outcome_verifier, execution_capability=execution_capability)
+        if codex_auth_mode == "supervised-chatgpt":
+            if not re.search(r"80b", (reasoning_model or "").lower()) or not providers:
+                raise WorkerServiceConfigurationError("supervised_mode_requires_configured_80b_reasoner")
+            objective_id = os.environ.get("RIVERVIEW_SUPERVISED_OBJECTIVE_ID", "")
+            if not re.fullmatch(r"objective:[A-Za-z0-9._:-]{1,120}", objective_id):
+                raise WorkerServiceConfigurationError("supervised_objective_id_required")
+            service.reason_one_grounded_objective(objective_id)
+            objective = pipeline.get_objective(objective_id)
+            if (objective is None or objective.get("status") not in
+                    {"PROPOSED", "WORK_ORDER_CREATED"} or not objective.get("proposal")):
+                logging.info(json.dumps({"event": "supervised_objective_waiting_for_proposal",
+                    "objective_id": objective_id,
+                    "status": objective.get("status") if objective else "NOT_FOUND"},
+                    sort_keys=True))
+                return 3
+            summary = objective["proposal"].get("summary", "")
+            print(json.dumps({"objective_id": objective_id,
+                "proposal_summary": summary[:500],
+                "acceptance_criteria": objective["proposal"]["steps"][0]["acceptance_criteria"]},
+                ensure_ascii=False, sort_keys=True))
+            if input(f"Type EXECUTE {objective_id} to dispatch this one proposal: ").strip() != f"EXECUTE {objective_id}":
+                logging.info(json.dumps({"event": "supervised_execution_declined",
+                    "objective_id": objective_id}, sort_keys=True))
+                return 4
+            result = service.execute_supervised_objective(objective_id)
+            print(json.dumps(result, sort_keys=True))
+            return 0 if result.get("status") == "COMPLETED" else 5
         stop = threading.Event()
         signal.signal(signal.SIGTERM, lambda *_: stop.set())
         signal.signal(signal.SIGINT, lambda *_: stop.set())

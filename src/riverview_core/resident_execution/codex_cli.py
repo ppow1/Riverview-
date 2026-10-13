@@ -2,14 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_cli.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Run a bounded Codex CLI assignment in an isolated pinned repository copy
 # Execution Model: One noninteractive sandboxed Codex invocation per durable assignment
 # Observability: Typed result and artifact digest; prompt and CLI output are not logged
-# Dependencies: Git; pinned Codex CLI; dedicated service CODEX_HOME
+# Dependencies: Git; pinned Codex CLI; dedicated service or supervised ChatGPT CODEX_HOME
 # Authority: Engineering dispatch only; no authority or approval is created here
 # Changed: 2026-10-13 UTC | RV-CODEX-CLI-ADAPTER-001 | Initial bounded artifact-producing adapter
-# Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Accept a dedicated protected API credential only through the child provider environment
+# Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Remove API-key support and gate reuse of the owning interactive ChatGPT session
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; process_graphs/grace/operational-integration.json
 # Tests: tests/test_codex_cli_adapter.py
 # History: Git
@@ -20,8 +20,9 @@ The adapter accepts no command, path, environment, or model choice from Grace.
 It clones one operator-configured repository at the assignment's pinned commit,
 allows Codex to write one fixed deliverable, discards process output, and returns
 only a bounded digest record. It does not dispatch, verify, approve, or complete
-an assignment. Production use requires a dedicated service principal and an
-isolated CODEX_HOME; the developer's personal Codex installation is rejected.
+an assignment. Service mode requires an isolated CODEX_HOME. Supervised mode may
+reuse the owning admin1 user's existing ChatGPT session only from that user's
+interactive terminal; it never copies credentials or accepts an API key.
 """
 
 from __future__ import annotations
@@ -30,11 +31,13 @@ from dataclasses import dataclass
 import hashlib
 import json
 import os
+import pwd
 from pathlib import Path
 import re
 import signal
 import stat
 import subprocess
+import sys
 import tempfile
 from typing import Sequence
 
@@ -104,7 +107,7 @@ class CodexCLIExecutionAdapter:
     def __init__(self, *, executable: str, repository_path: str | Path,
                  repository_reference: str, codex_home: str | Path,
                  workspace_root: str | Path, artifact_root: str | Path,
-                 api_key: str | None = None,
+                 supervised_chatgpt_session: bool = False,
                  ):
         self.executable = Path(executable)
         self.repository_path = Path(repository_path)
@@ -112,17 +115,32 @@ class CodexCLIExecutionAdapter:
         self.codex_home = Path(codex_home)
         self.workspace_root = Path(workspace_root)
         self.artifact_root = Path(artifact_root)
-        if api_key is not None and (not isinstance(api_key, str) or
-                                    not 32 <= len(api_key) <= 512 or
-                                    any(character.isspace() for character in api_key)):
-            raise ValueError("dedicated Codex API credential format is invalid")
-        self._api_key = api_key
-        # Intentionally reject both the active user's personal home and the
-        # known interactive administrator's Codex tree, including descendants.
+        if type(supervised_chatgpt_session) is not bool:
+            raise ValueError("Codex authentication mode must be explicit")
+        self.supervised_chatgpt_session = supervised_chatgpt_session
+        # Subscription auth is permitted only in a human-started run under the
+        # account which already owns the session. Credentials are never copied
+        # into a daemon identity or passed as an API key.
         personal_homes = (Path.home() / ".codex", Path("/home/admin1/.codex"))
-        if any(self.codex_home.resolve() == home.resolve() or
-               home.resolve() in self.codex_home.resolve().parents
-               for home in personal_homes):
+        if supervised_chatgpt_session:
+            try:
+                operator = pwd.getpwnam("admin1")
+                auth = self.codex_home / "auth.json"
+                auth_info = auth.lstat()
+                valid_auth_file = (stat.S_ISREG(auth_info.st_mode) and
+                    auth_info.st_uid == os.geteuid() and
+                    stat.S_IMODE(auth_info.st_mode) == 0o600 and not auth.is_symlink())
+            except (KeyError, OSError):
+                valid_auth_file = False
+                operator = None
+            if (operator is None or os.geteuid() != operator.pw_uid or
+                    not sys.stdin.isatty() or
+                    self.codex_home.resolve() != (Path.home() / ".codex").resolve() or
+                    not valid_auth_file):
+                raise ValueError("supervised ChatGPT authentication requires the owning interactive user session")
+        elif any(self.codex_home.resolve() == home.resolve() or
+                 home.resolve() in self.codex_home.resolve().parents
+                 for home in personal_homes):
             raise ValueError("a dedicated service CODEX_HOME is required")
 
     @staticmethod
@@ -146,7 +164,13 @@ class CodexCLIExecutionAdapter:
             source = self.repository_path.resolve(strict=True)
             if not source.is_dir():
                 raise CodexAdapterError("repository_unavailable")
-            self._private_directory(self.codex_home)
+            if self.supervised_chatgpt_session:
+                info = self.codex_home.lstat()
+                if (not stat.S_ISDIR(info.st_mode) or self.codex_home.is_symlink() or
+                        info.st_uid != os.geteuid()):
+                    raise CodexAdapterError("supervised_codex_home_invalid")
+            else:
+                self._private_directory(self.codex_home)
             self._private_directory(self.workspace_root)
             self._private_directory(self.artifact_root)
             if (self.workspace_root.resolve() == self.codex_home.resolve() or
@@ -217,10 +241,10 @@ class CodexCLIExecutionAdapter:
                 self._schema_path(schema_path)
                 prompt = self._prompt(assignment)
                 env = {"PATH": "/usr/local/bin:/usr/bin:/bin",
-                       "HOME": str(self.codex_home), "CODEX_HOME": str(self.codex_home),
+                       "HOME": str(self.codex_home.parent if self.supervised_chatgpt_session
+                                   else self.codex_home),
+                       "CODEX_HOME": str(self.codex_home),
                        "TMPDIR": str(run_root)}
-                if self._api_key is not None:
-                    env["OPENAI_API_KEY"] = self._api_key
                 argv = [str(binary), "exec", "--sandbox", "workspace-write",
                         "--ephemeral", "--ignore-user-config",
                         "-c", 'approval_policy="never"',

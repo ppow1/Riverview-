@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/continuous.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.9
+# Revision: 1.0.10
 # Purpose: Execute bounded capability work with pinned source-digest provenance
 # Execution Model: Repeatable poll cycle; durable claims and outcomes in PostgreSQL
 # Observability: Assignment state, knowledge observations, attempts, and results
@@ -12,6 +12,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Route registered action capability and persist structured artifacts
 # Changed: 2026-10-11 UTC | RV-M33-GROUNDED-PROVENANCE-BOUND | Persist source digest and references instead of duplicating full grounded documents in the attempt input
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Support configured bounded lease-recovery retry limit
+# Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Add a single-assignment claim without reconciling unrelated leases
 # Contracts: docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -113,17 +114,19 @@ class ContinuousWorker:
         return {"status": "WAITING_FOR_EVIDENCE", "assignment_id": assignment["id"],
                 "operation": operation, "knowledge_status": result.status.value}
 
-    def run_once(self):
-        """Recover expired work, then process at most one newly claimable assignment."""
-        recovery = PostgresRecoveryCoordinator(self.adapter.dsn, schema=self.adapter.schema,
-                                               max_retries=self.recovery_max_retries)
-        try:
-            recovery.reconcile_expired()
-        finally:
-            recovery.close()
+    def run_once(self, *, assignment_id=None):
+        """Recover normally, or claim one explicitly selected assignment only."""
+        if assignment_id is None:
+            recovery = PostgresRecoveryCoordinator(self.adapter.dsn, schema=self.adapter.schema,
+                                                   max_retries=self.recovery_max_retries)
+            try:
+                recovery.reconcile_expired()
+            finally:
+                recovery.close()
         claim = self.adapter.claim_next(self.worker_id, self.credential,
                                         capability=self.action_capability,
-                                        lease_seconds=self.lease_seconds)
+                                        lease_seconds=self.lease_seconds,
+                                        assignment_id=assignment_id)
         if claim is None:
             return {"status": "IDLE"}
         assignment, lease = claim["assignment"], claim["lease"]

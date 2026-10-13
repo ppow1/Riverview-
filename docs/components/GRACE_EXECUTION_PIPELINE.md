@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.6
+File Revision: 1.0.7
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
 Authority: Engineering contract; not evidence of production Grace commissioning
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Link persistent reconciliation and authenticated dashboard handoff
@@ -10,6 +10,8 @@ Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER-CONTRACT | Document ex
 Changed: 2026-10-13 UTC | RV-CODEX-CLI-ADAPTER-001 | Record the source-only bounded Codex artifact adapter and commissioning gates
 Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Wire a registered Codex capability through leased execution and independent Markdown verification
 Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH-CREDENTIAL | Bind the Codex API key to a protected systemd credential and exact Engineering scope
+Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Replace API-key execution with a bounded one-objective ChatGPT-session mode
+Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Pin supervised reasoning, dispatch, claim, verification, and completion to one objective
 -->
 # Grace Execution Pipeline — infrastructure slice
 
@@ -106,17 +108,23 @@ worker result and Grace objective completion event/projection.
 
 The capability registry records capability, active worker, and exact authority
 scope; startup preflight plus the current Grace execution health heartbeat
-provide dependency/readiness evidence. Its required resources are a dedicated
-Codex executable and credential home, pinned local repository, isolated
-workspace, writable private artifact filesystem, and a separate API credential
-loaded from `/etc/riverview/codex/api-key.credential` through systemd
-`LoadCredential` via the Codex-only systemd drop-in `deploy/systemd/riverview-grace-execution-codex-credentials.conf`; install that drop-in only when Codex mode is commissioned. The base unit remains startable without a Codex credential. The runner passes the key only in the child process
-environment; it does not appear in logs, arguments, or source files. No capacity reservation
-or throughput claim is made. The code path and fake-CLI verifier contract are
-implemented, but the service is not commissioned: no system Codex executable
-outside admin1's personal installation, dedicated service credential home,
-dedicated registered executor/verifier principals, or active exact grants are
-present. No live objective or artifact has been produced. Those are explicit
-commissioning blockers, not inferred approvals.
+provide dependency/readiness evidence. The Codex adapter no longer accepts or
+passes `OPENAI_API_KEY`. Its supervised ChatGPT mode is available only to the
+owning `admin1` identity from a TTY, uses that user's existing `CODEX_HOME`
+directly without copying credentials, requires one explicit objective ID and
+an exact terminal confirmation, and returns after that one bounded execution
+cycle. It also requires the configured reasoning model identity to contain
+`80b`; otherwise the run fails closed. The cycle dispatches and claims only the
+selected assignment, then invokes the existing independent verifier and
+completion reconciliation for that objective. A worker claim still requires
+the existing exact `assignment.execute` grant, and dispatch still requires
+`assignment.create` for the configured work-order scope.
+
+This source path is not commissioned. The execution service and exact executor,
+verifier, resident, and dispatch credentials/grants remain unavailable, and
+the current live Grace reasoning route is not the 80B model. A ChatGPT login
+was verified only for Camrui's interactive Codex CLI account; no account files
+were copied and no real assignment was executed. Synthetic tests verify the
+bounded adapter contracts but are not evidence of a live artifact.
 
 The generated workflow below is a projection of process_graphs/grace/operational-integration.json. Regenerate with python3 scripts/process_graph.py generate; verify with python3 scripts/process_graph.py check.

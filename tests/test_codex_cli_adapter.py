@@ -2,15 +2,15 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.2
-# Purpose: Verify bounded Codex CLI adapter contracts without invoking a real account
+# Revision: 1.0.3
+# Purpose: Verify bounded subscription-authenticated Codex adapter contracts
 # Execution Model: Isolated temporary Git repository and synthetic executable
 # Observability: Assertions inspect sanitized adapter status and artifact metadata
 # Dependencies: Python 3; Git
 # Authority: No live model, service, or account credential is used
 # Changed: 2026-10-13 UTC | RV-CODEX-CLI-ADAPTER-001 | Add isolated adapter contract tests
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Test leased worker action and independent Markdown verification contracts
-# Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH-CREDENTIAL | Verify dedicated API credential is forwarded only to child process
+# Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Verify API-key-free child environment and interactive session gate
 # Contracts: src/riverview_core/resident_execution/codex_cli.py
 # Tests: python3 -m unittest tests.test_codex_cli_adapter -v
 # History: Git
@@ -182,17 +182,24 @@ class CodexCLIAdapterTests(unittest.TestCase):
                        "attempt_id": "attempt:fixture"}, result)
         self.assertEqual(verification.status.value, "REJECTED")
 
-    def test_only_explicit_dedicated_api_key_is_forwarded_to_codex_process(self):
+    def test_codex_child_does_not_receive_an_api_key(self):
         script = self.codex.read_text(encoding="utf-8")
         self.codex.write_text(script.replace(
             "args=sys.argv[1:]",
-            "import os\nif os.environ.get('OPENAI_API_KEY') != 'x'*40: raise SystemExit(9)\nargs=sys.argv[1:]"),
+            "import os\nif 'OPENAI_API_KEY' in os.environ: raise SystemExit(9)\nargs=sys.argv[1:]"),
             encoding="utf-8")
         result = CodexCLIExecutionAdapter(executable=str(self.codex),
             repository_path=self.repo, repository_reference="repo://example/test",
             codex_home=self.codex_home, workspace_root=self.workspace,
-            artifact_root=self.artifacts, api_key="x" * 40).execute(self.assignment())
+            artifact_root=self.artifacts).execute(self.assignment())
         self.assertEqual(result.status, "DELIVERABLE_PRODUCED")
+
+    def test_subscription_session_requires_interactive_owner_terminal(self):
+        with self.assertRaisesRegex(ValueError, "supervised ChatGPT authentication"):
+            CodexCLIExecutionAdapter(executable=str(self.codex), repository_path=self.repo,
+                repository_reference="repo://example/test", codex_home=Path.home() / ".codex",
+                workspace_root=self.workspace, artifact_root=self.artifacts,
+                supervised_chatgpt_session=True)
 
 
 if __name__ == "__main__":
