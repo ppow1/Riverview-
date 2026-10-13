@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.6
+**Document Revision:** 1.0.7
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -102,7 +102,7 @@ flowchart LR
   g_rv_steward_dashboard_status_account_management_4dab15f2 -->|jump: Steward account management| g_rv_website_account_auth_account_lifecycle_steward_management_756368cd
   g_rv_steward_dashboard_status_browse_process_graphs_5ccf18cc -->|Open the workflow viewer| g_rv_steward_dashboard_status_workflow_session_transport_d4da7bde
   g_rv_steward_dashboard_status_workflow_session_transport_d4da7bde -->|Authenticated same-origin graph request| g_rv_steward_dashboard_status_read_canonical_graph_322bcdca
-  g_rv_steward_dashboard_status_workflow_session_transport_d4da7bde -->|diagnostic_branch: Expired or absent browser session; render authorization failure| g_rv_steward_dashboard_status_graph_source_unavailable_08315b7d
+  g_rv_steward_dashboard_status_workflow_session_transport_d4da7bde -->|diagnostic_branch: Expired or absent account session; return authorization denial| g_rv_steward_dashboard_status_deny_request_776de47b
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

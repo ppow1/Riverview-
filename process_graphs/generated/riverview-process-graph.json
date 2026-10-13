@@ -7213,7 +7213,7 @@
     },
     {
       "graph_id": "rv:steward-dashboard:status",
-      "graph_revision": "1.1.0",
+      "graph_revision": "1.1.1",
       "component_id": "STEWARD-DASHBOARD",
       "workflow_id": "status-projection.v1",
       "diagram_order": 1,
@@ -7838,7 +7838,7 @@
         },
         {
           "id": "rv:steward-dashboard:status:workflow-session-transport",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
           "label": "Fetch canonical graph index and definition with either the recovery bearer or active same-origin account session",
           "source_references": [
@@ -8124,9 +8124,9 @@
         },
         {
           "from": "rv:steward-dashboard:status:workflow-session-transport",
-          "to": "rv:steward-dashboard:status:graph-source-unavailable",
+          "to": "rv:steward-dashboard:status:deny-request",
           "type": "diagnostic_branch",
-          "label": "Expired or absent browser session; render authorization failure"
+          "label": "Expired or absent account session; return authorization denial"
         }
       ]
     },
