@@ -1,0 +1,12 @@
+BEGIN
+ current_database | current_user 
+------------------+--------------
+ postgres         | admin1
+(1 row)
+
+        worker_registry        |        worker_attempts        |        worker_results        |        verification_records        |           execution_intents            |           recovery_records            
+-------------------------------+-------------------------------+------------------------------+------------------------------------+----------------------------------------+---------------------------------------
+ rvtest_worker.worker_registry | rvtest_worker.worker_attempts | rvtest_worker.worker_results | rvtest_worker.verification_records | rvtest_worker.worker_execution_intents | rvtest_worker.worker_recovery_records
+(1 row)
+
+COMMIT

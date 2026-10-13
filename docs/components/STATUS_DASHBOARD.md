@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.6
+File Revision: 1.0.7
 Purpose: Specify the read-only live status projection and browser foundation
-Authority: Observes institution state; no assignment or policy mutation
-Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Expose consolidated operations and recovery documentation from dashboard
+Authority: Observes institution state; notification receipt writes cannot mutate assignments or decisions
+Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
 History: Git and revision/backup manifest
 -->
 # Steward status dashboard
@@ -40,9 +40,11 @@ PostgreSQL ledger and CME projections.
 ## Read-only API contract `rv.dashboard.v1`
 
 The browser and future API/AI consumers share the same authenticated HTTP entry
-point. All current application API routes are `GET` only. A mutating HTTP method
-returns `405 read_only_method`; no browser-only business action or direct database
-write exists. Every request is authenticated with a bearer token from a protected
+point. Status and operational projections are read-only. M3.2 adds only the two
+receipt-only notification POST operations shown below; they cannot mutate
+assignments or resolve/approve a pending request. Other mutating HTTP methods
+return `405 read_only_method`; no direct browser database write exists. Every
+application API request is authenticated with a bearer token from a protected
 systemd credential. The source file is owner-only; systemd exposes a read-only
 credential copy in its exact credential directory. Only that exact systemd
 path may use mode 0400 or 0440; ordinary files require owner-only permissions.
@@ -68,6 +70,9 @@ content, credentials and private conversation content are not projected.
 | `GET /api/v1/events?after_seq=<n>&limit=<n>` | Institution event cursor page with event/correlation/causation identity. | Default 25, max 100; no payload. |
 | `GET /api/v1/workers?after=<id>&limit=<n>` | Bounded worker identity, active/inactive state, latest lease heartbeat health and visible active-lease count. | Default 25, max 100; keyset by worker ID. |
 | `GET /api/v1/attention?limit=<n>` | Bounded CME attention and recovery event records. | Default 25, max 100; sanitized error class only. |
+| `GET /api/v1/notifications?limit=<n>` | Durable visual notices, dispatcher freshness, and pending decision-request state. | Default 25, max 50; fixed summaries only. |
+| `POST /api/v1/notifications/<uuid>/delivered` | Record successful visible rendering by the dashboard client. | Empty body; service bearer only; not human identity or Steward authority. |
+| `POST /api/v1/notifications/<uuid>/acknowledge` | Explicit receipt acknowledgment after delivery. | Empty body; cannot alter the linked decision request or assignment. |
 | `GET /api/v1/snapshot` | Bounded server-observed operational snapshot. | At most 50 assignments and 25 events/attention/worker rows. |
 | `GET /api/v1/graphs` | Index of registered canonical focused process graphs. | Reads versioned package registry; bounded by checked-in graph count. |
 | `GET /api/v1/graphs/<graph_id>` | Canonical nodes, typed edges, decisions, references, and execution-position state. | One registered focused workflow; no graph mutation. |

@@ -1,0 +1,7 @@
+headings=9
+tables=1
+code_blocks=3
+raw_frontmatter=True
+no_script=True
+local_evidence_links_inert=True
+expected_diag_command_rendered=True

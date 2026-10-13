@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/process_graph.py
 # Component: RV-PROCESS-GRAPH
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Validate canonical workflow graphs and generate synchronized views
 # Execution Model: Request-driven developer utility and CI check
 # Observability: Structured validation errors and generated graph inventory
 # Dependencies: Python 3.10+; jsonschema 4.10.3
 # Authority: Reads repository graph data; writes only registered generated views
 # Changed: 2026-10-10 UTC | RV-M2.3-001 | Avoid trailing whitespace in generated graph heading
+# Changed: 2026-10-11 UTC | RV-GRAPH-FILE-REVISION-FIX | Increment generated File Revision metadata as well as Document Revision headings
 # Contracts: process_graphs/README.md; process_graphs/schema/riverview-process-graph.schema.json
 # Tests: tests/test_process_graph.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -258,8 +259,24 @@ def write_markdown_output(path, content, task="RV-GRAPH-GENERATE"):
         if old == content:
             return False
         revision_backup(path, task)
-        match = re.search(r"(?m)^(\*\*(?:Document )?Revision:\*\*\s*)(\d+\.\d+\.\d+)", content)
-        old_match = re.search(r"(?m)^(\*\*(?:Document )?Revision:\*\*\s*)(\d+\.\d+\.\d+)", old)
+        def header_revision(text):
+            # Controlled source files commonly carry File Revision in an HTML
+            # metadata block and may also contain a separate document revision
+            # in their body. The file header takes precedence for file-level
+            # revision control.
+            patterns = (
+                r"(?m)^(\s*File Revision:\s*)(\d+\.\d+\.\d+)",
+                r"(?m)^(\s*\*\*Document Revision:\*\*\s*)(\d+\.\d+\.\d+)",
+                r"(?m)^(\s*\*\*Revision:\*\*\s*)(\d+\.\d+\.\d+)",
+            )
+            for pattern in patterns:
+                match = re.search(pattern, text[:12000])
+                if match:
+                    return match
+            return None
+
+        match = header_revision(content)
+        old_match = header_revision(old)
         if old_match and match:
             content = content[:match.start(2)] + bump(old_match.group(2)) + content[match.end(2):]
         elif old_match:

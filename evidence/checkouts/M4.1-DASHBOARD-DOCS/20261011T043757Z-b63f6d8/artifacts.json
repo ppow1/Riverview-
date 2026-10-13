@@ -1,0 +1,106 @@
+{
+  "artifacts": {
+    "authority-workflow-browser-attempt1-failure.txt": {
+      "path": "authority-workflow-browser-attempt1-failure.txt",
+      "revision": "1.0.0",
+      "sha256": "f0ab8008b8f1e8e5ea41ace85c774c178b4b660a326951d32388bafcee3a7c02",
+      "size_bytes": 546
+    },
+    "authority-workflow-browser.json": {
+      "path": "authority-workflow-browser.json",
+      "revision": "1.0.0",
+      "sha256": "382904294c4e33518d5774e18edba4b2457c144a3a6fd00aedde1eab0da66e33",
+      "size_bytes": 638
+    },
+    "authority-workflow-view.png": {
+      "path": "authority-workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "b5c5de133d9a0b09a4e96a5eae4209a10d60854152c402cebea6cdb473c346ae",
+      "size_bytes": 300469
+    },
+    "browser-authority-run2/authority-workflow-browser.json": {
+      "path": "browser-authority-run2/authority-workflow-browser.json",
+      "revision": "1.0.0",
+      "sha256": "1810bba628648b1f7be36eb045870900727e05221d691061c90002d50774d731",
+      "size_bytes": 675
+    },
+    "browser-authority-run2/authority-workflow-view.png": {
+      "path": "browser-authority-run2/authority-workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "b760016114a966c21be82e3d9af613e77c346d8ae869e91adfdc9f7baab4f2f7",
+      "size_bytes": 300298
+    },
+    "browser/browser-acceptance.json": {
+      "path": "browser/browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "1f17345cab10c250cbec492eb62a30e93459a7ef64b01f7c27bc308672ae7afa",
+      "size_bytes": 3840
+    },
+    "browser/cookbook-view.png": {
+      "path": "browser/cookbook-view.png",
+      "revision": "1.0.0",
+      "sha256": "ca033765521caf288d1582f0e00508ae8354c2c10220776ccdfec50d1eb9024a",
+      "size_bytes": 176770
+    },
+    "browser/workflow-view.png": {
+      "path": "browser/workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "70c76b7099a888ea9abcdf73190fb0b0bc3c41025266091638fc16696ba505e3",
+      "size_bytes": 213221
+    },
+    "deployment-summary.json": {
+      "path": "deployment-summary.json",
+      "revision": "1.0.0",
+      "sha256": "a8b254b1931dd531272c014dea9b63e0603ff3f31bacc4e8b7f2c4396eb56a5e",
+      "size_bytes": 3498
+    },
+    "postdeployment-state.txt": {
+      "path": "postdeployment-state.txt",
+      "revision": "1.0.0",
+      "sha256": "1e393e9eb58cbecefb3b6cbffa79552594381300eebe93c880ba6b537acb5f8d",
+      "size_bytes": 2108
+    },
+    "predeployment-state.txt": {
+      "path": "predeployment-state.txt",
+      "revision": "1.0.0",
+      "sha256": "0ccc6daed134834fb28cfbd4e60cfbfa53c84bde741f7eb1037222c47c2f7103",
+      "size_bytes": 288
+    },
+    "protected-archive.txt": {
+      "path": "protected-archive.txt",
+      "revision": "1.0.0",
+      "sha256": "fbae521112ba5eeac57b214deedd4557fd3c77b8ef4cd1e04d8bcb974026b610",
+      "size_bytes": 476
+    },
+    "source-package.sha256": {
+      "path": "source-package.sha256",
+      "revision": "1.0.0",
+      "sha256": "4cf7235409c761444096bb54eff7181857a8e2d0ab64f46f32af45c88ae97e05",
+      "size_bytes": 149
+    },
+    "source-package.tar": {
+      "path": "source-package.tar",
+      "revision": "1.0.0",
+      "sha256": "4bb7941d363e65b1641e369a1bc0fe051a2c8d9614e82a27d99adb208ff98b0e",
+      "size_bytes": 24965120
+    },
+    "startup-readiness.txt": {
+      "path": "startup-readiness.txt",
+      "revision": "1.0.0",
+      "sha256": "b77b91bbb02b0dcc6ff13f2d51f64a9b1a6efe60760394836fa05e09e9804e14",
+      "size_bytes": 606
+    },
+    "verify-authority-workflow-browser.py": {
+      "path": "verify-authority-workflow-browser.py",
+      "revision": "1.0.2",
+      "sha256": "4781876a4f01473668147b5b2b949fb090e7ce11a57108f6386c3480b88122fa",
+      "size_bytes": 6127
+    }
+  },
+  "component_id": "M4.1 dashboard documentation deployment",
+  "decision": "PASS for docs/graph delivery; no M4.1 database commissioning",
+  "manifest_revision": "1.0.0",
+  "source_commit": "b63f6d85e7837caaa03265aa19164b57c818c8d9",
+  "target": "Camrui; only status-dashboard systemd release",
+  "task_id": "RV-M4.1-001"
+}

@@ -1,0 +1,14 @@
+notices	receipt_events	decisions	assignments	events
+3	9	0	4	11
+(1 row)
+event_type	count
+delivery_confirmed	3
+notification_queued	3
+receipt_acknowledged	3
+(3 rows)
+delivered	acknowledged
+3	3
+(1 row)
+status	last_error_type	source_events_scanned	notifications_created	decision_requests_created	last_scan_at
+healthy		3	3	0	2026-10-11 00:10:50.302209-04
+(1 row)

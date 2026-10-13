@@ -1,15 +1,19 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.7
+File Revision: 1.0.8
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
+Changed: 2026-10-11 UTC | RV-M3.2-001 | Link durable notification receipt diagnostics
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
 
 The dashboard links to the [complete Riverview operations and recovery guide](RIVERVIEW_OPERATIONS_COOKBOOK.md), covering PostgreSQL, migrations, CME, event processing, workers, verification, and backups.
+The [notification delivery contract](NOTIFICATION_DELIVERY.md) and
+[notification troubleshooting cookbook](NOTIFICATION_DELIVERY_COOKBOOK.md)
+cover durable visual receipts. Receipt acknowledgment is not a Steward decision.
 
 **Task:** RV-M3.1-001 · **Component:** STEWARD-DASHBOARD · **Execution model:** request-driven.  
 The dashboard does not own assignments, dispatch workers, mutate the ledger, or

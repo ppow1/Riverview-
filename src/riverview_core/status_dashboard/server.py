@@ -2,18 +2,18 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.4
-# Purpose: Serve the authenticated, loopback-only status UI and versioned API
+# Revision: 1.0.7
+# Purpose: Serve authenticated live projections and bounded notification receipts
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
 # Dependencies: Python 3.10+; standard library; status_dashboard.projection
-# Authority: Authenticated GET-only interface; no command or database write routes
-# Changed: 2026-10-10 UTC | RV-M3.1-003 | Render safe component docs and expose canonical read-only graphs
+# Authority: GET projections; narrow delivery/receipt POSTs have no decision effect
+# Changed: 2026-10-11 UTC | RV-M3.2-001 | Enforce the notification-specific maximum page size
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
 # History: Git and revision/backup manifest
 # =============================================================================
-"""Loopback-only HTTP server for the read-only Steward status projection."""
+"""Loopback-only Steward dashboard with read projections and receipt-only writes."""
 
 from __future__ import annotations
 
@@ -36,6 +36,8 @@ _LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "[::1]", "::1"}
 _MAX_THREADS = 16
 _MAX_PAGE = 100
 _DOC_NAME = re.compile(r"^[A-Za-z0-9_-]+\.md$")
+_NOTICE_WRITE = re.compile(
+    r"^/api/v1/notifications/([0-9a-fA-F-]{36})/(delivered|acknowledge)$")
 
 def _bounded_limit(value):
     try:
@@ -78,9 +80,10 @@ class _BoundedHTTPServer(HTTPServer):
     """Bound concurrent requests; saturation fails fast instead of growing threads."""
     request_queue_size = 64
 
-    def __init__(self, address, handler, *, token, projection, static_dir):
+    def __init__(self, address, handler, *, token, projection, notification_service, static_dir):
         self._token = token
         self._projection = projection
+        self._notification_service = notification_service
         self._static_dir = Path(static_dir)
         self._slots = threading.BoundedSemaphore(_MAX_THREADS)
         super().__init__(address, handler)
@@ -186,10 +189,12 @@ def make_handler():
         def _dispatch(self):
             request_id = secrets.token_hex(12)
             parsed = urlsplit(self.path)
+            notification_write = (_NOTICE_WRITE.fullmatch(parsed.path)
+                                  if self.command == "POST" else None)
             if not self._host_ok():
                 self._error(400, "invalid_host", request_id)
                 return
-            if self.command not in {"GET", "HEAD"}:
+            if self.command not in {"GET", "HEAD"} and not notification_write:
                 self._error(405, "read_only_method", request_id)
                 return
             if parsed.path == "/":
@@ -260,6 +265,27 @@ def make_handler():
                 elif parsed.path == "/api/v1/attention":
                     page = self.server._projection.attention(limit=_bounded_limit(query.get("limit", [25])[0]))
                     self._json(200, page, request_id)
+                elif parsed.path == "/api/v1/notifications" and self.command in {"GET", "HEAD"}:
+                    service = self.server._notification_service
+                    page = (service.list_notifications(limit=min(50, _bounded_limit(query.get("limit", [25])[0])))
+                            if service else {"schema_version": "rv.notifications.v1",
+                                             "status": "not_initialized", "observed_at": None,
+                                             "dispatcher": {"status": "not_initialized"},
+                                             "items": [], "limit": 25})
+                    self._json(200, page, request_id)
+                elif notification_write:
+                    if (self.headers.get("Content-Length", "0") != "0" or
+                            self.headers.get("Transfer-Encoding")):
+                        self._error(400, "notification_receipt_body_not_allowed", request_id)
+                        return
+                    service = self.server._notification_service
+                    if service is None:
+                        self._error(503, "notifications_not_initialized", request_id)
+                        return
+                    notice_id, action = notification_write.groups()
+                    result = (service.confirm_delivery(notice_id) if action == "delivered"
+                              else service.acknowledge_receipt(notice_id))
+                    self._json(200, result, request_id)
                 elif parsed.path == "/api/v1/snapshot":
                     self._json(200, self.server._projection.snapshot(), request_id)
                 elif parsed.path == "/api/v1/graphs":
@@ -315,6 +341,17 @@ def make_handler():
             except ProjectionUnavailable:
                 self._error(503, "projection_unavailable", request_id)
             except Exception as exc:
+                from riverview_core.notifications import (NotificationConflict,
+                    NotificationNotFound, NotificationUnavailable)
+                if isinstance(exc, NotificationNotFound):
+                    self._error(404, "notification_not_found", request_id)
+                    return
+                if isinstance(exc, NotificationConflict):
+                    self._error(409, "notification_receipt_conflict", request_id)
+                    return
+                if isinstance(exc, NotificationUnavailable):
+                    self._error(503, "notifications_unavailable", request_id)
+                    return
                 # Error class is logged; exception text may contain driver details and is excluded.
                 print(json.dumps({"event": "dashboard_request_failed", "request_id": request_id,
                                   "error_type": type(exc).__name__}), flush=True)
@@ -327,7 +364,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
     """Validated loopback listener with a mandatory owner-only bearer credential."""
 
     def __init__(self, host: str, port: int, token_file: str | Path,
-                 projection: DashboardProjection, static_dir: str | Path | None = None):
+                 projection: DashboardProjection, static_dir: str | Path | None = None,
+                 notification_service=None):
         if host not in {"127.0.0.1", "::1"}:
             raise ValueError("dashboard bind host must be a loopback IP literal")
         if not isinstance(port, int) or not 8700 <= port <= 8799:
@@ -336,7 +374,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
         if static_dir is None:
             static_dir = Path(__file__).with_name("static")
         super().__init__((host, port), make_handler(), token=credential,
-                         projection=projection, static_dir=static_dir)
+                         projection=projection, notification_service=notification_service,
+                         static_dir=static_dir)
 
 
 def _release_commit() -> str:
@@ -357,9 +396,13 @@ def main():
         source_commit=os.environ.get("RIVERVIEW_SOURCE_COMMIT", _release_commit()),
         deployment_id=os.environ.get("RIVERVIEW_DEPLOYMENT_ID", "unconfigured"),
         heartbeat_stale_seconds=int(os.environ.get("RIVERVIEW_STALE_AFTER_SECONDS", "30")))
+    from riverview_core.notifications import NotificationService
+    notification_service = NotificationService(
+        dsn, schema=os.environ.get("RIVERVIEW_DATABASE_SCHEMA", "riverview_dev"))
     host = os.environ.get("RIVERVIEW_DASHBOARD_HOST", "127.0.0.1")
     port = int(os.environ.get("RIVERVIEW_DASHBOARD_PORT", "8766"))
-    server = DashboardHTTPServer(host, port, token_path, projection)
+    server = DashboardHTTPServer(host, port, token_path, projection,
+                                 notification_service=notification_service)
     print(json.dumps({"event": "dashboard_started", "host": host, "port": port,
                       "source_commit": projection.source_commit,
                       "deployment_id": projection.deployment_id}), flush=True)

@@ -1,0 +1,16 @@
+{
+  "artifacts": {
+    "github-ci.json": {
+      "path": "github-ci.json",
+      "revision": "1.0.0",
+      "sha256": "7725a2ce6a177f0e7071b310562fadcbc341ac09657e3d897a23657e3552918c",
+      "size_bytes": 1582
+    }
+  },
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "decision": "PASS",
+  "manifest_revision": "1.0.0",
+  "source_commit": "e0fd888a979e32b4f11c848b22a54fdf8c32bbb7",
+  "target": "GitHub controlled-checkout CI",
+  "task_id": "RV-M4.1-001"
+}

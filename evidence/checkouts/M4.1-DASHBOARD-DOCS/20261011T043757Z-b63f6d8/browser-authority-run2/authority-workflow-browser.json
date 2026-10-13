@@ -1,0 +1,15 @@
+{
+  "browser_errors": [],
+  "componentGraph": "INSTITUTIONAL-AUTHORITY identity-and-grants.v1 process graph",
+  "currentHighlights": 0,
+  "decisions": 1,
+  "nodes": 12,
+  "pass": true,
+  "position": "Live execution position: unknown \u2014 The assignment ledger does not currently persist a graph node identity; no node is highlighted.",
+  "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
+  "screenshot": "authority-workflow-view.png",
+  "screenshot_base64_chars": 400400,
+  "screenshot_bytes": 300298,
+  "selected_stable_id": "rv:institutional-authority:identity-and-grants:bootstrap",
+  "transitions": 13
+}

@@ -1,0 +1,4 @@
+protected_archive=/var/lib/riverview/deployments/dashboard/b63f6d85e7837caaa03265aa19164b57c818c8d9/source-package.tar
+protected_archive_sha256=4bb7941d363e65b1641e369a1bc0fe051a2c8d9614e82a27d99adb208ff98b0e
+path=/var/lib/riverview/deployments/dashboard/b63f6d85e7837caaa03265aa19164b57c818c8d9 owner=root:root mode=700 size=4096
+path=/var/lib/riverview/deployments/dashboard/b63f6d85e7837caaa03265aa19164b57c818c8d9/source-package.tar owner=root:root mode=600 size=24965120

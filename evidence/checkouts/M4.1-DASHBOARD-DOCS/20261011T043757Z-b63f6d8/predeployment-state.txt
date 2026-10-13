@@ -1,0 +1,4 @@
+source_commit=b63f6d85e7837caaa03265aa19164b57c818c8d9
+branch=codex/m4.1-institutional-authority
+predecessor_release=/opt/riverview-status-dashboard/releases/0fd10357ccdf2c9a0c87ba4a6f41e37ecff33ce9
+predecessor_unit_sha256=6fb11ab264ccbba74d0213f4e3e8d00eba8ca847fde046757d7906cc18cf88a0

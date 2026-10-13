@@ -1,0 +1,40 @@
+waiting for server to start....2026-10-11 01:29:02.625 EDT [261667] LOG:  starting PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit
+2026-10-11 01:29:02.633 EDT [261667] LOG:  listening on Unix socket "/tmp/rv-m33-knowledge-pg.wwN0Z0/socket/.s.PGSQL.55482"
+2026-10-11 01:29:02.662 EDT [261670] LOG:  database system was shut down at 2026-10-11 01:28:31 EDT
+2026-10-11 01:29:02.682 EDT [261667] LOG:  database system is ready to accept connections
+ done
+server started
+2026-10-11 01:29:16.287 EDT [261875] ERROR:  institutional_authority_events is append-only
+2026-10-11 01:29:16.287 EDT [261875] CONTEXT:  PL/pgSQL function rvtest_4bc17badb8e2469890da8ac845c23a4a.reject_institutional_authority_event_mutation() line 3 at RAISE
+2026-10-11 01:29:16.287 EDT [261875] STATEMENT:  DELETE FROM "rvtest_4bc17badb8e2469890da8ac845c23a4a".institutional_authority_events
+2026-10-11 01:29:23.419 EDT [261927] ERROR:  permission denied for table institutional_principals
+2026-10-11 01:29:23.419 EDT [261927] STATEMENT:  SELECT count(*) FROM "rvtest_561c306c11d441a48f86424146c5136f".institutional_principals
+2026-10-11 01:29:23.433 EDT [261928] ERROR:  permission denied for table institutional_authority_events
+2026-10-11 01:29:23.433 EDT [261928] STATEMENT:  INSERT INTO "rvtest_561c306c11d441a48f86424146c5136f".institutional_authority_events
+	                    (event_id,event_type,actor_id) VALUES ($1,'principal_created','worker:boundary-test')
+2026-10-11 01:29:23.444 EDT [261929] ERROR:  must be owner of table authority_grants
+2026-10-11 01:29:23.444 EDT [261929] STATEMENT:  DROP TABLE "rvtest_561c306c11d441a48f86424146c5136f".authority_grants
+2026-10-11 01:29:28.695 EDT [261970] ERROR:  notification_events is append-only
+2026-10-11 01:29:28.695 EDT [261970] CONTEXT:  PL/pgSQL function reject_notification_event_mutation() line 3 at RAISE
+2026-10-11 01:29:28.695 EDT [261970] STATEMENT:  UPDATE notification_events SET event_type='delivery_confirmed'
+2026-10-11 01:29:28.697 EDT [261970] ERROR:  notification_events is append-only
+2026-10-11 01:29:28.697 EDT [261970] CONTEXT:  PL/pgSQL function reject_notification_event_mutation() line 3 at RAISE
+2026-10-11 01:29:28.697 EDT [261970] STATEMENT:  DELETE FROM notification_events
+2026-10-11 01:29:32.221 EDT [262025] ERROR:  injected event failure
+2026-10-11 01:29:32.221 EDT [262025] CONTEXT:  PL/pgSQL function reject_transition_event() line 3 at RAISE
+2026-10-11 01:29:32.221 EDT [262025] STATEMENT:  INSERT INTO events
+	               (event_id, schema, event_type, occurred_at, recorded_at,
+	                assignment_id, actor_id, correlation_id, causation_id,
+	                idempotency_key, authority_ref, privacy_domain, payload_schema, payload)
+	               VALUES ($1, 'rv.event.v1', $2, $3, $4, $5, $6, $7, $8,
+	                       $9, $10, $11, $12, $13)
+2026-10-11 01:29:54.755 EDT [262432] ERROR:  completion requires persisted independent verification
+2026-10-11 01:29:54.755 EDT [262432] CONTEXT:  PL/pgSQL function require_independent_verification_for_completion() line 8 at RAISE
+2026-10-11 01:29:54.755 EDT [262432] STATEMENT:  UPDATE assignments SET state='completed' WHERE id=$1
+2026-10-11 01:30:14.087 EDT [261667] LOG:  received fast shutdown request
+2026-10-11 01:30:14.095 EDT [261667] LOG:  aborting any active transactions
+2026-10-11 01:30:14.100 EDT [261667] LOG:  background worker "logical replication launcher" (PID 261673) exited with exit code 1
+2026-10-11 01:30:14.100 EDT [261668] LOG:  shutting down
+2026-10-11 01:30:14.108 EDT [261668] LOG:  checkpoint starting: shutdown immediate
+2026-10-11 01:30:21.941 EDT [261668] LOG:  checkpoint complete: wrote 1185 buffers (7.2%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.073 s, sync=7.618 s, total=7.841 s; sync files=3193, longest=0.010 s, average=0.003 s; distance=26081 kB, estimate=26081 kB; lsn=0/FA4A580, redo lsn=0/FA4A580
+2026-10-11 01:30:21.958 EDT [261667] LOG:  database system is shut down

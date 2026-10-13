@@ -1,0 +1,28 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M4.1-LIVE-BOUNDARY-PREFLIGHT",
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "source_commit": "fbcdf58030c7b7e6bcfe55c5f197f6afd19064a2",
+  "target": "Camrui PostgreSQL 16.15; read-only catalog and expected fail-closed helper preflight",
+  "decision": "Live authority schema/role preflight BLOCKED because dedicated schema/manager/owner are absent; no changes made",
+  "artifacts": {
+    "catalog-preflight.txt": {
+      "path": "catalog-preflight.txt",
+      "revision": "1.0.0",
+      "sha256": "7af1336eb6fb19e55bd51a5cf8c80fd86b02aa5293054a60f068236a4b4577b6",
+      "size_bytes": 1456
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "39f85b75f25807e4617ae4bea4123baffea177e35f31ce98d7964c4285af3a10",
+      "size_bytes": 1059
+    },
+    "helper-preflight.txt": {
+      "path": "helper-preflight.txt",
+      "revision": "1.0.0",
+      "sha256": "29b6f58a18f397cc0f5fa23b048969489ecd17ca9a2522790e3defc7ed85b4cc",
+      "size_bytes": 1041
+    }
+  }
+}

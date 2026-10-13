@@ -1,0 +1,22 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M4.1-DB-RESTORE-PREFLIGHT",
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "source_commit": "e486264ec49f5486b7b2838ea00a9074b7f2f82a",
+  "target": "Camrui; shared backup source, disposable restored database",
+  "decision": "Backup and restore rehearsal PASS; M4.1 live authority commissioning OPEN",
+  "artifacts": {
+    "attempts.log": {
+      "path": "attempts.log",
+      "revision": "1.0.0",
+      "sha256": "07b2d5e0e12dd5b3fbbc1acc27e0ed736bbba5e19c2671ce7792892aa6b12235",
+      "size_bytes": 675
+    },
+    "restore-rehearsal.json": {
+      "path": "restore-rehearsal.json",
+      "revision": "1.0.0",
+      "sha256": "e605eec167aa2d1b47eda1dfbfe6641c57d5ad3a9525eb8d4a8f64c56c8dceae",
+      "size_bytes": 1364
+    }
+  }
+}

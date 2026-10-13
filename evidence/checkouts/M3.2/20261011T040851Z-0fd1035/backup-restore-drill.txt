@@ -1,0 +1,3 @@
+restore_migration=PASS
+clone_removed=rv_restore_m32_20261011T040550Z
+backup_preserved=/var/lib/postgresql/riverview-backup.m32-live-20261011T040550Z.8ATpFNNx/riverview.dump

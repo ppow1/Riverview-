@@ -2,13 +2,22 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.8
+# Revision: 1.0.17
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL for integration class
 # Authority: Creates/drops only unique rvtest_* schemas; never accesses shared Riverview data
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Verify safe component links remain functional in the consolidated guide
+# Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ROUTE | Exercise updated authority diagnostics through the dashboard documentation route
+# Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ASSERTION | Match cookbook's documented DROP CASCADE warning text
+# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-SCHEDULER-DIAGNOSTICS | Assert expanded scheduler recovery docs render through dashboard route
+# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Assert worker recovery diagnostics render through dashboard route
+# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-PG-SECRET-SAFETY | Assert PostgreSQL cookbook has no password-bearing command examples
+# Changed: 2026-10-11 UTC | RV-M1.4-LIVE-DEPENDENCY-CORRECTION | Assert scheduler docs distinguish shared migration from commissioning
+# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-DASHBOARD-REPOSITORY-LINK | Preserve installed knowledge-cookbook navigation in source shell
+# Changed: 2026-10-11 UTC | RV-M4.1-DB-RESTORE-COOKBOOK | Verify observed backup path incident renders safely through docs route
+# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-PACKAGE-ROUTE-INTEGRITY | Require every dashboard shell documentation link to resolve
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -17,6 +26,7 @@
 
 import json
 import os
+import re
 import tempfile
 import sys
 import threading
@@ -145,6 +155,12 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn(b"Riverview", body)
         self.assertIn(b"/docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md", body)
+        doc_names = set(re.findall(rb'href="/docs/components/([A-Za-z0-9_-]+\.md)"', body))
+        self.assertGreater(len(doc_names), 1)
+        for name in sorted(doc_names):
+            doc_status, _, _ = self.request(
+                "GET", "/docs/components/" + name.decode("ascii"))
+            self.assertEqual(doc_status, 200, name.decode("ascii"))
         header_map = dict(headers)
         self.assertEqual(header_map["Cache-Control"], "no-store")
         self.assertIn("default-src 'none'", header_map["Content-Security-Policy"])
@@ -186,6 +202,22 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertIn(b"<pre><code", body)
         self.assertNotIn(b"Riverview~ Controlled Document", body)
         self.assertNotIn(b"<!--", body)
+        status, _, operations = self.request("GET", "/docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        self.assertIn(b"Observed PostgreSQL backup path permission failure", operations)
+        self.assertIn(b"Permission denied", operations)
+        self.assertIn(b"sudo -n -u postgres test -x", operations)
+        self.assertIn(b"378a1a4cba4605a673d8cf22b8bfcbb4277bce272158cae6e79c7d6ecfd0720b", operations)
+        self.assertIn(b"<pre><code", operations)
+        self.assertNotIn(b"Riverview~ Controlled Document", operations)
+        self.assertNotIn(b"<!--", operations)
+        status, headers, body = self.request(
+            "GET", "/docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        for evidence in (b"dependency of the later worker and monitoring migration chain",
+                         b"ce29c2994904f54706db883f61127bf05ee195ecbdce90e7242886e86711b717",
+                         b"no standalone M1.4 scheduler service"):
+            self.assertIn(evidence, body)
         status, headers, body = self.request("GET", "/docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md")
         self.assertEqual(status, 200)
         self.assertIn("text/html", dict(headers)["Content-Type"])
@@ -198,6 +230,58 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertIn(b"<pre><code", body)
         self.assertNotIn(b"Riverview~ Controlled Document", body)
         self.assertNotIn(b"<!--", body)
+        status, headers, body = self.request(
+            "GET", "/docs/components/POSTGRES_LEDGER_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", dict(headers)["Content-Type"])
+        for heading in (b"Connection and schema inspection", b"Run tests safely",
+                        b"Recovery discipline"):
+            self.assertIn(heading, body)
+        self.assertIn(b"sudo -n -u postgres psql", body)
+        self.assertIn(b"RIVERVIEW_TEST_PG_DSN", body)
+        self.assertNotIn(b"PGPASSWORD=", body)
+        self.assertNotIn(b"postgresql://", body)
+        self.assertIn(b"BEGIN READ ONLY", body)
+        self.assertNotIn(b"<!--", body)
+        status, headers, body = self.request(
+            "GET", "/docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", dict(headers)["Content-Type"])
+        for heading in (b"Read-only claim and lease inspection",
+                        b"Isolated failure and recovery verification",
+                        b"StaleLeaseError"):
+            self.assertIn(heading, body)
+        self.assertIn(b"<table>", body)
+        self.assertIn(b"<pre><code", body)
+        self.assertNotIn(b"<!--", body)
+        status, headers, body = self.request(
+            "GET", "/docs/components/WORKER_ADAPTER_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", dict(headers)["Content-Type"])
+        for heading in (b"Worker registration and persisted execution diagnosis",
+                        b"Independent outcome verification",
+                        b"Failure and restart recovery"):
+            self.assertIn(heading, body)
+        self.assertIn(b"credential digests", body)
+        self.assertIn(b"<table>", body)
+        self.assertIn(b"<pre><code", body)
+        self.assertNotIn(b"<!--", body)
+        status, headers, body = self.request(
+            "GET", "/docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", dict(headers)["Content-Type"])
+        self.assertIn(b'id="versioned-privilege-boundary-provisioner-isolated-controlled-use"', body)
+        self.assertIn(b"DROP ... CASCADE", body)
+        self.assertIn(b"NOLOGIN", body)
+        self.assertIn(b"protected full backup", body)
+        self.assertIn(b"<table>", body)
+        self.assertIn(b"<pre><code", body)
+        self.assertNotIn(b"<!--", body)
+        status, headers, body = self.request(
+            "GET", "/docs/components/INSTITUTIONAL_AUTHORITY.md")
+        self.assertEqual(status, 200)
+        self.assertIn(b'INSTITUTIONAL_AUTHORITY_COOKBOOK.md', body)
+        self.assertIn(b"<h1", body)
         status, _, body = self.request("GET", "/docs/components/../../README.md")
         self.assertEqual(status, 404)
         self.assertNotIn(b"README", body)

@@ -1,0 +1,22 @@
+{
+  "active_release_at_attempt": "7a9ff46e11edc54b1ffe46f63962754e6d2da765",
+  "count": 3,
+  "missing_repository_knowledge_documents": [
+    {
+      "path": "docs/components/REPOSITORY_KNOWLEDGE_COOKBOOK.md",
+      "revision": "1.0.0",
+      "sha256": "c9d65414be01a29e4b6a13d5217ecc8eae9385ee2484f11960a6971178c34652"
+    },
+    {
+      "path": "docs/components/REPOSITORY_KNOWLEDGE_FLOW.md",
+      "revision": null,
+      "sha256": "55db7e88ddba1bf7cdbb9bd3c51bd929299d8f509ba25ad3ea2c51a7742e427e"
+    },
+    {
+      "path": "docs/components/REPOSITORY_KNOWLEDGE_PROVIDER.md",
+      "revision": null,
+      "sha256": "3bcbd125fccc40c3e244eac351d0c980eb007a6531c3a0baf25ff3ceda0783d3"
+    }
+  ],
+  "source_commit": "6403e45d3489c1b3108b447eb1ebc0f1786bec0f"
+}
