@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/bootstrap_account_steward.py
 # Component: WEBSITE-ACCOUNT-AUTH
-# Revision: 1.2.0
+# Revision: 1.3.0
 # Purpose: Explicitly authorize and email-verify the first account linked to steward:camrui
 # Execution Model: Interactive one-time commissioning command on local console or allocated SSH TTY
 # Observability: Sanitized account audit rows; fixed status output
@@ -14,6 +14,7 @@
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Align local bootstrap authority boundary with account audit changes
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Use encrypted configurable email provider and password setup link
 # Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-COMMISSION | Permit root interactive SSH TTY and fail closed on getpass echo fallback
+# Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-BOOTSTRAP-PRIVILEGE-FIX | Check the fixed Steward principal through local PostgreSQL peer admin
 # Contracts: docs/components/ACCOUNT_AUTHENTICATION.md
 # Tests: tests/test_account_auth.py
 # History: Git and revision/backup manifest
@@ -26,6 +27,7 @@ import getpass
 import os
 import sys
 import re
+import subprocess
 import warnings
 from pathlib import Path
 
@@ -38,6 +40,10 @@ from riverview_core.email_delivery import ConfiguredEmailTransport
 
 DSN = "host=127.0.0.1 port=5432 dbname=riverview user=riverview_core application_name=riverview-account-bootstrap"
 PRINCIPAL_ID = "steward:camrui"
+PRINCIPAL_ACTIVE_QUERY = (
+    "SELECT status FROM riverview_authority.institutional_principals "
+    "WHERE principal_id='steward:camrui' AND principal_kind='steward'"
+)
 
 
 def _interactive_root_tty():
@@ -57,6 +63,26 @@ def _hidden_input(prompt):
     with warnings.catch_warnings():
         warnings.simplefilter("error", getpass.GetPassWarning)
         return getpass.getpass(prompt)
+
+
+def _active_steward_principal():
+    """Check only the fixed bootstrap principal via local PostgreSQL peer auth.
+
+    The riverview_core role intentionally cannot read authority registry tables.
+    Keep account writes on that least-privilege role; use the local postgres OS
+    identity solely for this bounded, read-only preflight.
+    """
+    try:
+        result = subprocess.run(
+            ["/usr/sbin/runuser", "--user", "postgres", "--",
+             "/usr/bin/psql", "-X", "-A", "-t", "-v", "ON_ERROR_STOP=1",
+             "-d", "riverview", "-c", PRINCIPAL_ACTIVE_QUERY],
+            check=True, capture_output=True, text=True, timeout=5,
+            env={"PATH": "/usr/bin:/bin", "HOME": "/var/lib/postgresql",
+                 "LANG": "C", "LC_ALL": "C"})
+    except (OSError, subprocess.SubprocessError):
+        raise RuntimeError("bootstrap_authority_check_unavailable") from None
+    return result.stdout.strip() == "active"
 
 
 def _email_transport(connection_factory):
@@ -91,13 +117,10 @@ def main():
     import psycopg
 
     try:
+        if not _active_steward_principal():
+            print("The existing Steward principal is not active; bootstrap stopped.", file=sys.stderr)
+            return 3
         with psycopg.connect(DSN, connect_timeout=3) as conn, conn.cursor() as cur:
-            cur.execute("SELECT status FROM riverview_authority.institutional_principals "
-                        "WHERE principal_id=%s AND principal_kind='steward'", (PRINCIPAL_ID,))
-            row = cur.fetchone()
-            if not row or row[0] != "active":
-                print("The existing Steward principal is not active; bootstrap stopped.", file=sys.stderr)
-                return 3
             cur.execute("SELECT 1 FROM riverview_accounts.schema_migrations "
                         "WHERE version='0002_password_grants_and_email_provider'")
             if not cur.fetchone():

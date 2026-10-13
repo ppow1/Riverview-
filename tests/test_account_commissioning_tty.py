@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_account_commissioning_tty.py
 # Component: WEBSITE-ACCOUNT-AUTH
-# Revision: 1.2.0
+# Revision: 1.3.0
 # Purpose: Verify secure local and SSH TTY gates for account commissioning
 # Execution Model: Mocked unit tests; no database, filesystem credentials, or network access
 # Observability: unittest assertions and exit status
@@ -11,6 +11,7 @@
 # Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-COMMISSION | Cover TTY acceptance, denial and hidden-input fallback
 # Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SMTP-PREFILL | Verify only confirmation and hidden password are prompted
 # Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SMTP-PREFILL-TEST-FIX | Match the exact visible confirmation prompt
+# Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-BOOTSTRAP-PRIVILEGE-FIX | Verify least-privilege peer preflight and bootstrap dispatch
 # Contracts: docs/components/ACCOUNT_AUTHENTICATION.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -66,6 +67,50 @@ class CommissioningTTYTests(TestCase):
 
     def test_steward_bootstrap_accepts_root_ssh_tty(self):
         self.assert_ssh_tty_accepted(bootstrap, bootstrap._interactive_root_tty)
+
+    def test_bootstrap_principal_check_uses_fixed_local_peer_query(self):
+        result = MagicMock(returncode=0, stdout="active\n")
+        with patch.object(bootstrap.subprocess, "run", return_value=result) as run:
+            self.assertTrue(bootstrap._active_steward_principal())
+        args, kwargs = run.call_args
+        self.assertEqual(args[0][:4], ["/usr/sbin/runuser", "--user", "postgres", "--"])
+        self.assertIn("riverview_authority.institutional_principals", args[0][-1])
+        self.assertIn("principal_id='steward:camrui'", args[0][-1])
+        self.assertTrue(kwargs["check"])
+        self.assertTrue(kwargs["capture_output"])
+        self.assertEqual(kwargs["timeout"], 5)
+
+    def test_bootstrap_peer_preflight_failure_is_sanitized(self):
+        with patch.object(bootstrap.subprocess, "run", side_effect=OSError("sensitive detail")), \
+             self.assertRaisesRegex(RuntimeError, "bootstrap_authority_check_unavailable") as error:
+            bootstrap._active_steward_principal()
+        self.assertNotIn("sensitive detail", str(error.exception))
+
+    def test_bootstrap_uses_peer_preflight_then_runtime_role_for_account_flow(self):
+        connection = MagicMock()
+        cursor = MagicMock()
+        connection.__enter__.return_value = connection
+        connection.cursor.return_value.__enter__.return_value = cursor
+        cursor.fetchone.return_value = ("0002_password_grants_and_email_provider",)
+        service = MagicMock()
+        output = io.StringIO()
+        with patch.object(bootstrap, "_interactive_root_tty", return_value=True), \
+             patch.object(bootstrap, "_hidden_input", return_value="w@wjs1.com"), \
+             patch("builtins.input", return_value="BOOTSTRAP steward:camrui"), \
+             patch.object(bootstrap, "_active_steward_principal", return_value=True) as principal_check, \
+             patch.object(bootstrap, "_email_transport", return_value=object()), \
+             patch.object(bootstrap, "AccountAuthService", return_value=service), \
+             patch("psycopg.connect", return_value=connection) as connect, \
+             redirect_stdout(output):
+            result = bootstrap.main()
+
+        self.assertEqual(result, 0)
+        principal_check.assert_called_once_with()
+        connect.assert_called_once_with(bootstrap.DSN, connect_timeout=3)
+        service.request_steward_bootstrap.assert_called_once_with(
+            "w@wjs1.com", local_authorized=True,
+            authority_principal_id="steward:camrui")
+        self.assertNotIn("sensitive", output.getvalue())
 
     def test_both_reject_missing_tty(self):
         for module, check in ((configure, configure._local_console),
