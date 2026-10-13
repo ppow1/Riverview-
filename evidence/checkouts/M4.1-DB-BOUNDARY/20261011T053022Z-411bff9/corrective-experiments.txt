@@ -1,0 +1,8 @@
+Sanitized failed iterations and correction record (all on disposable PostgreSQL/test fixtures):
+1. Post-apply privilege query failed with IndeterminateDatatype because an unknown bind parameter was passed to PostgreSQL's variadic format(); replaced formatted names with catalog relation OIDs and explicit role casts.
+2. Psycopg rejected a literal percent in a parameterized LIKE predicate; changed the check to parameterize the known relation-name list.
+3. A first runtime-schema-owner DROP test returned a dependency error for DROP TABLE without CASCADE. The fixture was isolated; final test reproduced successful DROP TABLE ... CASCADE when runtime owned that disposable schema. Production preflight now rejects runtime/manager schema ownership and membership in schema owner.
+4. Fixture transitions exposed loss of its test-only USAGE grant and a dict-row assertion indexing mistake; corrected and reran.
+5. An assertion initially ran after the intentional fixture-only CASCADE deletion; moved owner-count verification before that deletion.
+6. One rerun found the disposable cluster already stopped; restarted the same temporary cluster and the focused and full tests passed.
+No passwords, DSNs containing passwords, private conversation data, or shared database output are retained here.

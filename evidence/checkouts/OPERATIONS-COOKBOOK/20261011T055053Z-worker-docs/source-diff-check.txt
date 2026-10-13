@@ -1,0 +1,1 @@
+git diff --check -- docs/components/WORKER_ADAPTER_COOKBOOK.md docs/development/OPERATIONS-COOKBOOK-001_REVISION_RECORD.md docs/development/JOURNAL.md tests/test_status_dashboard.py .riverview-backups/manifest.jsonl: exit 0

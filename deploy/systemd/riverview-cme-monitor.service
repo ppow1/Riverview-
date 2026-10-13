@@ -1,0 +1,53 @@
+# RIVERVIEW~ CONTROLLED CONFIGURATION
+# File: deploy/systemd/riverview-cme-monitor.service
+# Component: CME
+# Revision: 1.0.0
+# Purpose: Supervise the PostgreSQL-backed CME monitor independently of dashboard and intake
+# Execution Model: Continuous monitor with bounded retry and restart recovery
+# Observability: systemd journal plus durable CME health/attention records
+# Dependencies: PostgreSQL 16; root-owned release; protected systemd pgpass credential
+# Authority: Reads assignment state; writes CME-owned health/attention only
+# Changed: 2026-10-10 UTC | RV-M2.4-002 | Add isolated systemd monitor service
+# Contracts: docs/components/CME_MONITOR.md; docs/components/CME_MONITOR_COOKBOOK.md
+# Tests: tests/test_cme_monitor_service.py
+# History: New file; Git and .riverview-backups/manifest.jsonl
+[Unit]
+Description=Riverview CME assignment progress monitor
+After=postgresql.service
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=riverview
+Group=riverview
+WorkingDirectory=/opt/riverview-cme-monitor/current
+Environment=PYTHONPATH=/opt/riverview-cme-monitor/current/src:/opt/riverview-cme-monitor/current/scripts
+Environment="RIVERVIEW_DATABASE_DSN=host=127.0.0.1 port=5432 dbname=riverview user=riverview_core application_name=riverview-cme-monitor"
+Environment=RIVERVIEW_CME_SCHEMA=riverview_dev
+Environment=RIVERVIEW_CME_STALL_AFTER_SECONDS=300
+Environment=RIVERVIEW_CME_WORKER_FRESHNESS_SECONDS=30
+Environment=RIVERVIEW_CME_POLL_INTERVAL_SECONDS=5
+Environment=RIVERVIEW_CME_MAX_BACKOFF_SECONDS=30
+RuntimeDirectory=riverview-cme-monitor
+RuntimeDirectoryMode=0700
+LoadCredential=pgpass:/etc/riverview/pgpass
+ExecStart=/usr/bin/python3 /opt/riverview-cme-monitor/current/scripts/run_cme_monitor.py
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET
+TimeoutStartSec=20
+
+[Install]
+WantedBy=multi-user.target

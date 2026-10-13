@@ -1,0 +1,46 @@
+{
+  "artifacts": {
+    "cluster-status-before-stop.txt": {
+      "path": "cluster-status-before-stop.txt",
+      "revision": "1.0.0",
+      "sha256": "313e37f98301559770dd22b625a8987360c61cbf76a9055ed94b3b1c340cadd5",
+      "size_bytes": 185
+    },
+    "migrations.txt": {
+      "path": "migrations.txt",
+      "revision": "1.0.0",
+      "sha256": "64ad991c7e334f2d6d9a2edeb00a9cb028363f1b1ebadbf0d6f78c94582ab13f",
+      "size_bytes": 51
+    },
+    "postgres-initdb.log": {
+      "path": "postgres-initdb.log",
+      "revision": "1.0.0",
+      "sha256": "d6d67cf5eb677b9ca0e0f9ecfafb4514e1b3ac084a6254578bb01cdc3813ad8a",
+      "size_bytes": 882
+    },
+    "postgres-server.log": {
+      "path": "postgres-server.log",
+      "revision": "1.0.0",
+      "sha256": "f439e999725e838879aa227c3f7fcbf65e39a316e62bbf3dea9c06fe0a90d1d4",
+      "size_bytes": 1784
+    },
+    "role-access-results.json": {
+      "path": "role-access-results.json",
+      "revision": "1.0.0",
+      "sha256": "6c9d084ec60ea03bf6708a4ddbb708a0a5f0230d5881bb1e257e5e9dedcf0aa5",
+      "size_bytes": 145
+    },
+    "role-boundary-summary.json": {
+      "path": "role-boundary-summary.json",
+      "revision": "1.0.0",
+      "sha256": "787fe3374fe4da5d1c014282a439448343f98ac492789da8374666758f3a6699",
+      "size_bytes": 1749
+    }
+  },
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "decision": "PASS limited role-boundary feasibility test; deployment NOT VERIFIED",
+  "manifest_revision": "1.0.0",
+  "source_commit": "d281463be36d203c2727c0e4c8e16df7b2e2990b",
+  "target": "Camrui disposable PostgreSQL 16.15 Unix-socket cluster",
+  "task_id": "RV-M4.1-001"
+}

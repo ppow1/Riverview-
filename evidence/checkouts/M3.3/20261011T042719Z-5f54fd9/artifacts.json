@@ -1,0 +1,28 @@
+{
+  "artifacts": {
+    "preflight-summary.json": {
+      "path": "preflight-summary.json",
+      "revision": "1.0.0",
+      "sha256": "53b35ba65e7096f75d0856cacd1c481f673becb3bc1e3a9fdaae732051f6ed27",
+      "size_bytes": 1613
+    },
+    "services-readonly.txt": {
+      "path": "services-readonly.txt",
+      "revision": "1.0.0",
+      "sha256": "ca574237017b81d99f5a59619ac3b77095a2e7fa26660f7e31b17fa5a9cf63de",
+      "size_bytes": 348
+    },
+    "shared-state-readonly.txt": {
+      "path": "shared-state-readonly.txt",
+      "revision": "1.0.0",
+      "sha256": "baa540e1ef4b4f738b39ee511eab2849c8347f676e471e59f8d092cc75c94af4",
+      "size_bytes": 516
+    }
+  },
+  "component_id": "CME-FIRST-VERTICAL-SLICE",
+  "decision": "BLOCKED live preflight; no shared state mutation",
+  "manifest_revision": "1.0.0",
+  "source_commit": "5f54fd9abaf7cc27f514e41461ee188c0d57ea91",
+  "target": "Camrui Ubuntu 24.04; shared riverview_dev inspected read-only",
+  "task_id": "RV-M3.3-001"
+}

@@ -1,0 +1,15 @@
+2026-10-11 00:32:47.754 EDT [235342] LOG:  starting PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit
+2026-10-11 00:32:47.762 EDT [235342] LOG:  listening on Unix socket "/tmp/rv-m41-roleproof.xUJ7YJMP/socket/.s.PGSQL.55462"
+2026-10-11 00:32:47.792 EDT [235345] LOG:  database system was shut down at 2026-10-11 00:32:45 EDT
+2026-10-11 00:32:47.810 EDT [235342] LOG:  database system is ready to accept connections
+2026-10-11 00:32:49.824 EDT [235368] ERROR:  permission denied for table institutional_principals
+2026-10-11 00:32:49.824 EDT [235368] STATEMENT:  SELECT count(*) FROM m41proof.institutional_principals
+2026-10-11 00:32:49.827 EDT [235368] ERROR:  permission denied for table institutional_authority_events
+2026-10-11 00:32:49.827 EDT [235368] STATEMENT:  INSERT INTO m41proof.institutional_authority_events(event_id,event_type,actor_id) VALUES(gen_random_uuid(),'steward_bootstrapped','nobody')
+2026-10-11 00:32:50.009 EDT [235342] LOG:  received fast shutdown request
+2026-10-11 00:32:50.017 EDT [235342] LOG:  aborting any active transactions
+2026-10-11 00:32:50.022 EDT [235342] LOG:  background worker "logical replication launcher" (PID 235348) exited with exit code 1
+2026-10-11 00:32:50.025 EDT [235343] LOG:  shutting down
+2026-10-11 00:32:50.032 EDT [235343] LOG:  checkpoint starting: shutdown immediate
+2026-10-11 00:32:50.411 EDT [235343] LOG:  checkpoint complete: wrote 141 buffers (0.9%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.032 s, sync=0.311 s, total=0.387 s; sync files=126, longest=0.008 s, average=0.003 s; distance=630 kB, estimate=630 kB; lsn=0/1591678, redo lsn=0/1591678
+2026-10-11 00:32:50.427 EDT [235342] LOG:  database system is shut down

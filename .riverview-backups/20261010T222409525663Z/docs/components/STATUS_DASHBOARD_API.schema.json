@@ -1,0 +1,383 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://riverview.invalid/contracts/dashboard/status-v1.schema.json",
+  "title": "Riverview Status Dashboard API v1",
+  "description": "Authenticated read-only status projection; unavailable states are explicit.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/status"
+    },
+    {
+      "$ref": "#/$defs/page"
+    },
+    {
+      "$ref": "#/$defs/workerPage"
+    },
+    {
+      "$ref": "#/$defs/snapshot"
+    }
+  ],
+  "$defs": {
+    "timestamp": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "status": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "component_id",
+        "component_version",
+        "observed_at",
+        "projection_status",
+        "freshness",
+        "source",
+        "cme",
+        "workers"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "rv.dashboard.status.v1"
+        },
+        "component_id": {
+          "const": "STEWARD-DASHBOARD"
+        },
+        "component_version": {
+          "type": "string"
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "projection_status": {
+          "enum": [
+            "healthy",
+            "not_initialized",
+            "unavailable",
+            "degraded"
+          ]
+        },
+        "freshness": {
+          "enum": [
+            "current",
+            "stale",
+            "unknown",
+            "unavailable"
+          ]
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "kind",
+            "schema",
+            "source_commit",
+            "deployment_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "postgresql"
+            },
+            "database": {
+              "type": "string"
+            },
+            "schema": {
+              "type": "string"
+            },
+            "source_commit": {
+              "type": "string"
+            },
+            "deployment_id": {
+              "type": "string"
+            },
+            "latest_migration": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": true
+        },
+        "event_cursor": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "assignment_counts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "assignments_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cme": {
+          "type": "object"
+        },
+        "workers": {
+          "$ref": "#/$defs/workers"
+        },
+        "verification": {
+          "type": "object"
+        },
+        "relations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        },
+        "diagnostics": {
+          "type": "object"
+        },
+        "unavailable_reason": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "page": {
+      "type": "object",
+      "required": [
+        "status",
+        "items"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "available",
+            "not_initialized"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "integer",
+            "null"
+          ]
+        },
+        "older_cursor": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "newer_cursor": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "page_limit": {
+          "type": "integer",
+          "maximum": 100
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "snapshot": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "captured_at",
+        "observed_state",
+        "source",
+        "projection",
+        "redaction"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "rv.dashboard.snapshot.v1"
+        },
+        "captured_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "observed_state": {
+          "type": "boolean"
+        },
+        "source": {
+          "type": "object"
+        },
+        "projection": {
+          "$ref": "#/$defs/status"
+        },
+        "assignments": {
+          "$ref": "#/$defs/page"
+        },
+        "events": {
+          "$ref": "#/$defs/page"
+        },
+        "attention": {
+          "type": "object"
+        },
+        "references": {
+          "type": "object"
+        },
+        "redaction": {
+          "type": "object"
+        },
+        "client_state": {
+          "type": "object"
+        },
+        "workers": {
+          "$ref": "#/$defs/workerPage"
+        }
+      },
+      "additionalProperties": true
+    },
+    "workers": {
+      "type": "object",
+      "required": [
+        "status",
+        "active_workers",
+        "healthy_workers",
+        "stale_workers",
+        "unknown_workers",
+        "unverified_workers",
+        "active_leases",
+        "source"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "healthy",
+            "stale",
+            "unknown",
+            "unverified",
+            "not_initialized",
+            "unavailable"
+          ]
+        },
+        "active_workers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "healthy_workers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stale_workers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unknown_workers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unverified_workers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "active_leases": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source": {
+          "const": "assignment_leases"
+        },
+        "health_semantics": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "workerPage": {
+      "type": "object",
+      "required": [
+        "status",
+        "items"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "available",
+            "not_initialized"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "required": [
+              "worker_id",
+              "active",
+              "status",
+              "last_heartbeat_at",
+              "heartbeat_age_seconds",
+              "active_leases",
+              "source"
+            ],
+            "properties": {
+              "worker_id": {
+                "type": "string"
+              },
+              "active": {
+                "type": "boolean"
+              },
+              "status": {
+                "enum": [
+                  "healthy",
+                  "stale",
+                  "unknown",
+                  "unverified",
+                  "inactive"
+                ]
+              },
+              "last_heartbeat_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "heartbeat_age_seconds": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "active_leases": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "source": {
+                "const": "assignment_leases"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "page_limit": {
+          "type": "integer",
+          "maximum": 100
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

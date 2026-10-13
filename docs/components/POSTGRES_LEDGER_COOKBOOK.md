@@ -1,17 +1,25 @@
 <!--
 Riverview~ Controlled Document
 File: docs/components/POSTGRES_LEDGER_COOKBOOK.md
-Revision: 1.0.2
+Component: POSTGRES-LEDGER
+Revision: 1.0.3
+Purpose: Diagnose PostgreSQL ledger safely without exposing database credentials
+Authority: Read-only diagnostics; migrations and recovery follow reviewed procedures
+Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-PG-SECRET-SAFETY | Replace password-bearing shell examples with protected authentication guidance
 Migration: ENG-REV-002
+History: Git and revision backup manifest
 -->
 # PostgreSQL ledger — operational and troubleshooting cookbook
 
-**Scope:** Camrui developer backend. Never drop the `public` schema or delete the live `riverview` database to fix a test.
+**Scope:** Camrui developer backend; shared application data is in database `riverview`, schema `riverview_dev`. Never drop `public`, `riverview_dev`, or database `riverview` to fix a test.
 
 ## Versioned migrations
 Migrations are explicit and target only the selected schema. The ledger
 constructor no longer creates tables. For local isolated tests, configure
-`RIVERVIEW_TEST_PG_DSN` to a disposable test database and run:
+`RIVERVIEW_TEST_PG_DSN` to a disposable database using a password-free local
+socket connection (or the protected test credential facility supplied by the
+harness). Do not put passwords in a DSN, command, shell history, process
+arguments, or report. Then run:
 
 ```bash
 PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_postgres_ledger.py' -v
@@ -48,20 +56,45 @@ ss -lnt | grep 5432
 Expected: PostgreSQL active, cluster 16/main online, port 5432 listening. These commands do not require the database password.
 
 ## Connection and schema inspection
+
+On Camrui, use local PostgreSQL peer authentication for read-only catalog
+diagnosis. This reports the PostgreSQL OS peer identity (`postgres`), not the
+Riverview runtime identity, and requires no database password:
+
 ```bash
-PGPASSWORD='<database password>' psql -h 127.0.0.1 -U riverview_core -d riverview -Atqc 'SELECT current_user,current_database();'
-PGPASSWORD='<database password>' psql -h 127.0.0.1 -U riverview_core -d riverview -c '\dt'
+sudo -n -u postgres psql -X --set=ON_ERROR_STOP=1 -d riverview -c 'BEGIN READ ONLY; SELECT current_user,current_database(),version(); SELECT nspname,pg_get_userbyid(nspowner) AS schema_owner FROM pg_namespace WHERE nspname IN ($q$riverview_dev$q$,$q$public$q$); SELECT to_regclass($q$riverview_dev.schema_migrations$q$) AS migration_ledger; COMMIT;'
 ```
-The first result should be `riverview_core|riverview`. The second lists tables if they have been initialized in `public`. For normal tests, only temporary `rvtest_...` schemas are created and removed.
+
+Expected database is `riverview`; the application schema is `riverview_dev`.
+Only if the migration ledger resolves, inspect its recorded checksums:
+
+```bash
+sudo -n -u postgres psql -X --set=ON_ERROR_STOP=1 -d riverview -c 'BEGIN READ ONLY; SELECT version,checksum,applied_at FROM riverview_dev.schema_migrations ORDER BY applied_at,version; COMMIT;'
+```
+
+The currently observed schema owner is `riverview_core`; re-read it rather
+than assuming ownership has not changed. This administrative peer query does
+not prove that the service's runtime credential works. Verify runtime identity
+and `LoadCredential` through the relevant unit and its sanitized service checks;
+never print, copy, or place `/etc/riverview/pgpass` in a command. If peer auth
+or `sudo -n` is unavailable, use the authorized operations path; do not fall
+back to inline `PGPASSWORD`, a password-bearing DSN, or relaxing `pg_hba.conf`.
 
 ## Run tests safely
 ```bash
-cd /home/admin1/riverview-core
+cd /home/admin1/projects/Riverview-New-Core
 export PYTHONPATH=src
-export RIVERVIEW_TEST_PG_DSN='postgresql://riverview_core:<database password>@127.0.0.1:5432/riverview'
+export RIVERVIEW_TEST_PG_DSN='host=/tmp/<owned-test-socket> port=<test-port> dbname=<disposable-db> user=<test-user>'
 python3 -m unittest discover -s tests -v
 ```
-Expected: all PostgreSQL tests execute (no DSN-related skip) and report `OK`, exit code 0. Test schemas are uniquely named and dropped in teardown; if interrupted, inspect `SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'rvtest_%';` before removing any orphaned schema. Never automate a wildcard DROP.
+Use only a local isolated cluster whose socket, port, database and user were
+created for this test run; the example contains no password. For an external
+test server, use a protected passfile or CI secret facility without putting a
+password in the DSN or printing it. Expected: all PostgreSQL tests execute (no
+DSN-related skip) and report `OK`, exit code 0. Test schemas are uniquely named
+and dropped in teardown; if interrupted, list `rvtest_*` schemas, establish
+the exact test-run owner, and remove only its exact disposable schema. Never
+automate a wildcard `DROP`.
 
 ## Symptom -> action
 | Symptom | Check | Recovery |

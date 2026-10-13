@@ -1,0 +1,41 @@
+{
+  "candidate_archive_sha256": "ed63d9eb4ac05a4a236c82b40d7fd89078e3bfb6e58c022f02593256f0bb44fe",
+  "candidate_browser_observation": {
+    "all_checked_links_http_200": true,
+    "attention_http": 200,
+    "browser_errors": [],
+    "cme": "healthy",
+    "code_blocks": 16,
+    "completed_assignment": "m31-real-worker-2533f1c7dd1c433c95bd2cfa8a314d7c",
+    "firefox": "156.0.1",
+    "independent_verifications": 1,
+    "links_checked": 19,
+    "operations_guide_headings": 16,
+    "projection": "healthy",
+    "tables": 2
+  },
+  "candidate_release": "/opt/riverview-status-dashboard/releases/6403e45d3489c1b3108b447eb1ebc0f1786bec0f",
+  "candidate_runtime_diff_from_previous": [
+    "src/riverview_core/status_dashboard/static/index.html"
+  ],
+  "candidate_source_commit": "6403e45d3489c1b3108b447eb1ebc0f1786bec0f",
+  "disposition": "ROLLED_BACK; preserve failed candidate release and package evidence; do not redeploy until package/source includes all required M3.3 documents and synchronizes with its canonical graph.",
+  "evidence_revision": "1.0.0",
+  "failure": "source package omitted three repository-knowledge documents present in the active 7a9ff46 release; candidate shell linked to REPOSITORY_KNOWLEDGE_COOKBOOK.md and direct fetch returned HTTP 404",
+  "rollback": {
+    "dashboard_active": true,
+    "dashboard_restarted": true,
+    "loopback_http": 200,
+    "other_services_remained_active": [
+      "postgresql",
+      "riverview-event-processor.service",
+      "riverview-cme-monitor.service",
+      "riverview-notification-dispatcher.service",
+      "ssh.service"
+    ],
+    "previous_release": "/opt/riverview-status-dashboard/releases/7a9ff46e11edc54b1ffe46f63962754e6d2da765",
+    "symlink_restored": true,
+    "unit_checksum_unchanged": "6fb11ab264ccbba74d0213f4e3e8d00eba8ca847fde046757d7906cc18cf88a0"
+  },
+  "task_id": "RV-OPS-COOKBOOK-DASHBOARD-DOC-RELEASE"
+}

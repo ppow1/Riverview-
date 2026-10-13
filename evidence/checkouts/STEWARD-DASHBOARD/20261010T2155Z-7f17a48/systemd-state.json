@@ -1,0 +1,14 @@
+{
+  "dashboard": [
+    "MainPID=128804",
+    "ExecMainStatus=0",
+    "ActiveState=active",
+    "SubState=running",
+    "FragmentPath=/etc/systemd/system/riverview-status-dashboard.service",
+    "UnitFileState=enabled"
+  ],
+  "event_processor": "active",
+  "private_pgpass_metadata": "riverview:riverview 600 /run/riverview-status-dashboard/pgpass",
+  "active_release": "/opt/riverview-status-dashboard/current",
+  "bound_listener": "127.0.0.1:8766"
+}

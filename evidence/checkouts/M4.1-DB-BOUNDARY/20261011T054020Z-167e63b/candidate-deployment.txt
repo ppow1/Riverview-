@@ -1,0 +1,5 @@
+Candidate source archive: /tmp/riverview-m4.1-boundary-167e63b.tar.gz
+Source commit: 167e63b9969a5cdbb1e4d3abee33e3e503bba11f
+Archive SHA-256: 04abf2a8a6ce4efcc3c741548df76fac77ea7b7b0833b439fe9580d9458f5d52
+Archive manifest: PASS; shell compatibility: PASS; path traversal scan: PASS.
+Deployment: WITHHELD. The candidate includes the source branch's static/index.html revision 1.0.5; the current root-owned dashboard release 7a9ff46 has revision 1.0.6 and additional REPOSITORY_KNOWLEDGE_COOKBOOK.md links. Installing would regress the live dashboard shell. Dashboard server.py and scripts/run_status_dashboard.py checksums match the active release. The existing release/symlink/service remained unchanged; dashboard root returned HTTP 200.

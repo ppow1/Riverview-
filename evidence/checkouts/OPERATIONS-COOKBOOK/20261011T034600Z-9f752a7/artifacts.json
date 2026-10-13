@@ -1,0 +1,61 @@
+{
+  "artifacts": {
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "99dd62a184abfc0f6cc5044f048ec524e8d1ce817de1c513ca8faccaea0bf614",
+      "size_bytes": 3522
+    },
+    "commissioning.md": {
+      "path": "commissioning.md",
+      "revision": "1.0.0",
+      "sha256": "a80e000954604bbcc10ca5dee0dd61e6e3d0556c27212994236da0c52f67a7a7",
+      "size_bytes": 3752
+    },
+    "cookbook-view.png": {
+      "path": "cookbook-view.png",
+      "revision": "1.0.0",
+      "sha256": "ca033765521caf288d1582f0e00508ae8354c2c10220776ccdfec50d1eb9024a",
+      "size_bytes": 176770
+    },
+    "deployment-check.json": {
+      "path": "deployment-check.json",
+      "revision": "1.0.0",
+      "sha256": "74d8e8afd0d0bdda7be3b5cb954cf3687916bffb3a7149ae5718b38b9e4c3b7b",
+      "size_bytes": 912
+    },
+    "failed-attempts.md": {
+      "path": "failed-attempts.md",
+      "revision": "1.0.0",
+      "sha256": "9e5811c14d53a5a6c97fa8448c0bb913d3b2d6e2e7f6f2c06e0928b843eed1bc",
+      "size_bytes": 2218
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "05925f2fa4f4849fdda7b893408c1e8207e9be03398d40bb4559c1d148621a20",
+      "size_bytes": 19351
+    },
+    "live-schema-readonly.txt": {
+      "path": "live-schema-readonly.txt",
+      "revision": "1.0.0",
+      "sha256": "b755a6021dee1f24dc52b1e66bfadb47dc197136c5d9e32f6af3ba7d9416162a",
+      "size_bytes": 2218
+    },
+    "postgres-test-cleanup.txt": {
+      "path": "postgres-test-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "97a74a24f42978f5fcccb8d06f1c72bc7831c20ef075e2a864f7e1a172af9932",
+      "size_bytes": 709
+    },
+    "workflow-view.png": {
+      "path": "workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "a15260bfad5d23d5de104810ad83998120f09b0a2c30a9be72bd08120d4465ef",
+      "size_bytes": 228915
+    }
+  },
+  "evidence_bundle": "RV-OPS-COOKBOOK-001",
+  "manifest_revision": "1.0.0",
+  "source_commit": "9f752a7a380f58f4032a1c1b5cc097790cd989bc"
+}

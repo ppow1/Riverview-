@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:cme:progress-and-recovery",
-  "graph_revision": "1.0.2",
+  "graph_revision": "1.0.4",
   "component_id": "CME",
   "workflow_id": "progress-and-recovery.v1",
   "diagram_order": 8,
@@ -9,7 +9,9 @@
     "src/riverview_core/cme/migrations/0005_cme_monitoring.sql",
     "tests/test_cme_monitor.py",
     "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md",
-    "docs/architecture/CORE_CONTRACT.md"
+    "docs/architecture/CORE_CONTRACT.md",
+    "scripts/run_cme_monitor.py",
+    "deploy/systemd/riverview-cme-monitor.service"
   ],
   "documentation_references": [
     "docs/components/CME_MONITOR.md",
@@ -22,12 +24,16 @@
   "verification_evidence": [
     "evidence/checkouts/CME/20261010T194722Z-a44091b/checkout.md",
     "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
-    "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
+    "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-state.json",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/service-recovery.json",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/full-test-suite.log"
   ],
   "nodes": [
     {
       "id": "rv:cme:progress-and-recovery:monitor-start",
-      "node_revision": "1.0.1",
+      "node_revision": "1.0.2",
       "type": "entry",
       "label": "Acquire the CME PostgreSQL advisory lease and begin repeated scans",
       "source_references": [
@@ -262,6 +268,61 @@
         "evidence/checkouts/CME/20261010T194722Z-a44091b/tests.log",
         "evidence/checkouts/CME/20261010T194722Z-a44091b/runtime-observation.json"
       ]
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:systemd-launch",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "systemd starts the isolated CME monitor service",
+      "source_references": [
+        "deploy/systemd/riverview-cme-monitor.service"
+      ],
+      "documentation_references": [
+        "docs/components/CME_MONITOR.md",
+        "docs/components/CME_MONITOR_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-state.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/service-recovery.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/full-test-suite.log"
+      ]
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:credential-validation",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Validate exact systemd credential, DSN, and non-root runtime identity",
+      "source_references": [
+        "scripts/run_cme_monitor.py",
+        "scripts/runtime_baseline.py",
+        "deploy/systemd/riverview-cme-monitor.service",
+        "tests/test_cme_monitor_service.py"
+      ],
+      "documentation_references": [
+        "docs/components/CME_MONITOR.md",
+        "docs/components/CME_MONITOR_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-state.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/service-recovery.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/full-test-suite.log"
+      ]
+    },
+    {
+      "id": "rv:cme:progress-and-recovery:credential-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject invalid monitor credential or runtime configuration without exposing secrets",
+      "source_references": [
+        "scripts/run_cme_monitor.py",
+        "tests/test_cme_monitor_service.py"
+      ],
+      "documentation_references": [
+        "docs/components/CME_MONITOR_COOKBOOK.md"
+      ],
+      "verification_evidence": []
     }
   ],
   "edges": [
@@ -348,6 +409,29 @@
       "to": "rv:cme:progress-and-recovery:monitor-start",
       "type": "recovery_route",
       "label": "Reacquire service lease and rescan durable state"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:systemd-launch",
+      "to": "rv:cme:progress-and-recovery:credential-validation",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:credential-validation",
+      "to": "rv:cme:progress-and-recovery:monitor-start",
+      "type": "runtime_transition",
+      "label": "Credential and runtime identity valid"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:credential-validation",
+      "to": "rv:cme:progress-and-recovery:credential-failure",
+      "type": "diagnostic_branch",
+      "label": "Missing, unsafe, or overridden credential/configuration"
+    },
+    {
+      "from": "rv:cme:progress-and-recovery:credential-failure",
+      "to": "rv:cme:progress-and-recovery:systemd-launch",
+      "type": "recovery_route",
+      "label": "Correct protected configuration; systemd restart policy retries bounded failures"
     }
   ]
 }

@@ -1,0 +1,105 @@
+{
+  "manifest_revision": "1.0.3",
+  "task_id": "RV-M3.1-001",
+  "component_id": "STEWARD-DASHBOARD",
+  "source_commit": "7f17a48f6fa47f151453c7e2e468532576942b19",
+  "deployment_id": "m3.1-camrui",
+  "files": {
+    "browser-observation.json": {
+      "revision": "1.0.0",
+      "path": "browser-observation.json",
+      "sha256": "98e9b4634a45956c5908c89db56a63ae3c4e72d7f4e52fa2c6b3f4e2151444d3",
+      "size_bytes": 1380
+    },
+    "commissioning.md": {
+      "revision": "1.0.2",
+      "path": "commissioning.md",
+      "sha256": "21e23e2a88fed0055dc284cc3abc88ababfb24239eceebd31e16bdce13309a1d",
+      "size_bytes": 6209
+    },
+    "dashboard-isolated-cme-test.png": {
+      "revision": "1.0.0",
+      "path": "dashboard-isolated-cme-test.png",
+      "sha256": "7f526465c071d7ff457975236e51758b1cc20285e29a7c07d09c59bd6d524fd0",
+      "size_bytes": 207122
+    },
+    "dashboard-live.png": {
+      "revision": "1.0.0",
+      "path": "dashboard-live.png",
+      "sha256": "3b1bae8c2827a24f1ce7bfa03cb1f9321edda353701f397f6fd8c72470521ab4",
+      "size_bytes": 220314
+    },
+    "deployment.json": {
+      "revision": "1.0.0",
+      "path": "deployment.json",
+      "sha256": "16ba6f1ec99cb99040ba0bea36d20318a799b430d9f5df863127693aff3fb7bb",
+      "size_bytes": 473
+    },
+    "live-dashboard.json": {
+      "revision": "1.0.0",
+      "path": "live-dashboard.json",
+      "sha256": "15ffa81639ee79a8640f7c67355b29a753a43aa65f6c5277249dddb1cf011b36",
+      "size_bytes": 1081
+    },
+    "live-snapshot.json": {
+      "revision": "1.0.0",
+      "path": "live-snapshot.json",
+      "sha256": "a62f465a2fa2e2b014a423f0d2c80efa58eab505b6d3d3e911dc831b92479278",
+      "size_bytes": 6563
+    },
+    "live-workers.json": {
+      "revision": "1.0.0",
+      "path": "live-workers.json",
+      "sha256": "84421a1b0bbb5587fc6cc297036d738e5788a1ed25e3471bca444a8714da7c90",
+      "size_bytes": 75
+    },
+    "process-graph-sync.json": {
+      "revision": "1.0.0",
+      "path": "process-graph-sync.json",
+      "sha256": "83a02aa1426bd6b21eaa248d1709bfffb363c6a5ca0ac9aaa7412dc736711260",
+      "size_bytes": 55
+    },
+    "process-graph-validation.json": {
+      "revision": "1.0.0",
+      "path": "process-graph-validation.json",
+      "sha256": "796f0fafde44fa6a6e23f948ca49dafb60c6c74729632da4153e5b1555e5b432",
+      "size_bytes": 39
+    },
+    "revision-audit.json": {
+      "revision": "1.0.1",
+      "path": "revision-audit.json",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "revision-baseline-ba831.json": {
+      "revision": "1.0.0",
+      "path": "revision-baseline-ba831.json",
+      "sha256": "6937db0be74e01e2ac8beaf6dc2eb0df9e84cd967cf051a18c00bb007b92a73a",
+      "size_bytes": 63093
+    },
+    "systemd-restart.json": {
+      "revision": "1.0.0",
+      "path": "systemd-restart.json",
+      "sha256": "582b22d76aefade3d0590ca3378b3b9efbe7e58771e62ab5236332fe4a64b6f8",
+      "size_bytes": 335
+    },
+    "systemd-state.json": {
+      "revision": "1.0.0",
+      "path": "systemd-state.json",
+      "sha256": "0a4dfaa4853c7f2a0a5a96e1f379fc305542fdd391819cf089cac7ad72f64d9c",
+      "size_bytes": 451
+    },
+    "test-suite.log": {
+      "revision": "1.0.0",
+      "path": "test-suite.log",
+      "sha256": "7fb79f8c1b85ec0fb25dc10d10e425a5997e4aeff96df98691e125d39714078e",
+      "size_bytes": 17654
+    },
+    "ci-results.json": {
+      "revision": "1.0.0",
+      "path": "ci-results.json",
+      "sha256": "b8b5675c1a73123890430b8154a81db534a046a7c11b2414b79c88da00c92482",
+      "size_bytes": 1008
+    }
+  }
+}

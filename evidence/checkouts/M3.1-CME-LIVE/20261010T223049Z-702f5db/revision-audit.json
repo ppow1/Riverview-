@@ -1,0 +1,8 @@
+{
+  "command": "python3 scripts/revision_control.py check --baseline evidence/checkouts/ENG-REVISION-CONTROL/20261010T1530Z-27a8c55/baseline-inventory.json",
+  "passed": true,
+  "issue_count": 0,
+  "baseline": "evidence/checkouts/ENG-REVISION-CONTROL/20261010T1530Z-27a8c55/baseline-inventory.json",
+  "verified_predecessors": "All changed pre-existing controlled files resolve to backup-manifest entries with matching hashes.",
+  "evidence_sidecar": "artifacts.json"
+}

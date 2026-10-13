@@ -1,0 +1,81 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M3.1-001",
+  "component_id": "STEWARD-DASHBOARD",
+  "source_commit": "ba831a7339e1f4491cf1296eeac271b246409664",
+  "deployment_id": "m3.1-camrui",
+  "files": {
+    "browser-observation.json": {
+      "revision": "1.0.0",
+      "path": "browser-observation.json",
+      "sha256": "849a316fa6275f993e42c54d683e396ba56a4eba3133743ef2bdbeca7f9b84ad",
+      "size_bytes": 1231
+    },
+    "commissioning.md": {
+      "revision": "1.0.0",
+      "path": "commissioning.md",
+      "sha256": "f3759394c0384e6fc34e2c174964dc048b338699c623ff2cf2177e0390cb2bda",
+      "size_bytes": 4963
+    },
+    "dashboard-isolated-cme-test.png": {
+      "revision": "1.0.0",
+      "path": "dashboard-isolated-cme-test.png",
+      "sha256": "7f526465c071d7ff457975236e51758b1cc20285e29a7c07d09c59bd6d524fd0",
+      "size_bytes": 207122
+    },
+    "dashboard-live.png": {
+      "revision": "1.0.0",
+      "path": "dashboard-live.png",
+      "sha256": "05943d0d16363ce32e2ed62e96b87c5201732ea85255fdc9950f854c46839308",
+      "size_bytes": 220000
+    },
+    "live-dashboard.json": {
+      "revision": "1.0.0",
+      "path": "live-dashboard.json",
+      "sha256": "db1c755d0d11f4dccb0d830b5b5aeef594aac90484dc4202af9d4a8581d83e55",
+      "size_bytes": 949
+    },
+    "process-graph-sync.json": {
+      "revision": "1.0.0",
+      "path": "process-graph-sync.json",
+      "sha256": "1215f8b2cbdba3253af21c53f58426d42b4acb7e74a7fb7721bd6acbb0c30269",
+      "size_bytes": 55
+    },
+    "process-graph-validation.json": {
+      "revision": "1.0.0",
+      "path": "process-graph-validation.json",
+      "sha256": "796f0fafde44fa6a6e23f948ca49dafb60c6c74729632da4153e5b1555e5b432",
+      "size_bytes": 39
+    },
+    "revision-audit.json": {
+      "revision": "1.0.0",
+      "path": "revision-audit.json",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "revision-baseline-e56.json": {
+      "revision": "1.0.0",
+      "path": "revision-baseline-e56.json",
+      "sha256": "6937db0be74e01e2ac8beaf6dc2eb0df9e84cd967cf051a18c00bb007b92a73a",
+      "size_bytes": 63093
+    },
+    "systemd-restart.json": {
+      "revision": "1.0.0",
+      "path": "systemd-restart.json",
+      "sha256": "1456799c287e8b22107147a6a27643a19da85a74a76afb91ddef3e6c613f4152",
+      "size_bytes": 189
+    },
+    "systemd-state.json": {
+      "revision": "1.0.0",
+      "path": "systemd-state.json",
+      "sha256": "fb6102312db335b034d9d3804c6f84033d561b081d1509ffa0740f273fd03cf0",
+      "size_bytes": 860
+    },
+    "test-suite.log": {
+      "revision": "1.0.0",
+      "path": "test-suite.log",
+      "sha256": "6d93236c680f0db29f1f139c4a66469f4f6be657e2126280751a6721da374906",
+      "size_bytes": 17474
+    }
+  }
+}

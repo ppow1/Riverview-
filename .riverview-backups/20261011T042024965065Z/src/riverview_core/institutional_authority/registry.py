@@ -1,0 +1,469 @@
+# RIVERVIEW~ CONTROLLED SOURCE
+# File: src/riverview_core/institutional_authority/registry.py
+# Component: INSTITUTIONAL-AUTHORITY
+# Revision: 1.0.5
+# Purpose: Persist separated offices, occupants, implementations and scoped grants
+# Execution Model: Synchronous transactional PostgreSQL registry
+# Observability: Append-only authority events and office binding revisions
+# Dependencies: Python 3.10+; Psycopg 3; institutional_authority migration
+# Authority: Exact active credential, principal, action and scope are required
+# Changed: 2026-10-11 UTC | RV-M4.1-001 | Restrict first Steward bootstrap to root-local setup
+# Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
+# Tests: tests/test_institutional_authority.py
+# History: .riverview-backups/manifest.jsonl and Git
+"""Minimal persistent registry for institutional identities and grants.
+
+The first Steward credential is created only by the trusted local provisioning
+operation. All later identity, office-binding, and grant changes require an
+active credential with the exact management action and scope.
+"""
+
+import hashlib
+import json
+import os
+import secrets
+from datetime import datetime, timezone
+from uuid import uuid4
+
+import psycopg
+from psycopg.rows import dict_row
+
+
+class RegistryUnavailable(RuntimeError):
+    """The registry cannot provide an authoritative answer."""
+
+
+class AuthorityDenied(RuntimeError):
+    """No active credential and exact action/scope grant authorize the request."""
+
+
+class IdentityConflict(RuntimeError):
+    """A durable identity or binding conflicts with existing state."""
+
+
+class AuthorityRegistry:
+    """Store identity separately from office role, occupant and implementation."""
+
+    SCHEMA_VERSION = "0001_institutional_authority"
+    MAX_STATE_BYTES = 65536
+    BOOTSTRAP_GRANTS = (
+        ("authority.grant", "institution"),
+        ("identity.manage", "institution"),
+        ("office.manage", "institution"),
+    )
+
+    def __init__(self, dsn, *, schema="public"):
+        if not schema or not schema[0].isalpha() or not schema.replace("_", "").isalnum():
+            raise ValueError("invalid schema")
+        self.schema = schema
+        try:
+            self.db = psycopg.connect(dsn, row_factory=dict_row, autocommit=True)
+            with self.db.cursor() as cur:
+                cur.execute("SELECT to_regclass(%s) AS registry",
+                            (f"{schema}.institutional_principals",))
+                if cur.fetchone()["registry"] is None:
+                    raise RegistryUnavailable("institutional authority migration is not applied")
+        except Exception as exc:
+            if hasattr(self, "db"):
+                self.db.close()
+            if isinstance(exc, RegistryUnavailable):
+                raise
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def close(self):
+        self.db.close()
+
+    def _path(self, cur):
+        cur.execute("SELECT set_config('search_path', %s, false)", (self.schema,))
+
+    @staticmethod
+    def _digest(token):
+        if not isinstance(token, str) or len(token) < 32:
+            raise AuthorityDenied("invalid credential")
+        return hashlib.sha256(token.encode("utf-8")).digest()
+
+    @staticmethod
+    def _event(cur, *, event_type, actor_id, subject_id=None, grant_id=None,
+               office_id=None, payload=None):
+        cur.execute(
+            """INSERT INTO institutional_authority_events
+               (event_id,event_type,actor_id,subject_id,grant_id,office_id,payload)
+               VALUES (%s,%s,%s,%s,%s,%s,%s)""",
+            (uuid4(), event_type, actor_id, subject_id, grant_id, office_id,
+             json.dumps(payload or {}, sort_keys=True)))
+
+    def _authenticate(self, cur, token):
+        digest = self._digest(token)
+        cur.execute(
+            """SELECT p.principal_id,p.principal_kind,p.status
+               FROM principal_credentials c
+               JOIN institutional_principals p USING (principal_id)
+               WHERE c.credential_sha256=%s AND c.revoked_at IS NULL
+                 AND (c.expires_at IS NULL OR c.expires_at>clock_timestamp())
+               FOR SHARE OF c,p""", (digest,))
+        principal = cur.fetchone()
+        if principal is None or principal["status"] != "active":
+            raise AuthorityDenied("credential is unknown, expired, or revoked")
+        return principal
+
+    def _require(self, cur, token, action, scope_ref):
+        principal = self._authenticate(cur, token)
+        cur.execute(
+            """SELECT grant_id FROM authority_grants
+               WHERE principal_id=%s AND action=%s AND scope_ref=%s
+                 AND revoked_at IS NULL AND valid_from<=clock_timestamp()
+                 AND (valid_until IS NULL OR valid_until>clock_timestamp())
+               ORDER BY created_at DESC LIMIT 1 FOR SHARE""",
+            (principal["principal_id"], action, scope_ref))
+        if cur.fetchone() is None:
+            raise AuthorityDenied("no active grant for exact action and scope")
+        return principal
+
+    def _new_credential(self, cur, principal_id, *, expires_at=None):
+        token = secrets.token_urlsafe(32)
+        cur.execute("INSERT INTO principal_credentials(credential_id,principal_id,credential_sha256,expires_at) VALUES (%s,%s,%s,%s)",
+                    (uuid4(), principal_id, self._digest(token), expires_at))
+        return token
+
+    def bootstrap_steward(self, principal_id="steward:camrui"):
+        """Create the first Steward principal from trusted root-local setup only."""
+        if os.geteuid() != 0:
+            raise AuthorityDenied("initial Steward bootstrap requires trusted root-local setup")
+        if not principal_id:
+            raise ValueError("principal_id is required")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))",
+                                (f"rv-authority-bootstrap:{self.schema}",))
+                    cur.execute("SELECT 1 FROM institutional_principals WHERE principal_kind='steward' AND status='active' LIMIT 1")
+                    if cur.fetchone():
+                        raise IdentityConflict("active Steward is already provisioned")
+                    cur.execute("INSERT INTO institutional_principals(principal_id,principal_kind) VALUES (%s,'steward')",
+                                (principal_id,))
+                    token = self._new_credential(cur, principal_id)
+                    for action, scope in self.BOOTSTRAP_GRANTS:
+                        cur.execute("""INSERT INTO authority_grants
+                            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+                            VALUES (%s,%s,%s,%s,%s,%s)""",
+                            (f"bootstrap:{action}", principal_id, action, scope,
+                             principal_id, "rv.policy:bootstrap-steward.v1"))
+                    self._event(cur, event_type="steward_bootstrapped", actor_id=principal_id,
+                                subject_id=principal_id,
+                                payload={"principal_kind": "steward", "token_persisted": False})
+            return token
+        except (AuthorityDenied, IdentityConflict, ValueError):
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def create_principal(self, steward_token, principal_id, principal_kind, *, office_id=None):
+        allowed = {"resident", "service", "worker", "human"}
+        if not principal_id or principal_kind not in allowed:
+            raise ValueError("valid principal id and non-Steward kind are required")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    actor = self._require(cur, steward_token, "identity.manage", "institution")
+                    cur.execute("""INSERT INTO institutional_principals
+                        (principal_id,principal_kind,office_id) VALUES (%s,%s,%s)""",
+                        (principal_id, principal_kind, office_id))
+                    token = self._new_credential(cur, principal_id)
+                    self._event(cur, event_type="principal_created", actor_id=actor["principal_id"],
+                                subject_id=principal_id,
+                                payload={"principal_kind": principal_kind, "office_id": office_id})
+            return token
+        except (AuthorityDenied, ValueError):
+            raise
+        except psycopg.errors.UniqueViolation as exc:
+            raise IdentityConflict("principal identity already exists") from exc
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def issue_credential(self, steward_token, principal_id, *, expires_at=None):
+        """Rotate or add one credential for an active principal; return it once."""
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    actor = self._require(cur, steward_token, "identity.manage", "institution")
+                    cur.execute("SELECT status FROM institutional_principals WHERE principal_id=%s FOR UPDATE",
+                                (principal_id,))
+                    subject = cur.fetchone()
+                    if subject is None or subject["status"] != "active":
+                        raise IdentityConflict("credential subject is not active")
+                    token = self._new_credential(cur, principal_id, expires_at=expires_at)
+                    self._event(cur, event_type="credential_issued", actor_id=actor["principal_id"],
+                                subject_id=principal_id,
+                                payload={"expires_at": expires_at.isoformat() if expires_at else None})
+            return token
+        except (AuthorityDenied, IdentityConflict):
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def revoke_credential(self, steward_token, credential_id, *, reason_code="steward_revoked"):
+        """Revoke one bearer digest without invalidating the principal's identity."""
+        if not reason_code or len(reason_code) > 64:
+            raise ValueError("reason_code must be a bounded non-empty code")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    actor = self._require(cur, steward_token, "identity.manage", "institution")
+                    cur.execute("""SELECT c.principal_id,p.principal_kind,
+                            (SELECT count(*) FROM principal_credentials active
+                             WHERE active.principal_id=c.principal_id AND active.revoked_at IS NULL
+                               AND (active.expires_at IS NULL OR active.expires_at>clock_timestamp())) AS active_credentials
+                        FROM principal_credentials c JOIN institutional_principals p USING (principal_id)
+                        WHERE c.credential_id=%s AND c.revoked_at IS NULL FOR UPDATE OF c,p""",
+                        (credential_id,))
+                    row = cur.fetchone()
+                    if row is None:
+                        raise IdentityConflict("active credential was not found")
+                    if row["principal_kind"] == "steward" and row["active_credentials"] <= 1:
+                        raise IdentityConflict("cannot revoke the last active Steward credential")
+                    cur.execute("UPDATE principal_credentials SET revoked_at=clock_timestamp() WHERE credential_id=%s",
+                                (credential_id,))
+                    self._event(cur, event_type="credential_revoked", actor_id=actor["principal_id"],
+                                subject_id=row["principal_id"],
+                                payload={"credential_id": str(credential_id),
+                                         "reason_code": reason_code})
+        except (AuthorityDenied, IdentityConflict, ValueError):
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def grant(self, steward_token, principal_id, action, scope_ref, *, grant_id=None,
+              policy_ref, valid_until=None):
+        if not all((principal_id, action, scope_ref, policy_ref)):
+            raise ValueError("principal, action, scope and policy reference are required")
+        grant_id = grant_id or "grant:" + uuid4().hex
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    actor = self._require(cur, steward_token, "authority.grant", "institution")
+                    cur.execute("SELECT 1 FROM institutional_principals WHERE principal_id=%s AND status='active'",
+                                (principal_id,))
+                    if cur.fetchone() is None:
+                        raise IdentityConflict("grant subject is not an active principal")
+                    cur.execute("""INSERT INTO authority_grants
+                        (grant_id,principal_id,action,scope_ref,granted_by,policy_ref,valid_until)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s)""",
+                        (grant_id, principal_id, action, scope_ref, actor["principal_id"], policy_ref, valid_until))
+                    self._event(cur, event_type="authority_granted", actor_id=actor["principal_id"],
+                                subject_id=principal_id, grant_id=grant_id,
+                                payload={"action": action, "scope_ref": scope_ref,
+                                         "policy_ref": policy_ref})
+            return grant_id
+        except (AuthorityDenied, IdentityConflict, ValueError):
+            raise
+        except psycopg.errors.UniqueViolation as exc:
+            raise IdentityConflict("grant identity already exists") from exc
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def authorize(self, credential, action, scope_ref):
+        if not action or not scope_ref:
+            raise ValueError("action and scope_ref are required")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    principal = self._require(cur, credential, action, scope_ref)
+                    return {"principal_id": principal["principal_id"],
+                            "principal_kind": principal["principal_kind"],
+                            "action": action, "scope_ref": scope_ref,
+                            "verified_at": datetime.now(timezone.utc).isoformat()}
+        except AuthorityDenied:
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def revoke_grant(self, steward_token, grant_id, *, reason_code="steward_revoked"):
+        if not reason_code or len(reason_code) > 64:
+            raise ValueError("reason_code must be a bounded non-empty code")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    actor = self._require(cur, steward_token, "authority.grant", "institution")
+                    cur.execute("UPDATE authority_grants SET revoked_at=clock_timestamp() WHERE grant_id=%s AND revoked_at IS NULL RETURNING principal_id,action,scope_ref",
+                                (grant_id,))
+                    row = cur.fetchone()
+                    if row is None:
+                        raise IdentityConflict("active grant was not found")
+                    self._event(cur, event_type="authority_revoked", actor_id=actor["principal_id"],
+                                subject_id=row["principal_id"], grant_id=grant_id,
+                                payload={"reason_code": reason_code})
+        except (AuthorityDenied, IdentityConflict, ValueError):
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def create_office(self, steward_token, office_id, office_role):
+        if not office_id or not office_role:
+            raise ValueError("office_id and office_role are required")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    actor = self._require(cur, steward_token, "office.manage", "institution")
+                    cur.execute("INSERT INTO institutional_offices(office_id,office_role) VALUES (%s,%s)",
+                                (office_id, office_role))
+                    cur.execute("INSERT INTO office_runtime_state(office_id,state) VALUES (%s,'{}'::jsonb)", (office_id,))
+                    self._event(cur, event_type="office_created", actor_id=actor["principal_id"],
+                                office_id=office_id, payload={"office_role": office_role})
+        except AuthorityDenied:
+            raise
+        except psycopg.errors.UniqueViolation as exc:
+            raise IdentityConflict("office already exists") from exc
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def create_occupant(self, steward_token, occupant_id, *, principal_id):
+        if not occupant_id or not principal_id:
+            raise ValueError("occupant_id and principal_id are required")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    actor = self._require(cur, steward_token, "office.manage", "institution")
+                    cur.execute("SELECT principal_kind FROM institutional_principals WHERE principal_id=%s AND status='active'",
+                                (principal_id,))
+                    principal = cur.fetchone()
+                    if principal is None or principal["principal_kind"] not in {"resident", "human"}:
+                        raise IdentityConflict("occupant must reference an active resident or human principal")
+                    cur.execute("INSERT INTO resident_occupants(occupant_id,principal_id) VALUES (%s,%s)",
+                                (occupant_id, principal_id))
+                    self._event(cur, event_type="occupant_created", actor_id=actor["principal_id"],
+                                subject_id=principal_id, payload={"occupant_id": occupant_id})
+        except (AuthorityDenied, IdentityConflict):
+            raise
+        except psycopg.errors.UniqueViolation as exc:
+            raise IdentityConflict("occupant already exists") from exc
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def create_implementation(self, steward_token, implementation_id, *, kind, provider_ref, revision):
+        if not all((implementation_id, kind, provider_ref, revision)):
+            raise ValueError("implementation id, kind, provider and revision are required")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    actor = self._require(cur, steward_token, "office.manage", "institution")
+                    cur.execute("INSERT INTO resident_implementations(implementation_id,kind,provider_ref,revision) VALUES (%s,%s,%s,%s)",
+                                (implementation_id, kind, provider_ref, revision))
+                    self._event(cur, event_type="implementation_created", actor_id=actor["principal_id"],
+                                payload={"implementation_id": implementation_id, "kind": kind,
+                                         "provider_ref": provider_ref, "revision": revision})
+        except AuthorityDenied:
+            raise
+        except psycopg.errors.UniqueViolation as exc:
+            raise IdentityConflict("implementation already exists") from exc
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def bind_office(self, steward_token, office_id, occupant_id, implementation_id):
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    actor = self._require(cur, steward_token, "office.manage", "institution")
+                    cur.execute("SELECT occupant_id,implementation_id FROM office_bindings WHERE office_id=%s FOR UPDATE",
+                                (office_id,))
+                    previous = cur.fetchone()
+                    cur.execute("SELECT principal_id FROM resident_occupants WHERE occupant_id=%s",
+                                (occupant_id,))
+                    new_occupant = cur.fetchone()
+                    if new_occupant is None:
+                        raise IdentityConflict("office occupant does not exist")
+                    revoked = []
+                    if previous and previous["occupant_id"] != occupant_id:
+                        cur.execute("""UPDATE authority_grants SET revoked_at=clock_timestamp()
+                            WHERE principal_id=(SELECT principal_id FROM resident_occupants WHERE occupant_id=%s)
+                              AND scope_ref=%s AND revoked_at IS NULL
+                            RETURNING grant_id,principal_id,action""",
+                            (previous["occupant_id"], f"office:{office_id}"))
+                        revoked = cur.fetchall()
+                        for grant in revoked:
+                            self._event(cur, event_type="authority_revoked",
+                                        actor_id=actor["principal_id"], subject_id=grant["principal_id"],
+                                        grant_id=grant["grant_id"], office_id=office_id,
+                                        payload={"reason_code": "office_occupant_replaced",
+                                                 "action": grant["action"]})
+                    cur.execute("""INSERT INTO office_bindings(office_id,occupant_id,implementation_id,binding_revision)
+                        VALUES (%s,%s,%s,1) ON CONFLICT(office_id) DO UPDATE SET
+                        occupant_id=excluded.occupant_id,implementation_id=excluded.implementation_id,
+                        binding_revision=office_bindings.binding_revision+1,
+                        updated_at=clock_timestamp() RETURNING binding_revision""",
+                        (office_id, occupant_id, implementation_id))
+                    rev = cur.fetchone()["binding_revision"]
+                    self._event(cur, event_type="office_binding_replaced", actor_id=actor["principal_id"],
+                                subject_id=new_occupant["principal_id"], office_id=office_id,
+                                payload={"implementation_id": implementation_id,
+                                         "binding_revision": rev,
+                                         "previous_occupant_id": previous["occupant_id"] if previous else None,
+                                         "previous_implementation_id": previous["implementation_id"] if previous else None,
+                                         "revoked_office_grants": len(revoked)})
+                    return rev
+        except AuthorityDenied:
+            raise
+        except psycopg.errors.ForeignKeyViolation as exc:
+            raise IdentityConflict("office, occupant or implementation does not exist") from exc
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def set_office_state(self, credential, office_id, state, *, expected_revision=None):
+        encoded = json.dumps(state, sort_keys=True, separators=(",", ":"))
+        if len(encoded.encode("utf-8")) > self.MAX_STATE_BYTES:
+            raise ValueError("office state exceeds the bounded state limit")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    principal = self._require(cur, credential, "office.state.write", f"office:{office_id}")
+                    cur.execute("SELECT revision FROM office_runtime_state WHERE office_id=%s FOR UPDATE", (office_id,))
+                    row = cur.fetchone()
+                    if row is None:
+                        raise IdentityConflict("office does not exist")
+                    if expected_revision is not None and row["revision"] != expected_revision:
+                        raise IdentityConflict("office state revision conflict")
+                    cur.execute("UPDATE office_runtime_state SET state=%s::jsonb,revision=revision+1,updated_at=clock_timestamp() WHERE office_id=%s RETURNING revision",
+                                (encoded, office_id))
+                    rev = cur.fetchone()["revision"]
+                    self._event(cur, event_type="office_state_updated", actor_id=principal["principal_id"],
+                                office_id=office_id, payload={"revision": rev})
+                    return rev
+        except (AuthorityDenied, IdentityConflict, ValueError):
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def office_snapshot(self, office_id):
+        try:
+            with self.db.cursor() as cur:
+                self._path(cur)
+                cur.execute("""SELECT o.office_id,o.office_role,b.occupant_id,
+                    p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+                    i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+                    s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+                    FROM institutional_offices o LEFT JOIN office_bindings b USING (office_id)
+                    LEFT JOIN resident_occupants r USING (occupant_id)
+                    LEFT JOIN institutional_principals p ON p.principal_id=r.principal_id
+                    LEFT JOIN resident_implementations i USING (implementation_id)
+                    JOIN office_runtime_state s ON s.office_id=o.office_id WHERE o.office_id=%s""", (office_id,))
+                row=cur.fetchone()
+                if row is None:
+                    raise IdentityConflict("office does not exist")
+                row["state"] = dict(row["state"])
+                row["state_updated_at"] = row["state_updated_at"].isoformat()
+                return row
+        except IdentityConflict:
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None

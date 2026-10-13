@@ -1,0 +1,13 @@
+BEGIN
+         id          | state |  workflow_id  | workflow_step |          updated_at           |    worker_id     | generation |         heartbeat_at          |          expires_at           |         last_event_at         
+---------------------+-------+---------------+---------------+-------------------------------+------------------+------------+-------------------------------+-------------------------------+-------------------------------
+ scheduler-doc-smoke | ready | assignment.v1 | intake        | 2026-10-11 01:45:49.148307-04 | worker:doc-smoke |          1 | 2026-10-11 01:45:49.184545-04 | 2026-10-11 01:46:49.184545-04 | 2026-10-11 01:45:49.152059-04
+(1 row)
+
+ seq |               event_id               |    assignment_id    |       event_type        |   correlation_id    |             causation_id             |          recorded_at          
+-----+--------------------------------------+---------------------+-------------------------+---------------------+--------------------------------------+-------------------------------
+   2 | 78c9c0f5-cd5e-4c06-b516-9f09ca230708 | scheduler-doc-smoke | assignment.transitioned | scheduler-doc-smoke | 6c72eda1-fd8e-4b39-bf5c-04c7c4efd678 | 2026-10-11 01:45:49.152059-04
+   1 | 6c72eda1-fd8e-4b39-bf5c-04c7c4efd678 | scheduler-doc-smoke | assignment.created      | scheduler-doc-smoke |                                      | 2026-10-11 01:45:49.130105-04
+(2 rows)
+
+COMMIT

@@ -1,0 +1,6 @@
+test_component_cookbook_is_rendered_as_readable_safe_html (tests.test_status_dashboard.DashboardHTTPTests.test_component_cookbook_is_rendered_as_readable_safe_html) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.554s
+
+OK

@@ -1,8 +1,8 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.1
+**Document Revision:** 1.1.19
 **Status:** Active planning baseline — execution gates require evidence  
-**Date:** 2026-10-09  
+**Date:** 2026-10-11
 **Component:** RV-ROADMAP  
 **Owner:** Steward  
 **Purpose:** Define the ordered implementation path and what the command **“go” or “next”** means.  
@@ -69,8 +69,9 @@ Deliverable: simple, always-on, concurrent monitor for meaningful progress, dead
 ## Milestone 3 — Make actual operation visible and actionable
 
 **M3.1 — Read-only status projection and browser dashboard**  
-Deliverable: live assignment states, event cursor, workflow step, last meaningful progress, freshness/staleness, worker/CME health, diagnostics and source provenance.  
-**PASS:** dashboard reflects real events and shows stale/unavailable distinctly from healthy; no invented progress percentages.
+Deliverable: live assignment states, event cursor, workflow step, last meaningful progress, freshness/staleness, worker/CME health, diagnostics and source provenance. Diagnostic references render safely and readably; a browser workflow viewer projects the canonical process-graph JSON registry.
+
+**PASS:** dashboard reflects real events and shows stale/unavailable distinctly from healthy; no invented progress percentages; canonical workflows and decisions are navigable; process position is highlighted only when an exact durable node identity is available, otherwise shown unknown; read-only/authorization boundaries pass security checks. A controlled real worker and independent verifier can produce and accept a durable PostgreSQL result artifact visible in the projection.
 
 **M3.2 — Durable notification and decision requests**  
 Deliverable: recorded attention events, delivery/acknowledgment state, and Steward decision requests; start with one demonstrable delivery channel, then add visual/audio/SMS as specified.  
@@ -79,6 +80,29 @@ Deliverable: recorded attention events, delivery/acknowledgment state, and Stewa
 **M3.3 — First end-to-end unattended demonstration**  
 Deliverable: reproducible demo script and evidence bundle covering authorization, two concurrent assignments, worker execution, independent verification, restart/recovery, dashboard and notification.  
 **PASS:** all first-slice proofs pass on Camrui with timestamps, commands, logs, observed output, and restart evidence. **This is the first meaningful runtime milestone.**
+
+### Issue #13 milestone ownership and scope proposal
+
+The Issue #13 amendment and draft PR #15 are requirements input; PR #15 remains
+unmerged. This work keeps M3.1 read-only: readable operational documents,
+canonical graph visualization, truthful live status, and cross-component proof
+that a registered worker and distinct verifier can produce and accept a durable
+result. It adds no browser command, work-order promotion, resident chat, or
+resource mutation path.
+
+M3.2 retains durable attention/decision delivery. M3.3 retains the repeatable
+unattended first vertical slice. To preserve all Issue #13 requirements without
+mislabeling M3.1, a proposed **M3.4 — Governed Operations Console and Resident
+Conversation** should follow M4.1 identity/authority and M4.2 resident reasoning
+dependencies and precede M4.4 operational acceptance. Its acceptance criteria
+should include live browser conversation with Grace and another authorized
+resident, durable resident-separated continuity across reload/restart, explicit
+approval before specification/objective/work-order promotion, denied
+unauthorized promotion, shared browser/AI/API command contracts, and evidence
+for authorized lifecycle, denial, recovery, capability/resource and Steward
+decision actions. This is a sequencing proposal recorded for Steward review,
+not an accepted roadmap change or authorization to implement the command/chat
+system in M3.1.
 
 ## Milestone 4 — Institutional identity and AI reasoning
 
@@ -115,18 +139,44 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 
 **M1.3:** Scoped technical commissioning PASS on Camrui at source commit `9ca7cb189d1e1f57c69395303a9367fabd979ff5`. Migration 0002, unattended event progression, causal ordering, durable cursor, restart, PostgreSQL session-loss recovery, rollback/redeployment, and M1.1 preservation are verified. The full component DoD remains OPEN; this is not a claim that the later dashboard, autonomy, external observability, or project completion criteria are satisfied.
 
-**M1.4:** Isolated technical criteria verified at source commit `549bd08b9b1800981c6c4c006dbe59d8fed0a799`: age-ordered independent claims, an active stalled lease not blocking unrelated progress, concurrent distinct claims, expiry generation increment, stale token rejection, and idempotent start. Evidence is in the M1.4-001 engineering record. No shared-schema migration, service deployment, operational commissioning, or full component DoD is claimed.
+**M1.4:** Isolated technical criteria verified at source commit `549bd08b9b1800981c6c4c006dbe59d8fed0a799`: age-ordered independent claims, an active stalled lease not blocking unrelated progress, concurrent distinct claims, expiry generation increment, stale token rejection, and idempotent start. The live `riverview_dev` catalog was later confirmed to contain `0001_assignment_leases` as a dependency in the worker/monitor migration chain; its checksum matches the checked-in migration. That migration presence is not a separate M1.4 scheduler-service commissioning or acceptance. No standalone scheduler service or M1.4 operational acceptance/full Component DoD is claimed. The original isolated checkout evidence remains valid for its stated scope; see the dated live-state correction in `docs/development/M1.4-001_REVISION_RECORD.md` and the operations cookbook evidence.
 
 **M2.1–M2.3 — Execution, independent verification, and restart recovery:** Integrated on `main` at `4f028a138c41665239bde2c11be65b0f841f02bf` by PRs #9, #10, and #12. The combined isolated PostgreSQL 16.15 suite passed 89/89 on Camrui; graph validation and the controlled revision audit passed, and GitHub main CI passed. This confirms the integrated engineering baseline only; the M2.1–M2.3 live deployments and full component DoD remain open.
 
-**M2.4 — CME monitoring service:** Isolated roadmap technical criteria PASS at commit `a44091bc32e82580dd8a3350e1ecfa47b0157b36`. The full 95-test Camrui suite passed on a private PostgreSQL 16.15 cluster; actual process restart, idempotent alert/recovery records, deadline/stall detection, worker health, and independent assignment progress are evidenced in `evidence/checkouts/CME/20261010T194722Z-a44091b/`. No shared schema migration or installed service commissioning is claimed. The full component DoD remains OPEN, including live Steward visualization and unattended installed-service evidence.
+**M2.4 — CME monitoring service:** Isolated technical criteria PASS at `a44091bc32e82580dd8a3350e1ecfa47b0157b36`, integrated by PR #14. The authorized shared `riverview_dev` migration chain and dedicated systemd monitor were commissioned on Camrui from `702f5db3f03669427a3625425eca04c023a0754c`. The live service reported healthy and recorded three genuine stale-assignment alerts; manual restart and systemd recovery after SIGKILL preserved those alert IDs without duplicates. Scoped operational criteria PASS. Full component DoD remains OPEN; no live worker is registered, and no unrelated live assignment progress was available to observe. See `docs/development/M2.4-001_REVISION_RECORD.md` and `evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/`.
 
-**Current step: M3.1 — Read-only status projection and browser dashboard (next after M2.4 integration).** The integrated `main` baseline remains `4f028a138c41665239bde2c11be65b0f841f02bf`; M2.4 is on the short-lived `codex/m2.4-cme-monitor` branch and has not been merged. Do not stack M3.1 on an unmerged feature branch. Steward merge authorization remains outstanding; no PR merge is claimed.
+**M3.1 — Read-only status projection and browser dashboard:** Scoped technical implementation **ACCEPTED BY THE STEWARD on 2026-10-11 UTC** under the overnight work order, based on Camrui commissioning evidence at deployed release `008d942ea57116b0fbdead771c201d3f99305482`, records/CI commit `6926ac129cca8f733048cbf478d27d6bf00248dc`, live-worker/independent-verification evidence, passing full suite and CI, and the earlier external Windows snapshot. Acceptance is scoped to the M3.1 technical implementation only. The full component DoD remains OPEN: no post-change Windows visual confirmation of the graph/cookbook pages, no sustained operational-autonomy demonstration, and later console/chat/actionable-control requirements remain. PR #16 remains open/draft and unmerged; see its Steward acceptance comment and `docs/development/M3.1-001_REVISION_RECORD.md`.
 
-**Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. M2.4 is the next independent eligible engineering item.
+**M3.2 — Durable notification and decision requests:** Scoped technical criteria PASS at `0fd10357ccdf2c9a0c87ba4a6f41e37ecff33ce9`. The additive `0006_durable_notifications` migration and dedicated dispatcher were commissioned on Camrui with a protected backup/restore drill. Three genuine persisted CME stall events produced three durable notices; browser rendering and explicit acknowledgment were recorded, and dispatcher restart retained the same notice identities without duplicates. Live dashboard/notification browser verification passed with no browser errors. Isolated full suite passed 125/125 with zero skips; CI, graph synchronization (11 workflows / 209 nodes), and revision audit passed. Live `awaiting_steward` decision-request creation was not exercised because no such assignment exists in the shared database; isolated tests cover request/no-authority-effect behavior. This is technical commissioning evidence, not full component DoD or Steward acceptance. See `docs/development/M3.2-001_REVISION_RECORD.md` and `evidence/checkouts/M3.2/20261011T040851Z-0fd1035/`.
+
+**Current step: M3.3 — First end-to-end unattended demonstration — BLOCKED at live authorization/knowledge preflight.** M3.3 remains the earliest unaccepted roadmap step. The shared runtime still has no enforced Steward-grant validation on assignment/worker control and no real institutional knowledge provider available to the worker (the default is fail-closed; the packaged v1 provider is a test mock). Therefore two live assignments cannot yet be represented as safely authorized and verified. No live state was changed to fabricate this proof. M4.1 unblocker engineering now includes a versioned, dry-run-first helper and isolated PostgreSQL test for transferring the exact authority tables to a separate owner role while denying direct runtime access. It rejects the current runtime-owned shared schema. This is a packaged isolated boundary, not a deployed live security boundary; no live roles, credentials, identities, grants, migration, worker, or assignment were added. A real knowledge provider remains a separate deliverable under its roadmap owner. Resume the Camrui two-assignment demonstration only after both boundaries are integrated and independently verified. PR #17 remains draft/open and unmerged; its branch depends on the still-open M3.1 PR #16. See `docs/development/M3.3-001_REVISION_RECORD.md`, `docs/development/M4.1-001_REVISION_RECORD.md`, and the M4.1 checkout evidence.
+
+**M4.1 deployment/view checkpoint (2026-10-11):** PR #18 source commit `b63f6d85e7837caaa03265aa19164b57c818c8d9` is deployed as a dashboard-only release so the M4.1 cookbook and canonical graph can be browsed. Firefox confirmed the graph and docs; no authority migration, identity, grant, credential, worker, or assignment was deployed or created. M4.1 remains IN PROGRESS and M3.3 remains BLOCKED at live authority/knowledge preflight. Evidence is `evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/`.
+
+**M4.1 isolated boundary correction (2026-10-11):** The authority provisioner now requires a dedicated authority-only schema; rejects unrelated tables/functions and unsafe manager memberships; revokes `PUBLIC`/runtime schema access; and gives a NOINHERIT, no-membership manager only allowlisted table DML. The complete isolated PostgreSQL suite passed 135/135 (zero skips/failures/errors), teardown left zero test schemas/roles, process graph passed at 12 workflows / 227 nodes, the controlled revision audit had zero findings, and exact-head PR #20 CI passed (run 38119049973). A later helper diagnostic correction passed three focused PostgreSQL boundary tests and exact-head full CI run 38120458854; it now reports safe static reasons and SQLSTATE-only driver failures. A protected PostgreSQL 16.15 backup and disposable restore rehearsal also passed with matching catalog counts; the two failed preflight attempts and path correction are documented. Evidence is linked in `docs/development/M4.1-001_REVISION_RECORD.md` and `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T070500Z-backup-restore/`. A current read-only Camrui preflight confirms `riverview_authority`, its manager/owner roles and nine tables are absent; the mixed `riverview_dev` remains runtime-owned with 67 objects and runtime schema access. The helper fails closed and no `--apply` was run. This is not shared-schema commissioning: no role, credential, schema, identity, grant, worker state, or service was changed. Evidence: `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T070335Z-live-preflight/`. M4.1 remains IN PROGRESS; M3.3 still requires live authorization/worker integration and the separate real knowledge-provider requirement.
+
+**M4.1 fresh-schema migration correction (2026-10-11):** The authority test fixture had precreated the general Core migration ledger, masking that an empty dedicated registry schema cannot record migration checksums. Added idempotent authority migration 0000 to bootstrap that ledger and verified the package from an empty schema. Full isolated PostgreSQL suite passed 137/137 (zero skips/errors/failures), cleanup left zero test schemas/roles, the private test server stopped, graph check passed 12 workflows/228 nodes, compileall passed and revision audit reported zero issues. Exact-head GitHub controlled-checkout run 38121104825 passed at `73613ce`, including complete tests, graph validation and revision/predecessor checks. Evidence: `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T072000Z-fresh-schema-ledger/`. Shared Camrui remains unchanged; dedicated authority schema/roles and runtime integration are still absent. M4.1 remains IN PROGRESS and M3.3 remains the earliest unaccepted roadmap item.
+
+**Grace Operational Integration:** M4.4 is a mandatory project completion deliverable, not an optional enhancement. Its future reasoning, planning, delegation, CME observation, independent-verification feedback and replanning loops are registered in the canonical process graph. This directive records architecture and acceptance requirements only; Grace is not yet implemented or operationally verified. M3.3 remains the current unaccepted roadmap step; full Grace integration remains a later mandatory system-level gate.
+
+**M1.4 live dependency correction (2026-10-11 UTC):** A read-only `sudo -u postgres psql` inspection found the shared `riverview_dev.schema_migrations` row `0001_assignment_leases` applied at `2026-10-10 18:27:04.341175-04:00`, with SHA-256 `ce29c2994904f54706db883f61127bf05ee195ecbdce90e7242886e86711b717`, matching `src/riverview_core/assignment_scheduler/migrations/0001_assignment_leases.sql`. This was applied as part of the later worker and monitor migration chain. It corrects the earlier “no shared migration” statement without claiming M1.4 runtime commissioning; the standalone scheduler service, full M1.4 exit gate and Component DoD remain open. Exact read-only output is in `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T055428Z-pg-doc-safety/live-peer-inspection.txt`.
 
 ## Revision history
 
+- **1.1.17 — 2026-10-11:** Record safe M4.1 preflight diagnostics, focused PostgreSQL regressions and exact-head CI; preserve live no-schema blocker.
+- **1.1.19 — 2026-10-11:** Record exact-head passing CI for the fresh-schema migration correction; retain live provisioning and M3.3 gates.
+- **1.1.18 — 2026-10-11:** Record fresh-dedicated-schema migration-ledger defect and 137-test isolated correction; preserve live provisioning and M3.3 gates.
+
+- **1.1.16 — 2026-10-11:** Record exact Camrui M4.1 catalog preflight and no-apply result; retain M4.1/M3.3 blockers.
+
+- **1.1.15 — 2026-10-11:** Record protected PostgreSQL backup and isolated restore rehearsal; retain live M4.1 commissioning and M3.3 blockers.
+
+- **1.1.14 — 2026-10-11:** Record exact-head M4.1 isolated 135-test verification and passing CI while retaining the open live commissioning and M3.3 blockers.
+
+- **1.1.10 — 2026-10-11:** Record M4.1 isolated privilege feasibility and dashboard-only graph/cookbook deployment; preserve M3.3 as blocked and unaccepted.
+- **1.1.11 — 2026-10-11:** Record the packaged, isolated M4.1 privilege-boundary implementation and test; preserve the live schema-owner blocker and M3.3 status.
+- **1.1.12 — 2026-10-11:** Correct M1.4 shared migration status from read-only live evidence; retain the separate service commissioning and full-DoD gates.
+- **1.1.13 — 2026-10-11:** Record the isolated M4.1 privilege boundary correction and process-graph/revision work without claiming live commissioning or advancing M3.3.
 - **1.0.1 — 2026-10-09:** Recognize “go” and “next” as equivalent roadmap advancement commands. Predecessor: `docs/history/ROADMAP_rev1.0.0.md`.
 
 - **1.0.0 — 2026-10-09:** Initial ordered, test-gated roadmap grounded in current repository contracts.
@@ -140,3 +190,11 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 - **1.0.9 — 2026-10-10:** Record M2.3 isolated technical PASS and advance engineering cursor to M2.4 while preserving the open PR stack and deployment/full-DoD limitations.
 - **1.1.0 — 2026-10-10:** Record PR #9/#10/#12 integration, combined isolated baseline verification, retirement of their fully merged feature branches, and M2.4 engineering from the integrated main commit.
 - **1.1.1 — 2026-10-10:** Record M2.4 isolated roadmap technical PASS, retain its open live-service/full-DoD obligations, and identify M3.1 as the next milestone after M2.4 integration.
+- **1.1.2 — 2026-10-10:** Reconcile M2.4 PR #14 integration on main and record M3.1 as active from the verified integrated baseline; preserve the unmerged draft PR #15 status.
+- **1.1.3 — 2026-10-10:** Record authorized shared M2.4 migrations, installed monitor health/restart recovery, and actual live dashboard integration while retaining M3.1 as active and full DoD obligations open.
+- **1.1.4 — 2026-10-10:** Include readable diagnostic documents and canonical graph visualization in M3.1 acceptance, record the Steward's external browser observation and live worker integration evidence, and propose (without accepting) M3.4 ownership for Issue #13's actionable console/resident-chat requirements.
+- **1.1.5 — 2026-10-11:** Record the Steward's scoped technical acceptance of M3.1 without waiving full component DoD; advance the cursor to M3.2 durable notification and decision requests.
+- **1.1.6 — 2026-10-11:** Remove trailing whitespace detected during acceptance-record checkout.
+- **1.1.7 — 2026-10-11:** Correct the Grace section cursor reference to reflect M3.2 as the current step.
+- **1.1.8 — 2026-10-11:** Record scoped M3.2 technical commissioning and advance the engineering cursor to M3.3; retain open full-DoD and live decision-request limitations.
+- **1.1.9 — 2026-10-11:** Preserve M3.3 as the earliest unaccepted step while recording live authorization/knowledge preflight blockers and M4.1 unblocker engineering.

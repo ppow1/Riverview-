@@ -1,0 +1,16 @@
+NOTICE:  drop cascades to 12 other objects
+DETAIL:  drop cascades to table rvtest_worker.schema_migrations
+drop cascades to table rvtest_worker.assignments
+drop cascades to table rvtest_worker.events
+drop cascades to table rvtest_worker.assignment_leases
+drop cascades to table rvtest_worker.worker_registry
+drop cascades to table rvtest_worker.worker_attempts
+drop cascades to table rvtest_worker.worker_results
+drop cascades to table rvtest_worker.knowledge_observations
+drop cascades to table rvtest_worker.verification_records
+drop cascades to function rvtest_worker.require_independent_verification_for_completion()
+drop cascades to table rvtest_worker.worker_execution_intents
+drop cascades to table rvtest_worker.worker_recovery_records
+DROP SCHEMA
+remaining_rvtest_schemas=0
+remaining_rvtest_roles=0

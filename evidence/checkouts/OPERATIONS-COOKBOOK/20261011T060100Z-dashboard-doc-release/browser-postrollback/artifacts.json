@@ -1,0 +1,26 @@
+{
+  "component_id": "STEWARD-DASHBOARD preserved release",
+  "files": {
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "5f9820b7f1fee674e6858cf9ffe4cd9b2f713e0cdf5acd9cc354cf1a3d3f1abc",
+      "size_bytes": 4059
+    },
+    "cookbook-view.png": {
+      "path": "cookbook-view.png",
+      "revision": "1.0.0",
+      "sha256": "ca033765521caf288d1582f0e00508ae8354c2c10220776ccdfec50d1eb9024a",
+      "size_bytes": 176770
+    },
+    "workflow-view.png": {
+      "path": "workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "359d74f81ec326ace0c38966bc1eb6282a2e5d83107e2f91d0628cf99b597563",
+      "size_bytes": 213230
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "source_commit": "7a9ff46e11edc54b1ffe46f63962754e6d2da765",
+  "task_id": "RV-OPS-COOKBOOK-DASHBOARD-POSTROLLBACK-BROWSER"
+}

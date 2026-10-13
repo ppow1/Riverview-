@@ -1,0 +1,11 @@
+{
+  "restart_recovered": true,
+  "recovery_ms": 846.66,
+  "source_commit": "7f17a48f6fa47f151453c7e2e468532576942b19",
+  "projection_status": "healthy",
+  "assignments_total": 3,
+  "event_cursor": 6,
+  "workers": "not_initialized",
+  "cme": "not_initialized",
+  "observation": "authenticated request succeeded after systemd restart"
+}

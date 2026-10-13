@@ -1,0 +1,16 @@
+{
+  "steward_observed_before_fix": {
+    "source": "PR #16 comment 6102785527; snapshot JSON not transferred",
+    "http_503_count": 4,
+    "route": "/api/v1/attention",
+    "period_seconds": 5,
+    "component": "# Component: STEWARD-DASHBOARD"
+  },
+  "cause": "API mapped projection status not_initialized to HTTP 503 while the browser polled the optional relation unconditionally; the UI treated each valid missing-relation response as request failure.",
+  "correction": "Missing optional relation returns HTTP 200 with explicit status=not_initialized; browser skips endpoint polling until status reports the relation present; actual database query failures continue returning HTTP 503.",
+  "tests": [
+    "tests.test_status_dashboard.DashboardHTTPTests.test_not_initialized_attention_is_domain_state_not_repeated_http_503",
+    "full suite 114 passed, zero skipped"
+  ],
+  "post_migration_browser_errors": 0
+}

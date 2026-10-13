@@ -1,0 +1,29 @@
+BEGIN
+ current_database | current_user 
+------------------+--------------
+ riverview        | postgres
+(1 row)
+
+    nspname    |     owner      
+---------------+----------------
+ riverview_dev | riverview_core
+(1 row)
+
+            version            |          applied_at           |                             checksum                             
+-------------------------------+-------------------------------+------------------------------------------------------------------
+ 0001_assignment_event_ledger  | 2026-10-10 12:15:36.828473-04 | 7f3580aacc057b977f8dd6f880584d1fed678488523b0d2ce6737c1107487492
+ 0002_event_processor_cursor   | 2026-10-10 12:58:27.053254-04 | 356c473027044429f403ca55da7a13fda86a4bfacc606d0727dc23ee98eafa3b
+ 0001_assignment_leases        | 2026-10-10 18:27:04.341175-04 | ce29c2994904f54706db883f61127bf05ee195ecbdce90e7242886e86711b717
+ 0001_worker_attempts          | 2026-10-10 18:27:04.516488-04 | 023efdda83d2498e96febb1daa4b7705ec76d2d0b84aa900ad720075a099b780
+ 0002_knowledge_observations   | 2026-10-10 18:27:04.578506-04 | 2c9f40826ec405ded2f2f14c0b12f281b625358707943f67a8e642a59556930c
+ 0003_independent_verification | 2026-10-10 18:27:04.666938-04 | 70b9c9f3e3038897b1ef1c729f3619f31e49894c920da99dcb44a6556d3c7448
+ 0004_failure_recovery         | 2026-10-10 18:27:04.793391-04 | 144564ca3b73f9190801c2133a8c495dd562a0338ae2afd1936a2fdd32f8dd9b
+ 0005_cme_monitoring           | 2026-10-10 18:27:04.956528-04 | 8a637d18c55eae4ddb4defe713e1ff04bcdbeba9ae1ecbb7cd1923a7062a1824
+(8 rows)
+
+        to_regclass        |     to_regclass      |           to_regclass           |          to_regclass          |            to_regclass             |           to_regclass            |           to_regclass            
+---------------------------+----------------------+---------------------------------+-------------------------------+------------------------------------+----------------------------------+----------------------------------
+ riverview_dev.assignments | riverview_dev.events | riverview_dev.assignment_leases | riverview_dev.worker_registry | riverview_dev.verification_records | riverview_dev.cme_monitor_health | riverview_dev.cme_monitor_events
+(1 row)
+
+COMMIT

@@ -1,0 +1,12 @@
+BEGIN
+0006_durable_notifications|446ac3a7af152e4ae18f6a24970abc9153134fdecf9c7e2827c539eb81299d14
+0
+0
+0
+riverview_core
+1
+1
+4
+11
+6
+COMMIT

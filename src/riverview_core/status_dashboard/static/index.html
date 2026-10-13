@@ -1,0 +1,60 @@
+<!-- Riverview~ controlled asset; component STEWARD-DASHBOARD. -->
+<!-- Revision: 1.0.7 -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Riverview — Operations</title>
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail" aria-label="Primary navigation">
+      <a class="brand" href="#overview" aria-label="Riverview overview"><span class="sigil">R</span><span>Riverview<small>OPERATIONS</small></span></a>
+      <nav>
+        <button class="nav-item selected" data-view="overview"><span class="nav-mark">◉</span>Overview</button>
+        <button class="nav-item" data-view="assignments"><span class="nav-mark">▤</span>Assignments</button>
+        <button class="nav-item" data-view="activity"><span class="nav-mark">⌁</span>Activity</button>
+        <button class="nav-item" data-view="workflows"><span class="nav-mark">◇</span>Workflows</button>
+        <button class="nav-item" data-view="notifications"><span class="nav-mark">◎</span>Notifications</button>
+      </nav>
+      <div class="rail-foot"><span class="pulse-dot" id="pulse-dot"></span><span id="rail-health">Connecting</span><button id="snapshot" class="quiet-button" title="Download bounded diagnostic snapshot">Snapshot ↓</button></div>
+    </aside>
+    <main>
+      <header class="topbar"><div><div class="eyebrow">STEWARD CONSOLE <span>/</span> M3.1</div><h1 id="page-title">Operations overview</h1></div><div class="top-right"><div class="freshness" id="freshness">Awaiting source</div><button id="refresh" class="icon-button" aria-label="Refresh projections" title="Refresh">↻</button><button id="auth-open" class="icon-button" aria-label="Connection settings" title="Connection">⌑</button></div></header>
+      <section id="login" class="login-card" hidden><div class="eyebrow">SECURE LOCAL CONNECTION</div><h2>Connect to Riverview</h2><p>Enter the dashboard token from the protected local credential. It is held in this browser tab only.</p><form id="login-form"><label for="token">Access token</label><input id="token" type="password" autocomplete="off" spellcheck="false" required><button class="primary" type="submit">Connect</button></form><div id="login-error" class="inline-error" role="status"></div></section>
+      <div id="workspace" hidden>
+        <section class="view active" id="view-overview" aria-label="Overview">
+          <div class="hero"><div><div class="eyebrow">LIVE PROJECTION <span>·</span> <span id="source-name">PostgreSQL</span></div><h2 id="hero-status">Loading authoritative state</h2><p id="hero-copy">The browser reads a bounded projection. CME work continues independently.</p></div><div class="hero-badge" id="hero-badge">…</div></div>
+          <div class="metrics" id="metrics"></div>
+          <div class="split"><section class="panel"><div class="panel-head"><div><div class="eyebrow">CURRENT WORK</div><h3>Assignments</h3></div><button class="text-link" data-go="assignments">All assignments ↗</button></div><div id="overview-assignments" class="rows muted">Waiting for data…</div></section><section class="panel"><div class="panel-head"><div><div class="eyebrow">CME OBSERVATION</div><h3>Monitor & attention</h3></div><span id="cme-pill" class="pill unknown">UNKNOWN</span></div><div id="cme-detail" class="detail-stack"></div><div class="subhead">Recent attention</div><div id="attention-list" class="rows muted">No observation yet.</div><div class="panel-head subhead"><div><div class="eyebrow">EXECUTION WORKERS</div><span class="muted" id="worker-page-note"></span></div><button id="more-workers" class="secondary" hidden>Load next page</button></div><div id="worker-list" class="rows muted">Worker health not observed.</div></section></div>
+          <section class="panel"><div class="panel-head"><div><div class="eyebrow">RECENT EVENTS</div><h3>Institution activity</h3></div><button class="text-link" data-go="activity">Open activity ↗</button></div><div id="overview-events" class="rows muted">Waiting for events…</div></section>
+        </section>
+        <section class="view" id="view-assignments" aria-label="Assignments" hidden><div class="section-intro"><div><div class="eyebrow">DURABLE LIFECYCLE</div><h2>Assignments</h2></div><div class="note">State and progress come from PostgreSQL events. No progress percentage is inferred.</div></div><div class="panel"><div class="panel-head"><div><h3>Work in the ledger</h3><span class="muted" id="assignment-page-note"></span></div><button id="more-assignments" class="secondary" hidden>Load next page</button></div><div id="assignment-list" class="rows muted">Waiting for data…</div></div><div id="assignment-detail" class="panel detail-panel" hidden></div></section>
+        <section class="view" id="view-activity" aria-label="Activity" hidden><div class="section-intro"><div><div class="eyebrow">CAUSAL EVENT LEDGER</div><h2>Activity</h2></div><div class="note">Correlation and causation IDs are shown as recorded.</div></div><div class="panel"><div class="panel-head"><div><h3>Persisted events</h3><span class="muted" id="event-cursor"></span></div><button id="more-events" class="secondary" hidden>Load next page</button></div><div id="event-list" class="rows muted">Waiting for events…</div></div><div class="panel diagnostics"><div class="eyebrow">DIAGNOSTIC REFERENCES</div><div><a href="/docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md" target="_blank" rel="noreferrer">Complete operations and recovery guide</a><span> · </span><a href="/docs/components/CME_MONITOR_COOKBOOK.md" target="_blank" rel="noreferrer">CME monitoring cookbook</a><span> · </span><a href="/docs/components/STATUS_DASHBOARD_COOKBOOK.md" target="_blank" rel="noreferrer">Dashboard read-only troubleshooting</a></div></div></section>
+        <section class="view" id="view-workflows" aria-label="Process workflows" hidden>
+          <div class="section-intro"><div><div class="eyebrow">CANONICAL PROCESS GRAPH</div><h2>Workflows</h2></div><div class="note">Read-only view generated from the versioned graph registry. No activity is inferred.</div></div>
+          <div class="panel"><div class="panel-head"><div><h3>Registered workflows</h3><span class="muted" id="graph-revision">Loading canonical registry…</span></div><label class="graph-select-label" for="graph-select">Workflow <select id="graph-select" class="secondary"><option value="">Loading…</option></select></label></div>
+            <div id="graph-execution-position" class="graph-position">Live execution position: unknown until the ledger records a process graph node identity.</div>
+            <div id="graph-canvas" class="graph-canvas" role="img" aria-label="Canonical process workflow diagram"><p class="muted">Select a workflow to view its nodes and transitions.</p></div>
+            <div class="graph-legend"><span class="graph-chip process">Process</span><span class="graph-chip decision">Decision</span><span class="graph-chip failure">Failure / escalation</span><span class="graph-chip recovery">Recovery / verification</span></div>
+            <aside id="graph-node-detail" class="graph-node-detail muted">Select a node for its stable identity, revision and references.</aside>
+          </div>
+          <div class="panel"><div class="panel-head"><div><div class="eyebrow">LOGICAL JUMP POINTS</div><h3>Cross-workflow destinations</h3></div></div><div id="graph-jumps" class="rows muted">Select a workflow to inspect its registered jump points.</div></div>
+          <div class="panel diagnostics"><div class="eyebrow">DIAGNOSTIC REFERENCES</div><div><a href="/docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md" target="_blank" rel="noreferrer">Complete operations and recovery guide</a><span> · </span><a href="/docs/components/CME_MONITOR_COOKBOOK.md" target="_blank" rel="noreferrer">CME monitoring cookbook</a><span> · </span><a href="/docs/components/STATUS_DASHBOARD_COOKBOOK.md" target="_blank" rel="noreferrer">Dashboard troubleshooting</a></div></div>
+        </section>
+        <section class="view" id="view-notifications" aria-label="Notifications" hidden>
+          <div class="section-intro"><div><div class="eyebrow">DURABLE ATTENTION</div><h2>Notifications</h2></div><div class="note">Receipt acknowledgment confirms that this dashboard rendered the notice. It is not a Steward decision or approval.</div></div>
+          <div class="panel"><div class="panel-head"><div><h3>Attention delivery</h3><span class="muted" id="notification-state">Waiting for source</span></div><button id="refresh-notifications" class="secondary">Refresh</button></div><div id="notification-list" class="rows muted">No notification state observed.</div><div class="diagnostics"><a href="/docs/components/NOTIFICATION_DELIVERY.md" target="_blank" rel="noreferrer">Notification contract</a><a href="/docs/components/NOTIFICATION_DELIVERY_COOKBOOK.md" target="_blank" rel="noreferrer">Troubleshooting and recovery</a></div></div>
+        </section>
+      </div>
+      <footer><span>Read-only projection</span><span id="source-commit">Source revision unavailable</span><span id="request-state">No pending request</span></footer>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/assets/app.js" defer></script>
+  <script src="/assets/workflow.js" defer></script>
+</body>
+</html>

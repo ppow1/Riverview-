@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:riverview:notification-delivery:api:1.0.0",
+  "title": "Riverview visual notification API",
+  "oneOf": [
+    {"$ref":"#/$defs/page"},
+    {"$ref":"#/$defs/receipt"}
+  ],
+  "$defs": {
+    "page": {
+      "type":"object",
+      "required":["schema_version","status","observed_at","limit","dispatcher","items"],
+      "properties":{
+        "schema_version":{"const":"rv.notifications.v1"},
+        "status":{"enum":["available","not_initialized"]},
+        "observed_at":{"type":["string","null"],"format":"date-time"},
+        "limit":{"type":"integer","minimum":1,"maximum":50},
+        "dispatcher":{"type":"object"},
+        "items":{"type":"array","maxItems":50,"items":{"$ref":"#/$defs/item"}}
+      },
+      "additionalProperties":false
+    },
+    "item": {
+      "type":"object",
+      "required":["notification_id","source_event_id","assignment_id","event_type","channel","source_recorded_at","created_at","delivered_at","acknowledged_at","request_id","decision_status","assignment_version","delivery_status","decision_request_id","summary"],
+      "properties":{
+        "notification_id":{"type":"string","format":"uuid"},
+        "source_event_id":{"type":"string","format":"uuid"},
+        "assignment_id":{"type":["string","null"]},
+        "event_type":{"enum":["assignment_stalled","deadline_missed","assignment_attention","recovery_requested","monitor_failed","attention_resolved"]},
+        "channel":{"const":"dashboard.visual.v1"},
+        "source_recorded_at":{"type":"string","format":"date-time"},
+        "created_at":{"type":"string","format":"date-time"},
+        "delivered_at":{"type":["string","null"],"format":"date-time"},
+        "acknowledged_at":{"type":["string","null"],"format":"date-time"},
+        "request_id":{"type":["string","null"],"format":"uuid"},
+        "decision_request_id":{"type":["string","null"],"format":"uuid"},
+        "decision_status":{"type":["string","null"],"enum":["pending",null]},
+        "assignment_version":{"type":["integer","null"],"minimum":1},
+        "delivery_status":{"enum":["queued","delivered","acknowledged"]},
+        "summary":{"type":"string","maxLength":160}
+      },
+      "additionalProperties":false
+    },
+    "receipt": {
+      "type":"object",
+      "required":["schema_version","status","notification_id","recorded_at","already_recorded","decision_request_status","authority_effect"],
+      "properties":{
+        "schema_version":{"const":"rv.notification_receipt.v1"},
+        "status":{"enum":["delivered","acknowledged"]},
+        "notification_id":{"type":"string","format":"uuid"},
+        "recorded_at":{"type":["string","null"],"format":"date-time"},
+        "already_recorded":{"type":"boolean"},
+        "decision_request_status":{"type":["string","null"],"enum":["pending",null]},
+        "authority_effect":{"const":"none"}
+      },
+      "additionalProperties":false
+    }
+  }
+}

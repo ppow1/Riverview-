@@ -1,0 +1,63 @@
+{
+  "browser": "Firefox 156.0.1",
+  "url": "http://127.0.0.1:8766/ (loopback)",
+  "observed_at_utc": "2026-10-10T22:31:12Z",
+  "source_commit": "Source 702f5db3f03669427a3625425eca04c023a0754c \u00b7 m3.1-camrui",
+  "projection_status": "healthy",
+  "observed_state": true,
+  "cme_status": "healthy",
+  "attention_status": "available",
+  "attention_event_types": [
+    "monitor_started",
+    "assignment_stalled",
+    "assignment_stalled",
+    "assignment_stalled",
+    "monitor_started"
+  ],
+  "worker_summary": {
+    "status": "unknown",
+    "active_workers": 0,
+    "healthy_workers": 0,
+    "stale_workers": 0,
+    "unknown_workers": 0,
+    "unverified_workers": 0,
+    "active_leases": 0,
+    "source": "assignment_leases",
+    "health_semantics": "per-worker latest lease heartbeat; no heartbeat is unknown, not healthy"
+  },
+  "browser_errors": [],
+  "navigation_samples": [
+    {
+      "view": "assignments",
+      "ms": 13.0
+    },
+    {
+      "view": "activity",
+      "ms": 5.0
+    },
+    {
+      "view": "overview",
+      "ms": 5.0
+    },
+    {
+      "view": "activity",
+      "ms": 46.0
+    },
+    {
+      "view": "assignments",
+      "ms": 10.0
+    },
+    {
+      "view": "overview",
+      "ms": 14.0
+    }
+  ],
+  "navigation_median_ms": 11.5,
+  "snapshot_redaction": {
+    "credentials": "excluded",
+    "private_events": "excluded",
+    "payload_bodies": "excluded",
+    "conversation_content": "not collected"
+  },
+  "snapshot_encoded_bytes": 8611
+}

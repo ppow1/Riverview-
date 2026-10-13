@@ -1,0 +1,10 @@
+{
+  "release_commit": "7f17a48f6fa47f151453c7e2e468532576942b19",
+  "release_path": "/opt/riverview-status-dashboard/releases/7f17a48f6fa47f151453c7e2e468532576942b19",
+  "package_sha256": "7dc2047601caedfa37b2d6d3d9b02af2d72e049d550e36a455ffff4ec7a8670c",
+  "port": "127.0.0.1:8766",
+  "port_preflight": "no listeners in 8700-8799 before install; currently only 8766 owned by dashboard",
+  "authenticated_status_http": 200,
+  "workers_http": 503,
+  "snapshot_http": 200
+}

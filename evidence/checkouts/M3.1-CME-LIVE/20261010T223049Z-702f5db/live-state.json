@@ -1,0 +1,153 @@
+{
+  "captured_at_utc": "2026-10-10T22:38:52.455528+00:00",
+  "host": "admin1-Default-string",
+  "service_release_commit": "702f5db3f03669427a3625425eca04c023a0754c",
+  "api_http_statuses": {
+    "status": 200,
+    "attention": 200,
+    "workers": 200,
+    "events": 200,
+    "assignments": 200,
+    "snapshot": 200
+  },
+  "projection_status": "healthy",
+  "freshness": "current",
+  "source": {
+    "kind": "postgresql",
+    "database": "riverview",
+    "schema": "riverview_dev",
+    "source_commit": "702f5db3f03669427a3625425eca04c023a0754c",
+    "deployment_id": "m3.1-camrui",
+    "latest_migration": "0005_cme_monitoring"
+  },
+  "assignments_total": 3,
+  "assignment_counts": {
+    "ready": 3
+  },
+  "institution_event_count": 6,
+  "event_cursor": 6,
+  "migrations": [
+    {
+      "version": "0001_assignment_event_ledger",
+      "checksum": "7f3580aacc057b977f8dd6f880584d1fed678488523b0d2ce6737c1107487492",
+      "applied_at": "2026-10-10 12:15:36.828473-04:00"
+    },
+    {
+      "version": "0002_event_processor_cursor",
+      "checksum": "356c473027044429f403ca55da7a13fda86a4bfacc606d0727dc23ee98eafa3b",
+      "applied_at": "2026-10-10 12:58:27.053254-04:00"
+    },
+    {
+      "version": "0001_assignment_leases",
+      "checksum": "ce29c2994904f54706db883f61127bf05ee195ecbdce90e7242886e86711b717",
+      "applied_at": "2026-10-10 18:27:04.341175-04:00"
+    },
+    {
+      "version": "0001_worker_attempts",
+      "checksum": "023efdda83d2498e96febb1daa4b7705ec76d2d0b84aa900ad720075a099b780",
+      "applied_at": "2026-10-10 18:27:04.516488-04:00"
+    },
+    {
+      "version": "0002_knowledge_observations",
+      "checksum": "2c9f40826ec405ded2f2f14c0b12f281b625358707943f67a8e642a59556930c",
+      "applied_at": "2026-10-10 18:27:04.578506-04:00"
+    },
+    {
+      "version": "0003_independent_verification",
+      "checksum": "70b9c9f3e3038897b1ef1c729f3619f31e49894c920da99dcb44a6556d3c7448",
+      "applied_at": "2026-10-10 18:27:04.666938-04:00"
+    },
+    {
+      "version": "0004_failure_recovery",
+      "checksum": "144564ca3b73f9190801c2133a8c495dd562a0338ae2afd1936a2fdd32f8dd9b",
+      "applied_at": "2026-10-10 18:27:04.793391-04:00"
+    },
+    {
+      "version": "0005_cme_monitoring",
+      "checksum": "8a637d18c55eae4ddb4defe713e1ff04bcdbeba9ae1ecbb7cd1923a7062a1824",
+      "applied_at": "2026-10-10 18:27:04.956528-04:00"
+    }
+  ],
+  "assignment_projection": [
+    {
+      "assignment_id_sha256": "6400f12629327db50d3fd214cb567dd561e2899abe675a04658c9a911dd3f5f5",
+      "state": "ready",
+      "workflow_id": "m13-commissioning.v1",
+      "workflow_step": "event_processor:intake",
+      "version": 2,
+      "correlation_id_sha256": "6400f12629327db50d3fd214cb567dd561e2899abe675a04658c9a911dd3f5f5",
+      "last_progress_at": "2026-10-10 12:59:03.333272-04:00",
+      "progress_age_seconds": 20388.48
+    },
+    {
+      "assignment_id_sha256": "4437c0a7645eaab426367b2c4b187c941b6c5d0b4825dde7113c54eeae885414",
+      "state": "ready",
+      "workflow_id": "m13-commissioning.v1",
+      "workflow_step": "event_processor:intake",
+      "version": 2,
+      "correlation_id_sha256": "4437c0a7645eaab426367b2c4b187c941b6c5d0b4825dde7113c54eeae885414",
+      "last_progress_at": "2026-10-10 12:58:49.003534-04:00",
+      "progress_age_seconds": 20402.81
+    },
+    {
+      "assignment_id_sha256": "1350487256af44c190ab7717c368c9dd76aa0180320c67c2d82217383effe029",
+      "state": "ready",
+      "workflow_id": "m13-commissioning.v1",
+      "workflow_step": "event_processor:intake",
+      "version": 2,
+      "correlation_id_sha256": "1350487256af44c190ab7717c368c9dd76aa0180320c67c2d82217383effe029",
+      "last_progress_at": "2026-10-10 12:59:49.351414-04:00",
+      "progress_age_seconds": 20342.46
+    }
+  ],
+  "cme_health": {
+    "service_id": "cme.monitor.v1",
+    "instance_id": "5e5916da-a47d-4e4f-84ab-e9209a8050b0",
+    "status": "healthy",
+    "last_heartbeat_at": "2026-10-10 18:38:48.427340-04:00",
+    "last_scan_at": "2026-10-10 18:38:48.427340-04:00",
+    "assignments_observed": 3,
+    "workers_registered": 0,
+    "workers_enabled": 0
+  },
+  "cme_events_by_type": {
+    "assignment_stalled": 3,
+    "monitor_started": 3
+  },
+  "attention_status": "available",
+  "attention_items": [
+    {
+      "event_id": "b129d70f-5626-478d-86d5-b5c66740533e",
+      "event_type": "assignment_stalled",
+      "assignment_id_sha256": "4437c0a7645eaab426367b2c4b187c941b6c5d0b4825dde7113c54eeae885414",
+      "attention_key_sha256": "9b08296af2e17140d65484dec6acf4393edad080ce319c72a2bdb9a4dde09e1d",
+      "recorded_at": "2026-10-10 18:28:38.216381-04:00"
+    },
+    {
+      "event_id": "a16e90e8-e966-446a-b7f1-1acdcfe3f375",
+      "event_type": "assignment_stalled",
+      "assignment_id_sha256": "6400f12629327db50d3fd214cb567dd561e2899abe675a04658c9a911dd3f5f5",
+      "attention_key_sha256": "626e109dbfb31c901cd51c9e5d805612939fd3c90b0807f6977a360e44a885d9",
+      "recorded_at": "2026-10-10 18:28:38.219289-04:00"
+    },
+    {
+      "event_id": "d51865fb-7793-4691-861a-bcb025f5dd79",
+      "event_type": "assignment_stalled",
+      "assignment_id_sha256": "1350487256af44c190ab7717c368c9dd76aa0180320c67c2d82217383effe029",
+      "attention_key_sha256": "ba7569698b003d4a0ccb9f29361bf35a653007845e3c9fc3b0f09f15a0ed3e9e",
+      "recorded_at": "2026-10-10 18:28:38.221732-04:00"
+    }
+  ],
+  "worker_projection": {
+    "status": "available",
+    "rows": 0
+  },
+  "worker_registry_count": 0,
+  "verification_record_count": 0,
+  "snapshot_redaction": {
+    "credentials": "excluded",
+    "private_events": "excluded",
+    "payload_bodies": "excluded",
+    "conversation_content": "not collected"
+  }
+}

@@ -1,0 +1,4 @@
+INSTITUTIONAL_AUTHORITY.md: PASS headings=5 tables=0 code_blocks=0 raw_scripts=0
+INSTITUTIONAL_AUTHORITY_FLOW.md: PASS headings=2 tables=1 code_blocks=1 raw_scripts=0
+INSTITUTIONAL_AUTHORITY_COOKBOOK.md: PASS headings=5 tables=1 code_blocks=2 raw_scripts=0
+RIVERVIEW_OPERATIONS_COOKBOOK.md: PASS headings=16 tables=2 code_blocks=16 raw_scripts=0

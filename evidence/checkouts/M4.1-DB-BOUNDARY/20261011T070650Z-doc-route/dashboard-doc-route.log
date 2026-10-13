@@ -1,0 +1,3 @@
+PYTHONPATH=src pytest -q tests/test_status_dashboard.py -k component_cookbook_is_rendered_as_readable_safe_html
+.                                                                        [100%]
+1 passed, 19 deselected in 0.95s

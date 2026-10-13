@@ -2,13 +2,46 @@
 Riverview~ Controlled Document
 File: docs/components/CME_MONITOR_COOKBOOK.md
 Component: CME
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Provide read-only diagnosis and safe recovery guidance for CME monitor
 Authority: Diagnostics are read-only; migrations and state changes require explicit operations
-Changed: 2026-10-10 UTC | RV-M2.4-001 | Initial M2.4 cookbook
+Changed: 2026-10-10 UTC | RV-M2.4-002 | Document installed monitor operations and verified recovery controls
 History: Git and revision/backup manifest
 -->
 # CME monitor troubleshooting cookbook
+
+## Installed Camrui service
+
+The dedicated service is `riverview-cme-monitor.service`. Check its lifecycle
+without restarting the event processor or dashboard:
+
+```sh
+systemctl status riverview-cme-monitor.service --no-pager
+journalctl -u riverview-cme-monitor.service -n 100 --no-pager
+systemctl show riverview-cme-monitor.service -p ActiveState -p SubState -p MainPID -p NRestarts
+```
+
+Its release is selected through `/opt/riverview-cme-monitor/current`; the service
+account cannot modify the root-owned release. It receives `/etc/riverview/pgpass`
+via `LoadCredential`, then validates the credential and copies it to a private
+mode-0600 RuntimeDirectory file. Never print this file, the systemd credential
+environment, or PostgreSQL secrets. On an intentional service restart, systemd
+recreates the runtime directory and credential; CME reacquires its advisory
+lock and performs a full durable-state scan. The dashboard and intake processor
+are independent units and must remain active through CME recovery.
+
+To verify migration state without changing it:
+
+```sql
+SELECT version, applied_at, checksum FROM riverview_dev.schema_migrations ORDER BY applied_at;
+SELECT service_id, status, last_heartbeat_at, last_scan_at, assignments_observed
+FROM riverview_dev.cme_monitor_health;
+```
+
+Before any schema recovery, stop only the CME monitor, take and verify a full
+PostgreSQL backup, restore it into a disposable database, and retain checksums.
+Do not roll back by dropping shared tables while the monitor or dashboard is
+active. The installed monitor never applies migrations itself.
 
 ## Read-only status and health
 

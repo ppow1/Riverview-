@@ -1,0 +1,8 @@
+{
+  "command": "python3 scripts/revision_control.py check --baseline evidence/checkouts/ENG-REVISION-CONTROL/20261010T1530Z-27a8c55/baseline-inventory.json",
+  "checked_at_utc": "2026-10-10T22:47:38Z",
+  "passed": true,
+  "issue_count": 0,
+  "baseline": "evidence/checkouts/ENG-REVISION-CONTROL/20261010T1530Z-27a8c55/baseline-inventory.json",
+  "notes": "Final full suite is 115/115; missing-relation and actual projection-failure HTTP tests both passed."
+}

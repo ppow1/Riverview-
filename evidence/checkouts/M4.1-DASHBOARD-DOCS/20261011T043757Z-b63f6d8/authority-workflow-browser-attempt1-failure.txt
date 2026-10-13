@@ -1,0 +1,2 @@
+Attempt 1 result: FAIL (test harness interaction only).
+Browser authenticated, found the canonical M4.1 graph, selected it, and rendered 12 nodes with the graph viewer. The test then called HTMLElement.click() on an SVG <g> node; geckodriver returned HTTP 500 from execute/sync before report/screenshot creation. No application/database/service state was changed. The browser/session was closed by the test finally block. Corrective action: use the dashboard's already-tested SVG MouseEvent dispatch pattern and capture the selected node detail.
