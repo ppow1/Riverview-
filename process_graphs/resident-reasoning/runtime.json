@@ -1,16 +1,18 @@
 {
   "graph_id": "rv:resident-reasoning:runtime",
-  "graph_revision": "1.1.0",
+  "graph_revision": "1.1.1",
   "component_id": "RESIDENT-REASONING",
   "workflow_id": "resident.reasoning.v1",
   "diagram_order": 13,
   "source_references": [
+    "src/riverview_core/institutional_authority/registry.py",
+    "src/riverview_core/local_reasoning_provider.py",
+    "src/riverview_core/reasoning_escalation.py",
     "src/riverview_core/resident_reasoning.py",
     "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
-    "src/riverview_core/institutional_authority/registry.py",
-    "tests/test_resident_reasoning.py",
-    "src/riverview_core/local_reasoning_provider.py",
-    "tests/test_local_reasoning_provider.py"
+    "tests/test_local_reasoning_provider.py",
+    "tests/test_reasoning_escalation.py",
+    "tests/test_resident_reasoning.py"
   ],
   "documentation_references": [
     "docs/components/RESIDENT_REASONING.md",
@@ -474,6 +476,70 @@
       "verification_evidence": [
         "tests/test_reasoning_escalation.py"
       ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:task-escalation-authority-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "CONTRACT ONLY — require exact resident.reasoning.escalate grant for the selected provider scope",
+      "source_references": [
+        "src/riverview_core/reasoning_escalation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_reasoning_escalation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:task-escalation-result",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "CONTRACT ONLY — accept a structured result only when correlation, context fingerprint, schema, and token budget match",
+      "source_references": [
+        "src/riverview_core/reasoning_escalation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_reasoning_escalation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:task-escalation-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Record denied, unavailable, capacity, timeout, invalid-result, and stale-context outcomes without claiming a proposal",
+      "source_references": [
+        "src/riverview_core/reasoning_escalation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_reasoning_escalation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:task-escalation-recovery",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Keep the original assignment durable; retry only after explicit regrounding and current authority/provider readiness",
+      "source_references": [
+        "src/riverview_core/reasoning_escalation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_reasoning_escalation.py"
+      ]
     }
   ],
   "edges": [
@@ -633,6 +699,36 @@
       "to": "rv:resident-reasoning:runtime:task-escalation-contract",
       "type": "prerequisite",
       "label": "Optional explicit task-escalation contract; distinct from provider failure fallback"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:task-escalation-contract",
+      "to": "rv:resident-reasoning:runtime:task-escalation-authority-gate",
+      "type": "prerequisite",
+      "label": "Task escalation is a distinct authorized route, not failure fallback"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:task-escalation-authority-gate",
+      "to": "rv:resident-reasoning:runtime:task-escalation-result",
+      "type": "prerequisite",
+      "label": "Only exact-grant authorized provider results may be considered"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:task-escalation-contract",
+      "to": "rv:resident-reasoning:runtime:task-escalation-failure",
+      "type": "diagnostic_branch",
+      "label": "Denied, unavailable, saturated, timed out, malformed, or stale context"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:task-escalation-failure",
+      "to": "rv:resident-reasoning:runtime:task-escalation-recovery",
+      "type": "recovery_route",
+      "label": "Preserve assignment and resume after authority/resource/context regrounding"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:task-escalation-recovery",
+      "to": "rv:resident-reasoning:runtime:ground",
+      "type": "prerequisite",
+      "label": "Re-establish verified facts and current assignment before another proposal"
     }
   ]
 }

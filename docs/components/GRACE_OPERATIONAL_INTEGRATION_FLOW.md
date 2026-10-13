@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.16
+**Document Revision:** 1.0.17
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -101,6 +101,14 @@ flowchart LR
     g_rv_grace_operational_integration_office_state_restart_and_replacement_0c6a704e["ISOLATED INTEGRATION VERIFIED — reconstructed resident runtime resumes office-keyed plan under replacement binding; stale occupant grant is denied"]
     g_rv_grace_operational_integration_stale_resident_denied_bacbbff8[["A stale resident grant is denied before grounding/provider use even if it is later reissued; office-state writes recheck the bound principal under a binding-row lock"]]
     g_rv_grace_operational_integration_conversation_origin_intake_ba92fbfa["Explicit Steward promotion validates a persisted principal-authored Grace message, conversation read grant, and exact objective.submit grant on work-order:engineering"]
+    g_rv_grace_operational_integration_codex_capability_check_d39b996a{"NOT COMMISSIONED — determine whether the versioned Codex artifact capability is registered and usable"}
+    g_rv_grace_operational_integration_codex_resource_check_71ed8b3b{"NOT READY — require dedicated service identity/CODEX_HOME, pinned executable, isolated workspace, capacity, and fresh dependency evidence"}
+    g_rv_grace_operational_integration_codex_authority_gate_738aae11{"NOT ENABLED — exact worker.register and assignment.execute grants must be active for the Engineering scope"}
+    g_rv_grace_operational_integration_codex_cli_run_ade47dcf["SOURCE ONLY — run one pinned-repository Codex job in a fresh workspace with network disabled and fixed deliverable path"]
+    g_rv_grace_operational_integration_codex_artifact_verification_ab484b65["NOT INTEGRATED — independent verifier must reopen the output and evaluate the registered acceptance procedure before completion"]
+    g_rv_grace_operational_integration_codex_execution_failed_f49befea[["Codex preflight, authorization, timeout, output bounds, or workspace integrity failed; assignment must remain durable and non-complete"]]
+    g_rv_grace_operational_integration_codex_execution_recovery_5c33f626["PLANNED — retain objective and assignment; resume only after resource or authority regrounding through normal CME recovery"]
+    g_rv_grace_operational_integration_engineering_resource_request_5f8561c6[["PLANNED — persist pending resource request for HR/Helen or Steward decision; Helen is not commissioned and no allocation is presumed"]]
   end
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_cme_progress_and_recovery_observe_428defda["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -149,6 +157,18 @@ flowchart LR
   g_rv_grace_operational_integration_stale_resident_denied_bacbbff8 -->|recovery_route: record no proposal; replace/reissue only through existing authorized identity lifecycle| g_rv_grace_operational_integration_waiting_and_failure_0a7985d4
   g_rv_grace_operational_integration_conversation_origin_intake_ba92fbfa -->|Create durable objective with conversation origin| g_rv_grace_operational_integration_objective_intake_55567c14
   g_rv_grace_operational_integration_conversation_origin_intake_ba92fbfa -->|diagnostic_branch: Missing Steward session, message ownership, or exact submission grant| g_rv_grace_operational_integration_waiting_and_failure_0a7985d4
+  g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8 -->|prerequisite: Codex is an optional candidate adapter; current worker remains the deterministic artifact adapter| g_rv_grace_operational_integration_codex_capability_check_d39b996a
+  g_rv_grace_operational_integration_codex_capability_check_d39b996a -->|prerequisite: Only registered capability may proceed to live readiness assessment| g_rv_grace_operational_integration_codex_resource_check_71ed8b3b
+  g_rv_grace_operational_integration_codex_capability_check_d39b996a -->|escalation: Capability absent or unsupported; create a durable pending request only through existing authority| g_rv_grace_operational_integration_engineering_resource_request_5f8561c6
+  g_rv_grace_operational_integration_codex_resource_check_71ed8b3b -->|prerequisite: Resource readiness is distinct from capability existence and authorization| g_rv_grace_operational_integration_codex_authority_gate_738aae11
+  g_rv_grace_operational_integration_codex_resource_check_71ed8b3b -->|diagnostic_branch: Missing binary, dedicated identity/credential, capacity, or fresh dependency evidence| g_rv_grace_operational_integration_codex_execution_failed_f49befea
+  g_rv_grace_operational_integration_codex_authority_gate_738aae11 -->|prerequisite: Exact worker registration and assignment execution grants required| g_rv_grace_operational_integration_codex_cli_run_ade47dcf
+  g_rv_grace_operational_integration_codex_authority_gate_738aae11 -->|diagnostic_branch: Missing, denied, or unavailable exact grant; never infer approval| g_rv_grace_operational_integration_codex_execution_failed_f49befea
+  g_rv_grace_operational_integration_codex_cli_run_ade47dcf -->|prerequisite: Produced artifact is untrusted until separately verified| g_rv_grace_operational_integration_codex_artifact_verification_ab484b65
+  g_rv_grace_operational_integration_codex_cli_run_ade47dcf -->|diagnostic_branch: Provider failure, timeout, unexpected file change, or output bound violation| g_rv_grace_operational_integration_codex_execution_failed_f49befea
+  g_rv_grace_operational_integration_codex_execution_failed_f49befea -->|recovery_route: Preserve durable work; use fenced scheduler recovery and record evidence| g_rv_grace_operational_integration_codex_execution_recovery_5c33f626
+  g_rv_grace_operational_integration_codex_execution_recovery_5c33f626 -->|prerequisite: Reground dynamic resource and credential readiness before retry| g_rv_grace_operational_integration_codex_resource_check_71ed8b3b
+  g_rv_grace_operational_integration_codex_artifact_verification_ab484b65 -->|prerequisite: Only an independent acceptance decision may feed objective completion| g_rv_grace_operational_integration_evidence_review_600fe7b4
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

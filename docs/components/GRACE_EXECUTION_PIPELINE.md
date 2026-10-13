@@ -2,11 +2,12 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.2
+File Revision: 1.0.3
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
 Authority: Engineering contract; not evidence of production Grace commissioning
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Link persistent reconciliation and authenticated dashboard handoff
 Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER-CONTRACT | Document explicit message-origin objective intake and its exact Steward grant
+Changed: 2026-10-13 UTC | RV-CODEX-CLI-ADAPTER-001 | Record the source-only bounded Codex artifact adapter and commissioning gates
 -->
 # Grace Execution Pipeline — infrastructure slice
 
@@ -74,5 +75,30 @@ RIVERVIEW_TEST_PG_DSN='postgresql://…' PYTHONPATH=src python3 -m unittest disc
 \`\`\`
 
 Tests include authorized and unauthorized intake, commit-pinned selection, missing and oversized evidence, worker failure, incomplete verification, actual filesystem artifact creation, independent artifact reading, persisted ledger completion, and objective event history. These are model-independent infrastructure tests; they do not demonstrate live model reasoning, a resident service, a human dashboard interaction, or operational Grace acceptance.
+
+### Codex CLI adapter — source-only checkpoint
+
+`resident_execution.codex_cli.CodexCLIExecutionAdapter` accepts a typed
+assignment, one operator-configured repository reference and pinned commit, and
+a fixed `deliverable.md` output. It creates a fresh local clone, invokes the
+configured Codex executable with `workspace-write`, network access disabled, a
+noninteractive approval policy, bounded wall time and file size, and discarded
+stdout/stderr. It rejects the interactive user's `~/.codex` directory and
+returns only the assignment, source revision, artifact digest, and a
+`verification_required` result. Synthetic tests use a fake executable; they do
+not prove real Codex authentication or model execution.
+
+This adapter is **not selected by the persistent service**, registered in the
+live capability records, integrated with assignment attempt/result persistence
+and an independent verifier, or deployed. The current service still uses
+`BoundedLocalCodingWorker`. A dedicated Riverview-owned Codex executable and
+service identity, credential isolation review, exact registered capability,
+resource readiness record, and the existing exact `worker.register` and
+`assignment.execute` decisions are required before enablement. The Steward's
+four in-principle grants do not create grant rows. The Grace execution service
+is inactive, and the installed Codex binary is under admin1's personal home;
+neither is used by this adapter. The first safe demonstration needs a
+non-destructive assignment, an independent verifier, and durable return of its
+artifact and evidence to Grace.
 
 The generated workflow below is a projection of process_graphs/grace/operational-integration.json. Regenerate with python3 scripts/process_graph.py generate; verify with python3 scripts/process_graph.py check.
