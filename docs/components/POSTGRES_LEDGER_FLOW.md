@@ -19,7 +19,7 @@ flowchart LR
     g_rv_postgres_ledger_migration_check_be5258fb{"Stored checksum matches source?"}
     g_rv_postgres_ledger_migration_drift_b98061b0[["Checksum mismatch; stop without schema changes"]]
     g_rv_postgres_ledger_migration_noop_899834d7["Identical applied migration is a no-op"]
-    g_rv_postgres_ledger_migration_sql_cacb3993["Apply versioned SQL and checksum atomically"]
+    g_rv_postgres_ledger_migration_sql_cacb3993["Apply each new additive versioned SQL migration and checksum atomically; retain existing data"]
     g_rv_postgres_ledger_migration_require_schema_7fdaca28["PostgresLedger requires migrated target schema"]
     g_rv_postgres_ledger_migration_caller_d46bc0ce["Caller requests assignment create or transition"]
     g_rv_postgres_ledger_migration_transaction_af7f3601["Begin PostgreSQL transaction"]
@@ -81,14 +81,14 @@ flowchart LR
     g_rv_postgres_ledger_assignment_lifecycle_intake_c1d0abf1(["Assignment intake"])
     g_rv_postgres_ledger_assignment_lifecycle_assignment_create_authority_6a12b540{"Exact assignment.create grant authorized"}
     g_rv_postgres_ledger_assignment_lifecycle_assignment_create_denied_313388c8[["Denied or authority unavailable; no assignment persisted"]]
-    g_rv_postgres_ledger_assignment_lifecycle_queued_76a5fc02["queued"]
-    g_rv_postgres_ledger_assignment_lifecycle_ready_acdb1cd3["ready"]
-    g_rv_postgres_ledger_assignment_lifecycle_running_f1fef545["running"]
-    g_rv_postgres_ledger_assignment_lifecycle_awaiting_verification_e3cbd8a1["awaiting_verification"]
+    g_rv_postgres_ledger_assignment_lifecycle_queued_76a5fc02["queued; exact canonical node identity is persisted by PostgresLedger.create"]
+    g_rv_postgres_ledger_assignment_lifecycle_ready_acdb1cd3["ready; exact canonical node identity is persisted with the event transaction"]
+    g_rv_postgres_ledger_assignment_lifecycle_running_f1fef545["running; exact canonical node identity is persisted under the active lease"]
+    g_rv_postgres_ledger_assignment_lifecycle_awaiting_verification_e3cbd8a1["awaiting_verification; canonical node is persisted on the transition into independent verification"]
     g_rv_postgres_ledger_assignment_lifecycle_rework_a5e9f864["rework_required"]
     g_rv_postgres_ledger_assignment_lifecycle_blocked_aab5861d[["blocked"]]
     g_rv_postgres_ledger_assignment_lifecycle_awaiting_steward_96976db9[["awaiting_steward"]]
-    g_rv_postgres_ledger_assignment_lifecycle_completed_ce6019ed(["completed (caller verification flag is only a claim)"])
+    g_rv_postgres_ledger_assignment_lifecycle_completed_ce6019ed(["completed; canonical node is persisted only after independently accepted verification"])
     g_rv_postgres_ledger_assignment_lifecycle_cancelled_d91a0270(["cancelled"])
   end
   g_rv_postgres_ledger_assignment_lifecycle_queued_76a5fc02 --> g_rv_postgres_ledger_assignment_lifecycle_ready_acdb1cd3

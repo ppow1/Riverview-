@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_institutional_authority.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.10
+# Revision: 1.0.12
 # Purpose: Verify durable identity separation and fail-closed exact scoped grants
 # Execution Model: PostgreSQL integration tests in rvtest_* disposable schemas
 # Observability: unittest evidence, authority events, binding/state revisions
@@ -13,6 +13,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-EXACT-GRANT-MIGRATION-EXPECTATION | Include runtime exact-grant migration in idempotency assertion
 # Changed: 2026-10-11 UTC | RV-M4.1-BOUND-OCCUPANT-WRITE | Bind office-state persistence tests to the current occupant identity
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Include resident office-state API migration in migration sequence assertion
+# Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Include linked-principal exact-grant migration in migration sequence assertion
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -71,6 +72,8 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "0001_institutional_authority",
             "0002_exact_grant_authorization",
             "0003_resident_office_state_api",
+            "0004_exact_principal_grant_authorization",
+            "0005_audited_model_rebinding",
         ])
         self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
         if os.geteuid() != 0:
@@ -213,6 +216,37 @@ class InstitutionalAuthorityTests(unittest.TestCase):
         with self.admin.cursor() as cur:
             cur.execute(f"SELECT count(*) FROM {self.schema}.institutional_authority_events WHERE event_type='authority_revoked'")
             self.assertEqual(cur.fetchone()[0], 1)
+
+    def test_model_binding_compare_and_swap_preserves_occupant_and_supports_rollback(self):
+        from riverview_core.institutional_authority import IdentityConflict
+        self.registry.create_office(self.steward_token, "office:binding-cas", "resident")
+        self.registry.create_principal(self.steward_token, "resident:binding-cas", "resident")
+        self.registry.create_occupant(self.steward_token, "occupant:binding-cas",
+                                      principal_id="resident:binding-cas")
+        for implementation, revision in (("impl:binding-before", "a" * 64),
+                                          ("impl:binding-after", "b" * 64)):
+            self.registry.create_implementation(self.steward_token, implementation,
+                kind="model", provider_ref="test.provider", revision=revision)
+        self.registry.bind_office(self.steward_token, "office:binding-cas",
+            "occupant:binding-cas", "impl:binding-before")
+        updated = self.registry.update_office_implementation(self.steward_token,
+            "office:binding-cas", "impl:binding-after", expected_binding_revision=1)
+        self.assertEqual(updated["occupant_id"], "occupant:binding-cas")
+        self.assertEqual(updated["binding_revision"], 2)
+        with self.assertRaises(IdentityConflict):
+            self.registry.update_office_implementation(self.steward_token,
+                "office:binding-cas", "impl:binding-before", expected_binding_revision=1)
+        rolled_back = self.registry.update_office_implementation(self.steward_token,
+            "office:binding-cas", "impl:binding-before",
+            expected_binding_revision=updated["binding_revision"])
+        snapshot = self.registry.office_snapshot("office:binding-cas")
+        self.assertEqual(rolled_back["binding_revision"], 3)
+        self.assertEqual(snapshot["occupant_id"], "occupant:binding-cas")
+        self.assertEqual(snapshot["implementation_id"], "impl:binding-before")
+        with self.admin.cursor() as cur:
+            cur.execute(f"SELECT count(*) FROM {self.schema}.institutional_authority_events "
+                        "WHERE event_type='office_model_implementation_changed'")
+            self.assertEqual(cur.fetchone()[0], 2)
 
     def test_office_state_restart_compare_and_swap_and_size_bound(self):
         from riverview_core.institutional_authority import IdentityConflict

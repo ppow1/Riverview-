@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION_FLOW.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.4
+File Revision: 1.0.7
 Purpose: Generated focused flow for persistent Grace browser conversation
 Authority: Canonical graph JSON; diagram generated and not hand-edited
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Register generated chat workflow view
@@ -23,9 +23,10 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_deny_c9c85a36[["Reject request without persisting or invoking a model"]]
     g_rv_resident_conversation_browser_chat_office_binding_47296b90["Read current bound occupant and model implementation through AuthorityRegistry"]
     g_rv_resident_conversation_browser_chat_provider_match_6e2180eb{"Does the registered provider match the exact implementation revision?"}
+    g_rv_resident_conversation_browser_chat_model_readiness_diagnostic_90a0703b["Optional read-only readiness probe verifies health and exact served model; HTTP unavailability does not identify host power state"]
     g_rv_resident_conversation_browser_chat_persist_user_50079953["Append user event and idempotency key before inference"]
     g_rv_resident_conversation_browser_chat_context_bound_672d08c9["Assemble recent persisted history and reject serialized context above 32 KiB"]
-    g_rv_resident_conversation_browser_chat_inference_8bca7614["Call the current loopback model adapter; no tools or work-order operation exists"]
+    g_rv_resident_conversation_browser_chat_inference_8bca7614["Call the office-bound local model adapter; only loopback or explicitly allowlisted OCTO1 routes are accepted, with served-model and binding checks"]
     g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79[["Persist a sanitized unavailable or incomplete response outcome"]]
     g_rv_resident_conversation_browser_chat_binding_recheck_06e5ffdc["Reject a result if the office implementation changed during inference"]
     g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b["Append assistant message with model and token provenance"]
@@ -37,10 +38,14 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_chat_details_710b7072["Show persisted conversation metadata with local and UTC timestamps"]
     g_rv_resident_conversation_browser_chat_message_actions_c4e90ab2["Allow local copy and detail inspection without forwarding private content"]
     g_rv_resident_conversation_browser_chat_responsive_a11y_4d7e53d6["Keep message text and controls accessible on narrow and desktop viewports"]
-    g_rv_resident_conversation_browser_chat_session_present_9bde9509{"Does this browser have a persistent conversation cookie?"}
-    g_rv_resident_conversation_browser_chat_session_connect_2f037c66["Validate read and send grants once, then set a scoped HttpOnly cookie"]
-    g_rv_resident_conversation_browser_chat_session_cookie_158419c1["Resume exact credential from same-origin cookie; recheck grants on each API request"]
+    g_rv_resident_conversation_browser_chat_session_present_9bde9509{"Does this browser have an authenticated linked Steward session or a legacy conversation cookie?"}
+    g_rv_resident_conversation_browser_chat_session_connect_2f037c66["Validate both exact grants through the linked Steward principal or retained legacy credential"]
+    g_rv_resident_conversation_browser_chat_session_cookie_158419c1["Revalidate linked account session and exact grants on every request; legacy cookie also remains supported"]
     g_rv_resident_conversation_browser_chat_auth_denial_latch_1556f60c[["Pause automatic history requests after 403 until explicit reconnect"]]
+    g_rv_resident_conversation_browser_chat_readiness_route_7e67f750{"Select 80B for substantive turns; use ready 30B or 0.6B only for provisional simple turns"}
+    g_rv_resident_conversation_browser_chat_defer_reasoning_7d693ff6["Persist complex turn and required capability when 80B is unavailable or busy"]
+    g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14["Poll durable deferrals; recheck exact grant and unchanged office implementation before resumption"]
+    g_rv_resident_conversation_browser_chat_reasoning_router_failure_43c1e7f2[["Keep deferred request durable across endpoint errors and process restart"]]
   end
   g_rv_grace_operational_integration_objective_intake_55567c14["Registered target<br/>rv:grace:operational-integration"]
   g_rv_resident_conversation_browser_chat_browser_submit_e4a0bb86 --> g_rv_resident_conversation_browser_chat_dashboard_auth_1ec7b499
@@ -50,6 +55,7 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_office_binding_47296b90 --> g_rv_resident_conversation_browser_chat_provider_match_6e2180eb
   g_rv_resident_conversation_browser_chat_provider_match_6e2180eb -->|diagnostic_branch: Provider or model revision unavailable| g_rv_resident_conversation_browser_chat_deny_c9c85a36
   g_rv_resident_conversation_browser_chat_provider_match_6e2180eb -->|Current implementation matched| g_rv_resident_conversation_browser_chat_persist_user_50079953
+  g_rv_resident_conversation_browser_chat_provider_match_6e2180eb -->|documentation: Read-only readiness probe is available for diagnostics; chat currently requires no probe preflight| g_rv_resident_conversation_browser_chat_model_readiness_diagnostic_90a0703b
   g_rv_resident_conversation_browser_chat_persist_user_50079953 --> g_rv_resident_conversation_browser_chat_context_bound_672d08c9
   g_rv_resident_conversation_browser_chat_context_bound_672d08c9 -->|diagnostic_branch: Context too large; model is not called| g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79
   g_rv_resident_conversation_browser_chat_context_bound_672d08c9 -->|Within context bound| g_rv_resident_conversation_browser_chat_inference_8bca7614
@@ -69,10 +75,17 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_browser_render_ce223021 -->|verification| g_rv_resident_conversation_browser_chat_responsive_a11y_4d7e53d6
   g_rv_resident_conversation_browser_chat_dashboard_auth_1ec7b499 --> g_rv_resident_conversation_browser_chat_session_present_9bde9509
   g_rv_resident_conversation_browser_chat_session_present_9bde9509 -->|Cookie present| g_rv_resident_conversation_browser_chat_session_cookie_158419c1
-  g_rv_resident_conversation_browser_chat_session_present_9bde9509 -->|diagnostic_branch: No cookie; explicit connect required| g_rv_resident_conversation_browser_chat_session_connect_2f037c66
+  g_rv_resident_conversation_browser_chat_session_present_9bde9509 -->|diagnostic_branch: No linked Steward session or legacy cookie; explicit legacy Connect remains available| g_rv_resident_conversation_browser_chat_session_connect_2f037c66
   g_rv_resident_conversation_browser_chat_session_cookie_158419c1 --> g_rv_resident_conversation_browser_chat_exact_grant_77017003
   g_rv_resident_conversation_browser_chat_session_connect_2f037c66 --> g_rv_resident_conversation_browser_chat_exact_grant_77017003
   g_rv_resident_conversation_browser_chat_deny_c9c85a36 --> g_rv_resident_conversation_browser_chat_auth_denial_latch_1556f60c
   g_rv_resident_conversation_browser_chat_auth_denial_latch_1556f60c -->|recovery_route: User reconnects with an authorized credential| g_rv_resident_conversation_browser_chat_session_connect_2f037c66
+  g_rv_resident_conversation_browser_chat_inference_8bca7614 --> g_rv_resident_conversation_browser_chat_readiness_route_7e67f750
+  g_rv_resident_conversation_browser_chat_readiness_route_7e67f750 -->|80B ready or bounded provisional path selected| g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b
+  g_rv_resident_conversation_browser_chat_readiness_route_7e67f750 -->|diagnostic_branch: Substantive turn requires unavailable or busy 80B| g_rv_resident_conversation_browser_chat_defer_reasoning_7d693ff6
+  g_rv_resident_conversation_browser_chat_defer_reasoning_7d693ff6 -->|recovery_route: Automatic readiness polling; durable request retained| g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14
+  g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14 -->|verification: Grant and original binding still valid; response provenance persisted| g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b
+  g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14 -->|diagnostic_branch: Capability or provider remains unavailable| g_rv_resident_conversation_browser_chat_reasoning_router_failure_43c1e7f2
+  g_rv_resident_conversation_browser_chat_reasoning_router_failure_43c1e7f2 -->|recovery_route: Retry persisted request when readiness changes| g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-conversation:browser-chat",
-  "graph_revision": "1.0.5",
+  "graph_revision": "1.0.8",
   "component_id": "RESIDENT-CONVERSATION",
   "workflow_id": "resident.conversation.v1",
   "diagram_order": 14,
@@ -13,7 +13,12 @@
     "src/riverview_core/status_dashboard/static/app.css",
     "src/riverview_core/status_dashboard/static/app.js",
     "src/riverview_core/status_dashboard/static/index.html",
-    "tests/test_resident_conversation.py"
+    "tests/test_resident_conversation.py",
+    "src/riverview_core/account_auth/__init__.py",
+    "src/riverview_core/institutional_authority/grants.py",
+    "src/riverview_core/institutional_authority/migrations/0004_exact_principal_grant_authorization.sql",
+    "src/riverview_core/resident_execution/model_router.py",
+    "src/riverview_core/resident_execution/migrations/0004_deferred_conversation_responses.sql"
   ],
   "documentation_references": [
     "docs/components/RESIDENT_CONVERSATION.md",
@@ -27,7 +32,8 @@
     "tests/test_resident_conversation.py",
     "tests/test_status_dashboard.py",
     "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json",
-    "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-live-0382ce1/commissioning-summary.json"
+    "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-live-0382ce1/commissioning-summary.json",
+    "tests/test_resident_model_router.py"
   ],
   "nodes": [
     {
@@ -122,6 +128,21 @@
       ]
     },
     {
+      "id": "rv:resident-conversation:browser-chat:model-readiness-diagnostic",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Optional read-only readiness probe verifies health and exact served model; HTTP unavailability does not identify host power state",
+      "source_references": [
+        "src/riverview_core/local_reasoning_provider.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_local_reasoning_provider.py"
+      ]
+    },
+    {
       "id": "rv:resident-conversation:browser-chat:persist-user",
       "node_revision": "1.0.0",
       "type": "process",
@@ -156,7 +177,7 @@
       "id": "rv:resident-conversation:browser-chat:inference",
       "node_revision": "1.0.0",
       "type": "process",
-      "label": "Call the current loopback model adapter; no tools or work-order operation exists",
+      "label": "Call the office-bound local model adapter; only loopback or explicitly allowlisted OCTO1 routes are accepted, with served-model and binding checks",
       "source_references": [
         "src/riverview_core/local_reasoning_provider.py"
       ],
@@ -351,12 +372,13 @@
     },
     {
       "id": "rv:resident-conversation:browser-chat:session-present",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "decision",
-      "label": "Does this browser have a persistent conversation cookie?",
+      "label": "Does this browser have an authenticated linked Steward session or a legacy conversation cookie?",
       "source_references": [
         "src/riverview_core/status_dashboard/server.py",
-        "src/riverview_core/status_dashboard/static/app.js"
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/account_auth/__init__.py"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_CONVERSATION.md"
@@ -370,13 +392,15 @@
     },
     {
       "id": "rv:resident-conversation:browser-chat:session-connect",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "process",
-      "label": "Validate read and send grants once, then set a scoped HttpOnly cookie",
+      "label": "Validate both exact grants through the linked Steward principal or retained legacy credential",
       "source_references": [
         "src/riverview_core/status_dashboard/server.py",
         "src/riverview_core/resident_execution/conversation.py",
-        "src/riverview_core/status_dashboard/static/app.js"
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/institutional_authority/grants.py",
+        "src/riverview_core/institutional_authority/migrations/0004_exact_principal_grant_authorization.sql"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_CONVERSATION.md"
@@ -389,12 +413,13 @@
     },
     {
       "id": "rv:resident-conversation:browser-chat:session-cookie",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "verification",
-      "label": "Resume exact credential from same-origin cookie; recheck grants on each API request",
+      "label": "Revalidate linked account session and exact grants on every request; legacy cookie also remains supported",
       "source_references": [
         "src/riverview_core/status_dashboard/server.py",
-        "src/riverview_core/status_dashboard/static/app.js"
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/account_auth/__init__.py"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_CONVERSATION.md"
@@ -420,6 +445,72 @@
         "tests/test_status_dashboard.py",
         "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json",
         "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-live-0382ce1/commissioning-summary.json"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:readiness-route",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Select 80B for substantive turns; use ready 30B or 0.6B only for provisional simple turns",
+      "source_references": [
+        "src/riverview_core/resident_execution/model_router.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_model_router.py",
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:defer-reasoning",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Persist complex turn and required capability when 80B is unavailable or busy",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/resident_execution/migrations/0004_deferred_conversation_responses.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_model_router.py",
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:resume-reasoning",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Poll durable deferrals; recheck exact grant and unchanged office implementation before resumption",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_model_router.py",
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:reasoning-router-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Keep deferred request durable across endpoint errors and process restart",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_model_router.py",
+        "tests/test_resident_conversation.py"
       ]
     }
   ],
@@ -462,6 +553,12 @@
       "to": "rv:resident-conversation:browser-chat:persist-user",
       "type": "runtime_transition",
       "label": "Current implementation matched"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:provider-match",
+      "to": "rv:resident-conversation:browser-chat:model-readiness-diagnostic",
+      "type": "documentation",
+      "label": "Read-only readiness probe is available for diagnostics; chat currently requires no probe preflight"
     },
     {
       "from": "rv:resident-conversation:browser-chat:persist-user",
@@ -570,7 +667,7 @@
       "from": "rv:resident-conversation:browser-chat:session-present",
       "to": "rv:resident-conversation:browser-chat:session-connect",
       "type": "diagnostic_branch",
-      "label": "No cookie; explicit connect required"
+      "label": "No linked Steward session or legacy cookie; explicit legacy Connect remains available"
     },
     {
       "from": "rv:resident-conversation:browser-chat:session-cookie",
@@ -592,6 +689,47 @@
       "to": "rv:resident-conversation:browser-chat:session-connect",
       "type": "recovery_route",
       "label": "User reconnects with an authorized credential"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:inference",
+      "to": "rv:resident-conversation:browser-chat:readiness-route",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:readiness-route",
+      "to": "rv:resident-conversation:browser-chat:persist-response",
+      "type": "runtime_transition",
+      "label": "80B ready or bounded provisional path selected"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:readiness-route",
+      "to": "rv:resident-conversation:browser-chat:defer-reasoning",
+      "type": "diagnostic_branch",
+      "label": "Substantive turn requires unavailable or busy 80B"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:defer-reasoning",
+      "to": "rv:resident-conversation:browser-chat:resume-reasoning",
+      "type": "recovery_route",
+      "label": "Automatic readiness polling; durable request retained"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:resume-reasoning",
+      "to": "rv:resident-conversation:browser-chat:persist-response",
+      "type": "verification",
+      "label": "Grant and original binding still valid; response provenance persisted"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:resume-reasoning",
+      "to": "rv:resident-conversation:browser-chat:reasoning-router-failure",
+      "type": "diagnostic_branch",
+      "label": "Capability or provider remains unavailable"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:reasoning-router-failure",
+      "to": "rv:resident-conversation:browser-chat:resume-reasoning",
+      "type": "recovery_route",
+      "label": "Retry persisted request when readiness changes"
     }
   ]
 }

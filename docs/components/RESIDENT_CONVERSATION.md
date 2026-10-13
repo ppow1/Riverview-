@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.4
+File Revision: 1.1.11
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -16,10 +16,17 @@ Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Reproduce exact predeces
 Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Retain the exact predecessor reproduction source and sanitized result
 Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Specify complete conversational rendering, accessible controls, factual details, and safe copy behavior
 Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record dashboard-only live release and distinguish local commissioning from Steward Windows acceptance
+Changed: 2026-10-13 UTC | RV-GRACE-MULTI-STAGE-001 | Record exact OCTO1 provider opt-in, readiness states, and the unimplemented routing/deferral boundary
+Changed: 2026-10-13 UTC | RV-GRACE-MULTI-STAGE-001 | Clarify local slot contention is not global OCTO1 slot telemetry
+Changed: 2026-10-13 UTC | RV-GRACE-MULTI-STAGE-001 | Document endpoint/model pair pinning and explicit dashboard opt-in
 Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record deployed 390 CSS-pixel responsive fixture while retaining physical-device and Windows verification as pending
 Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Add persistent same-origin browser credential transport, exact-grant rechecks, and denial retry suppression
 Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Record diagnosed credential retention gap, grant audit, and browser restart evidence
 Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Record Camrui live Firefox inference, PostgreSQL durability, and dashboard restart recovery
+Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Connect linked account Steward sessions to existing exact conversation grants
+Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER-CONTRACT | Document explicit, exact-grant promotion of a persisted user message
+Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Specify opt-in model routing, durable deferral and reversible model binding
+Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Constrain CPU fallback to non-factual acknowledgements and clarify readiness unknowns
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
@@ -30,16 +37,29 @@ History: Git and .riverview-backups/manifest.jsonl
 
 The resident office, currently bound occupant, model implementation, and human conversation owner are separate records. Conversation rows are keyed by office and authenticated human principal. Rebinding an office to another occupant or model does not delete history. The current resident runtime reads its binding through `AuthorityRegistry.authorize_office_state`; the caller must independently hold an exact active `resident.conversation.read` or `resident.conversation.send` grant for `office:<office-id>`.
 
-The dashboard bearer authenticates access to the API entry point. The `X-Riverview-Authority` header supplies the second, exact-grant credential, following the established objective API pattern. Missing, revoked, wrong-scope, or unavailable authority fails closed. On first use, `POST /api/v1/resident/conversation-session` validates both conversation grants for the same principal and returns a 30-day, host-only, `Secure`, `HttpOnly`, `SameSite=Strict` cookie scoped only to `/api/v1/resident/conversations`. The cookie transports the existing authority credential; it creates no new grant or principal. Every history, response-status, and send operation rechecks the current exact database grant, so revocation takes effect immediately. The browser JavaScript cannot read the cookie; it is never put in local/session storage, a URL, an application log, or an operational snapshot. `DELETE /api/v1/resident/conversation-session` clears it. A 403 stops automatic history retries until the Steward explicitly reconnects. The separate resident service credential remains provisioned only through protected service credentials. Neither a message nor a model response promotes or approves an objective or work order.
+The dashboard authentication cookie authenticates the API entry point. For the linked Steward account, the dashboard takes `authority_principal_id` only from the server-validated account session; it validates `resident.conversation.read` and `resident.conversation.send` against that principal using the protected institutional authority function. No role implies either grant, and the account identity is revalidated on every request. The legacy Connect to Grace path remains available to recovery-token sessions and continues to use `X-Riverview-Authority` plus the existing path-scoped `Secure`, `HttpOnly`, `SameSite=Strict` cookie. Both paths call the same exact-grant decision and fail closed for missing, revoked, wrong-scope, expired, or unavailable authority. The linked account path issues no second authority credential and creates no grant or principal. Every history, response-status, and send operation rechecks the current exact database grants, so grant revocation takes effect on the next request. The separate resident service credential remains provisioned only through protected service credentials. Ordinary messages and model responses do not promote or approve an objective. A Steward may explicitly select a persisted user message and submit it through the separate Engineering objective intake route; that route checks conversation ownership and the independent `objective.submit` exact grant.
 
 ## Versioned HTTP contract `rv.resident.conversation.v1`
 
-All endpoints also require the dashboard bearer. The exact office-scoped authority credential is sent in `X-Riverview-Authority`.
+All endpoints require the existing dashboard bearer or an active account session. The linked Steward account path derives its principal from that server-validated session; recovery-token sessions continue to use the exact office-scoped credential in `X-Riverview-Authority`.
+
+The explicit work-order promotion route is intentionally narrower than normal
+conversation send. A Steward account session may POST
+`/api/v1/resident/conversations/{conversation_id}/work-orders` with
+`source_sequence` and `acceptance_criteria`. The server retrieves the source
+message itself and verifies that it is a user message owned by the authenticated
+principal. The request scope is fixed to `work-order:engineering`; the caller
+cannot choose a broader scope. It requires `resident.conversation.read` and
+`objective.submit` exact grants and records the conversation ID/sequence on the
+objective receipt event. The account role and the legacy dashboard recovery
+token do not substitute for those grants. A successful response means objective
+intake/grounding only; assignment creation and execution remain separately
+authorized.
 
 | Method and route | Purpose | Result |
 | --- | --- | --- |
 | `GET /api/v1/resident/conversations` | List the caller's recent office conversations | `rv.resident.conversations.v1`, bounded item list |
-| `POST /api/v1/resident/conversation-session` | Validate both exact grants and establish/refresh this browser's protected credential cookie | `rv.resident.conversation-session.v1`; returns principal, exact scope, expiry; never returns the credential |
+| `POST /api/v1/resident/conversation-session` | Validate both exact grants for the linked Steward session or legacy credential | `rv.resident.conversation-session.v1`; returns principal and exact scope, never a credential |
 | `DELETE /api/v1/resident/conversation-session` | Clear the current browser's conversation cookie | `rv.resident.conversation-session.v1`, status `disconnected` |
 | `POST /api/v1/resident/conversations` | Send a message, creating a conversation if needed | `rv.resident.response.v1`; body has only `conversation_id?`, `client_message_id`, and `message` |
 | `GET /api/v1/resident/conversations/{conversation_id}` | Retrieve the latest 100 durable events | `rv.resident.conversation.v1` |
@@ -65,13 +85,37 @@ The controlled Camrui release `m3.4-camrui-grace-auth-0382ce1` was then exercise
 
 This Camrui Firefox verification does not prove the Steward's Windows browser profile already has the new cookie. The Windows browser needs one explicit Connect using its current authorized credential if no valid browser credential is autofilled; after that, the cookie survives refreshes and dashboard releases until expiry or grant revocation. Do not copy the credential to chat, URLs, logs, or snapshots. Physical Windows-browser confirmation remains pending.
 
+## 2026-10-13 linked Steward account authorization
+
+The account login is linked to the active `steward:camrui` institutional principal, which already holds both exact `office:office:grace` conversation grants. The former browser connector required the legacy principal credential separately and did not use the account session. The revised dashboard obtains the linked principal only from the currently validated account session and calls a protected principal-keyed exact-grant function for both actions. The same check runs for every conversation operation; there is no role-derived grant, grant issuance, or alternate conversation authorization store. The recovery-token bearer and legacy Connect flow remain available. Migration `0004_exact_principal_grant_authorization.sql` and the boundary provisioner provide runtime execute access while leaving the manager unable to call either authorization function. Deployment and live browser acceptance are reported separately from this source contract.
+
 ## Model adapter and binding
 
 The existing `LocalReasoningProvider` has been extended with a plain-text completion operation using its existing loopback-only `/v1/chat/completions` endpoint validation, model-name check, configured model SHA binding, bounded request and response sizes, timeout, and sanitized failures. It does not expose tools or an execution interface. `provider_ref` in the current office binding selects the adapter; the bound implementation revision must exactly equal its configured model SHA-256. A replacement model is selected by a new existing resident implementation and office binding. The office/occupant identity and conversation tables remain independent of the model. An optional, UTF-8 bounded `RIVERVIEW_GRACE_CHAT_PREFIX` is passed into the provider; it modifies only the provider's copy of the latest user message and is never persisted as conversation content.
 
 For an isolated development run, the previously installed Qwen3-0.6B Q8_0 GGUF is at `$HOME/.cache/riverview/models/Qwen3-0.6B-Q8_0.gguf` with expected SHA-256 `9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031`. The pinned llama.cpp binary is `/tmp/rv-llama-build/bin/llama-server`. The test harness binds only to a free `127.0.0.1` port, passes `--n-gpu-layers 0`, and uses the isolated PostgreSQL test DSN. For this Qwen3 chat run it configures `/no_think\n`, a prompt hint already used in the repository's local inference qualification. The hint is confined to the inference copy and does not change durable user messages. The harness stops only the exact process it started. No model is downloaded or loaded by application startup.
 
-The dashboard service enables chat only when its protected `resident-token`, office ID, loopback model endpoint, model identifier, and SHA configuration are all present. Database migrations are an explicit operator action; API startup never applies schema changes. No unit file, installed service, shared database, secret, or running model was modified for this implementation.
+The provider now accepts a remote endpoint only when the caller explicitly opts in
+and the endpoint/model pair exactly matches one of the approved OCTO1 routes
+(`http://192.168.1.160:8080/v1` with the observed Qwen3-Next-80B model ID, or
+`http://192.168.1.160:18080/v1` with the observed Huihui 30B model ID). The
+dashboard opt-in is `RIVERVIEW_GRACE_ALLOW_APPROVED_OCTO1=1`; it defaults off.
+The exact served model ID remains checked against configuration, and the office
+implementation revision remains checked before and after inference. Provider
+concurrency is bounded (one slot by default); contention reports `endpoint_busy`
+at the provider boundary. `readiness()` checks only `/health` and `/v1/models`
+for the configured endpoint. It reports model `READY`, `MODEL_LOADING`,
+`MODEL_BUSY`, `UNAVAILABLE`, `TIMEOUT`, or `ERROR`; `MODEL_BUSY` currently means
+this provider instance's bounded semaphore is occupied, not that every caller
+has observed OCTO1's global slot state. An unreachable HTTP endpoint does not
+prove the host is powered off or booting. This is provider plumbing,
+not a three-stage selector or durable deferred-question worker. The active
+production binding remains the loopback 0.6B until a separately approved
+binding/configuration deployment. OCTO1's HTTP API is unauthenticated and
+unencrypted as documented; requests must remain on the trusted LAN, and this
+integration must not be exposed through WAN routing.
+
+The dashboard service enables chat only when its protected `resident-token`, office ID, model endpoint, model identifier, and SHA configuration are all present. Non-loopback OCTO1 configuration additionally requires the explicit opt-in flag; the flag does not change the office binding. Database migrations are an explicit operator action; API startup never applies schema changes. No unit file, installed service, shared database, secret, or running model was modified for this implementation.
 
 ## Browser conversation workspace
 
@@ -170,3 +214,52 @@ not formal Steward acceptance and does not close full Component Definition of Do
 obligations. Rollback consists of restoring the
 previous `current` symlink target, removing only the new 40 drop-in, daemon-reloading, and
 restarting the dashboard; preserve the candidate release and database state.
+
+## Multi-stage reasoning and reversible model binding (development increment)
+
+`GraceModelRouter` (`resident_execution/model_router.py`) is an opt-in provider
+behind the existing office implementation binding. The binding continues to pin
+the router implementation revision; each assistant event records the provider's
+actual served model and the selected stage. The router selects the configured
+80B for substantive requests, a ready 30B for short provisional text turns, and
+the 0.6B for constrained greeting/status acknowledgements when 30B is
+unavailable. Other questions defer or route to 80B; the autonomic model is not
+used to invent factual answers. The
+current browser conversation payload is text-only; this does not commission
+image upload or prove the 30B visual request path.
+
+When a substantive turn cannot use the 80B, the user message and one
+`response_deferred` event remain in the conversation ledger. The opt-in dashboard
+resumption loop polls the durable ledger, rechecks the sender's exact grant and
+the original office implementation revision, and appends the response only after
+the required provider is ready. Retries do not create a second user message.
+Apply resident-execution migration `0004_deferred_conversation_responses.sql`
+before enabling this code. The loop is started only with
+`RIVERVIEW_GRACE_ENABLE_MODEL_ROUTER=1`; the setting additionally requires the
+30B and 80B model SHA-256 configuration values. The existing 0.6B endpoint/model/
+digest settings remain required. OCTO1 access remains gated by the explicit
+`RIVERVIEW_GRACE_ALLOW_APPROVED_OCTO1=1` setting.
+
+The readiness probe can distinguish `READY`, endpoint-reported `MODEL_LOADING`,
+and this process's own `MODEL_BUSY` state. An unreachable endpoint is
+`UNAVAILABLE`; this HTTP signal alone cannot distinguish an OCTO1 host that is
+powered off from one booting or a model still starting. No power action is taken.
+The documented Wake-on-LAN and SSH shutdown procedure remains a separately
+authorized operational capability and is not invoked by this router.
+
+`AuthorityRegistry.update_office_implementation` changes only the model
+implementation on an existing office binding. It requires the existing exact
+`office.manage` grant, an expected binding revision, and an existing model
+implementation. It preserves office and occupant identity, increments the
+binding revision, and appends `office_model_implementation_changed`. Rollback is
+the same operation targeting the returned predecessor implementation while
+passing the new current binding revision; stale rollback attempts are rejected.
+Authority migration `0005_audited_model_rebinding.sql` adds the event type. These
+migrations and binding changes have not been applied to production.
+
+This is development implementation and isolated-test scope. Production routing
+requires a reviewed migration and service configuration plan, the Steward's
+explicit deployment approval, an authorized Steward call to rebind the office,
+and browser evidence showing the served 80B model plus persistent conversation
+history. No service was restarted and no office binding was changed by this
+increment.

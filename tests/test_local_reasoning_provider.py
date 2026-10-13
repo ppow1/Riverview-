@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.9
+# Revision: 1.1.3
 # Purpose: Verify local reasoning provider contract and fail-closed response handling
 # Execution Model: Bounded HTTP contract double; no credentials, database or model required
 # Observability: Typed proposals and sanitized unavailable/schema outcomes
@@ -16,6 +16,10 @@
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Verify bounded plain conversation completion and pinned model result
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Verify model-specific inference prefix is bounded and applied only to provider request
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Return a complete chat fixture for the provider-prefix regression test
+# Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Verify endpoint allowlist, readiness identity, loading, offline and slot-busy outcomes
+# Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Assert readiness timeout is sanitized and distinct
+# Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Reject endpoint/model identity pairings outside the explicit allowlist
+# Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Use the pinned 30B and 80B identities in readiness fixtures
 # Tests: This file
 # History: Git
 # =============================================================================
@@ -26,6 +30,7 @@ import json
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
+from urllib.parse import urlsplit
 
 from riverview_core.resident_reasoning import ReasoningRequest
 from riverview_core.local_reasoning_provider import (
@@ -140,6 +145,90 @@ class LocalReasoningProviderTests(unittest.TestCase):
     def test_non_loopback_endpoint_is_rejected(self):
         with self.assertRaises(ValueError):
             LocalReasoningProvider("http://example.com/v1", "fixture-model", MODEL_SHA)
+        with self.assertRaises(ValueError):
+            LocalReasoningProvider("http://192.168.1.161:8080/v1", "fixture-model",
+                                   MODEL_SHA, allow_approved_private_lan=True)
+
+    def test_only_explicit_octo1_endpoint_can_use_private_lan(self):
+        model = LocalReasoningProvider.APPROVED_PRIVATE_LAN_MODELS[
+            "http://192.168.1.160:8080/v1"]
+        provider = LocalReasoningProvider(
+            "http://192.168.1.160:8080/v1", model, MODEL_SHA,
+            allow_approved_private_lan=True)
+        self.assertEqual(provider.model, model)
+        with self.assertRaises(ValueError):
+            LocalReasoningProvider("http://192.168.1.160:8080/v1", model,
+                                   MODEL_SHA)
+        with self.assertRaises(ValueError):
+            LocalReasoningProvider("http://192.168.1.160:8080/v1", "/root/other.gguf",
+                                   MODEL_SHA, allow_approved_private_lan=True)
+
+    def test_readiness_requires_health_and_exact_served_model(self):
+        provider = LocalReasoningProvider(
+            "http://192.168.1.160:8080/v1",
+            LocalReasoningProvider.APPROVED_PRIVATE_LAN_MODELS["http://192.168.1.160:8080/v1"],
+            MODEL_SHA,
+            allow_approved_private_lan=True)
+        bodies = [b'{"status":"ok"}', json.dumps({"data":[{"id":provider.model}]}).encode()]
+        requested = []
+        def open_readiness(request, timeout):
+            requested.append((urlsplit(request.full_url).path, timeout))
+            return _Response(bodies.pop(0))
+        with patch("riverview_core.local_reasoning_provider.urlopen", side_effect=open_readiness):
+            result = provider.readiness(timeout_seconds=1)
+        self.assertEqual(result.state, "READY")
+        self.assertEqual(result.detail_code, "health_and_identity_verified")
+        self.assertEqual([path for path, _ in requested], ["/health", "/v1/models"])
+
+    def test_readiness_does_not_conflate_unavailable_loading_and_wrong_model(self):
+        provider = LocalReasoningProvider(
+            "http://192.168.1.160:18080/v1",
+            LocalReasoningProvider.APPROVED_PRIVATE_LAN_MODELS["http://192.168.1.160:18080/v1"],
+            MODEL_SHA,
+            allow_approved_private_lan=True, max_concurrency=8)
+        def unavailable(_request, timeout):
+            raise OSError("private response detail must not escape")
+        with patch("riverview_core.local_reasoning_provider.urlopen", side_effect=unavailable):
+            result = provider.readiness()
+        self.assertEqual(result.state, "UNAVAILABLE")
+        self.assertEqual(result.detail_code, "endpoint_unavailable")
+
+        stream = BytesIO(b"loading")
+        def loading(request, timeout):
+            raise HTTPError(request.full_url, 503, "loading", {}, stream)
+        with patch("riverview_core.local_reasoning_provider.urlopen", side_effect=loading):
+            result = provider.readiness()
+        self.assertEqual(result.state, "MODEL_LOADING")
+        self.assertTrue(stream.closed)
+
+        bodies = [b'{"status":"ok"}', b'{"data":[{"id":"other.gguf"}]}']
+        with patch("riverview_core.local_reasoning_provider.urlopen",
+                   side_effect=lambda *_a, **_k: _Response(bodies.pop(0))):
+            result = provider.readiness()
+        self.assertEqual(result.state, "ERROR")
+        self.assertEqual(result.detail_code, "configured_model_missing")
+
+    def test_readiness_timeout_is_explicit_and_sanitized(self):
+        provider = LocalReasoningProvider(
+            "http://192.168.1.160:8080/v1",
+            LocalReasoningProvider.APPROVED_PRIVATE_LAN_MODELS["http://192.168.1.160:8080/v1"],
+            MODEL_SHA,
+            allow_approved_private_lan=True)
+        with patch("riverview_core.local_reasoning_provider.urlopen",
+                   side_effect=TimeoutError("sensitive implementation detail")):
+            result = provider.readiness(timeout_seconds=0.5)
+        self.assertEqual(result.state, "TIMEOUT")
+        self.assertEqual(result.detail_code, "readiness_timeout")
+
+    def test_busy_slot_is_explicit_and_does_not_issue_another_request(self):
+        self.assertTrue(self.provider._capacity.acquire(blocking=False))
+        try:
+            with self.assertRaisesRegex(LocalReasoningUnavailable, "endpoint_busy"):
+                self.provider.complete_chat([{"role":"user", "content":"hello"}],
+                    max_tokens=16, expected_revision=MODEL_SHA)
+            self.assertEqual(self.urlopen.call_count, 0)
+        finally:
+            self.provider._capacity.release()
 
     def test_bounded_chat_uses_existing_pinned_loopback_endpoint(self):
         self.response_body = json.dumps({"model":"fixture-model","choices":[{

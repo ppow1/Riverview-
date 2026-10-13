@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.1
+# Revision: 1.0.4
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
 # Execution Model: Request-driven orchestration over existing PostgreSQL authority and ledger
 # Observability: Append-only objective events linked to assignment and evidence provenance
@@ -10,6 +10,9 @@
 # Authority: objective.submit and assignment.create exact grants; no proposal self-authorization
 # Changed: 2026-10-11 UTC | RV-M4.4-OBJECTIVE-WORKORDER-PIPELINE | Initial durable execution bridge
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Expose bounded grounded objective context to ResidentReasoner
+# Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER | Accept authenticated principals and retain conversation origin
+# Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Carry independently verified artifact location into Grace completion event
+# Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Filter grounded resident reasoning to one objective
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -85,7 +88,7 @@ class GraceExecutionPipeline:
             (objective_id, event_type, idem, actor_id, _json(payload)))
 
     def submit_objective(self, objective_id, request, acceptance_criteria, *,
-                         credential, scope_ref):
+                         scope_ref, credential=None, principal=None, origin=None):
         if (not isinstance(objective_id, str) or not re.fullmatch(r"objective:[A-Za-z0-9._:-]{1,120}", objective_id)
                 or not isinstance(request, str) or not request.strip()
                 or len(request.encode("utf-8")) > self.MAX_OBJECTIVE_BYTES
@@ -94,12 +97,27 @@ class GraceExecutionPipeline:
                 or any(not isinstance(item, str) or not item.strip() or len(item) > 1000
                        for item in acceptance_criteria)):
             raise ValueError("objective identity, bounded request, and acceptance criteria are required")
+        if (credential is None) == (principal is None):
+            raise ValueError("exactly one authenticated credential or principal is required")
+        if origin is not None:
+            if (not isinstance(origin, dict) or set(origin) != {"conversation_id", "source_sequence"}
+                    or not isinstance(origin["conversation_id"], str)
+                    or len(origin["conversation_id"]) != 36
+                    or type(origin["source_sequence"]) is not int
+                    or origin["source_sequence"] < 1):
+                raise ValueError("conversation origin is invalid")
         db = self.ledger.db
         try:
             with db.transaction():
                 with db.cursor() as cur:
                     self.ledger._set_search_path(cur)
-                    actor = self.authorizer.require(cur, credential, "objective.submit", scope_ref)
+                    if principal is not None:
+                        actor = self.authorizer.require_principal(
+                            cur, getattr(principal, "principal_id", None),
+                            "objective.submit", scope_ref)
+                    else:
+                        actor = self.authorizer.require(
+                            cur, credential, "objective.submit", scope_ref)
                     cur.execute("""INSERT INTO grace_objectives
                         (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status)
                         VALUES (%s,%s,%s,%s,%s::jsonb,'RECEIVED')""",
@@ -107,7 +125,8 @@ class GraceExecutionPipeline:
                          _json(list(acceptance_criteria))))
                     self._event(cur, objective_id, "objective.received",
                                 f"grace-objective-received:{objective_id}", actor["principal_id"],
-                                {"acceptance_criteria": list(acceptance_criteria)})
+                                {"acceptance_criteria": list(acceptance_criteria),
+                                 **({"origin": origin} if origin is not None else {})})
         except Exception as exc:
             if type(exc).__name__ in {"GrantDenied", "GrantCheckUnavailable"}:
                 raise ObjectiveNotAuthorized("objective.submit is not authorized") from None
@@ -286,6 +305,18 @@ class GraceExecutionPipeline:
         payload = {"assignment_id": assignment_id, "decision": verification["decision"],
                    "verifier_revision": verification["verifier_revision"],
                    "evidence_references": list(verification["evidence_references"])}
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT wr.result FROM worker_attempts wa
+                JOIN worker_results wr USING(attempt_id)
+                WHERE wa.assignment_id=%s AND wa.status='succeeded'
+                ORDER BY wa.started_at DESC LIMIT 1""", (assignment_id,))
+            artifact_row = cur.fetchone()
+        artifact = artifact_row["result"] if artifact_row else None
+        if isinstance(artifact, dict):
+            payload["artifact"] = {key: artifact[key] for key in
+                ("artifact_name", "artifact_path", "artifact_sha256", "artifact_bytes")
+                if key in artifact}
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
@@ -343,15 +374,20 @@ class GraceExecutionPipeline:
             row = cur.fetchone()
         return dict(row) if row else None
 
-    def grounded_objectives(self, *, scope_ref, limit=25):
+    def grounded_objectives(self, *, scope_ref, limit=25, objective_id=None):
         """Return a bounded, stable queue of objectives ready for resident reasoning."""
         if not isinstance(scope_ref, str) or not scope_ref or type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError("exact scope and bounded objective limit are required")
+        if objective_id is not None and (not isinstance(objective_id, str) or
+                not re.fullmatch(r"objective:[A-Za-z0-9._:-]{1,120}", objective_id)):
+            raise ValueError("objective identity is invalid")
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
             cur.execute("""SELECT objective_id,revision FROM grace_objectives
                 WHERE status='GROUNDED' AND scope_ref=%s
-                ORDER BY created_at,objective_id LIMIT %s""", (scope_ref, limit))
+                  AND (%s::text IS NULL OR objective_id=%s)
+                ORDER BY created_at,objective_id LIMIT %s""",
+                (scope_ref, objective_id, objective_id, limit))
             return cur.fetchall()
 
     def read_reasoning_context(self, objective_id):

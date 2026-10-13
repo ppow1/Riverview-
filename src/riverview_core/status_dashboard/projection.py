@@ -2,13 +2,15 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/projection.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.3
+# Revision: 1.0.5
 # Purpose: Project authoritative PostgreSQL/CME state into bounded safe views
 # Execution Model: Request-driven read-only API dependency
 # Observability: Versioned status, assignment, event, attention and snapshot JSON
 # Dependencies: Python 3.10+; Psycopg 3; M1.2/M1.4/M2.1-M2.4 schema
 # Authority: SELECT-only projection; never mutates CME or assignment state
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-ISOLATION | Include durable dispatch/verifier failure summaries
+# Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Project persisted verified artifact path with objective result
+# Changed: 2026-10-13 UTC | RV-LEDGER-GRAPH-POSITION | Project only ledger-recorded graph and node identities
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
 # History: Git and revision/backup manifest
@@ -261,6 +263,7 @@ class DashboardProjection:
             if not all(rel.values()):
                 return {"status": "not_initialized", "items": [], "next_cursor": None}
             cur.execute("""SELECT a.id, a.state, a.owner, a.workflow_id, a.workflow_step,
+                                a.process_graph_id,a.process_node_id,
                                 a.updated_at, a.version, a.correlation_id,
                                 last.event_id AS last_event_id, last.seq AS last_event_seq,
                                 last.event_type AS last_event_type, last.recorded_at AS last_progress_at
@@ -280,7 +283,10 @@ class DashboardProjection:
             rows = rows[:limit]
             items = [{"assignment_id": row["id"], "state": row["state"],
                       "owner": row["owner"], "workflow_id": row["workflow_id"],
-                      "workflow_step": row["workflow_step"], "updated_at": self._iso(row["updated_at"]),
+                      "workflow_step": row["workflow_step"],
+                      "process_graph_id": row["process_graph_id"],
+                      "process_node_id": row["process_node_id"],
+                      "updated_at": self._iso(row["updated_at"]),
                       "version": row["version"], "correlation_id": row["correlation_id"],
                       "last_meaningful_progress": {
                           "event_id": str(row["last_event_id"]) if row["last_event_id"] else None,
@@ -351,6 +357,7 @@ class DashboardProjection:
             raise ValueError("invalid assignment id")
         def query(cur):
             cur.execute("""SELECT a.id, a.state, a.owner, a.workflow_id, a.workflow_step,
+                                a.process_graph_id,a.process_node_id,
                                 a.updated_at, a.version, a.correlation_id
                          FROM assignments a WHERE a.id=%s AND NOT EXISTS (
                            SELECT 1 FROM events p WHERE p.assignment_id=a.id
@@ -393,7 +400,10 @@ class DashboardProjection:
             return {"status": "available", "assignment": {
                 "assignment_id": assignment["id"], "state": assignment["state"],
                 "owner": assignment["owner"], "workflow_id": assignment["workflow_id"],
-                "workflow_step": assignment["workflow_step"], "updated_at": self._iso(assignment["updated_at"]),
+                "workflow_step": assignment["workflow_step"],
+                "process_graph_id": assignment["process_graph_id"],
+                "process_node_id": assignment["process_node_id"],
+                "updated_at": self._iso(assignment["updated_at"]),
                 "version": assignment["version"], "correlation_id": assignment["correlation_id"]},
                 "events": [{"event_id": str(row["event_id"]), "seq": row["seq"],
                             "event_type": row["event_type"], "recorded_at": self._iso(row["recorded_at"]),
@@ -402,6 +412,27 @@ class DashboardProjection:
                            for row in events],
                 "attempts": attempts, "verifications": verifications,
                 "diagnostic_ref": "docs/components/STATUS_DASHBOARD_COOKBOOK.md"}
+        return self._read(query)
+
+    def graph_execution_position(self, graph_id: str):
+        """Return only a node identity recorded by the assignment event path."""
+        if not isinstance(graph_id, str) or len(graph_id) > 200 or "\x00" in graph_id:
+            raise ValueError("invalid process graph ID")
+        def query(cur):
+            cur.execute("""SELECT a.id,a.state,a.process_node_id,a.updated_at
+                FROM assignments a WHERE a.process_graph_id=%s
+                  AND a.process_node_id IS NOT NULL
+                  AND NOT EXISTS (SELECT 1 FROM events p WHERE p.assignment_id=a.id
+                                  AND p.privacy_domain <> 'institution')
+                ORDER BY a.updated_at DESC,a.id LIMIT 1""", (graph_id,))
+            row = cur.fetchone()
+            if row is None:
+                return {"status": "unknown", "reason":
+                    "No assignment has recorded a canonical node for this graph."}
+            return {"status": "current", "assignment_id": row["id"],
+                    "state": row["state"], "node_id": row["process_node_id"],
+                    "recorded_at": self._iso(row["updated_at"]),
+                    "reason": "Canonical node identity was persisted with the latest assignment transition."}
         return self._read(query)
 
     def workers(self, *, after: str | None = None, limit: int = 25):
@@ -513,6 +544,7 @@ class DashboardProjection:
                     "attempt_id": str(row["attempt_id"]) if row["attempt_id"] else None,
                     "artifact": ({"sha256": row["result_sha256"],
                                   "reference": artifact.get("artifact_name"),
+                                  "path": artifact.get("artifact_path"),
                                   "status": artifact.get("status")}
                                  if artifact else None),
                     "verification": ({"decision": row["verification_decision"],

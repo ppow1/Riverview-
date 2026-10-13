@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_FLOW.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.1
+File Revision: 1.0.3
 Purpose: Generated focused process view for resident reasoning routing
 Authority: Graph-generated view; canonical source is JSON
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add graph-generated resident reasoning flow
@@ -43,6 +43,11 @@ flowchart LR
     g_rv_resident_reasoning_runtime_proposal_only_27f4e7fa(["Return PROPOSED; proposal is not an approved work order or executed action"])
     g_rv_resident_reasoning_runtime_budget_gate_362686a9{"Can the total budget provide at least one token to every primary/fallback attempt?"}
     g_rv_resident_reasoning_runtime_budget_insufficient_85f3e6b9[["Reject an undersized route before invoking any provider"]]
+    g_rv_resident_reasoning_runtime_task_escalation_contract_dec2e604["IMPLEMENTED CONTRACT ONLY — task escalation carries the original assignment, verified context fingerprint, exact provider target and bounded result; normal resident routing is not yet wired to invoke it"]
+    g_rv_resident_reasoning_runtime_task_escalation_authority_gate_efa7f87a{"CONTRACT ONLY — require exact resident.reasoning.escalate grant for the selected provider scope"}
+    g_rv_resident_reasoning_runtime_task_escalation_result_cd1b038d["CONTRACT ONLY — accept a structured result only when correlation, context fingerprint, schema, and token budget match"]
+    g_rv_resident_reasoning_runtime_task_escalation_failure_96662c07[["Record denied, unavailable, capacity, timeout, invalid-result, and stale-context outcomes without claiming a proposal"]]
+    g_rv_resident_reasoning_runtime_task_escalation_recovery_d0da7090["Keep the original assignment durable; retry only after explicit regrounding and current authority/provider readiness"]
   end
   g_rv_worker_adapter_deterministic_attempt_ground_c2193741["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_institutional_authority_identity_and_grants_office_state_e5a8ca22["Registered target<br/>rv:institutional-authority:identity-and-grants"]
@@ -73,5 +78,11 @@ flowchart LR
   g_rv_resident_reasoning_runtime_route_gate_56e9828c -->|route is exact, registered and bounded| g_rv_resident_reasoning_runtime_budget_gate_362686a9
   g_rv_resident_reasoning_runtime_budget_gate_362686a9 -->|budget fits all candidates| g_rv_resident_reasoning_runtime_provider_call_c528110c
   g_rv_resident_reasoning_runtime_budget_gate_362686a9 -->|diagnostic_branch: total token budget is smaller than route length| g_rv_resident_reasoning_runtime_budget_insufficient_85f3e6b9
+  g_rv_resident_reasoning_runtime_select_provider_46047639 -->|prerequisite: Optional explicit task-escalation contract; distinct from provider failure fallback| g_rv_resident_reasoning_runtime_task_escalation_contract_dec2e604
+  g_rv_resident_reasoning_runtime_task_escalation_contract_dec2e604 -->|prerequisite: Task escalation is a distinct authorized route, not failure fallback| g_rv_resident_reasoning_runtime_task_escalation_authority_gate_efa7f87a
+  g_rv_resident_reasoning_runtime_task_escalation_authority_gate_efa7f87a -->|prerequisite: Only exact-grant authorized provider results may be considered| g_rv_resident_reasoning_runtime_task_escalation_result_cd1b038d
+  g_rv_resident_reasoning_runtime_task_escalation_contract_dec2e604 -->|diagnostic_branch: Denied, unavailable, saturated, timed out, malformed, or stale context| g_rv_resident_reasoning_runtime_task_escalation_failure_96662c07
+  g_rv_resident_reasoning_runtime_task_escalation_failure_96662c07 -->|recovery_route: Preserve assignment and resume after authority/resource/context regrounding| g_rv_resident_reasoning_runtime_task_escalation_recovery_d0da7090
+  g_rv_resident_reasoning_runtime_task_escalation_recovery_d0da7090 -->|prerequisite: Re-establish verified facts and current assignment before another proposal| g_rv_resident_reasoning_runtime_ground_fedaa2c8
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

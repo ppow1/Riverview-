@@ -2,10 +2,16 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.1
+File Revision: 1.0.7
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
 Authority: Engineering contract; not evidence of production Grace commissioning
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Link persistent reconciliation and authenticated dashboard handoff
+Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER-CONTRACT | Document explicit message-origin objective intake and its exact Steward grant
+Changed: 2026-10-13 UTC | RV-CODEX-CLI-ADAPTER-001 | Record the source-only bounded Codex artifact adapter and commissioning gates
+Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Wire a registered Codex capability through leased execution and independent Markdown verification
+Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH-CREDENTIAL | Bind the Codex API key to a protected systemd credential and exact Engineering scope
+Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Replace API-key execution with a bounded one-objective ChatGPT-session mode
+Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Pin supervised reasoning, dispatch, claim, verification, and completion to one objective
 -->
 # Grace Execution Pipeline — infrastructure slice
 
@@ -28,6 +34,18 @@ claims live installation or Camrui commissioning.
 5. ContinuousWorker obtains a lease, rechecks its registered engineering.bounded-artifact.v1 capability, and writes one small JSON work product into a mode-0700 workspace. The worker has no shell, command, or caller-selected path.
 6. BoundedArtifactVerifier reopens the artifact by an assignment-derived name, verifies bytes/provenance/shape independently, and the existing adapter persists verification before completion. The objective can be marked complete only from a completed assignment plus persisted ACCEPTED verification.
 
+The authenticated chat UI exposes an explicit Steward action for a selected,
+persisted user-authored conversation message. `POST
+/api/v1/resident/conversations/{conversation_id}/work-orders` accepts only the
+source sequence and Steward-entered acceptance criteria. The server rechecks the
+account session, Steward website role, exact conversation read grant, source
+message principal/ownership, and `objective.submit` on the fixed
+`work-order:engineering` scope before persisting an objective with conversation
+origin. Ordinary chat is never promoted automatically. This is objective intake;
+it is not a Grace proposal, assignment dispatch, worker authorization, or proof
+of execution. The currently deployed registry has no such objective grant, and
+the new route is uncommissioned until the Steward approves the exact authority.
+
 Cancellation is supported only before execution for queued/ready assignments and requires exact assignment.cancel. Running work cannot be force-cancelled by this slice; CME lease/recovery behavior remains authoritative.
 
 ## Interfaces and bounds
@@ -39,6 +57,7 @@ Cancellation is supported only before execution for queued/ready assignments and
   proposals rather than silently discarding dependency/fanout information.
 - Evidence: knowledge-provider v1 KnowledgeResult, complete retrieval only; max serialized evidence 8 KiB. Source refs, Git revision, and hash persist with objective.
 - Work order: assignment ID, objective ref, exact authority scope, contract ref, workflow ID/step, and correlation ID persist in the assignment ledger.
+- Conversation origin: selected message sequence and conversation ID are attached to `objective.received`; only the authenticated linked Steward principal can submit from the chat route.
 - Worker request: CodingWorkOrder carries assignment/objective identity, pinned repository revision, bounded task scope, criteria, exact allowed operation (write_bounded_json_artifact), and a 1–90 second timeout.
 - The worker is a deterministic infrastructure adapter, not a general coding
   executor. A real coding executor and resident service remain later integration work.
@@ -60,5 +79,52 @@ RIVERVIEW_TEST_PG_DSN='postgresql://…' PYTHONPATH=src python3 -m unittest disc
 \`\`\`
 
 Tests include authorized and unauthorized intake, commit-pinned selection, missing and oversized evidence, worker failure, incomplete verification, actual filesystem artifact creation, independent artifact reading, persisted ledger completion, and objective event history. These are model-independent infrastructure tests; they do not demonstrate live model reasoning, a resident service, a human dashboard interaction, or operational Grace acceptance.
+
+### Codex CLI adapter — source-only checkpoint
+
+`resident_execution.codex_cli.CodexCLIExecutionAdapter` accepts a typed
+assignment, one operator-configured repository reference and pinned commit, and
+a fixed `deliverable.md` output. It creates a fresh local clone, invokes the
+configured Codex executable with `workspace-write`, network access disabled, a
+noninteractive approval policy, bounded wall time and file size, and discarded
+stdout/stderr. It rejects the interactive user's `~/.codex` directory and
+returns only the assignment, source revision, artifact digest, and a
+`verification_required` result. Synthetic tests use a fake executable; they do
+not prove real Codex authentication or model execution.
+
+`scripts/run_grace_execution_service.py` can now select this adapter only when
+`RIVERVIEW_ENGINEERING_ADAPTER=codex-cli` is explicitly set. It registers the
+exact `engineering.codex-cli-artifact.v1` capability through the existing
+worker registry; worker registration and every claim/execution still require
+the exact `worker.register` and `assignment.execute` grants in the assignment
+scope. Startup preflight requires a configured executable, dedicated
+`CODEX_HOME`, isolated workspace, pinned repository, and artifact directory.
+The normal CME lease, preflight/regrounding, execution-intent, attempt/result,
+and independent verification records remain the execution path. The
+`CodexMarkdownVerifier` independently reopens the assignment-bound file,
+checks ownership/mode/size/digest, objective binding, source provenance, and
+literal acceptance criteria. The result path and digest are retained in the
+worker result and Grace objective completion event/projection.
+
+The capability registry records capability, active worker, and exact authority
+scope; startup preflight plus the current Grace execution health heartbeat
+provide dependency/readiness evidence. The Codex adapter no longer accepts or
+passes `OPENAI_API_KEY`. Its supervised ChatGPT mode is available only to the
+owning `admin1` identity from a TTY, uses that user's existing `CODEX_HOME`
+directly without copying credentials, requires one explicit objective ID and
+an exact terminal confirmation, and returns after that one bounded execution
+cycle. It also requires the configured reasoning model identity to contain
+`80b`; otherwise the run fails closed. The cycle dispatches and claims only the
+selected assignment, then invokes the existing independent verifier and
+completion reconciliation for that objective. A worker claim still requires
+the existing exact `assignment.execute` grant, and dispatch still requires
+`assignment.create` for the configured work-order scope.
+
+This source path is not commissioned. The execution service and exact executor,
+verifier, resident, and dispatch credentials/grants remain unavailable, and
+the current live Grace reasoning route is not the 80B model. A ChatGPT login
+was verified only for Camrui's interactive Codex CLI account; no account files
+were copied and no real assignment was executed. Synthetic tests verify the
+bounded adapter contracts but are not evidence of a live artifact.
 
 The generated workflow below is a projection of process_graphs/grace/operational-integration.json. Regenerate with python3 scripts/process_graph.py generate; verify with python3 scripts/process_graph.py check.

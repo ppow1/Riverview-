@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.1.3
-# Purpose: Serve authenticated operational projections, objective intake, and resident conversation
+# Revision: 1.3.5
+# Purpose: Serve account-authenticated operational projections and existing bounded APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
 # Dependencies: Python 3.10+; standard library; status_dashboard.projection
@@ -13,6 +13,20 @@
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Add exact-grant resident conversation API and restart reconciliation
 # Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Persist exact-grant browser access in a scoped HttpOnly cookie with revocation checks
 # Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Restrict cookie issuance to URL-safe credentials to prevent response-header injection
+# Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add email enrollment, session auth and Steward account routes
+# Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add verified, challenge-bound Steward bootstrap completion
+# Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Use nginx's overwritten client IP for source-based auth throttling
+# Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account auth health and email readiness to status projection
+# Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Stop dispatch after account-specific HTTP responses
+# Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001-CSRF-PATH | Make the CSRF cookie readable to same-origin dashboard code
+# Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password sessions, approval grants and Steward email configuration routes
+# Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Bind authenticated Steward sessions to existing exact office grants
+# Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING | Add explicit conversation-to-objective intake gate
+# Changed: 2026-10-13 UTC | RV-LEDGER-GRAPH-POSITION | Read live execution position only from persisted canonical ledger identity
+# Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Permit only explicit allowlisted OCTO1 model URLs when an opt-in service flag is set
+# Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Add opt-in readiness router and deferred-turn resumption loop
+# Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING-DENIALS | Preserve conversation authorization and unavailable distinctions at promotion boundary
+# Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Expose only the scoped verification endpoint for local bootstrap challenges
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
 # History: Git and revision/backup manifest
@@ -22,6 +36,7 @@
 from __future__ import annotations
 
 import hmac
+import ipaddress
 import json
 import os
 import re
@@ -52,8 +67,23 @@ _CONVERSATION_COOKIE_MAX_AGE = 30 * 24 * 60 * 60
 _COOKIE_CREDENTIAL = re.compile(r"^[A-Za-z0-9_-]{32,512}$")
 _CONVERSATION_STATUS = re.compile(
     r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/responses/([0-9a-fA-F-]{36})$")
+_CONVERSATION_WORK_ORDER = re.compile(
+    r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/work-orders$")
 _MAX_CHAT_BODY = 12 * 1024
 _MAX_OBJECTIVE_BODY = 16 * 1024
+_MAX_ACCOUNT_BODY = 8 * 1024
+_ACCOUNT_SESSION_COOKIE = "rv_account_session"
+_ACCOUNT_CSRF_COOKIE = "rv_account_csrf"
+_ACCOUNT_COOKIE_TTL = 30 * 24 * 60 * 60
+_PUBLIC_AUTH_POSTS = {
+    "/api/v1/auth/enrollment", "/api/v1/auth/enrollment/verify",
+    "/api/v1/auth/login", "/api/v1/auth/session", "/api/v1/auth/password-reset",
+    "/api/v1/auth/password",
+    "/api/v1/auth/steward-bootstrap/verify",
+}
+_ACCOUNT_ENROLLMENT_DECISION = re.compile(
+    r"^/api/v1/account/enrollments/([0-9a-fA-F-]{36})/decision$")
+_ACCOUNT_USER_PATH = re.compile(r"^/api/v1/account/users/([0-9a-fA-F-]{36})/(disable|roles|sessions|grant)$")
 
 def _bounded_limit(value):
     try:
@@ -97,12 +127,13 @@ class _BoundedHTTPServer(HTTPServer):
     request_queue_size = 64
 
     def __init__(self, address, handler, *, token, projection, notification_service,
-                 objective_pipeline, conversation_service, static_dir):
+                 objective_pipeline, conversation_service, account_auth_service, static_dir):
         self._token = token
         self._projection = projection
         self._notification_service = notification_service
         self._objective_pipeline = objective_pipeline
         self._conversation_service = conversation_service
+        self._account_auth_service = account_auth_service
         self._static_dir = Path(static_dir)
         self._slots = threading.BoundedSemaphore(_MAX_THREADS)
         super().__init__(address, handler)
@@ -170,10 +201,16 @@ def make_handler():
                        extra_headers=extra_headers)
 
         def _conversation_authority(self):
-            """Use explicit legacy header first, otherwise the path-scoped browser cookie."""
+            """Use authenticated linked Steward identity or the retained legacy credential."""
             explicit = self.headers.get("X-Riverview-Authority")
             if explicit is not None:
                 return explicit
+            identity = getattr(self, "_account_identity", None)
+            if (getattr(self, "_account_cookie_authenticated", False) and identity
+                    and "steward" in identity.get("roles", ())
+                    and identity.get("authority_principal_id")):
+                from riverview_core.institutional_authority.grants import InstitutionalPrincipal
+                return InstitutionalPrincipal(identity["authority_principal_id"])
             raw = self.headers.get("Cookie", "")
             if len(raw) > 8192:
                 return ""
@@ -203,9 +240,88 @@ def make_handler():
 
         def _authorized(self):
             supplied = self.headers.get("Authorization", "")
-            if not supplied.startswith("Bearer "):
+            if supplied.startswith("Bearer ") and hmac.compare_digest(supplied[7:], self.server._token):
+                self._account_identity = None
+                self._account_cookie_authenticated = False
+                return True
+            raw_cookie = self.headers.get("Cookie", "")
+            if len(raw_cookie) > 8192 or self.server._account_auth_service is None:
                 return False
-            return hmac.compare_digest(supplied[7:], self.server._token)
+            values = []
+            for item in raw_cookie.split(";"):
+                key, sep, value = item.strip().partition("=")
+                if sep and key == _ACCOUNT_SESSION_COOKIE:
+                    values.append(value)
+            if len(values) != 1:
+                return False
+            csrf = self.headers.get("X-Riverview-CSRF")
+            try:
+                self._account_identity = self.server._account_auth_service.authenticate(
+                    values[0], csrf_token=csrf,
+                    state_changing=self.command not in {"GET", "HEAD"})
+            except Exception as exc:
+                self._account_identity = None
+                self._account_cookie_authenticated = True
+                from riverview_core.account_auth import AuthDenied
+                self._account_auth_denied = isinstance(exc, AuthDenied)
+                self._account_auth_failed = not self._account_auth_denied
+                return False
+            self._account_auth_failed = False
+            self._account_cookie_authenticated = self._account_identity is not None
+            return self._account_cookie_authenticated
+
+        @staticmethod
+        def _account_cookie(value, *, clear=False):
+            content = "" if clear else value
+            age = 0 if clear else _ACCOUNT_COOKIE_TTL
+            return (f"{_ACCOUNT_SESSION_COOKIE}={content}; Max-Age={age}; Path=/api/v1; "
+                    "Secure; HttpOnly; SameSite=Lax")
+
+        @staticmethod
+        def _csrf_cookie(value, *, clear=False):
+            content = "" if clear else value
+            age = 0 if clear else _ACCOUNT_COOKIE_TTL
+            return (f"{_ACCOUNT_CSRF_COOKIE}={content}; Max-Age={age}; Path=/; "
+                    "Secure; SameSite=Strict")
+
+        def _account_token_cookie(self):
+            raw_cookie = self.headers.get("Cookie", "")
+            if len(raw_cookie) > 8192:
+                return ""
+            values = [part.strip().partition("=")[2] for part in raw_cookie.split(";")
+                      if part.strip().partition("=")[0] == _ACCOUNT_SESSION_COOKIE]
+            return values[0] if len(values) == 1 else ""
+
+        def _account_public_origin_ok(self):
+            origin = self.headers.get("Origin")
+            if not origin:
+                return True
+            allowed = {value.strip().rstrip("/") for value in
+                       os.environ.get("RIVERVIEW_PUBLIC_ORIGINS",
+                                      "https://192.168.1.155,https://riverview.ionoge.com").split(",")}
+            return origin.rstrip("/") in allowed
+
+        def _request_source_key(self):
+            source = self.client_address[0]
+            if source in {"127.0.0.1", "::1"}:
+                forwarded = self.headers.get("X-Real-IP", "")
+                try:
+                    if len(forwarded) <= 45:
+                        source = str(ipaddress.ip_address(forwarded))
+                except ValueError:
+                    pass
+            return source
+
+        def _json_body(self, maximum):
+            if self.headers.get("Transfer-Encoding") or not self.headers.get("Content-Length", "").isdigit():
+                raise ValueError("request_length_required")
+            length = int(self.headers["Content-Length"])
+            if not 1 <= length <= maximum:
+                raise OverflowError("request_too_large")
+            data = json.loads(self.rfile.read(length))
+            if not isinstance(data, dict):
+                raise ValueError("invalid_request_shape")
+            return data
 
         def do_GET(self):
             self._dispatch()
@@ -239,8 +355,21 @@ def make_handler():
                                   if self.command == "POST" else None)
             objective_cancel = (_OBJECTIVE_CANCEL.fullmatch(parsed.path)
                                 if self.command == "POST" else None)
+            account_decision = (_ACCOUNT_ENROLLMENT_DECISION.fullmatch(parsed.path)
+                                if self.command == "POST" else None)
+            account_user = (_ACCOUNT_USER_PATH.fullmatch(parsed.path)
+                            if self.command == "POST" else None)
+            public_auth = parsed.path in _PUBLIC_AUTH_POSTS and self.command == "POST"
+            auth_logout = parsed.path == "/api/v1/auth/session" and self.command == "DELETE"
+            account_queue = parsed.path == "/api/v1/account/enrollments" and self.command == "GET"
+            account_users = parsed.path == "/api/v1/account/users" and self.command == "GET"
+            account_email_settings = parsed.path == "/api/v1/account/email-settings" and self.command == "GET"
+            account_email_save = parsed.path == "/api/v1/account/email-settings" and self.command == "PUT"
+            account_email_test = parsed.path == "/api/v1/account/email-settings/test" and self.command == "POST"
             conversation_send = (parsed.path == "/api/v1/resident/conversations"
                                  and self.command == "POST")
+            conversation_work_order = (_CONVERSATION_WORK_ORDER.fullmatch(parsed.path)
+                                       if self.command == "POST" else None)
             conversation_session = (parsed.path == _CONVERSATION_SESSION
                                      and self.command in {"POST", "DELETE"})
             if not self._host_ok():
@@ -248,7 +377,10 @@ def make_handler():
                 return
             if (self.command not in {"GET", "HEAD"} and not notification_write
                     and not objective_submit and not objective_proposal and not objective_cancel
-                    and not conversation_send and not conversation_session):
+                    and not conversation_send and not conversation_session and not public_auth
+                    and not conversation_work_order
+                    and not auth_logout and not account_decision and not account_user
+                    and not account_email_save and not account_email_test):
                 self._error(405, "read_only_method", request_id)
                 return
             if parsed.path == "/":
@@ -285,7 +417,68 @@ def make_handler():
             if not parsed.path.startswith("/api/v1/"):
                 self._error(404, "not_found", request_id)
                 return
+            if public_auth:
+                if self.server._account_auth_service is None:
+                    self._error(503, "account_auth_unavailable", request_id)
+                    return
+                if not self._account_public_origin_ok():
+                    self._error(403, "cross_origin_request_denied", request_id)
+                    return
+                try:
+                    data = self._json_body(_MAX_ACCOUNT_BODY)
+                    service = self.server._account_auth_service
+                    if parsed.path == "/api/v1/auth/enrollment":
+                        if set(data) != {"email"}:
+                            raise ValueError("invalid_request_shape")
+                        source = self._request_source_key()
+                        result = service.request_access(data["email"], source_key=source)
+                        self._json(202, result, request_id)
+                    elif parsed.path == "/api/v1/auth/enrollment/verify":
+                        if set(data) != {"challenge_id", "token"}:
+                            raise ValueError("invalid_request_shape")
+                        self._json(200, service.verify_enrollment(data["challenge_id"], data["token"]), request_id)
+                    elif parsed.path == "/api/v1/auth/steward-bootstrap/verify":
+                        if set(data) != {"challenge_id", "token"}:
+                            raise ValueError("invalid_request_shape")
+                        result = service.verify_steward_bootstrap(
+                            data["challenge_id"], data["token"],
+                            authority_principal_id="steward:camrui")
+                        self._json(200, result, request_id)
+                    elif parsed.path == "/api/v1/auth/password-reset":
+                        if set(data)!={"email"}:
+                            raise ValueError("invalid_request_shape")
+                        self._json(202,service.request_password_reset(
+                            data["email"],source_key=self._request_source_key()),request_id)
+                    elif parsed.path == "/api/v1/auth/password":
+                        if set(data)!={"challenge_id","token","password"}:
+                            raise ValueError("invalid_request_shape")
+                        self._json(200,service.set_password(data["challenge_id"],
+                            data["token"],data["password"]),request_id)
+                    else:
+                        if set(data)!={"email","password"}:
+                            raise ValueError("invalid_request_shape")
+                        session = service.authenticate_password(data["email"],data["password"],
+                            source_key=self._request_source_key())
+                        identity = {"account_id": session.account_id, "email": session.email,
+                                    "roles": session.roles, "expires_in": session.expires_in}
+                        self._json(200, {"status": "authenticated", "identity": identity}, request_id,
+                            extra_headers=(
+                                ("Set-Cookie", self._account_cookie(session.session_token)),
+                                ("Set-Cookie", self._csrf_cookie(session.csrf_token)),))
+                except OverflowError:
+                    self._error(413, "request_too_large", request_id)
+                except ValueError:
+                    self._error(400, "invalid_account_request", request_id)
+                except Exception as exc:
+                    self._account_error(exc, request_id)
+                return
             if not self._authorized():
+                if getattr(self, "_account_auth_denied", False):
+                    self._error(403, "csrf_or_session_check_failed", request_id)
+                    return
+                if getattr(self, "_account_auth_failed", False):
+                    self._error(503, "account_auth_unavailable", request_id)
+                    return
                 self.send_response(401)
                 self._headers(request_id)
                 self.send_header("WWW-Authenticate", 'Bearer realm="Riverview dashboard"')
@@ -298,6 +491,112 @@ def make_handler():
                 return
             try:
                 query = parse_qs(parsed.query, keep_blank_values=False, max_num_fields=12)
+                if parsed.path == "/api/v1/auth/session" and self.command in {"GET", "HEAD"}:
+                    if not self._account_identity:
+                        self._error(401, "authentication_required", request_id)
+                    else:
+                        identity = {key:self._account_identity[key] for key in
+                                    ("account_id", "email", "roles") if key in self._account_identity}
+                        self._json(200, {"status": "authenticated", "identity": identity}, request_id)
+                    return
+                elif auth_logout:
+                    if not self._account_public_origin_ok():
+                        self._error(403, "cross_origin_request_denied", request_id)
+                        return
+                    service = self.server._account_auth_service
+                    if service is None:
+                        self._error(503, "account_auth_unavailable", request_id)
+                        return
+                    service.logout(self._account_token_cookie())
+                    self._json(200, {"status": "logged_out"}, request_id,
+                               extra_headers=(
+                                   ("Set-Cookie", self._account_cookie("", clear=True)),
+                                   ("Set-Cookie", self._csrf_cookie("", clear=True))))
+                    return
+                elif account_queue:
+                    identity = getattr(self, "_account_identity", None)
+                    if not identity:
+                        self._error(403, "steward_account_required", request_id)
+                        return
+                    page = self.server._account_auth_service.review_enrollments(
+                        identity, limit=_bounded_limit(query.get("limit", [50])[0]))
+                    self._json(200, {"items": page, "status": "available"}, request_id)
+                    return
+                elif account_users:
+                    identity = getattr(self, "_account_identity", None)
+                    if not identity:
+                        self._error(403, "steward_account_required", request_id)
+                        return
+                    page = self.server._account_auth_service.list_accounts(
+                        identity, limit=_bounded_limit(query.get("limit", [50])[0]))
+                    self._json(200, {"items": page, "status": "available"}, request_id)
+                    return
+                elif account_email_settings:
+                    identity=getattr(self,"_account_identity",None)
+                    if not identity:
+                        self._error(403,"steward_account_required",request_id)
+                        return
+                    result=self.server._account_auth_service.email_settings(identity)
+                    self._json(200,result,request_id)
+                    return
+                elif account_email_save or account_email_test:
+                    identity=getattr(self,"_account_identity",None)
+                    if not identity:
+                        self._error(403,"steward_account_required",request_id)
+                        return
+                    service=self.server._account_auth_service
+                    if account_email_save:
+                        data=self._json_body(_MAX_ACCOUNT_BODY)
+                        credential_dir=os.environ.get("CREDENTIALS_DIRECTORY","")
+                        key_path=Path(credential_dir)/"account-email-config-key"
+                        result=service.save_email_settings(identity,data,key_path=key_path)
+                    else:
+                        if self.headers.get("Content-Length","0") not in {"0",""}:
+                            raise ValueError("invalid_request_shape")
+                        credential_dir=os.environ.get("CREDENTIALS_DIRECTORY","")
+                        result=service.test_email_settings(identity,
+                            key_path=Path(credential_dir)/"account-email-config-key",
+                            public_origin=os.environ.get("RIVERVIEW_PUBLIC_ORIGIN","https://192.168.1.155"))
+                    self._json(200,result,request_id)
+                    return
+                elif account_decision or account_user:
+                    identity = getattr(self, "_account_identity", None)
+                    if not identity:
+                        self._error(403, "steward_account_required", request_id)
+                        return
+                    data = self._json_body(_MAX_ACCOUNT_BODY)
+                    service = self.server._account_auth_service
+                    if account_decision:
+                        if set(data) != {"decision","role","grant_type"}:
+                            raise ValueError("invalid_request_shape")
+                        result = service.decide_enrollment(identity, account_decision.group(1),
+                            data["decision"],role=data["role"],grant_type=data["grant_type"])
+                    else:
+                        account_id, action = account_user.groups()
+                        if action == "disable":
+                            if set(data) != {"disabled"}:
+                                raise ValueError("invalid_request_shape")
+                            result = service.set_account_state(identity, account_id, disabled=data["disabled"])
+                        elif action == "roles":
+                            if set(data) != {"role", "grant"}:
+                                raise ValueError("invalid_request_shape")
+                            result = service.change_role(identity, account_id, data["role"], grant=data["grant"])
+                        elif action == "grant":
+                            if set(data)!={"revoked"} or data["revoked"] is not True:
+                                raise ValueError("grant_revocation_required")
+                            result=service.revoke_access_grant(identity,account_id)
+                        else:
+                            if data:
+                                raise ValueError("invalid_request_shape")
+                            result = service.revoke_sessions(identity, account_id)
+                    self._json(200, result, request_id)
+                    return
+                elif self._account_cookie_authenticated and self.command not in {"GET", "HEAD"}:
+                    self.server._account_auth_service.require_role(
+                        self._account_identity, "operator", "steward")
+                    if not self._account_public_origin_ok():
+                        self._error(403, "cross_origin_request_denied", request_id)
+                        return
                 if parsed.path == _CONVERSATION_SESSION and self.command == "POST":
                     service = self.server._conversation_service
                     if service is None:
@@ -306,11 +605,23 @@ def make_handler():
                     if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Length", "0") != "0":
                         self._error(400, "conversation_session_body_not_allowed", request_id)
                         return
-                    credential = self.headers.get("X-Riverview-Authority", "")
-                    if not _COOKIE_CREDENTIAL.fullmatch(credential):
-                        self._error(403, "resident_conversation_not_authorized", request_id)
-                        return
                     try:
+                        account_identity = getattr(self, "_account_identity", None)
+                        if account_identity is not None and "X-Riverview-Authority" not in self.headers:
+                            from riverview_core.institutional_authority.grants import InstitutionalPrincipal
+                            if ("steward" not in account_identity.get("roles", ())
+                                    or not account_identity.get("authority_principal_id")):
+                                self._error(403, "resident_conversation_not_authorized", request_id)
+                                return
+                            identity = service.authorize_browser_session(
+                                InstitutionalPrincipal(account_identity["authority_principal_id"]))
+                            self._json(200, {"schema_version":"rv.resident.conversation-session.v1",
+                                             **identity, "transport":"authenticated_account_session"}, request_id)
+                            return
+                        credential = self.headers.get("X-Riverview-Authority", "")
+                        if not _COOKIE_CREDENTIAL.fullmatch(credential):
+                            self._error(403, "resident_conversation_not_authorized", request_id)
+                            return
                         identity = service.authorize_browser_session(credential)
                     except Exception as exc:
                         self._conversation_error(exc, request_id)
@@ -324,7 +635,10 @@ def make_handler():
                                      "status":"disconnected"}, request_id,
                                extra_headers=(("Set-Cookie", self._conversation_cookie("", clear=True)),))
                 elif parsed.path == "/api/v1/status":
-                    self._json(200, self.server._projection.status(), request_id)
+                    status = self.server._projection.status()
+                    if self.server._account_auth_service is not None:
+                        status["account_auth"] = self.server._account_auth_service.status()
+                    self._json(200, status, request_id)
                 elif parsed.path == "/api/v1/assignments":
                     page = self.server._projection.assignments(
                         after=query.get("after", [None])[0],
@@ -347,6 +661,82 @@ def make_handler():
                 elif parsed.path == "/api/v1/objectives" and self.command in {"GET", "HEAD"}:
                     self._json(200, self.server._projection.objectives(
                         limit=_bounded_limit(query.get("limit", [25])[0])), request_id)
+                elif conversation_work_order:
+                    # Only an explicit authenticated Steward action can promote a
+                    # specific persisted Grace user message. Ordinary chat stays chat.
+                    identity = getattr(self, "_account_identity", None)
+                    service = self.server._conversation_service
+                    pipeline = self.server._objective_pipeline
+                    if (not getattr(self, "_account_cookie_authenticated", False)
+                            or not identity or "steward" not in identity.get("roles", ())):
+                        self._error(403, "steward_account_session_required", request_id)
+                        return
+                    if service is None or pipeline is None:
+                        self._error(503, "work_order_intake_unavailable", request_id)
+                        return
+                    try:
+                        data = self._json_body(_MAX_CHAT_BODY)
+                        if set(data) != {"source_sequence", "acceptance_criteria"}:
+                            raise ValueError("invalid work order shape")
+                        sequence = data["source_sequence"]
+                        criteria = data["acceptance_criteria"]
+                        if (type(sequence) is not int or sequence < 1 or
+                                not isinstance(criteria, list) or not criteria or len(criteria) > 20):
+                            raise ValueError("invalid source sequence or criteria")
+                        conversation_id = conversation_work_order.group(1)
+                        principal_id = identity.get("authority_principal_id")
+                        if not isinstance(principal_id, str) or not principal_id:
+                            self._error(403, "institutional_principal_required", request_id)
+                            return
+                        # history() checks the exact resident.conversation.read grant and
+                        # owner. The selected event must be a user-authored message from
+                        # this same authenticated principal.
+                        service.history(self._conversation_authority(), conversation_id)
+                        with service.store.db.cursor() as cur:
+                            service.store._path(cur)
+                            cur.execute("""SELECT body,actor_kind,actor_id FROM
+                                resident_conversation_events WHERE conversation_id=%s
+                                AND sequence=%s AND event_type='user_message'""",
+                                (conversation_id, sequence))
+                            source = cur.fetchone()
+                        if (source is None or source["actor_kind"] != "principal" or
+                                source["actor_id"] != principal_id):
+                            self._error(404, "conversation_message_not_found", request_id)
+                            return
+                        from uuid import uuid4
+                        from riverview_core.institutional_authority.grants import InstitutionalPrincipal
+                        objective_id = "objective:grace-conversation:" + str(uuid4())
+                        origin = {"conversation_id": conversation_id,
+                                  "source_sequence": sequence}
+                        result = pipeline.submit_objective(
+                            objective_id, source["body"], criteria,
+                            scope_ref="work-order:engineering",
+                            principal=InstitutionalPrincipal(principal_id), origin=origin)
+                        grounded = pipeline.ground_objective(objective_id)
+                        self._json(202, {"objective_id": objective_id,
+                            "status": grounded["status"],
+                            "source_revision": grounded["source_revision"]}, request_id)
+                    except Exception as exc:
+                        from riverview_core.resident_execution import ObjectiveNotAuthorized, ObjectiveStateError
+                        from riverview_core.institutional_authority import GrantCheckUnavailable
+                        from riverview_core.resident_execution.conversation import (
+                            ConversationDenied, ConversationNotFound, ConversationUnavailable)
+                        if isinstance(exc, ObjectiveNotAuthorized):
+                            self._error(403, "engineering_work_order_submission_not_authorized", request_id)
+                        elif isinstance(exc, ConversationDenied):
+                            self._error(403, "resident_conversation_not_authorized", request_id)
+                        elif isinstance(exc, ConversationNotFound):
+                            self._error(404, "resident_conversation_not_found", request_id)
+                        elif isinstance(exc, GrantCheckUnavailable):
+                            self._error(503, "authority_unavailable", request_id)
+                        elif isinstance(exc, ConversationUnavailable):
+                            self._error(503, "resident_conversation_unavailable", request_id)
+                        elif isinstance(exc, (ValueError, TypeError)):
+                            self._error(400, "invalid_work_order_request", request_id)
+                        elif isinstance(exc, ObjectiveStateError):
+                            self._error(409, "work_order_conflict", request_id)
+                        else:
+                            self._error(503, "work_order_intake_unavailable", request_id)
                 elif objective_submit:
                     pipeline = self.server._objective_pipeline
                     if pipeline is None:
@@ -506,7 +896,8 @@ def make_handler():
                             self._conversation_authority(),
                             message=data["message"], conversation_id=data.get("conversation_id"),
                             client_message_id=data.get("client_message_id"))
-                        status = 201 if result.get("status") == "completed" else 503
+                        status = (201 if result.get("status") == "completed" else
+                                  202 if result.get("status") == "deferred" else 503)
                         self._json(status, result, request_id)
                     except Exception as exc:
                         self._conversation_error(exc, request_id)
@@ -587,10 +978,13 @@ def make_handler():
                     if selected is None:
                         self._error(404, "process_graph_not_found", request_id)
                         return
-                    selected["execution_position"] = {
-                        "status": "unknown",
-                        "reason": "The assignment ledger does not currently persist a graph node identity; no node is highlighted.",
-                    }
+                    position_reader = getattr(self.server._projection,
+                                              "graph_execution_position", None)
+                    selected["execution_position"] = (position_reader(graph_id)
+                        if callable(position_reader) else {
+                            "status": "unknown",
+                            "reason": "The active projection does not expose recorded graph-node identity.",
+                        })
                     self._json(200, {"schema_version": "rv.dashboard.graph.v1",
                                      "status": "available", "graph": selected}, request_id)
                 elif parsed.path.startswith("/api/v1/assignments/"):
@@ -609,6 +1003,13 @@ def make_handler():
             except ProjectionUnavailable:
                 self._error(503, "projection_unavailable", request_id)
             except Exception as exc:
+                from riverview_core.account_auth import AuthDenied, AuthUnavailable
+                if isinstance(exc, AuthDenied):
+                    self._error(403, "not_authorized", request_id)
+                    return
+                if isinstance(exc, AuthUnavailable):
+                    self._error(503, "account_auth_unavailable", request_id)
+                    return
                 from riverview_core.notifications import (NotificationConflict,
                     NotificationNotFound, NotificationUnavailable)
                 if isinstance(exc, NotificationNotFound):
@@ -624,6 +1025,25 @@ def make_handler():
                 print(json.dumps({"event": "dashboard_request_failed", "request_id": request_id,
                                   "error_type": type(exc).__name__}), flush=True)
                 self._error(500, "projection_failed", request_id)
+
+        def _account_error(self, exc, request_id):
+            from riverview_core.account_auth import (
+                AccountAuthError, AuthDenied, AuthUnavailable, ChallengeInvalid,
+                EmailTransportUnavailable)
+            if isinstance(exc, AuthDenied):
+                self._error(403, "not_authorized", request_id)
+            elif isinstance(exc, ChallengeInvalid):
+                self._error(400, "challenge_invalid_or_expired", request_id)
+            elif isinstance(exc, EmailTransportUnavailable):
+                self._error(503, "email_delivery_unavailable", request_id)
+            elif isinstance(exc, AuthUnavailable):
+                self._error(503, "account_auth_unavailable", request_id)
+            elif isinstance(exc, AccountAuthError):
+                self._error(503, exc.code, request_id)
+            elif isinstance(exc, (ValueError, TypeError)):
+                self._error(400, "invalid_account_request", request_id)
+            else:
+                self._error(503, "account_auth_unavailable", request_id)
 
         def _conversation_error(self, exc, request_id):
             from riverview_core.resident_execution.conversation import (
@@ -651,7 +1071,7 @@ class DashboardHTTPServer(_BoundedHTTPServer):
     def __init__(self, host: str, port: int, token_file: str | Path,
                  projection: DashboardProjection, static_dir: str | Path | None = None,
                  notification_service=None, objective_pipeline=None,
-                 conversation_service=None):
+                 conversation_service=None, account_auth_service=None):
         if host not in {"127.0.0.1", "::1"}:
             raise ValueError("dashboard bind host must be a loopback IP literal")
         if not isinstance(port, int) or not 8700 <= port <= 8799:
@@ -663,6 +1083,7 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                          projection=projection, notification_service=notification_service,
                          objective_pipeline=objective_pipeline,
                          conversation_service=conversation_service,
+                         account_auth_service=account_auth_service,
                          static_dir=static_dir)
 
 
@@ -685,6 +1106,9 @@ def main():
         deployment_id=os.environ.get("RIVERVIEW_DEPLOYMENT_ID", "unconfigured"),
         heartbeat_stale_seconds=int(os.environ.get("RIVERVIEW_STALE_AFTER_SECONDS", "30")))
     from riverview_core.notifications import NotificationService
+    from riverview_core.account_auth import (
+        AccountAuthService, DisabledEmailTransport, FileDevelopmentEmailTransport)
+    from riverview_core.email_delivery import ConfiguredEmailTransport
     notification_service = NotificationService(
         dsn, schema=os.environ.get("RIVERVIEW_DATABASE_SCHEMA", "riverview_dev"))
     from riverview_core.assignment_intake import AuthorizedAssignmentIntake
@@ -694,6 +1118,23 @@ def main():
     from riverview_core.worker_adapter.knowledge import UnavailableKnowledgeProvider
     from riverview_core.worker_adapter.resident_knowledge import TaskRelevantRepositoryKnowledgeProvider
     import psycopg
+    email_transport = DisabledEmailTransport()
+    if os.environ.get("RIVERVIEW_EMAIL_DEVELOPMENT_MAILBOX"):
+        email_transport = FileDevelopmentEmailTransport(
+            os.environ["RIVERVIEW_EMAIL_DEVELOPMENT_MAILBOX"])
+    else:
+        credential_directory=os.environ.get("CREDENTIALS_DIRECTORY","")
+        config_key=Path(credential_directory)/"account-email-config-key"
+        if credential_directory and config_key.is_file():
+            email_transport=ConfiguredEmailTransport(
+                lambda:psycopg.connect(dsn,connect_timeout=2),
+                schema=os.environ.get("RIVERVIEW_ACCOUNT_SCHEMA","riverview_accounts"),
+                key_path=config_key,
+                public_origin=os.environ.get("RIVERVIEW_PUBLIC_ORIGIN","https://192.168.1.155"))
+    account_auth_service = AccountAuthService(
+        lambda: psycopg.connect(dsn, connect_timeout=2), email_transport,
+        schema=os.environ.get("RIVERVIEW_ACCOUNT_SCHEMA", "riverview_accounts"),
+        public_origin=os.environ.get("RIVERVIEW_PUBLIC_ORIGIN","https://192.168.1.155"))
     repository_root = Path(os.environ.get("RIVERVIEW_KNOWLEDGE_ROOT", "/opt/riverview-core"))
     pinned_commit = os.environ.get("RIVERVIEW_SOURCE_COMMIT", _release_commit())
     objective_ledger = None
@@ -736,13 +1177,66 @@ def main():
             resident_token = resident_token_path.read_text(encoding="ascii").strip()
             provider = LocalReasoningProvider(chat_endpoint, chat_model, chat_model_sha,
                 timeout_seconds=25,
-                chat_prefix=os.environ.get("RIVERVIEW_GRACE_CHAT_PREFIX", ""))
+                chat_prefix=os.environ.get("RIVERVIEW_GRACE_CHAT_PREFIX", ""),
+                allow_approved_private_lan=(
+                    os.environ.get("RIVERVIEW_GRACE_ALLOW_APPROVED_OCTO1") == "1"))
+            providers = {provider.provider_id: provider}
+            routed = os.environ.get("RIVERVIEW_GRACE_ENABLE_MODEL_ROUTER") == "1"
+            if routed:
+                if os.environ.get("RIVERVIEW_GRACE_ALLOW_APPROVED_OCTO1") != "1":
+                    raise ValueError("model router requires the existing explicit OCTO1 opt-in")
+                authority_schema = os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority")
+                with psycopg.connect(dsn, connect_timeout=2) as migration_probe, migration_probe.cursor() as cur:
+                    cur.execute("""SELECT
+                        EXISTS(SELECT 1 FROM information_schema.tables
+                            WHERE table_schema=%s AND table_name='schema_migrations') AS runtime,
+                        EXISTS(SELECT 1 FROM information_schema.tables
+                            WHERE table_schema=%s AND table_name='schema_migrations') AS authority""",
+                        (schema, authority_schema))
+                    migration_tables = cur.fetchone()
+                    if not migration_tables[0] or not migration_tables[1]:
+                        raise RuntimeError("model routing migrations are not initialized")
+                    cur.execute("SELECT version FROM " + psycopg.sql.Identifier(schema).as_string(cur.connection)
+                                + ".schema_migrations WHERE version=%s",
+                                ("0004_deferred_conversation_responses",))
+                    if cur.fetchone() is None:
+                        raise RuntimeError("resident conversation deferral migration is not applied")
+                    cur.execute("SELECT version FROM " + psycopg.sql.Identifier(authority_schema).as_string(cur.connection)
+                                + ".schema_migrations WHERE version=%s",
+                                ("0005_audited_model_rebinding",))
+                    if cur.fetchone() is None:
+                        raise RuntimeError("authority model rebinding migration is not applied")
+                from riverview_core.resident_execution.model_router import GraceModelRouter
+                reasoning = LocalReasoningProvider(
+                    "http://192.168.1.160:8080/v1",
+                    "/root/Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf",
+                    os.environ["RIVERVIEW_GRACE_80B_MODEL_SHA256"], timeout_seconds=25,
+                    allow_approved_private_lan=True)
+                vision = LocalReasoningProvider(
+                    "http://192.168.1.160:18080/v1",
+                    "/mnt/model-storage/vision/Qwen3-VL-30B-A3B/Huihui-Qwen3-VL-30B-A3B-Instruct-abliterated.i1-IQ3_XS.gguf",
+                    os.environ["RIVERVIEW_GRACE_30B_MODEL_SHA256"], timeout_seconds=25,
+                    allow_approved_private_lan=True)
+                router = GraceModelRouter(autonomic=provider, vision=vision,
+                                          reasoning=reasoning)
+                providers = {router.provider_id: router}
             conversation_service = ResidentConversationService(
                 store=conversation_store, registry=authority_registry,
                 authorizer=ExactGrantAuthorizer(authority_schema), office_id=chat_office_id,
                 resident_credential=resident_token,
-                providers={provider.provider_id: provider})
+                providers=providers)
             conversation_store.recover_pending()
+            if routed:
+                def resume_deferred():
+                    while True:
+                        try:
+                            conversation_service.resume_deferred(limit=10)
+                        except Exception as exc:
+                            print(json.dumps({"event": "grace_deferred_resume_cycle_failed",
+                                              "error_type": type(exc).__name__}), flush=True)
+                        threading.Event().wait(5)
+                threading.Thread(target=resume_deferred,
+                                 name="grace-deferred-resumption", daemon=True).start()
         except Exception as exc:
             print(json.dumps({"event": "resident_conversation_start_failed",
                               "error_type": type(exc).__name__}), flush=True)
@@ -758,7 +1252,8 @@ def main():
     server = DashboardHTTPServer(host, port, token_path, projection,
                                  notification_service=notification_service,
                                  objective_pipeline=objective_pipeline,
-                                 conversation_service=conversation_service)
+                                 conversation_service=conversation_service,
+                                 account_auth_service=account_auth_service)
     print(json.dumps({"event": "dashboard_started", "host": host, "port": port,
                       "source_commit": projection.source_commit,
                       "deployment_id": projection.deployment_id}), flush=True)

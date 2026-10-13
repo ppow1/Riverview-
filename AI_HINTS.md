@@ -1,6 +1,6 @@
 # Riverview~ AI Engineering Hints
 
-**Document Revision:** 1.0.3  
+**Document Revision:** 1.0.4
 **Status:** Working agent guidance  
 **Date:** 2026-10-09  
 **Component:** ENG-AGENT-GUIDANCE  
@@ -16,9 +16,11 @@
 5. Preserve each existing file's **exact predecessor bytes and SHA-256 before modifying it**. Record the predecessor location, revision, task ID, and restoration method. Confirm that the backup can be read back. Do not treat an unprotected working copy as an immutable backup.
 6. Increment the **individual file revision** on every content change, including metadata-only edits. New text/source files begin at `1.0.0` unless explicitly experimental. Keep language-appropriate source headers; use a sidecar for formats that cannot contain comments.
 7. Make the smallest coherent change. Maintain intended **persistent/event-driven** behavior when required. Do not silently replace continuous agents with turn-based, one-shot, or human-approval loops.
-8. Test affected behavior and relevant regressions. Record actual commands, exit codes, pass/fail/skip counts, environment, and limitations. Never report unexecuted tests as PASS.
-9. Review the diff, verify only intended files changed, and confirm predecessor restoration remains possible. Do not commit, push, deploy, or alter production data unless the task authorizes it.
-10. End with a precise handoff: files and revisions changed, predecessor locations, test evidence, commit/deployment status, outstanding problems, and next action.
+8. Every new or materially changed workflow, execution adapter, and significant operational process must update its canonical versioned process graph in the same change. Preserve globally unique stable graph/node IDs, typed decision/failure/escalation/recovery/verification transitions, resolvable cross-workflow references, actual ledger-to-node correlation where known, diagnostic checkpoints, and observable evidence. Regenerate and check all graph projections; never infer a live node from a state label.
+9. Follow documentation-first and anti-rediscovery policy: retrieve established facts, procedures, dependencies, and evidence before discovery; distinguish durable knowledge from dynamic state; record verified changes with provenance; and reground when state may have drifted. Use the existing institutional/PostgreSQL authority model; do not create parallel learning or authority registries.
+10. Test affected behavior and relevant regressions. Record actual commands, exit codes, pass/fail/skip counts, environment, and limitations. Never report unexecuted tests as PASS.
+11. Review the diff, verify only intended files changed, and confirm predecessor restoration remains possible. Do not commit, push, deploy, or alter production data unless the task authorizes it.
+12. End with a precise handoff: files and revisions changed, predecessor locations, test evidence, commit/deployment status, outstanding problems, and next action.
 
 ## Operational facts and boundaries
 
@@ -51,6 +53,8 @@
 Before editing, briefly report: repository/branch/HEAD, applicable standards, task scope, relevant code/dependencies, predecessor-preservation plan, and tests to run. If the task is purely informational, do not modify files.
 
 ## Revision history
+
+- **1.0.4 — 2026-10-13:** Make canonical graph/diagnostic integrity and documentation-first anti-rediscovery standing acceptance criteria for every engineering session. Predecessor: `.riverview-backups/20261013T152238220458Z/AI_HINTS.md`.
 
 - **1.0.3 — 2026-10-09:** Require all engineering agents to load the full Codex campaign and its observability, web visibility, flowchart, troubleshooting and DoD obligations. Predecessor: `docs/history/AI_HINTS_rev1.0.2.md`.
 

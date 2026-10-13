@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.6
+# Revision: 1.0.11
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -15,6 +15,8 @@
 # Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Verify each acknowledged turn from fresh PostgreSQL connections under concurrency
 # Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Verify scoped persistent browser cookie uses both existing grants and survives service restart
 # Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Verify logout clearing and immediate exact-credential revocation
+# Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Verify linked Steward principal uses exact grants without legacy secret
+# Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Exercise linked-account API session, persistence and denial through dashboard routes
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: python3 -m unittest tests.test_resident_conversation
 # History: Git and .riverview-backups/manifest.jsonl
@@ -167,6 +169,21 @@ class ResidentConversationTests(unittest.TestCase):
             self.service.send(secrets.token_urlsafe(32), message="unauthorized")
         self.assertEqual(self.provider_a.calls, [])
 
+    def test_authenticated_steward_principal_uses_existing_exact_grants(self):
+        from riverview_core.institutional_authority.grants import InstitutionalPrincipal
+        from riverview_core.resident_execution.conversation import ConversationDenied
+
+        identity = InstitutionalPrincipal(self.steward_id)
+        browser = self.service.authorize_browser_session(identity)
+        self.assertEqual(browser["principal_id"], self.steward_id)
+        sent = self.service.send(identity, message="Account session conversation test.",
+                                 client_message_id=str(uuid4()))
+        history = self.service.history(identity, sent["conversation_id"])
+        self.assertEqual(history["events"][-1]["body"], "Grace is ready to help.")
+        self.assertEqual(len(self._fresh_events(sent["conversation_id"])), 2)
+        with self.assertRaises(ConversationDenied):
+            self.service.list_conversations(InstitutionalPrincipal("steward:ungranted"))
+
     def test_client_retry_is_idempotent_and_does_not_repeat_inference(self):
         key = str(uuid4())
         first = self.service.send(self.steward_token, message="Same message", client_message_id=key)
@@ -176,6 +193,83 @@ class ResidentConversationTests(unittest.TestCase):
         self.assertEqual(len(self.provider_a.calls), 1)
         self.assertEqual(len(self.service.history(self.steward_token,
             first["conversation_id"])["events"]), 2)
+
+    def test_complex_request_is_durably_deferred_and_resumes_when_80b_ready(self):
+        from riverview_core.local_reasoning_provider import ProviderReadiness
+        from riverview_core.resident_execution.model_router import GraceModelRouter
+        cpu = _ChatProvider("cpu-autonomic", "c" * 64, "Acknowledged; I will resume this request.")
+        vision = _ChatProvider("vision-interim", "d" * 64)
+        reasoner = _ChatProvider("reasoning-80b", "e" * 64, "The verified analysis is complete.")
+        cpu.readiness = lambda: ProviderReadiness("READY", cpu.model, "ready")
+        vision.readiness = lambda: ProviderReadiness("READY", vision.model, "ready")
+        reasoner.state = "MODEL_BUSY"
+        reasoner.readiness = lambda: ProviderReadiness(reasoner.state, reasoner.model,
+                                                       reasoner.state.lower())
+        router = GraceModelRouter(autonomic=cpu, vision=vision, reasoning=reasoner)
+        implementation_id = "implementation:router:" + uuid4().hex
+        self.registry.create_implementation(self.steward_token, implementation_id,
+            kind="model", provider_ref=router.provider_id, revision=router.model_sha256)
+        self.registry.update_office_implementation(self.steward_token, self.office_id,
+            implementation_id, expected_binding_revision=1)
+        self.service.providers = {router.provider_id: router}
+
+        deferred = self.service.send(self.steward_token,
+            message="Analyze the documented alternatives and recommend a plan.",
+            client_message_id=str(uuid4()))
+        self.assertEqual(deferred["status"], "deferred")
+        self.assertEqual(self.service.response_status(self.steward_token,
+            deferred["conversation_id"], deferred["request_id"])["status"], "deferred")
+        self.assertEqual(len(self.store.deferred_turns()), 1)
+        self.assertEqual(self.store.recover_pending(), 0,
+                         "startup recovery must not mark deliberately deferred work interrupted")
+        self.assertEqual(len(self.store.deferred_turns()), 1)
+        self.assertEqual(reasoner.calls, [])
+
+        reasoner.state = "READY"
+        self.assertEqual(self.service.resume_deferred(), 1)
+        final = self.service.response_status(self.steward_token,
+            deferred["conversation_id"], deferred["request_id"])
+        self.assertEqual(final["status"], "completed")
+        history = self.service.history(self.steward_token, deferred["conversation_id"])
+        self.assertEqual(history["events"][-1]["body"], "The verified analysis is complete.")
+        self.assertTrue(history["events"][-1]["metadata"]["resumed_deferred_request"])
+        self.assertEqual(len([event for event in history["events"]
+                              if event["event_type"] == "user_message"]), 1)
+
+    def test_deferred_request_does_not_resume_after_exact_send_grant_revocation(self):
+        from psycopg import sql
+        from riverview_core.local_reasoning_provider import ProviderReadiness
+        from riverview_core.resident_execution.model_router import GraceModelRouter
+        cpu = _ChatProvider("cpu-autonomic", "c" * 64)
+        vision = _ChatProvider("vision-interim", "d" * 64)
+        reasoner = _ChatProvider("reasoning-80b", "e" * 64)
+        cpu.readiness = lambda: ProviderReadiness("READY", cpu.model, "ready")
+        vision.readiness = lambda: ProviderReadiness("READY", vision.model, "ready")
+        reasoner.state = "MODEL_BUSY"
+        reasoner.readiness = lambda: ProviderReadiness(reasoner.state, reasoner.model,
+                                                       reasoner.state.lower())
+        router = GraceModelRouter(autonomic=cpu, vision=vision, reasoning=reasoner)
+        implementation_id = "implementation:router:" + uuid4().hex
+        self.registry.create_implementation(self.steward_token, implementation_id,
+            kind="model", provider_ref=router.provider_id, revision=router.model_sha256)
+        self.registry.update_office_implementation(self.steward_token, self.office_id,
+            implementation_id, expected_binding_revision=1)
+        self.service.providers = {router.provider_id: router}
+        deferred = self.service.send(self.steward_token,
+            message="Analyze the documented alternatives and recommend a plan.",
+            client_message_id=str(uuid4()))
+        with self.admin.cursor() as cur:
+            cur.execute(sql.SQL("""SELECT grant_id FROM {}.authority_grants
+                WHERE principal_id=%s AND action=%s AND scope_ref=%s AND revoked_at IS NULL""").format(
+                    sql.Identifier(self.schema)),
+                (self.steward_id, self.service.SEND_ACTION, "office:" + self.office_id))
+            grant_id = cur.fetchone()[0]
+        self.registry.revoke_grant(self.steward_token, grant_id)
+        reasoner.state = "READY"
+        self.assertEqual(self.service.resume_deferred(), 0)
+        self.assertEqual(reasoner.calls, [])
+        self.assertEqual(self.service.response_status(self.steward_token,
+            deferred["conversation_id"], deferred["request_id"])["status"], "deferred")
 
     def test_user_event_is_committed_before_inference_and_assistant_before_ack(self):
         message = "fresh-connection durability checkpoint"
@@ -324,6 +418,24 @@ class ResidentConversationTests(unittest.TestCase):
             pass
         static = ROOT / "src/riverview_core/status_dashboard/static"
         token = "D" * 43
+        account_session = "A" * 43
+        csrf_token = "C" * 43
+        class AccountSessions:
+            def authenticate(self, verifier, *, csrf_token=None, state_changing=False):
+                if verifier == account_session:
+                    if state_changing and csrf_token != "C" * 43:
+                        from riverview_core.account_auth import AuthDenied
+                        raise AuthDenied()
+                    return {"session_id":"test-session", "account_id":"account-test",
+                        "email":"steward@example.org", "roles":("steward",),
+                        "authority_principal_id":self.principal_id}
+                return None
+            def require_role(self, identity, *roles):
+                if not set(identity.get("roles", ())) & set(roles):
+                    from riverview_core.account_auth import AuthDenied
+                    raise AuthDenied()
+        account_sessions = AccountSessions()
+        account_sessions.principal_id = self.steward_id
         with tempfile.TemporaryDirectory() as temp:
             token_path = Path(temp) / "dashboard-token"
             token_path.write_text(token, encoding="ascii")
@@ -332,7 +444,8 @@ class ResidentConversationTests(unittest.TestCase):
             for port in range(8799, 8699, -1):
                 try:
                     server = DashboardHTTPServer("127.0.0.1", port, token_path,
-                        Projection(), static, conversation_service=self.service)
+                        Projection(), static, conversation_service=self.service,
+                        account_auth_service=account_sessions)
                     break
                 except OSError:
                     continue
@@ -341,7 +454,8 @@ class ResidentConversationTests(unittest.TestCase):
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
 
-            def request(method, path, *, dashboard=None, authority=None, cookie=None, body=None):
+            def request(method, path, *, dashboard=None, authority=None, cookie=None,
+                        csrf=None, body=None):
                 headers = {}
                 if dashboard:
                     headers["Authorization"] = "Bearer " + dashboard
@@ -349,6 +463,8 @@ class ResidentConversationTests(unittest.TestCase):
                     headers["X-Riverview-Authority"] = authority
                 if cookie:
                     headers["Cookie"] = cookie
+                if csrf:
+                    headers["X-Riverview-CSRF"] = csrf
                 if body is not None:
                     headers["Content-Type"] = "application/json"
                 connection = HTTPConnection("127.0.0.1", port, timeout=4)
@@ -363,6 +479,36 @@ class ResidentConversationTests(unittest.TestCase):
                 self.assertEqual(request("GET", "/api/v1/resident/conversations")[0], 401)
                 self.assertEqual(request("GET", "/api/v1/resident/conversations",
                     dashboard=token)[0], 403)
+                linked_cookie = "rv_account_session=" + account_session
+                linked_status, linked_body = request("POST", "/api/v1/resident/conversation-session",
+                    cookie=linked_cookie, csrf=csrf_token)
+                self.assertEqual(linked_status, 200)
+                self.assertEqual(json.loads(linked_body)["transport"], "authenticated_account_session")
+                linked_list_status, _ = request("GET", "/api/v1/resident/conversations",
+                    cookie=linked_cookie)
+                self.assertEqual(linked_list_status, 200)
+                linked_send_status, linked_send_body = request("POST", "/api/v1/resident/conversations",
+                    cookie=linked_cookie, csrf=csrf_token,
+                    body={"message":"Linked Steward account session test.",
+                          "client_message_id":str(uuid4())})
+                self.assertEqual(linked_send_status, 201)
+                linked_result = json.loads(linked_send_body)
+                linked_history_status, linked_history = request("GET",
+                    "/api/v1/resident/conversations/" + linked_result["conversation_id"],
+                    cookie=linked_cookie)
+                self.assertEqual(linked_history_status, 200)
+                self.assertIn("Linked Steward account session test.", linked_history.decode())
+                sessions = AccountSessions()
+                server._account_auth_service = type("RejectUnlinkedGrant", (), {
+                    "authenticate": lambda _self, verifier, **_kwargs:
+                        {"session_id":"denied", "account_id":"account-denied",
+                         "email":"denied@example.org", "roles":("steward",),
+                         "authority_principal_id":"steward:ungranted"}
+                        if verifier == "N" * 43 else None,
+                })()
+                self.assertEqual(request("GET", "/api/v1/resident/conversations",
+                    cookie="rv_account_session=" + "N" * 43)[0], 403)
+                server._account_auth_service = account_sessions
                 denied_status, _ = request("POST", "/api/v1/resident/conversation-session",
                     dashboard=token, authority="x" * 48)
                 self.assertEqual(denied_status, 403)

@@ -2,13 +2,15 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/postgres_ledger.py
 # Component: POSTGRES-LEDGER
-# Revision: 1.1.3
+# Revision: 1.1.5
 # Purpose: Persist contract-aligned assignments and causally linked events
 # Execution Model: Request-driven library
 # Observability: PostgreSQL assignment/event queries and schema version
 # Dependencies: Python 3.10+; Psycopg 3; PostgreSQL 16; versioned migrations
 # Authority: Persistence only; authority references are recorded, not validated
 # Changed: 2026-10-10 UTC | RV-M2.2-001 | Preserve verified acceptance provenance in event
+# Changed: 2026-10-13 UTC | RV-LEDGER-GRAPH-POSITION | Persist exact lifecycle graph and node identity on assignments and events
+# Changed: 2026-10-13 UTC | RV-LEDGER-GRAPH-POSITION-FIX | Correct multiline transition update SQL syntax
 # Contracts: docs/components/POSTGRES_LEDGER.md; docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md
 # Tests: tests/test_postgres_ledger.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -24,6 +26,24 @@ from psycopg.rows import dict_row
 
 from .ledger import TRANSITIONS, TransitionError
 from .postgres_migrations import MigrationError, apply_migrations
+
+ASSIGNMENT_LIFECYCLE_GRAPH_ID = "rv:postgres-ledger:assignment-lifecycle"
+_STATE_NODE_SUFFIX = {
+    "queued": "queued", "ready": "ready", "running": "running",
+    "awaiting_verification": "awaiting-verification",
+    "rework_required": "rework", "blocked": "blocked",
+    "awaiting_steward": "awaiting-steward", "completed": "completed",
+    "cancelled": "cancelled",
+}
+
+
+def assignment_process_position(state):
+    """Return the canonical node explicitly bound to a durable ledger state."""
+    try:
+        suffix = _STATE_NODE_SUFFIX[state]
+    except (KeyError, TypeError):
+        raise ValueError("assignment state has no canonical process node") from None
+    return ASSIGNMENT_LIFECYCLE_GRAPH_ID, f"{ASSIGNMENT_LIFECYCLE_GRAPH_ID}:{suffix}"
 
 
 class PostgresLedger:
@@ -92,9 +112,17 @@ class PostgresLedger:
         existing = cur.fetchone()
         if not existing:
             return None
+        expected_payload = expected
+        if (event_type == "assignment.created" and
+                "process_graph_id" not in existing["payload"] and
+                "process_node_id" not in existing["payload"]):
+            # Preserve idempotent retries of pre-migration creates without
+            # claiming a historical node identity that was never recorded.
+            expected_payload = {key: value for key, value in expected.items()
+                               if key not in {"process_graph_id", "process_node_id"}}
         if (existing["assignment_id"] != assignment_id or
                 existing["event_type"] != event_type or
-                existing["payload"] != expected or existing["actor_id"] != actor_id or
+                existing["payload"] != expected_payload or existing["actor_id"] != actor_id or
                 existing["authority_ref"] != authority_ref or
                 existing["correlation_id"] != correlation_id or
                 existing["payload_schema"] != payload_schema):
@@ -115,6 +143,8 @@ class PostgresLedger:
             "contract_ref": contract_ref, "workflow_id": workflow_id,
             "workflow_step": workflow_step, "state": "queued",
         }
+        graph_id, node_id = assignment_process_position("queued")
+        payload.update({"process_graph_id": graph_id, "process_node_id": node_id})
         with self.db.transaction():
             with self.db.cursor() as cur:
                 self._set_search_path(cur)
@@ -134,10 +164,12 @@ class PostgresLedger:
                 cur.execute(
                     """INSERT INTO assignments
                        (id,state,owner,occupant_id,authority_ref,objective_ref,contract_ref,
-                        workflow_id,workflow_step,correlation_id,updated_at)
-                       VALUES (%s,'queued',%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                        workflow_id,workflow_step,correlation_id,updated_at,
+                        process_graph_id,process_node_id)
+                       VALUES (%s,'queued',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
                     (assignment_id, owner, occupant_id, authority_ref, objective_ref,
-                     contract_ref, workflow_id, workflow_step, correlation_id, now))
+                     contract_ref, workflow_id, workflow_step, correlation_id, now,
+                     graph_id, node_id))
                 self._append_event(
                     cur, assignment_id=assignment_id, event_type="assignment.created",
                     idempotency_key=idempotency_key, actor_id=actor_id,
@@ -185,6 +217,8 @@ class PostgresLedger:
                 payload = {"from": row["state"], "to": to_state, "step": step,
                            "actor_id": actor_id, "verified_claim": bool(verified),
                            "privacy_domain": privacy_domain}
+                graph_id, node_id = assignment_process_position(to_state)
+                payload.update({"process_graph_id": graph_id, "process_node_id": node_id})
                 if to_state == "completed":
                     cur.execute("SELECT to_regclass('verification_records') AS present")
                     if cur.fetchone()["present"] is not None:
@@ -195,8 +229,9 @@ class PostgresLedger:
                             raise TransitionError("completion requires persisted independent verification")
                 now = self._timestamp()
                 cur.execute(
-                    "UPDATE assignments SET state=%s,workflow_step=%s,updated_at=%s,version=version+1 WHERE id=%s",
-                    (to_state, step, now, assignment_id))
+                    """UPDATE assignments SET state=%s,workflow_step=%s,process_graph_id=%s,
+                     process_node_id=%s,updated_at=%s,version=version+1 WHERE id=%s""",
+                    (to_state, step, graph_id, node_id, now, assignment_id))
                 self._append_event(
                     cur, assignment_id=assignment_id, event_type="assignment.transitioned",
                     idempotency_key=idempotency_key, actor_id=actor_id,

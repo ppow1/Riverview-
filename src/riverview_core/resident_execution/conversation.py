@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.3
+# Revision: 1.0.6
 # Purpose: Persist and serve office-bound, authorized Grace conversations
 # Execution Model: Authenticated request-driven completion with durable event history
 # Observability: Redacted response status and append-only PostgreSQL conversation events
@@ -11,7 +11,9 @@
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial bounded resident conversation service
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Limit ordinary CPU chat output to a short 64-token turn
 # Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Serialize shared PostgreSQL connection scopes across dashboard request threads
-# Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Validate both exact conversation grants for a persistent browser session
+# Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Reuse the authenticated linked Steward principal for exact conversation grant checks
+# Changed: 2026-10-13 UTC | RV-GRACE-MODEL-PROVENANCE | Return and persist the actual served model plus provider stage metadata
+# Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Persist deferred requests for readiness-driven resumption
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: tests/test_resident_conversation.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -21,6 +23,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import threading
 from contextlib import contextmanager
@@ -30,12 +33,14 @@ from uuid import UUID, uuid4
 import psycopg
 from psycopg import sql
 from psycopg.rows import dict_row
+from ..institutional_authority.grants import InstitutionalPrincipal
 
 
 _SCHEMA = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,62}$")
 _CONTEXT_LIMIT = 32 * 1024
 _MESSAGE_LIMIT = 8 * 1024
 _HISTORY_CONTEXT_MESSAGES = 16
+_LOG = logging.getLogger(__name__)
 
 
 class ConversationDenied(RuntimeError):
@@ -264,6 +269,12 @@ class ConversationStore:
         final = next((event for event in events if event["event_type"] in {
             "assistant_message", "response_failed", "response_interrupted"}), None)
         if final is None:
+            deferred = next((event for event in reversed(events)
+                             if event["event_type"] == "response_deferred"), None)
+            if deferred:
+                return {"schema_version": "rv.resident.response.v1", "status": "deferred",
+                    "request_id": str(request_id), "error_code": deferred["error_code"],
+                    "required_capability": (deferred["metadata"] or {}).get("required_capability")}
             return {"schema_version": "rv.resident.response.v1", "status": "pending",
                     "request_id": str(request_id)}
         if final["event_type"] == "assistant_message":
@@ -276,6 +287,57 @@ class ConversationStore:
                 "request_id": str(request_id), "error_code": final["error_code"]}
 
     @_serialized_store_operation
+    def defer_turn(self, conversation_id, request_id, *, occupant, implementation,
+                   provider_ref, model_id, required_capability, readiness_state):
+        """Append one durable deferral marker; the original user message is retained."""
+        with self.db.transaction(), self.db.cursor() as cur:
+            self._path(cur)
+            cur.execute("""SELECT 1 FROM resident_conversation_events WHERE request_id=%s
+                AND event_type='response_deferred'""", (UUID(str(request_id)),))
+            if cur.fetchone():
+                return
+            cur.execute("SELECT revision FROM resident_conversations WHERE conversation_id=%s FOR UPDATE",
+                        (UUID(str(conversation_id)),))
+            row = cur.fetchone()
+            if row is None:
+                raise ConversationNotFound("conversation not found")
+            sequence = row["revision"] + 1
+            cur.execute("""UPDATE resident_conversations SET revision=%s,
+                updated_at=clock_timestamp() WHERE conversation_id=%s""",
+                (sequence, UUID(str(conversation_id))))
+            cur.execute("""INSERT INTO resident_conversation_events
+                (conversation_id,sequence,request_id,event_type,actor_kind,actor_id,
+                 occupant_id,implementation_id,implementation_revision,provider_ref,
+                 model_id,error_code,metadata)
+                VALUES (%s,%s,%s,'response_deferred','resident',%s,%s,%s,%s,%s,%s,
+                    'reasoning_model_not_ready',%s::jsonb)""",
+                (UUID(str(conversation_id)), sequence, UUID(str(request_id)),
+                 "office:" + str(implementation.get("office_id", "unknown")),
+                 occupant.get("occupant_id"), implementation.get("implementation_id"),
+                 implementation.get("implementation_revision"), provider_ref, model_id,
+                 json.dumps({"required_capability": required_capability,
+                             "readiness_state": readiness_state}, sort_keys=True)))
+
+    @_serialized_store_operation
+    def deferred_turns(self, *, limit=20):
+        """Return oldest deferred, not-yet-completed user turns for resumption."""
+        with self.db.cursor() as cur:
+            self._path(cur)
+            cur.execute("""SELECT DISTINCT ON (u.request_id) u.conversation_id,u.request_id,
+                u.actor_id AS principal_id,u.body,d.metadata,u.occupant_id,
+                u.implementation_id,u.implementation_revision,u.provider_ref,u.model_id
+                FROM resident_conversation_events d
+                JOIN resident_conversation_events u USING (request_id)
+                WHERE d.event_type='response_deferred' AND u.event_type='user_message'
+                  AND NOT EXISTS (SELECT 1 FROM resident_conversation_events f
+                    WHERE f.request_id=u.request_id AND f.event_type IN
+                    ('assistant_message','response_failed','response_interrupted'))
+                ORDER BY u.request_id,d.occurred_at LIMIT %s""", (limit,))
+            return [{**row, "conversation_id": str(row["conversation_id"]),
+                "request_id": str(row["request_id"]), "metadata": row["metadata"] or {}}
+                for row in cur.fetchall()]
+
+    @_serialized_store_operation
     def recover_pending(self):
         """Mark abandoned in-flight turns after a single service process restarts."""
         with self.db.cursor() as cur:
@@ -286,7 +348,7 @@ class ConversationStore:
                 WHERE user_event.event_type='user_message'
                   AND NOT EXISTS (SELECT 1 FROM resident_conversation_events final_event
                     WHERE final_event.request_id=user_event.request_id
-                      AND final_event.event_type IN ('assistant_message','response_failed','response_interrupted'))
+                      AND final_event.event_type IN ('assistant_message','response_failed','response_interrupted','response_deferred'))
                 ORDER BY conversation_id,request_id LIMIT 500""")
             pending = cur.fetchall()
         for row in pending:
@@ -328,6 +390,9 @@ class ResidentConversationService:
         try:
             with self.store._connection_operation():
                 with self.store.db.transaction(), self.store.db.cursor() as cur:
+                    if isinstance(credential, InstitutionalPrincipal):
+                        return self.authorizer.require_principal(
+                            cur, credential.principal_id, action, "office:" + self.office_id)
                     return self.authorizer.require(cur, credential, action, "office:" + self.office_id)
         except Exception as exc:
             from ..institutional_authority import GrantDenied, GrantCheckUnavailable
@@ -446,18 +511,33 @@ class ResidentConversationService:
                 model_id=getattr(completion, "served_model", implementation["model_id"]),
                 body=completion.content,
                 metadata={"model_revision": implementation["implementation_revision"],
+                    "reasoning_stage": getattr(completion, "reasoning_stage", "primary"),
+                    "provisional": bool(getattr(completion, "provisional", False)),
                     "prompt_tokens": getattr(completion, "prompt_tokens", None),
                     "completion_tokens": getattr(completion, "completion_tokens", None),
                     "finish_reason": getattr(completion, "finish_reason", None)})
             return {"schema_version": "rv.resident.response.v1", "status": "completed",
                     "conversation_id": conversation_id, "request_id": request_id,
-                    "response": completion.content, "model": implementation["model_id"],
+                    "response": completion.content,
+                    "model": getattr(completion, "served_model", implementation["model_id"]),
+                    "reasoning_stage": getattr(completion, "reasoning_stage", "primary"),
+                    "provisional": bool(getattr(completion, "provisional", False)),
                     "model_revision": implementation["implementation_revision"],
                     "duplicate": False}
         except ConversationContextTooLarge:
             return self._failed(conversation_id, request_id, binding, implementation,
                                 provider_ref, "context_too_large")
         except Exception as exc:
+            from .model_router import ReasoningDeferred
+            if isinstance(exc, ReasoningDeferred):
+                self.store.defer_turn(conversation_id, request_id,
+                    occupant=binding, implementation=implementation,
+                    provider_ref=provider_ref, model_id=implementation.get("model_id"),
+                    required_capability="grace.reasoning.80b",
+                    readiness_state=exc.args[0] if exc.args else "UNAVAILABLE")
+                return {"schema_version": "rv.resident.response.v1", "status": "deferred",
+                    "conversation_id": conversation_id, "request_id": request_id,
+                    "required_capability": "grace.reasoning.80b", "duplicate": False}
             provider_code = getattr(exc, "code", "")
             if provider_code == "endpoint_timeout" or isinstance(exc, TimeoutError):
                 code = "model_timeout"
@@ -469,6 +549,58 @@ class ResidentConversationService:
                 code = "model_unavailable"
             return self._failed(conversation_id, request_id, binding, implementation,
                                 provider_ref, code)
+
+    def resume_deferred(self, *, limit=20):
+        """Retry persisted requests only while exact grants and original binding remain valid."""
+        resumed = 0
+        for row in self.store.deferred_turns(limit=limit):
+            try:
+                principal = InstitutionalPrincipal(row["principal_id"])
+                self._authorize(principal, self.SEND_ACTION)
+                current = self._authorize_office_binding()
+                if (current.get("implementation_id") != row["implementation_id"]
+                        or current.get("implementation_revision") != row["implementation_revision"]
+                        or current.get("provider_ref") != row["provider_ref"]):
+                    continue
+                router = self.providers.get(row["provider_ref"])
+                if router is None:
+                    continue
+                history = self.store.history(row["conversation_id"], self.office_id,
+                                             row["principal_id"], limit=100)
+                messages = [{"role": "system", "content": (
+                    "You are Grace. Preserve uncertainty and authority boundaries. "
+                    "Use only the persisted conversation context; do not claim actions.")}]
+                messages.extend({"role": "assistant" if event["event_type"] == "assistant_message" else "user",
+                                 "content": event["body"]}
+                    for event in history["events"]
+                    if event["event_type"] in {"user_message", "assistant_message"})
+                completion = router.complete_chat(messages,
+                    max_tokens=self.max_response_tokens,
+                    expected_revision=current["implementation_revision"])
+                if not completion.content.strip():
+                    continue
+                implementation = {"office_id": self.office_id,
+                    "implementation_id": current["implementation_id"],
+                    "implementation_revision": current["implementation_revision"]}
+                self.store.finish_turn(row["conversation_id"], row["request_id"],
+                    event_type="assistant_message", occupant={"occupant_id": row["occupant_id"]},
+                    implementation=implementation, provider_ref=row["provider_ref"],
+                    model_id=completion.served_model, body=completion.content,
+                    metadata={"model_revision": current["implementation_revision"],
+                        "reasoning_stage": completion.reasoning_stage,
+                        "provisional": completion.provisional,
+                        "resumed_deferred_request": True,
+                        "prompt_tokens": completion.prompt_tokens,
+                        "completion_tokens": completion.completion_tokens})
+                resumed += 1
+            except ConversationDenied:
+                # A revoked exact grant pauses work without exposing chat content.
+                continue
+            except Exception as exc:
+                # Keep durable work deferred on transient failures; retry after readiness changes.
+                _LOG.warning("Grace deferred request remains queued (%s)", type(exc).__name__)
+                continue
+        return resumed
 
     def _failed(self, conversation_id, request_id, binding, implementation,
                 provider_ref, error_code):

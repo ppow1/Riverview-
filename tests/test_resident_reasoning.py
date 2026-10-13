@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.11
+# Revision: 1.0.12
 # Purpose: Verify resident regrounding, bounded provider routing and durable resume
 # Execution Model: Isolated PostgreSQL authority registry integration tests
 # Observability: Assertions inspect persisted office state and provider outcomes
@@ -235,8 +235,10 @@ class ResidentReasoningTests(unittest.TestCase):
                 self.assignment_id = assignment_id
                 self.proposals = []
 
-            def grounded_objectives(self, *, scope_ref, limit=25):
+            def grounded_objectives(self, *, scope_ref, limit=25, objective_id=None):
                 if scope_ref != self.authority_ref:
+                    return []
+                if objective_id and objective_id != self.assignment_id:
                     return []
                 return [{"objective_id": self.assignment_id, "revision": 1}]
 

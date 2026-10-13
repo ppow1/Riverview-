@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Diagnose and safely resume the persistent Grace execution service
 Authority: Read-only diagnosis first; exact grants required for every mutation
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Add service operations and recovery procedures
+Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Document the one-objective ChatGPT-session run and its fail-closed checks
 -->
 # Grace Execution Service — Troubleshooting and Recovery
 
@@ -34,6 +35,35 @@ Expected: `ActiveState=active`, `SubState=running`, a recent `last_heartbeat_at`
 | Verification failures reach three | Inspect objective `verification_failures`, the three `execution.verification_failed` events and verifier journal. | Correct verifier/runtime faults; the poller caps retries per attempt and proceeds to other candidates. Do not change the assignment state manually. | The item remains awaiting verification and objective remains incomplete until independent verification succeeds; escalate unresolved evidence integrity concerns. |
 | Dashboard says Grace unavailable/stale | Check `/api/v1/status`, dashboard journal, migration presence and heartbeat age. | Restore dashboard/database connectivity; do not infer health from systemd active state alone. | Confirm the service instance, fresh heartbeat, objective detail, artifact digest and verification decision. |
 | Process restart during work | Inspect the latest lease generation, execution intent, attempt/result and recovery record. | Start the supervised service; it reads PostgreSQL and CME reconciles expired leases. Do not replay a completion manually. | A preserved result proceeds to verification; a safe action may be requeued; uncertain effects stay blocked for Steward. |
+
+## One-objective supervised Codex run
+
+The supported subscription path is an interactive `admin1` invocation. It does
+not copy `~/.codex` into the Riverview service account and never supplies an
+`OPENAI_API_KEY`. The transient systemd unit exposes the existing Codex home
+read-only, loads only the pre-provisioned Riverview runtime credentials, and
+writes workspaces/artifacts under the private `~/.local/share/riverview-grace`
+directory. The runner accepts one objective ID, displays Grace's persisted
+proposal, requires the operator to type `EXECUTE <objective-id>`, and exits
+after one assignment-specific dispatch/claim/verification cycle.
+
+```sh
+scripts/run_supervised_grace_execution.sh objective:<persisted-id>
+```
+
+This command is commissioning-ready source, not an indication that the
+transient unit can currently start. It requires the installed release under
+`/opt/riverview-grace-execution/current`, the approved environment file, all
+five protected credential files, registered executor/verifier identities and
+active exact grants. It also refuses to reason unless the configured resident
+provider model identity contains `80b`. A missing resource/credential or failed
+exact grant leaves the assignment incomplete; do not create a local substitute
+artifact or replay the command without checking the durable assignment state.
+
+The selected objective remains tied to the existing `grace.objective-work-order.v1`
+workflow. Targeted claim skips global expired-lease reconciliation so this
+supervised invocation cannot mutate unrelated assignments. Resume broader
+recovery through the persistent CME service only.
 
 ## Destructive-operation warning
 

@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.12
+File Revision: 1.1.0
 Purpose: Specify operational projections and exact-grant Grace objective and conversation interfaces
 Authority: Reads require dashboard authentication; objective and resident conversation operations require exact institutional grants
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
@@ -11,6 +11,7 @@ Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-PROVENANCE-SECTION-ORDER | Place depl
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Add governed objective intake and result projections
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Integrate the isolated resident conversation view and versioned API
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Keep persisted historical interruption notices out of current response error state
+Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Document password login, grant controls and configurable SMTP administration
 History: Git and revision/backup manifest
 -->
 # Steward status dashboard
@@ -49,16 +50,21 @@ point. Status and operational projections are read-only. In addition to receipt
 operations, narrow objective and resident-conversation operations require a
 second exact-grant authority credential; the dashboard bearer alone grants no
 institutional action. Other mutating HTTP methods return `405 read_only_method`;
-no direct browser database write exists. Every
-application API request is authenticated with a bearer token from a protected
-systemd credential. The source file is owner-only; systemd exposes a read-only
-credential copy in its exact credential directory. Only that exact systemd
-path may use mode 0400 or 0440; ordinary files require owner-only permissions.
-Symlinks are rejected and token reads use a no-follow file descriptor.
-Comparison is constant-time. The listener accepts only the
+no direct browser database write exists. Application APIs accept either the
+protected legacy bearer token or a verified account session cookie. The bearer
+is backed by a protected systemd credential. Its source file is owner-only;
+systemd exposes a read-only credential copy in its exact credential directory.
+Only that exact systemd path may use mode 0400 or 0440; ordinary files require
+owner-only permissions. Symlinks are rejected and token reads use a no-follow
+file descriptor. Comparison is constant-time. Account sessions use random
+server-checked tokens in `Secure`, `HttpOnly`, host-only, `SameSite=Lax` cookies
+and a separate session-bound CSRF token. The legacy bearer remains available as
+an administrative recovery path. The listener accepts only the
 IPv4/IPv6 loopback literal, validates the Host header, does not enable CORS, and
 does not place credentials in URLs. Authentication is per-service bearer access,
-not resident identity or delegated authority. Each existing narrow write
+not resident identity or delegated authority. Account roles only authorize
+website projections and account controls. Operators receive no engineering
+execution grant by virtue of login. Each existing narrow write
 independently resolves an exact AuthorityRegistry grant; chat cannot promote
 itself into executable work.
 
@@ -90,6 +96,14 @@ verification decision and pinned source revision.
 | `GET /api/v1/snapshot` | Bounded server-observed operational snapshot. | At most 50 assignments and 25 events/attention/worker rows. |
 | `GET /api/v1/graphs` | Index of registered canonical focused process graphs. | Reads versioned package registry; bounded by checked-in graph count. |
 | `GET /api/v1/graphs/<graph_id>` | Canonical nodes, typed edges, decisions, references, and execution-position state. | One registered focused workflow; no graph mutation. |
+| `POST /api/v1/auth/enrollment` / `.../enrollment/verify` | Request access and verify a single-use email challenge. | Generic anti-enumeration request response; 15-minute challenge; email delivery must be configured. |
+| `POST /api/v1/auth/login` / `POST /api/v1/auth/session` | Authenticate email and password; issue persistent session. | Verified, approved account and unexpired grant required; password hash and session verifier remain server-side. |
+| `POST /api/v1/auth/password-reset`, `/api/v1/auth/password-set` | Request reset or establish/reset password using single-use email challenge. | Generic public response; password reset revokes prior sessions. |
+| `GET` / `DELETE /api/v1/auth/session` | Read current account identity or log out. | Cookie-authenticated; DELETE requires CSRF. |
+| `GET /api/v1/account/enrollments`, `GET /api/v1/account/users` | Steward enrollment queue and bounded account listing. | Steward website role required. |
+| `POST /api/v1/account/enrollments/{id}/decision`, `/api/v1/account/users/{id}/{disable,roles,sessions,grant}` | Deny or approve with Viewer/Operator/Steward role and one-time/90-day/one-year/permanent grant; disable accounts, change roles or revoke access. | Steward role plus CSRF; one-time permits one session ever, maximum 24 hours. Expiration/revocation is checked on every request. |
+| `GET/PUT /api/v1/account/email-settings`, `POST /api/v1/account/email-settings/test` | View/update SMTP settings and send test email. | Steward role; CSRF on mutations; password is encrypted server-side and never returned to browser. |
+| `POST /api/v1/auth/steward-bootstrap/verify` | Confirm the single-use challenge issued by the local-only bootstrap command. | Cannot issue a challenge or grant a role; requires the pre-authorized exact challenge. |
 | `GET /docs/components/<name>.md` | Safe, formatted view of an allowlisted component document. | Repository-controlled component Markdown only; raw HTML is escaped. |
 
 ## Deployment identity
@@ -118,6 +132,13 @@ future-dated heartbeat is `unverified`. Event time/correlation is retained as
 recorded, not inferred from browser refresh time.
 
 Machine-readable route schema: `docs/components/STATUS_DASHBOARD_API.schema.json`.
+
+Account authentication's durable schema, transport configuration, bootstrap
+procedure, and operational limitations are specified in
+`docs/components/ACCOUNT_AUTHENTICATION.md`. When no approved email relay is
+configured, account enrollment and sign-in return `email_delivery_unavailable`;
+the dashboard bearer recovery path continues to work. The account schema is
+separately migrated and is not created at dashboard startup.
 
 ### Canonical process graph and diagnostic documents
 

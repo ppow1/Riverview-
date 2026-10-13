@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.23
+File Revision: 1.0.24
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -26,6 +26,7 @@ Changed: 2026-10-11 UTC | RV-M4.1-MIGRATION-CONTRACT-CURRENT-STATE | Document ch
 Changed: 2026-10-11 UTC | RV-M4.1-GRACE-BOOTSTRAP-STATUS | Clarify historical M3.3 blockers and current additive Grace identity bootstrap work
 Changed: 2026-10-11 UTC | RV-M4.1-GRACE-IDENTITY-COMMISSIONING | Document the live fixed-identity bootstrap and exact grant result
 Changed: 2026-10-11 UTC | RV-M3.3-STATUS-RECONCILIATION | Correct current summary text superseded by later M3.3 live commissioning
+Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Add exact-grant check for linked authenticated account principals
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
@@ -33,7 +34,7 @@ History: Git and .riverview-backups/manifest.jsonl
 **Milestone:** M4.1 — Office, occupant, implementation and state separation
 **Status:** Additive live authority schema, privilege boundary, and root-local Steward bootstrap verified; service integration remains unverified
 **Implementation:** `src/riverview_core/institutional_authority/registry.py`
-**Migrations:** `0000_authority_migration_ledger.sql` bootstraps the checksum ledger if absent; `0001_institutional_authority.sql` creates registry tables and trigger; `0002_exact_grant_authorization.sql` creates the protected runtime exact-grant function; `0003_resident_office_state_api.sql` adds exact-grant snapshot and compare-and-swap state functions for the bound resident.
+**Migrations:** `0000_authority_migration_ledger.sql` bootstraps the checksum ledger if absent; `0001_institutional_authority.sql` creates registry tables and trigger; `0002_exact_grant_authorization.sql` creates the protected runtime credential exact-grant function; `0003_resident_office_state_api.sql` adds resident snapshot and compare-and-swap state functions; `0004_exact_principal_grant_authorization.sql` adds an exact-grant check for a principal established by a separately authenticated, linked Riverview account session.
 **Process graph:** `rv:institutional-authority:identity-and-grants`
 
 ## Identity model
@@ -177,7 +178,8 @@ alone is insufficient.
 
 The authority registry must use a dedicated schema containing only its nine
 tables, its migration ledger, append-only trigger, and versioned
-`authorize_exact_grant(bytea,text,text)` function. Never run the boundary helper
+`authorize_exact_grant(bytea,text,text)` and
+`authorize_exact_principal_grant(text,text,text)` functions. Never run the boundary helper
 against a mixed application schema: it revokes broad schema access before
 granting the runtime only the exact authorization function. The
 manager is a dedicated non-superuser LOGIN. It receives only schema `USAGE` and
@@ -186,10 +188,10 @@ manager is a dedicated non-superuser LOGIN. It receives only schema `USAGE` and
 checks executed as relation owner; it does not receive schema `CREATE`. The
 manager is `NOINHERIT`
 and cannot be a member of any other database role; it cannot create objects,
-drop tables, execute either protected function directly, or inherit the
-`NOLOGIN` table-owner role. After migration 0002 and a successful boundary
+drop tables, execute protected functions directly, or inherit the
+`NOLOGIN` table-owner role. After migration 0002 and 0004 and a successful boundary
 apply, the runtime receives schema `USAGE` and function `EXECUTE` only for the
-exact-grant check; authority-table and trigger access remain denied. Migration
+exact-grant checks; authority-table and trigger access remain denied. The linked-principal function does not authenticate a user. It accepts a principal ID obtained by the dashboard from its current account-authenticated session, then requires an active institutional Steward and an exact action/scope grant within its validity window and without revocation. Migration
 0003 adds two similarly constrained `SECURITY DEFINER` functions: the runner
 can read the current authorized office snapshot and perform a bounded
 compare-and-swap write to office-keyed state. Both functions recheck the exact
@@ -247,7 +249,8 @@ The authority migration chain is self-contained for a fresh dedicated schema:
 `0001_institutional_authority.sql` creates the registry and append-only trigger,
 and `0002_exact_grant_authorization.sql` adds the protected exact-grant
 function; `0003_resident_office_state_api.sql` adds the two bound-office
-snapshot/CAS functions. The runner records checksums and rejects later drift. Existing
+snapshot/CAS functions; `0004_exact_principal_grant_authorization.sql` adds the
+principal-keyed exact-grant check without issuing authority. The runner records checksums and rejects later drift. Existing
 schemas with a compatible ledger are preserved; the bootstrap migration uses
 `IF NOT EXISTS`. On Camrui the 0000–0002 checksums are recorded; migration
 0003 is only applied in the isolated PostgreSQL integration test here. The
