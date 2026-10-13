@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.5
+# Revision: 1.0.9
 # Purpose: Verify local reasoning provider contract and fail-closed response handling
 # Execution Model: Bounded HTTP contract double; no credentials, database or model required
 # Observability: Typed proposals and sanitized unavailable/schema outcomes
@@ -13,6 +13,9 @@
 # Changed: 2026-10-11 UTC | RV-M4.2-COMPLETE-JSON-AT-TOKEN-BOUND | Reject length-stopped response unless complete schema validates
 # Changed: 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-ISOLATION | Replace threaded socket fixture with a bounded urllib contract double
 # Changed: 2026-10-11 UTC | RV-M4.2-HTTPERROR-CLOSE-TEST | Verify sanitized HTTP failures close their response stream
+# Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Verify bounded plain conversation completion and pinned model result
+# Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Verify model-specific inference prefix is bounded and applied only to provider request
+# Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Return a complete chat fixture for the provider-prefix regression test
 # Tests: This file
 # History: Git
 # =============================================================================
@@ -137,6 +140,51 @@ class LocalReasoningProviderTests(unittest.TestCase):
     def test_non_loopback_endpoint_is_rejected(self):
         with self.assertRaises(ValueError):
             LocalReasoningProvider("http://example.com/v1", "fixture-model", MODEL_SHA)
+
+    def test_bounded_chat_uses_existing_pinned_loopback_endpoint(self):
+        self.response_body = json.dumps({"model":"fixture-model","choices":[{
+            "message":{"content":"Hello from the bound resident."},
+            "finish_reason":"stop"}],"usage":{"prompt_tokens":31,"completion_tokens":8}}).encode()
+        result = self.provider.complete_chat([
+            {"role":"system","content":"Do not promote conversation to work."},
+            {"role":"user","content":"Hello."}], max_tokens=64,
+            expected_revision=MODEL_SHA, timeout_seconds=120)
+        self.assertEqual(result.content, "Hello from the bound resident.")
+        self.assertEqual(result.served_model, "fixture-model")
+        self.assertEqual((result.prompt_tokens, result.completion_tokens), (31, 8))
+        self.assertEqual(self.requests[0]["model"], "fixture-model")
+        self.assertEqual(self.requests[0]["max_tokens"], 64)
+        self.assertEqual(self.request_calls[0][1], 120)
+        self.assertFalse(self.requests[0]["stream"])
+
+    def test_chat_rejects_binding_mismatch_wrong_model_and_incomplete_output(self):
+        messages = [{"role":"user","content":"hello"}]
+        with self.assertRaises(LocalReasoningUnavailable):
+            self.provider.complete_chat(messages, max_tokens=64, expected_revision="b" * 64)
+        for served, finish in (("other-model", "stop"), ("fixture-model", "length")):
+            self.response_body = json.dumps({"model":served,"choices":[{
+                "message":{"content":"hello"},"finish_reason":finish}],
+                "usage":{"prompt_tokens":2,"completion_tokens":1}}).encode()
+            with self.subTest(served=served, finish=finish):
+                with self.assertRaises(LocalReasoningUnavailable):
+                    self.provider.complete_chat(messages, max_tokens=64,
+                                               expected_revision=MODEL_SHA)
+
+    def test_chat_prefix_changes_only_the_inference_copy(self):
+        self.response_body = json.dumps({"model":"fixture-model","choices":[{
+            "message":{"content":"hello"}, "finish_reason":"stop"}],
+            "usage":{"prompt_tokens":4,"completion_tokens":1}}).encode()
+        provider = LocalReasoningProvider(
+            "http://127.0.0.1:8767/v1", "fixture-model", MODEL_SHA,
+            chat_prefix="/no_think\n")
+        original = [{"role":"user", "content":"hello"}]
+        provider.complete_chat(original, max_tokens=64, expected_revision=MODEL_SHA)
+        self.assertEqual(original[0]["content"], "hello")
+        self.assertEqual(self.requests[-1]["messages"][-1]["content"],
+                         "/no_think\nhello")
+        with self.assertRaises(ValueError):
+            LocalReasoningProvider("http://127.0.0.1:8767/v1", "fixture-model",
+                                   MODEL_SHA, chat_prefix="x" * 65)
 
 
 if __name__ == "__main__":

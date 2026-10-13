@@ -2,14 +2,15 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.9
-# Purpose: Serve authenticated operational projections and governed Grace objective intake
+# Revision: 1.1.1
+# Purpose: Serve authenticated operational projections, objective intake, and resident conversation
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
 # Dependencies: Python 3.10+; standard library; status_dashboard.projection
 # Authority: Dashboard credential protects views; objective API also requires exact objective.submit grant
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-ERROR-SEMANTICS | Preserve conflict/dependency failure distinction
 # Changed: 2026-10-11 UTC | RV-M3.2-001 | Enforce the notification-specific maximum page size
+# Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Add exact-grant resident conversation API and restart reconciliation
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
 # History: Git and revision/backup manifest
@@ -42,6 +43,10 @@ _NOTICE_WRITE = re.compile(
 _OBJECTIVE_DETAIL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})$")
 _OBJECTIVE_PROPOSAL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/proposal$")
 _OBJECTIVE_CANCEL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/cancel$")
+_CONVERSATION_ID = re.compile(r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})$")
+_CONVERSATION_STATUS = re.compile(
+    r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/responses/([0-9a-fA-F-]{36})$")
+_MAX_CHAT_BODY = 12 * 1024
 _MAX_OBJECTIVE_BODY = 16 * 1024
 
 def _bounded_limit(value):
@@ -86,11 +91,12 @@ class _BoundedHTTPServer(HTTPServer):
     request_queue_size = 64
 
     def __init__(self, address, handler, *, token, projection, notification_service,
-                 objective_pipeline, static_dir):
+                 objective_pipeline, conversation_service, static_dir):
         self._token = token
         self._projection = projection
         self._notification_service = notification_service
         self._objective_pipeline = objective_pipeline
+        self._conversation_service = conversation_service
         self._static_dir = Path(static_dir)
         self._slots = threading.BoundedSemaphore(_MAX_THREADS)
         super().__init__(address, handler)
@@ -204,11 +210,14 @@ def make_handler():
                                   if self.command == "POST" else None)
             objective_cancel = (_OBJECTIVE_CANCEL.fullmatch(parsed.path)
                                 if self.command == "POST" else None)
+            conversation_send = (parsed.path == "/api/v1/resident/conversations"
+                                 and self.command == "POST")
             if not self._host_ok():
                 self._error(400, "invalid_host", request_id)
                 return
             if (self.command not in {"GET", "HEAD"} and not notification_write
-                    and not objective_submit and not objective_proposal and not objective_cancel):
+                    and not objective_submit and not objective_proposal and not objective_cancel
+                    and not conversation_send):
                 self._error(405, "read_only_method", request_id)
                 return
             if parsed.path == "/":
@@ -408,6 +417,70 @@ def make_handler():
                                              "dispatcher": {"status": "not_initialized"},
                                              "items": [], "limit": 25})
                     self._json(200, page, request_id)
+                elif parsed.path == "/api/v1/resident/conversations" and self.command in {"GET", "HEAD"}:
+                    service = self.server._conversation_service
+                    if service is None:
+                        self._error(503, "resident_conversation_unavailable", request_id)
+                        return
+                    try:
+                        result = service.list_conversations(
+                            self.headers.get("X-Riverview-Authority", ""))
+                    except Exception as exc:
+                        self._conversation_error(exc, request_id)
+                        return
+                    self._json(200, result, request_id)
+                elif conversation_send:
+                    service = self.server._conversation_service
+                    if service is None:
+                        self._error(503, "resident_conversation_unavailable", request_id)
+                        return
+                    if self.headers.get("Transfer-Encoding") or not self.headers.get("Content-Length", "").isdigit():
+                        self._error(400, "conversation_request_length_required", request_id)
+                        return
+                    length = int(self.headers["Content-Length"])
+                    if not 1 <= length <= _MAX_CHAT_BODY:
+                        self._error(413, "conversation_request_too_large", request_id)
+                        return
+                    try:
+                        data = json.loads(self.rfile.read(length))
+                        if (not isinstance(data, dict)
+                                or set(data) - {"conversation_id", "client_message_id", "message"}
+                                or not isinstance(data.get("message"), str)):
+                            raise ValueError("invalid conversation request")
+                        result = service.send(
+                            self.headers.get("X-Riverview-Authority", ""),
+                            message=data["message"], conversation_id=data.get("conversation_id"),
+                            client_message_id=data.get("client_message_id"))
+                        status = 201 if result.get("status") == "completed" else 503
+                        self._json(status, result, request_id)
+                    except Exception as exc:
+                        self._conversation_error(exc, request_id)
+                elif (conversation_match := _CONVERSATION_STATUS.fullmatch(parsed.path)):
+                    service = self.server._conversation_service
+                    if service is None:
+                        self._error(503, "resident_conversation_unavailable", request_id)
+                        return
+                    try:
+                        result = service.response_status(
+                            self.headers.get("X-Riverview-Authority", ""),
+                            conversation_match.group(1), conversation_match.group(2))
+                    except Exception as exc:
+                        self._conversation_error(exc, request_id)
+                        return
+                    self._json(200, result, request_id)
+                elif (conversation_match := _CONVERSATION_ID.fullmatch(parsed.path)):
+                    service = self.server._conversation_service
+                    if service is None:
+                        self._error(503, "resident_conversation_unavailable", request_id)
+                        return
+                    try:
+                        result = service.history(
+                            self.headers.get("X-Riverview-Authority", ""),
+                            conversation_match.group(1))
+                    except Exception as exc:
+                        self._conversation_error(exc, request_id)
+                        return
+                    self._json(200, result, request_id)
                 elif notification_write:
                     if (self.headers.get("Content-Length", "0") != "0" or
                             self.headers.get("Transfer-Encoding")):
@@ -497,6 +570,23 @@ def make_handler():
                                   "error_type": type(exc).__name__}), flush=True)
                 self._error(500, "projection_failed", request_id)
 
+        def _conversation_error(self, exc, request_id):
+            from riverview_core.resident_execution.conversation import (
+                ConversationContextTooLarge, ConversationDenied,
+                ConversationNotFound, ConversationUnavailable)
+            if isinstance(exc, ConversationDenied):
+                self._error(403, "resident_conversation_not_authorized", request_id)
+            elif isinstance(exc, ConversationNotFound):
+                self._error(404, "resident_conversation_not_found", request_id)
+            elif isinstance(exc, ConversationContextTooLarge):
+                self._error(413, "resident_context_too_large", request_id)
+            elif isinstance(exc, ValueError):
+                self._error(400, "invalid_conversation_request", request_id)
+            elif isinstance(exc, ConversationUnavailable):
+                self._error(503, "resident_conversation_unavailable", request_id)
+            else:
+                self._error(503, "resident_conversation_failed", request_id)
+
     return Handler
 
 
@@ -505,7 +595,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
 
     def __init__(self, host: str, port: int, token_file: str | Path,
                  projection: DashboardProjection, static_dir: str | Path | None = None,
-                 notification_service=None, objective_pipeline=None):
+                 notification_service=None, objective_pipeline=None,
+                 conversation_service=None):
         if host not in {"127.0.0.1", "::1"}:
             raise ValueError("dashboard bind host must be a loopback IP literal")
         if not isinstance(port, int) or not 8700 <= port <= 8799:
@@ -516,6 +607,7 @@ class DashboardHTTPServer(_BoundedHTTPServer):
         super().__init__((host, port), make_handler(), token=credential,
                          projection=projection, notification_service=notification_service,
                          objective_pipeline=objective_pipeline,
+                         conversation_service=conversation_service,
                          static_dir=static_dir)
 
 
@@ -551,6 +643,9 @@ def main():
     pinned_commit = os.environ.get("RIVERVIEW_SOURCE_COMMIT", _release_commit())
     objective_ledger = None
     objective_pipeline = None
+    conversation_service = None
+    conversation_store = None
+    authority_registry = None
     schema = os.environ.get("RIVERVIEW_DATABASE_SCHEMA", "riverview_dev")
     try:
         with psycopg.connect(dsn, connect_timeout=2) as probe, probe.cursor() as cur:
@@ -569,11 +664,46 @@ def main():
                 AuthorizedAssignmentIntake(objective_ledger, objective_authorizer), knowledge)
     except psycopg.Error:
         objective_pipeline = None
+    resident_token_path = Path(os.environ.get("CREDENTIALS_DIRECTORY", "")) / "resident-token"
+    chat_office_id = os.environ.get("RIVERVIEW_GRACE_OFFICE_ID", "")
+    chat_endpoint = os.environ.get("RIVERVIEW_GRACE_MODEL_ENDPOINT", "")
+    chat_model = os.environ.get("RIVERVIEW_GRACE_MODEL_ID", "")
+    chat_model_sha = os.environ.get("RIVERVIEW_GRACE_MODEL_SHA256", "")
+    if chat_office_id and chat_endpoint and chat_model and chat_model_sha and resident_token_path.is_file():
+        try:
+            from riverview_core.institutional_authority import AuthorityRegistry, ExactGrantAuthorizer
+            from riverview_core.local_reasoning_provider import LocalReasoningProvider
+            from riverview_core.resident_execution.conversation import (
+                ConversationStore, ResidentConversationService)
+            authority_schema = os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority")
+            authority_registry = AuthorityRegistry(dsn, schema=authority_schema, runtime_safe=True)
+            conversation_store = ConversationStore(dsn, schema=schema)
+            resident_token = resident_token_path.read_text(encoding="ascii").strip()
+            provider = LocalReasoningProvider(chat_endpoint, chat_model, chat_model_sha,
+                timeout_seconds=25,
+                chat_prefix=os.environ.get("RIVERVIEW_GRACE_CHAT_PREFIX", ""))
+            conversation_service = ResidentConversationService(
+                store=conversation_store, registry=authority_registry,
+                authorizer=ExactGrantAuthorizer(authority_schema), office_id=chat_office_id,
+                resident_credential=resident_token,
+                providers={provider.provider_id: provider})
+            conversation_store.recover_pending()
+        except Exception as exc:
+            print(json.dumps({"event": "resident_conversation_start_failed",
+                              "error_type": type(exc).__name__}), flush=True)
+            if conversation_store is not None:
+                conversation_store.close()
+                conversation_store = None
+            if authority_registry is not None:
+                authority_registry.close()
+                authority_registry = None
+            conversation_service = None
     host = os.environ.get("RIVERVIEW_DASHBOARD_HOST", "127.0.0.1")
     port = int(os.environ.get("RIVERVIEW_DASHBOARD_PORT", "8766"))
     server = DashboardHTTPServer(host, port, token_path, projection,
                                  notification_service=notification_service,
-                                 objective_pipeline=objective_pipeline)
+                                 objective_pipeline=objective_pipeline,
+                                 conversation_service=conversation_service)
     print(json.dumps({"event": "dashboard_started", "host": host, "port": port,
                       "source_commit": projection.source_commit,
                       "deployment_id": projection.deployment_id}), flush=True)
@@ -583,6 +713,10 @@ def main():
         server.server_close()
         if objective_ledger is not None:
             objective_ledger.close()
+        if conversation_store is not None:
+            conversation_store.close()
+        if authority_registry is not None:
+            authority_registry.close()
 
 
 if __name__ == "__main__":

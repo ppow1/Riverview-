@@ -1,22 +1,28 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.0.5
+// Revision: 1.0.7
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
   const state = {token: sessionStorage.getItem("rv.dashboard.token") || "", status: null,
     assignments: [], events: [], attention: [], attentionStatus: "unknown", workers: [], assignmentCursor: null,
     workerCursor: null, eventCursor: 0, olderEventCursor: null, notifications: [], notificationStatus: "unknown", activeView: "overview",
-    objectives: [], recentErrors: [], navSamples: [], lastFetch: 0, timer: null};
+    objectives: [], recentErrors: [], navSamples: [], lastFetch: 0, timer: null,
+    chatConversationId: localStorage.getItem("rv.grace.conversation") || ""};
   const esc = (value) => String(value ?? "—").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   const human = (value) => String(value || "unknown").replaceAll("_", " ").replaceAll(".", " · ");
-  const api = async (path, timeout = 2600, method = "GET") => {
+  const api = async (path, timeout = 2600, method = "GET", options = {}) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
-      const response = await fetch(path, {method, headers: {Authorization: `Bearer ${state.token}`, Accept: "application/json"},
+      const headers = {Authorization: `Bearer ${state.token}`, Accept: "application/json"};
+      if (options.authority) headers["X-Riverview-Authority"] = options.authority;
+      if (options.body !== undefined) headers["Content-Type"] = "application/json";
+      const response = await fetch(path, {method, headers,
+        body: options.body === undefined ? undefined : JSON.stringify(options.body),
         cache: "no-store", credentials: "omit", signal: controller.signal});
-      if (!response.ok) throw new Error(`http_${response.status}`);
-      return await response.json();
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) { const error = new Error(payload.error || `http_${response.status}`); error.payload = payload; throw error; }
+      return payload;
     } catch (error) {
       state.recentErrors.push({at: new Date().toISOString(), code: String(error.message || "request_failed").slice(0, 48), route: path.split("?")[0]});
       state.recentErrors = state.recentErrors.slice(-20);
@@ -222,11 +228,11 @@
   }
   function navigate(name) {
     const start = performance.now();
-    const view = ["overview","assignments","objectives","activity","workflows","notifications"].includes(name) ? name : "overview";
+    const view = ["overview","assignments","objectives","grace-chat","activity","workflows","notifications"].includes(name) ? name : "overview";
     state.activeView = view;
     document.querySelectorAll(".view").forEach((node) => { const active = node.id === `view-${view}`; node.hidden = !active; node.classList.toggle("active", active); });
     document.querySelectorAll(".nav-item").forEach((node) => node.classList.toggle("selected", node.dataset.view === view));
-    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",objectives:"Grace objectives",activity:"Activity",workflows:"Process workflows",notifications:"Notifications"})[view];
+    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",objectives:"Grace objectives","grace-chat":"Talk with Grace",activity:"Activity",workflows:"Process workflows",notifications:"Notifications"})[view];
     history.replaceState(null,"",`#${view}`);
     const duration = performance.now() - start;
     state.navSamples.push({view,ms:duration}); state.navSamples=state.navSamples.slice(-100);
@@ -236,6 +242,7 @@
     if (view === "objectives") loadObjectives();
     if (view === "activity" && !state.events.length) loadEvents();
     if (view === "notifications") loadNotifications();
+    if (view === "grace-chat") loadGraceConversation();
   }
   document.querySelectorAll(".nav-item").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.view)));
   document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.go)));
@@ -247,6 +254,74 @@
   $("more-workers").addEventListener("click", () => loadWorkers(true));
   $("refresh-notifications").addEventListener("click", loadNotifications);
   $("refresh-objectives").addEventListener("click", loadObjectives);
+  function chatAuthority() { return $("chat-authority").value.trim(); }
+  function renderConversation(events) {
+    const timeline = events.filter((event) => ["user_message","assistant_message","response_failed","response_interrupted"].includes(event.event_type));
+    const failures = timeline.map((event, index) => ({event,index})).filter(({event}) =>
+      ["response_failed","response_interrupted"].includes(event.event_type));
+    const latestUser = timeline.reduce((index,event,i) => event.event_type === "user_message" ? i : index, -1);
+    const latestAssistant = timeline.reduce((index,event,i) => event.event_type === "assistant_message" ? i : index, -1);
+    const currentFailure = failures.filter(({index}) => index > latestAssistant && index > latestUser).at(-1)?.event;
+    $("chat-history").innerHTML = timeline.length ? timeline.map((event) => {
+      const failed = ["response_failed","response_interrupted"].includes(event.event_type);
+      const label = event.event_type === "assistant_message" ? "Grace" :
+        event.event_type === "user_message" ? "You" : "Response status";
+      const content = failed ? `Response ${event.error_code || "unavailable"}; your message remains saved.` : event.body;
+      return `<article class="row"><strong>${label}</strong><div class="row-main" style="white-space:pre-wrap">${esc(content)}</div><span class="row-meta">${esc(when(event.occurred_at))} · ${esc(event.model_id || "conversation")}</span></article>`;
+    }).join("") : noData("No persisted messages in this conversation.");
+    $("chat-error").textContent = currentFailure ?
+      `Response ${currentFailure.error_code || "unavailable"}; your message remains saved.` : "";
+    $("chat-history").scrollTop = $("chat-history").scrollHeight;
+  }
+  async function loadGraceConversation() {
+    if (!chatAuthority()) { $("chat-state").textContent = "Enter an authorized conversation credential."; return; }
+    $("chat-state").textContent = "Loading persisted conversations…";
+    try {
+      const page = await api("/api/v1/resident/conversations", 10000, "GET", {authority:chatAuthority()});
+      if (!state.chatConversationId && page.items?.length) state.chatConversationId = page.items[0].conversation_id;
+      if (!state.chatConversationId) {
+        $("chat-title").textContent = "New Grace conversation";
+        $("chat-history").innerHTML = noData("A conversation is created when you send the first message.");
+      } else {
+        localStorage.setItem("rv.grace.conversation", state.chatConversationId);
+        const history = await api(`/api/v1/resident/conversations/${encodeURIComponent(state.chatConversationId)}`, 10000, "GET", {authority:chatAuthority()});
+        $("chat-title").textContent = `Conversation ${history.conversation_id}`;
+        renderConversation(history.events || []);
+      }
+      $("chat-state").textContent = "History is loaded from PostgreSQL.";
+    } catch (error) {
+      $("chat-state").textContent = "Conversation status unavailable.";
+      $("chat-error").textContent = `History could not be loaded: ${error.message}. Check the exact conversation grant and service status.`;
+    }
+  }
+  $("chat-authority").addEventListener("change", loadGraceConversation);
+  $("chat-refresh").addEventListener("click", loadGraceConversation);
+  $("chat-new").addEventListener("click", () => {
+    state.chatConversationId = ""; localStorage.removeItem("rv.grace.conversation");
+    $("chat-title").textContent = "New Grace conversation";
+    $("chat-history").innerHTML = noData("A new persisted conversation will begin with your next message.");
+    $("chat-error").textContent = "";
+  });
+  $("chat-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const authority = chatAuthority(); const message = $("chat-message").value.trim();
+    if (!authority || !message) { $("chat-error").textContent = "An authorized conversation credential and message are required."; return; }
+    const send = $("chat-send"); send.disabled = true; $("chat-state").textContent = "Grace is responding…"; $("chat-error").textContent = "";
+    const clientMessageId = crypto.randomUUID();
+    try {
+      const result = await api("/api/v1/resident/conversations", 150000, "POST", {authority,
+        body:{conversation_id:state.chatConversationId || null, client_message_id:clientMessageId, message}});
+      state.chatConversationId = result.conversation_id; localStorage.setItem("rv.grace.conversation", state.chatConversationId);
+      $("chat-message").value = ""; $("chat-state").textContent = `Response ${result.status}; request ${result.request_id}.`;
+      await loadGraceConversation();
+    } catch (error) {
+      const result = error.payload || {};
+      if (result.conversation_id) { state.chatConversationId = result.conversation_id; localStorage.setItem("rv.grace.conversation", state.chatConversationId); }
+      $("chat-state").textContent = "Message result requires inspection.";
+      $("chat-error").textContent = `Grace response failed (${result.error_code || error.message}). The request may be persisted; refresh history before retrying.`;
+      await loadGraceConversation();
+    } finally { send.disabled = false; }
+  });
   $("snapshot").addEventListener("click", async () => {
     try {
       const bundle = await api("/api/v1/snapshot");

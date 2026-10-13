@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.95",
+  "manifest_revision": "1.1.98",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.64",
+      "revision": "1.0.66",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "a0306c0050af44888c07e22c9dfce4c1dc143d259e21697587b06ccf513b6b8a",
-      "size_bytes": 340794
+      "sha256": "b1f2cd2b65801593fad38911c04ba3d907cbe0ed4e2870980e3a244f3cf20d74",
+      "size_bytes": 356749
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 27724
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.95"
+      "revision": "1.1.98"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -195,6 +195,12 @@
       "path": "process_graphs/worker-adapter/supervised-services.json",
       "sha256": "e2e5911aae9b98d37c139995030103ebb8f29d891ea80c398411591a455f7b80",
       "size_bytes": 18530
+    },
+    "process_graphs/resident-conversation/browser-chat.json": {
+      "revision": "1.0.1",
+      "path": "process_graphs/resident-conversation/browser-chat.json",
+      "sha256": "3271e04625005a5ca477579594e90a0d4549e515e0efa566dc1c4946281757da",
+      "size_bytes": 11222
     }
   }
 }

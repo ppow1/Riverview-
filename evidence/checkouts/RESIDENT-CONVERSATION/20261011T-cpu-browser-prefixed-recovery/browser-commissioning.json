@@ -1,0 +1,54 @@
+{
+  "browser_state": {
+    "activeView": "view-grace-chat",
+    "chatError": "",
+    "chatState": "Enter an authorized conversation credential.",
+    "loginError": "",
+    "ready": "complete",
+    "visibleMessages": 0,
+    "workspaceHidden": false
+  },
+  "cleanup": {
+    "browser_session_closed": true,
+    "dashboard_process_stopped": true,
+    "model_process_stopped": true,
+    "test_schema_dropped": true
+  },
+  "database_schema": "rvtest_chat_83903dcf663249bfa4ddac552546a1ba",
+  "database_socket": "private /tmp/rv-m43-sock-* test cluster",
+  "failed_stage": "browser_chat_model_turn",
+  "failure_code": "browser acceptance condition timed out",
+  "failure_type": "RuntimeError",
+  "finished_at_epoch": 1791750410.6024134,
+  "host": "Camrui",
+  "mode": "isolated",
+  "model": {
+    "binary_sha256": "dc82364c7428bcfa22ca07d2e6edf958a16bb1b7294920a749bf6fbf9ab70b57",
+    "context_size": 4096,
+    "endpoint": "loopback only",
+    "gpu_layers": 0,
+    "id": "qwen3-0.6b-q8_0-local",
+    "loaded_model": "qwen3-0.6b-q8_0-local",
+    "runtime_context": 4096,
+    "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031"
+  },
+  "ports": {
+    "dashboard_loopback": 8701,
+    "geckodriver_loopback": 55369,
+    "model_loopback": 36737
+  },
+  "recovery": {},
+  "schema_version": "rv.grace.conversation.commissioning.v1",
+  "stage": "browser_chat_model_turn",
+  "status": "FAIL",
+  "task_id": "RV-M3.4-GRACE-CHAT",
+  "turns": [
+    {
+      "browser_elapsed_ms": 31262,
+      "conversation_id": "83a42bac-698e-4003-b652-01f8e676b828",
+      "elapsed_wall_ms": 31284.46,
+      "last_message": "Grace\nHi! I'm Grace, your resident. Let me know if there's anything I can help with.\n10/11/2026, 4:26:18 PM \u00b7 qwen3-0.6b-q8_0-local",
+      "phase": "first_browser_inference"
+    }
+  ]
+}
