@@ -3,13 +3,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/test_stackmail_mailbox.py
 # Component: WEBSITE-ACCOUNT-AUTH
-# Revision: 1.1.0
+# Revision: 1.2.0
 # Purpose: Privately test Stackmail SMTP authentication, self-delivery and inbox receipt
-# Execution Model: Explicit one-shot local console test; no application database or service use
+# Execution Model: Explicit one-shot interactive TTY test over local console or SSH; no application database or service use
 # Observability: Sanitized outcome only; never logs credentials or server response text
 # Dependencies: Python 3.10+; SMTP_SSL and IMAP4_SSL; Stackmail mailbox authorization
 # Authority: Sends one explicit test message from and to the configured mailbox
-# Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-STACKMAIL-LOCAL-TEST | Add isolated hidden-input provider test
+# Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-TTY | Allow hidden password entry through an allocated SSH TTY
 # Contracts: docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md
 # Tests: py_compile; manual provider test requires Steward-entered local mailbox password
 # History: Git and revision/backup manifest
@@ -37,8 +37,8 @@ IMAP_PORT = 993
 
 
 def _local_tty() -> bool:
-    return (sys.stdin.isatty() and sys.stdout.isatty() and os.name == "posix"
-            and not any(os.environ.get(name) for name in ("SSH_CONNECTION", "SSH_CLIENT", "SSH_TTY")))
+    """Require an interactive Unix terminal; SSH is safe when it allocates a TTY."""
+    return sys.stdin.isatty() and sys.stdout.isatty() and os.name == "posix"
 
 
 def _receipt_seen(mailbox: str, password: str, message_id: str) -> bool:
@@ -63,7 +63,7 @@ def _receipt_seen(mailbox: str, password: str, message_id: str) -> bool:
 
 def main() -> int:
     if not _local_tty():
-        print("Run this test from Camrui's local physical terminal, outside SSH and Codex.", file=sys.stderr)
+        print("Run this test in an interactive terminal (for SSH, allocate a TTY with ssh -tt).", file=sys.stderr)
         return 2
     if input("Type SEND ONE STACKMAIL TEST EMAIL to continue: ") != "SEND ONE STACKMAIL TEST EMAIL":
         print("No test email sent.")
