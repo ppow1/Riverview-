@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.4
+**Document Revision:** 1.0.5
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -13,7 +13,7 @@
 flowchart LR
   subgraph g_rv_steward_dashboard_status["STEWARD-DASHBOARD / status-projection.v1"]
     g_rv_steward_dashboard_status_ingest_66a3387a(["Browser shell and status request"])
-    g_rv_steward_dashboard_status_authenticate_64fc5881{"Host, loopback and bearer credential valid?"}
+    g_rv_steward_dashboard_status_authenticate_64fc5881{"Host, loopback and bearer or active account session valid?"}
     g_rv_steward_dashboard_status_deny_request_776de47b[["Reject unauthorized or mutating request"]]
     g_rv_steward_dashboard_status_read_ledger_6f000d0e["Read bounded PostgreSQL projection"]
     g_rv_steward_dashboard_status_source_health_3cc042e8["Observe source and CME freshness"]
@@ -45,9 +45,15 @@ flowchart LR
     g_rv_steward_dashboard_status_graph_source_unavailable_08315b7d[["Show graph source unavailable without inferred workflow state"]]
     g_rv_steward_dashboard_status_live_position_check_8718556a["Use only an exact persisted process-node identity for live highlighting"]
     g_rv_steward_dashboard_status_live_position_unknown_3fc40b10["Show unknown when the ledger has no process-node mapping"]
+    g_rv_steward_dashboard_status_account_session_55b33a2d["Recheck account session, disablement, role and CSRF before protected writes"]
+    g_rv_steward_dashboard_status_account_health_6a2c05c9["Project bounded account schema and email readiness without personal data"]
+    g_rv_steward_dashboard_status_account_login_2b9c8452["Visitor opens account sign-in and access request"]
+    g_rv_steward_dashboard_status_account_management_4dab15f2["Steward opens account approval and management"]
   end
   g_rv_postgres_ledger_assignment_lifecycle_intake_c1d0abf1["Registered target<br/>rv:postgres-ledger:assignment-lifecycle"]
   g_rv_cme_progress_and_recovery_monitor_start_3c5b8496["Registered target<br/>rv:cme:progress-and-recovery"]
+  g_rv_website_account_auth_account_lifecycle_visitor_request_c85d701b["Registered target<br/>rv:website-account-auth:account-lifecycle"]
+  g_rv_website_account_auth_account_lifecycle_steward_management_756368cd["Registered target<br/>rv:website-account-auth:account-lifecycle"]
   g_rv_steward_dashboard_status_ingest_66a3387a --> g_rv_steward_dashboard_status_authenticate_64fc5881
   g_rv_steward_dashboard_status_authenticate_64fc5881 -->|diagnostic_branch: No / invalid host or bearer; write verb| g_rv_steward_dashboard_status_deny_request_776de47b
   g_rv_steward_dashboard_status_authenticate_64fc5881 -->|Authorized GET| g_rv_steward_dashboard_status_read_ledger_6f000d0e
@@ -85,6 +91,14 @@ flowchart LR
   g_rv_steward_dashboard_status_live_position_check_8718556a -->|diagnostic_branch: No exact durable graph-node identity is stored; render no highlight| g_rv_steward_dashboard_status_live_position_unknown_3fc40b10
   g_rv_steward_dashboard_status_render_cached_529d8c25 -->|Steward opens a diagnostic reference| g_rv_steward_dashboard_status_render_documentation_55221346
   g_rv_steward_dashboard_status_render_documentation_55221346 -->|diagnostic_branch: Missing or unapproved document| g_rv_steward_dashboard_status_documentation_unavailable_85960402
+  g_rv_steward_dashboard_status_authenticate_64fc5881 -->|Account cookie presented| g_rv_steward_dashboard_status_account_session_55b33a2d
+  g_rv_steward_dashboard_status_account_session_55b33a2d -->|Current session and read role valid| g_rv_steward_dashboard_status_read_ledger_6f000d0e
+  g_rv_steward_dashboard_status_account_session_55b33a2d -->|diagnostic_branch: Revoked, disabled, expired or CSRF invalid| g_rv_steward_dashboard_status_deny_request_776de47b
+  g_rv_steward_dashboard_status_read_ledger_6f000d0e -->|Include bounded account readiness| g_rv_steward_dashboard_status_account_health_6a2c05c9
+  g_rv_steward_dashboard_status_ingest_66a3387a -->|Visitor selects account login| g_rv_steward_dashboard_status_account_login_2b9c8452
+  g_rv_steward_dashboard_status_account_login_2b9c8452 -->|jump: Account enrollment or sign-in| g_rv_website_account_auth_account_lifecycle_visitor_request_c85d701b
+  g_rv_steward_dashboard_status_render_cached_529d8c25 -->|Steward opens account controls| g_rv_steward_dashboard_status_account_management_4dab15f2
+  g_rv_steward_dashboard_status_account_management_4dab15f2 -->|jump: Steward account management| g_rv_website_account_auth_account_lifecycle_steward_management_756368cd
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

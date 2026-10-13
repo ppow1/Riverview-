@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:steward-dashboard:status",
-  "graph_revision": "1.0.7",
+  "graph_revision": "1.0.9",
   "component_id": "STEWARD-DASHBOARD",
   "workflow_id": "status-projection.v1",
   "diagram_order": 1,
@@ -13,13 +13,20 @@
     "scripts/runtime_baseline.py",
     "deploy/riverview-status-dashboard.service",
     "src/riverview_core/status_dashboard/markdown.py",
-    "src/riverview_core/status_dashboard/static/workflow.js"
+    "src/riverview_core/status_dashboard/static/workflow.js",
+    "src/riverview_core/account_auth/__init__.py",
+    "src/riverview_core/account_auth/migrations/0001_account_authentication.sql",
+    "scripts/bootstrap_account_steward.py",
+    "tests/test_account_auth.py",
+    "tests/test_account_auth_http.py"
   ],
   "documentation_references": [
     "docs/components/STATUS_DASHBOARD.md",
     "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
     "docs/components/STATUS_DASHBOARD_FLOW.md",
-    "process_graphs/README.md"
+    "process_graphs/README.md",
+    "docs/components/ACCOUNT_AUTHENTICATION.md",
+    "docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md"
   ],
   "verification_evidence": [
     "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/commissioning.md",
@@ -53,9 +60,9 @@
     },
     {
       "id": "rv:steward-dashboard:status:authenticate",
-      "node_revision": "1.0.0",
+      "node_revision": "1.1.0",
       "type": "decision",
-      "label": "Host, loopback and bearer credential valid?",
+      "label": "Host, loopback and bearer or active account session valid?",
       "source_references": [
         "src/riverview_core/status_dashboard/server.py"
       ],
@@ -548,6 +555,73 @@
       "verification_evidence": [
         "tests/test_status_dashboard.py"
       ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:account-session",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Recheck account session, disablement, role and CSRF before protected writes",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py",
+        "tests/test_account_auth_http.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:account-health",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Project bounded account schema and email readiness without personal data",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:account-login",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "Visitor opens account sign-in and access request",
+      "jump_target_id": "rv:website-account-auth:account-lifecycle:visitor-request",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/index.html",
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth_http.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:account-management",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "Steward opens account approval and management",
+      "jump_target_id": "rv:website-account-auth:account-lifecycle:steward-management",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/index.html",
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth_http.py"
+      ]
     }
   ],
   "edges": [
@@ -756,6 +830,54 @@
       "to": "rv:steward-dashboard:status:documentation-unavailable",
       "type": "diagnostic_branch",
       "label": "Missing or unapproved document"
+    },
+    {
+      "from": "rv:steward-dashboard:status:authenticate",
+      "to": "rv:steward-dashboard:status:account-session",
+      "type": "runtime_transition",
+      "label": "Account cookie presented"
+    },
+    {
+      "from": "rv:steward-dashboard:status:account-session",
+      "to": "rv:steward-dashboard:status:read-ledger",
+      "type": "runtime_transition",
+      "label": "Current session and read role valid"
+    },
+    {
+      "from": "rv:steward-dashboard:status:account-session",
+      "to": "rv:steward-dashboard:status:deny-request",
+      "type": "diagnostic_branch",
+      "label": "Revoked, disabled, expired or CSRF invalid"
+    },
+    {
+      "from": "rv:steward-dashboard:status:read-ledger",
+      "to": "rv:steward-dashboard:status:account-health",
+      "type": "runtime_transition",
+      "label": "Include bounded account readiness"
+    },
+    {
+      "from": "rv:steward-dashboard:status:ingest",
+      "to": "rv:steward-dashboard:status:account-login",
+      "type": "runtime_transition",
+      "label": "Visitor selects account login"
+    },
+    {
+      "from": "rv:steward-dashboard:status:account-login",
+      "to": "rv:website-account-auth:account-lifecycle:visitor-request",
+      "type": "jump",
+      "label": "Account enrollment or sign-in"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-cached",
+      "to": "rv:steward-dashboard:status:account-management",
+      "type": "runtime_transition",
+      "label": "Steward opens account controls"
+    },
+    {
+      "from": "rv:steward-dashboard:status:account-management",
+      "to": "rv:website-account-auth:account-lifecycle:steward-management",
+      "type": "jump",
+      "label": "Steward account management"
     }
   ]
 }

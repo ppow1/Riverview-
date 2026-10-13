@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.1.3
-# Purpose: Serve authenticated operational projections, objective intake, and resident conversation
+# Revision: 1.3.0
+# Purpose: Serve account-authenticated operational projections and existing bounded APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
 # Dependencies: Python 3.10+; standard library; status_dashboard.projection
@@ -13,6 +13,14 @@
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Add exact-grant resident conversation API and restart reconciliation
 # Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Persist exact-grant browser access in a scoped HttpOnly cookie with revocation checks
 # Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Restrict cookie issuance to URL-safe credentials to prevent response-header injection
+# Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add email enrollment, session auth and Steward account routes
+# Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add verified, challenge-bound Steward bootstrap completion
+# Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Use nginx's overwritten client IP for source-based auth throttling
+# Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account auth health and email readiness to status projection
+# Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Stop dispatch after account-specific HTTP responses
+# Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001-CSRF-PATH | Make the CSRF cookie readable to same-origin dashboard code
+# Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password sessions, approval grants and Steward email configuration routes
+# Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Expose only the scoped verification endpoint for local bootstrap challenges
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
 # History: Git and revision/backup manifest
@@ -22,6 +30,7 @@
 from __future__ import annotations
 
 import hmac
+import ipaddress
 import json
 import os
 import re
@@ -54,6 +63,19 @@ _CONVERSATION_STATUS = re.compile(
     r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/responses/([0-9a-fA-F-]{36})$")
 _MAX_CHAT_BODY = 12 * 1024
 _MAX_OBJECTIVE_BODY = 16 * 1024
+_MAX_ACCOUNT_BODY = 8 * 1024
+_ACCOUNT_SESSION_COOKIE = "rv_account_session"
+_ACCOUNT_CSRF_COOKIE = "rv_account_csrf"
+_ACCOUNT_COOKIE_TTL = 30 * 24 * 60 * 60
+_PUBLIC_AUTH_POSTS = {
+    "/api/v1/auth/enrollment", "/api/v1/auth/enrollment/verify",
+    "/api/v1/auth/login", "/api/v1/auth/session", "/api/v1/auth/password-reset",
+    "/api/v1/auth/password",
+    "/api/v1/auth/steward-bootstrap/verify",
+}
+_ACCOUNT_ENROLLMENT_DECISION = re.compile(
+    r"^/api/v1/account/enrollments/([0-9a-fA-F-]{36})/decision$")
+_ACCOUNT_USER_PATH = re.compile(r"^/api/v1/account/users/([0-9a-fA-F-]{36})/(disable|roles|sessions|grant)$")
 
 def _bounded_limit(value):
     try:
@@ -97,12 +119,13 @@ class _BoundedHTTPServer(HTTPServer):
     request_queue_size = 64
 
     def __init__(self, address, handler, *, token, projection, notification_service,
-                 objective_pipeline, conversation_service, static_dir):
+                 objective_pipeline, conversation_service, account_auth_service, static_dir):
         self._token = token
         self._projection = projection
         self._notification_service = notification_service
         self._objective_pipeline = objective_pipeline
         self._conversation_service = conversation_service
+        self._account_auth_service = account_auth_service
         self._static_dir = Path(static_dir)
         self._slots = threading.BoundedSemaphore(_MAX_THREADS)
         super().__init__(address, handler)
@@ -203,9 +226,88 @@ def make_handler():
 
         def _authorized(self):
             supplied = self.headers.get("Authorization", "")
-            if not supplied.startswith("Bearer "):
+            if supplied.startswith("Bearer ") and hmac.compare_digest(supplied[7:], self.server._token):
+                self._account_identity = None
+                self._account_cookie_authenticated = False
+                return True
+            raw_cookie = self.headers.get("Cookie", "")
+            if len(raw_cookie) > 8192 or self.server._account_auth_service is None:
                 return False
-            return hmac.compare_digest(supplied[7:], self.server._token)
+            values = []
+            for item in raw_cookie.split(";"):
+                key, sep, value = item.strip().partition("=")
+                if sep and key == _ACCOUNT_SESSION_COOKIE:
+                    values.append(value)
+            if len(values) != 1:
+                return False
+            csrf = self.headers.get("X-Riverview-CSRF")
+            try:
+                self._account_identity = self.server._account_auth_service.authenticate(
+                    values[0], csrf_token=csrf,
+                    state_changing=self.command not in {"GET", "HEAD"})
+            except Exception as exc:
+                self._account_identity = None
+                self._account_cookie_authenticated = True
+                from riverview_core.account_auth import AuthDenied
+                self._account_auth_denied = isinstance(exc, AuthDenied)
+                self._account_auth_failed = not self._account_auth_denied
+                return False
+            self._account_auth_failed = False
+            self._account_cookie_authenticated = self._account_identity is not None
+            return self._account_cookie_authenticated
+
+        @staticmethod
+        def _account_cookie(value, *, clear=False):
+            content = "" if clear else value
+            age = 0 if clear else _ACCOUNT_COOKIE_TTL
+            return (f"{_ACCOUNT_SESSION_COOKIE}={content}; Max-Age={age}; Path=/api/v1; "
+                    "Secure; HttpOnly; SameSite=Lax")
+
+        @staticmethod
+        def _csrf_cookie(value, *, clear=False):
+            content = "" if clear else value
+            age = 0 if clear else _ACCOUNT_COOKIE_TTL
+            return (f"{_ACCOUNT_CSRF_COOKIE}={content}; Max-Age={age}; Path=/; "
+                    "Secure; SameSite=Strict")
+
+        def _account_token_cookie(self):
+            raw_cookie = self.headers.get("Cookie", "")
+            if len(raw_cookie) > 8192:
+                return ""
+            values = [part.strip().partition("=")[2] for part in raw_cookie.split(";")
+                      if part.strip().partition("=")[0] == _ACCOUNT_SESSION_COOKIE]
+            return values[0] if len(values) == 1 else ""
+
+        def _account_public_origin_ok(self):
+            origin = self.headers.get("Origin")
+            if not origin:
+                return True
+            allowed = {value.strip().rstrip("/") for value in
+                       os.environ.get("RIVERVIEW_PUBLIC_ORIGINS",
+                                      "https://192.168.1.155,https://riverview.ionoge.com").split(",")}
+            return origin.rstrip("/") in allowed
+
+        def _request_source_key(self):
+            source = self.client_address[0]
+            if source in {"127.0.0.1", "::1"}:
+                forwarded = self.headers.get("X-Real-IP", "")
+                try:
+                    if len(forwarded) <= 45:
+                        source = str(ipaddress.ip_address(forwarded))
+                except ValueError:
+                    pass
+            return source
+
+        def _json_body(self, maximum):
+            if self.headers.get("Transfer-Encoding") or not self.headers.get("Content-Length", "").isdigit():
+                raise ValueError("request_length_required")
+            length = int(self.headers["Content-Length"])
+            if not 1 <= length <= maximum:
+                raise OverflowError("request_too_large")
+            data = json.loads(self.rfile.read(length))
+            if not isinstance(data, dict):
+                raise ValueError("invalid_request_shape")
+            return data
 
         def do_GET(self):
             self._dispatch()
@@ -239,6 +341,17 @@ def make_handler():
                                   if self.command == "POST" else None)
             objective_cancel = (_OBJECTIVE_CANCEL.fullmatch(parsed.path)
                                 if self.command == "POST" else None)
+            account_decision = (_ACCOUNT_ENROLLMENT_DECISION.fullmatch(parsed.path)
+                                if self.command == "POST" else None)
+            account_user = (_ACCOUNT_USER_PATH.fullmatch(parsed.path)
+                            if self.command == "POST" else None)
+            public_auth = parsed.path in _PUBLIC_AUTH_POSTS and self.command == "POST"
+            auth_logout = parsed.path == "/api/v1/auth/session" and self.command == "DELETE"
+            account_queue = parsed.path == "/api/v1/account/enrollments" and self.command == "GET"
+            account_users = parsed.path == "/api/v1/account/users" and self.command == "GET"
+            account_email_settings = parsed.path == "/api/v1/account/email-settings" and self.command == "GET"
+            account_email_save = parsed.path == "/api/v1/account/email-settings" and self.command == "PUT"
+            account_email_test = parsed.path == "/api/v1/account/email-settings/test" and self.command == "POST"
             conversation_send = (parsed.path == "/api/v1/resident/conversations"
                                  and self.command == "POST")
             conversation_session = (parsed.path == _CONVERSATION_SESSION
@@ -248,7 +361,9 @@ def make_handler():
                 return
             if (self.command not in {"GET", "HEAD"} and not notification_write
                     and not objective_submit and not objective_proposal and not objective_cancel
-                    and not conversation_send and not conversation_session):
+                    and not conversation_send and not conversation_session and not public_auth
+                    and not auth_logout and not account_decision and not account_user
+                    and not account_email_save and not account_email_test):
                 self._error(405, "read_only_method", request_id)
                 return
             if parsed.path == "/":
@@ -285,7 +400,68 @@ def make_handler():
             if not parsed.path.startswith("/api/v1/"):
                 self._error(404, "not_found", request_id)
                 return
+            if public_auth:
+                if self.server._account_auth_service is None:
+                    self._error(503, "account_auth_unavailable", request_id)
+                    return
+                if not self._account_public_origin_ok():
+                    self._error(403, "cross_origin_request_denied", request_id)
+                    return
+                try:
+                    data = self._json_body(_MAX_ACCOUNT_BODY)
+                    service = self.server._account_auth_service
+                    if parsed.path == "/api/v1/auth/enrollment":
+                        if set(data) != {"email"}:
+                            raise ValueError("invalid_request_shape")
+                        source = self._request_source_key()
+                        result = service.request_access(data["email"], source_key=source)
+                        self._json(202, result, request_id)
+                    elif parsed.path == "/api/v1/auth/enrollment/verify":
+                        if set(data) != {"challenge_id", "token"}:
+                            raise ValueError("invalid_request_shape")
+                        self._json(200, service.verify_enrollment(data["challenge_id"], data["token"]), request_id)
+                    elif parsed.path == "/api/v1/auth/steward-bootstrap/verify":
+                        if set(data) != {"challenge_id", "token"}:
+                            raise ValueError("invalid_request_shape")
+                        result = service.verify_steward_bootstrap(
+                            data["challenge_id"], data["token"],
+                            authority_principal_id="steward:camrui")
+                        self._json(200, result, request_id)
+                    elif parsed.path == "/api/v1/auth/password-reset":
+                        if set(data)!={"email"}:
+                            raise ValueError("invalid_request_shape")
+                        self._json(202,service.request_password_reset(
+                            data["email"],source_key=self._request_source_key()),request_id)
+                    elif parsed.path == "/api/v1/auth/password":
+                        if set(data)!={"challenge_id","token","password"}:
+                            raise ValueError("invalid_request_shape")
+                        self._json(200,service.set_password(data["challenge_id"],
+                            data["token"],data["password"]),request_id)
+                    else:
+                        if set(data)!={"email","password"}:
+                            raise ValueError("invalid_request_shape")
+                        session = service.authenticate_password(data["email"],data["password"],
+                            source_key=self._request_source_key())
+                        identity = {"account_id": session.account_id, "email": session.email,
+                                    "roles": session.roles, "expires_in": session.expires_in}
+                        self._json(200, {"status": "authenticated", "identity": identity}, request_id,
+                            extra_headers=(
+                                ("Set-Cookie", self._account_cookie(session.session_token)),
+                                ("Set-Cookie", self._csrf_cookie(session.csrf_token)),))
+                except OverflowError:
+                    self._error(413, "request_too_large", request_id)
+                except ValueError:
+                    self._error(400, "invalid_account_request", request_id)
+                except Exception as exc:
+                    self._account_error(exc, request_id)
+                return
             if not self._authorized():
+                if getattr(self, "_account_auth_denied", False):
+                    self._error(403, "csrf_or_session_check_failed", request_id)
+                    return
+                if getattr(self, "_account_auth_failed", False):
+                    self._error(503, "account_auth_unavailable", request_id)
+                    return
                 self.send_response(401)
                 self._headers(request_id)
                 self.send_header("WWW-Authenticate", 'Bearer realm="Riverview dashboard"')
@@ -298,6 +474,110 @@ def make_handler():
                 return
             try:
                 query = parse_qs(parsed.query, keep_blank_values=False, max_num_fields=12)
+                if parsed.path == "/api/v1/auth/session" and self.command in {"GET", "HEAD"}:
+                    if not self._account_identity:
+                        self._error(401, "authentication_required", request_id)
+                    else:
+                        self._json(200, {"status": "authenticated", "identity": self._account_identity}, request_id)
+                    return
+                elif auth_logout:
+                    if not self._account_public_origin_ok():
+                        self._error(403, "cross_origin_request_denied", request_id)
+                        return
+                    service = self.server._account_auth_service
+                    if service is None:
+                        self._error(503, "account_auth_unavailable", request_id)
+                        return
+                    service.logout(self._account_token_cookie())
+                    self._json(200, {"status": "logged_out"}, request_id,
+                               extra_headers=(
+                                   ("Set-Cookie", self._account_cookie("", clear=True)),
+                                   ("Set-Cookie", self._csrf_cookie("", clear=True))))
+                    return
+                elif account_queue:
+                    identity = getattr(self, "_account_identity", None)
+                    if not identity:
+                        self._error(403, "steward_account_required", request_id)
+                        return
+                    page = self.server._account_auth_service.review_enrollments(
+                        identity, limit=_bounded_limit(query.get("limit", [50])[0]))
+                    self._json(200, {"items": page, "status": "available"}, request_id)
+                    return
+                elif account_users:
+                    identity = getattr(self, "_account_identity", None)
+                    if not identity:
+                        self._error(403, "steward_account_required", request_id)
+                        return
+                    page = self.server._account_auth_service.list_accounts(
+                        identity, limit=_bounded_limit(query.get("limit", [50])[0]))
+                    self._json(200, {"items": page, "status": "available"}, request_id)
+                    return
+                elif account_email_settings:
+                    identity=getattr(self,"_account_identity",None)
+                    if not identity:
+                        self._error(403,"steward_account_required",request_id)
+                        return
+                    result=self.server._account_auth_service.email_settings(identity)
+                    self._json(200,result,request_id)
+                    return
+                elif account_email_save or account_email_test:
+                    identity=getattr(self,"_account_identity",None)
+                    if not identity:
+                        self._error(403,"steward_account_required",request_id)
+                        return
+                    service=self.server._account_auth_service
+                    if account_email_save:
+                        data=self._json_body(_MAX_ACCOUNT_BODY)
+                        credential_dir=os.environ.get("CREDENTIALS_DIRECTORY","")
+                        key_path=Path(credential_dir)/"account-email-config-key"
+                        result=service.save_email_settings(identity,data,key_path=key_path)
+                    else:
+                        if self.headers.get("Content-Length","0") not in {"0",""}:
+                            raise ValueError("invalid_request_shape")
+                        credential_dir=os.environ.get("CREDENTIALS_DIRECTORY","")
+                        result=service.test_email_settings(identity,
+                            key_path=Path(credential_dir)/"account-email-config-key",
+                            public_origin=os.environ.get("RIVERVIEW_PUBLIC_ORIGIN","https://192.168.1.155"))
+                    self._json(200,result,request_id)
+                    return
+                elif account_decision or account_user:
+                    identity = getattr(self, "_account_identity", None)
+                    if not identity:
+                        self._error(403, "steward_account_required", request_id)
+                        return
+                    data = self._json_body(_MAX_ACCOUNT_BODY)
+                    service = self.server._account_auth_service
+                    if account_decision:
+                        if set(data) != {"decision","role","grant_type"}:
+                            raise ValueError("invalid_request_shape")
+                        result = service.decide_enrollment(identity, account_decision.group(1),
+                            data["decision"],role=data["role"],grant_type=data["grant_type"])
+                    else:
+                        account_id, action = account_user.groups()
+                        if action == "disable":
+                            if set(data) != {"disabled"}:
+                                raise ValueError("invalid_request_shape")
+                            result = service.set_account_state(identity, account_id, disabled=data["disabled"])
+                        elif action == "roles":
+                            if set(data) != {"role", "grant"}:
+                                raise ValueError("invalid_request_shape")
+                            result = service.change_role(identity, account_id, data["role"], grant=data["grant"])
+                        elif action == "grant":
+                            if set(data)!={"revoked"} or data["revoked"] is not True:
+                                raise ValueError("grant_revocation_required")
+                            result=service.revoke_access_grant(identity,account_id)
+                        else:
+                            if data:
+                                raise ValueError("invalid_request_shape")
+                            result = service.revoke_sessions(identity, account_id)
+                    self._json(200, result, request_id)
+                    return
+                elif self._account_cookie_authenticated and self.command not in {"GET", "HEAD"}:
+                    self.server._account_auth_service.require_role(
+                        self._account_identity, "operator", "steward")
+                    if not self._account_public_origin_ok():
+                        self._error(403, "cross_origin_request_denied", request_id)
+                        return
                 if parsed.path == _CONVERSATION_SESSION and self.command == "POST":
                     service = self.server._conversation_service
                     if service is None:
@@ -324,7 +604,10 @@ def make_handler():
                                      "status":"disconnected"}, request_id,
                                extra_headers=(("Set-Cookie", self._conversation_cookie("", clear=True)),))
                 elif parsed.path == "/api/v1/status":
-                    self._json(200, self.server._projection.status(), request_id)
+                    status = self.server._projection.status()
+                    if self.server._account_auth_service is not None:
+                        status["account_auth"] = self.server._account_auth_service.status()
+                    self._json(200, status, request_id)
                 elif parsed.path == "/api/v1/assignments":
                     page = self.server._projection.assignments(
                         after=query.get("after", [None])[0],
@@ -609,6 +892,13 @@ def make_handler():
             except ProjectionUnavailable:
                 self._error(503, "projection_unavailable", request_id)
             except Exception as exc:
+                from riverview_core.account_auth import AuthDenied, AuthUnavailable
+                if isinstance(exc, AuthDenied):
+                    self._error(403, "not_authorized", request_id)
+                    return
+                if isinstance(exc, AuthUnavailable):
+                    self._error(503, "account_auth_unavailable", request_id)
+                    return
                 from riverview_core.notifications import (NotificationConflict,
                     NotificationNotFound, NotificationUnavailable)
                 if isinstance(exc, NotificationNotFound):
@@ -624,6 +914,25 @@ def make_handler():
                 print(json.dumps({"event": "dashboard_request_failed", "request_id": request_id,
                                   "error_type": type(exc).__name__}), flush=True)
                 self._error(500, "projection_failed", request_id)
+
+        def _account_error(self, exc, request_id):
+            from riverview_core.account_auth import (
+                AccountAuthError, AuthDenied, AuthUnavailable, ChallengeInvalid,
+                EmailTransportUnavailable)
+            if isinstance(exc, AuthDenied):
+                self._error(403, "not_authorized", request_id)
+            elif isinstance(exc, ChallengeInvalid):
+                self._error(400, "challenge_invalid_or_expired", request_id)
+            elif isinstance(exc, EmailTransportUnavailable):
+                self._error(503, "email_delivery_unavailable", request_id)
+            elif isinstance(exc, AuthUnavailable):
+                self._error(503, "account_auth_unavailable", request_id)
+            elif isinstance(exc, AccountAuthError):
+                self._error(503, exc.code, request_id)
+            elif isinstance(exc, (ValueError, TypeError)):
+                self._error(400, "invalid_account_request", request_id)
+            else:
+                self._error(503, "account_auth_unavailable", request_id)
 
         def _conversation_error(self, exc, request_id):
             from riverview_core.resident_execution.conversation import (
@@ -651,7 +960,7 @@ class DashboardHTTPServer(_BoundedHTTPServer):
     def __init__(self, host: str, port: int, token_file: str | Path,
                  projection: DashboardProjection, static_dir: str | Path | None = None,
                  notification_service=None, objective_pipeline=None,
-                 conversation_service=None):
+                 conversation_service=None, account_auth_service=None):
         if host not in {"127.0.0.1", "::1"}:
             raise ValueError("dashboard bind host must be a loopback IP literal")
         if not isinstance(port, int) or not 8700 <= port <= 8799:
@@ -663,6 +972,7 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                          projection=projection, notification_service=notification_service,
                          objective_pipeline=objective_pipeline,
                          conversation_service=conversation_service,
+                         account_auth_service=account_auth_service,
                          static_dir=static_dir)
 
 
@@ -685,6 +995,9 @@ def main():
         deployment_id=os.environ.get("RIVERVIEW_DEPLOYMENT_ID", "unconfigured"),
         heartbeat_stale_seconds=int(os.environ.get("RIVERVIEW_STALE_AFTER_SECONDS", "30")))
     from riverview_core.notifications import NotificationService
+    from riverview_core.account_auth import (
+        AccountAuthService, DisabledEmailTransport, FileDevelopmentEmailTransport)
+    from riverview_core.email_delivery import ConfiguredEmailTransport
     notification_service = NotificationService(
         dsn, schema=os.environ.get("RIVERVIEW_DATABASE_SCHEMA", "riverview_dev"))
     from riverview_core.assignment_intake import AuthorizedAssignmentIntake
@@ -694,6 +1007,23 @@ def main():
     from riverview_core.worker_adapter.knowledge import UnavailableKnowledgeProvider
     from riverview_core.worker_adapter.resident_knowledge import TaskRelevantRepositoryKnowledgeProvider
     import psycopg
+    email_transport = DisabledEmailTransport()
+    if os.environ.get("RIVERVIEW_EMAIL_DEVELOPMENT_MAILBOX"):
+        email_transport = FileDevelopmentEmailTransport(
+            os.environ["RIVERVIEW_EMAIL_DEVELOPMENT_MAILBOX"])
+    else:
+        credential_directory=os.environ.get("CREDENTIALS_DIRECTORY","")
+        config_key=Path(credential_directory)/"account-email-config-key"
+        if credential_directory and config_key.is_file():
+            email_transport=ConfiguredEmailTransport(
+                lambda:psycopg.connect(dsn,connect_timeout=2),
+                schema=os.environ.get("RIVERVIEW_ACCOUNT_SCHEMA","riverview_accounts"),
+                key_path=config_key,
+                public_origin=os.environ.get("RIVERVIEW_PUBLIC_ORIGIN","https://192.168.1.155"))
+    account_auth_service = AccountAuthService(
+        lambda: psycopg.connect(dsn, connect_timeout=2), email_transport,
+        schema=os.environ.get("RIVERVIEW_ACCOUNT_SCHEMA", "riverview_accounts"),
+        public_origin=os.environ.get("RIVERVIEW_PUBLIC_ORIGIN","https://192.168.1.155"))
     repository_root = Path(os.environ.get("RIVERVIEW_KNOWLEDGE_ROOT", "/opt/riverview-core"))
     pinned_commit = os.environ.get("RIVERVIEW_SOURCE_COMMIT", _release_commit())
     objective_ledger = None
@@ -758,7 +1088,8 @@ def main():
     server = DashboardHTTPServer(host, port, token_path, projection,
                                  notification_service=notification_service,
                                  objective_pipeline=objective_pipeline,
-                                 conversation_service=conversation_service)
+                                 conversation_service=conversation_service,
+                                 account_auth_service=account_auth_service)
     print(json.dumps({"event": "dashboard_started", "host": host, "port": port,
                       "source_commit": projection.source_commit,
                       "deployment_id": projection.deployment_id}), flush=True)

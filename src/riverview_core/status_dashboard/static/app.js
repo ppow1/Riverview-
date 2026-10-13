@@ -1,9 +1,11 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.1.0
+// Revision: 1.3.0
+// Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
+// Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password login, grant decisions and email configuration UI
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
-  const state = {token: sessionStorage.getItem("rv.dashboard.token") || "", status: null,
+  const state = {token: sessionStorage.getItem("rv.dashboard.token") || "", accountIdentity: null, status: null,
     assignments: [], events: [], attention: [], attentionStatus: "unknown", workers: [], assignmentCursor: null,
     workerCursor: null, eventCursor: 0, olderEventCursor: null, notifications: [], notificationStatus: "unknown", activeView: "overview",
     objectives: [], recentErrors: [], navSamples: [], lastFetch: 0, timer: null,
@@ -14,7 +16,13 @@
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
-      const headers = {Authorization: `Bearer ${state.token}`, Accept: "application/json"};
+      const headers = {Accept: "application/json"};
+      if (state.token && !options.public) headers.Authorization = `Bearer ${state.token}`;
+      if (!options.public && !["GET", "HEAD"].includes(method)) {
+        const csrf = document.cookie.split(";").map((part) => part.trim())
+          .find((part) => part.startsWith("rv_account_csrf="))?.slice("rv_account_csrf=".length);
+        if (csrf) headers["X-Riverview-CSRF"] = decodeURIComponent(csrf);
+      }
       if (options.authority) headers["X-Riverview-Authority"] = options.authority;
       if (options.body !== undefined) headers["Content-Type"] = "application/json";
       const response = await fetch(path, {method, headers,
@@ -77,7 +85,7 @@
   }
   function bindEventLinks() { document.querySelectorAll("#event-list [data-assignment],#overview-events [data-assignment]").forEach((b) => b.addEventListener("click", () => loadDetail(b.dataset.assignment))); }
   async function refreshStatus() {
-    if (!state.token) return;
+    if (!state.token && !state.accountIdentity) return;
     $("request-state").textContent = "Refreshing projection";
     try {
       const result = await api("/api/v1/status");
@@ -157,12 +165,12 @@
     });
   }
   async function loadNotifications() {
-    if (!state.token) return;
+    if (!state.token && !state.accountIdentity) return;
     try { renderNotifications(await api("/api/v1/notifications?limit=25")); }
     catch (error) { state.notificationStatus = "unavailable"; $("notification-state").textContent = "Notification source unavailable"; $("notification-list").innerHTML = noData(`No delivery is claimed (${error.message}).`); }
   }
   async function loadObjectives() {
-    if (!state.token) return;
+    if (!state.token && !state.accountIdentity) return;
     try {
       const page = await api("/api/v1/objectives?limit=25");
       state.objectives = page.items || [];
@@ -175,7 +183,7 @@
     }
   }
   async function loadWorkers(append = false) {
-    if (!state.token) return;
+    if (!state.token && !state.accountIdentity) return;
     if (state.status?.workers?.status === "not_initialized") {
       state.workers = []; state.workerCursor = null;
       $("worker-list").innerHTML = noData("Worker registry and lease health are not initialized in this schema.");
@@ -212,9 +220,16 @@
     } catch (error) { $("assignment-detail").innerHTML = `<div class="inline-error">Diagnostic detail unavailable (${esc(error.message)}).</div>`; }
   }
   function recordUiError(code, route) { state.recentErrors.push({at:new Date().toISOString(),code:String(code).slice(0,48),route:String(route).split("?")[0].slice(0,96)}); state.recentErrors=state.recentErrors.slice(-20); }
-  function showWorkspace() { $("login").hidden = true; $("workspace").hidden = false; }
+  function showWorkspace() {
+    $("login").hidden = true; $("workspace").hidden = false;
+    const steward = state.accountIdentity?.roles?.includes("steward") === true;
+    $("account-nav").hidden = !steward;
+    $("account-label").textContent = state.accountIdentity ? `${state.accountIdentity.email} · ${state.accountIdentity.roles.join(", ")}` : "";
+    $("sign-out").hidden = !state.accountIdentity;
+  }
   async function connect(token) {
     state.token = token;
+    state.accountIdentity = null;
     try {
       const s = await api("/api/v1/status");
       if (s.projection_status === "unavailable") throw new Error("source_unavailable");
@@ -226,13 +241,84 @@
     state.timer = setInterval(() => { refreshStatus(); if (document.visibilityState === "visible") { loadEvents(true); } }, 5000);
     } catch (error) { state.token = ""; $("login-error").textContent = `Connection failed: ${error.message}. Check the source and credential.`; }
   }
+  async function accountRequest(path, body) {
+    return api(path, 10000, "POST", {body, public:true});
+  }
+  async function connectAccountSession() {
+    try {
+      const result = await api("/api/v1/auth/session");
+      state.accountIdentity = result.identity;
+      showWorkspace();
+      await connectAccountWorkspace();
+      if(state.pendingEnrollmentId&&state.accountIdentity.roles.includes("steward")) navigate("account");
+      else if(state.pendingEnrollmentId) { toast("Steward sign-in is required to review that request."); history.replaceState(null,"",location.pathname+location.search); }
+    } catch (_) {
+      $("login").hidden = false;
+      $("account-email").focus();
+    }
+  }
+  async function connectAccountWorkspace() {
+    try {
+      const s = await api("/api/v1/status");
+      if (s.projection_status === "unavailable") throw new Error("source_unavailable");
+      renderStatus(s);
+      await Promise.all([loadAssignments(), loadEvents(), loadObjectives(), refreshStatus()]);
+      state.timer = setInterval(() => { refreshStatus(); if (document.visibilityState === "visible") loadEvents(true); }, 5000);
+    } catch (error) {
+      $("request-state").textContent = `Connection failed: ${error.message}`;
+    }
+  }
+  async function loadEnrollments() {
+    try {
+      const page = await api("/api/v1/account/enrollments?limit=50");
+      const items = page.items || [];
+      $("enrollment-state").textContent = `${items.length} pending`;
+      $("enrollment-list").innerHTML = items.length ? items.map((request) =>
+        `<article class="account-row ${request.enrollment_id===state.pendingEnrollmentId?"approval-highlight":""}"><div><strong>${esc(request.email)}</strong><div class="row-meta">Verified ${esc(when(request.email_verified_at))} · requested ${esc(when(request.created_at))}</div><label>Role <select data-approval-role="${esc(request.enrollment_id)}"><option value="viewer">Viewer</option><option value="operator">Operator</option><option value="steward">Steward</option></select></label></div><div class="account-actions"><button class="secondary" data-enroll="${esc(request.enrollment_id)}" data-decision="approve" data-grant="one_time">Approve one-time</button><button class="secondary" data-enroll="${esc(request.enrollment_id)}" data-decision="approve" data-grant="90_days">Approve 90 days</button><button class="secondary" data-enroll="${esc(request.enrollment_id)}" data-decision="approve" data-grant="one_year">Approve one year</button><button class="secondary" data-enroll="${esc(request.enrollment_id)}" data-decision="approve" data-grant="permanent">Approve permanently</button><button class="secondary" data-enroll="${esc(request.enrollment_id)}" data-decision="deny">Deny</button></div></article>`).join("") : noData("No verified requests are pending.");
+      document.querySelectorAll("[data-enroll]").forEach((button) => button.addEventListener("click", async () => {
+        button.disabled = true;
+        try { const selector=document.querySelector(`[data-approval-role="${CSS.escape(button.dataset.enroll)}"]`); await api(`/api/v1/account/enrollments/${encodeURIComponent(button.dataset.enroll)}/decision`, 10000, "POST", {body:{decision:button.dataset.decision,role:selector?.value||"viewer",grant_type:button.dataset.grant||"permanent"}}); await loadEnrollments(); await loadAccounts(); }
+        catch (error) { button.disabled = false; toast(`Decision failed: ${error.message}`); }
+      }));
+    } catch (error) { $("enrollment-state").textContent = "Unavailable"; $("enrollment-list").innerHTML = noData(`Request queue unavailable (${error.message}).`); }
+  }
+  async function loadAccounts() {
+    try {
+      const page = await api("/api/v1/account/users?limit=100");
+      const items = page.items || [];
+      $("account-state").textContent = `${items.length} accounts`;
+      $("account-list").innerHTML = items.length ? items.map((account) =>
+        `<article class="account-row"><div><strong>${esc(account.email)}</strong><div class="row-meta">${esc(account.roles.join(", ") || "no roles")} · ${account.disabled ? "disabled" : "active"} · ${esc(account.grant_type)}${account.grant_expires_at?` · expires ${esc(when(account.grant_expires_at))}`:""}${account.grant_revoked?" · grant revoked":""}${account.one_time_used?" · one-time session consumed":""}</div></div><div class="account-actions"><button class="secondary" data-account="${esc(account.account_id)}" data-action="${account.disabled ? "enable" : "disable"}">${account.disabled ? "Enable" : "Disable"}</button><button class="secondary" data-account="${esc(account.account_id)}" data-action="sessions">Revoke sessions</button><button class="secondary" data-account="${esc(account.account_id)}" data-action="grant">Revoke access grant</button>${["viewer","operator","steward"].map((role) => `<button class="secondary" data-account="${esc(account.account_id)}" data-action="role" data-role="${role}" data-grant="${!account.roles.includes(role)}">${account.roles.includes(role) ? "Remove " : "Grant "}${role}</button>`).join("")}</div></article>`).join("") : noData("No accounts have been approved.");
+      document.querySelectorAll("[data-account]").forEach((button) => button.addEventListener("click", async () => {
+        button.disabled = true;
+        const id = encodeURIComponent(button.dataset.account);
+        try {
+          if (button.dataset.action === "role") await api(`/api/v1/account/users/${id}/roles`, 10000, "POST", {body:{role:button.dataset.role,grant:button.dataset.grant === "true"}});
+          else if (button.dataset.action === "sessions") await api(`/api/v1/account/users/${id}/sessions`, 10000, "POST", {body:{}});
+          else if (button.dataset.action === "grant") await api(`/api/v1/account/users/${id}/grant`, 10000, "POST", {body:{revoked:true}});
+          else await api(`/api/v1/account/users/${id}/disable`, 10000, "POST", {body:{disabled:button.dataset.action === "disable"}});
+          await loadAccounts();
+        } catch (error) { button.disabled = false; toast(`Account update failed: ${error.message}`); }
+      }));
+    } catch (error) { $("account-state").textContent = "Unavailable"; $("account-list").innerHTML = noData(`Account list unavailable (${error.message}).`); }
+  }
+  async function loadEmailSettings() {
+    try {
+      const value=await api("/api/v1/account/email-settings");
+      $("email-config-status").textContent=value.configured?`Configured · ${value.delivery_status}${value.last_test_at?` · tested ${when(value.last_test_at)}`:""}`:"Not configured";
+      for (const [id,key] of [["smtp-host","smtp_host"],["smtp-port","smtp_port"],["smtp-tls-mode","tls_mode"],["sender-email","sender_email"],["sender-name","sender_name"],["admin-email","admin_email"],["reply-to-email","reply_to_email"],["smtp-username","smtp_username"]]) $(id).value=value[key]??(id==="smtp-port"?587:"");
+      $("smtp-password").value=""; $("smtp-password-state").textContent=value.password_configured?" · password stored securely; blank keeps it":" · not configured";
+      if(value.last_test_error) $("email-config-status").textContent+=` · ${value.last_test_error}`;
+    } catch(error) { $("email-config-status").textContent=`Unavailable (${error.message})`; }
+  }
   function navigate(name) {
     const start = performance.now();
-    const view = ["overview","assignments","objectives","grace-chat","activity","workflows","notifications"].includes(name) ? name : "overview";
+    const view = ["overview","assignments","objectives","grace-chat","activity","workflows","notifications","account"].includes(name) ? name : "overview";
+    if (view === "account" && !state.accountIdentity?.roles?.includes("steward")) { navigate("overview"); return; }
     state.activeView = view;
     document.querySelectorAll(".view").forEach((node) => { const active = node.id === `view-${view}`; node.hidden = !active; node.classList.toggle("active", active); });
     document.querySelectorAll(".nav-item").forEach((node) => node.classList.toggle("selected", node.dataset.view === view));
-    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",objectives:"Grace objectives","grace-chat":"Talk with Grace",activity:"Activity",workflows:"Process workflows",notifications:"Notifications"})[view];
+    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",objectives:"Grace objectives","grace-chat":"Talk with Grace",activity:"Activity",workflows:"Process workflows",notifications:"Notifications",account:"Account access"})[view];
     history.replaceState(null,"",`#${view}`);
     const duration = performance.now() - start;
     state.navSamples.push({view,ms:duration}); state.navSamples=state.navSamples.slice(-100);
@@ -243,10 +329,61 @@
     if (view === "activity" && !state.events.length) loadEvents();
     if (view === "notifications") loadNotifications();
     if (view === "grace-chat") loadGraceConversation();
+    if (view === "account") { loadEnrollments(); loadAccounts(); loadEmailSettings(); }
   }
   document.querySelectorAll(".nav-item").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.view)));
   document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.go)));
   $("login-form").addEventListener("submit", (event) => { event.preventDefault(); connect($("token").value.trim()); $("token").value = ""; });
+  $("account-login-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const message = $("account-auth-message"); message.textContent = "Signing in…";
+    try { const result=await accountRequest("/api/v1/auth/session",{email:$("account-email").value,password:$("account-password").value}); state.accountIdentity=result.identity; $("account-password").value=""; await connectAccountSession(); }
+    catch (error) { $("account-password").value=""; message.textContent=error.message==="not_authorized"?"Email or password is incorrect, or the access grant is inactive.":`Sign-in unavailable (${error.message}).`; }
+  });
+  $("account-request-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const message = $("account-auth-message"); message.textContent = "Submitting access request…";
+    try { await accountRequest("/api/v1/auth/enrollment", {email:$("request-email").value}); message.textContent = "If the request can be accepted, check email to verify ownership. After verification, the request waits for Steward approval."; }
+    catch (error) { message.textContent = error.message === "email_delivery_unavailable" ? "Email delivery is not configured; verification links cannot be sent yet." : `Access request unavailable (${error.message}).`; }
+  });
+  $("password-reset-request").addEventListener("click",async()=>{
+    const message=$("account-auth-message");
+    try { await accountRequest("/api/v1/auth/password-reset",{email:$("account-email").value}); message.textContent="If this address has an active account, a password reset link will arrive by email."; }
+    catch(error) { message.textContent=`Password recovery unavailable (${error.message}).`; }
+  });
+  $("verify-enrollment").addEventListener("click", async () => {
+    const message = $("account-auth-message"); message.textContent = "Verifying email ownership…";
+    try { const result = await accountRequest("/api/v1/auth/enrollment/verify", {challenge_id:$("challenge-id").value.trim(),token:$("challenge-token").value.trim()}); message.textContent = result.status==="pending_steward_review"?"Email verified. Pending Steward Approval. Portal access is unavailable until a Steward approves the request.":`Email verified: ${result.status.replaceAll("_", " ")}.`; $("email-challenge-form").hidden=true; }
+    catch (error) { message.textContent = `Verification failed (${error.message}).`; }
+  });
+  $("verify-bootstrap").addEventListener("click", async () => {
+    const message = $("account-auth-message"); message.textContent = "Verifying authorized Steward bootstrap…";
+    try { const result = await accountRequest("/api/v1/auth/steward-bootstrap/verify", {challenge_id:$("challenge-id").value.trim(),token:$("challenge-token").value.trim()}); message.textContent = `${result.status.replaceAll("_", " ")}. Set the password from the separate email link before signing in.`; $("email-challenge-form").hidden=true; }
+    catch (error) { message.textContent = `Steward verification failed (${error.message}).`; }
+  });
+  $("set-account-password").addEventListener("click",async()=>{
+    const message=$("account-auth-message");message.textContent="Setting password…";
+    try { await accountRequest("/api/v1/auth/password",{challenge_id:$("challenge-id").value.trim(),token:$("challenge-token").value.trim(),password:$("new-password").value}); $("new-password").value=""; $("email-challenge-form").hidden=true; message.textContent="Password set. You can now sign in with your email and password."; }
+    catch(error) { $("new-password").value="";message.textContent=`Password could not be set (${error.message}).`; }
+  });
+  $("refresh-enrollments").addEventListener("click", loadEnrollments);
+  $("refresh-accounts").addEventListener("click", loadAccounts);
+  $("refresh-email-settings").addEventListener("click",loadEmailSettings);
+  $("email-settings-form").addEventListener("submit",async(event)=>{
+    event.preventDefault();
+    const settings={smtp_host:$("smtp-host").value.trim(),smtp_port:Number($("smtp-port").value),tls_mode:$("smtp-tls-mode").value,sender_email:$("sender-email").value.trim(),sender_name:$("sender-name").value.trim(),admin_email:$("admin-email").value.trim(),reply_to_email:$("reply-to-email").value.trim(),smtp_username:$("smtp-username").value.trim(),password:$("smtp-password").value};
+    try { const result=await api("/api/v1/account/email-settings",10000,"PUT",{body:settings}); $("smtp-password").value=""; $("email-config-status").textContent=`Saved · ${result.delivery_status}`; await loadEmailSettings(); }
+    catch(error) { $("smtp-password").value="";$("email-config-status").textContent=`Save failed (${error.message})`; }
+  });
+  $("test-email-settings").addEventListener("click",async()=>{
+    try { const result=await api("/api/v1/account/email-settings/test",10000,"POST"); $("email-config-status").textContent=result.delivery_status==="sent"?"Test accepted by SMTP relay; confirm mailbox receipt.":`Test failed (${result.error})`; await loadEmailSettings(); }
+    catch(error) { $("email-config-status").textContent=`Test unavailable (${error.message})`; }
+  });
+  $("sign-out").addEventListener("click", async () => {
+    try { await api("/api/v1/auth/session", 5000, "DELETE"); }
+    catch (error) { toast(`Sign out could not be confirmed (${error.message}).`); }
+    sessionStorage.removeItem("rv.dashboard.token"); location.reload();
+  });
   $("refresh").addEventListener("click", () => { refreshStatus(); loadAssignments(); loadEvents(); loadWorkers(); loadObjectives(); });
   $("auth-open").addEventListener("click", () => { sessionStorage.removeItem("rv.dashboard.token"); state.token=""; if(state.timer)clearInterval(state.timer); $("workspace").hidden=true; $("login").hidden=false; $("token").focus(); });
   $("more-assignments").addEventListener("click", () => loadAssignments(true));
@@ -486,8 +623,28 @@
       a.href=url;a.download=`riverview-status-${new Date().toISOString().replaceAll(":","-")}.json`;a.click();URL.revokeObjectURL(url);toast("Redacted bounded snapshot downloaded.");
     } catch(error) { recordUiError(error.message,"/api/v1/snapshot");toast(`Snapshot unavailable: ${error.message}`); }
   });
+  const approvalLink=location.hash.match(/^#account-approval\?enrollment_id=([0-9a-fA-F-]{36})$/);
+  if(approvalLink) state.pendingEnrollmentId=approvalLink[1];
+  const authLink = location.hash.match(/^#account-verify\?(.*)$/);
+  if (authLink) {
+    const values = new URLSearchParams(authLink[1]);
+    $("challenge-id").value = values.get("challenge_id") || "";
+    $("challenge-token").value = values.get("token") || "";
+    const purpose = values.get("purpose");
+    $("email-challenge-form").hidden=false;
+    $("verify-enrollment").hidden = purpose !== "enrollment";
+    $("verify-bootstrap").hidden = purpose !== "steward_bootstrap";
+    const isPassword=purpose==="password_setup"||purpose==="password_reset";
+    $("set-account-password").hidden=!isPassword;
+    $("new-password").hidden=!isPassword;
+    $("new-password-label").hidden=!isPassword;
+    $("new-password").required=isPassword;
+    history.replaceState(null, "", location.pathname + location.search);
+  } else {
+    $("verify-bootstrap").hidden = true;
+  }
   const existing = state.token;
-  if (existing) connect(existing); else { $("login").hidden = false; $("token").focus(); }
+  if (existing) connect(existing); else connectAccountSession();
   const initialHash = location.hash.slice(1);
-  if (initialHash) navigate(initialHash);
+  if(!state.pendingEnrollmentId&&initialHash) navigate(initialHash);
 })();
