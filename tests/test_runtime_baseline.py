@@ -1,13 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_runtime_baseline.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Identity/credential security, DB contract, observer and package regression tests
 # Execution Model: Request-driven tests; simulated DB explicitly distinct from live proof
 # Observability: unittest counts and failures
 # Dependencies: Python 3.10+, Git, Linux
 # Authority: Temporary fixtures only; no live DB or credentials
-# Changed: 2026-10-10 UTC | RV-M1.3-002 | Validate exact second service credential directory without changing M1.1 default
+# Changed: 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Cover allowlisted Bash packaging and safe runner behavior
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: This file
 # History: docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py
@@ -409,6 +409,7 @@ class CredentialTerminalTests(unittest.TestCase):
 
 class PackageShellCompatibilityTests(unittest.TestCase):
     scripts = ("deploy/install_baseline.sh", "deploy/rollback_baseline.sh")
+    supervised_script = "scripts/run_supervised_grace_execution.sh"
 
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -448,7 +449,7 @@ class PackageShellCompatibilityTests(unittest.TestCase):
             extracted = Path(self.temporary.name) / (output.stem + "-extracted")
             extracted.mkdir()
             # All files are synthetic fixtures produced by the tested builder.
-            for name in self.scripts:
+            for name in self.contents:
                 target = extracted / name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(package.extractfile(name).read())
@@ -539,6 +540,47 @@ class PackageShellCompatibilityTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "Linux shell requires"):
                     build(self.root, output)
                 self.assertFalse(output.exists())
+
+    def test_exact_supervised_bash_script_builds_verifies_and_runs_only_tty_guard(self):
+        project = Path(__file__).resolve().parents[1]
+        content = (project / self.supervised_script).read_bytes()
+        self.assertIn(b"set -euo pipefail", content)
+        self.assertIn(b"[[", content)
+        self.assertIn(b"=~", content)
+        path = self.root / self.supervised_script
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        self.contents[self.supervised_script] = content
+        self.git("add", self.supervised_script)
+        self.git("commit", "-qm", "Reviewed supervised Bash runner")
+
+        output = Path(self.temporary.name) / "bash-runner.tar.gz"
+        build(self.root, output)
+        extracted = self.extract_and_check(output)
+        packaged = extracted / self.supervised_script
+        syntax = subprocess.run(["bash", "-n", str(packaged)], capture_output=True)
+        self.assertEqual(syntax.returncode, 0, syntax.stderr)
+        report, code = verify(output)
+        self.assertEqual(code, 0)
+        self.assertEqual(report["shell_compatibility"], "PASS")
+        bash_entry = next(item for item in report["shells"] if item["path"] == self.supervised_script)
+        self.assertEqual(bash_entry["interpreter"], "bash")
+
+        # Non-TTY execution exits before creating state or invoking sudo/systemd.
+        execution = subprocess.run(["bash", str(packaged)], capture_output=True)
+        self.assertEqual(execution.returncode, 2)
+        self.assertIn(b"interactive terminal", execution.stderr)
+        self.assertNotIn(b"systemd-run", execution.stderr)
+
+    def test_unlisted_bash_script_and_malformed_allowlisted_script_fail_closed(self):
+        from build_camrui_package import validate_shell
+        content = b"#!/usr/bin/env bash\nset -euo pipefail\n"
+        with self.assertRaisesRegex(ValueError, "POSIX /bin/sh"):
+            validate_shell("scripts/other.sh", content)
+        with self.assertRaisesRegex(ValueError, "authorized Bash"):
+            validate_shell(self.supervised_script, content.replace(b"\n", b"\r\n"))
+        with self.assertRaisesRegex(ValueError, "authorized Bash"):
+            validate_shell(self.supervised_script, b"#!/bin/sh\nset -eu\n")
 
 
 if __name__ == "__main__":

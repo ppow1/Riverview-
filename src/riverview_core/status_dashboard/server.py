@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.5
+# Revision: 1.3.6
 # Purpose: Serve account-authenticated operational projections and existing bounded APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -25,6 +25,7 @@
 # Changed: 2026-10-13 UTC | RV-LEDGER-GRAPH-POSITION | Read live execution position only from persisted canonical ledger identity
 # Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Permit only explicit allowlisted OCTO1 model URLs when an opt-in service flag is set
 # Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Add opt-in readiness router and deferred-turn resumption loop
+# Changed: 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Check resident migration and authorized active binding without reading the protected authority ledger
 # Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING-DENIALS | Preserve conversation authorization and unavailable distinctions at promotion boundary
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Expose only the scoped verification endpoint for local bootstrap challenges
 # Contracts: docs/components/STATUS_DASHBOARD.md
@@ -46,6 +47,8 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
+
+from psycopg import sql
 
 from .markdown import render_markdown
 from .projection import DashboardProjection, ProjectionUnavailable
@@ -90,6 +93,37 @@ def _bounded_limit(value):
         return min(_MAX_PAGE, max(1, int(value)))
     except (TypeError, ValueError):
         return 25
+
+
+def _verify_grace_router_startup_readiness(connection, *, schema, registry,
+                                           resident_credential, office_id, router):
+    """Verify runtime-readable conversation state and the effective authority binding.
+
+    The dashboard role can read its own resident-execution migration ledger but
+    intentionally cannot inspect the authority schema ledger. Authority
+    readiness is therefore established through the existing, exact-grant
+    SECURITY DEFINER office-state API, including the active router binding.
+    The protected authority migration itself is checksum-verified by the
+    deployment runner before activation, never by granting runtime ledger access.
+    """
+    if (not isinstance(schema, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,62}", schema)
+            or not office_id or not resident_credential):
+        raise ValueError("invalid Grace router readiness identity")
+    with connection.cursor() as cur:
+        cur.execute(
+            sql.SQL("SELECT 1 FROM {}.schema_migrations WHERE version=%s").format(
+                sql.Identifier(schema)),
+            ("0004_deferred_conversation_responses",))
+        if cur.fetchone() is None:
+            raise RuntimeError("resident conversation deferral migration is not applied")
+
+    binding = registry.authorize_office_state(resident_credential, office_id)
+    if (not isinstance(binding, dict)
+            or binding.get("implementation_kind") != "model"
+            or binding.get("provider_ref") != router.provider_id
+            or binding.get("implementation_revision") != router.model_sha256):
+        raise RuntimeError("authorized Grace router binding is not ready")
+    return binding
 
 
 def _read_token(path: str | Path) -> str:
@@ -1186,26 +1220,6 @@ def main():
                 if os.environ.get("RIVERVIEW_GRACE_ALLOW_APPROVED_OCTO1") != "1":
                     raise ValueError("model router requires the existing explicit OCTO1 opt-in")
                 authority_schema = os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority")
-                with psycopg.connect(dsn, connect_timeout=2) as migration_probe, migration_probe.cursor() as cur:
-                    cur.execute("""SELECT
-                        EXISTS(SELECT 1 FROM information_schema.tables
-                            WHERE table_schema=%s AND table_name='schema_migrations') AS runtime,
-                        EXISTS(SELECT 1 FROM information_schema.tables
-                            WHERE table_schema=%s AND table_name='schema_migrations') AS authority""",
-                        (schema, authority_schema))
-                    migration_tables = cur.fetchone()
-                    if not migration_tables[0] or not migration_tables[1]:
-                        raise RuntimeError("model routing migrations are not initialized")
-                    cur.execute("SELECT version FROM " + psycopg.sql.Identifier(schema).as_string(cur.connection)
-                                + ".schema_migrations WHERE version=%s",
-                                ("0004_deferred_conversation_responses",))
-                    if cur.fetchone() is None:
-                        raise RuntimeError("resident conversation deferral migration is not applied")
-                    cur.execute("SELECT version FROM " + psycopg.sql.Identifier(authority_schema).as_string(cur.connection)
-                                + ".schema_migrations WHERE version=%s",
-                                ("0005_audited_model_rebinding",))
-                    if cur.fetchone() is None:
-                        raise RuntimeError("authority model rebinding migration is not applied")
                 from riverview_core.resident_execution.model_router import GraceModelRouter
                 reasoning = LocalReasoningProvider(
                     "http://192.168.1.160:8080/v1",
@@ -1219,6 +1233,11 @@ def main():
                     allow_approved_private_lan=True)
                 router = GraceModelRouter(autonomic=provider, vision=vision,
                                           reasoning=reasoning)
+                with psycopg.connect(dsn, connect_timeout=2) as migration_probe:
+                    _verify_grace_router_startup_readiness(
+                        migration_probe, schema=schema, registry=authority_registry,
+                        resident_credential=resident_token, office_id=chat_office_id,
+                        router=router)
                 providers = {router.provider_id: router}
             conversation_service = ResidentConversationService(
                 store=conversation_store, registry=authority_registry,
