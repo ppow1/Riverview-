@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md
 Component: WEBSITE-ACCOUNT-AUTH
-File Revision: 1.6.0
+File Revision: 1.7.0
 Purpose: Safely commission and diagnose Riverview account access and reusable SMTP configuration
 Authority: Inspection is read-only; provider setup and Steward bootstrap require explicit local authorization
 Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Document password login, grants and email-provider commissioning
@@ -11,6 +11,7 @@ Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-STACKMAIL-LOCAL-TEST | Document predep
 Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-STACKMAIL-LOCAL-TEST-REVIEW | Keep mailbox selection interactive in the isolated tester
 Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-TTY | Document secure SSH TTY mailbox-test invocation
 Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-COMMISSION | Document root SSH TTY setup and Steward bootstrap prompts
+Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SMTP-PREFILL | Record approved prefilled provider settings and two-input wizard
 History: Git and revision/backup manifest
 -->
 # Account authentication diagnostics and commissioning
@@ -43,7 +44,7 @@ Public DNS currently points email to `mx.stackmail.com`, with SPF including `spf
 | Username | `social@cuemastery.com` | Steward reports successful mailbox authentication. |
 | Sender address | `social@cuemastery.com` | Steward reports successful self-addressed delivery. |
 | Administrator notification address | `social@cuemastery.com` | Steward-designated inbox; production notification still requires commissioning verification. |
-| Password | Enter only at the hidden prompt in the local root-console wizard | Never send it in chat, command arguments, shell history, source, or reports. |
+| Password | Enter only at the hidden prompt in the root TTY wizard | Never send it in chat, command arguments, shell history, source, or reports. |
 
 20i also documents port 587 with STARTTLS; the approved profile above uses port 465. Successful isolated delivery verifies the tested mailbox path only; it does not prove production SMTP configuration or application-generated approval messages. No mail server or paid provider is being introduced.
 
@@ -73,7 +74,7 @@ This sends one real email but changes no Riverview database or dashboard configu
    ```
 
    The dedicated schema owner is NOLOGIN; the dashboard runtime receives only necessary DML grants. Never put account tables in `public`, `riverview_dev`, or `riverview_authority`. Do not migrate the live database until the release is reviewed and deployment is authorized.
-2. Configure provider settings after the reviewed release and schema migration are commissioned. The root wizard accepts a local console or allocated SSH TTY (`ssh -tt`); non-TTY and non-root execution are rejected, and password input aborts if echo cannot be disabled. Run `sudo python3 /opt/riverview-status-dashboard/current/scripts/configure_account_email_provider.py`. Enter the exact phrase `CONFIGURE RIVERVIEW EMAIL`, then the approved Stackmail values in the table above. It creates an owner-only Fernet key, stores the password encrypted in PostgreSQL, and sends no message during initial configuration. Install the matching systemd LoadCredential drop-in only after the key exists. The administrator notification address is explicitly entered; source and UI do not default to it.
+2. Configure provider settings after the reviewed release and schema migration are commissioned. The root wizard accepts a local console or allocated SSH TTY (`ssh -tt`); non-TTY and non-root execution are rejected, and password input aborts if echo cannot be disabled. Run `sudo python3 /opt/riverview-status-dashboard/current/scripts/configure_account_email_provider.py`. It displays the approved Stackmail values in the table above. Type `CONFIGURE RIVERVIEW EMAIL` to confirm those values, then enter the mailbox password at the hidden prompt; no SMTP setting is re-entered. It creates an owner-only Fernet key, stores the password encrypted in PostgreSQL, and sends no message during initial configuration. Install the matching systemd LoadCredential drop-in only after the key exists.
 3. Confirm authority to send through the CueMastery mailbox, and use the SMTP test-email function to a controlled inbox. Confirm actual receipt, sender/reply-to, TLS delivery, and success/failure status. SMTP acceptance alone is not proof of inbox delivery. Check that a wrong password or unavailable relay is reported without exposing credentials.
 4. Request access using a controlled test address. Verify the ownership challenge, pending state, and administrator notification. Open the notification link while signed out and confirm it does not expose the request or perform a decision. Sign in as Steward and review the request.
 5. Exercise denial and each grant choice (one-time, 90 days, one year, permanent), roles, applicant notices, expiry/revocation behavior, and the one-session-only rule. A one-time grant allows only the first session ever, with a maximum 24-hour session; logout, expiry or revocation never makes a second session available.

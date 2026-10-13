@@ -2,24 +2,28 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_account_commissioning_tty.py
 # Component: WEBSITE-ACCOUNT-AUTH
-# Revision: 1.0.0
+# Revision: 1.2.0
 # Purpose: Verify secure local and SSH TTY gates for account commissioning
 # Execution Model: Mocked unit tests; no database, filesystem credentials, or network access
 # Observability: unittest assertions and exit status
 # Dependencies: Python 3.10+; account-auth source dependencies
 # Authority: None; no persistent or external state is changed
 # Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-COMMISSION | Cover TTY acceptance, denial and hidden-input fallback
+# Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SMTP-PREFILL | Verify only confirmation and hidden password are prompted
+# Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SMTP-PREFILL-TEST-FIX | Match the exact visible confirmation prompt
 # Contracts: docs/components/ACCOUNT_AUTHENTICATION.md
 # Tests: This file
 # History: Git and revision/backup manifest
 # =============================================================================
 """Non-network checks for the protected email and Steward bootstrap prompts."""
 
+from contextlib import redirect_stdout
 import importlib.util
+import io
 from pathlib import Path
 import warnings
 from unittest import TestCase, main
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -92,6 +96,41 @@ class CommissioningTTYTests(TestCase):
                  patch.object(module.getpass, "getpass", side_effect=warn_if_echo_fallback), \
                  self.assertRaises(module.getpass.GetPassWarning):
                 module._hidden_input("secret prompt: ")
+
+    def test_smtp_wizard_uses_approved_values_and_only_prompts_confirmation_and_password(self):
+        secret = "synthetic-mailbox-password"
+        output = io.StringIO()
+        connection = MagicMock()
+        cursor = MagicMock()
+        connection.cursor.return_value.__enter__.return_value = cursor
+        cursor.fetchone.return_value = ("0002_password_grants_and_email_provider",)
+        with patch.object(configure, "_local_console", return_value=True), \
+             patch("builtins.input", return_value="CONFIGURE RIVERVIEW EMAIL") as visible_input, \
+             patch.object(configure, "_hidden_input", return_value=secret) as hidden_input, \
+             patch.object(configure, "_key", return_value=b"test-key"), \
+             patch.object(configure.ConfiguredEmailTransport, "encrypt_password", return_value=b"ciphertext"), \
+             patch("psycopg.connect") as connect, redirect_stdout(output):
+            connect.return_value.__enter__.return_value = connection
+            result = configure.main()
+
+        self.assertEqual(result, 0)
+        visible_input.assert_called_once_with(
+            "Type CONFIGURE RIVERVIEW EMAIL to save these settings: ")
+        hidden_input.assert_called_once_with("SMTP mailbox password (input hidden): ")
+        self.assertIn("SMTP host: smtp.stackmail.com", output.getvalue())
+        self.assertIn("SMTP port: 465", output.getvalue())
+        self.assertIn("TLS mode: implicit", output.getvalue())
+        self.assertIn("Sender: Riverview <social@cuemastery.com>", output.getvalue())
+        self.assertIn("Administrator inbox: social@cuemastery.com", output.getvalue())
+        self.assertIn("Reply-to: social@cuemastery.com", output.getvalue())
+        self.assertNotIn(secret, output.getvalue())
+        params = cursor.execute.call_args_list[-1].args[1]
+        self.assertEqual(params, (
+            "smtp.stackmail.com", 465, "implicit", "social@cuemastery.com",
+            "Riverview", "social@cuemastery.com", "social@cuemastery.com",
+            "social@cuemastery.com", b"ciphertext",
+        ))
+        self.assertNotIn(secret, params)
 
 
 if __name__ == "__main__":

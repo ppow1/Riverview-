@@ -2,18 +2,19 @@
 Riverview~ Controlled Document
 File: docs/components/ACCOUNT_AUTHENTICATION.md
 Component: WEBSITE-ACCOUNT-AUTH
-File Revision: 1.2.0
+File Revision: 1.3.0
 Purpose: Specify verified enrollment, password access, Steward approval, grants, sessions and reusable email configuration
 Authority: Website roles protect the dashboard only; engineering authority remains exact-grant based
 Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Specify password login, access grants and SMTP administration
 Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-COMMISSION | Permit root commissioning through an allocated SSH TTY with hidden-input fail-closed behavior
+Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SMTP-PREFILL | Record production migration and Steward-reported Stackmail test state
 History: Git and revision/backup manifest
 -->
 # Riverview website account authentication
 
 **Component:** WEBSITE-ACCOUNT-AUTH  
 **Execution model:** Request-driven account API backed by PostgreSQL 16.  
-**State:** Source and isolated verification are ready for commissioning; actual email delivery, live schema, Steward bootstrap and deployment are not verified.
+**State:** Source checks pass; the Steward reports isolated Stackmail authentication, submission and receipt verification passed. Camrui account migrations are applied and verified, but production SMTP configuration, Steward bootstrap and account-authentication deployment remain incomplete.
 
 ## Visitor and Steward flows
 
@@ -43,7 +44,7 @@ Steward-only settings UI supports SMTP host and port, TLS mode, sender address a
 
 The provider is a reusable transport abstraction. Only account authentication uses it in this campaign; no autonomous Grace or Riverview email workflows are enabled. Real sending remains disabled until the SMTP key and database settings are commissioned. Delivery acceptance must be followed by receipt verification; a configured host or successful test API response alone is not proof of mailbox delivery. Test failures and delivery outcomes are stored without credentials or message bodies.
 
-CueMastery public DNS currently advertises `mx.stackmail.com` and SPF `include:spf.stackmail.com`; this indicates existing 20i/Stackmail email hosting, but mailbox access and credentials have not been confirmed. 20i documentation identifies `smtp.stackmail.com` with port 465 implicit TLS or port 587 STARTTLS. These are candidate settings, not prefilled credentials or proof that the administrator mailbox is usable. Configure the administrator notification inbox during commissioning (initial requested destination: `social@cuemastery.com`) without hard-coding it. Do not create a mail server or purchase a provider for this work.
+CueMastery public DNS currently advertises `mx.stackmail.com` and SPF `include:spf.stackmail.com`; this indicates existing 20i/Stackmail email hosting. The Steward reports that mailbox authentication and self-delivery were verified using `smtp.stackmail.com:465` with implicit TLS and read-only IMAP receipt verification. This does not verify production application configuration or approval notifications. Do not create a mail server or purchase a provider for this work.
 
 ## Steward bootstrap and recovery
 
@@ -67,4 +68,4 @@ The dashboard bearer remains accepted for recovery. Account auth does not weaken
 
 ## Commissioning boundary
 
-No account schema migration, provider configuration, Steward bootstrap, or application deployment has been applied to Camrui. Isolated PostgreSQL, HTTP and browser checks establish source behavior only. Real applicant email, administrator notification, applicant outcome delivery, live login, and deployed authorization remain blocked until the migration and provider are configured, actual delivery is confirmed, a Steward is bootstrapped, and the verified release is commissioned. See `ACCOUNT_AUTHENTICATION_COOKBOOK.md`.
+The account schema migrations are applied on Camrui and match the committed SQL checksums. The provider configuration has not yet been stored, the initial `steward:camrui` account has not yet been bootstrapped, and the production dashboard remains on its predecessor release. Applicant email, administrator notification, live login, and deployed authorization remain unverified until the SMTP credential is entered, the candidate release is activated, and browser commissioning is completed. See `ACCOUNT_AUTHENTICATION_COOKBOOK.md`.

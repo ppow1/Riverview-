@@ -3,14 +3,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/configure_account_email_provider.py
 # Component: SHARED-EMAIL-DELIVERY
-# Revision: 1.1.0
+# Revision: 1.2.0
 # Purpose: Securely provision initial SMTP settings before the first Steward portal account exists
 # Execution Model: Root-only interactive TTY CLI; local console or SSH with an allocated pseudo-terminal
 # Observability: Sanitized result only; never prints credentials or message bodies
 # Dependencies: PostgreSQL account schema migration 0002; cryptography; private pgpass
 # Authority: Exact typed console confirmation; writes only account email configuration and local key
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add first-provider bootstrap commissioning helper
-# Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-COMMISSION | Permit hidden entry from an allocated SSH TTY; abort if getpass cannot disable echo
+# Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SMTP-PREFILL | Prepopulate the Steward-approved Stackmail profile; only confirmation and hidden password are interactive
 # Contracts: docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md
 # Tests: tests/test_email_delivery.py
 # History: Git and revision/backup manifest
@@ -34,6 +34,16 @@ from riverview_core.account_auth import normalize_email
 
 DSN="host=127.0.0.1 port=5432 dbname=riverview user=riverview_core application_name=riverview-email-provider-bootstrap"
 KEY_PATH=Path("/etc/riverview/account-email-config.key")
+APPROVED_SETTINGS = {
+    "smtp_host": "smtp.stackmail.com",
+    "smtp_port": 465,
+    "tls_mode": "implicit",
+    "sender_email": "social@cuemastery.com",
+    "sender_name": "Riverview",
+    "admin_email": "social@cuemastery.com",
+    "reply_to_email": "social@cuemastery.com",
+    "smtp_username": "social@cuemastery.com",
+}
 
 
 def _local_console():
@@ -52,6 +62,17 @@ def _hidden_input(prompt):
     with warnings.catch_warnings():
         warnings.simplefilter("error", getpass.GetPassWarning)
         return getpass.getpass(prompt)
+
+
+def _show_approved_settings():
+    print("Approved SMTP configuration:")
+    print(f"  SMTP host: {APPROVED_SETTINGS['smtp_host']}")
+    print(f"  SMTP port: {APPROVED_SETTINGS['smtp_port']}")
+    print(f"  TLS mode: {APPROVED_SETTINGS['tls_mode']}")
+    print(f"  Sender: {APPROVED_SETTINGS['sender_name']} <{APPROVED_SETTINGS['sender_email']}>")
+    print(f"  Administrator inbox: {APPROVED_SETTINGS['admin_email']}")
+    print(f"  Reply-to: {APPROVED_SETTINGS['reply_to_email']}")
+    print(f"  SMTP username: {APPROVED_SETTINGS['smtp_username']}")
 
 
 def _key():
@@ -76,22 +97,21 @@ def main():
     if not _local_console():
         print("Email provider configuration requires root and an interactive TTY (use ssh -tt for SSH).",file=sys.stderr)
         return 2
-    if input("Type CONFIGURE RIVERVIEW EMAIL to continue: ")!="CONFIGURE RIVERVIEW EMAIL":
+    _show_approved_settings()
+    if input("Type CONFIGURE RIVERVIEW EMAIL to save these settings: ")!="CONFIGURE RIVERVIEW EMAIL":
         print("Email provider configuration was not authorized.",file=sys.stderr)
         return 2
     try:
         key=_key()
-        host=input("SMTP host: ").strip()
-        port_text=input("SMTP port (587 STARTTLS or 465 implicit TLS): ").strip()
-        tls_mode=input("TLS mode (starttls or implicit): ").strip()
-        sender=normalize_email(input("Sender email address: "))
-        sender_name=input("Sender display name: ").strip()
-        admin=normalize_email(input("Administrator notification email address: "))
-        reply_to=input("Reply-to email address (optional): ").strip()
-        reply_to=normalize_email(reply_to) if reply_to else ""
-        username=input("SMTP mailbox username: ").strip()
+        host=APPROVED_SETTINGS["smtp_host"]
+        port=APPROVED_SETTINGS["smtp_port"]
+        tls_mode=APPROVED_SETTINGS["tls_mode"]
+        sender=normalize_email(APPROVED_SETTINGS["sender_email"])
+        sender_name=APPROVED_SETTINGS["sender_name"]
+        admin=normalize_email(APPROVED_SETTINGS["admin_email"])
+        reply_to=normalize_email(APPROVED_SETTINGS["reply_to_email"])
+        username=APPROVED_SETTINGS["smtp_username"]
         password=_hidden_input("SMTP mailbox password (input hidden): ")
-        port=int(port_text)
         if (not re.fullmatch(r"[A-Za-z0-9.-]{1,253}",host) or not 1<=port<=65535
                 or tls_mode not in {"starttls","implicit"} or not sender_name
                 or len(sender_name)>120 or not username or len(username)>254
