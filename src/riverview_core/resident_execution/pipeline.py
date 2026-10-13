@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
 # Execution Model: Request-driven orchestration over existing PostgreSQL authority and ledger
 # Observability: Append-only objective events linked to assignment and evidence provenance
@@ -10,6 +10,7 @@
 # Authority: objective.submit and assignment.create exact grants; no proposal self-authorization
 # Changed: 2026-10-11 UTC | RV-M4.4-OBJECTIVE-WORKORDER-PIPELINE | Initial durable execution bridge
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Expose bounded grounded objective context to ResidentReasoner
+# Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER | Accept authenticated principals and retain conversation origin
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -85,7 +86,7 @@ class GraceExecutionPipeline:
             (objective_id, event_type, idem, actor_id, _json(payload)))
 
     def submit_objective(self, objective_id, request, acceptance_criteria, *,
-                         credential, scope_ref):
+                         scope_ref, credential=None, principal=None, origin=None):
         if (not isinstance(objective_id, str) or not re.fullmatch(r"objective:[A-Za-z0-9._:-]{1,120}", objective_id)
                 or not isinstance(request, str) or not request.strip()
                 or len(request.encode("utf-8")) > self.MAX_OBJECTIVE_BYTES
@@ -94,12 +95,27 @@ class GraceExecutionPipeline:
                 or any(not isinstance(item, str) or not item.strip() or len(item) > 1000
                        for item in acceptance_criteria)):
             raise ValueError("objective identity, bounded request, and acceptance criteria are required")
+        if (credential is None) == (principal is None):
+            raise ValueError("exactly one authenticated credential or principal is required")
+        if origin is not None:
+            if (not isinstance(origin, dict) or set(origin) != {"conversation_id", "source_sequence"}
+                    or not isinstance(origin["conversation_id"], str)
+                    or len(origin["conversation_id"]) != 36
+                    or type(origin["source_sequence"]) is not int
+                    or origin["source_sequence"] < 1):
+                raise ValueError("conversation origin is invalid")
         db = self.ledger.db
         try:
             with db.transaction():
                 with db.cursor() as cur:
                     self.ledger._set_search_path(cur)
-                    actor = self.authorizer.require(cur, credential, "objective.submit", scope_ref)
+                    if principal is not None:
+                        actor = self.authorizer.require_principal(
+                            cur, getattr(principal, "principal_id", None),
+                            "objective.submit", scope_ref)
+                    else:
+                        actor = self.authorizer.require(
+                            cur, credential, "objective.submit", scope_ref)
                     cur.execute("""INSERT INTO grace_objectives
                         (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status)
                         VALUES (%s,%s,%s,%s,%s::jsonb,'RECEIVED')""",
@@ -107,7 +123,8 @@ class GraceExecutionPipeline:
                          _json(list(acceptance_criteria))))
                     self._event(cur, objective_id, "objective.received",
                                 f"grace-objective-received:{objective_id}", actor["principal_id"],
-                                {"acceptance_criteria": list(acceptance_criteria)})
+                                {"acceptance_criteria": list(acceptance_criteria),
+                                 **({"origin": origin} if origin is not None else {})})
         except Exception as exc:
             if type(exc).__name__ in {"GrantDenied", "GrantCheckUnavailable"}:
                 raise ObjectiveNotAuthorized("objective.submit is not authorized") from None

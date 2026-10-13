@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.4
+File Revision: 1.0.5
 Purpose: Define resident context regrounding and bounded reasoning-provider routing
 Authority: Exact office-state grant required; provider output is a proposal, never permission
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Establish isolated resident reasoning contract
@@ -10,6 +10,7 @@ Changed: 2026-10-11 UTC | RV-M4.2-ROUTE-MINIMUM-BUDGET | Reject fallback configu
 Changed: 2026-10-11 UTC | RV-M4.2-MARKDOWN-WHITESPACE | Normalize compact metadata formatting for clean controlled diff checks
 Changed: 2026-10-11 UTC | RV-M4.2-LOCAL-PROVIDER-INTEGRATION | Document strict loopback provider adapter and actual host timeout boundary
 Changed: 2026-10-11 UTC | RV-M4.2-LOCAL-PROVIDER-RESULT | Record actual model timeout separately from the verified mock HTTP contract
+Changed: 2026-10-13 UTC | RV-REASONING-ESCALATION-CONTRACT | Specify task-escalation request/result boundary and integration limit
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Resident regrounding and reasoning routing
@@ -30,6 +31,27 @@ transition assignments, execute tools, issue grants, or authorize any proposal.
 Converting a proposal into an objective or work order remains a separately
 authorized workflow. CME scheduling and worker execution do not depend on the
 resident reasoning provider.
+
+## Task escalation contract (integration pending)
+
+`src/riverview_core/reasoning_escalation.py` defines a separate typed
+`EscalationRequest`/`EscalationResult` contract for a provider selected because
+of task complexity, a capability gap, or low confidence. This is distinct from
+the existing fallback route, which tries another explicitly configured
+provider only after the current provider fails or times out. The contract
+correlates the original office, objective, assignment revision, model binding,
+implementation revision, complete verified context fingerprint, exact target
+provider, token limit (maximum 512), and timeout (maximum 60 seconds).
+
+The caller must use the existing authority registry to authorize
+`resident.reasoning.escalate` on `provider:<provider-id>` before the router is
+called. The router returns a typed proposal only; it cannot create or dispatch
+an assignment. Current source does not yet connect task-difficulty recognition
+in `ResidentReasoner` to this router, persist escalation outcomes, or configure
+an 80B provider. Unit tests use synthetic local providers and do not prove a
+live route. Unavailable provider, capacity, timeout, invalid output, or changed
+context returns a typed non-success result; the caller must retain the durable
+objective and schedule a bounded retry or explicit Steward decision.
 
 The implementation consumes M4.1's `AuthorityRegistry` and the frozen
 `worker_adapter.knowledge_provider_v1` contract. No second knowledge API is

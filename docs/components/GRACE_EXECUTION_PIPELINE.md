@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.1
+File Revision: 1.0.2
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
 Authority: Engineering contract; not evidence of production Grace commissioning
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Link persistent reconciliation and authenticated dashboard handoff
+Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER-CONTRACT | Document explicit message-origin objective intake and its exact Steward grant
 -->
 # Grace Execution Pipeline — infrastructure slice
 
@@ -28,6 +29,18 @@ claims live installation or Camrui commissioning.
 5. ContinuousWorker obtains a lease, rechecks its registered engineering.bounded-artifact.v1 capability, and writes one small JSON work product into a mode-0700 workspace. The worker has no shell, command, or caller-selected path.
 6. BoundedArtifactVerifier reopens the artifact by an assignment-derived name, verifies bytes/provenance/shape independently, and the existing adapter persists verification before completion. The objective can be marked complete only from a completed assignment plus persisted ACCEPTED verification.
 
+The authenticated chat UI exposes an explicit Steward action for a selected,
+persisted user-authored conversation message. `POST
+/api/v1/resident/conversations/{conversation_id}/work-orders` accepts only the
+source sequence and Steward-entered acceptance criteria. The server rechecks the
+account session, Steward website role, exact conversation read grant, source
+message principal/ownership, and `objective.submit` on the fixed
+`work-order:engineering` scope before persisting an objective with conversation
+origin. Ordinary chat is never promoted automatically. This is objective intake;
+it is not a Grace proposal, assignment dispatch, worker authorization, or proof
+of execution. The currently deployed registry has no such objective grant, and
+the new route is uncommissioned until the Steward approves the exact authority.
+
 Cancellation is supported only before execution for queued/ready assignments and requires exact assignment.cancel. Running work cannot be force-cancelled by this slice; CME lease/recovery behavior remains authoritative.
 
 ## Interfaces and bounds
@@ -39,6 +52,7 @@ Cancellation is supported only before execution for queued/ready assignments and
   proposals rather than silently discarding dependency/fanout information.
 - Evidence: knowledge-provider v1 KnowledgeResult, complete retrieval only; max serialized evidence 8 KiB. Source refs, Git revision, and hash persist with objective.
 - Work order: assignment ID, objective ref, exact authority scope, contract ref, workflow ID/step, and correlation ID persist in the assignment ledger.
+- Conversation origin: selected message sequence and conversation ID are attached to `objective.received`; only the authenticated linked Steward principal can submit from the chat route.
 - Worker request: CodingWorkOrder carries assignment/objective identity, pinned repository revision, bounded task scope, criteria, exact allowed operation (write_bounded_json_artifact), and a 1–90 second timeout.
 - The worker is a deterministic infrastructure adapter, not a general coding
   executor. A real coding executor and resident service remain later integration work.

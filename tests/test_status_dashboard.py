@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.23
+# Revision: 1.0.24
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -16,6 +16,7 @@
 # Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-EXACT-DOCS-REVISION | Match the exact docs/graph source revision in the deployment contract
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Assert worker recovery diagnostics render through dashboard route
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-PG-SECRET-SAFETY | Assert PostgreSQL cookbook has no password-bearing command examples
+# Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING | Verify workflow-session transport, exact Steward work-order gate and corrected cookie text assertion
 # Changed: 2026-10-11 UTC | RV-M1.4-LIVE-DEPENDENCY-CORRECTION | Assert scheduler docs distinguish shared migration from commissioning
 # Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Assert complete conversational controls, accessibility hooks, and disabled future actions
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-DASHBOARD-REPOSITORY-LINK | Preserve installed knowledge-cookbook navigation in source shell
@@ -84,6 +85,19 @@ class _FakeProjection:
 
 
 class DashboardDeploymentContractTests(unittest.TestCase):
+    def test_workflow_registry_client_supports_account_cookie_sessions(self):
+        static = Path(__file__).resolve().parents[1] / "src/riverview_core/status_dashboard/static"
+        js = (static / "workflow.js").read_text(encoding="utf-8")
+        self.assertIn('credentials:"same-origin"', js)
+        self.assertIn('if (token()) headers.Authorization', js)
+        self.assertNotIn('if(!token()) return;', js)
+        app = (static / "app.js").read_text(encoding="utf-8")
+        html = (static / "index.html").read_text(encoding="utf-8")
+        self.assertIn('data-message-work-order', app)
+        self.assertIn('/work-orders', app)
+        self.assertIn('id="work-order-criteria"', html)
+        self.assertIn('objective.submit on work-order:engineering', app)
+
     def test_grace_conversation_workspace_controls_and_complete_rendering_contract(self):
         static = Path(__file__).resolve().parents[1] / "src/riverview_core/status_dashboard/static"
         html = (static / "index.html").read_text(encoding="utf-8")
@@ -93,7 +107,7 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn('id="chat-message" rows="2"', html)
         self.assertIn('id="chat-auth-form"', html)
         self.assertIn('autocomplete="current-password"', html)
-        self.assertIn("HttpOnly, same-origin cookie", html)
+        self.assertIn("HttpOnly same-origin cookie", html)
         self.assertIn('id="chat-disconnect"', html)
         self.assertIn("Shift+Enter adds a line", html)
         self.assertLess(html.index('class="chat-more"'), html.index('id="chat-send"'))
@@ -203,6 +217,14 @@ class DashboardHTTPTests(unittest.TestCase):
         status, _, body = self.request("GET", "/api/v1/status", token="B" * 43)
         self.assertEqual(status, 401)
         self.assertNotIn(self.token.encode(), body)
+
+    def test_conversation_work_order_requires_account_steward_not_recovery_token(self):
+        path = "/api/v1/resident/conversations/00000000-0000-4000-8000-000000000001/work-orders"
+        status, _, body = self.request("POST", path)
+        self.assertEqual(status, 401)
+        status, _, body = self.request("POST", path, token=self.token)
+        self.assertEqual(status, 403)
+        self.assertEqual(json.loads(body)["error"], "steward_account_session_required")
 
     def test_api_is_read_only_host_checked_and_never_claims_healthy_without_source(self):
         status, _, body = self.request("GET", "/api/v1/status", token=self.token)

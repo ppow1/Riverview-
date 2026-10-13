@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.1
+# Revision: 1.3.2
 # Purpose: Serve account-authenticated operational projections and existing bounded APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -21,6 +21,8 @@
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001-CSRF-PATH | Make the CSRF cookie readable to same-origin dashboard code
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password sessions, approval grants and Steward email configuration routes
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Bind authenticated Steward sessions to existing exact office grants
+# Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING | Add explicit conversation-to-objective intake gate
+# Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING-DENIALS | Preserve conversation authorization and unavailable distinctions at promotion boundary
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Expose only the scoped verification endpoint for local bootstrap challenges
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
@@ -62,6 +64,8 @@ _CONVERSATION_COOKIE_MAX_AGE = 30 * 24 * 60 * 60
 _COOKIE_CREDENTIAL = re.compile(r"^[A-Za-z0-9_-]{32,512}$")
 _CONVERSATION_STATUS = re.compile(
     r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/responses/([0-9a-fA-F-]{36})$")
+_CONVERSATION_WORK_ORDER = re.compile(
+    r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/work-orders$")
 _MAX_CHAT_BODY = 12 * 1024
 _MAX_OBJECTIVE_BODY = 16 * 1024
 _MAX_ACCOUNT_BODY = 8 * 1024
@@ -361,6 +365,8 @@ def make_handler():
             account_email_test = parsed.path == "/api/v1/account/email-settings/test" and self.command == "POST"
             conversation_send = (parsed.path == "/api/v1/resident/conversations"
                                  and self.command == "POST")
+            conversation_work_order = (_CONVERSATION_WORK_ORDER.fullmatch(parsed.path)
+                                       if self.command == "POST" else None)
             conversation_session = (parsed.path == _CONVERSATION_SESSION
                                      and self.command in {"POST", "DELETE"})
             if not self._host_ok():
@@ -369,6 +375,7 @@ def make_handler():
             if (self.command not in {"GET", "HEAD"} and not notification_write
                     and not objective_submit and not objective_proposal and not objective_cancel
                     and not conversation_send and not conversation_session and not public_auth
+                    and not conversation_work_order
                     and not auth_logout and not account_decision and not account_user
                     and not account_email_save and not account_email_test):
                 self._error(405, "read_only_method", request_id)
@@ -651,6 +658,82 @@ def make_handler():
                 elif parsed.path == "/api/v1/objectives" and self.command in {"GET", "HEAD"}:
                     self._json(200, self.server._projection.objectives(
                         limit=_bounded_limit(query.get("limit", [25])[0])), request_id)
+                elif conversation_work_order:
+                    # Only an explicit authenticated Steward action can promote a
+                    # specific persisted Grace user message. Ordinary chat stays chat.
+                    identity = getattr(self, "_account_identity", None)
+                    service = self.server._conversation_service
+                    pipeline = self.server._objective_pipeline
+                    if (not getattr(self, "_account_cookie_authenticated", False)
+                            or not identity or "steward" not in identity.get("roles", ())):
+                        self._error(403, "steward_account_session_required", request_id)
+                        return
+                    if service is None or pipeline is None:
+                        self._error(503, "work_order_intake_unavailable", request_id)
+                        return
+                    try:
+                        data = self._json_body(_MAX_CHAT_BODY)
+                        if set(data) != {"source_sequence", "acceptance_criteria"}:
+                            raise ValueError("invalid work order shape")
+                        sequence = data["source_sequence"]
+                        criteria = data["acceptance_criteria"]
+                        if (type(sequence) is not int or sequence < 1 or
+                                not isinstance(criteria, list) or not criteria or len(criteria) > 20):
+                            raise ValueError("invalid source sequence or criteria")
+                        conversation_id = conversation_work_order.group(1)
+                        principal_id = identity.get("authority_principal_id")
+                        if not isinstance(principal_id, str) or not principal_id:
+                            self._error(403, "institutional_principal_required", request_id)
+                            return
+                        # history() checks the exact resident.conversation.read grant and
+                        # owner. The selected event must be a user-authored message from
+                        # this same authenticated principal.
+                        service.history(self._conversation_authority(), conversation_id)
+                        with service.store.db.cursor() as cur:
+                            service.store._path(cur)
+                            cur.execute("""SELECT body,actor_kind,actor_id FROM
+                                resident_conversation_events WHERE conversation_id=%s
+                                AND sequence=%s AND event_type='user_message'""",
+                                (conversation_id, sequence))
+                            source = cur.fetchone()
+                        if (source is None or source["actor_kind"] != "principal" or
+                                source["actor_id"] != principal_id):
+                            self._error(404, "conversation_message_not_found", request_id)
+                            return
+                        from uuid import uuid4
+                        from riverview_core.institutional_authority.grants import InstitutionalPrincipal
+                        objective_id = "objective:grace-conversation:" + str(uuid4())
+                        origin = {"conversation_id": conversation_id,
+                                  "source_sequence": sequence}
+                        result = pipeline.submit_objective(
+                            objective_id, source["body"], criteria,
+                            scope_ref="work-order:engineering",
+                            principal=InstitutionalPrincipal(principal_id), origin=origin)
+                        grounded = pipeline.ground_objective(objective_id)
+                        self._json(202, {"objective_id": objective_id,
+                            "status": grounded["status"],
+                            "source_revision": grounded["source_revision"]}, request_id)
+                    except Exception as exc:
+                        from riverview_core.resident_execution import ObjectiveNotAuthorized, ObjectiveStateError
+                        from riverview_core.institutional_authority import GrantCheckUnavailable
+                        from riverview_core.resident_execution.conversation import (
+                            ConversationDenied, ConversationNotFound, ConversationUnavailable)
+                        if isinstance(exc, ObjectiveNotAuthorized):
+                            self._error(403, "engineering_work_order_submission_not_authorized", request_id)
+                        elif isinstance(exc, ConversationDenied):
+                            self._error(403, "resident_conversation_not_authorized", request_id)
+                        elif isinstance(exc, ConversationNotFound):
+                            self._error(404, "resident_conversation_not_found", request_id)
+                        elif isinstance(exc, GrantCheckUnavailable):
+                            self._error(503, "authority_unavailable", request_id)
+                        elif isinstance(exc, ConversationUnavailable):
+                            self._error(503, "resident_conversation_unavailable", request_id)
+                        elif isinstance(exc, (ValueError, TypeError)):
+                            self._error(400, "invalid_work_order_request", request_id)
+                        elif isinstance(exc, ObjectiveStateError):
+                            self._error(409, "work_order_conflict", request_id)
+                        else:
+                            self._error(503, "work_order_intake_unavailable", request_id)
                 elif objective_submit:
                     pipeline = self.server._objective_pipeline
                     if pipeline is None:

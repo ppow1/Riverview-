@@ -1,15 +1,16 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.3.1
+// Revision: 1.3.2
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
 // Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Use linked Steward account session for exact-grant Grace connection
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password login, grant decisions and email configuration UI
+// Changed: 2026-10-13 UTC | RV-GRACE-EXPLICIT-WORKORDER-PROMOTION | Let a Steward promote one persisted Grace message with explicit criteria.
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
   const state = {token: sessionStorage.getItem("rv.dashboard.token") || "", accountIdentity: null, status: null,
     assignments: [], events: [], attention: [], attentionStatus: "unknown", workers: [], assignmentCursor: null,
     workerCursor: null, eventCursor: 0, olderEventCursor: null, notifications: [], notificationStatus: "unknown", activeView: "overview",
-    objectives: [], recentErrors: [], navSamples: [], lastFetch: 0, timer: null,
+    objectives: [], recentErrors: [], navSamples: [], lastFetch: 0, timer: null, workOrderSourceSequence: null,
     chatConversationId: localStorage.getItem("rv.grace.conversation") || "", chatEvents: [], chatMeta: null, selectedEventId: null, chatInFlight: false, chatDialogReturnFocus: null, chatAuthRejected:false, chatLoading:false};
   const esc = (value) => String(value ?? "—").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   const human = (value) => String(value || "unknown").replaceAll("_", " ").replaceAll(".", " · ");
@@ -471,7 +472,8 @@
       const status=isUser?(pendingIds.has(event.request_id)?"Awaiting response":"Submitted"):failed?(event.event_type==="response_interrupted"?"Interrupted":"Failed"):"Completed";
       const body=failed?`Response ${event.error_code||"unavailable"}; your message remains saved.`:event.body||"";
       const provenance=!isUser&&!failed?`${event.model_id||"Model unavailable"}${event.provider_ref?` · ${event.provider_ref}`:""}`:"";
-      return `<article class="message-row ${role}${pendingIds.has(event.request_id)?" pending":""}" data-message-row="${index}" data-event-id="${esc(event.sequence??event.request_id)}"><div class="message-bubble"><div class="message-meta"><strong class="message-speaker">${label}</strong><time datetime="${esc(event.occurred_at||"")}" title="UTC ${esc(time.utc)}">${esc(time.local)}</time>${duration?`<span>${esc(duration)}</span>`:""}<span class="message-state">${esc(status)}</span>${provenance?`<span>${esc(provenance)}</span>`:""}</div><div class="message-content">${esc(body)}</div></div><details class="message-actions"><summary aria-label="More options for ${label} message" title="Message options">⋯</summary><div class="message-action-menu" role="menu"><button type="button" role="menuitem" data-message-details="${index}">View message details</button><button type="button" role="menuitem" data-message-copy="${index}">Copy message text</button><button type="button" role="menuitem" data-message-id-copy="${index}" ${event.sequence==null?"disabled":""}>Copy message ID</button><button type="button" role="menuitem" disabled>Edit and resubmit — future capability</button><button type="button" role="menuitem" disabled>Forward / create engineering request — unavailable</button></div></details></article>`;
+      const promote=isUser&&state.accountIdentity?.roles?.includes("steward")&&Number.isInteger(event.sequence);
+      return `<article class="message-row ${role}${pendingIds.has(event.request_id)?" pending":""}" data-message-row="${index}" data-event-id="${esc(event.sequence??event.request_id)}"><div class="message-bubble"><div class="message-meta"><strong class="message-speaker">${label}</strong><time datetime="${esc(event.occurred_at||"")}" title="UTC ${esc(time.utc)}">${esc(time.local)}</time>${duration?`<span>${esc(duration)}</span>`:""}<span class="message-state">${esc(status)}</span>${provenance?`<span>${esc(provenance)}</span>`:""}</div><div class="message-content">${esc(body)}</div></div><details class="message-actions"><summary aria-label="More options for ${label} message" title="Message options">⋯</summary><div class="message-action-menu" role="menu"><button type="button" role="menuitem" data-message-details="${index}">View message details</button><button type="button" role="menuitem" data-message-copy="${index}">Copy message text</button><button type="button" role="menuitem" data-message-id-copy="${index}" ${event.sequence==null?"disabled":""}>Copy message ID</button>${promote?`<button type="button" role="menuitem" data-message-work-order="${index}">Create Engineering work order…</button>`:""}<button type="button" role="menuitem" disabled>Edit and resubmit — future capability</button></div></details></article>`;
     }).join(""):noData("No persisted messages in this conversation.");
     if(state.chatInFlight||pendingIds.size){host.insertAdjacentHTML("beforeend",`<article class="message-row grace pending" aria-label="Grace is generating a response"><div class="message-bubble"><div class="message-state"><span>Grace is responding</span><span class="typing-dots" aria-hidden="true"><i class="typing-dot"></i><i class="typing-dot"></i><i class="typing-dot"></i></span></div></div></article>`);}
     $("chat-state").textContent=conversationStatus(events);
@@ -483,7 +485,21 @@
     host.querySelectorAll("[data-message-details]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageDetails)];state.chatDialogReturnFocus=button;if(ev)showMessageDetails(ev);closeMessageMenus();}));
     host.querySelectorAll("[data-message-copy]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageCopy)];state.selectedEventId=String(ev?.sequence??ev?.request_id??"");if(ev)copyChatText(ev.body||ev.error_code||"").catch(()=>toast("Clipboard access unavailable."));closeMessageMenus();}));
     host.querySelectorAll("[data-message-id-copy]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageIdCopy)];if(ev?.sequence!=null)copyChatText(String(ev.sequence)).catch(()=>toast("Clipboard access unavailable."));closeMessageMenus();}));
+    host.querySelectorAll("[data-message-work-order]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageWorkOrder)];if(!ev||!Number.isInteger(ev.sequence))return;state.workOrderSourceSequence=ev.sequence;$("work-order-source").textContent=ev.body||"(empty message)";$("work-order-criteria").value="";$("work-order-error").textContent="";$("work-order-dialog").showModal();closeMessageMenus();}));
   }
+  $("work-order-form").addEventListener("submit",async(event)=>{
+    event.preventDefault();
+    const criteria=$("work-order-criteria").value.split(/\r?\n/).map((item)=>item.trim()).filter(Boolean);
+    if(!state.chatConversationId||!Number.isInteger(state.workOrderSourceSequence)||!criteria.length){$("work-order-error").textContent="Select a persisted Grace conversation message and provide at least one acceptance criterion.";return;}
+    const submit=$("work-order-submit");submit.disabled=true;submit.textContent="Submitting…";$("work-order-error").textContent="";
+    try{
+      const result=await api(`/api/v1/resident/conversations/${encodeURIComponent(state.chatConversationId)}/work-orders`,10000,"POST",{body:{source_sequence:state.workOrderSourceSequence,acceptance_criteria:criteria}});
+      $("work-order-dialog").close();toast(`Objective ${result.objective_id} recorded (${result.status}).`);await loadObjectives();
+    }catch(error){
+      const message=error.payload?.error==="engineering_work_order_submission_not_authorized"?"The authenticated Steward lacks objective.submit on work-order:engineering. No work order was created.":`Work-order intake failed (${error.payload?.error||error.message}). No approval or execution is implied.`;
+      $("work-order-error").textContent=message;
+    }finally{submit.disabled=false;submit.textContent="Submit objective";}
+  });
   function showChatAuthorization(message) {
     state.chatAuthRejected=true;
     $("chat-authority").value="";

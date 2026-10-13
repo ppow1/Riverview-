@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.42
+**Document Revision:** 1.1.43
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-11
 **Component:** RV-ROADMAP  
@@ -16,6 +16,7 @@
 **Changed:** 2026-10-11 UTC | RV-M3.3-COURSE-CORRECTION | Reconcile assignment-level concurrency evidence with M3.3 criteria and preserve its Steward-review gate
 **Changed:** 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-CHECKPOINT | Record model-independent persistent service implementation without claiming live Grace acceptance
 **Changed:** 2026-10-11 UTC | RV-M4.1-M4.2-OCCUPANT-REPLACEMENT-INTEGRATION | Record isolated cross-component office-state continuity and exact-grant replacement verification
+**Changed:** 2026-10-13 UTC | RV-LEARNING-RESOURCE-ROADMAP | Link documentation-first learning and unified capability/resource expansion note; PL-0016 source remains to be reconciled
 **Changed:** 2026-10-11 UTC | RV-M4.1-CROSS-INTEGRATION-CI | Record passing exact-head CI for commit 89752f7
 **Changed:** 2026-10-11 UTC | RV-M4.1-PERSISTENT-RESIDENT-RUNTIME | Integrate ResidentReasoner with office authority and durable state in the persistent Grace service; isolated evidence only
 **Purpose:** Define the ordered implementation path and what the command **“go” or “next”** means.  
@@ -137,6 +138,12 @@ Dependencies: M2.1 worker execution; M2.2 independent verification; M2.3 recover
 **PASS:** sustained repeated objective-to-artifact-to-independent-verification-to-follow-up cycles on Camrui, including multiple concurrent assignments, actual coding-tool output, failure/wait isolation, restart and resident/model replacement recovery, live progress/evidence consumption, and automatic replanning, with durable logs and no routine turn-by-turn Steward prompting. A mock-only, scripted single run, or recommendation-only response does not pass.
 
 ## Milestone 5 — Institutional completeness and expansion
+
+The near-term learning, capability/resource assessment, HR allocation path,
+and future Estate/control expansion boundaries are recorded in
+[`INSTITUTIONAL_LEARNING_AND_RESOURCE_CAPABILITY_ROADMAP.md`](architecture/INSTITUTIONAL_LEARNING_AND_RESOURCE_CAPABILITY_ROADMAP.md).
+The cited PL-0016 source is not present in this repository checkout, so
+alignment with that document remains unverified.
 
 **M5.1 — Durable authority-aware interfaces and notification channels:** authenticate actions and responses across browser, visual/audio/SMS and later app/voice paths.  
 **M5.2 — Spatial registry and castle/city view:** stable object IDs and policy-filtered projection shared with the dashboard; future 3D/VR reuses the same contract.  

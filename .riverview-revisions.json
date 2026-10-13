@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.107",
+  "manifest_revision": "1.1.110",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.73",
+      "revision": "1.0.76",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "a745b2c62440feb0f1809b0508fd5d2c8041ebd7db7012f617df11fb475dcc24",
-      "size_bytes": 395966
+      "sha256": "2e9b22b34e662d5a4326f3f0bd667ad016e519305a8040b7bff3ca829af67681",
+      "size_bytes": 400300
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -32,13 +32,13 @@
       "size_bytes": 14418
     },
     "process_graphs/steward-dashboard/status.json": {
-      "revision": "1.0.9",
+      "revision": "1.0.10",
       "path": "process_graphs/steward-dashboard/status.json",
-      "sha256": "f78bdb904c4135ed5fbd6f68425957426307a10a361d250d4396c5734d8f87c2",
-      "size_bytes": 32203
+      "sha256": "9359bef9487154b993f4235949940b68e99245e75dea176afe0a8d0831f2372b",
+      "size_bytes": 33644
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.107"
+      "revision": "1.1.110"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -131,10 +131,10 @@
       "size_bytes": 17159
     },
     "process_graphs/grace/operational-integration.json": {
-      "revision": "1.0.12",
+      "revision": "1.0.14",
       "path": "process_graphs/grace/operational-integration.json",
-      "sha256": "c43e5d47f05afe21a036bcdf12bf35e38fcf5ce4d49b6e6633e114b2afbfb2a7",
-      "size_bytes": 27930
+      "sha256": "3fc3077be0bb0eece9d2b1567a304935d41c608f14f47fc054d32f9860e9a594",
+      "size_bytes": 29324
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "revision": "1.0.0",
@@ -173,10 +173,10 @@
       "size_bytes": 32672
     },
     "process_graphs/resident-reasoning/runtime.json": {
-      "revision": "1.0.4",
+      "revision": "1.0.5",
       "path": "process_graphs/resident-reasoning/runtime.json",
-      "sha256": "e4fbdd12ab117b6e0959290d0a3f6850b04f83b772ba097791e64df3b7d3fb9c",
-      "size_bytes": 22331
+      "sha256": "accc91f736c052ccd0228c126631015250f29ead136243821fe7f3b75d06b80e",
+      "size_bytes": 23287
     },
     "process_graphs/knowledge-provider/repository-contracts.json": {
       "revision": "1.0.3",

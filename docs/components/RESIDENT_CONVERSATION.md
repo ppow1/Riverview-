@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.5
+File Revision: 1.1.6
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -21,6 +21,7 @@ Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Add persistent same-origin
 Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Record diagnosed credential retention gap, grant audit, and browser restart evidence
 Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Record Camrui live Firefox inference, PostgreSQL durability, and dashboard restart recovery
 Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Connect linked account Steward sessions to existing exact conversation grants
+Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER-CONTRACT | Document explicit, exact-grant promotion of a persisted user message
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
@@ -31,11 +32,24 @@ History: Git and .riverview-backups/manifest.jsonl
 
 The resident office, currently bound occupant, model implementation, and human conversation owner are separate records. Conversation rows are keyed by office and authenticated human principal. Rebinding an office to another occupant or model does not delete history. The current resident runtime reads its binding through `AuthorityRegistry.authorize_office_state`; the caller must independently hold an exact active `resident.conversation.read` or `resident.conversation.send` grant for `office:<office-id>`.
 
-The dashboard authentication cookie authenticates the API entry point. For the linked Steward account, the dashboard takes `authority_principal_id` only from the server-validated account session; it validates `resident.conversation.read` and `resident.conversation.send` against that principal using the protected institutional authority function. No role implies either grant, and the account identity is revalidated on every request. The legacy Connect to Grace path remains available to recovery-token sessions and continues to use `X-Riverview-Authority` plus the existing path-scoped `Secure`, `HttpOnly`, `SameSite=Strict` cookie. Both paths call the same exact-grant decision and fail closed for missing, revoked, wrong-scope, expired, or unavailable authority. The linked account path issues no second authority credential and creates no grant or principal. Every history, response-status, and send operation rechecks the current exact database grants, so grant revocation takes effect on the next request. The separate resident service credential remains provisioned only through protected service credentials. Neither a message nor a model response promotes or approves an objective or work order.
+The dashboard authentication cookie authenticates the API entry point. For the linked Steward account, the dashboard takes `authority_principal_id` only from the server-validated account session; it validates `resident.conversation.read` and `resident.conversation.send` against that principal using the protected institutional authority function. No role implies either grant, and the account identity is revalidated on every request. The legacy Connect to Grace path remains available to recovery-token sessions and continues to use `X-Riverview-Authority` plus the existing path-scoped `Secure`, `HttpOnly`, `SameSite=Strict` cookie. Both paths call the same exact-grant decision and fail closed for missing, revoked, wrong-scope, expired, or unavailable authority. The linked account path issues no second authority credential and creates no grant or principal. Every history, response-status, and send operation rechecks the current exact database grants, so grant revocation takes effect on the next request. The separate resident service credential remains provisioned only through protected service credentials. Ordinary messages and model responses do not promote or approve an objective. A Steward may explicitly select a persisted user message and submit it through the separate Engineering objective intake route; that route checks conversation ownership and the independent `objective.submit` exact grant.
 
 ## Versioned HTTP contract `rv.resident.conversation.v1`
 
 All endpoints require the existing dashboard bearer or an active account session. The linked Steward account path derives its principal from that server-validated session; recovery-token sessions continue to use the exact office-scoped credential in `X-Riverview-Authority`.
+
+The explicit work-order promotion route is intentionally narrower than normal
+conversation send. A Steward account session may POST
+`/api/v1/resident/conversations/{conversation_id}/work-orders` with
+`source_sequence` and `acceptance_criteria`. The server retrieves the source
+message itself and verifies that it is a user message owned by the authenticated
+principal. The request scope is fixed to `work-order:engineering`; the caller
+cannot choose a broader scope. It requires `resident.conversation.read` and
+`objective.submit` exact grants and records the conversation ID/sequence on the
+objective receipt event. The account role and the legacy dashboard recovery
+token do not substitute for those grants. A successful response means objective
+intake/grounding only; assignment creation and execution remain separately
+authorized.
 
 | Method and route | Purpose | Result |
 | --- | --- | --- |

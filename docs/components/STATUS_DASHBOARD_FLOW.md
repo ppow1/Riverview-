@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.5
+**Document Revision:** 1.0.6
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -49,6 +49,7 @@ flowchart LR
     g_rv_steward_dashboard_status_account_health_6a2c05c9["Project bounded account schema and email readiness without personal data"]
     g_rv_steward_dashboard_status_account_login_2b9c8452["Visitor opens account sign-in and access request"]
     g_rv_steward_dashboard_status_account_management_4dab15f2["Steward opens account approval and management"]
+    g_rv_steward_dashboard_status_workflow_session_transport_d4da7bde["Fetch canonical graph index and definition with either the recovery bearer or active same-origin account session"]
   end
   g_rv_postgres_ledger_assignment_lifecycle_intake_c1d0abf1["Registered target<br/>rv:postgres-ledger:assignment-lifecycle"]
   g_rv_cme_progress_and_recovery_monitor_start_3c5b8496["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -99,6 +100,9 @@ flowchart LR
   g_rv_steward_dashboard_status_account_login_2b9c8452 -->|jump: Account enrollment or sign-in| g_rv_website_account_auth_account_lifecycle_visitor_request_c85d701b
   g_rv_steward_dashboard_status_render_cached_529d8c25 -->|Steward opens account controls| g_rv_steward_dashboard_status_account_management_4dab15f2
   g_rv_steward_dashboard_status_account_management_4dab15f2 -->|jump: Steward account management| g_rv_website_account_auth_account_lifecycle_steward_management_756368cd
+  g_rv_steward_dashboard_status_browse_process_graphs_5ccf18cc -->|Open the workflow viewer| g_rv_steward_dashboard_status_workflow_session_transport_d4da7bde
+  g_rv_steward_dashboard_status_workflow_session_transport_d4da7bde -->|Authenticated same-origin graph request| g_rv_steward_dashboard_status_read_canonical_graph_322bcdca
+  g_rv_steward_dashboard_status_workflow_session_transport_d4da7bde -->|diagnostic_branch: Expired or absent browser session; render authorization failure| g_rv_steward_dashboard_status_graph_source_unavailable_08315b7d
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

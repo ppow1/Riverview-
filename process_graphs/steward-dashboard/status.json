@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:steward-dashboard:status",
-  "graph_revision": "1.0.9",
+  "graph_revision": "1.1.0",
   "component_id": "STEWARD-DASHBOARD",
   "workflow_id": "status-projection.v1",
   "diagram_order": 1,
@@ -622,6 +622,24 @@
       "verification_evidence": [
         "tests/test_account_auth_http.py"
       ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:workflow-session-transport",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Fetch canonical graph index and definition with either the recovery bearer or active same-origin account session",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/workflow.js",
+        "src/riverview_core/status_dashboard/server.py",
+        "tests/test_status_dashboard.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
     }
   ],
   "edges": [
@@ -878,6 +896,24 @@
       "to": "rv:website-account-auth:account-lifecycle:steward-management",
       "type": "jump",
       "label": "Steward account management"
+    },
+    {
+      "from": "rv:steward-dashboard:status:browse-process-graphs",
+      "to": "rv:steward-dashboard:status:workflow-session-transport",
+      "type": "runtime_transition",
+      "label": "Open the workflow viewer"
+    },
+    {
+      "from": "rv:steward-dashboard:status:workflow-session-transport",
+      "to": "rv:steward-dashboard:status:read-canonical-graph",
+      "type": "runtime_transition",
+      "label": "Authenticated same-origin graph request"
+    },
+    {
+      "from": "rv:steward-dashboard:status:workflow-session-transport",
+      "to": "rv:steward-dashboard:status:graph-source-unavailable",
+      "type": "diagnostic_branch",
+      "label": "Expired or absent browser session; render authorization failure"
     }
   ]
 }

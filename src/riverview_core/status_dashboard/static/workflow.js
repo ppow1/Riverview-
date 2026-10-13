@@ -1,12 +1,13 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
 // File: src/riverview_core/status_dashboard/static/workflow.js
-// Revision: 1.0.1
+// Revision: 1.0.2
 // Purpose: Render a read-only SVG view from the canonical process graph API.
 // Execution Model: Browser request-driven; loaded only by the authenticated workflow view.
 // Observability: Displays graph revision, node identities, references and explicit live-position state.
 // Dependencies: status_dashboard API v1.1; process_graphs canonical registry.
 // Authority: No graph edits or operational commands; live position requires an exact persisted node ID.
 // Changed: 2026-10-10 UTC | RV-M3.1-003 | Initial canonical workflow browser view.
+// Changed: 2026-10-13 UTC | RV-WORKFLOW-ACCOUNT-SESSION | Use same-origin account cookies as well as recovery bearer token.
 // Contracts: docs/components/STATUS_DASHBOARD_API.schema.json; process_graphs/README.md
 // Tests: tests/test_status_dashboard.py; Camrui browser acceptance evidence.
 // History: Git and .riverview-backups/manifest.jsonl
@@ -17,7 +18,9 @@
   const state = {graphs: [], selected: null};
   const token = () => sessionStorage.getItem("rv.dashboard.token") || "";
   const get = async (path) => {
-    const response = await fetch(path, {headers:{Authorization:`Bearer ${token()}`,Accept:"application/json"},cache:"no-store",credentials:"omit"});
+    const headers = {Accept:"application/json"};
+    if (token()) headers.Authorization = `Bearer ${token()}`;
+    const response = await fetch(path, {headers,cache:"no-store",credentials:"same-origin"});
     if (!response.ok) throw new Error(`http_${response.status}`);
     return response.json();
   };
@@ -111,7 +114,6 @@
     catch(error){$("graph-canvas").textContent=`Workflow data unavailable (${error.message}).`;$("graph-revision").textContent="Canonical registry unavailable";$("graph-execution-position").textContent="Live execution position: unavailable.";}
   }
   async function initialize() {
-    if(!token()) return;
     try {
       const result=await get("/api/v1/graphs");state.graphs=result.items||[];
       const select=$("graph-select");select.replaceChildren();
