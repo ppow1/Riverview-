@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.3
+# Revision: 1.3.4
 # Purpose: Serve account-authenticated operational projections and existing bounded APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -23,6 +23,7 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Bind authenticated Steward sessions to existing exact office grants
 # Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING | Add explicit conversation-to-objective intake gate
 # Changed: 2026-10-13 UTC | RV-LEDGER-GRAPH-POSITION | Read live execution position only from persisted canonical ledger identity
+# Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Permit only explicit allowlisted OCTO1 model URLs when an opt-in service flag is set
 # Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING-DENIALS | Preserve conversation authorization and unavailable distinctions at promotion boundary
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Expose only the scoped verification endpoint for local bootstrap challenges
 # Contracts: docs/components/STATUS_DASHBOARD.md
@@ -1174,7 +1175,9 @@ def main():
             resident_token = resident_token_path.read_text(encoding="ascii").strip()
             provider = LocalReasoningProvider(chat_endpoint, chat_model, chat_model_sha,
                 timeout_seconds=25,
-                chat_prefix=os.environ.get("RIVERVIEW_GRACE_CHAT_PREFIX", ""))
+                chat_prefix=os.environ.get("RIVERVIEW_GRACE_CHAT_PREFIX", ""),
+                allow_approved_private_lan=(
+                    os.environ.get("RIVERVIEW_GRACE_ALLOW_APPROVED_OCTO1") == "1"))
             conversation_service = ResidentConversationService(
                 store=conversation_store, registry=authority_registry,
                 authorizer=ExactGrantAuthorizer(authority_schema), office_id=chat_office_id,

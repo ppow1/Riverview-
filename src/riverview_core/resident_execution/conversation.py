@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Persist and serve office-bound, authorized Grace conversations
 # Execution Model: Authenticated request-driven completion with durable event history
 # Observability: Redacted response status and append-only PostgreSQL conversation events
@@ -12,6 +12,7 @@
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Limit ordinary CPU chat output to a short 64-token turn
 # Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Serialize shared PostgreSQL connection scopes across dashboard request threads
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Reuse the authenticated linked Steward principal for exact conversation grant checks
+# Changed: 2026-10-13 UTC | RV-GRACE-MODEL-PROVENANCE | Return and persist the actual served model plus provider stage metadata
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: tests/test_resident_conversation.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -450,12 +451,17 @@ class ResidentConversationService:
                 model_id=getattr(completion, "served_model", implementation["model_id"]),
                 body=completion.content,
                 metadata={"model_revision": implementation["implementation_revision"],
+                    "reasoning_stage": getattr(completion, "reasoning_stage", "primary"),
+                    "provisional": bool(getattr(completion, "provisional", False)),
                     "prompt_tokens": getattr(completion, "prompt_tokens", None),
                     "completion_tokens": getattr(completion, "completion_tokens", None),
                     "finish_reason": getattr(completion, "finish_reason", None)})
             return {"schema_version": "rv.resident.response.v1", "status": "completed",
                     "conversation_id": conversation_id, "request_id": request_id,
-                    "response": completion.content, "model": implementation["model_id"],
+                    "response": completion.content,
+                    "model": getattr(completion, "served_model", implementation["model_id"]),
+                    "reasoning_stage": getattr(completion, "reasoning_stage", "primary"),
+                    "provisional": bool(getattr(completion, "provisional", False)),
                     "model_revision": implementation["implementation_revision"],
                     "duplicate": False}
         except ConversationContextTooLarge:

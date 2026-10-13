@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION_FLOW.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.5
+File Revision: 1.0.6
 Purpose: Generated focused flow for persistent Grace browser conversation
 Authority: Canonical graph JSON; diagram generated and not hand-edited
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Register generated chat workflow view
@@ -23,9 +23,10 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_deny_c9c85a36[["Reject request without persisting or invoking a model"]]
     g_rv_resident_conversation_browser_chat_office_binding_47296b90["Read current bound occupant and model implementation through AuthorityRegistry"]
     g_rv_resident_conversation_browser_chat_provider_match_6e2180eb{"Does the registered provider match the exact implementation revision?"}
+    g_rv_resident_conversation_browser_chat_model_readiness_diagnostic_90a0703b["Optional read-only readiness probe verifies health and exact served model; HTTP unavailability does not identify host power state"]
     g_rv_resident_conversation_browser_chat_persist_user_50079953["Append user event and idempotency key before inference"]
     g_rv_resident_conversation_browser_chat_context_bound_672d08c9["Assemble recent persisted history and reject serialized context above 32 KiB"]
-    g_rv_resident_conversation_browser_chat_inference_8bca7614["Call the current loopback model adapter; no tools or work-order operation exists"]
+    g_rv_resident_conversation_browser_chat_inference_8bca7614["Call the office-bound local model adapter; only loopback or explicitly allowlisted OCTO1 routes are accepted, with served-model and binding checks"]
     g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79[["Persist a sanitized unavailable or incomplete response outcome"]]
     g_rv_resident_conversation_browser_chat_binding_recheck_06e5ffdc["Reject a result if the office implementation changed during inference"]
     g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b["Append assistant message with model and token provenance"]
@@ -50,6 +51,7 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_office_binding_47296b90 --> g_rv_resident_conversation_browser_chat_provider_match_6e2180eb
   g_rv_resident_conversation_browser_chat_provider_match_6e2180eb -->|diagnostic_branch: Provider or model revision unavailable| g_rv_resident_conversation_browser_chat_deny_c9c85a36
   g_rv_resident_conversation_browser_chat_provider_match_6e2180eb -->|Current implementation matched| g_rv_resident_conversation_browser_chat_persist_user_50079953
+  g_rv_resident_conversation_browser_chat_provider_match_6e2180eb -->|documentation: Read-only readiness probe is available for diagnostics; chat currently requires no probe preflight| g_rv_resident_conversation_browser_chat_model_readiness_diagnostic_90a0703b
   g_rv_resident_conversation_browser_chat_persist_user_50079953 --> g_rv_resident_conversation_browser_chat_context_bound_672d08c9
   g_rv_resident_conversation_browser_chat_context_bound_672d08c9 -->|diagnostic_branch: Context too large; model is not called| g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79
   g_rv_resident_conversation_browser_chat_context_bound_672d08c9 -->|Within context bound| g_rv_resident_conversation_browser_chat_inference_8bca7614

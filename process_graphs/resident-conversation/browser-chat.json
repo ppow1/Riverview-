@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-conversation:browser-chat",
-  "graph_revision": "1.0.6",
+  "graph_revision": "1.0.7",
   "component_id": "RESIDENT-CONVERSATION",
   "workflow_id": "resident.conversation.v1",
   "diagram_order": 14,
@@ -125,6 +125,21 @@
       ]
     },
     {
+      "id": "rv:resident-conversation:browser-chat:model-readiness-diagnostic",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Optional read-only readiness probe verifies health and exact served model; HTTP unavailability does not identify host power state",
+      "source_references": [
+        "src/riverview_core/local_reasoning_provider.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_local_reasoning_provider.py"
+      ]
+    },
+    {
       "id": "rv:resident-conversation:browser-chat:persist-user",
       "node_revision": "1.0.0",
       "type": "process",
@@ -159,7 +174,7 @@
       "id": "rv:resident-conversation:browser-chat:inference",
       "node_revision": "1.0.0",
       "type": "process",
-      "label": "Call the current loopback model adapter; no tools or work-order operation exists",
+      "label": "Call the office-bound local model adapter; only loopback or explicitly allowlisted OCTO1 routes are accepted, with served-model and binding checks",
       "source_references": [
         "src/riverview_core/local_reasoning_provider.py"
       ],
@@ -469,6 +484,12 @@
       "to": "rv:resident-conversation:browser-chat:persist-user",
       "type": "runtime_transition",
       "label": "Current implementation matched"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:provider-match",
+      "to": "rv:resident-conversation:browser-chat:model-readiness-diagnostic",
+      "type": "documentation",
+      "label": "Read-only readiness probe is available for diagnostics; chat currently requires no probe preflight"
     },
     {
       "from": "rv:resident-conversation:browser-chat:persist-user",

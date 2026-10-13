@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.9
+# Revision: 1.1.1
 # Purpose: Adapt bounded resident proposals and conversation turns to local inference
 # Execution Model: Bounded loopback OpenAI-compatible request
 # Observability: Sanitized provider failures; no prompts or raw model output logged
@@ -14,6 +14,8 @@
 # Changed: 2026-10-11 UTC | RV-M4.2-HTTPERROR-CLOSE | Close HTTPError response resources before returning sanitized provider failures
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Add bounded plain conversation completion to the same pinned loopback adapter
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Add bounded model-specific chat prefix without changing stored conversation content
+# Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Add exact OCTO1 endpoint allowlist, model readiness probe, and explicit slot-busy state
+# Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Bind each approved URL to its exact observed model identity
 # Authority: Returns unapproved proposals or plain text only; cannot execute actions or grant authority
 # Contracts: docs/components/RESIDENT_REASONING.md; worker_adapter.local_inference
 # Tests: tests/test_local_reasoning_provider.py
@@ -26,8 +28,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 import ipaddress
 import json
+import threading
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 from .resident_reasoning import PlanProposal, PlanStep, ReasoningRequest
@@ -50,10 +53,21 @@ class ChatCompletion:
     prompt_tokens: int
     completion_tokens: int
     finish_reason: str
+    reasoning_stage: str = "primary"
+    provisional: bool = False
+
+
+@dataclass(frozen=True)
+class ProviderReadiness:
+    """Read-only endpoint readiness; unreachable never implies host power state."""
+
+    state: str
+    model_id: str
+    detail_code: str
 
 
 class LocalReasoningProvider:
-    """Call a loopback model and accept only the exact bounded plan schema.
+    """Call an explicitly bound local model and accept the exact bounded schema.
 
     The provider cannot authorize a proposal. Any malformed or unverifiable
     response is returned as ``None`` so ``ResidentReasoner`` records
@@ -64,22 +78,40 @@ class LocalReasoningProvider:
     provider_id = "local.inference.v1"
     MAX_PROMPT_BYTES = 32 * 1024
     MAX_RESPONSE_BYTES = 16 * 1024
+    APPROVED_PRIVATE_LAN_ENDPOINTS = frozenset({
+        "http://192.168.1.160:8080/v1",
+        "http://192.168.1.160:18080/v1",
+    })
+    APPROVED_PRIVATE_LAN_MODELS = {
+        "http://192.168.1.160:8080/v1":
+            "/root/Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf",
+        "http://192.168.1.160:18080/v1":
+            "/mnt/model-storage/vision/Qwen3-VL-30B-A3B/Huihui-Qwen3-VL-30B-A3B-Instruct-abliterated.i1-IQ3_XS.gguf",
+    }
 
     def __init__(self, endpoint: str, model: str, model_sha256: str, *,
-                 timeout_seconds: float = 25.0, chat_prefix: str = ""):
+                 timeout_seconds: float = 25.0, chat_prefix: str = "",
+                 allow_approved_private_lan: bool = False,
+                 max_concurrency: int = 1):
         parsed = urlsplit(endpoint)
         try:
             address = ipaddress.ip_address(parsed.hostname or "")
         except ValueError:
             address = None
-        if (parsed.scheme != "http" or address is None or not address.is_loopback
+        loopback = address is not None and address.is_loopback
+        normalized_endpoint = endpoint.rstrip("/")
+        private_lan = (allow_approved_private_lan is True
+                       and normalized_endpoint in self.APPROVED_PRIVATE_LAN_ENDPOINTS
+                       and model == self.APPROVED_PRIVATE_LAN_MODELS.get(normalized_endpoint))
+        if (parsed.scheme != "http" or not (loopback or private_lan)
                 or parsed.username or parsed.password or parsed.query or parsed.fragment
                 or parsed.path.rstrip("/") != "/v1"):
-            raise ValueError("endpoint must be an unauthenticated loopback /v1 URL")
+            raise ValueError("endpoint must be loopback or an explicitly allowed OCTO1 /v1 URL")
         if (not isinstance(model, str) or not model or len(model) > 160
                 or not isinstance(model_sha256, str) or len(model_sha256) != 64
                 or any(ch not in "0123456789abcdef" for ch in model_sha256)
-                or not 0 < timeout_seconds <= 30
+                or not 0 < timeout_seconds <= 60
+                or type(max_concurrency) is not int or not 1 <= max_concurrency <= 8
                 or not isinstance(chat_prefix, str)
                 or len(chat_prefix.encode("utf-8")) > 64
                 or "\x00" in chat_prefix):
@@ -89,6 +121,56 @@ class LocalReasoningProvider:
         self.model_sha256 = model_sha256
         self.timeout_seconds = timeout_seconds
         self.chat_prefix = chat_prefix
+        self.max_concurrency = max_concurrency
+        self._capacity = threading.BoundedSemaphore(max_concurrency)
+        self._capacity_lock = threading.Lock()
+        self._in_flight = 0
+
+    def readiness(self, *, timeout_seconds: float = 2.0) -> ProviderReadiness:
+        """Probe only this configured model's health and model-list routes.
+
+        Host-offline and host-booting cannot be inferred from an HTTP endpoint;
+        the caller receives UNAVAILABLE and must consult a separately authorized
+        resource-state source before making a power-control decision.
+        """
+        if not 0 < timeout_seconds <= 5:
+            raise ValueError("readiness probe timeout must be between 0 and 5 seconds")
+        with self._capacity_lock:
+            if self._in_flight >= self.max_concurrency:
+                return ProviderReadiness("MODEL_BUSY", self.model, "provider_slot_occupied")
+        parsed = urlsplit(self.endpoint)
+        origin = urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
+        for url in (origin + "/health", origin + "/v1/models"):
+            request = Request(url, headers={"Accept": "application/json"})
+            try:
+                with urlopen(request, timeout=timeout_seconds) as response:
+                    raw = response.read(65536)
+                    if response.status != 200:
+                        return ProviderReadiness("ERROR", self.model, "health_status_invalid")
+            except HTTPError as exc:
+                status = exc.code
+                exc.close()
+                if status == 503:
+                    return ProviderReadiness("MODEL_LOADING", self.model, "endpoint_loading")
+                return ProviderReadiness("ERROR", self.model, f"endpoint_http_{status}")
+            except TimeoutError:
+                return ProviderReadiness("TIMEOUT", self.model, "readiness_timeout")
+            except URLError as exc:
+                if isinstance(exc.reason, TimeoutError):
+                    return ProviderReadiness("TIMEOUT", self.model, "readiness_timeout")
+                return ProviderReadiness("UNAVAILABLE", self.model, "endpoint_unavailable")
+            except OSError:
+                return ProviderReadiness("UNAVAILABLE", self.model, "endpoint_unavailable")
+            if url.endswith("/v1/models"):
+                try:
+                    document = json.loads(raw)
+                    served = [item.get("id") for item in document.get("data", [])
+                              if isinstance(item, dict)]
+                except (ValueError, AttributeError, TypeError):
+                    return ProviderReadiness("ERROR", self.model, "model_list_invalid")
+                if self.model not in served:
+                    return ProviderReadiness("ERROR", self.model, "configured_model_missing")
+        return ProviderReadiness("READY", self.model, "health_and_identity_verified")
 
     @staticmethod
     def _content(request: ReasoningRequest) -> str:
@@ -213,6 +295,20 @@ class LocalReasoningProvider:
 
     def complete_chat(self, messages, *, max_tokens: int,
                       expected_revision: str, timeout_seconds: float = 120) -> ChatCompletion:
+        if not self._capacity.acquire(blocking=False):
+            raise LocalReasoningUnavailable("endpoint_busy")
+        with self._capacity_lock:
+            self._in_flight += 1
+        try:
+            return self._complete_chat(messages, max_tokens=max_tokens,
+                expected_revision=expected_revision, timeout_seconds=timeout_seconds)
+        finally:
+            with self._capacity_lock:
+                self._in_flight -= 1
+            self._capacity.release()
+
+    def _complete_chat(self, messages, *, max_tokens: int,
+                       expected_revision: str, timeout_seconds: float) -> ChatCompletion:
         """Generate ordinary conversation text; this method has no tool or work-order API."""
         if (expected_revision != self.model_sha256 or type(max_tokens) is not int
                 or not 1 <= max_tokens <= 512 or not isinstance(messages, list)
@@ -301,3 +397,4 @@ class LocalReasoningProvider:
 # - 1.0.7: Close HTTP error response resources before raising a sanitized unavailable result.
 # - 1.0.8: Reuse the pinned loopback adapter for bounded conversation completion and retain safe timeout codes.
 # - 1.0.9: Support a bounded implementation-specific inference prefix without altering persistent messages.
+# - 1.1.0: Allow opt-in to the two approved OCTO1 endpoints, check served model readiness, and report slot contention distinctly.

@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.6
+File Revision: 1.1.9
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -16,6 +16,9 @@ Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Reproduce exact predeces
 Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Retain the exact predecessor reproduction source and sanitized result
 Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Specify complete conversational rendering, accessible controls, factual details, and safe copy behavior
 Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record dashboard-only live release and distinguish local commissioning from Steward Windows acceptance
+Changed: 2026-10-13 UTC | RV-GRACE-MULTI-STAGE-001 | Record exact OCTO1 provider opt-in, readiness states, and the unimplemented routing/deferral boundary
+Changed: 2026-10-13 UTC | RV-GRACE-MULTI-STAGE-001 | Clarify local slot contention is not global OCTO1 slot telemetry
+Changed: 2026-10-13 UTC | RV-GRACE-MULTI-STAGE-001 | Document endpoint/model pair pinning and explicit dashboard opt-in
 Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record deployed 390 CSS-pixel responsive fixture while retaining physical-device and Windows verification as pending
 Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Add persistent same-origin browser credential transport, exact-grant rechecks, and denial retry suppression
 Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Record diagnosed credential retention gap, grant audit, and browser restart evidence
@@ -90,7 +93,27 @@ The existing `LocalReasoningProvider` has been extended with a plain-text comple
 
 For an isolated development run, the previously installed Qwen3-0.6B Q8_0 GGUF is at `$HOME/.cache/riverview/models/Qwen3-0.6B-Q8_0.gguf` with expected SHA-256 `9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031`. The pinned llama.cpp binary is `/tmp/rv-llama-build/bin/llama-server`. The test harness binds only to a free `127.0.0.1` port, passes `--n-gpu-layers 0`, and uses the isolated PostgreSQL test DSN. For this Qwen3 chat run it configures `/no_think\n`, a prompt hint already used in the repository's local inference qualification. The hint is confined to the inference copy and does not change durable user messages. The harness stops only the exact process it started. No model is downloaded or loaded by application startup.
 
-The dashboard service enables chat only when its protected `resident-token`, office ID, loopback model endpoint, model identifier, and SHA configuration are all present. Database migrations are an explicit operator action; API startup never applies schema changes. No unit file, installed service, shared database, secret, or running model was modified for this implementation.
+The provider now accepts a remote endpoint only when the caller explicitly opts in
+and the endpoint/model pair exactly matches one of the approved OCTO1 routes
+(`http://192.168.1.160:8080/v1` with the observed Qwen3-Next-80B model ID, or
+`http://192.168.1.160:18080/v1` with the observed Huihui 30B model ID). The
+dashboard opt-in is `RIVERVIEW_GRACE_ALLOW_APPROVED_OCTO1=1`; it defaults off.
+The exact served model ID remains checked against configuration, and the office
+implementation revision remains checked before and after inference. Provider
+concurrency is bounded (one slot by default); contention reports `endpoint_busy`
+at the provider boundary. `readiness()` checks only `/health` and `/v1/models`
+for the configured endpoint. It reports model `READY`, `MODEL_LOADING`,
+`MODEL_BUSY`, `UNAVAILABLE`, `TIMEOUT`, or `ERROR`; `MODEL_BUSY` currently means
+this provider instance's bounded semaphore is occupied, not that every caller
+has observed OCTO1's global slot state. An unreachable HTTP endpoint does not
+prove the host is powered off or booting. This is provider plumbing,
+not a three-stage selector or durable deferred-question worker. The active
+production binding remains the loopback 0.6B until a separately approved
+binding/configuration deployment. OCTO1's HTTP API is unauthenticated and
+unencrypted as documented; requests must remain on the trusted LAN, and this
+integration must not be exposed through WAN routing.
+
+The dashboard service enables chat only when its protected `resident-token`, office ID, model endpoint, model identifier, and SHA configuration are all present. Non-loopback OCTO1 configuration additionally requires the explicit opt-in flag; the flag does not change the office binding. Database migrations are an explicit operator action; API startup never applies schema changes. No unit file, installed service, shared database, secret, or running model was modified for this implementation.
 
 ## Browser conversation workspace
 
