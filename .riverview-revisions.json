@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.121",
+  "manifest_revision": "1.1.122",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.86",
+      "revision": "1.0.87",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "e9eb36fe4b46fe67c3a64e9590f4f147baf96d2edfe0385815f048587c0a806d",
-      "size_bytes": 418581
+      "sha256": "08f771bcfb492852c728cf4c0ff7b6638bbc36e70fb2e9ebf0db4b95e05c1945",
+      "size_bytes": 431237
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 33631
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.121"
+      "revision": "1.1.122"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -167,10 +167,10 @@
       "size_bytes": 2957
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
-      "revision": "1.0.10",
+      "revision": "1.0.11",
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
-      "sha256": "c8d042282ac10af0e824ad8a6f0790e4408746cdf53b0ac09b10e97c05140540",
-      "size_bytes": 32672
+      "sha256": "b26ad87d543d2790a6430b6fbbf5f0743950da6d4a201fbe927b91714a4c1f7f",
+      "size_bytes": 39092
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "revision": "1.0.6",
@@ -197,10 +197,10 @@
       "size_bytes": 18530
     },
     "process_graphs/resident-conversation/browser-chat.json": {
-      "revision": "1.0.7",
+      "revision": "1.0.8",
       "path": "process_graphs/resident-conversation/browser-chat.json",
-      "sha256": "3948fa03d64ed21e6077288ccde4b109fb92cd9d1e55d533cd986fb47f9b5916",
-      "size_bytes": 24483
+      "sha256": "f225dc46b039128b92e2a0cdd8213246babc9e3201f4232ab3f352e257c32a65",
+      "size_bytes": 28885
     },
     "process_graphs/account-authentication/account-lifecycle.json": {
       "revision": "1.1.0",

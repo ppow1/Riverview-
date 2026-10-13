@@ -1,9 +1,10 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.3.2
+// Revision: 1.3.3
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
 // Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Use linked Steward account session for exact-grant Grace connection
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password login, grant decisions and email configuration UI
 // Changed: 2026-10-13 UTC | RV-GRACE-EXPLICIT-WORKORDER-PROMOTION | Let a Steward promote one persisted Grace message with explicit criteria.
+// Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Display durable deferred reasoning state in chat history.
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -410,6 +411,8 @@
   }
   function conversationStatus(events) {
     const terminal=new Set(events.filter((e)=>["assistant_message","response_failed","response_interrupted"].includes(e.event_type)).map((e)=>e.request_id));
+    const deferred=events.some((e)=>e.event_type==="response_deferred"&&!terminal.has(e.request_id));
+    if(deferred)return "Waiting for reasoning capability";
     const pending=events.some((e)=>e.event_type==="user_message"&&!terminal.has(e.request_id));
     if (state.chatInFlight || pending) return "Generating response";
     const last=[...events].reverse().find((e)=>["assistant_message","response_failed","response_interrupted"].includes(e.event_type));
@@ -461,21 +464,24 @@
   function renderConversation(events) {
     state.chatEvents=events;
     const host=$("chat-history"), wasNearBottom=host.scrollHeight-host.scrollTop-host.clientHeight<120;
-    const timeline=events.filter((event)=>["user_message","assistant_message","response_failed","response_interrupted"].includes(event.event_type));
+    const timeline=events.filter((event)=>["user_message","assistant_message","response_failed","response_interrupted","response_deferred"].includes(event.event_type));
     const pendingIds=new Set(timeline.filter((e)=>e.event_type==="user_message").map((e)=>e.request_id));
     for(const event of timeline.filter((e)=>["assistant_message","response_failed","response_interrupted"].includes(e.event_type)))pendingIds.delete(event.request_id);
     host.innerHTML=timeline.length?timeline.map((event,index)=>{
       const isUser=event.event_type==="user_message", failed=["response_failed","response_interrupted"].includes(event.event_type);
-      const role=isUser?"steward":failed?"system":"grace";
-      const label=isUser?"You":failed?(event.event_type==="response_interrupted"?"Interrupted":"Response status"):"Grace";
+      const deferred=event.event_type==="response_deferred";
+      const role=isUser?"steward":(failed||deferred)?"system":"grace";
+      const label=isUser?"You":deferred?"Waiting for Grace":failed?(event.event_type==="response_interrupted"?"Interrupted":"Response status"):"Grace";
       const time=chatTime(event.occurred_at),duration=eventDuration(events,event);
-      const status=isUser?(pendingIds.has(event.request_id)?"Awaiting response":"Submitted"):failed?(event.event_type==="response_interrupted"?"Interrupted":"Failed"):"Completed";
-      const body=failed?`Response ${event.error_code||"unavailable"}; your message remains saved.`:event.body||"";
-      const provenance=!isUser&&!failed?`${event.model_id||"Model unavailable"}${event.provider_ref?` · ${event.provider_ref}`:""}`:"";
+      const status=isUser?(events.some((e)=>e.request_id===event.request_id&&e.event_type==="response_deferred")?"Deferred":"Awaiting response"):deferred?"Deferred":failed?(event.event_type==="response_interrupted"?"Interrupted":"Failed"):"Completed";
+      const body=deferred?`Waiting for ${event.metadata?.required_capability||"a required reasoning capability"}; your message is saved and will resume automatically.`:failed?`Response ${event.error_code||"unavailable"}; your message remains saved.`:event.body||"";
+      const provenance=!isUser&&!failed&&!deferred?`${event.model_id||"Model unavailable"}${event.provider_ref?` · ${event.provider_ref}`:""}`:"";
       const promote=isUser&&state.accountIdentity?.roles?.includes("steward")&&Number.isInteger(event.sequence);
       return `<article class="message-row ${role}${pendingIds.has(event.request_id)?" pending":""}" data-message-row="${index}" data-event-id="${esc(event.sequence??event.request_id)}"><div class="message-bubble"><div class="message-meta"><strong class="message-speaker">${label}</strong><time datetime="${esc(event.occurred_at||"")}" title="UTC ${esc(time.utc)}">${esc(time.local)}</time>${duration?`<span>${esc(duration)}</span>`:""}<span class="message-state">${esc(status)}</span>${provenance?`<span>${esc(provenance)}</span>`:""}</div><div class="message-content">${esc(body)}</div></div><details class="message-actions"><summary aria-label="More options for ${label} message" title="Message options">⋯</summary><div class="message-action-menu" role="menu"><button type="button" role="menuitem" data-message-details="${index}">View message details</button><button type="button" role="menuitem" data-message-copy="${index}">Copy message text</button><button type="button" role="menuitem" data-message-id-copy="${index}" ${event.sequence==null?"disabled":""}>Copy message ID</button>${promote?`<button type="button" role="menuitem" data-message-work-order="${index}">Create Engineering work order…</button>`:""}<button type="button" role="menuitem" disabled>Edit and resubmit — future capability</button></div></details></article>`;
     }).join(""):noData("No persisted messages in this conversation.");
-    if(state.chatInFlight||pendingIds.size){host.insertAdjacentHTML("beforeend",`<article class="message-row grace pending" aria-label="Grace is generating a response"><div class="message-bubble"><div class="message-state"><span>Grace is responding</span><span class="typing-dots" aria-hidden="true"><i class="typing-dot"></i><i class="typing-dot"></i><i class="typing-dot"></i></span></div></div></article>`);}
+    const deferredIds=new Set(events.filter((e)=>e.event_type==="response_deferred").map((e)=>e.request_id));
+    const activePending=[...pendingIds].some((id)=>!deferredIds.has(id));
+    if(state.chatInFlight||activePending){host.insertAdjacentHTML("beforeend",`<article class="message-row grace pending" aria-label="Grace is generating a response"><div class="message-bubble"><div class="message-state"><span>Grace is responding</span><span class="typing-dots" aria-hidden="true"><i class="typing-dot"></i><i class="typing-dot"></i><i class="typing-dot"></i></span></div></div></article>`);}
     $("chat-state").textContent=conversationStatus(events);
     const lastFailure=timeline.length&&["response_failed","response_interrupted"].includes(timeline[timeline.length-1].event_type)?timeline[timeline.length-1]:null;
     $("chat-error").textContent=lastFailure?.error_code||"";

@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/registry.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.10
+# Revision: 1.0.11
 # Purpose: Persist separated offices, occupants, implementations and scoped grants
 # Execution Model: Synchronous transactional PostgreSQL registry
 # Observability: Append-only authority events and office binding revisions
@@ -11,6 +11,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Allow trusted root caller to persist random token before bootstrap transaction
 # Changed: 2026-10-11 UTC | RV-M4.1-BOUND-OCCUPANT-WRITE | Require the exact office-state writer to be the currently bound resident
 # Changed: 2026-10-11 UTC | RV-M4.1-RUNTIME-OFFICE-API | Route restricted runtime office reads/writes through exact-grant database functions
+# Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Add expected-revision audited implementation-only office rebind
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: tests/test_institutional_authority.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -490,6 +491,70 @@ class AuthorityRegistry:
             raise
         except psycopg.errors.ForeignKeyViolation as exc:
             raise IdentityConflict("office, occupant or implementation does not exist") from exc
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def update_office_implementation(self, steward_token, office_id, implementation_id,
+                                     *, expected_binding_revision):
+        """Replace only an office's implementation using an audited CAS update.
+
+        The occupant and office identity are invariant. The returned prior
+        implementation can be restored through this same method using the new
+        binding revision, so stale rollback attempts fail closed.
+        """
+        if not office_id or not implementation_id:
+            raise ValueError("office and implementation identities are required")
+        if type(expected_binding_revision) is not int or expected_binding_revision < 1:
+            raise ValueError("expected binding revision must be a positive integer")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    actor = self._require(cur, steward_token, "office.manage", "institution")
+                    cur.execute("""SELECT occupant_id,implementation_id,binding_revision
+                        FROM office_bindings WHERE office_id=%s FOR UPDATE""", (office_id,))
+                    previous = cur.fetchone()
+                    if previous is None:
+                        raise IdentityConflict("office has no active binding")
+                    if previous["binding_revision"] != expected_binding_revision:
+                        raise IdentityConflict("office binding revision changed")
+                    cur.execute("""SELECT implementation_id,kind,provider_ref,revision
+                        FROM resident_implementations WHERE implementation_id=%s""",
+                        (implementation_id,))
+                    target = cur.fetchone()
+                    if target is None or target["kind"] != "model":
+                        raise IdentityConflict("target model implementation is unavailable")
+                    cur.execute("""UPDATE office_bindings SET implementation_id=%s,
+                        binding_revision=binding_revision+1,updated_at=clock_timestamp()
+                        WHERE office_id=%s AND binding_revision=%s
+                        RETURNING binding_revision""",
+                        (implementation_id, office_id, expected_binding_revision))
+                    updated = cur.fetchone()
+                    if updated is None:
+                        raise IdentityConflict("office binding revision changed")
+                    cur.execute("SELECT principal_id FROM resident_occupants WHERE occupant_id=%s",
+                                (previous["occupant_id"],))
+                    occupant = cur.fetchone()
+                    self._event(cur, event_type="office_model_implementation_changed",
+                        actor_id=actor["principal_id"],
+                        subject_id=occupant["principal_id"] if occupant else None,
+                        office_id=office_id,
+                        payload={"previous_implementation_id": previous["implementation_id"],
+                            "implementation_id": implementation_id,
+                            "previous_binding_revision": expected_binding_revision,
+                            "binding_revision": updated["binding_revision"],
+                            "provider_ref": target["provider_ref"],
+                            "implementation_revision": target["revision"]})
+                    return {"office_id": office_id,
+                        "occupant_id": previous["occupant_id"],
+                        "previous_implementation_id": previous["implementation_id"],
+                        "implementation_id": implementation_id,
+                        "previous_binding_revision": expected_binding_revision,
+                        "binding_revision": updated["binding_revision"]}
+        except (AuthorityDenied, IdentityConflict, ValueError):
+            raise
+        except psycopg.errors.ForeignKeyViolation as exc:
+            raise IdentityConflict("target implementation does not exist") from exc
         except Exception as exc:
             raise RegistryUnavailable(type(exc).__name__) from None
 

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.8
+# Revision: 1.0.11
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -193,6 +193,83 @@ class ResidentConversationTests(unittest.TestCase):
         self.assertEqual(len(self.provider_a.calls), 1)
         self.assertEqual(len(self.service.history(self.steward_token,
             first["conversation_id"])["events"]), 2)
+
+    def test_complex_request_is_durably_deferred_and_resumes_when_80b_ready(self):
+        from riverview_core.local_reasoning_provider import ProviderReadiness
+        from riverview_core.resident_execution.model_router import GraceModelRouter
+        cpu = _ChatProvider("cpu-autonomic", "c" * 64, "Acknowledged; I will resume this request.")
+        vision = _ChatProvider("vision-interim", "d" * 64)
+        reasoner = _ChatProvider("reasoning-80b", "e" * 64, "The verified analysis is complete.")
+        cpu.readiness = lambda: ProviderReadiness("READY", cpu.model, "ready")
+        vision.readiness = lambda: ProviderReadiness("READY", vision.model, "ready")
+        reasoner.state = "MODEL_BUSY"
+        reasoner.readiness = lambda: ProviderReadiness(reasoner.state, reasoner.model,
+                                                       reasoner.state.lower())
+        router = GraceModelRouter(autonomic=cpu, vision=vision, reasoning=reasoner)
+        implementation_id = "implementation:router:" + uuid4().hex
+        self.registry.create_implementation(self.steward_token, implementation_id,
+            kind="model", provider_ref=router.provider_id, revision=router.model_sha256)
+        self.registry.update_office_implementation(self.steward_token, self.office_id,
+            implementation_id, expected_binding_revision=1)
+        self.service.providers = {router.provider_id: router}
+
+        deferred = self.service.send(self.steward_token,
+            message="Analyze the documented alternatives and recommend a plan.",
+            client_message_id=str(uuid4()))
+        self.assertEqual(deferred["status"], "deferred")
+        self.assertEqual(self.service.response_status(self.steward_token,
+            deferred["conversation_id"], deferred["request_id"])["status"], "deferred")
+        self.assertEqual(len(self.store.deferred_turns()), 1)
+        self.assertEqual(self.store.recover_pending(), 0,
+                         "startup recovery must not mark deliberately deferred work interrupted")
+        self.assertEqual(len(self.store.deferred_turns()), 1)
+        self.assertEqual(reasoner.calls, [])
+
+        reasoner.state = "READY"
+        self.assertEqual(self.service.resume_deferred(), 1)
+        final = self.service.response_status(self.steward_token,
+            deferred["conversation_id"], deferred["request_id"])
+        self.assertEqual(final["status"], "completed")
+        history = self.service.history(self.steward_token, deferred["conversation_id"])
+        self.assertEqual(history["events"][-1]["body"], "The verified analysis is complete.")
+        self.assertTrue(history["events"][-1]["metadata"]["resumed_deferred_request"])
+        self.assertEqual(len([event for event in history["events"]
+                              if event["event_type"] == "user_message"]), 1)
+
+    def test_deferred_request_does_not_resume_after_exact_send_grant_revocation(self):
+        from psycopg import sql
+        from riverview_core.local_reasoning_provider import ProviderReadiness
+        from riverview_core.resident_execution.model_router import GraceModelRouter
+        cpu = _ChatProvider("cpu-autonomic", "c" * 64)
+        vision = _ChatProvider("vision-interim", "d" * 64)
+        reasoner = _ChatProvider("reasoning-80b", "e" * 64)
+        cpu.readiness = lambda: ProviderReadiness("READY", cpu.model, "ready")
+        vision.readiness = lambda: ProviderReadiness("READY", vision.model, "ready")
+        reasoner.state = "MODEL_BUSY"
+        reasoner.readiness = lambda: ProviderReadiness(reasoner.state, reasoner.model,
+                                                       reasoner.state.lower())
+        router = GraceModelRouter(autonomic=cpu, vision=vision, reasoning=reasoner)
+        implementation_id = "implementation:router:" + uuid4().hex
+        self.registry.create_implementation(self.steward_token, implementation_id,
+            kind="model", provider_ref=router.provider_id, revision=router.model_sha256)
+        self.registry.update_office_implementation(self.steward_token, self.office_id,
+            implementation_id, expected_binding_revision=1)
+        self.service.providers = {router.provider_id: router}
+        deferred = self.service.send(self.steward_token,
+            message="Analyze the documented alternatives and recommend a plan.",
+            client_message_id=str(uuid4()))
+        with self.admin.cursor() as cur:
+            cur.execute(sql.SQL("""SELECT grant_id FROM {}.authority_grants
+                WHERE principal_id=%s AND action=%s AND scope_ref=%s AND revoked_at IS NULL""").format(
+                    sql.Identifier(self.schema)),
+                (self.steward_id, self.service.SEND_ACTION, "office:" + self.office_id))
+            grant_id = cur.fetchone()[0]
+        self.registry.revoke_grant(self.steward_token, grant_id)
+        reasoner.state = "READY"
+        self.assertEqual(self.service.resume_deferred(), 0)
+        self.assertEqual(reasoner.calls, [])
+        self.assertEqual(self.service.response_status(self.steward_token,
+            deferred["conversation_id"], deferred["request_id"])["status"], "deferred")
 
     def test_user_event_is_committed_before_inference_and_assistant_before_ack(self):
         message = "fresh-connection durability checkpoint"

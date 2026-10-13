@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.4
+# Revision: 1.3.5
 # Purpose: Serve account-authenticated operational projections and existing bounded APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -24,6 +24,7 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING | Add explicit conversation-to-objective intake gate
 # Changed: 2026-10-13 UTC | RV-LEDGER-GRAPH-POSITION | Read live execution position only from persisted canonical ledger identity
 # Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Permit only explicit allowlisted OCTO1 model URLs when an opt-in service flag is set
+# Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Add opt-in readiness router and deferred-turn resumption loop
 # Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING-DENIALS | Preserve conversation authorization and unavailable distinctions at promotion boundary
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Expose only the scoped verification endpoint for local bootstrap challenges
 # Contracts: docs/components/STATUS_DASHBOARD.md
@@ -895,7 +896,8 @@ def make_handler():
                             self._conversation_authority(),
                             message=data["message"], conversation_id=data.get("conversation_id"),
                             client_message_id=data.get("client_message_id"))
-                        status = 201 if result.get("status") == "completed" else 503
+                        status = (201 if result.get("status") == "completed" else
+                                  202 if result.get("status") == "deferred" else 503)
                         self._json(status, result, request_id)
                     except Exception as exc:
                         self._conversation_error(exc, request_id)
@@ -1178,12 +1180,63 @@ def main():
                 chat_prefix=os.environ.get("RIVERVIEW_GRACE_CHAT_PREFIX", ""),
                 allow_approved_private_lan=(
                     os.environ.get("RIVERVIEW_GRACE_ALLOW_APPROVED_OCTO1") == "1"))
+            providers = {provider.provider_id: provider}
+            routed = os.environ.get("RIVERVIEW_GRACE_ENABLE_MODEL_ROUTER") == "1"
+            if routed:
+                if os.environ.get("RIVERVIEW_GRACE_ALLOW_APPROVED_OCTO1") != "1":
+                    raise ValueError("model router requires the existing explicit OCTO1 opt-in")
+                authority_schema = os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority")
+                with psycopg.connect(dsn, connect_timeout=2) as migration_probe, migration_probe.cursor() as cur:
+                    cur.execute("""SELECT
+                        EXISTS(SELECT 1 FROM information_schema.tables
+                            WHERE table_schema=%s AND table_name='schema_migrations') AS runtime,
+                        EXISTS(SELECT 1 FROM information_schema.tables
+                            WHERE table_schema=%s AND table_name='schema_migrations') AS authority""",
+                        (schema, authority_schema))
+                    migration_tables = cur.fetchone()
+                    if not migration_tables[0] or not migration_tables[1]:
+                        raise RuntimeError("model routing migrations are not initialized")
+                    cur.execute("SELECT version FROM " + psycopg.sql.Identifier(schema).as_string(cur.connection)
+                                + ".schema_migrations WHERE version=%s",
+                                ("0004_deferred_conversation_responses",))
+                    if cur.fetchone() is None:
+                        raise RuntimeError("resident conversation deferral migration is not applied")
+                    cur.execute("SELECT version FROM " + psycopg.sql.Identifier(authority_schema).as_string(cur.connection)
+                                + ".schema_migrations WHERE version=%s",
+                                ("0005_audited_model_rebinding",))
+                    if cur.fetchone() is None:
+                        raise RuntimeError("authority model rebinding migration is not applied")
+                from riverview_core.resident_execution.model_router import GraceModelRouter
+                reasoning = LocalReasoningProvider(
+                    "http://192.168.1.160:8080/v1",
+                    "/root/Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf",
+                    os.environ["RIVERVIEW_GRACE_80B_MODEL_SHA256"], timeout_seconds=25,
+                    allow_approved_private_lan=True)
+                vision = LocalReasoningProvider(
+                    "http://192.168.1.160:18080/v1",
+                    "/mnt/model-storage/vision/Qwen3-VL-30B-A3B/Huihui-Qwen3-VL-30B-A3B-Instruct-abliterated.i1-IQ3_XS.gguf",
+                    os.environ["RIVERVIEW_GRACE_30B_MODEL_SHA256"], timeout_seconds=25,
+                    allow_approved_private_lan=True)
+                router = GraceModelRouter(autonomic=provider, vision=vision,
+                                          reasoning=reasoning)
+                providers = {router.provider_id: router}
             conversation_service = ResidentConversationService(
                 store=conversation_store, registry=authority_registry,
                 authorizer=ExactGrantAuthorizer(authority_schema), office_id=chat_office_id,
                 resident_credential=resident_token,
-                providers={provider.provider_id: provider})
+                providers=providers)
             conversation_store.recover_pending()
+            if routed:
+                def resume_deferred():
+                    while True:
+                        try:
+                            conversation_service.resume_deferred(limit=10)
+                        except Exception as exc:
+                            print(json.dumps({"event": "grace_deferred_resume_cycle_failed",
+                                              "error_type": type(exc).__name__}), flush=True)
+                        threading.Event().wait(5)
+                threading.Thread(target=resume_deferred,
+                                 name="grace-deferred-resumption", daemon=True).start()
         except Exception as exc:
             print(json.dumps({"event": "resident_conversation_start_failed",
                               "error_type": type(exc).__name__}), flush=True)

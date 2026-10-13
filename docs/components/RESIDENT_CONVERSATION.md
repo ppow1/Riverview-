@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.9
+File Revision: 1.1.11
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -25,6 +25,8 @@ Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Record diagnosed credentia
 Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Record Camrui live Firefox inference, PostgreSQL durability, and dashboard restart recovery
 Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Connect linked account Steward sessions to existing exact conversation grants
 Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER-CONTRACT | Document explicit, exact-grant promotion of a persisted user message
+Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Specify opt-in model routing, durable deferral and reversible model binding
+Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Constrain CPU fallback to non-factual acknowledgements and clarify readiness unknowns
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
@@ -212,3 +214,52 @@ not formal Steward acceptance and does not close full Component Definition of Do
 obligations. Rollback consists of restoring the
 previous `current` symlink target, removing only the new 40 drop-in, daemon-reloading, and
 restarting the dashboard; preserve the candidate release and database state.
+
+## Multi-stage reasoning and reversible model binding (development increment)
+
+`GraceModelRouter` (`resident_execution/model_router.py`) is an opt-in provider
+behind the existing office implementation binding. The binding continues to pin
+the router implementation revision; each assistant event records the provider's
+actual served model and the selected stage. The router selects the configured
+80B for substantive requests, a ready 30B for short provisional text turns, and
+the 0.6B for constrained greeting/status acknowledgements when 30B is
+unavailable. Other questions defer or route to 80B; the autonomic model is not
+used to invent factual answers. The
+current browser conversation payload is text-only; this does not commission
+image upload or prove the 30B visual request path.
+
+When a substantive turn cannot use the 80B, the user message and one
+`response_deferred` event remain in the conversation ledger. The opt-in dashboard
+resumption loop polls the durable ledger, rechecks the sender's exact grant and
+the original office implementation revision, and appends the response only after
+the required provider is ready. Retries do not create a second user message.
+Apply resident-execution migration `0004_deferred_conversation_responses.sql`
+before enabling this code. The loop is started only with
+`RIVERVIEW_GRACE_ENABLE_MODEL_ROUTER=1`; the setting additionally requires the
+30B and 80B model SHA-256 configuration values. The existing 0.6B endpoint/model/
+digest settings remain required. OCTO1 access remains gated by the explicit
+`RIVERVIEW_GRACE_ALLOW_APPROVED_OCTO1=1` setting.
+
+The readiness probe can distinguish `READY`, endpoint-reported `MODEL_LOADING`,
+and this process's own `MODEL_BUSY` state. An unreachable endpoint is
+`UNAVAILABLE`; this HTTP signal alone cannot distinguish an OCTO1 host that is
+powered off from one booting or a model still starting. No power action is taken.
+The documented Wake-on-LAN and SSH shutdown procedure remains a separately
+authorized operational capability and is not invoked by this router.
+
+`AuthorityRegistry.update_office_implementation` changes only the model
+implementation on an existing office binding. It requires the existing exact
+`office.manage` grant, an expected binding revision, and an existing model
+implementation. It preserves office and occupant identity, increments the
+binding revision, and appends `office_model_implementation_changed`. Rollback is
+the same operation targeting the returned predecessor implementation while
+passing the new current binding revision; stale rollback attempts are rejected.
+Authority migration `0005_audited_model_rebinding.sql` adds the event type. These
+migrations and binding changes have not been applied to production.
+
+This is development implementation and isolated-test scope. Production routing
+requires a reviewed migration and service configuration plan, the Steward's
+explicit deployment approval, an authorized Steward call to rebind the office,
+and browser evidence showing the served 80B model plus persistent conversation
+history. No service was restarted and no office binding was changed by this
+increment.
