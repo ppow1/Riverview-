@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.6
+# Revision: 1.0.7
 # Purpose: Persist and serve office-bound, authorized Grace conversations
 # Execution Model: Authenticated request-driven completion with durable event history
 # Observability: Redacted response status and append-only PostgreSQL conversation events
@@ -14,6 +14,7 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Reuse the authenticated linked Steward principal for exact conversation grant checks
 # Changed: 2026-10-13 UTC | RV-GRACE-MODEL-PROVENANCE | Return and persist the actual served model plus provider stage metadata
 # Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Persist deferred requests for readiness-driven resumption
+# Changed: 2026-10-14 UTC | RV-GRACE-ROUTING-DIAGNOSTICS-001 | Persist sanitized per-provider attempts for completed, failed, deferred and resumed turns
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: tests/test_resident_conversation.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -288,7 +289,8 @@ class ConversationStore:
 
     @_serialized_store_operation
     def defer_turn(self, conversation_id, request_id, *, occupant, implementation,
-                   provider_ref, model_id, required_capability, readiness_state):
+                   provider_ref, model_id, required_capability, readiness_state,
+                   metadata=None):
         """Append one durable deferral marker; the original user message is retained."""
         with self.db.transaction(), self.db.cursor() as cur:
             self._path(cur)
@@ -316,7 +318,8 @@ class ConversationStore:
                  occupant.get("occupant_id"), implementation.get("implementation_id"),
                  implementation.get("implementation_revision"), provider_ref, model_id,
                  json.dumps({"required_capability": required_capability,
-                             "readiness_state": readiness_state}, sort_keys=True)))
+                             "readiness_state": readiness_state,
+                             **(metadata or {})}, sort_keys=True)))
 
     @_serialized_store_operation
     def deferred_turns(self, *, limit=20):
@@ -515,7 +518,12 @@ class ResidentConversationService:
                     "provisional": bool(getattr(completion, "provisional", False)),
                     "prompt_tokens": getattr(completion, "prompt_tokens", None),
                     "completion_tokens": getattr(completion, "completion_tokens", None),
-                    "finish_reason": getattr(completion, "finish_reason", None)})
+                    "finish_reason": getattr(completion, "finish_reason", None),
+                    "provider_attempts": list(getattr(completion, "provider_attempts", ())),
+                    "final_served_provider": getattr(completion, "provider_id", None) or
+                        (getattr(provider, "provider_id", provider_ref) if not
+                         getattr(completion, "provider_attempts", ()) else
+                         getattr(completion, "provider_attempts", ())[-1].get("selected_provider"))})
             return {"schema_version": "rv.resident.response.v1", "status": "completed",
                     "conversation_id": conversation_id, "request_id": request_id,
                     "response": completion.content,
@@ -534,7 +542,10 @@ class ResidentConversationService:
                     occupant=binding, implementation=implementation,
                     provider_ref=provider_ref, model_id=implementation.get("model_id"),
                     required_capability="grace.reasoning.80b",
-                    readiness_state=exc.args[0] if exc.args else "UNAVAILABLE")
+                    readiness_state=exc.args[0] if exc.args else "UNAVAILABLE",
+                    metadata={"provider_attempts": list(exc.attempts),
+                              "fallback_reason": (exc.attempts[-1].get("fallback_reason")
+                                                  if exc.attempts else None)})
                 return {"schema_version": "rv.resident.response.v1", "status": "deferred",
                     "conversation_id": conversation_id, "request_id": request_id,
                     "required_capability": "grace.reasoning.80b", "duplicate": False}
@@ -548,7 +559,9 @@ class ResidentConversationService:
             else:
                 code = "model_unavailable"
             return self._failed(conversation_id, request_id, binding, implementation,
-                                provider_ref, code)
+                                provider_ref, code, metadata={
+                                    "provider_attempts": list(getattr(exc, "attempts", ())),
+                                    "final_served_provider": None})
 
     def resume_deferred(self, *, limit=20):
         """Retry persisted requests only while exact grants and original binding remain valid."""
@@ -591,7 +604,10 @@ class ResidentConversationService:
                         "provisional": completion.provisional,
                         "resumed_deferred_request": True,
                         "prompt_tokens": completion.prompt_tokens,
-                        "completion_tokens": completion.completion_tokens})
+                        "completion_tokens": completion.completion_tokens,
+                        "provider_attempts": list(getattr(completion, "provider_attempts", ())),
+                        "final_served_provider": (getattr(completion, "provider_attempts", ())[-1].get("selected_provider")
+                            if getattr(completion, "provider_attempts", ()) else row["provider_ref"])})
                 resumed += 1
             except ConversationDenied:
                 # A revoked exact grant pauses work without exposing chat content.
@@ -603,12 +619,13 @@ class ResidentConversationService:
         return resumed
 
     def _failed(self, conversation_id, request_id, binding, implementation,
-                provider_ref, error_code):
+                provider_ref, error_code, *, metadata=None):
         try:
             self.store.finish_turn(conversation_id, request_id,
                 event_type="response_failed", occupant=binding,
                 implementation=implementation, provider_ref=provider_ref,
-                model_id=implementation.get("model_id"), error_code=error_code)
+                model_id=implementation.get("model_id"), error_code=error_code,
+                metadata=metadata)
         except ConversationUnavailable:
             raise
         return {"schema_version": "rv.resident.response.v1", "status": "unavailable",

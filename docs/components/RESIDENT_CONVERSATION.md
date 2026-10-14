@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.12
+File Revision: 1.1.13
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -27,7 +27,9 @@ Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Connect linked account St
 Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER-CONTRACT | Document explicit, exact-grant promotion of a persisted user message
 Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Specify opt-in model routing, durable deferral and reversible model binding
 Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Constrain CPU fallback to non-factual acknowledgements and clarify readiness unknowns
+Changed: 2026-10-14 UTC | RV-GRACE-ROUTING-DIAGNOSTICS-001 | Prefer 80B outside narrow provisional class; persist bounded per-attempt metadata and use stage-specific timeouts
 Changed: 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Verify runtime-readable migration and active authority binding without reading protected migration ledgers
+Changed: 2026-10-14 UTC | RV-GRACE-ROUTING-INTEGRATION-001 | Reconcile merged startup-readiness and routing-diagnostics requirements
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
@@ -66,7 +68,11 @@ authorized.
 | `GET /api/v1/resident/conversations/{conversation_id}` | Retrieve the latest 100 durable events | `rv.resident.conversation.v1` |
 | `GET /api/v1/resident/conversations/{conversation_id}/responses/{request_id}` | Inspect one turn's durable response state | `rv.resident.response.v1` |
 
-`client_message_id` is a UUID used as an idempotency key. Repeating a submitted key never starts another inference call. Messages are limited to 8192 UTF-8 bytes. Conversation context is assembled from at most the 16 newest persisted user/assistant messages and the fixed office-resident system instruction. The resident sends at most 64 output tokens per turn and allows 120 seconds for inference. The serialized provider request must fit 32 KiB. If it does not, the user message remains recorded and the turn is marked `context_too_large`; required context is not silently truncated. Older history is visible through the bounded history API but is outside the explicitly stated recent-context policy.
+`client_message_id` is a UUID used as an idempotency key. Repeating a submitted key never starts another inference call. Messages are limited to 8192 UTF-8 bytes. Conversation context is assembled from at most the 16 newest persisted user/assistant messages and the fixed office-resident system instruction. The resident sends at most 64 output tokens per turn. Router request timeouts are capped at 60 seconds for 80B reasoning, 15 seconds for provisional 30B, and 35 seconds for a brief 0.6B autonomic response; a lower caller-supplied bound remains effective. These are provider socket timeouts, not a guarantee of a hard end-to-end deadline. The serialized provider request must fit 32 KiB. If it does not, the user message remains recorded and the turn is marked `context_too_large`; required context is not silently truncated. Older history is visible through the bounded history API but is outside the explicitly stated recent-context policy.
+
+Routing sends exact acknowledgments/status greetings to the 0.6B when ready. Only a short allowlisted definition/simple-fact pattern may use the 30B as a provisional response. All other user requests default to the 80B when its readiness probe confirms the pinned model; if it is unavailable or busy, the original request is durably deferred for the 80B. The 30B is not an automatic substitute for substantive reasoning. A 30B inference failure may produce a constrained 0.6B acknowledgment only when that provider is ready; otherwise the turn remains deferred.
+
+Assistant event metadata includes an allowlisted `provider_attempts` list with provider ID, reasoning stage, UTC start/end timestamps, elapsed milliseconds, outcome, bounded provider error code, fallback reason, and final served provider. It contains no prompt, completion text, credential, or raw exception. Deferred and failed responses retain the attempt diagnostics known at that point. An HTTP client disconnect does not cancel a synchronous provider call: the server finishes and persists a successful result before attempting to write the response, so a browser refresh can recover it from conversation history. The browser may report a closed request while the durable response is subsequently committed; this is not evidence by itself that the model provider failed.
 
 Each dashboard request runs on a bounded request thread. The conversation store and its exact-grant authorizer share one long-lived psycopg connection, so every operation on that connection is protected by a reentrant connection lock and a transaction-scope guard. The office-binding registry connection has a separate lock around its runtime binding reads. Locks are held only during database operations; model inference for distinct conversations remains concurrent. A database operation that returns with a non-idle transaction is rolled back and reported as unavailable, never acknowledged as successful. User-event persistence completes before inference starts. A successful API response is returned only after the assistant event's transaction exits; both events are expected to be visible from a fresh independent PostgreSQL connection at that point.
 

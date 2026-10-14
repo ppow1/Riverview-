@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.11
+# Revision: 1.0.12
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -235,6 +235,55 @@ class ResidentConversationTests(unittest.TestCase):
         self.assertTrue(history["events"][-1]["metadata"]["resumed_deferred_request"])
         self.assertEqual(len([event for event in history["events"]
                               if event["event_type"] == "user_message"]), 1)
+
+    def test_failed_30b_fallback_diagnostics_are_durable_and_redacted(self):
+        from riverview_core.local_reasoning_provider import LocalReasoningUnavailable, ProviderReadiness
+        from riverview_core.resident_execution.model_router import GraceModelRouter
+        cpu = _ChatProvider("cpu-autonomic", "c" * 64, "Acknowledged; I do not know from the supplied evidence.")
+        vision = _ChatProvider("vision-interim", "d" * 64)
+        reasoner = _ChatProvider("reasoning-80b", "e" * 64)
+        cpu.provider_id = "test.cpu"
+        vision.provider_id = "test.vision"
+        reasoner.provider_id = "test.reasoner"
+        for provider in (cpu, vision, reasoner):
+            provider.readiness = lambda p=provider: ProviderReadiness("READY", p.model, "ready")
+        def fail_vision(messages, *, max_tokens, expected_revision, timeout_seconds=120):
+            self.assertLessEqual(timeout_seconds, 15)
+            raise LocalReasoningUnavailable("endpoint_timeout")
+        vision.complete_chat = fail_vision
+        router = GraceModelRouter(autonomic=cpu, vision=vision, reasoning=reasoner)
+        implementation_id = "implementation:router-fallback:" + uuid4().hex
+        self.registry.create_implementation(self.steward_token, implementation_id,
+            kind="model", provider_ref=router.provider_id, revision=router.model_sha256)
+        self.registry.update_office_implementation(self.steward_token, self.office_id,
+            implementation_id, expected_binding_revision=1)
+        self.service.providers = {router.provider_id: router}
+
+        result = self.service.send(self.steward_token, message="What is a river?",
+                                   client_message_id=str(uuid4()))
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["model"], "cpu-autonomic")
+        history = self.service.history(self.steward_token, result["conversation_id"])
+        final = history["events"][-1]
+        attempts = final["metadata"]["provider_attempts"]
+        self.assertEqual([item["selected_provider"] for item in attempts],
+                         ["test.vision", "test.cpu"])
+        self.assertEqual(attempts[0]["outcome"], "failed")
+        self.assertEqual(attempts[0]["error_code"], "endpoint_timeout")
+        self.assertEqual(attempts[0]["reasoning_stage"], "interim_30b")
+        self.assertEqual(attempts[0]["fallback_reason"], "interim_30b_provider_failure")
+        self.assertEqual(final["metadata"]["final_served_provider"], "test.cpu")
+        self.assertTrue(all(item["started_at"] and item["ended_at"] and
+                            item["elapsed_ms"] >= 0 for item in attempts))
+        encoded = json.dumps(final["metadata"], sort_keys=True)
+        self.assertNotIn("What is a river?", encoded)
+        import psycopg
+        from psycopg import sql
+        with psycopg.connect(DSN, autocommit=True) as fresh:
+            stored = fresh.execute(sql.SQL("""SELECT metadata FROM {}.resident_conversation_events
+                WHERE conversation_id=%s AND event_type='assistant_message'""").format(
+                    sql.Identifier(self.schema)), (result["conversation_id"],)).fetchone()[0]
+        self.assertEqual(stored["final_served_provider"], "test.cpu")
 
     def test_deferred_request_does_not_resume_after_exact_send_grant_revocation(self):
         from psycopg import sql
