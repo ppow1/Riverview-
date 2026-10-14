@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.13
+# Revision: 1.0.14
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -18,6 +18,7 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Verify linked Steward principal uses exact grants without legacy secret
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Exercise linked-account API session, persistence and denial through dashboard routes
 # Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Verify the two pending request identities resume only through an explicitly authorized router transition
+# Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-CAPABILITY-001 | Regress later-turn misrouting and check sanitized retry telemetry
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: python3 -m unittest tests.test_resident_conversation
 # History: Git and .riverview-backups/manifest.jsonl
@@ -355,8 +356,10 @@ class ResidentConversationTests(unittest.TestCase):
             def supports_capability(_self, capability):
                 return capability == "grace.reasoning.80b"
 
-            def complete_chat(_self, messages, *, max_tokens, expected_revision):
+            def complete_chat(_self, messages, *, max_tokens, expected_revision,
+                              required_capability=None):
                 _self.calls += 1
+                self.assertEqual(required_capability, "grace.reasoning.80b")
                 self.assertEqual(expected_revision, next_revision)
                 return ChatCompletion("Recovered using the ready reasoning route.",
                     "Qwen3-Next-80B-test-model", 18, 8, "stop",
@@ -425,6 +428,86 @@ class ResidentConversationTests(unittest.TestCase):
                                  for event in history["events"]), 1)
             self.assertEqual(self.service.response_status(self.steward_token,
                 result["conversation_id"], request_id)["status"], "completed")
+
+    def test_deferred_80b_resumption_ignores_later_simple_turn_and_logs_sanitized_attempts(self):
+        from riverview_core.local_reasoning_provider import (
+            ChatCompletion, LocalReasoningUnavailable, ProviderReadiness)
+        from riverview_core.resident_execution.model_router import GraceModelRouter
+
+        class Provider:
+            def __init__(_self, model, stage, state="READY"):
+                _self.model = model
+                _self.provider_id = "test." + stage
+                _self.model_sha256 = hashlib.sha256(model.encode()).hexdigest()
+                _self.state = state
+                _self.calls = []
+                _self.failure = None
+
+            def readiness(_self):
+                return ProviderReadiness(_self.state, _self.model,
+                                         "provider_slot_occupied" if _self.state == "MODEL_BUSY"
+                                         else _self.state.lower())
+
+            def complete_chat(_self, messages, *, max_tokens, expected_revision,
+                              timeout_seconds=120):
+                _self.calls.append(messages)
+                if _self.failure:
+                    raise LocalReasoningUnavailable(_self.failure)
+                return ChatCompletion("synthetic verified response", _self.model,
+                                      24, 4, "stop")
+
+        cpu = Provider("qwen-0.6b-test", "autonomic")
+        vision = Provider("huihui-30b-test", "vision")
+        reasoning = Provider("qwen-80b-test", "reasoning", state="MODEL_BUSY")
+        router = GraceModelRouter(autonomic=cpu, vision=vision, reasoning=reasoning)
+        implementation_id = "implementation:test:deferred-router:" + uuid4().hex
+        self.registry.create_implementation(self.steward_token, implementation_id,
+            kind="model", provider_ref=router.provider_id, revision=router.model_sha256)
+        self.registry.update_office_implementation(self.steward_token, self.office_id,
+            implementation_id, expected_binding_revision=1)
+        self.service.providers = {router.provider_id: router}
+
+        earlier_context = "What is 1 + 1?"
+        prior = self.service.send(self.steward_token, message=earlier_context,
+                                  client_message_id=str(uuid4()))
+        original = "Analyze the original complex engineering objective."
+        deferred = self.service.send(self.steward_token, message=original,
+            conversation_id=prior["conversation_id"], client_message_id=str(uuid4()))
+        self.assertEqual(deferred["status"], "deferred")
+        later = self.service.send(self.steward_token,
+            message="What is 2 + 2?", conversation_id=deferred["conversation_id"],
+            client_message_id=str(uuid4()))
+        self.assertEqual(later["status"], "completed")
+        self.assertEqual(len(vision.calls), 2)
+        self.assertEqual(reasoning.calls, [])
+
+        reasoning.state = "READY"
+        reasoning.failure = "endpoint_timeout"
+        with self.assertLogs("riverview_core.resident_execution.conversation",
+                             level="WARNING") as captured:
+            self.assertEqual(self.service.resume_deferred(), 0)
+        self.assertEqual(len(reasoning.calls), 1)
+        self.assertIn("endpoint_timeout", "\n".join(captured.output))
+        self.assertNotIn(original, "\n".join(captured.output))
+        self.assertNotIn("What is 2 + 2?", "\n".join(captured.output))
+
+        reasoning.failure = None
+        self.assertEqual(self.service.resume_deferred(), 1)
+        self.assertEqual(len(reasoning.calls), 2)
+        sent_messages = reasoning.calls[-1]
+        self.assertEqual(sent_messages[-1]["role"], "user")
+        self.assertEqual(sent_messages[-1]["content"], original)
+        self.assertIn(earlier_context, [message["content"] for message in sent_messages])
+        self.assertNotIn("What is 2 + 2?", [message["content"] for message in sent_messages])
+        history = self.service.history(self.steward_token, deferred["conversation_id"])
+        original_terminal = [event for event in history["events"]
+            if event["request_id"] == deferred["request_id"]
+            and event["event_type"] == "assistant_message"]
+        self.assertEqual(len(original_terminal), 1)
+        self.assertEqual(original_terminal[0]["model_id"], "qwen-80b-test")
+        self.assertEqual(original_terminal[0]["metadata"]["required_capability"],
+                         "grace.reasoning.80b")
+        self.assertEqual(original_terminal[0]["metadata"]["reasoning_stage"], "reasoning")
 
     def test_unmarked_or_incompatible_router_upgrade_cannot_resume_deferred_request(self):
         from riverview_core.local_reasoning_provider import ChatCompletion

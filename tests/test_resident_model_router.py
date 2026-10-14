@@ -2,12 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.4
-# Purpose: Verify primary 80B routing, bounded fallback, and sanitized attempt provenance
+# Revision: 1.0.5
+# Purpose: Verify primary 80B routing, capability-pinned recovery, bounded fallback and diagnostics
 # Execution Model: Deterministic provider doubles; no database or model endpoint
 # Observability: Assert selected provider and served-model provenance
 # Authority: Router selection does not authorize conversation or execution
 # Contracts: src/riverview_core/resident_execution/model_router.py
+# Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-CAPABILITY-001 | Verify capability-pinned routing despite later simple history
 # =============================================================================
 """Focused tests for Grace's readiness-aware three-stage router."""
 
@@ -106,6 +107,37 @@ class GraceModelRouterTests(unittest.TestCase):
         self.assertEqual(result.served_model, "qwen-80b")
         self.assertEqual(result.reasoning_stage, "reasoning")
         self.assertFalse(result.provisional)
+
+    def test_deferred_80b_capability_overrides_later_simple_conversation_turn(self):
+        messages = [
+            {"role": "user", "content": "Analyze the original complex engineering objective."},
+            {"role": "assistant", "content": "The request is deferred."},
+            {"role": "user", "content": "What is 2 + 2?"},
+            {"role": "assistant", "content": "4."},
+            {"role": "user", "content": "Analyze the original complex engineering objective."},
+        ]
+        result = self.router.complete_chat(messages, max_tokens=64,
+            expected_revision=self.router.model_sha256,
+            required_capability="grace.reasoning.80b")
+        self.assertEqual(result.reasoning_stage, "reasoning")
+        self.assertEqual(result.served_model, "qwen-80b")
+        self.assertEqual(len(self.reasoner.calls), 1)
+        self.assertEqual(self.vision.calls, [])
+        self.assertEqual(self.cpu.calls, [])
+
+    def test_deferred_80b_does_not_fall_back_when_reasoner_is_unavailable(self):
+        self.reasoner.state = "MODEL_BUSY"
+        with self.assertRaises(ReasoningDeferred) as caught:
+            self.router.complete_chat([
+                {"role": "user", "content": "What is 2 + 2?"}],
+                max_tokens=64, expected_revision=self.router.model_sha256,
+                required_capability="grace.reasoning.80b")
+        self.assertEqual(caught.exception.args[0], "MODEL_BUSY")
+        self.assertEqual(caught.exception.attempts[0]["selected_model"], "qwen-80b")
+        self.assertEqual(caught.exception.attempts[0]["outcome"], "deferred")
+        self.assertEqual(self.reasoner.calls, [])
+        self.assertEqual(self.vision.calls, [])
+        self.assertEqual(self.cpu.calls, [])
 
     def test_router_binding_revision_is_mandatory(self):
         with self.assertRaises(LocalReasoningUnavailable):
