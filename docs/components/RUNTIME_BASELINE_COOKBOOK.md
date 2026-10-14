@@ -1,6 +1,6 @@
 # Riverview~ runtime baseline troubleshooting and recovery
 
-**Document Revision:** 1.0.9
+**Document Revision:** 1.0.10
 **Component:** RUNTIME-BASELINE
 **Repair task:** RV-M1.1-011
 **Task:** RV-M1.1-001
@@ -141,8 +141,20 @@ The later M1.3/M2.4/M3.2 components must supply institutional event persistence,
 continuous monitoring and notification/resume contracts; this commissioning CLI
 does not substitute for them.
 
+## Reviewed Bash script packaging exception
+
+The full-source package includes `scripts/run_supervised_grace_execution.sh`,
+which requires Bash (`pipefail`, `[[ ... ]]`, and the `=~` conditional operator).
+The package builder permits its exact path only with the exact
+`#!/usr/bin/env bash` shebang. It still rejects CR bytes, NUL bytes, and missing
+final LF. Every other `.sh` path must use `#!/bin/sh`; a renamed or additional
+Bash script fails closed. The package verifier reports the selected interpreter
+for every packaged shell file. Run `bash -n` for this runner before staging a
+release. Its non-TTY guard can be checked without invoking privileged dispatch.
+
 ## Revision history
 
+- 1.0.10: Permit and independently verify the exact supervised runner's Bash interpreter without relaxing checks for other scripts.
 - 1.0.5: Record proven systemd credential ownership mismatch, safe predicate split and scoped broker usage; predecessor `.riverview-backups/20261010T142904528427Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md`.
 - 1.0.9: Repair collector command formatting and include the required output argument; predecessor recorded in `.riverview-backups/manifest.jsonl` under RV-M1.1-011.
 - 1.0.8: Document required collector output argument and align optional SSH note with owner-authorized local administration; predecessor recorded in `.riverview-backups/manifest.jsonl` under RV-M1.1-011.

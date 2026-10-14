@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.12
+File Revision: 1.1.13
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -28,6 +28,8 @@ Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER-CONTRACT | Document ex
 Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Specify opt-in model routing, durable deferral and reversible model binding
 Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Constrain CPU fallback to non-factual acknowledgements and clarify readiness unknowns
 Changed: 2026-10-14 UTC | RV-GRACE-ROUTING-DIAGNOSTICS-001 | Prefer 80B outside narrow provisional class; persist bounded per-attempt metadata and use stage-specific timeouts
+Changed: 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Verify runtime-readable migration and active authority binding without reading protected migration ledgers
+Changed: 2026-10-14 UTC | RV-GRACE-ROUTING-INTEGRATION-001 | Reconcile merged startup-readiness and routing-diagnostics requirements
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
@@ -245,6 +247,18 @@ before enabling this code. The loop is started only with
 digest settings remain required. OCTO1 access remains gated by the explicit
 `RIVERVIEW_GRACE_ALLOW_APPROVED_OCTO1=1` setting.
 
+At startup, the dashboard runtime reads only the deferred-response migration
+marker in its own `riverview_dev` schema. It does not inspect
+`riverview_authority.schema_migrations`, whose ledger remains unreadable to the
+runtime by design. Instead it validates the current resident credential and
+active model binding through `AuthorityRegistry.authorize_office_state`, the
+existing exact-grant security-definer API, and requires the returned provider
+and implementation digest to match the configured router. The deployment
+runner is responsible for checksum-verifying authority migration
+`0005_audited_model_rebinding.sql` before activation. A missing resident
+migration, unavailable authority API/grant, or mismatched active binding keeps
+conversation startup fail-closed without widening database permissions.
+
 The readiness probe can distinguish `READY`, endpoint-reported `MODEL_LOADING`,
 and this process's own `MODEL_BUSY` state. An unreachable endpoint is
 `UNAVAILABLE`; this HTTP signal alone cannot distinguish an OCTO1 host that is
@@ -259,12 +273,22 @@ implementation. It preserves office and occupant identity, increments the
 binding revision, and appends `office_model_implementation_changed`. Rollback is
 the same operation targeting the returned predecessor implementation while
 passing the new current binding revision; stale rollback attempts are rejected.
-Authority migration `0005_audited_model_rebinding.sql` adds the event type. These
-migrations and binding changes have not been applied to production.
+Authority migration `0005_audited_model_rebinding.sql` adds the event type. On
+Camrui, authority migration `0005_audited_model_rebinding` and
+resident-execution migrations `0001_grace_objectives`, `0002_execution_health`,
+and `0004_deferred_conversation_responses` were applied additively on
+2026-10-13 and remain recorded. The readiness-router implementation is
+registered, but its office binding was rolled back through the authority API
+to the local 0.6B implementation at binding revision 3 after release
+`ddfe62cd3def0ada61340fe8c5dfc124adf4eb3c` failed conversation startup because
+of the protected-ledger visibility defect described above. The corrected
+release is not deployed, and a browser conversation through the 80B has not
+been verified.
 
-This is development implementation and isolated-test scope. Production routing
-requires a reviewed migration and service configuration plan, the Steward's
-explicit deployment approval, an authorized Steward call to rebind the office,
-and browser evidence showing the served 80B model plus persistent conversation
-history. No service was restarted and no office binding was changed by this
-increment.
+This readiness correction is not deployed. Production already has the additive
+migrations and registered router implementation, but Grace remains bound to the
+0.6B at revision 3. Activating the corrected release still requires approved
+dashboard configuration, a Steward-authorized CAS rebind, a dashboard-only
+restart, and browser evidence showing the served 80B model plus persistent
+conversation history. No service was restarted and no office binding was
+changed by this correction.

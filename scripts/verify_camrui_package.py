@@ -1,13 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/verify_camrui_package.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Inspect actual archive bytes and checksums before Linux deployment
 # Execution Model: Request-driven read-only engineering diagnostic
 # Observability: rv.package-verification.v1 JSON, shell hashes, CR/BOM counts and line-15 hex
 # Dependencies: Python 3.10+ standard library; works on Windows without a Linux shell
 # Authority: Reads named package only; never extracts, executes or edits host files
-# Changed: 2026-10-10 UTC | RV-M1.1-002 | Independent artifact-byte verification
+# Changed: 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Verify interpreter policy for every packaged shell script
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: tests/test_runtime_baseline.py
 # History: New file; no predecessor
@@ -41,7 +41,8 @@ def verify(path):
             raise ValueError("Manifest membership mismatch")
         report["manifest"] = "PASS"
         valid = True
-        for name in ("deploy/install_baseline.sh", "deploy/rollback_baseline.sh"):
+        shell_names = sorted(name for name in names if name.endswith(".sh"))
+        for name in shell_names:
             content = archive.extractfile(name).read()
             lines = content.splitlines(keepends=True)
             entry = dict(path=name, sha256=hashlib.sha256(content).hexdigest(),
@@ -49,7 +50,7 @@ def verify(path):
                          utf8_bom=content.startswith(b"\xef\xbb\xbf"), nul_bytes=content.count(b"\x00"),
                          line_15_hex=lines[14].hex() if len(lines) >= 15 else None, compatible=True)
             try:
-                validate_shell(name, content)
+                entry["interpreter"] = validate_shell(name, content)
             except ValueError:
                 entry["compatible"] = False
                 valid = False

@@ -1,8 +1,10 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.114
+**Document Revision:** 1.0.116
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
+**Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
+**Changed:** 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow the explicitly reviewed supervised Bash runner in exact-source packages while retaining strict checks for other scripts
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
 **Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record responsive conversation interface implementation and isolated real-model browser acceptance
 **Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record dashboard-only Camrui deployment and post-deployment browser/runtime evidence
@@ -1566,3 +1568,30 @@ Steward's Windows browser could not be controlled from this Camrui session; no m
 sent with a human credential. The isolated real-model and PostgreSQL integration evidence
 remains distinct from live website interaction. A 390-pixel same-origin responsive iframe fixture passed with complete text, visible controls, and no horizontal overflow. Windows refresh-and-send confirmation and physical-device verification remain outstanding. Technical UI deployment is verified;
 formal Steward acceptance and full Component DoD are not claimed.
+
+## 2026-10-13 UTC — RV-GRACE-ROUTER-ACL-READINESS-001
+
+Corrected the dashboard router startup preflight after the approved
+`ddfe62c` commissioning release treated the runtime-invisible
+`riverview_authority.schema_migrations` ledger as absent. The dashboard now
+checks the deferred-response migration only in its runtime-owned
+`riverview_dev` ledger and verifies the current router binding through the
+existing exact-grant `AuthorityRegistry.authorize_office_state` API. Startup
+fails closed on a missing resident migration, unavailable authority capability,
+or provider/digest mismatch. Authority migration checks remain the deployment
+runner's checksum-verified responsibility; database permissions were not
+expanded.
+
+Added a disposable PostgreSQL role regression reproducing Camrui's ACL
+behavior: `information_schema.tables` hides the authority ledger and SELECT is
+denied, while valid readiness succeeds through the authorized capability.
+Missing migration, unavailable authority API, and mismatched binding each fail
+closed. The full suite passed 303/303 with zero skips; canonical graph check
+passed at 18 workflows / 410 nodes; controlled revision audit passed with zero
+issues. The test used a socket-only disposable PostgreSQL 16 cluster; no
+production service or database was changed by this correction. The new release
+is not deployed. Camrui remains on dashboard release `3639f680`, with Grace
+bound to the 0.6B implementation at binding revision 3. The corrected release
+still needs PR/CI and a new immutable candidate archive before a later
+commissioning attempt. The real authenticated 80B browser acceptance remains
+open.

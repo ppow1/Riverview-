@@ -1,13 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/build_camrui_package.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Build a self-contained package from an exact committed Git revision
 # Execution Model: Request-driven engineering utility
 # Observability: Source commit, file checksums and archive SHA-256
 # Dependencies: Python 3, Git
 # Authority: Writes an absent output outside checkout; excludes credentials and Git metadata
-# Changed: 2026-10-10 UTC | RV-M1.1-002 | Package raw blobs; reject unsafe Linux shell bytes
+# Changed: 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow one reviewed Bash runner by exact path and shebang
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: tests/test_runtime_baseline.py
 # History: docs/history/RV-M1.1-002/rev1.0.0/scripts/build_camrui_package.py
@@ -19,12 +19,21 @@ import subprocess
 import tarfile
 
 
+BASH_SHELL_ALLOWLIST = {
+    "scripts/run_supervised_grace_execution.sh": b"#!/usr/bin/env bash\n",
+}
+
+
 def validate_shell(name, content):
-    """Never silently convert controlled source or hash an unusable shell file."""
+    """Validate exact supported interpreters and reject unsafe shell bytes."""
     if name.endswith(".sh"):
-        if (not content.startswith(b"#!/bin/sh\n") or not content.endswith(b"\n")
+        expected_shebang = BASH_SHELL_ALLOWLIST.get(name, b"#!/bin/sh\n")
+        if (not content.startswith(expected_shebang) or not content.endswith(b"\n")
                 or b"\r" in content or b"\x00" in content):
-            raise ValueError("Linux shell requires an LF-only /bin/sh script without BOM/NUL: " + name)
+            interpreter = "authorized Bash" if name in BASH_SHELL_ALLOWLIST else "POSIX /bin/sh"
+            raise ValueError("Linux shell requires an LF-only " + interpreter + " script without BOM/NUL: " + name)
+        return "bash" if name in BASH_SHELL_ALLOWLIST else "sh"
+    return None
 
 
 def committed_files(root, commit):
