@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Verify primary 80B routing, capability-pinned recovery, bounded fallback and diagnostics
 # Execution Model: Deterministic provider doubles; no database or model endpoint
 # Observability: Assert selected provider and served-model provenance
 # Authority: Router selection does not authorize conversation or execution
 # Contracts: src/riverview_core/resident_execution/model_router.py
 # Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-CAPABILITY-001 | Verify capability-pinned routing despite later simple history
+# Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Preserve sanitized truncation details on 80B deferred attempts
 # =============================================================================
 """Focused tests for Grace's readiness-aware three-stage router."""
 
@@ -62,6 +63,9 @@ class GraceModelRouterTests(unittest.TestCase):
         self.assertEqual(result.served_model, "qwen-80b")
         self.assertEqual(result.reasoning_stage, "reasoning")
         self.assertFalse(result.provisional)
+        self.assertEqual(result.provider_attempts[0]["finish_reason"], "stop")
+        self.assertEqual(result.provider_attempts[0]["completion_tokens"], 3)
+        self.assertEqual(result.provider_attempts[0]["completion_token_limit"], 64)
 
     def test_simple_turn_falls_back_to_autonomic_when_intermediate_unavailable(self):
         self.vision.state = "MODEL_LOADING"
@@ -138,6 +142,22 @@ class GraceModelRouterTests(unittest.TestCase):
         self.assertEqual(self.reasoner.calls, [])
         self.assertEqual(self.vision.calls, [])
         self.assertEqual(self.cpu.calls, [])
+
+    def test_80b_length_completion_records_safe_truncation_diagnostics_and_defers(self):
+        def incomplete(messages, *, max_tokens, expected_revision, timeout_seconds=120):
+            raise LocalReasoningUnavailable("response_incomplete", finish_reason="length",
+                completion_tokens=max_tokens, completion_token_limit=max_tokens)
+        self.reasoner.complete_chat = incomplete
+        with self.assertRaises(ReasoningDeferred) as caught:
+            self.router.complete_chat([{"role":"user","content":"Synthetic substantive request."}],
+                max_tokens=64, expected_revision=self.router.model_sha256,
+                required_capability="grace.reasoning.80b")
+        attempt = caught.exception.attempts[0]
+        self.assertEqual(attempt["error_code"], "response_incomplete")
+        self.assertEqual(attempt["finish_reason"], "length")
+        self.assertEqual(attempt["completion_tokens"], 64)
+        self.assertEqual(attempt["completion_token_limit"], 64)
+        self.assertNotIn("Synthetic substantive request.", json.dumps(attempt))
 
     def test_router_binding_revision_is_mandatory(self):
         with self.assertRaises(LocalReasoningUnavailable):

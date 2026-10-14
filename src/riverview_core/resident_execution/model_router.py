@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.6
+# Revision: 1.0.7
 # Purpose: Prefer 80B for substantive turns and persist bounded routing diagnostics
 # Execution Model: Request-driven; persisted deferred turns are resumed by the conversation owner
 # Observability: Selected stage and served model are returned as completion provenance
@@ -11,6 +11,7 @@
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: tests/test_resident_model_router.py
 # Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-CAPABILITY-001 | Pin deferred resumption to its persisted capability and log readiness attempts
+# Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Include sanitized completion-limit diagnostics for non-stop provider outcomes
 # =============================================================================
 """Small readiness-aware router for Grace's three existing model resources."""
 
@@ -144,10 +145,15 @@ class GraceModelRouter:
                 expected_revision=provider.model_sha256,
                 timeout_seconds=min(timeout_seconds, self.TIMEOUTS[stage]))
             attempts.append(self._attempt(stage, provider, started_at, started,
-                                          outcome="succeeded"))
+                outcome="succeeded", finish_reason=completion.finish_reason,
+                completion_tokens=completion.completion_tokens,
+                completion_token_limit=max_tokens))
         except LocalReasoningUnavailable as exc:
             attempts.append(self._attempt(stage, provider, started_at, started,
-                outcome="failed", error_code=self._safe_error(exc)))
+                outcome="failed", error_code=self._safe_error(exc),
+                finish_reason=getattr(exc, "finish_reason", None),
+                completion_tokens=getattr(exc, "completion_tokens", None),
+                completion_token_limit=getattr(exc, "completion_token_limit", None)))
             if stage == "reasoning":
                 code = getattr(exc, "code", "endpoint_unavailable")
                 state = "MODEL_BUSY" if code == "endpoint_busy" else (
@@ -203,7 +209,8 @@ class GraceModelRouter:
 
     @staticmethod
     def _attempt(stage, provider, started_at, started, *, outcome,
-                 error_code=None, fallback_reason=None):
+                 error_code=None, fallback_reason=None, finish_reason=None,
+                 completion_tokens=None, completion_token_limit=None):
         ended_at = datetime.now(UTC)
         return {"selected_provider": getattr(provider, "provider_id", stage),
             "selected_model": getattr(provider, "model", stage),
@@ -211,4 +218,7 @@ class GraceModelRouter:
             "ended_at": ended_at.isoformat(),
             "elapsed_ms": round(max(0.0, monotonic() - started) * 1000, 3),
             "outcome": outcome, "error_code": error_code,
-            "fallback_reason": fallback_reason}
+            "fallback_reason": fallback_reason,
+            "finish_reason": finish_reason,
+            "completion_tokens": completion_tokens,
+            "completion_token_limit": completion_token_limit}

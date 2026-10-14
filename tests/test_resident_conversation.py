@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.14
+# Revision: 1.0.15
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -11,7 +11,7 @@
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial resident conversation regression suite
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Exercise authenticated chat endpoints and browser history restart path
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Match safe-rendered diagnostic documentation heading in route assertion
-# Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Assert the resident's bounded 64-token chat request
+# Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Assert the resident's bounded chat request
 # Changed: 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Verify each acknowledged turn from fresh PostgreSQL connections under concurrency
 # Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Verify scoped persistent browser cookie uses both existing grants and survives service restart
 # Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Verify logout clearing and immediate exact-credential revocation
@@ -19,6 +19,7 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Exercise linked-account API session, persistence and denial through dashboard routes
 # Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Verify the two pending request identities resume only through an explicitly authorized router transition
 # Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-CAPABILITY-001 | Regress later-turn misrouting and check sanitized retry telemetry
+# Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Verify 512-token budget on resumed and ordinary durable turns
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: python3 -m unittest tests.test_resident_conversation
 # History: Git and .riverview-backups/manifest.jsonl
@@ -153,7 +154,7 @@ class ResidentConversationTests(unittest.TestCase):
                                    client_message_id=str(uuid4()))
         self.assertEqual(result["status"], "completed")
         self.assertEqual(result["response"], "Grace is ready to help.")
-        self.assertEqual(self.provider_a.calls[0][1], 64)
+        self.assertEqual(self.provider_a.calls[0][1], 512)
         history = self.service.history(self.steward_token, result["conversation_id"])
         self.assertEqual([e["event_type"] for e in history["events"]],
                          ["user_message", "assistant_message"])
@@ -230,12 +231,15 @@ class ResidentConversationTests(unittest.TestCase):
 
         reasoner.state = "READY"
         self.assertEqual(self.service.resume_deferred(), 1)
+        self.assertEqual(reasoner.calls[-1][1], 512)
         final = self.service.response_status(self.steward_token,
             deferred["conversation_id"], deferred["request_id"])
         self.assertEqual(final["status"], "completed")
         history = self.service.history(self.steward_token, deferred["conversation_id"])
         self.assertEqual(history["events"][-1]["body"], "The verified analysis is complete.")
         self.assertTrue(history["events"][-1]["metadata"]["resumed_deferred_request"])
+        self.assertEqual(history["events"][-1]["metadata"]["finish_reason"], "stop")
+        self.assertEqual(history["events"][-1]["metadata"]["completion_tokens"], 9)
         self.assertEqual(len([event for event in history["events"]
                               if event["event_type"] == "user_message"]), 1)
 
