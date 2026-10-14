@@ -1,6 +1,6 @@
 # Grace Director of Operations: Historical and Current-State Reconciliation
 
-**File Revision:** 1.0.2
+**File Revision:** 1.0.3
 **Date:** 2026-10-14
 **Status:** Evidence-based reconciliation with development-only canonical role and bounded read-only context integration; live role correction, vision flow, and execution service remain uncommissioned.
 **Scope:** Reconcile the historical Estate/Riverview design with the current `ppow1/Riverview-` engineering implementation and identify the smallest restoration sequence.
@@ -172,10 +172,11 @@ The development increment restores the Director of Operations title in engineeri
 
 ## 10. Development follow-up status
 
-On 2026-10-14, commit `b659bb9ee0ac62853e4f681455991b99aed723bc` saved this reconciliation. The current uncommitted development increment adds the audited role correction path, shared role context, and projection-backed context snapshot. Focused tests pass; database-backed authority and conversation tests require an isolated PostgreSQL DSN and have not been run in this environment. The graph is updated to 18 workflows / 420 nodes. This source does not prove a production role correction, actual 30B image flow, or autonomous Engineering cycle.
+On 2026-10-14, commit `b659bb9ee0ac62853e4f681455991b99aed723bc` saved this reconciliation. Development commit `96e0d17e956010edcbfad5e8589479527109ce92` adds the audited role correction path, shared role context in conversations and Grace assignment reasoning, and a projection-backed context snapshot persisted beside its digest. The full source suite passes with PostgreSQL-dependent cases skipped because no isolated test DSN is configured. The graph is updated to 18 workflows / 421 nodes. This source does not prove a production role correction, actual 30B image flow, or autonomous Engineering cycle.
 
 ## Revision history
 
+- **1.0.3 — 2026-10-14:** Record commit identity and current verification limits for the role/context increment.
 - **1.0.2 — 2026-10-14:** Record audited role correction and projection-backed operations context in source; retain explicit uncommissioned vision and Engineering gaps.
 - **1.0.1 — 2026-10-14:** Record development-only role restoration progress and clarify the uncommissioned production boundary.
 - **1.0.0 — 2026-10-14:** Initial historical and current-state reconciliation.
