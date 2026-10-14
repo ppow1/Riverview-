@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Prefer 80B for substantive turns and persist bounded routing diagnostics
 # Execution Model: Request-driven; persisted deferred turns are resumed by the conversation owner
 # Observability: Selected stage and served model are returned as completion provenance
@@ -10,7 +10,7 @@
 # Authority: Selects inference resources only; grants no conversation or execution authority
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: tests/test_resident_model_router.py
-# Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Declare the exact capability supported for deferred recovery
+# Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-CAPABILITY-001 | Pin deferred resumption to its persisted capability and log readiness attempts
 # =============================================================================
 """Small readiness-aware router for Grace's three existing model resources."""
 
@@ -49,8 +49,14 @@ class GraceModelRouter:
     TIMEOUTS = {"autonomic": 35, "interim_30b": 15, "reasoning": 60}
     _SAFE_ERRORS = frozenset({"endpoint_busy", "endpoint_timeout", "endpoint_unavailable",
         "endpoint_loading", "endpoint_http_503", "endpoint_http_502", "endpoint_http_504",
-        "endpoint_http_500", "response_incomplete", "response_contract_invalid",
-        "response_too_large", "request_contract_invalid", "endpoint_status_invalid"})
+        "endpoint_http_500", "endpoint_http_400", "endpoint_http_404",
+        "endpoint_http_408", "endpoint_http_413", "endpoint_http_422",
+        "endpoint_http_429", "response_incomplete", "response_contract_invalid",
+        "response_too_large", "request_contract_invalid", "endpoint_status_invalid",
+        "all_models_unavailable", "required_capability_not_satisfied",
+        "readiness_timeout", "health_status_invalid", "model_list_invalid",
+        "configured_model_missing", "provider_slot_occupied",
+        "endpoint_http_503", "endpoint_http_502", "endpoint_http_504"})
 
     def __init__(self, *, autonomic, vision, reasoning):
         self.providers = {"autonomic": autonomic, "vision": vision,
@@ -82,7 +88,23 @@ class GraceModelRouter:
         """Report the one bounded reasoning capability this router can satisfy."""
         return capability == "grace.reasoning.80b" and self.providers.get("reasoning") is not None
 
-    def select(self, messages):
+    def select(self, messages, *, required_capability=None):
+        if required_capability is not None:
+            if required_capability != "grace.reasoning.80b":
+                raise ReasoningDeferred("UNSUPPORTED_CAPABILITY")
+            provider = self.providers["reasoning"]
+            started_at = datetime.now(UTC)
+            started = monotonic()
+            state = provider.readiness()
+            if state.state != "READY":
+                detail = getattr(state, "detail_code", "endpoint_unavailable")
+                error_code = detail if detail in self._SAFE_ERRORS else "endpoint_unavailable"
+                if isinstance(detail, str) and re.fullmatch(r"endpoint_http_[45][0-9]{2}", detail):
+                    error_code = detail
+                attempt = self._attempt("reasoning", provider, started_at, started,
+                    outcome="deferred", error_code=error_code)
+                raise ReasoningDeferred(state.state, attempts=(attempt,))
+            return "reasoning", provider
         states = self.readiness()
         latest_user = next((message for message in reversed(messages)
                             if message.get("role") == "user"), {})
@@ -100,11 +122,12 @@ class GraceModelRouter:
         raise ReasoningDeferred(states["vision"].state)
 
     def complete_chat(self, messages, *, max_tokens, expected_revision,
-                      timeout_seconds=120):
+                      timeout_seconds=120, required_capability=None):
         if expected_revision != self.model_sha256:
             raise LocalReasoningUnavailable("router_binding_mismatch")
         try:
-            stage, provider = self.select(messages)
+            stage, provider = self.select(messages,
+                required_capability=required_capability)
         except ReasoningDeferred:
             raise
         system = {
@@ -166,6 +189,10 @@ class GraceModelRouter:
         attempts = [dict(item, final_served_provider=final_provider,
                          final_served_model=completion.served_model,
                          fallback_reason=item.get("fallback_reason")) for item in attempts]
+        if required_capability is not None and (
+                stage != "reasoning" or completion.provisional):
+            raise LocalReasoningUnavailable("required_capability_not_satisfied",
+                                            attempts=attempts)
         return replace(completion, reasoning_stage=stage,
                        provisional=(stage != "reasoning"), provider_attempts=tuple(attempts))
 

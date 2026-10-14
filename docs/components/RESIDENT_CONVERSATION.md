@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.14
+File Revision: 1.1.15
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -19,6 +19,7 @@ Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record dashboard-only live rele
 Changed: 2026-10-13 UTC | RV-GRACE-MULTI-STAGE-001 | Record exact OCTO1 provider opt-in, readiness states, and the unimplemented routing/deferral boundary
 Changed: 2026-10-13 UTC | RV-GRACE-MULTI-STAGE-001 | Clarify local slot contention is not global OCTO1 slot telemetry
 Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Document opt-in audited router continuity, grant revalidation, provenance, and durable claims
+Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-CAPABILITY-001 | Pin deferred retries to their original capability and request context; emit redacted retry diagnostics
 Changed: 2026-10-13 UTC | RV-GRACE-MULTI-STAGE-001 | Document endpoint/model pair pinning and explicit dashboard opt-in
 Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record deployed 390 CSS-pixel responsive fixture while retaining physical-device and Windows verification as pending
 Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Add persistent same-origin browser credential transport, exact-grant rechecks, and denial retry suppression
@@ -249,14 +250,23 @@ grace.readiness_router.v1 provider. Ordinary rebinds, unrelated providers,
 indirect/older transitions, missing capabilities, and revoked original sender
 grants remain paused. The original user and deferred events are never rewritten;
 the terminal response records original and executing implementation identities,
-the revalidated grant, and actual served model.
+the revalidated grant, and actual served model. Resumption rebuilds context from
+events preceding the original deferred user event and appends that request as
+the final user message. Later turns cannot replace its objective or influence
+capability selection. The persisted `required_capability` is passed to the
+router: `grace.reasoning.80b` selects only the bound 80B provider. If it is
+unavailable, busy, or returns an invalid response, the lease is released and
+the request remains pending; neither 30B nor 0.6B may satisfy it.
 
 Resumption claims each request in the durable
 resident_deferred_execution_claims table before provider execution. One active
 ten-minute lease prevents concurrent execution across threads and service
 processes; the lease is released on every attempt and expires after a process
 crash. Terminal-event checks and the conversation row lock make reply insertion
-idempotent.
+idempotent. Deferred retry failures emit structured journal diagnostics keyed
+by request ID with selected provider/model/stage, UTC start/end, elapsed time,
+bounded outcome/error code, and fallback reason. They never contain message
+text, model output, credentials, or raw exception details.
 
 An explicitly authorized upgrade uses
 AuthorityRegistry.update_office_implementation(...,

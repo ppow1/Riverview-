@@ -5493,7 +5493,7 @@
     },
     {
       "graph_id": "rv:resident-conversation:browser-chat",
-      "graph_revision": "1.0.9",
+      "graph_revision": "1.0.10",
       "component_id": "RESIDENT-CONVERSATION",
       "workflow_id": "resident.conversation.v1",
       "diagram_order": 14,
@@ -5963,9 +5963,9 @@
         },
         {
           "id": "rv:resident-conversation:browser-chat:attempt-diagnostics",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "verification",
-          "label": "Persist sanitized provider attempts, bounded timing/error, fallback reason, and final served provider",
+          "label": "Emit sanitized provider attempts with bounded timing and error codes; never include conversation text",
           "source_references": [
             "src/riverview_core/resident_execution/model_router.py",
             "src/riverview_core/resident_execution/conversation.py",
@@ -5998,9 +5998,9 @@
         },
         {
           "id": "rv:resident-conversation:browser-chat:resume-reasoning",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "recovery",
-          "label": "Poll durable deferred turns and acquire a cross-process request lease",
+          "label": "Poll durable deferred turns, acquire a cross-process lease, and rebuild context only through the original request",
           "source_references": [
             "src/riverview_core/resident_execution/conversation.py",
             "src/riverview_core/status_dashboard/server.py"
@@ -6015,9 +6015,9 @@
         },
         {
           "id": "rv:resident-conversation:browser-chat:reasoning-router-failure",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "failure",
-          "label": "Keep deferred request durable across endpoint errors and process restart",
+          "label": "Keep the request pending when the required 80B capability is unavailable; emit sanitized provider attempt diagnostics",
           "source_references": [
             "src/riverview_core/resident_execution/conversation.py"
           ],
@@ -6047,9 +6047,9 @@
         },
         {
           "id": "rv:resident-conversation:browser-chat:upgrade-continuity",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "decision",
-          "label": "Does current binding exactly match or follow the explicitly authorized direct router transition for the required 80B capability?",
+          "label": "Does the current binding match or follow the explicitly authorized direct router transition for the persisted capability?",
           "source_references": [
             "src/riverview_core/institutional_authority/migrations/0006_authorized_implementation_successor.sql",
             "src/riverview_core/institutional_authority/registry.py",
@@ -6077,6 +6077,23 @@
             "docs/components/RESIDENT_CONVERSATION.md"
           ],
           "verification_evidence": [
+            "tests/test_resident_conversation.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:resume-capability-pin",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Constrain the resumed turn to its persisted required capability; a deferred 80B turn uses only 80B regardless of later conversation turns",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/resident_execution/model_router.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_model_router.py",
             "tests/test_resident_conversation.py"
           ]
         }
@@ -6336,15 +6353,27 @@
         },
         {
           "from": "rv:resident-conversation:browser-chat:upgrade-continuity",
-          "to": "rv:resident-conversation:browser-chat:persist-response",
-          "type": "verification",
-          "label": "Compatible authorized router invokes required capability and records dual provenance"
+          "to": "rv:resident-conversation:browser-chat:resume-capability-pin",
+          "type": "runtime_transition",
+          "label": "Authorized implementation continuity passed; enforce the original deferred capability"
         },
         {
           "from": "rv:resident-conversation:browser-chat:upgrade-rejected",
           "to": "rv:resident-conversation:browser-chat:reasoning-router-failure",
           "type": "recovery_route",
           "label": "Leave deferred request durable; resume only after an authorized correction"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:resume-capability-pin",
+          "to": "rv:resident-conversation:browser-chat:reasoning-router-failure",
+          "type": "diagnostic_branch",
+          "label": "Required 80B unavailable or provider failed; leave pending without 30B or 0.6B substitution"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:resume-capability-pin",
+          "to": "rv:resident-conversation:browser-chat:persist-response",
+          "type": "verification",
+          "label": "80B inference accepted and actual served-model provenance persisted under the original request"
         }
       ]
     },
@@ -10220,6 +10249,7 @@
     "rv:resident-conversation:browser-chat:responsive-a11y",
     "rv:resident-conversation:browser-chat:restart-recovery",
     "rv:resident-conversation:browser-chat:resume-auth-recheck",
+    "rv:resident-conversation:browser-chat:resume-capability-pin",
     "rv:resident-conversation:browser-chat:resume-reasoning",
     "rv:resident-conversation:browser-chat:session-connect",
     "rv:resident-conversation:browser-chat:session-cookie",

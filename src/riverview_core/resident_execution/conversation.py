@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.8
+# Revision: 1.0.9
 # Purpose: Persist and serve office-bound, authorized Grace conversations
 # Execution Model: Authenticated request-driven completion with durable event history
 # Observability: Redacted response status and append-only PostgreSQL conversation events
@@ -16,6 +16,7 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Persist deferred requests for readiness-driven resumption
 # Changed: 2026-10-14 UTC | RV-GRACE-ROUTING-DIAGNOSTICS-001 | Persist sanitized per-provider attempts for completed, failed, deferred and resumed turns
 # Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Resume only through audited direct upgrades with durable request claims and dual provenance
+# Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-CAPABILITY-001 | Resume only the original request through its persisted 80B capability with redacted retry diagnostics
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: tests/test_resident_conversation.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -36,6 +37,7 @@ import psycopg
 from psycopg import sql
 from psycopg.rows import dict_row
 from ..institutional_authority.grants import InstitutionalPrincipal
+from ..local_reasoning_provider import LocalReasoningUnavailable
 
 
 _SCHEMA = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,62}$")
@@ -43,6 +45,44 @@ _CONTEXT_LIMIT = 32 * 1024
 _MESSAGE_LIMIT = 8 * 1024
 _HISTORY_CONTEXT_MESSAGES = 16
 _LOG = logging.getLogger(__name__)
+_DIAGNOSTIC_FIELDS = ("selected_provider", "selected_model", "reasoning_stage",
+    "started_at", "ended_at", "elapsed_ms", "outcome", "error_code",
+    "fallback_reason", "final_served_provider", "final_served_model")
+_SAFE_DIAGNOSTIC_CODES = frozenset({"endpoint_busy", "endpoint_timeout",
+    "endpoint_unavailable", "endpoint_loading", "endpoint_http_400",
+    "endpoint_http_404", "endpoint_http_408", "endpoint_http_413",
+    "endpoint_http_422", "endpoint_http_429", "endpoint_http_500",
+    "endpoint_http_502", "endpoint_http_503", "endpoint_http_504",
+    "response_incomplete", "response_contract_invalid", "response_too_large",
+    "request_contract_invalid", "endpoint_status_invalid", "readiness_timeout",
+    "health_status_invalid", "model_list_invalid", "configured_model_missing",
+    "provider_slot_occupied", "all_models_unavailable",
+    "required_capability_not_satisfied"})
+
+
+def _log_deferred_attempt(request_id, required_capability, exc):
+    """Write retry diagnostics without conversation text or raw provider errors."""
+    attempts = []
+    for attempt in getattr(exc, "attempts", ()):
+        if not isinstance(attempt, dict):
+            continue
+        safe = {key: attempt[key] for key in _DIAGNOSTIC_FIELDS
+                if key in attempt and key != "error_code"}
+        code = attempt.get("error_code")
+        if code is not None:
+            safe["error_code"] = code if code in _SAFE_DIAGNOSTIC_CODES or (
+                isinstance(code, str) and re.fullmatch(r"endpoint_http_[45][0-9]{2}", code)) else "provider_error"
+        attempts.append(safe)
+    code = getattr(exc, "code", None)
+    safe_code = code if code in _SAFE_DIAGNOSTIC_CODES else None
+    _LOG.warning("%s", json.dumps({"event": "grace_deferred_resume_attempt",
+        "request_id": str(request_id), "required_capability": required_capability,
+        "failure_type": type(exc).__name__, "error_code": safe_code,
+        "readiness_state": (exc.args[0] if type(exc).__name__ == "ReasoningDeferred"
+                            and exc.args and exc.args[0] in {
+                                "READY", "MODEL_BUSY", "MODEL_LOADING", "UNAVAILABLE",
+                                "TIMEOUT", "ERROR", "UNSUPPORTED_CAPABILITY"} else None),
+        "provider_attempts": attempts}, sort_keys=True))
 
 
 class ConversationDenied(RuntimeError):
@@ -241,7 +281,8 @@ class ConversationStore:
                      "updated_at": row["updated_at"].isoformat()} for row in cur.fetchall()]
 
     @_serialized_store_operation
-    def history(self, conversation_id, office_id, principal_id, *, limit=100):
+    def history(self, conversation_id, office_id, principal_id, *, limit=100,
+                before_sequence=None):
         with self.db.cursor() as cur:
             self._path(cur)
             cur.execute("""SELECT c.conversation_id FROM resident_conversations c
@@ -249,11 +290,21 @@ class ConversationStore:
                 (UUID(str(conversation_id)), office_id, principal_id))
             if cur.fetchone() is None:
                 raise ConversationNotFound("conversation not found")
-            cur.execute("""SELECT sequence,event_type,request_id,actor_kind,actor_id,
-                occupant_id,implementation_id,implementation_revision,provider_ref,model_id,
-                body,error_code,metadata,occurred_at
-                FROM resident_conversation_events WHERE conversation_id=%s
-                ORDER BY sequence DESC LIMIT %s""", (UUID(str(conversation_id)), limit))
+            if before_sequence is None:
+                cur.execute("""SELECT sequence,event_type,request_id,actor_kind,actor_id,
+                    occupant_id,implementation_id,implementation_revision,provider_ref,model_id,
+                    body,error_code,metadata,occurred_at
+                    FROM resident_conversation_events WHERE conversation_id=%s
+                    ORDER BY sequence DESC LIMIT %s""", (UUID(str(conversation_id)), limit))
+            else:
+                if type(before_sequence) is not int or before_sequence < 1:
+                    raise ValueError("before_sequence must be a positive event sequence")
+                cur.execute("""SELECT sequence,event_type,request_id,actor_kind,actor_id,
+                    occupant_id,implementation_id,implementation_revision,provider_ref,model_id,
+                    body,error_code,metadata,occurred_at
+                    FROM resident_conversation_events WHERE conversation_id=%s AND sequence<%s
+                    ORDER BY sequence DESC LIMIT %s""",
+                    (UUID(str(conversation_id)), before_sequence, limit))
             events = list(reversed(cur.fetchall()))
             return {"schema_version": "rv.resident.conversation.v1",
                 "conversation_id": str(conversation_id), "office_id": office_id,
@@ -359,7 +410,7 @@ class ConversationStore:
         with self.db.cursor() as cur:
             self._path(cur)
             cur.execute("""SELECT DISTINCT ON (u.request_id) u.conversation_id,u.request_id,
-                u.actor_id AS principal_id,u.body,u.metadata AS user_metadata,d.metadata,u.occupant_id,
+                u.actor_id AS principal_id,u.body,u.sequence,u.metadata AS user_metadata,d.metadata,u.occupant_id,
                 u.implementation_id,u.implementation_revision,u.provider_ref,u.model_id
                 FROM resident_conversation_events d
                 JOIN resident_conversation_events u USING (request_id)
@@ -635,7 +686,8 @@ class ResidentConversationService:
                     continue
                 current_grant = self._authorize(principal, self.SEND_ACTION)
                 history = self.store.history(row["conversation_id"], self.office_id,
-                                             row["principal_id"], limit=100)
+                    row["principal_id"], limit=_HISTORY_CONTEXT_MESSAGES - 1,
+                    before_sequence=row["sequence"])
                 messages = [{"role": "system", "content": (
                     "You are Grace. Preserve uncertainty and authority boundaries. "
                     "Use only the persisted conversation context; do not claim actions.")}]
@@ -643,9 +695,17 @@ class ResidentConversationService:
                                  "content": event["body"]}
                     for event in history["events"]
                     if event["event_type"] in {"user_message", "assistant_message"})
+                # Resume the original deferred turn as the final user message.
+                # Later conversation turns must not change its routing or objective.
+                messages.append({"role": "user", "content": row["body"]})
                 completion = router.complete_chat(messages,
                     max_tokens=self.max_response_tokens,
-                    expected_revision=current["implementation_revision"])
+                    expected_revision=current["implementation_revision"],
+                    required_capability=required_capability)
+                if (completion.reasoning_stage != "reasoning"
+                        or completion.provisional):
+                    raise LocalReasoningUnavailable("required_capability_not_satisfied",
+                        attempts=getattr(completion, "provider_attempts", ()))
                 if not completion.content.strip():
                     continue
                 implementation = {"office_id": self.office_id,
@@ -680,6 +740,10 @@ class ResidentConversationService:
                 # A revoked exact grant pauses work without exposing chat content.
                 continue
             except Exception as exc:
+                from .model_router import ReasoningDeferred
+                if isinstance(exc, ReasoningDeferred) or isinstance(exc, LocalReasoningUnavailable):
+                    _log_deferred_attempt(row["request_id"], required_capability, exc)
+                    continue
                 # Keep durable work deferred on transient failures; retry after readiness changes.
                 _LOG.warning("Grace deferred request remains queued (%s)", type(exc).__name__)
                 continue
