@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/db_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.12
+# Revision: 1.0.14
 # Purpose: Separate authority relation ownership from the shared runtime role
 # Execution Model: Explicit PostgreSQL DBA operation; dry-run by default
 # Observability: Redacted JSON preflight and applied-relation report
@@ -19,6 +19,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT | Expose only an owner-controlled exact-grant check to the runtime role
 # Changed: 2026-10-11 UTC | RV-M4.1-RUNTIME-OFFICE-API | Expose only exact-grant office snapshot/CAS functions to the runtime role
 # Changed: 2026-10-11 UTC | RV-M4.1-OFFICE-FUNCTION-DRIFT | Detect and repair office function ACL/security drift in preflight
+# Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Allow only the restricted audited-upgrade decision function to runtime
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: tests/test_institutional_authority_boundary.py
 # History: .riverview-backups/manifest.jsonl
@@ -53,6 +54,13 @@ RUNTIME_OFFICE_FUNCTIONS = {
         "p_credential_sha256 bytea, p_office_id text",
     "write_authorized_office_state":
         "p_credential_sha256 bytea, p_office_id text, p_state jsonb, p_expected_revision bigint",
+    "authorized_office_implementation_successor":
+        "p_credential_sha256 bytea, p_office_id text, p_predecessor_id text, p_predecessor_revision text, p_successor_id text, p_successor_revision text, p_required_capability text",
+}
+RUNTIME_OFFICE_FUNCTION_SIGNATURES = {
+    "read_authorized_office_state": "(bytea,text)",
+    "write_authorized_office_state": "(bytea,text,jsonb,bigint)",
+    "authorized_office_implementation_successor": "(bytea,text,text,text,text,text,text)",
 }
 _IDENTIFIER = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,62}$")
 
@@ -361,9 +369,7 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                 cur.execute(sql.SQL("GRANT EXECUTE ON FUNCTION {}.{}{} TO {}").format(
                     sql.Identifier(schema), sql.Identifier(function_name), sql.SQL(signature),
                     sql.Identifier(runtime_role)))
-            for function_name, signature in (
-                    ("read_authorized_office_state", "(bytea,text)"),
-                    ("write_authorized_office_state", "(bytea,text,jsonb,bigint)")):
+            for function_name, signature in RUNTIME_OFFICE_FUNCTION_SIGNATURES.items():
                 cur.execute(sql.SQL("ALTER FUNCTION {}.{}{} OWNER TO {}").format(
                     sql.Identifier(schema), sql.Identifier(function_name), sql.SQL(signature),
                     sql.Identifier(owner_role)))

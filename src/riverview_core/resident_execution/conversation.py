@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Persist and serve office-bound, authorized Grace conversations
 # Execution Model: Authenticated request-driven completion with durable event history
 # Observability: Redacted response status and append-only PostgreSQL conversation events
@@ -15,6 +15,7 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-MODEL-PROVENANCE | Return and persist the actual served model plus provider stage metadata
 # Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Persist deferred requests for readiness-driven resumption
 # Changed: 2026-10-14 UTC | RV-GRACE-ROUTING-DIAGNOSTICS-001 | Persist sanitized per-provider attempts for completed, failed, deferred and resumed turns
+# Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Resume only through audited direct upgrades with durable request claims and dual provenance
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: tests/test_resident_conversation.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -114,7 +115,8 @@ class ConversationStore:
 
     @_serialized_store_operation
     def begin_turn(self, *, office_id, principal_id, occupant, implementation,
-                   message, conversation_id=None, client_message_id=None):
+                   message, conversation_id=None, client_message_id=None,
+                   authorization=None):
         """Persist the user message first; repeated browser retries are idempotent."""
         conversation_id = UUID(str(conversation_id)) if conversation_id else uuid4()
         client_message_id = UUID(str(client_message_id)) if client_message_id else uuid4()
@@ -150,12 +152,13 @@ class ConversationStore:
                         (conversation_id,sequence,request_id,client_message_id,event_type,
                          actor_kind,actor_id,occupant_id,implementation_id,
                          implementation_revision,provider_ref,model_id,body,metadata)
-                        VALUES (%s,%s,%s,%s,'user_message','principal',%s,%s,%s,%s,%s,%s,%s,'{}'::jsonb)""",
+                        VALUES (%s,%s,%s,%s,'user_message','principal',%s,%s,%s,%s,%s,%s,%s,%s::jsonb)""",
                         (conversation_id, sequence, request_id, client_message_id,
                          principal_id, occupant.get("occupant_id"),
                          implementation.get("implementation_id"),
                          implementation.get("implementation_revision"),
-                         implementation.get("provider_ref"), implementation.get("model_id"), message))
+                         implementation.get("provider_ref"), implementation.get("model_id"), message,
+                         json.dumps(authorization or {}, sort_keys=True)))
                     cur.execute("""SELECT event_type,body FROM resident_conversation_events
                         WHERE conversation_id=%s AND event_type IN ('user_message','assistant_message')
                         ORDER BY sequence DESC LIMIT %s""",
@@ -322,16 +325,47 @@ class ConversationStore:
                              **(metadata or {})}, sort_keys=True)))
 
     @_serialized_store_operation
+    def claim_deferred_request(self, request_id, claim_token, *, lease_seconds=600):
+        """Claim one still-pending deferred request across threads and service processes."""
+        with self.db.transaction(), self.db.cursor() as cur:
+            self._path(cur)
+            cur.execute("""SELECT 1 FROM resident_conversation_events
+                WHERE request_id=%s AND event_type IN
+                    ('assistant_message','response_failed','response_interrupted')""",
+                (UUID(str(request_id)),))
+            if cur.fetchone():
+                return False
+            cur.execute("""INSERT INTO resident_deferred_execution_claims
+                (request_id,claim_token,claim_until)
+                VALUES (%s,%s,clock_timestamp()+(%s * interval '1 second'))
+                ON CONFLICT (request_id) DO UPDATE
+                  SET claim_token=EXCLUDED.claim_token,claimed_at=clock_timestamp(),
+                      claim_until=EXCLUDED.claim_until
+                  WHERE resident_deferred_execution_claims.claim_until<=clock_timestamp()
+                RETURNING request_id""", (UUID(str(request_id)), UUID(str(claim_token)),
+                                               lease_seconds))
+            return cur.fetchone() is not None
+
+    @_serialized_store_operation
+    def release_deferred_claim(self, request_id, claim_token):
+        with self.db.transaction(), self.db.cursor() as cur:
+            self._path(cur)
+            cur.execute("DELETE FROM resident_deferred_execution_claims WHERE request_id=%s AND claim_token=%s",
+                (UUID(str(request_id)), UUID(str(claim_token))))
+
+    @_serialized_store_operation
     def deferred_turns(self, *, limit=20):
         """Return oldest deferred, not-yet-completed user turns for resumption."""
         with self.db.cursor() as cur:
             self._path(cur)
             cur.execute("""SELECT DISTINCT ON (u.request_id) u.conversation_id,u.request_id,
-                u.actor_id AS principal_id,u.body,d.metadata,u.occupant_id,
+                u.actor_id AS principal_id,u.body,u.metadata AS user_metadata,d.metadata,u.occupant_id,
                 u.implementation_id,u.implementation_revision,u.provider_ref,u.model_id
                 FROM resident_conversation_events d
                 JOIN resident_conversation_events u USING (request_id)
+                JOIN resident_conversations c ON c.conversation_id=u.conversation_id
                 WHERE d.event_type='response_deferred' AND u.event_type='user_message'
+                  AND c.owner_principal_id=u.actor_id
                   AND NOT EXISTS (SELECT 1 FROM resident_conversation_events f
                     WHERE f.request_id=u.request_id AND f.event_type IN
                     ('assistant_message','response_failed','response_interrupted'))
@@ -474,7 +508,10 @@ class ResidentConversationService:
         conversation_id, request_id, duplicate, history = self.store.begin_turn(
             office_id=self.office_id, principal_id=actor["principal_id"],
             occupant=binding, implementation=implementation, message=message.strip(),
-            conversation_id=conversation_id, client_message_id=client_message_id)
+            conversation_id=conversation_id, client_message_id=client_message_id,
+            authorization={"principal_id": actor["principal_id"],
+                "action": self.SEND_ACTION, "scope_ref": "office:" + self.office_id,
+                "grant_id": actor.get("grant_id")})
         if duplicate:
             status = self.store.response_status(conversation_id, request_id,
                                                 self.office_id, actor["principal_id"])
@@ -564,20 +601,39 @@ class ResidentConversationService:
                                     "final_served_provider": None})
 
     def resume_deferred(self, *, limit=20):
-        """Retry persisted requests only while exact grants and original binding remain valid."""
+        """Resume durable turns after exact authorization and audited direct-upgrade checks."""
         resumed = 0
         for row in self.store.deferred_turns(limit=limit):
+            claim_token = str(uuid4())
+            if not self.store.claim_deferred_request(row["request_id"], claim_token):
+                continue
             try:
                 principal = InstitutionalPrincipal(row["principal_id"])
-                self._authorize(principal, self.SEND_ACTION)
+                current_grant = self._authorize(principal, self.SEND_ACTION)
                 current = self._authorize_office_binding()
-                if (current.get("implementation_id") != row["implementation_id"]
-                        or current.get("implementation_revision") != row["implementation_revision"]
+                original_metadata = row.get("metadata") or {}
+                required_capability = original_metadata.get("required_capability")
+                if (required_capability != "grace.reasoning.80b"
+                        or current.get("occupant_id") != row["occupant_id"]
+                        or current.get("implementation_kind") != "model"
                         or current.get("provider_ref") != row["provider_ref"]):
                     continue
                 router = self.providers.get(row["provider_ref"])
-                if router is None:
+                if (router is None or not getattr(router, "supports_capability",
+                        lambda _cap: False)(required_capability)):
                     continue
+                same_implementation = (
+                    current.get("implementation_id") == row["implementation_id"]
+                    and current.get("implementation_revision") == row["implementation_revision"])
+                if not same_implementation and not self.registry.is_authorized_implementation_successor(
+                        self._resident_credential, self.office_id,
+                        predecessor_id=row["implementation_id"],
+                        predecessor_revision=row["implementation_revision"],
+                        successor_id=current["implementation_id"],
+                        successor_revision=current["implementation_revision"],
+                        required_capability=required_capability):
+                    continue
+                current_grant = self._authorize(principal, self.SEND_ACTION)
                 history = self.store.history(row["conversation_id"], self.office_id,
                                              row["principal_id"], limit=100)
                 messages = [{"role": "system", "content": (
@@ -600,6 +656,17 @@ class ResidentConversationService:
                     implementation=implementation, provider_ref=row["provider_ref"],
                     model_id=completion.served_model, body=completion.content,
                     metadata={"model_revision": current["implementation_revision"],
+                        "original_implementation_id": row["implementation_id"],
+                        "original_implementation_revision": row["implementation_revision"],
+                        "executing_implementation_id": current["implementation_id"],
+                        "executing_implementation_revision": current["implementation_revision"],
+                        "original_steward_authorization": row.get("user_metadata") or {
+                            "principal_id": row["principal_id"], "action": self.SEND_ACTION,
+                            "scope_ref": "office:" + self.office_id,
+                            "authorized_at_original_request": True,
+                            "historical_grant_id": "not_recorded_for_legacy_request"},
+                        "revalidated_grant_id": current_grant.get("grant_id"),
+                        "required_capability": required_capability,
                         "reasoning_stage": completion.reasoning_stage,
                         "provisional": completion.provisional,
                         "resumed_deferred_request": True,
@@ -616,6 +683,8 @@ class ResidentConversationService:
                 # Keep durable work deferred on transient failures; retry after readiness changes.
                 _LOG.warning("Grace deferred request remains queued (%s)", type(exc).__name__)
                 continue
+            finally:
+                self.store.release_deferred_claim(row["request_id"], claim_token)
         return resumed
 
     def _failed(self, conversation_id, request_id, binding, implementation,

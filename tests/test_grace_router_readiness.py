@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_router_readiness.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify router startup readiness under restricted authority-ledger access
 # Execution Model: Isolated PostgreSQL integration test
 # Observability: Explicit migration, ledger-denial, authority, and binding assertions
 # Dependencies: Psycopg 3; private RIVERVIEW_TEST_PG_DSN; dashboard readiness helper
 # Authority: Creates and drops only unique rvtest_* schemas and a unique test role
 # Changed: 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Add least-privilege startup regression coverage
+# Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Require both deferred migrations and the runtime-only compatibility function at startup
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: python3 -m unittest tests.test_grace_router_readiness -v
 # History: Git and .riverview-backups/manifest.jsonl
@@ -30,18 +31,24 @@ class _Router:
 class _Registry:
     def __init__(self, snapshot=None, error=None):
         self.snapshot = snapshot or {
+            "implementation_id": "implementation:test-router",
             "implementation_kind": "model",
             "provider_ref": _Router.provider_id,
             "implementation_revision": _Router.model_sha256,
         }
         self.error = error
         self.calls = []
+        self.compatibility_calls = []
 
     def authorize_office_state(self, credential, office_id):
         self.calls.append((credential, office_id))
         if self.error:
             raise self.error
         return self.snapshot
+
+    def is_authorized_implementation_successor(self, credential, office_id, **kwargs):
+        self.compatibility_calls.append((credential, office_id, kwargs))
+        return False
 
 
 @unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")
@@ -77,6 +84,10 @@ class GraceRouterReadinessPostgresTests(unittest.TestCase):
             "INSERT INTO {}.schema_migrations(version,checksum) VALUES (%s,%s)"
         ).format(sql.Identifier(self.app_schema)),
             ("0004_deferred_conversation_responses", "b" * 64))
+        self.db.execute(sql.SQL(
+            "INSERT INTO {}.schema_migrations(version,checksum) VALUES (%s,%s)"
+        ).format(sql.Identifier(self.app_schema)),
+            ("0006_deferred_execution_claims", "d" * 64))
         self.db.execute(sql.SQL(
             "INSERT INTO {}.schema_migrations(version,checksum) VALUES (%s,%s)"
         ).format(sql.Identifier(self.authority_schema)),
@@ -131,11 +142,20 @@ class GraceRouterReadinessPostgresTests(unittest.TestCase):
         result = self._run_as_runtime(registry)
         self.assertEqual(result["provider_ref"], _Router.provider_id)
         self.assertEqual(registry.calls, [("test-resident-credential", "office:test")])
+        self.assertEqual(len(registry.compatibility_calls), 1)
 
     def test_missing_resident_migration_fails_closed(self):
         self.db.execute(self.sql.SQL("DELETE FROM {}.schema_migrations").format(
             self.sql.Identifier(self.app_schema)))
-        with self.assertRaisesRegex(RuntimeError, "deferral migration is not applied"):
+        with self.assertRaisesRegex(RuntimeError, "deferred-resumption migrations are not applied"):
+            self._run_as_runtime(_Registry())
+
+    def test_missing_claim_migration_fails_closed(self):
+        self.db.execute(self.sql.SQL(
+            "DELETE FROM {}.schema_migrations WHERE version=%s").format(
+            self.sql.Identifier(self.app_schema)),
+            ("0006_deferred_execution_claims",))
+        with self.assertRaisesRegex(RuntimeError, "deferred-resumption migrations are not applied"):
             self._run_as_runtime(_Registry())
 
     def test_unavailable_authority_capability_fails_closed(self):

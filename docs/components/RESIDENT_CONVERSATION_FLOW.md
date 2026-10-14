@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION_FLOW.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.8
+File Revision: 1.0.9
 Purpose: Generated focused flow for persistent Grace browser conversation
 Authority: Canonical graph JSON; diagram generated and not hand-edited
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Register generated chat workflow view
@@ -29,7 +29,7 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_inference_8bca7614["Call the office-bound local model adapter; only loopback or explicitly allowlisted OCTO1 routes are accepted, with served-model and binding checks"]
     g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79[["Persist a sanitized unavailable or incomplete response outcome"]]
     g_rv_resident_conversation_browser_chat_binding_recheck_06e5ffdc["Reject a result if the office implementation changed during inference"]
-    g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b["Append assistant message with model and token provenance"]
+    g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b["Append one terminal response with actual served model and original plus executing implementation provenance"]
     g_rv_resident_conversation_browser_chat_restart_recovery_57f09430["After service restart mark unfinished request interrupted without automatic duplicate inference"]
     g_rv_resident_conversation_browser_chat_browser_history_c2d99277(["Return durable response/status and render persisted conversation in dashboard"])
     g_rv_resident_conversation_browser_chat_future_objective_jump_be36018d["Future explicit authorization remains a separate objective submission path"]
@@ -45,8 +45,11 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_readiness_route_7e67f750{"Route substantive turns to 80B; exact acknowledgments to 0.6B; narrow simple facts to provisional 30B"}
     g_rv_resident_conversation_browser_chat_attempt_diagnostics_6b1cc0a3["Persist sanitized provider attempts, bounded timing/error, fallback reason, and final served provider"]
     g_rv_resident_conversation_browser_chat_defer_reasoning_7d693ff6["Persist complex turn and required capability when 80B is unavailable or busy"]
-    g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14["Poll durable deferrals; recheck exact grant and unchanged office implementation before resumption"]
+    g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14["Poll durable deferred turns and acquire a cross-process request lease"]
     g_rv_resident_conversation_browser_chat_reasoning_router_failure_43c1e7f2[["Keep deferred request durable across endpoint errors and process restart"]]
+    g_rv_resident_conversation_browser_chat_resume_auth_recheck_b0f115ca["Revalidate the original sender exact grant and current Grace occupant"]
+    g_rv_resident_conversation_browser_chat_upgrade_continuity_a3e9f484{"Does current binding exactly match or follow the explicitly authorized direct router transition for the required 80B capability?"}
+    g_rv_resident_conversation_browser_chat_upgrade_rejected_183d47de[["Keep the request deferred when grant, capability, successor, or audited transition is invalid"]]
   end
   g_rv_grace_operational_integration_objective_intake_55567c14["Registered target<br/>rv:grace:operational-integration"]
   g_rv_resident_conversation_browser_chat_browser_submit_e4a0bb86 --> g_rv_resident_conversation_browser_chat_dashboard_auth_1ec7b499
@@ -88,8 +91,13 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_readiness_route_7e67f750 -->|80B ready or bounded provisional path selected| g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b
   g_rv_resident_conversation_browser_chat_readiness_route_7e67f750 -->|diagnostic_branch: Substantive turn requires unavailable or busy 80B| g_rv_resident_conversation_browser_chat_defer_reasoning_7d693ff6
   g_rv_resident_conversation_browser_chat_defer_reasoning_7d693ff6 -->|recovery_route: Automatic readiness polling; durable request retained| g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14
-  g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14 -->|verification: Grant and original binding still valid; response provenance persisted| g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b
   g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14 -->|diagnostic_branch: Capability or provider remains unavailable| g_rv_resident_conversation_browser_chat_reasoning_router_failure_43c1e7f2
   g_rv_resident_conversation_browser_chat_reasoning_router_failure_43c1e7f2 -->|recovery_route: Retry persisted request when readiness changes| g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14
+  g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14 -->|Lease acquired; inspect original principal and deferred capability| g_rv_resident_conversation_browser_chat_resume_auth_recheck_b0f115ca
+  g_rv_resident_conversation_browser_chat_resume_auth_recheck_b0f115ca -->|diagnostic_branch: Original exact grant revoked or current occupant differs| g_rv_resident_conversation_browser_chat_upgrade_rejected_183d47de
+  g_rv_resident_conversation_browser_chat_resume_auth_recheck_b0f115ca -->|Exact grant and occupant revalidated| g_rv_resident_conversation_browser_chat_upgrade_continuity_a3e9f484
+  g_rv_resident_conversation_browser_chat_upgrade_continuity_a3e9f484 -->|diagnostic_branch: No exact binding or explicit direct-upgrade compatibility| g_rv_resident_conversation_browser_chat_upgrade_rejected_183d47de
+  g_rv_resident_conversation_browser_chat_upgrade_continuity_a3e9f484 -->|verification: Compatible authorized router invokes required capability and records dual provenance| g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b
+  g_rv_resident_conversation_browser_chat_upgrade_rejected_183d47de -->|recovery_route: Leave deferred request durable; resume only after an authorized correction| g_rv_resident_conversation_browser_chat_reasoning_router_failure_43c1e7f2
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

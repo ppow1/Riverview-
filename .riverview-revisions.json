@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.123",
+  "manifest_revision": "1.1.126",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.88",
+      "revision": "1.0.91",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "00f71c39690e80f32eaf930d46a1843abcd743d7b79ecfd0b20e086908778a84",
-      "size_bytes": 433073
+      "sha256": "f5c35f9063656a01d7fdfc3a208f879be8620910457c8fcf46b3e09c2bf8eec2",
+      "size_bytes": 437673
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 33631
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.123"
+      "revision": "1.1.126"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -167,10 +167,10 @@
       "size_bytes": 2957
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
-      "revision": "1.0.11",
+      "revision": "1.0.12",
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
-      "sha256": "b26ad87d543d2790a6430b6fbbf5f0743950da6d4a201fbe927b91714a4c1f7f",
-      "size_bytes": 39092
+      "sha256": "e080c50f00769190133a51254012cc4f5041dc22cca86d963a0f9c3d6b8c281a",
+      "size_bytes": 39377
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "revision": "1.0.6",
@@ -197,10 +197,10 @@
       "size_bytes": 18530
     },
     "process_graphs/resident-conversation/browser-chat.json": {
-      "revision": "1.0.9",
+      "revision": "1.0.10",
       "path": "process_graphs/resident-conversation/browser-chat.json",
-      "sha256": "6e93b0f8b1db863f5c07518d3cdd957675ebf4b0df842714d49f0bd7aa259f03",
-      "size_bytes": 30508
+      "sha256": "ac297cb1aa7c50e1ef0990d7452453373a8ddd3cbb72593b7c1b0c3061df1ac5",
+      "size_bytes": 34284
     },
     "process_graphs/account-authentication/account-lifecycle.json": {
       "revision": "1.1.0",

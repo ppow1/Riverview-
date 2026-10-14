@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.13
+File Revision: 1.1.14
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -18,6 +18,7 @@ Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Specify complete conversational
 Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record dashboard-only live release and distinguish local commissioning from Steward Windows acceptance
 Changed: 2026-10-13 UTC | RV-GRACE-MULTI-STAGE-001 | Record exact OCTO1 provider opt-in, readiness states, and the unimplemented routing/deferral boundary
 Changed: 2026-10-13 UTC | RV-GRACE-MULTI-STAGE-001 | Clarify local slot contention is not global OCTO1 slot telemetry
+Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Document opt-in audited router continuity, grant revalidation, provenance, and durable claims
 Changed: 2026-10-13 UTC | RV-GRACE-MULTI-STAGE-001 | Document endpoint/model pair pinning and explicit dashboard opt-in
 Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record deployed 390 CSS-pixel responsive fixture while retaining physical-device and Windows verification as pending
 Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Add persistent same-origin browser credential transport, exact-grant rechecks, and denial retry suppression
@@ -236,12 +237,43 @@ current browser conversation payload is text-only; this does not commission
 image upload or prove the 30B visual request path.
 
 When a substantive turn cannot use the 80B, the user message and one
-`response_deferred` event remain in the conversation ledger. The opt-in dashboard
-resumption loop polls the durable ledger, rechecks the sender's exact grant and
-the original office implementation revision, and appends the response only after
-the required provider is ready. Retries do not create a second user message.
-Apply resident-execution migration `0004_deferred_conversation_responses.sql`
-before enabling this code. The loop is started only with
+response_deferred event remain in the conversation ledger. The opt-in dashboard
+resumption loop rechecks the original sender's exact grant and current Grace
+occupant, then validates the deferred capability. Matching implementation
+identity remains the normal path. A changed router may resume only when the
+current office binding is the direct successor in an immutable
+office_model_implementation_changed event whose CAS call explicitly opted
+into grace.reasoning.80b continuity. The event must name the exact predecessor
+revision, successor revision, current binding revision, and registered
+grace.readiness_router.v1 provider. Ordinary rebinds, unrelated providers,
+indirect/older transitions, missing capabilities, and revoked original sender
+grants remain paused. The original user and deferred events are never rewritten;
+the terminal response records original and executing implementation identities,
+the revalidated grant, and actual served model.
+
+Resumption claims each request in the durable
+resident_deferred_execution_claims table before provider execution. One active
+ten-minute lease prevents concurrent execution across threads and service
+processes; the lease is released on every attempt and expires after a process
+crash. Terminal-event checks and the conversation row lock make reply insertion
+idempotent.
+
+An explicitly authorized upgrade uses
+AuthorityRegistry.update_office_implementation(...,
+deferred_compatibility_capabilities=("grace.reasoning.80b",)). The option
+defaults to no continuity and remains behind the existing exact office.manage
+grant and binding-revision compare-and-swap. The runtime's
+authorized_office_implementation_successor SECURITY DEFINER function reveals
+only a boolean and requires the current resident credential plus exact
+office.state.write grant. It exposes neither audit rows nor migration ledgers.
+The restricted authority-boundary provisioning grants execute on this one
+allowlisted function, not table access.
+
+Apply resident-execution migrations
+0004_deferred_conversation_responses.sql and
+0006_deferred_execution_claims.sql, and authority migration
+0006_authorized_implementation_successor.sql, before enabling continuity.
+The loop is started only with
 `RIVERVIEW_GRACE_ENABLE_MODEL_ROUTER=1`; the setting additionally requires the
 30B and 80B model SHA-256 configuration values. The existing 0.6B endpoint/model/
 digest settings remain required. OCTO1 access remains gated by the explicit
@@ -292,3 +324,13 @@ dashboard configuration, a Steward-authorized CAS rebind, a dashboard-only
 restart, and browser evidence showing the served 80B model plus persistent
 conversation history. No service was restarted and no office binding was
 changed by this correction.
+
+**Current status update (2026-10-14):** The failed cfdda4 commissioning was
+rolled back safely. Production is reported restored to dashboard release
+807262be9a1a54e29ff7f8bd7f8f51b8aa4767ad with Grace binding revision 6 and the
+already-applied dashboard health projection permission. The pending deferred
+requests retain the prior router implementation fingerprint
+87ccad04629151f564185ffdef5e961fad4608d805307b431fbe48dbea804cc1; the
+successor fingerprint is 608aa519346c4643050b1dff6bc0f0a4d65d2cb9d64b9c07cf1d8faeae3b8c7e.
+This continuity correction and its two new migrations are development-only.
+They have not been migrated, deployed, or rebound in production.

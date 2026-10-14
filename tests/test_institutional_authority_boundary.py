@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_institutional_authority_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.22
+# Revision: 1.0.23
 # Purpose: Verify isolated M4.1 ownership separation denies runtime SQL bypass
 # Execution Model: PostgreSQL integration test using unique rvtest schema and roles
 # Observability: Protected object owners, runtime denial, manager registry authorization
@@ -30,6 +30,7 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Verify principal-based grant checks share the protected function ACL
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Isolate each denied manager function call in a clean database transaction
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Require principal-keyed checks to target a Steward principal
+# Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Include the audited successor decision in the least-privilege runtime function boundary
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -207,7 +208,9 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
         # trigger a repair instead of being missed by table/function checks.
         for function_name, signature in (
                 ("read_authorized_office_state", "(bytea,text)"),
-                ("write_authorized_office_state", "(bytea,text,jsonb,bigint)")):
+                ("write_authorized_office_state", "(bytea,text,jsonb,bigint)"),
+                ("authorized_office_implementation_successor",
+                 "(bytea,text,text,text,text,text,text)")):
             function = self.sql.SQL("{}.{}{}").format(
                 self.sql.Identifier(self.schema), self.sql.Identifier(function_name),
                 self.sql.SQL(signature))
@@ -298,6 +301,12 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
         initial = office_registry.authorize_office_state(self.resident_token, "office:boundary-test")
         self.assertEqual(initial["principal_id"], "resident:boundary-test")
         self.assertEqual(initial["binding_revision"], 1)
+        self.assertFalse(office_registry.is_authorized_implementation_successor(
+            self.resident_token, "office:boundary-test",
+            predecessor_id="impl:unrelated", predecessor_revision="old",
+            successor_id=initial["implementation_id"],
+            successor_revision=initial["implementation_revision"],
+            required_capability="grace.reasoning.80b"))
         self.assertEqual(office_registry.set_office_state(
             self.resident_token, "office:boundary-test", {"plan": "first"},
             expected_revision=1), 2)
