@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-conversation:browser-chat",
-  "graph_revision": "1.0.10",
+  "graph_revision": "1.0.12",
   "component_id": "RESIDENT-CONVERSATION",
   "workflow_id": "resident.conversation.v1",
   "diagram_order": 14,
@@ -22,7 +22,11 @@
     "src/riverview_core/status_dashboard/static/app.js",
     "src/riverview_core/status_dashboard/static/index.html",
     "tests/test_grace_router_readiness.py",
-    "tests/test_resident_conversation.py"
+    "tests/test_resident_conversation.py",
+    "src/riverview_core/resident_execution/grace_role_context.py",
+    "tests/test_grace_role_context.py",
+    "src/riverview_core/resident_execution/operational_context.py",
+    "tests/test_grace_operational_context.py"
   ],
   "documentation_references": [
     "docs/components/RESIDENT_CONVERSATION.md",
@@ -603,6 +607,43 @@
         "tests/test_resident_model_router.py",
         "tests/test_resident_conversation.py"
       ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:grace-role-context",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Inject shared canonical Director of Operations identity, responsibilities and no-permission boundary into ordinary and resumed turns",
+      "source_references": [
+        "src/riverview_core/resident_execution/grace_role_context.py",
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/architecture/GRACE_DIRECTOR_OF_OPERATIONS_RECONCILIATION.md",
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_grace_role_context.py",
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:operations-snapshot",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Attach a bounded read-only CME, assignment, objective, worker and attention snapshot with freshness and redaction provenance",
+      "source_references": [
+        "src/riverview_core/resident_execution/operational_context.py",
+        "src/riverview_core/status_dashboard/projection.py",
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md",
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": [
+        "tests/test_grace_operational_context.py",
+        "tests/test_resident_conversation.py"
+      ]
     }
   ],
   "edges": [
@@ -661,12 +702,6 @@
       "to": "rv:resident-conversation:browser-chat:provider-failure",
       "type": "diagnostic_branch",
       "label": "Context too large; model is not called"
-    },
-    {
-      "from": "rv:resident-conversation:browser-chat:context-bound",
-      "to": "rv:resident-conversation:browser-chat:inference",
-      "type": "runtime_transition",
-      "label": "Within context bound"
     },
     {
       "from": "rv:resident-conversation:browser-chat:inference",
@@ -881,6 +916,23 @@
       "to": "rv:resident-conversation:browser-chat:persist-response",
       "type": "verification",
       "label": "80B inference accepted and actual served-model provenance persisted under the original request"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:context-bound",
+      "to": "rv:resident-conversation:browser-chat:grace-role-context",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:grace-role-context",
+      "to": "rv:resident-conversation:browser-chat:operations-snapshot",
+      "type": "runtime_transition",
+      "label": "Use existing read-only institutional projections; do not expose direct database or action tools"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:operations-snapshot",
+      "to": "rv:resident-conversation:browser-chat:inference",
+      "type": "runtime_transition",
+      "label": "Role and bounded attributed operational observations added before model inference"
     }
   ]
 }

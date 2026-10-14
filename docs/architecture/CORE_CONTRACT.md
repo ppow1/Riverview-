@@ -1,7 +1,7 @@
 <!--
 Riverview~ Controlled Document
 File: docs/architecture/CORE_CONTRACT.md
-Revision: 1.0.1
+Revision: 1.0.2
 Migration: ENG-REV-002
 -->
 # Riverview~ core contract — working baseline
@@ -24,10 +24,14 @@ Migration: ENG-REV-002
 
 ## Priority-one resident: Grace
 
-Grace is the first operational AI director of engineering work. Her institutionally
-assigned role, office, and delegated authority are durable and independent from
-the replaceable occupant, model, reasoning provider, personality, voice, avatar,
-and presentation. She receives a Steward objective, reasons and revises a
+Grace is Riverview's Director of Operations and the first resident responsible
+for coordinating authorized institutional progression through the CME and
+Engineering. Alfred holds the distinct Chief of Staff role; the Steward retains
+final institutional authority. Grace's office and delegated authority are
+durable and independent from the replaceable occupant, model, reasoning provider,
+personality, voice, avatar, and presentation. Her 0.6B autonomic, 30B vision, and
+80B reasoning systems are cooperating implementations of one Grace occupant.
+She receives a Steward objective, reasons and revises a
 persistent plan, creates assignments through the CME, uses replaceable real
 engineering execution adapters, observes durable progress, consumes independent
 verification evidence, and initiates follow-up or replan work until verified

@@ -2816,7 +2816,7 @@
     },
     {
       "graph_id": "rv:institutional-authority:identity-and-grants",
-      "graph_revision": "1.0.12",
+      "graph_revision": "1.0.13",
       "component_id": "INSTITUTIONAL-AUTHORITY",
       "workflow_id": "identity-and-grants.v1",
       "diagram_order": 1,
@@ -2836,7 +2836,8 @@
         "tests/test_grace_provisioning.py",
         "tests/test_institutional_authority.py",
         "tests/test_institutional_authority_boundary.py",
-        "tests/test_worker_adapter.py"
+        "tests/test_worker_adapter.py",
+        "src/riverview_core/institutional_authority/migrations/0007_audited_office_role_update.sql"
       ],
       "documentation_references": [
         "docs/components/INSTITUTIONAL_AUTHORITY.md",
@@ -3477,6 +3478,53 @@
           "verification_evidence": [
             "tests/test_institutional_authority.py"
           ]
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:office-role-update",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Steward compare-and-swap updates stable office title and appends an audit event without changing occupant, binding, or grants",
+          "source_references": [
+            "src/riverview_core/institutional_authority/registry.py",
+            "src/riverview_core/institutional_authority/migrations/0007_audited_office_role_update.sql"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_institutional_authority.py"
+          ]
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:office-role-update-conflict",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Reject stale expected office role, non-Steward actor, or unavailable registry; leave office and binding unchanged",
+          "source_references": [
+            "src/riverview_core/institutional_authority/registry.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_institutional_authority.py"
+          ]
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:office-role-update-retry",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Re-read current office title and retry only after Steward confirms the intended correction",
+          "source_references": [
+            "src/riverview_core/institutional_authority/registry.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_institutional_authority.py"
+          ]
         }
       ],
       "edges": [
@@ -3776,6 +3824,35 @@
           "to": "rv:institutional-authority:identity-and-grants:model-rebind-rollback",
           "type": "recovery_route",
           "label": "Rollback requested; use predecessor implementation and current revision"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:authorize",
+          "to": "rv:institutional-authority:identity-and-grants:office-role-update",
+          "type": "runtime_transition",
+          "label": "Steward exact office.manage grant and expected title supplied"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:office-role-update",
+          "to": "rv:institutional-authority:identity-and-grants:complete",
+          "type": "verification",
+          "label": "Role event persisted; occupant, implementation and grants remain unchanged"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:office-role-update",
+          "to": "rv:institutional-authority:identity-and-grants:office-role-update-conflict",
+          "type": "diagnostic_branch",
+          "label": "Stale title expectation, non-Steward actor or registry failure"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:office-role-update-conflict",
+          "to": "rv:institutional-authority:identity-and-grants:office-role-update-retry",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:office-role-update-retry",
+          "to": "rv:institutional-authority:identity-and-grants:authorize",
+          "type": "runtime_transition",
+          "label": "Refresh authoritative title and revalidate Steward authority"
         }
       ]
     },
@@ -5493,7 +5570,7 @@
     },
     {
       "graph_id": "rv:resident-conversation:browser-chat",
-      "graph_revision": "1.0.10",
+      "graph_revision": "1.0.12",
       "component_id": "RESIDENT-CONVERSATION",
       "workflow_id": "resident.conversation.v1",
       "diagram_order": 14,
@@ -5515,7 +5592,11 @@
         "src/riverview_core/status_dashboard/static/app.js",
         "src/riverview_core/status_dashboard/static/index.html",
         "tests/test_grace_router_readiness.py",
-        "tests/test_resident_conversation.py"
+        "tests/test_resident_conversation.py",
+        "src/riverview_core/resident_execution/grace_role_context.py",
+        "tests/test_grace_role_context.py",
+        "src/riverview_core/resident_execution/operational_context.py",
+        "tests/test_grace_operational_context.py"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_CONVERSATION.md",
@@ -6096,6 +6177,43 @@
             "tests/test_resident_model_router.py",
             "tests/test_resident_conversation.py"
           ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:grace-role-context",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Inject shared canonical Director of Operations identity, responsibilities and no-permission boundary into ordinary and resumed turns",
+          "source_references": [
+            "src/riverview_core/resident_execution/grace_role_context.py",
+            "src/riverview_core/resident_execution/conversation.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/GRACE_DIRECTOR_OF_OPERATIONS_RECONCILIATION.md",
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_role_context.py",
+            "tests/test_resident_conversation.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:operations-snapshot",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Attach a bounded read-only CME, assignment, objective, worker and attention snapshot with freshness and redaction provenance",
+          "source_references": [
+            "src/riverview_core/resident_execution/operational_context.py",
+            "src/riverview_core/status_dashboard/projection.py",
+            "src/riverview_core/resident_execution/conversation.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md",
+            "docs/components/STATUS_DASHBOARD.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_operational_context.py",
+            "tests/test_resident_conversation.py"
+          ]
         }
       ],
       "edges": [
@@ -6154,12 +6272,6 @@
           "to": "rv:resident-conversation:browser-chat:provider-failure",
           "type": "diagnostic_branch",
           "label": "Context too large; model is not called"
-        },
-        {
-          "from": "rv:resident-conversation:browser-chat:context-bound",
-          "to": "rv:resident-conversation:browser-chat:inference",
-          "type": "runtime_transition",
-          "label": "Within context bound"
         },
         {
           "from": "rv:resident-conversation:browser-chat:inference",
@@ -6374,12 +6486,29 @@
           "to": "rv:resident-conversation:browser-chat:persist-response",
           "type": "verification",
           "label": "80B inference accepted and actual served-model provenance persisted under the original request"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:context-bound",
+          "to": "rv:resident-conversation:browser-chat:grace-role-context",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:grace-role-context",
+          "to": "rv:resident-conversation:browser-chat:operations-snapshot",
+          "type": "runtime_transition",
+          "label": "Use existing read-only institutional projections; do not expose direct database or action tools"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:operations-snapshot",
+          "to": "rv:resident-conversation:browser-chat:inference",
+          "type": "runtime_transition",
+          "label": "Role and bounded attributed operational observations added before model inference"
         }
       ]
     },
     {
       "graph_id": "rv:resident-reasoning:runtime",
-      "graph_revision": "1.1.1",
+      "graph_revision": "1.1.2",
       "component_id": "RESIDENT-REASONING",
       "workflow_id": "resident.reasoning.v1",
       "diagram_order": 13,
@@ -6387,6 +6516,7 @@
         "src/riverview_core/institutional_authority/registry.py",
         "src/riverview_core/local_reasoning_provider.py",
         "src/riverview_core/reasoning_escalation.py",
+        "src/riverview_core/resident_execution/grace_role_context.py",
         "src/riverview_core/resident_reasoning.py",
         "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
         "tests/test_local_reasoning_provider.py",
@@ -6646,6 +6776,23 @@
           "verification_evidence": [
             "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md",
             "evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1340Z-fce3c30/result-summary.json"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:grace-role-context",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "For office:grace only, add the shared Director of Operations role and authority boundaries to the assignment proposal prompt",
+          "source_references": [
+            "src/riverview_core/local_reasoning_provider.py",
+            "src/riverview_core/resident_execution/grace_role_context.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/architecture/GRACE_DIRECTOR_OF_OPERATIONS_RECONCILIATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_local_reasoning_provider.py"
           ]
         },
         {
@@ -7063,9 +7210,15 @@
         },
         {
           "from": "rv:resident-reasoning:runtime:budget-gate",
+          "to": "rv:resident-reasoning:runtime:grace-role-context",
+          "type": "runtime_transition",
+          "label": "Budget fits; apply office-specific canonical context before provider call"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:grace-role-context",
           "to": "rv:resident-reasoning:runtime:provider-call",
           "type": "runtime_transition",
-          "label": "budget fits all candidates"
+          "label": "Role context is bounded and supplies no permissions"
         },
         {
           "from": "rv:resident-reasoning:runtime:budget-gate",
@@ -10132,6 +10285,9 @@
     "rv:institutional-authority:identity-and-grants:model-rebind-stale",
     "rv:institutional-authority:identity-and-grants:model-rebind-update",
     "rv:institutional-authority:identity-and-grants:model-rebind-verify",
+    "rv:institutional-authority:identity-and-grants:office-role-update",
+    "rv:institutional-authority:identity-and-grants:office-role-update-conflict",
+    "rv:institutional-authority:identity-and-grants:office-role-update-retry",
     "rv:institutional-authority:identity-and-grants:office-state",
     "rv:institutional-authority:identity-and-grants:principal-create",
     "rv:institutional-authority:identity-and-grants:recover",
@@ -10236,10 +10392,12 @@
     "rv:resident-conversation:browser-chat:deny",
     "rv:resident-conversation:browser-chat:exact-grant",
     "rv:resident-conversation:browser-chat:future-objective-jump",
+    "rv:resident-conversation:browser-chat:grace-role-context",
     "rv:resident-conversation:browser-chat:inference",
     "rv:resident-conversation:browser-chat:message-actions",
     "rv:resident-conversation:browser-chat:model-readiness-diagnostic",
     "rv:resident-conversation:browser-chat:office-binding",
+    "rv:resident-conversation:browser-chat:operations-snapshot",
     "rv:resident-conversation:browser-chat:persist-response",
     "rv:resident-conversation:browser-chat:persist-user",
     "rv:resident-conversation:browser-chat:provider-failure",
@@ -10266,6 +10424,7 @@
     "rv:resident-reasoning:runtime:fallback",
     "rv:resident-reasoning:runtime:fallback-gate",
     "rv:resident-reasoning:runtime:freshness-gate",
+    "rv:resident-reasoning:runtime:grace-role-context",
     "rv:resident-reasoning:runtime:ground",
     "rv:resident-reasoning:runtime:grounding-gate",
     "rv:resident-reasoning:runtime:knowledge-contract-jump",

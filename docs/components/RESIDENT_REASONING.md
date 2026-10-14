@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.5
+File Revision: 1.0.6
 Purpose: Define resident context regrounding and bounded reasoning-provider routing
 Authority: Exact office-state grant required; provider output is a proposal, never permission
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Establish isolated resident reasoning contract
@@ -11,6 +11,7 @@ Changed: 2026-10-11 UTC | RV-M4.2-MARKDOWN-WHITESPACE | Normalize compact metada
 Changed: 2026-10-11 UTC | RV-M4.2-LOCAL-PROVIDER-INTEGRATION | Document strict loopback provider adapter and actual host timeout boundary
 Changed: 2026-10-11 UTC | RV-M4.2-LOCAL-PROVIDER-RESULT | Record actual model timeout separately from the verified mock HTTP contract
 Changed: 2026-10-13 UTC | RV-REASONING-ESCALATION-CONTRACT | Specify task-escalation request/result boundary and integration limit
+Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Pass canonical Grace role and authority boundaries into her assignment reasoning provider
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Resident regrounding and reasoning routing
@@ -69,6 +70,14 @@ returned `UNAVAILABLE` at the 30-second bound before a complete proposal was
 produced; no `ResidentReasoner` invocation, authority-state write, persistent
 inference service, or change to the M3.3 worker path occurred. Evidence is in
 `evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1340Z-fce3c30/`.
+
+For `office:grace` only, the provider prepends the same versioned Director of
+Operations role profile used by the conversation service. Other offices retain
+the generic resident proposal instruction and do not inherit Grace's identity.
+Assignment facts and verified knowledge continue through the existing bounded,
+redacted `ReasoningRequest`; provider output remains an unapproved typed
+proposal. Unit coverage confirms the office-specific context and no-permission
+boundary. This source change is not deployed or live-model verified.
 
 ## Interfaces
 

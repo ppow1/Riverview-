@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.25
+File Revision: 1.0.26
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -28,6 +28,7 @@ Changed: 2026-10-11 UTC | RV-M4.1-GRACE-IDENTITY-COMMISSIONING | Document the li
 Changed: 2026-10-11 UTC | RV-M3.3-STATUS-RECONCILIATION | Correct current summary text superseded by later M3.3 live commissioning
 Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Add exact-grant check for linked authenticated account principals
 Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Specify explicit continuity opt-in on audited implementation CAS and its least-privilege runtime query
+Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Document Steward-only office-role correction without changing occupant, binding, or grants
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
@@ -235,6 +236,12 @@ See the [boundary procedure](INSTITUTIONAL_AUTHORITY_COOKBOOK.md#versioned-privi
 - `create_office(...)`, `create_occupant(...)`, `create_implementation(...)`,
   `bind_office(...)`, `office_snapshot(...)` — keep institutional role,
   occupant, implementation and state separate.
+- `update_office_role(steward_token, office_id, office_role, expected_office_role)` —
+  compare-and-swap correction of stable office title metadata. Requires a Steward
+  principal with the existing exact `office.manage` institution grant, and
+  records the previous/new titles in the append-only authority event ledger.
+  It does not alter the office occupant, implementation binding, binding
+  revision, or any grant.
 - `set_office_state(credential, office_id, state, expected_revision=None)` —
   persist bounded office-keyed state only when the exact grant principal is the
   currently bound resident; stale/re-granted former occupants are denied.
@@ -251,7 +258,10 @@ The authority migration chain is self-contained for a fresh dedicated schema:
 and `0002_exact_grant_authorization.sql` adds the protected exact-grant
 function; `0003_resident_office_state_api.sql` adds the two bound-office
 snapshot/CAS functions; `0004_exact_principal_grant_authorization.sql` adds the
-principal-keyed exact-grant check without issuing authority. The runner records checksums and rejects later drift. Existing
+principal-keyed exact-grant check without issuing authority; `0005` adds the
+audited implementation update event, `0006` adds the narrowly authorized
+successor continuity check, and `0007` adds the audited office-role update
+event. The runner records checksums and rejects later drift. Existing
 schemas with a compatible ledger are preserved; the bootstrap migration uses
 `IF NOT EXISTS`. On Camrui the 0000–0002 checksums are recorded; migration
 0003 is only applied in the isolated PostgreSQL integration test here. The
@@ -261,6 +271,13 @@ remains open.
 See [the focused flow](INSTITUTIONAL_AUTHORITY_FLOW.md),
 [the operations cookbook](INSTITUTIONAL_AUTHORITY_COOKBOOK.md), and
 [`RV-M4.1-001`](../development/M4.1-001_REVISION_RECORD.md).
+
+Migration `0007_audited_office_role_update.sql` adds only the
+`office_role_updated` event type to the append-only authority event constraint.
+The registry manager invokes the method after normal migration, backup, and
+Steward-authorized deployment procedures; the runtime does not receive table
+write access. Existing role correction is compare-and-swap against the
+previously observed title, and stale expectations fail without changing rows.
 
 
 ## Deferred-request compatibility for an authorized router upgrade

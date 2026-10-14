@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.14
+# Revision: 1.0.17
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -19,6 +19,9 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Exercise linked-account API session, persistence and denial through dashboard routes
 # Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Verify the two pending request identities resume only through an explicitly authorized router transition
 # Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-CAPABILITY-001 | Regress later-turn misrouting and check sanitized retry telemetry
+# Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Verify canonical office context reaches model and is persisted as provenance
+# Changed: 2026-10-14 UTC | RV-GRACE-DOPS-TOOLBOX-001 | Verify read-only operational snapshot reaches inference and its digest is persisted
+# Changed: 2026-10-14 UTC | RV-GRACE-DOPS-OBSERVATION-PERSISTENCE-001 | Verify the exact bounded observation snapshot is durably retained beside its digest
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: python3 -m unittest tests.test_resident_conversation
 # History: Git and .riverview-backups/manifest.jsonl
@@ -154,11 +157,17 @@ class ResidentConversationTests(unittest.TestCase):
         self.assertEqual(result["status"], "completed")
         self.assertEqual(result["response"], "Grace is ready to help.")
         self.assertEqual(self.provider_a.calls[0][1], 64)
+        prompt = self.provider_a.calls[0][0][0]["content"]
+        self.assertIn("Director of Operations", prompt)
+        self.assertIn("Alfred is the separate Chief of Staff", prompt)
+        self.assertIn("Continuous Momentum Engine (CME)", prompt)
+        self.assertIn("this role description grants no permission", prompt)
         history = self.service.history(self.steward_token, result["conversation_id"])
         self.assertEqual([e["event_type"] for e in history["events"]],
                          ["user_message", "assistant_message"])
         self.assertEqual(history["events"][1]["implementation_revision"], self.model_a)
         self.assertEqual(history["events"][1]["metadata"]["completion_tokens"], 9)
+        self.assertEqual(history["events"][1]["metadata"]["role_context_revision"], "1.0.0")
         self.assertEqual([row[1] for row in self._fresh_events(result["conversation_id"])],
                          ["user_message", "assistant_message"])
         self._assert_connection_idle()
@@ -170,6 +179,37 @@ class ResidentConversationTests(unittest.TestCase):
         with self.assertRaises(ConversationDenied):
             self.service.send(secrets.token_urlsafe(32), message="unauthorized")
         self.assertEqual(self.provider_a.calls, [])
+
+    def test_operational_context_is_injected_as_data_and_provenance_is_persisted(self):
+        class Context:
+            def snapshot(self):
+                return {"schema_version": "rv.grace.operations-context.v1",
+                    "capability_id": "grace.operations.snapshot.read.v1",
+                    "status": "current", "observed_at": "2026-10-14T12:00:00+00:00",
+                    "source_observed_at": "2026-10-14T11:59:59+00:00",
+                    "cme": {"status": "healthy", "heartbeat_age_seconds": 1.0},
+                    "assignments": [{"assignment_id": "assignment:current",
+                                     "state": "ready"}],
+                    "redaction": "request content excluded"}
+        self.service.operational_context = Context()
+        result = self.service.send(self.steward_token, message="What is the current operational state?",
+                                   client_message_id=str(uuid4()))
+        serialized_messages = json.dumps(self.provider_a.calls[0][0])
+        self.assertIn("grace.operations.snapshot.read.v1", serialized_messages)
+        self.assertIn("assignment:current", serialized_messages)
+        self.assertIn("observations with explicit status and timestamps", serialized_messages)
+        response_event = self.service.history(self.steward_token,
+            result["conversation_id"])["events"][-1]
+        provenance = response_event["metadata"]["operational_context"]
+        self.assertEqual(provenance["capability_id"], "grace.operations.snapshot.read.v1")
+        self.assertEqual(provenance["status"], "current")
+        self.assertRegex(provenance["sha256"], r"^[0-9a-f]{64}$")
+        self.assertEqual(response_event["metadata"]["operational_context_snapshot"]["capability_id"],
+                         "grace.operations.snapshot.read.v1")
+        self.assertIn("assignment:current",
+                      json.dumps(response_event["metadata"]["operational_context_snapshot"]))
+        self.assertNotIn("What is the current operational state?",
+                         json.dumps(response_event["metadata"]["operational_context_snapshot"]))
 
     def test_authenticated_steward_principal_uses_existing_exact_grants(self):
         from riverview_core.institutional_authority.grants import InstitutionalPrincipal

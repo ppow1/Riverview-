@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_FLOW.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.3
+File Revision: 1.0.4
 Purpose: Generated focused process view for resident reasoning routing
 Authority: Graph-generated view; canonical source is JSON
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add graph-generated resident reasoning flow
@@ -31,6 +31,7 @@ flowchart LR
     g_rv_resident_reasoning_runtime_route_gate_56e9828c{"Is the primary provider and every configured fallback exact, registered and bounded?"}
     g_rv_resident_reasoning_runtime_route_unavailable_854025a6[["Persist route failure and return UNAVAILABLE without inferred fallback"]]
     g_rv_resident_reasoning_runtime_provider_call_c528110c["Call one provider under per-call timeout and divided token budget"]
+    g_rv_resident_reasoning_runtime_grace_role_context_8af6db52["For office:grace only, add the shared Director of Operations role and authority boundaries to the assignment proposal prompt"]
     g_rv_resident_reasoning_runtime_fallback_gate_7e77ebca{"Did the call time out or fail before returning a plan?"}
     g_rv_resident_reasoning_runtime_fallback_6dc058bf["Try the next explicitly configured provider only; no implicit provider selection"]
     g_rv_resident_reasoning_runtime_proposal_gate_8918a316["Validate typed plan schema, ordered dependencies, and attempt token budget"]
@@ -76,7 +77,8 @@ flowchart LR
   g_rv_resident_reasoning_runtime_persistence_gate_d9f96702 -->|durable write committed| g_rv_resident_reasoning_runtime_proposal_only_27f4e7fa
   g_rv_resident_reasoning_runtime_persistence_gate_d9f96702 -->|diagnostic_branch: denial/conflict/unavailable/size limit| g_rv_resident_reasoning_runtime_state_conflict_0acad65d
   g_rv_resident_reasoning_runtime_route_gate_56e9828c -->|route is exact, registered and bounded| g_rv_resident_reasoning_runtime_budget_gate_362686a9
-  g_rv_resident_reasoning_runtime_budget_gate_362686a9 -->|budget fits all candidates| g_rv_resident_reasoning_runtime_provider_call_c528110c
+  g_rv_resident_reasoning_runtime_budget_gate_362686a9 -->|Budget fits; apply office-specific canonical context before provider call| g_rv_resident_reasoning_runtime_grace_role_context_8af6db52
+  g_rv_resident_reasoning_runtime_grace_role_context_8af6db52 -->|Role context is bounded and supplies no permissions| g_rv_resident_reasoning_runtime_provider_call_c528110c
   g_rv_resident_reasoning_runtime_budget_gate_362686a9 -->|diagnostic_branch: total token budget is smaller than route length| g_rv_resident_reasoning_runtime_budget_insufficient_85f3e6b9
   g_rv_resident_reasoning_runtime_select_provider_46047639 -->|prerequisite: Optional explicit task-escalation contract; distinct from provider failure fallback| g_rv_resident_reasoning_runtime_task_escalation_contract_dec2e604
   g_rv_resident_reasoning_runtime_task_escalation_contract_dec2e604 -->|prerequisite: Task escalation is a distinct authorized route, not failure fallback| g_rv_resident_reasoning_runtime_task_escalation_authority_gate_efa7f87a

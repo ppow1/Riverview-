@@ -1,17 +1,17 @@
 # Grace Director of Operations: Historical and Current-State Reconciliation
 
-**File Revision:** 1.0.0
+**File Revision:** 1.0.2
 **Date:** 2026-10-14
-**Status:** Evidence-based architecture reconciliation; no production or authority changes authorized by this document.
+**Status:** Evidence-based reconciliation with development-only canonical role and bounded read-only context integration; live role correction, vision flow, and execution service remain uncommissioned.
 **Scope:** Reconcile the historical Estate/Riverview design with the current `ppow1/Riverview-` engineering implementation and identify the smallest restoration sequence.
 
 ## 1. Executive finding
 
 Grace's canonical institutional office is **Director of Operations**. She coordinates institutional progression, the Continuous Motion Engine (CME), Engineering, resource-aware routing, monitoring, recovery, and exception escalation. Alfred is the separately designated Chief of Staff. The Steward retains final institutional authority. Grace's models are implementations of one office occupant; they do not determine or replace the office, its authority, or its responsibilities.
 
-The historical operations repository records this role explicitly. The current engineering documentation and live office-role metadata have drifted: current `CORE_CONTRACT.md` and `ROADMAP.md` describe Grace as an “AI director of engineering work,” and the live office role was observed as “AI director of engineering.” That wording narrows and misstates the canonical office. It must be reconciled through the normal documentation and AuthorityRegistry processes; this report does not alter the live binding or authority.
+The historical operations repository records this role explicitly. At the time of this reconciliation, current engineering documentation and live office-role metadata had drifted: `CORE_CONTRACT.md` and `ROADMAP.md` described Grace as an “AI director of engineering work,” and the live office role was observed as “AI director of engineering.” That wording narrowed and misstated the canonical office. The development follow-up in `RV-GRACE-DOPS-ROLE-CONTEXT-001` corrects those source documents, adds a Steward-only AuthorityRegistry compare-and-swap role correction and supplies a shared role context to model turns. Those changes are not deployed; live office-role metadata remains subject to a separately commissioned migration and authorized operation. No live binding, grant, or production service was changed.
 
-Today, the deployed conversation path can route Grace's text turn among the 0.6B, 30B, and 80B providers while retaining one persisted conversation and provider provenance. It does not yet give the model a complete, authoritative Director of Operations role profile or a bounded occupational capability set in its conversation context. The 0.6B inference service is running, and the 30B and 80B APIs were observed healthy during the October 14 investigation; a dedicated autonomic control loop and a persistent Grace-to-Engineering execution service are not commissioned. The Codex execution path exists in source but its service unit is not installed. Therefore, model availability and successful conversation do not establish operational autonomy.
+The deployed conversation path can route Grace's text turn among the 0.6B, 30B, and 80B providers while retaining one persisted conversation and provider provenance. The current development source now defines the canonical role profile and injects a bounded operational snapshot from existing read-only dashboard projections into ordinary and resumed turns. That context includes CME health, assignment/objective summaries, worker readiness, and Steward attention, with timestamps/status and a digest in response metadata. It is not a general tool broker and does not expose request bodies, artifacts, arbitrary database access, or action authority. These source changes are not deployed. The 0.6B inference service was live and the 30B/80B APIs were observed healthy during the October 14 check; a dedicated autonomic control loop and persistent Grace-to-Engineering execution service are not commissioned. The Codex execution path exists in source but its service unit is not installed. Therefore, model availability and successful conversation do not establish operational autonomy.
 
 ## 2. Evidence and confidence boundaries
 
@@ -136,10 +136,9 @@ These are time-bounded observations, not guarantees about present service state.
 
 ### Missing, incomplete, or unverified
 
-- Canonical Director of Operations identity is not consistently recorded in current engineering docs/live office metadata.
-- A single authoritative role-and-responsibility profile is not included in prompts or task context.
-- Conversation reasoning cannot yet select and invoke the current bounded occupational capabilities with typed results and continuation.
-- Live state and verified institutional facts from CME, resources and diagnostics are not routinely grounded into Grace's conversation.
+- Current engineering docs and source now define Director of Operations, and a Steward-only audited office-role CAS operation exists in source; production office-role metadata remains uncorrected until migration and authorized application.
+- A versioned role profile is now included in normal and resumed model prompts in source. It is not deployed.
+- A single read-only snapshot is now injected from DashboardProjection in source. It does not provide model-selected capability invocation, detailed dependency/resource assessment, historical knowledge retrieval, or action continuation.
 - 30B browser image input and provenance-bearing vision observation flow are not established.
 - Persistent Grace execution service is not installed; actual autonomous chat-originated objective → Engineering dispatch → Codex artifact → independent verifier → Grace evaluation has not been commissioned.
 - Production use of hardware wake/shutdown capabilities through the current authorized dispatcher is not verified and is not part of the immediate sequence.
@@ -148,19 +147,19 @@ These are time-bounded observations, not guarantees about present service state.
 
 | Gap | Evidence | Smallest restoration |
 |---|---|---|
-| Office title and role drift | Historical role sources say Director of Operations; current `CORE_CONTRACT.md`, roadmap and observed live office text say AI director of engineering. | Correct canonical engineering docs first. Reconcile live `office_role` through an audited AuthorityRegistry operation with current revision/CAS and preserve occupant, grants, implementation binding and history. Do not use direct SQL or alter authority scope. |
-| Role context absent at inference | Current prompts carry generic identity/stage guidance; they omit institutional duties and boundaries. | Add a versioned, authoritative Grace role profile to the existing prompt/context builder. Include responsibilities and delegation boundaries, not raw grants or secrets. Apply consistently to all model stages. |
-| Chat disconnected from occupational capabilities | Historical repository has bounded occupational broker/tool-result continuation; new-core chat does not use it. | Port/adapt only the required named read/plan capabilities to current `CapabilityRegistry` and existing authority/CME APIs. Reuse schemas and event mechanisms; do not recreate historical tables or a parallel broker. |
+| Office title and role drift | Historical sources, corrected engineering docs, and the development profile say Director of Operations; live office metadata was observed with the older engineering title. A steward-only expected-value CAS method and additive migration now exist in source. | After review and backup, apply the migration and invoke the existing AuthorityRegistry operation with the observed current title as CAS expectation. Preserve occupant, grants, binding, and audit history. No production change has occurred. |
+| Role context absent at inference | A versioned role profile is now injected into ordinary and resumed turns in development source. | Integrate and commission this source change; test the actual 80B response through the authorized website after deployment. The profile itself grants no permission. |
+| Chat disconnected from occupational capabilities | A bounded read-only snapshot adapter now reuses DashboardProjection and is injected into turn context in source. No model-selected tools or typed continuation exist. | Extend only from this read path to individually named, exact-grant-protected capabilities and typed results using the existing CapabilityRegistry, CME, objective, and authority services. Do not create a general tool runner. |
 | Grace cannot autonomously progress through Engineering | Current pipeline/Codex adapter source exists, but persistent runtime is absent and chat proposal action is disconnected. | Commission the existing persistent worker path with exact service identity/grants; connect Grace-authored proposal → Steward review/approval where required → existing intake → dispatch. Already authorized routine steps should continue without repeated mechanism approval. |
-| No unified observation/recovery loop in chat | CME/events/diagnostics exist in parts, but no verified operational loop joins them to Grace conversation and assignment continuation. | Have Grace consume typed event/state projections; add durable correlation, lease/idempotency checks, exception transitions, verifier result and same-conversation continuation using existing graphs. |
+| No unified observation/recovery loop in chat | Current snapshot records bounded state and context digest for a turn; it does not consume a durable event stream or drive continuation. | Use existing institutional event and execution state to trigger authorized, idempotent continuation, correlate graph nodes, and return verifier evidence in the same conversation. Preserve lease and terminal-event controls. |
 | 30B is not proven as vision in website flow | 30B endpoint is healthy; current chat input is textual. | Add a narrowly scoped, permission-checked image request path and typed result provenance only when needed; do not delay Director-of-Operations text/work restoration. |
 | Three model contexts are not coordinated | Shared conversation exists, but model stage prompts lack shared role/operational facts and no vision/autonomic result contract is wired. | Keep one resident and shared durable IDs; pass task-scoped, provenance-bearing facts/results between stages; record provider/model, stage, provisional/final status, objective correlation and authorization decisions. |
 
 ### Recommended order
 
-1. **Document and canonically name the office** in the new engineering repository. Reconcile the live title only through an authorized AuthorityRegistry update; leave current binding and grants unchanged.
-2. **Supply role context** through the existing prompt builder, separating role, office responsibility, task facts, model stage and authority restrictions. Test that Grace accurately identifies herself and the boundaries without claiming unperformed actions.
-3. **Reconnect bounded occupational capabilities** by adapting the historical package/broker pattern to current APIs. Start with verified read-only CME/objective/resource/diagnostic projections and typed proposal creation. Every call must remain grant-checked server-side.
+1. **Commission the source identity correction** through the additive audited role-event migration and exact expected-value AuthorityRegistry CAS; leave occupant, binding, and grants unchanged.
+2. **Integrate and commission role and read-context injection** already implemented in development source. Test identity and current state against the actual authenticated 80B conversation, including recorded provenance.
+3. **Extend bounded occupational capabilities** from the existing read-only projection snapshot to typed, server-authorized proposal and status operations. Every operation remains exact-grant checked and returns provenance-bearing results.
 4. **Commission existing execution path** under its dedicated service identity and exact grants. Connect proposal review to intake, then CME lease/dispatch, supervised Codex execution, artifact capture, independent verification and return to the original conversation.
 5. **Add model-result coordination**: autonomic status/events, optional vision observations, and 80B reasoning share correlated records and provenance. Maintain the required 80B stage; defer instead of downgrading.
 6. **Verify one operational cycle** with a natural-language Steward objective, Grace-authored plan, approved work order, real executor artifact, independent evidence, and Grace's accept/correct/escalate continuation. Then expand only as the established roadmap authorizes.
@@ -169,4 +168,14 @@ These are time-bounded observations, not guarantees about present service state.
 
 This reconciliation makes no authority grant, office binding change, role metadata change, production deployment, service activation, model reconfiguration, or conversation-record mutation. It does not claim the missing persistent execution service is safe to activate without identity, exact grants, commissioning, and verification. Historical code is evidence of prior design and implementation, not automatic authorization to revive old permissions or schemas.
 
-The first concrete institutional correction is to restore the Director of Operations title and responsibility context through the documented source and authorized registry workflow. The first operational restoration is to connect Grace's bounded capability selection and CME observation to the already-existing assignment and execution path. Both retain the Steward's final authority and current exact-grant enforcement.
+The development increment restores the Director of Operations title in engineering contracts, adds an audited registry API/migration for correcting existing office metadata, passes the role profile into ordinary and resumed turns, and injects a bounded read-only operational snapshot with timestamp/status/digest provenance. These changes have not been deployed; the migration and role update have not been applied to production. Next, review and commission this increment, then connect named typed capabilities to the existing assignment/execution path. Exact-grant enforcement and the Steward's final authority remain unchanged.
+
+## 10. Development follow-up status
+
+On 2026-10-14, commit `b659bb9ee0ac62853e4f681455991b99aed723bc` saved this reconciliation. The current uncommitted development increment adds the audited role correction path, shared role context, and projection-backed context snapshot. Focused tests pass; database-backed authority and conversation tests require an isolated PostgreSQL DSN and have not been run in this environment. The graph is updated to 18 workflows / 420 nodes. This source does not prove a production role correction, actual 30B image flow, or autonomous Engineering cycle.
+
+## Revision history
+
+- **1.0.2 — 2026-10-14:** Record audited role correction and projection-backed operations context in source; retain explicit uncommissioned vision and Engineering gaps.
+- **1.0.1 — 2026-10-14:** Record development-only role restoration progress and clarify the uncommissioned production boundary.
+- **1.0.0 — 2026-10-14:** Initial historical and current-state reconciliation.

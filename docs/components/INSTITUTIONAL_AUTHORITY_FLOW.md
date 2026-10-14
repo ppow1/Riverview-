@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_FLOW.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.9
+File Revision: 1.0.10
 Purpose: Map root-local bootstrap, authorization, office state and recovery
 Authority: Deny when principal, credential, grant, or source state is uncertain
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -62,6 +62,9 @@ flowchart LR
     g_rv_institutional_authority_identity_and_grants_model_rebind_stale_a3a922d9[["Reject stale expected revision without mutating the office binding"]]
     g_rv_institutional_authority_identity_and_grants_model_rebind_rollback_be4d1cb4["Restore predecessor implementation through the same CAS API and current revision"]
     g_rv_institutional_authority_identity_and_grants_model_rebind_verify_5bacda7d["Verify occupant identity, implementation, incremented revision and audit evidence"]
+    g_rv_institutional_authority_identity_and_grants_office_role_update_8edfb3c5["Steward compare-and-swap updates stable office title and appends an audit event without changing occupant, binding, or grants"]
+    g_rv_institutional_authority_identity_and_grants_office_role_update_conflict_88fa96e3[["Reject stale expected office role, non-Steward actor, or unavailable registry; leave office and binding unchanged"]]
+    g_rv_institutional_authority_identity_and_grants_office_role_update_retry_a20af5ab["Re-read current office title and retry only after Steward confirms the intended correction"]
   end
   g_rv_institutional_authority_identity_and_grants_migration_ledger_bootstrap_b3ae001f -->|Migration runner applies checksum-ledger bootstrap before registry migration| g_rv_institutional_authority_identity_and_grants_migration_ready_c4bb91b6
   g_rv_institutional_authority_identity_and_grants_bootstrap_a48d6fd3 -->|prerequisite: Trusted DB bootstrap requires reviewed schema| g_rv_institutional_authority_identity_and_grants_migration_ready_c4bb91b6
@@ -115,6 +118,11 @@ flowchart LR
   g_rv_institutional_authority_identity_and_grants_model_rebind_cas_76d5147d -->|diagnostic_branch: Expected revision is stale| g_rv_institutional_authority_identity_and_grants_model_rebind_stale_a3a922d9
   g_rv_institutional_authority_identity_and_grants_model_rebind_update_daf5f31d -->|verification| g_rv_institutional_authority_identity_and_grants_model_rebind_verify_5bacda7d
   g_rv_institutional_authority_identity_and_grants_model_rebind_verify_5bacda7d -->|recovery_route: Rollback requested; use predecessor implementation and current revision| g_rv_institutional_authority_identity_and_grants_model_rebind_rollback_be4d1cb4
+  g_rv_institutional_authority_identity_and_grants_authorize_fa36becb -->|Steward exact office.manage grant and expected title supplied| g_rv_institutional_authority_identity_and_grants_office_role_update_8edfb3c5
+  g_rv_institutional_authority_identity_and_grants_office_role_update_8edfb3c5 -->|verification: Role event persisted; occupant, implementation and grants remain unchanged| g_rv_institutional_authority_identity_and_grants_complete_b22cd8fd
+  g_rv_institutional_authority_identity_and_grants_office_role_update_8edfb3c5 -->|diagnostic_branch: Stale title expectation, non-Steward actor or registry failure| g_rv_institutional_authority_identity_and_grants_office_role_update_conflict_88fa96e3
+  g_rv_institutional_authority_identity_and_grants_office_role_update_conflict_88fa96e3 -->|recovery_route| g_rv_institutional_authority_identity_and_grants_office_role_update_retry_a20af5ab
+  g_rv_institutional_authority_identity_and_grants_office_role_update_retry_a20af5ab -->|Refresh authoritative title and revalidate Steward authority| g_rv_institutional_authority_identity_and_grants_authorize_fa36becb
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

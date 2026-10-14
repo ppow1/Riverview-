@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.127",
+  "manifest_revision": "1.1.130",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.92",
+      "revision": "1.0.95",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "00b35593e5265cc8039a0a528559c56276bae4fd775d208c31260b7da94fac0c",
-      "size_bytes": 439268
+      "sha256": "2756e9b93a72dd38cc1b729743e8db101ecc57672f1dfc65ea2e318b29cd88aa",
+      "size_bytes": 447123
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 33631
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.127"
+      "revision": "1.1.130"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -167,16 +167,16 @@
       "size_bytes": 2957
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
-      "revision": "1.0.12",
+      "revision": "1.0.13",
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
-      "sha256": "e080c50f00769190133a51254012cc4f5041dc22cca86d963a0f9c3d6b8c281a",
-      "size_bytes": 39377
+      "sha256": "d025a392627a819b0f1957a070effbd56f32c3f9efb65811eae5c1eae194cf25",
+      "size_bytes": 42764
     },
     "process_graphs/resident-reasoning/runtime.json": {
-      "revision": "1.0.6",
+      "revision": "1.0.7",
       "path": "process_graphs/resident-reasoning/runtime.json",
-      "sha256": "95ff891bfba912bc49638eafacaecea6e94fcac591c332b6dae1cb74b2261158",
-      "size_bytes": 27147
+      "sha256": "1c848e560dd9d58d8f9d3083be8165761563f777eab73fc7efe423f9a5a44344",
+      "size_bytes": 28216
     },
     "process_graphs/knowledge-provider/repository-contracts.json": {
       "revision": "1.0.3",
@@ -197,10 +197,10 @@
       "size_bytes": 18530
     },
     "process_graphs/resident-conversation/browser-chat.json": {
-      "revision": "1.0.11",
+      "revision": "1.0.13",
       "path": "process_graphs/resident-conversation/browser-chat.json",
-      "sha256": "a721b4ebcbe8e49202559f08c7a32c3b9fd8f9a1ca13a5d961ed76bb84750815",
-      "size_bytes": 35696
+      "sha256": "6befdceaa815ea706bbdb65c398e7db146263a187041610945853b39d3ad308b",
+      "size_bytes": 38064
     },
     "process_graphs/account-authentication/account-lifecycle.json": {
       "revision": "1.1.0",

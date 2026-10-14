@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_provisioning.py
 # Component: GRACE-OPERATIONAL-INTEGRATION
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Verify fail-closed and fixed-scope behavior of Grace identity bootstrap
 # Execution Model: Standard-library unit tests with filesystem and database boundaries mocked
 # Observability: Tests inspect safe failure codes, exact grant scope and secret-file metadata
@@ -12,6 +12,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.4-BOOTSTRAP-TEST-CORRECTION | Mock root-owned metadata validation for unprivileged test execution
 # Changed: 2026-10-11 UTC | RV-M4.4-BOOTSTRAP-TEST-CORRECTION-2 | Apply metadata mock on existing-secret validation path
 # Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-ORPHAN-CREDENTIAL-RECOVERY | Verify interrupted token delivery revokes orphan before replacement
+# Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Assert new Grace provisioning uses Director of Operations office title
 # Contracts: scripts/provision_grace_resident.py; docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: This file
 # History: New file; Git
@@ -28,6 +29,18 @@ from scripts import provision_grace_resident as grace
 
 
 class GraceProvisionerTests(unittest.TestCase):
+    def test_grace_office_title_is_director_of_operations(self):
+        self.assertEqual(grace.OFFICE_ROLE, "Director of Operations")
+
+    def test_existing_office_role_is_corrected_through_authority_cas(self):
+        registry = mock.Mock()
+        with mock.patch.object(grace, "_one", return_value={
+                "office_role": "AI director of engineering"}):
+            grace._ensure_office(registry, "steward-token")
+        registry.update_office_role.assert_called_once_with(
+            "steward-token", grace.OFFICE_ID, "Director of Operations",
+            expected_office_role="AI director of engineering")
+
     def test_non_root_fails_before_filesystem_or_registry_access(self):
         with mock.patch.object(grace.os, "geteuid", return_value=1000), \
              mock.patch.object(grace, "_ensure_directory",

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.7
+# Revision: 1.3.8
 # Purpose: Serve account-authenticated operational projections and existing bounded APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -29,6 +29,7 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Check resident migration and authorized active binding without reading the protected authority ledger
 # Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING-DENIALS | Preserve conversation authorization and unavailable distinctions at promotion boundary
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Expose only the scoped verification endpoint for local bootstrap challenges
+# Changed: 2026-10-14 UTC | RV-GRACE-DOPS-TOOLBOX-001 | Inject existing read-only dashboard projections into Grace's request context
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
 # History: Git and revision/backup manifest
@@ -1221,6 +1222,7 @@ def main():
             from riverview_core.local_reasoning_provider import LocalReasoningProvider
             from riverview_core.resident_execution.conversation import (
                 ConversationStore, ResidentConversationService)
+            from riverview_core.resident_execution.operational_context import GraceOperationalContext
             authority_schema = os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority")
             authority_registry = AuthorityRegistry(dsn, schema=authority_schema, runtime_safe=True)
             conversation_store = ConversationStore(dsn, schema=schema)
@@ -1259,7 +1261,8 @@ def main():
                 store=conversation_store, registry=authority_registry,
                 authorizer=ExactGrantAuthorizer(authority_schema), office_id=chat_office_id,
                 resident_credential=resident_token,
-                providers=providers)
+                providers=providers,
+                operational_context=GraceOperationalContext(projection))
             conversation_store.recover_pending()
             if routed:
                 def resume_deferred():
