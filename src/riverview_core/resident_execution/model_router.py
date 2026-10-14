@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Prefer 80B for substantive turns and persist bounded routing diagnostics
 # Execution Model: Request-driven; persisted deferred turns are resumed by the conversation owner
 # Observability: Selected stage and served model are returned as completion provenance
@@ -10,6 +10,7 @@
 # Authority: Selects inference resources only; grants no conversation or execution authority
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: tests/test_resident_model_router.py
+# Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Declare the exact capability supported for deferred recovery
 # =============================================================================
 """Small readiness-aware router for Grace's three existing model resources."""
 
@@ -76,6 +77,10 @@ class GraceModelRouter:
 
     def readiness(self):
         return {stage: provider.readiness() for stage, provider in self.providers.items()}
+
+    def supports_capability(self, capability):
+        """Report the one bounded reasoning capability this router can satisfy."""
+        return capability == "grace.reasoning.80b" and self.providers.get("reasoning") is not None
 
     def select(self, messages):
         states = self.readiness()

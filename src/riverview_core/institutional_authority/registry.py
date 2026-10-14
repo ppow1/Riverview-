@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/registry.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.11
+# Revision: 1.0.12
 # Purpose: Persist separated offices, occupants, implementations and scoped grants
 # Execution Model: Synchronous transactional PostgreSQL registry
 # Observability: Append-only authority events and office binding revisions
@@ -12,6 +12,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-BOUND-OCCUPANT-WRITE | Require the exact office-state writer to be the currently bound resident
 # Changed: 2026-10-11 UTC | RV-M4.1-RUNTIME-OFFICE-API | Route restricted runtime office reads/writes through exact-grant database functions
 # Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Add expected-revision audited implementation-only office rebind
+# Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Verify only the current audited predecessor-to-successor binding transition
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: tests/test_institutional_authority.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -495,7 +496,8 @@ class AuthorityRegistry:
             raise RegistryUnavailable(type(exc).__name__) from None
 
     def update_office_implementation(self, steward_token, office_id, implementation_id,
-                                     *, expected_binding_revision):
+                                     *, expected_binding_revision,
+                                     deferred_compatibility_capabilities=()):
         """Replace only an office's implementation using an audited CAS update.
 
         The occupant and office identity are invariant. The returned prior
@@ -506,11 +508,20 @@ class AuthorityRegistry:
             raise ValueError("office and implementation identities are required")
         if type(expected_binding_revision) is not int or expected_binding_revision < 1:
             raise ValueError("expected binding revision must be a positive integer")
+        if (not isinstance(deferred_compatibility_capabilities, (tuple, list))
+                or any(capability != "grace.reasoning.80b"
+                       for capability in deferred_compatibility_capabilities)
+                or len(set(deferred_compatibility_capabilities)) !=
+                   len(deferred_compatibility_capabilities)):
+            raise ValueError("unsupported deferred compatibility capability")
         try:
             with self.db.transaction():
                 with self.db.cursor() as cur:
                     self._path(cur)
                     actor = self._require(cur, steward_token, "office.manage", "institution")
+                    if (deferred_compatibility_capabilities
+                            and actor.get("principal_kind") != "steward"):
+                        raise AuthorityDenied("deferred continuity requires Steward authority")
                     cur.execute("""SELECT occupant_id,implementation_id,binding_revision
                         FROM office_bindings WHERE office_id=%s FOR UPDATE""", (office_id,))
                     previous = cur.fetchone()
@@ -524,6 +535,9 @@ class AuthorityRegistry:
                     target = cur.fetchone()
                     if target is None or target["kind"] != "model":
                         raise IdentityConflict("target model implementation is unavailable")
+                    if (deferred_compatibility_capabilities
+                            and target["provider_ref"] != "grace.readiness_router.v1"):
+                        raise ValueError("deferred compatibility is limited to the Grace router")
                     cur.execute("""UPDATE office_bindings SET implementation_id=%s,
                         binding_revision=binding_revision+1,updated_at=clock_timestamp()
                         WHERE office_id=%s AND binding_revision=%s
@@ -544,7 +558,9 @@ class AuthorityRegistry:
                             "previous_binding_revision": expected_binding_revision,
                             "binding_revision": updated["binding_revision"],
                             "provider_ref": target["provider_ref"],
-                            "implementation_revision": target["revision"]})
+                            "implementation_revision": target["revision"],
+                            "deferred_compatibility_capabilities":
+                                list(deferred_compatibility_capabilities)})
                     return {"office_id": office_id,
                         "occupant_id": previous["occupant_id"],
                         "previous_implementation_id": previous["implementation_id"],
@@ -637,5 +653,26 @@ class AuthorityRegistry:
                 return row
         except IdentityConflict:
             raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def is_authorized_implementation_successor(self, credential, office_id, *,
+            predecessor_id, predecessor_revision, successor_id, successor_revision,
+            required_capability):
+        """Accept only the direct predecessor recorded by the current audited CAS binding."""
+        if not all(isinstance(value, str) and value for value in
+                   (office_id, predecessor_id, predecessor_revision,
+                    successor_id, successor_revision, required_capability)):
+            return False
+        try:
+            with self.db.cursor() as cur:
+                query = psycopg.sql.SQL("SELECT {}.{}(%s,%s,%s,%s,%s,%s,%s) AS allowed").format(
+                    psycopg.sql.Identifier(self.schema),
+                    psycopg.sql.Identifier("authorized_office_implementation_successor"))
+                cur.execute(query, (self._digest(credential), office_id, predecessor_id,
+                    predecessor_revision, successor_id, successor_revision,
+                    required_capability))
+                row = cur.fetchone()
+            return bool(row and row["allowed"])
         except Exception as exc:
             raise RegistryUnavailable(type(exc).__name__) from None

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.12
+# Revision: 1.0.13
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -17,6 +17,7 @@
 # Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Verify logout clearing and immediate exact-credential revocation
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Verify linked Steward principal uses exact grants without legacy secret
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Exercise linked-account API session, persistence and denial through dashboard routes
+# Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Verify the two pending request identities resume only through an explicitly authorized router transition
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: python3 -m unittest tests.test_resident_conversation
 # History: Git and .riverview-backups/manifest.jsonl
@@ -219,6 +220,7 @@ class ResidentConversationTests(unittest.TestCase):
         self.assertEqual(deferred["status"], "deferred")
         self.assertEqual(self.service.response_status(self.steward_token,
             deferred["conversation_id"], deferred["request_id"])["status"], "deferred")
+        self.assertEqual(reasoner.calls, [])
         self.assertEqual(len(self.store.deferred_turns()), 1)
         self.assertEqual(self.store.recover_pending(), 0,
                          "startup recovery must not mark deliberately deferred work interrupted")
@@ -317,6 +319,217 @@ class ResidentConversationTests(unittest.TestCase):
         reasoner.state = "READY"
         self.assertEqual(self.service.resume_deferred(), 0)
         self.assertEqual(reasoner.calls, [])
+        self.assertEqual(self.service.response_status(self.steward_token,
+            deferred["conversation_id"], deferred["request_id"])["status"], "deferred")
+
+    def test_existing_deferred_request_patterns_resume_through_explicit_router_upgrade_once(self):
+        from psycopg import sql
+        from riverview_core.local_reasoning_provider import ChatCompletion
+        from riverview_core.resident_execution.model_router import ReasoningDeferred
+
+        old_id = "implementation:grace:readiness-router"
+        old_revision = "87ccad04629151f564185ffdef5e961fad4608d805307b431fbe48dbea804cc1"
+        next_id = "implementation:grace:readiness-router:608aa519346c"
+        next_revision = "608aa519346c4643050b1dff6bc0f0a4d65d2cb9d64b9c07cf1d8faeae3b8c7e"
+        request_ids = (
+            "49006259-af96-4a6d-8a28-982236fdc4a1",
+            "4423857b-1891-405d-9440-61b64b4d294f",
+        )
+
+        class DeferredRouter:
+            provider_id = "grace.readiness_router.v1"
+            model = "grace-readiness-router"
+            model_sha256 = old_revision
+
+            def complete_chat(_self, *_args, **_kwargs):
+                raise ReasoningDeferred("MODEL_BUSY")
+
+        class SuccessorRouter:
+            provider_id = "grace.readiness_router.v1"
+            model = "grace-readiness-router"
+            model_sha256 = next_revision
+
+            def __init__(_self):
+                _self.calls = 0
+
+            def supports_capability(_self, capability):
+                return capability == "grace.reasoning.80b"
+
+            def complete_chat(_self, messages, *, max_tokens, expected_revision):
+                _self.calls += 1
+                self.assertEqual(expected_revision, next_revision)
+                return ChatCompletion("Recovered using the ready reasoning route.",
+                    "Qwen3-Next-80B-test-model", 18, 8, "stop",
+                    reasoning_stage="reasoning")
+
+        self.registry.create_implementation(self.steward_token, old_id, kind="model",
+            provider_ref=DeferredRouter.provider_id, revision=old_revision)
+        self.registry.update_office_implementation(self.steward_token, self.office_id,
+            old_id, expected_binding_revision=1)
+        self.service.providers = {DeferredRouter.provider_id: DeferredRouter()}
+        created = []
+        for index in range(2):
+            created.append(self.service.send(self.steward_token,
+                message=f"Analyze deferred router upgrade sample {index}.",
+                client_message_id=str(uuid4())))
+            self.assertEqual(created[-1]["status"], "deferred")
+        with self.admin.cursor() as cur:
+            for result, request_id in zip(created, request_ids):
+                cur.execute(sql.SQL("""UPDATE {}.resident_conversation_events
+                    SET request_id=%s WHERE request_id=%s""").format(
+                    sql.Identifier(self.schema)), (request_id, result["request_id"]))
+
+        self.registry.create_implementation(self.steward_token, next_id, kind="model",
+            provider_ref=DeferredRouter.provider_id, revision=next_revision)
+        self.registry.update_office_implementation(self.steward_token, self.office_id,
+            next_id, expected_binding_revision=2,
+            deferred_compatibility_capabilities=("grace.reasoning.80b",))
+        router = SuccessorRouter()
+        self.service.providers = {router.provider_id: router}
+        from riverview_core.status_dashboard.server import (
+            _verify_grace_router_startup_readiness)
+        binding = _verify_grace_router_startup_readiness(
+            self.store.db, schema=self.schema, registry=self.registry,
+            resident_credential=self.resident_token, office_id=self.office_id,
+            router=router)
+        self.assertEqual(binding["implementation_id"], next_id)
+        self.assertEqual(binding["implementation_revision"], next_revision)
+        self.assertEqual(binding["binding_revision"], 3)
+
+        held_claim = str(uuid4())
+        self.assertTrue(self.store.claim_deferred_request(request_ids[0], held_claim))
+        self.assertEqual(self.service.resume_deferred(), 1)
+        self.store.release_deferred_claim(request_ids[0], held_claim)
+        self.assertEqual(self.service.resume_deferred(), 1)
+        self.assertEqual(router.calls, 2)
+        self.assertEqual(self.service.resume_deferred(), 0)
+
+        for request_id, result in zip(request_ids, created):
+            history = self.service.history(self.steward_token, result["conversation_id"])
+            final = next(event for event in history["events"]
+                         if event["request_id"] == request_id
+                         and event["event_type"] == "assistant_message")
+            self.assertEqual(final["implementation_id"], next_id)
+            self.assertEqual(final["implementation_revision"], next_revision)
+            self.assertEqual(final["model_id"], "Qwen3-Next-80B-test-model")
+            self.assertEqual(final["metadata"]["original_implementation_id"], old_id)
+            self.assertEqual(final["metadata"]["original_implementation_revision"], old_revision)
+            self.assertEqual(final["metadata"]["executing_implementation_id"], next_id)
+            self.assertEqual(final["metadata"]["executing_implementation_revision"], next_revision)
+            self.assertEqual(final["metadata"]["required_capability"], "grace.reasoning.80b")
+            self.assertEqual(final["metadata"]["original_steward_authorization"]["principal_id"],
+                             self.steward_id)
+            self.assertTrue(final["metadata"]["revalidated_grant_id"])
+            self.assertEqual(sum(event["event_type"] == "assistant_message"
+                                 and event["request_id"] == request_id
+                                 for event in history["events"]), 1)
+            self.assertEqual(self.service.response_status(self.steward_token,
+                result["conversation_id"], request_id)["status"], "completed")
+
+    def test_unmarked_or_incompatible_router_upgrade_cannot_resume_deferred_request(self):
+        from riverview_core.local_reasoning_provider import ChatCompletion
+        from riverview_core.resident_execution.model_router import ReasoningDeferred
+        old_id = "implementation:grace:readiness-router"
+        old_revision = "87ccad04629151f564185ffdef5e961fad4608d805307b431fbe48dbea804cc1"
+        next_id = "implementation:grace:readiness-router:608aa519346c"
+        next_revision = "608aa519346c4643050b1dff6bc0f0a4d65d2cb9d64b9c07cf1d8faeae3b8c7e"
+
+        class DeferredRouter:
+            provider_id = "grace.readiness_router.v1"
+            model = "grace-readiness-router"
+            model_sha256 = old_revision
+
+            def complete_chat(_self, *_args, **_kwargs):
+                raise ReasoningDeferred("MODEL_BUSY")
+
+        class SuccessorRouter:
+            provider_id = "grace.readiness_router.v1"
+            model = "grace-readiness-router"
+            model_sha256 = next_revision
+            calls = 0
+
+            def supports_capability(_self, capability):
+                return capability == "grace.reasoning.80b"
+
+            def complete_chat(_self, *_args, **_kwargs):
+                _self.calls += 1
+                return ChatCompletion("Should not run.", "test-model", 1, 1, "stop")
+
+        self.registry.create_implementation(self.steward_token, old_id, kind="model",
+            provider_ref=DeferredRouter.provider_id, revision=old_revision)
+        self.registry.update_office_implementation(self.steward_token, self.office_id,
+            old_id, expected_binding_revision=1)
+        self.service.providers = {DeferredRouter.provider_id: DeferredRouter()}
+        deferred = self.service.send(self.steward_token,
+            message="Analyze an incompatible deferred upgrade.",
+            client_message_id=str(uuid4()))
+        self.assertEqual(deferred["status"], "deferred")
+        self.registry.create_implementation(self.steward_token, next_id, kind="model",
+            provider_ref=DeferredRouter.provider_id, revision=next_revision)
+        # This CAS is authorized, but explicitly omits deferred continuity.
+        self.registry.update_office_implementation(self.steward_token, self.office_id,
+            next_id, expected_binding_revision=2)
+        successor = SuccessorRouter()
+        self.service.providers = {successor.provider_id: successor}
+        self.assertEqual(self.service.resume_deferred(), 0)
+        self.assertEqual(successor.calls, 0)
+        self.assertEqual(self.service.response_status(self.steward_token,
+            deferred["conversation_id"], deferred["request_id"])["status"], "deferred")
+
+    def test_explicit_successor_cannot_satisfy_a_different_deferred_capability(self):
+        from psycopg import sql
+        from riverview_core.local_reasoning_provider import ChatCompletion
+        from riverview_core.resident_execution.model_router import ReasoningDeferred
+        old_id = "implementation:grace:readiness-router"
+        old_revision = "87ccad04629151f564185ffdef5e961fad4608d805307b431fbe48dbea804cc1"
+        next_id = "implementation:grace:readiness-router:608aa519346c"
+        next_revision = "608aa519346c4643050b1dff6bc0f0a4d65d2cb9d64b9c07cf1d8faeae3b8c7e"
+
+        class DeferredRouter:
+            provider_id = "grace.readiness_router.v1"
+            model = "grace-readiness-router"
+            model_sha256 = old_revision
+
+            def complete_chat(_self, *_args, **_kwargs):
+                raise ReasoningDeferred("MODEL_BUSY")
+
+        class SuccessorRouter:
+            provider_id = "grace.readiness_router.v1"
+            model = "grace-readiness-router"
+            model_sha256 = next_revision
+            calls = 0
+
+            def supports_capability(_self, capability):
+                return capability == "grace.reasoning.80b"
+
+            def complete_chat(_self, *_args, **_kwargs):
+                _self.calls += 1
+                return ChatCompletion("Should not run.", "test-model", 1, 1, "stop")
+
+        self.registry.create_implementation(self.steward_token, old_id, kind="model",
+            provider_ref=DeferredRouter.provider_id, revision=old_revision)
+        self.registry.update_office_implementation(self.steward_token, self.office_id,
+            old_id, expected_binding_revision=1)
+        self.service.providers = {DeferredRouter.provider_id: DeferredRouter()}
+        deferred = self.service.send(self.steward_token,
+            message="Analyze a request with an incompatible capability marker.",
+            client_message_id=str(uuid4()))
+        self.assertEqual(deferred["status"], "deferred")
+        with self.admin.cursor() as cur:
+            cur.execute(sql.SQL("""UPDATE {}.resident_conversation_events
+                SET metadata=jsonb_set(metadata,'{{required_capability}}',
+                    '\"grace.reasoning.30b\"'::jsonb)
+                WHERE request_id=%s AND event_type='response_deferred'""").format(
+                    sql.Identifier(self.schema)), (deferred["request_id"],))
+        self.registry.create_implementation(self.steward_token, next_id, kind="model",
+            provider_ref=DeferredRouter.provider_id, revision=next_revision)
+        self.registry.update_office_implementation(self.steward_token, self.office_id,
+            next_id, expected_binding_revision=2,
+            deferred_compatibility_capabilities=("grace.reasoning.80b",))
+        successor = SuccessorRouter()
+        self.service.providers = {successor.provider_id: successor}
+        self.assertEqual(self.service.resume_deferred(), 0)
+        self.assertEqual(successor.calls, 0)
         self.assertEqual(self.service.response_status(self.steward_token,
             deferred["conversation_id"], deferred["request_id"])["status"], "deferred")
 

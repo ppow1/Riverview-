@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_FLOW.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.8
+File Revision: 1.0.9
 Purpose: Map root-local bootstrap, authorization, office state and recovery
 Authority: Deny when principal, credential, grant, or source state is uncertain
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -58,7 +58,7 @@ flowchart LR
     g_rv_institutional_authority_identity_and_grants_model_rebind_request_030ff994(["Steward requests an implementation-only rebind with current binding revision"])
     g_rv_institutional_authority_identity_and_grants_model_rebind_authority_000bbe96["Require exact office.manage institutional authority"]
     g_rv_institutional_authority_identity_and_grants_model_rebind_cas_76d5147d{"Does current binding revision equal the expected revision?"}
-    g_rv_institutional_authority_identity_and_grants_model_rebind_update_daf5f31d["Update only implementation; preserve office and occupant; append audit event"]
+    g_rv_institutional_authority_identity_and_grants_model_rebind_update_daf5f31d["Update only implementation through the office.manage CAS; optionally record exact 80B deferred-continuity capability in the immutable audit event"]
     g_rv_institutional_authority_identity_and_grants_model_rebind_stale_a3a922d9[["Reject stale expected revision without mutating the office binding"]]
     g_rv_institutional_authority_identity_and_grants_model_rebind_rollback_be4d1cb4["Restore predecessor implementation through the same CAS API and current revision"]
     g_rv_institutional_authority_identity_and_grants_model_rebind_verify_5bacda7d["Verify occupant identity, implementation, incremented revision and audit evidence"]

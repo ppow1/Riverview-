@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.24
+File Revision: 1.0.25
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -27,6 +27,7 @@ Changed: 2026-10-11 UTC | RV-M4.1-GRACE-BOOTSTRAP-STATUS | Clarify historical M3
 Changed: 2026-10-11 UTC | RV-M4.1-GRACE-IDENTITY-COMMISSIONING | Document the live fixed-identity bootstrap and exact grant result
 Changed: 2026-10-11 UTC | RV-M3.3-STATUS-RECONCILIATION | Correct current summary text superseded by later M3.3 live commissioning
 Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Add exact-grant check for linked authenticated account principals
+Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Specify explicit continuity opt-in on audited implementation CAS and its least-privilege runtime query
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
@@ -260,3 +261,25 @@ remains open.
 See [the focused flow](INSTITUTIONAL_AUTHORITY_FLOW.md),
 [the operations cookbook](INSTITUTIONAL_AUTHORITY_COOKBOOK.md), and
 [`RV-M4.1-001`](../development/M4.1-001_REVISION_RECORD.md).
+
+
+## Deferred-request compatibility for an authorized router upgrade
+
+An implementation-only office rebind continues to require exact office.manage,
+an expected binding revision, and a registered model. The optional
+deferred_compatibility_capabilities argument defaults to empty. For an explicitly
+approved Grace router transition it may contain only grace.reasoning.80b; the CAS
+audit event records that opt-in with the direct predecessor and successor
+identities and revisions. The successor must use the registered
+grace.readiness_router.v1 provider.
+
+The runtime uses authority migration
+0006_authorized_implementation_successor.sql through the boolean SECURITY
+DEFINER function authorized_office_implementation_successor. It revalidates
+the current resident credential, active office occupant, and exact
+office.state.write grant, then matches the current binding revision to the one
+audited direct transition. The restricted runtime gets EXECUTE on this
+allowlisted function only; authority event and migration tables remain
+unreadable. This check authorizes continuity for that transition and capability
+only; it creates no grant and does not replace the original user's exact
+conversation grant.

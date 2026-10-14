@@ -1,24 +1,28 @@
 {
   "graph_id": "rv:resident-conversation:browser-chat",
-  "graph_revision": "1.0.8",
+  "graph_revision": "1.0.9",
   "component_id": "RESIDENT-CONVERSATION",
   "workflow_id": "resident.conversation.v1",
   "diagram_order": 14,
   "source_references": [
     "scripts/verify_grace_conversation_browser.py",
+    "src/riverview_core/account_auth/__init__.py",
+    "src/riverview_core/institutional_authority/db_boundary.py",
+    "src/riverview_core/institutional_authority/grants.py",
+    "src/riverview_core/institutional_authority/migrations/0004_exact_principal_grant_authorization.sql",
+    "src/riverview_core/institutional_authority/migrations/0006_authorized_implementation_successor.sql",
     "src/riverview_core/local_reasoning_provider.py",
     "src/riverview_core/resident_execution/conversation.py",
     "src/riverview_core/resident_execution/migrations/0003_resident_conversation.sql",
+    "src/riverview_core/resident_execution/migrations/0004_deferred_conversation_responses.sql",
+    "src/riverview_core/resident_execution/migrations/0006_deferred_execution_claims.sql",
+    "src/riverview_core/resident_execution/model_router.py",
     "src/riverview_core/status_dashboard/server.py",
     "src/riverview_core/status_dashboard/static/app.css",
     "src/riverview_core/status_dashboard/static/app.js",
     "src/riverview_core/status_dashboard/static/index.html",
-    "tests/test_resident_conversation.py",
-    "src/riverview_core/account_auth/__init__.py",
-    "src/riverview_core/institutional_authority/grants.py",
-    "src/riverview_core/institutional_authority/migrations/0004_exact_principal_grant_authorization.sql",
-    "src/riverview_core/resident_execution/model_router.py",
-    "src/riverview_core/resident_execution/migrations/0004_deferred_conversation_responses.sql"
+    "tests/test_grace_router_readiness.py",
+    "tests/test_resident_conversation.py"
   ],
   "documentation_references": [
     "docs/components/RESIDENT_CONVERSATION.md",
@@ -220,9 +224,9 @@
     },
     {
       "id": "rv:resident-conversation:browser-chat:persist-response",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "process",
-      "label": "Append assistant message with model and token provenance",
+      "label": "Append one terminal response with actual served model and original plus executing implementation provenance",
       "source_references": [
         "src/riverview_core/resident_execution/conversation.py",
         "src/riverview_core/resident_execution/migrations/0003_resident_conversation.sql"
@@ -501,9 +505,9 @@
     },
     {
       "id": "rv:resident-conversation:browser-chat:resume-reasoning",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "recovery",
-      "label": "Poll durable deferrals; recheck exact grant and unchanged office implementation before resumption",
+      "label": "Poll durable deferred turns and acquire a cross-process request lease",
       "source_references": [
         "src/riverview_core/resident_execution/conversation.py",
         "src/riverview_core/status_dashboard/server.py"
@@ -529,6 +533,57 @@
       ],
       "verification_evidence": [
         "tests/test_resident_model_router.py",
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:resume-auth-recheck",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Revalidate the original sender exact grant and current Grace occupant",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "tests/test_grace_router_readiness.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:upgrade-continuity",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Does current binding exactly match or follow the explicitly authorized direct router transition for the required 80B capability?",
+      "source_references": [
+        "src/riverview_core/institutional_authority/migrations/0006_authorized_implementation_successor.sql",
+        "src/riverview_core/institutional_authority/registry.py",
+        "src/riverview_core/resident_execution/conversation.py",
+        "tests/test_grace_router_readiness.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:upgrade-rejected",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Keep the request deferred when grant, capability, successor, or audited transition is invalid",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/institutional_authority/registry.py",
+        "src/riverview_core/institutional_authority/migrations/0006_authorized_implementation_successor.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
         "tests/test_resident_conversation.py"
       ]
     }
@@ -752,12 +807,6 @@
     },
     {
       "from": "rv:resident-conversation:browser-chat:resume-reasoning",
-      "to": "rv:resident-conversation:browser-chat:persist-response",
-      "type": "verification",
-      "label": "Grant and original binding still valid; response provenance persisted"
-    },
-    {
-      "from": "rv:resident-conversation:browser-chat:resume-reasoning",
       "to": "rv:resident-conversation:browser-chat:reasoning-router-failure",
       "type": "diagnostic_branch",
       "label": "Capability or provider remains unavailable"
@@ -767,6 +816,42 @@
       "to": "rv:resident-conversation:browser-chat:resume-reasoning",
       "type": "recovery_route",
       "label": "Retry persisted request when readiness changes"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:resume-reasoning",
+      "to": "rv:resident-conversation:browser-chat:resume-auth-recheck",
+      "type": "runtime_transition",
+      "label": "Lease acquired; inspect original principal and deferred capability"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:resume-auth-recheck",
+      "to": "rv:resident-conversation:browser-chat:upgrade-rejected",
+      "type": "diagnostic_branch",
+      "label": "Original exact grant revoked or current occupant differs"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:resume-auth-recheck",
+      "to": "rv:resident-conversation:browser-chat:upgrade-continuity",
+      "type": "runtime_transition",
+      "label": "Exact grant and occupant revalidated"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:upgrade-continuity",
+      "to": "rv:resident-conversation:browser-chat:upgrade-rejected",
+      "type": "diagnostic_branch",
+      "label": "No exact binding or explicit direct-upgrade compatibility"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:upgrade-continuity",
+      "to": "rv:resident-conversation:browser-chat:persist-response",
+      "type": "verification",
+      "label": "Compatible authorized router invokes required capability and records dual provenance"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:upgrade-rejected",
+      "to": "rv:resident-conversation:browser-chat:reasoning-router-failure",
+      "type": "recovery_route",
+      "label": "Leave deferred request durable; resume only after an authorized correction"
     }
   ]
 }

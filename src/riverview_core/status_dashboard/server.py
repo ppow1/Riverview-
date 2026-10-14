@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.6
+# Revision: 1.3.7
 # Purpose: Serve account-authenticated operational projections and existing bounded APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -25,6 +25,7 @@
 # Changed: 2026-10-13 UTC | RV-LEDGER-GRAPH-POSITION | Read live execution position only from persisted canonical ledger identity
 # Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Permit only explicit allowlisted OCTO1 model URLs when an opt-in service flag is set
 # Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Add opt-in readiness router and deferred-turn resumption loop
+# Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Fail startup closed unless deferred compatibility and claim migrations are ready
 # Changed: 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Check resident migration and authorized active binding without reading the protected authority ledger
 # Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING-DENIALS | Preserve conversation authorization and unavailable distinctions at promotion boundary
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Expose only the scoped verification endpoint for local bootstrap challenges
@@ -111,11 +112,17 @@ def _verify_grace_router_startup_readiness(connection, *, schema, registry,
         raise ValueError("invalid Grace router readiness identity")
     with connection.cursor() as cur:
         cur.execute(
-            sql.SQL("SELECT 1 FROM {}.schema_migrations WHERE version=%s").format(
+            sql.SQL("SELECT version FROM {}.schema_migrations WHERE version=ANY(%s)").format(
                 sql.Identifier(schema)),
-            ("0004_deferred_conversation_responses",))
-        if cur.fetchone() is None:
-            raise RuntimeError("resident conversation deferral migration is not applied")
+            (["0004_deferred_conversation_responses",
+              "0006_deferred_execution_claims"],))
+        rows = cur.fetchall()
+        versions = {row["version"] if hasattr(row, "keys") else row[0]
+                    for row in rows}
+        if versions != {
+                "0004_deferred_conversation_responses",
+                "0006_deferred_execution_claims"}:
+            raise RuntimeError("resident deferred-resumption migrations are not applied")
 
     binding = registry.authorize_office_state(resident_credential, office_id)
     if (not isinstance(binding, dict)
@@ -123,6 +130,15 @@ def _verify_grace_router_startup_readiness(connection, *, schema, registry,
             or binding.get("provider_ref") != router.provider_id
             or binding.get("implementation_revision") != router.model_sha256):
         raise RuntimeError("authorized Grace router binding is not ready")
+    # Exercise the narrowly granted decision API without accepting a
+    # predecessor relationship. A missing function privilege/API fails startup.
+    registry.is_authorized_implementation_successor(
+        resident_credential, office_id,
+        predecessor_id=binding["implementation_id"],
+        predecessor_revision=binding["implementation_revision"],
+        successor_id=binding["implementation_id"],
+        successor_revision=binding["implementation_revision"],
+        required_capability="grace.reasoning.80b")
     return binding
 
 
