@@ -451,9 +451,28 @@
       "id": "rv:resident-conversation:browser-chat:readiness-route",
       "node_revision": "1.0.0",
       "type": "decision",
-      "label": "Select 80B for substantive turns; use ready 30B or 0.6B only for provisional simple turns",
+      "label": "Route substantive turns to 80B; exact acknowledgments to 0.6B; narrow simple facts to provisional 30B",
       "source_references": [
-        "src/riverview_core/resident_execution/model_router.py"
+        "src/riverview_core/resident_execution/model_router.py",
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_model_router.py",
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:attempt-diagnostics",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Persist sanitized provider attempts, bounded timing/error, fallback reason, and final served provider",
+      "source_references": [
+        "src/riverview_core/resident_execution/model_router.py",
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/local_reasoning_provider.py"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_CONVERSATION.md"
@@ -694,6 +713,24 @@
       "from": "rv:resident-conversation:browser-chat:inference",
       "to": "rv:resident-conversation:browser-chat:readiness-route",
       "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:readiness-route",
+      "to": "rv:resident-conversation:browser-chat:attempt-diagnostics",
+      "type": "runtime_transition",
+      "label": "Provider selected; begin bounded inference attempt"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:attempt-diagnostics",
+      "to": "rv:resident-conversation:browser-chat:persist-response",
+      "type": "runtime_transition",
+      "label": "Success or authorized interim fallback; persist served provider and attempts"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:attempt-diagnostics",
+      "to": "rv:resident-conversation:browser-chat:defer-reasoning",
+      "type": "diagnostic_branch",
+      "label": "Required provider failed or is unavailable; keep request durable"
     },
     {
       "from": "rv:resident-conversation:browser-chat:readiness-route",

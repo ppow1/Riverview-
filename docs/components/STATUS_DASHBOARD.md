@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.0
+File Revision: 1.1.1
 Purpose: Specify operational projections and exact-grant Grace objective and conversation interfaces
 Authority: Reads require dashboard authentication; objective and resident conversation operations require exact institutional grants
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
@@ -12,6 +12,7 @@ Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Add governed objective 
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Integrate the isolated resident conversation view and versioned API
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Keep persisted historical interruption notices out of current response error state
 Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Document password login, grant controls and configurable SMTP administration
+Changed: 2026-10-14 UTC | RV-GRACE-HEALTH-PROJECTION-ACL-001 | Grant dashboard runtime SELECT only on Grace execution health for status projection
 History: Git and revision/backup manifest
 -->
 # Steward status dashboard
@@ -214,6 +215,16 @@ browser acceptance, M3.4 milestone acceptance, or full Component DoD. The
 conversation contract records configuration, troubleshooting, and recovery.
 
 ## Runtime and deployment
+
+The status projection reads `grace_execution_health` when that relation exists.
+Migration `src/riverview_core/resident_execution/migrations/0005_dashboard_grace_health_read.sql`
+grants the dashboard database role `riverview_core` SELECT on that single table
+in the selected application schema. It grants no authority-schema migration
+ledger access and no privileges on unrelated relations. Apply it only through
+the reviewed migration runner after protected backup and checksum preflight.
+The regression test runs the projection as `riverview_core`, confirms the
+pre-migration `InsufficientPrivilege` result, then verifies the single-table
+grant restores the current status projection.
 
 Port 8766 is reserved for this service, bound to `127.0.0.1`; existing
 `riverview-event-processor.service`, `riverview-cme-monitor.service`, and

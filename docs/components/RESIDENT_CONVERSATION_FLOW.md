@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION_FLOW.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.7
+File Revision: 1.0.8
 Purpose: Generated focused flow for persistent Grace browser conversation
 Authority: Canonical graph JSON; diagram generated and not hand-edited
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Register generated chat workflow view
@@ -42,7 +42,8 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_session_connect_2f037c66["Validate both exact grants through the linked Steward principal or retained legacy credential"]
     g_rv_resident_conversation_browser_chat_session_cookie_158419c1["Revalidate linked account session and exact grants on every request; legacy cookie also remains supported"]
     g_rv_resident_conversation_browser_chat_auth_denial_latch_1556f60c[["Pause automatic history requests after 403 until explicit reconnect"]]
-    g_rv_resident_conversation_browser_chat_readiness_route_7e67f750{"Select 80B for substantive turns; use ready 30B or 0.6B only for provisional simple turns"}
+    g_rv_resident_conversation_browser_chat_readiness_route_7e67f750{"Route substantive turns to 80B; exact acknowledgments to 0.6B; narrow simple facts to provisional 30B"}
+    g_rv_resident_conversation_browser_chat_attempt_diagnostics_6b1cc0a3["Persist sanitized provider attempts, bounded timing/error, fallback reason, and final served provider"]
     g_rv_resident_conversation_browser_chat_defer_reasoning_7d693ff6["Persist complex turn and required capability when 80B is unavailable or busy"]
     g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14["Poll durable deferrals; recheck exact grant and unchanged office implementation before resumption"]
     g_rv_resident_conversation_browser_chat_reasoning_router_failure_43c1e7f2[["Keep deferred request durable across endpoint errors and process restart"]]
@@ -81,6 +82,9 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_deny_c9c85a36 --> g_rv_resident_conversation_browser_chat_auth_denial_latch_1556f60c
   g_rv_resident_conversation_browser_chat_auth_denial_latch_1556f60c -->|recovery_route: User reconnects with an authorized credential| g_rv_resident_conversation_browser_chat_session_connect_2f037c66
   g_rv_resident_conversation_browser_chat_inference_8bca7614 --> g_rv_resident_conversation_browser_chat_readiness_route_7e67f750
+  g_rv_resident_conversation_browser_chat_readiness_route_7e67f750 -->|Provider selected; begin bounded inference attempt| g_rv_resident_conversation_browser_chat_attempt_diagnostics_6b1cc0a3
+  g_rv_resident_conversation_browser_chat_attempt_diagnostics_6b1cc0a3 -->|Success or authorized interim fallback; persist served provider and attempts| g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b
+  g_rv_resident_conversation_browser_chat_attempt_diagnostics_6b1cc0a3 -->|diagnostic_branch: Required provider failed or is unavailable; keep request durable| g_rv_resident_conversation_browser_chat_defer_reasoning_7d693ff6
   g_rv_resident_conversation_browser_chat_readiness_route_7e67f750 -->|80B ready or bounded provisional path selected| g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b
   g_rv_resident_conversation_browser_chat_readiness_route_7e67f750 -->|diagnostic_branch: Substantive turn requires unavailable or busy 80B| g_rv_resident_conversation_browser_chat_defer_reasoning_7d693ff6
   g_rv_resident_conversation_browser_chat_defer_reasoning_7d693ff6 -->|recovery_route: Automatic readiness polling; durable request retained| g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14

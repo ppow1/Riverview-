@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.1
+# Revision: 1.1.2
 # Purpose: Adapt bounded resident proposals and conversation turns to local inference
 # Execution Model: Bounded loopback OpenAI-compatible request
 # Observability: Sanitized provider failures; no prompts or raw model output logged
@@ -16,6 +16,7 @@
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Add bounded model-specific chat prefix without changing stored conversation content
 # Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Add exact OCTO1 endpoint allowlist, model readiness probe, and explicit slot-busy state
 # Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Bind each approved URL to its exact observed model identity
+# Changed: 2026-10-14 UTC | RV-GRACE-ROUTING-DIAGNOSTICS-001 | Carry sanitized router attempt metadata in validated chat completions
 # Authority: Returns unapproved proposals or plain text only; cannot execute actions or grant authority
 # Contracts: docs/components/RESIDENT_REASONING.md; worker_adapter.local_inference
 # Tests: tests/test_local_reasoning_provider.py
@@ -39,8 +40,9 @@ from .resident_reasoning import PlanProposal, PlanStep, ReasoningRequest
 class LocalReasoningUnavailable(RuntimeError):
     """Sanitized transport/model failure; never includes prompt or response."""
 
-    def __init__(self, code):
+    def __init__(self, code, *, attempts=()):
         self.code = code
+        self.attempts = tuple(attempts)
         super().__init__(code)
 
 
@@ -55,6 +57,7 @@ class ChatCompletion:
     finish_reason: str
     reasoning_stage: str = "primary"
     provisional: bool = False
+    provider_attempts: tuple[dict, ...] = ()
 
 
 @dataclass(frozen=True)

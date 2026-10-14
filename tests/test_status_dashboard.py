@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.25
+# Revision: 1.0.26
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -589,6 +589,68 @@ class DashboardPostgresTests(unittest.TestCase):
                                           schema=self.schema)
         self.assertEqual(unavailable.status()["projection_status"], "unavailable")
         self.assertFalse(unavailable.snapshot()["observed_state"])
+
+    def test_restricted_riverview_core_role_can_read_only_grace_health_after_migration(self):
+        import psycopg
+        from psycopg import sql
+        from riverview_core.status_dashboard.projection import ProjectionUnavailable
+
+        role = "riverview_core"
+        with self.admin.cursor() as cur:
+            cur.execute("SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname=%s) AS present", (role,))
+            if not cur.fetchone()["present"]:
+                self.skipTest("isolated PostgreSQL instance does not define the dashboard runtime role")
+            cur.execute("SELECT rolsuper AS is_superuser FROM pg_roles WHERE rolname=current_user")
+            is_superuser = cur.fetchone()["is_superuser"]
+            cur.execute("SELECT pg_has_role(current_user,%s,'MEMBER') AS member", (role,))
+            if not is_superuser and not cur.fetchone()["member"]:
+                self.skipTest("test database identity cannot exercise the dashboard runtime role")
+            cur.execute(sql.SQL("""CREATE TABLE {}.grace_execution_health (
+                service_id TEXT PRIMARY KEY, instance_id UUID NOT NULL, status TEXT NOT NULL,
+                last_heartbeat_at TIMESTAMPTZ NOT NULL, last_cycle_at TIMESTAMPTZ,
+                last_error_type TEXT, cycles_completed BIGINT NOT NULL)""").format(
+                    sql.Identifier(self.schema)))
+            cur.execute(sql.SQL("GRANT USAGE ON SCHEMA {} TO {}").format(
+                sql.Identifier(self.schema), sql.Identifier(role)))
+            cur.execute("SELECT tablename FROM pg_tables WHERE schemaname=%s AND tablename<>%s",
+                        (self.schema, "grace_execution_health"))
+            for row in cur.fetchall():
+                cur.execute(sql.SQL("GRANT SELECT ON {}.{} TO {}").format(
+                    sql.Identifier(self.schema), sql.Identifier(row["tablename"]), sql.Identifier(role)))
+            cur.execute(sql.SQL("REVOKE ALL ON {}.grace_execution_health FROM {}, PUBLIC").format(
+                sql.Identifier(self.schema), sql.Identifier(role)))
+            cur.execute("SELECT has_table_privilege(%s,%s,'SELECT') AS allowed", (role,
+                f"{self.schema}.grace_execution_health"))
+            self.assertFalse(cur.fetchone()["allowed"])
+
+        original_connect = psycopg.connect
+        def restricted_connect(*args, **kwargs):
+            connection = original_connect(*args, **kwargs)
+            connection.execute(sql.SQL("SET ROLE {}").format(sql.Identifier(role)))
+            connection.commit()
+            return connection
+
+        with mock.patch("riverview_core.status_dashboard.projection.psycopg.connect",
+                        side_effect=restricted_connect):
+            before = self.projection.status()
+        self.assertEqual(before["projection_status"], "unavailable")
+        self.assertEqual(before["unavailable_reason"], "InsufficientPrivilege")
+
+        migration = (self.core / "resident_execution/migrations/0005_dashboard_grace_health_read.sql").read_text()
+        self.assertIn("GRANT SELECT ON %I.grace_execution_health TO riverview_core", migration)
+        self.assertNotIn("schema_migrations", migration)
+        with self.admin.cursor() as cur:
+            cur.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(self.schema)))
+            cur.execute(migration)
+            cur.execute("SELECT has_table_privilege(%s,%s,'SELECT') AS allowed", (role,
+                f"{self.schema}.grace_execution_health"))
+            self.assertTrue(cur.fetchone()["allowed"])
+
+        with mock.patch("riverview_core.status_dashboard.projection.psycopg.connect",
+                        side_effect=restricted_connect):
+            status = self.projection.status()
+        self.assertEqual(status["projection_status"], "healthy")
+        self.assertEqual(status["grace_execution"]["status"], "not_initialized")
 
     def test_private_assignments_events_and_payload_are_filtered_from_snapshot(self):
         public = self.create("public")
