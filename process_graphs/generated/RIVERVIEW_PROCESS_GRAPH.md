@@ -1,6 +1,6 @@
 # Riverview aggregate process graph
 
-**Document Revision:** 1.0.19
+**Document Revision:** 1.0.20
 **Generated from:** canonical workflow JSON; do not edit this projection by hand.  
 **Source:** `python3 scripts/process_graph.py generate`  
 
@@ -15,6 +15,7 @@ flowchart LR
   g_rv_event_processor_assignment_progression_fa10db2d[["EVENT-PROCESSOR<br/>assignment-progression.v1<br/>rv:event-processor:assignment-progression"]]
   g_rv_grace_operational_integration_9989f0be[["RESIDENT-ORCHESTRATION<br/>grace-engineering-objective.v1<br/>rv:grace:operational-integration"]]
   g_rv_institutional_authority_identity_and_grants_05fdf0c5[["INSTITUTIONAL-AUTHORITY<br/>identity-and-grants.v1<br/>rv:institutional-authority:identity-and-grants"]]
+  g_rv_institutional_authority_resident_permission_profiles_2f442d86[["RESIDENT-PERMISSION-PROFILES<br/>resident-permission-profiles.v1<br/>rv:institutional-authority:resident-permission-profiles"]]
   g_rv_repository_knowledge_provider_pinned_worker_contracts_0269c370[["REPOSITORY-KNOWLEDGE-PROVIDER<br/>pinned-worker-contracts.v1<br/>rv:repository-knowledge-provider:pinned-worker-contracts"]]
   g_rv_notification_delivery_visual_attention_3f4f84d2[["NOTIFICATION-DELIVERY<br/>visual-attention.v1<br/>rv:notification-delivery:visual-attention"]]
   g_rv_outcome_verifier_independent_result_1d5c0875[["OUTCOME-VERIFIER<br/>deterministic-result-verification.v1<br/>rv:outcome-verifier:independent-result"]]
@@ -34,6 +35,7 @@ flowchart LR
   g_rv_grace_operational_integration_9989f0be -->|jump| g_rv_worker_adapter_deterministic_attempt_15d59b6f
   g_rv_grace_operational_integration_9989f0be -->|jump| g_rv_cme_progress_and_recovery_402efffa
   g_rv_grace_operational_integration_9989f0be -->|jump| g_rv_outcome_verifier_independent_result_1d5c0875
+  g_rv_institutional_authority_resident_permission_profiles_2f442d86 -->|jump: Revalidate institutional grant authority| g_rv_institutional_authority_identity_and_grants_05fdf0c5
   g_rv_repository_knowledge_provider_pinned_worker_contracts_0269c370 -->|jump| g_rv_worker_adapter_deterministic_attempt_15d59b6f
   g_rv_notification_delivery_visual_attention_3f4f84d2 -->|jump| g_rv_cme_progress_and_recovery_402efffa
   g_rv_notification_delivery_visual_attention_3f4f84d2 -->|jump| g_rv_steward_dashboard_status_75f7c259

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/provision_grace_resident.py
 # Component: GRACE-OPERATIONAL-INTEGRATION
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Additively provision Grace's stable office, resident, occupant and local-model binding
 # Execution Model: Root-local, idempotent authority-registry bootstrap
 # Observability: Redacted status JSON; bearer values and credential hashes are never emitted
@@ -13,6 +13,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.4-BOOTSTRAP-TEST-CORRECTION | Require exact existing credential bytes for retry idempotency
 # Changed: 2026-10-11 UTC | RV-M4.4-BOOTSTRAP-TEST-CORRECTION-2 | Bump revision after correcting test setup and retest path
 # Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-ORPHAN-CREDENTIAL-RECOVERY | Revoke credentials orphaned by interrupted first token delivery
+# Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Use canonical Director of Operations title for new Grace office provisioning
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md; docs/components/RESIDENT_REASONING.md
 # Tests: tests/test_grace_provisioning.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -44,7 +45,7 @@ MODEL_FILE = Path("/home/admin1/.cache/riverview/models/Qwen3-0.6B-Q8_0.gguf")
 MANAGER_DSN = "host=127.0.0.1 port=5432 dbname=riverview user=riverview_authority_manager"
 AUTHORITY_SCHEMA = "riverview_authority"
 OFFICE_ID = "office:grace"
-OFFICE_ROLE = "AI director of engineering"
+OFFICE_ROLE = "Director of Operations"
 PRINCIPAL_ID = "resident:grace"
 OCCUPANT_ID = "occupant:grace:initial"
 IMPLEMENTATION_ID = "implementation:grace:qwen3-0.6b-q8"
@@ -128,7 +129,8 @@ def _ensure_office(registry, steward: str) -> None:
                (OFFICE_ID,))
     if row:
         if row["office_role"] != OFFICE_ROLE:
-            raise ProvisioningError("office_identity_conflict")
+            registry.update_office_role(steward, OFFICE_ID, OFFICE_ROLE,
+                expected_office_role=row["office_role"])
         return
     registry.create_office(steward, OFFICE_ID, OFFICE_ROLE)
 

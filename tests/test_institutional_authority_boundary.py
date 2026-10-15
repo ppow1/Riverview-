@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_institutional_authority_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.23
+# Revision: 1.0.24
 # Purpose: Verify isolated M4.1 ownership separation denies runtime SQL bypass
 # Execution Model: PostgreSQL integration test using unique rvtest schema and roles
 # Observability: Protected object owners, runtime denial, manager registry authorization
@@ -202,7 +202,7 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
             self.admin, schema=self.schema, runtime_role=self.runtime_role,
             manager_role=self.manager_role, owner_role=self.owner_role, apply=True)
         self.assertEqual(applied["status"], "APPLIED")
-        self.assertEqual(len(applied["authority_tables"]), 9)
+        self.assertEqual(len(applied["authority_tables"]), 18)
 
         # Runtime and manager ACL drift on either resident API function must
         # trigger a repair instead of being missed by table/function checks.
@@ -390,6 +390,26 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
             with self.assertRaises(InsufficientPrivilege):
                 runtime.execute(self.sql.SQL("SELECT count(*) FROM {}.institutional_principals").format(
                     self.sql.Identifier(self.schema))).fetchone()
+        from riverview_core.institutional_authority.db_boundary import AUTHORITY_TABLES
+        for table_name in AUTHORITY_TABLES:
+            with self.psycopg.connect(self.runtime_dsn) as runtime:
+                with self.assertRaises(InsufficientPrivilege):
+                    runtime.execute(self.sql.SQL("SELECT count(*) FROM {}.{}").format(
+                        self.sql.Identifier(self.schema), self.sql.Identifier(table_name))).fetchone()
+        with self.psycopg.connect(self.runtime_dsn) as runtime:
+            result = runtime.execute(self.sql.SQL(
+                "SELECT {}.evaluate_resident_permission(%s,%s,%s,%s,%s,false)").format(
+                    self.sql.Identifier(self.schema)),
+                ("resident:boundary-test", "assignment.execute", "assignment:boundary-test",
+                 "execute", "internal")).fetchone()[0]
+            self.assertEqual(result["mode"], "legacy_exact_grant_only")
+        with self.psycopg.connect(self.manager_dsn) as manager:
+            with self.assertRaises(InsufficientPrivilege):
+                manager.execute(self.sql.SQL(
+                    "SELECT {}.evaluate_resident_permission(%s,%s,%s,%s,%s,false)").format(
+                        self.sql.Identifier(self.schema)),
+                    ("resident:boundary-test", "assignment.execute", "assignment:boundary-test",
+                     "execute", "internal")).fetchone()
         with self.psycopg.connect(self.runtime_dsn) as runtime:
             with self.assertRaises(InsufficientPrivilege):
                 runtime.execute(self.sql.SQL("""INSERT INTO {}.institutional_authority_events
@@ -438,7 +458,7 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
                                    (self.schema, list(__import__(
                                        "riverview_core.institutional_authority.db_boundary",
                                        fromlist=["AUTHORITY_TABLES"]).AUTHORITY_TABLES))).fetchall()
-        self.assertEqual(len(owners), 9)
+        self.assertEqual(len(owners), 18)
         self.assertTrue(all(row["tableowner"] == self.owner_role for row in owners))
 
         # Demonstrate why the schema-owner gate is mandatory. This is a unique

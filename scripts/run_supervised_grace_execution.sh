@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SCRIPT
 # File: scripts/run_supervised_grace_execution.sh
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Run one selected Grace Engineering objective with the owner's ChatGPT CLI session
 # Execution Model: Interactive transient systemd unit with protected Riverview credentials
 # Observability: Objective ID and sanitized runner result; no auth data or prompt logging
@@ -11,6 +11,7 @@
 # Authority: Does not create grants; existing dispatch, execution, and verification checks remain required
 # Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Add a no-copy, TTY-bound subscription execution command
 # Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Pin the installed Codex binary and source checkout
+# Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Load resident credential from canonical protected path
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; process_graphs/grace/operational-integration.json
 # Tests: bash -n scripts/run_supervised_grace_execution.sh
 # History: Git and .riverview-backups/manifest.jsonl
@@ -70,7 +71,7 @@ sudo systemd-run --system --pty --wait --collect \
   --property=LoadCredential=dispatch-token:/etc/riverview/worker/grace-dispatch.credential \
   --property=LoadCredential=worker-token:/etc/riverview/worker/grace-executor.credential \
   --property=LoadCredential=verifier-token:/etc/riverview/worker/grace-verifier.credential \
-  --property=LoadCredential=resident-token:/etc/riverview/residents/grace-office.credential \
+  --property=LoadCredential=resident-token:/etc/riverview/grace/resident.credential \
   --property=NoNewPrivileges=yes \
   --property=ProtectSystem=strict \
   --property=ProtectHome=tmpfs \

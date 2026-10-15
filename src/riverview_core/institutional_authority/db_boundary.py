@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/db_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.14
+# Revision: 1.0.17
 # Purpose: Separate authority relation ownership from the shared runtime role
 # Execution Model: Explicit PostgreSQL DBA operation; dry-run by default
 # Observability: Redacted JSON preflight and applied-relation report
@@ -20,6 +20,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-RUNTIME-OFFICE-API | Expose only exact-grant office snapshot/CAS functions to the runtime role
 # Changed: 2026-10-11 UTC | RV-M4.1-OFFICE-FUNCTION-DRIFT | Detect and repair office function ACL/security drift in preflight
 # Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Allow only the restricted audited-upgrade decision function to runtime
+# Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Extend protected ownership and function-only ACL to resident profiles
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: tests/test_institutional_authority_boundary.py
 # History: .riverview-backups/manifest.jsonl
@@ -44,8 +45,15 @@ AUTHORITY_TABLES = (
     "office_bindings",
     "office_runtime_state",
     "institutional_authority_events",
+    "capability_catalog", "resource_catalog", "capability_resources",
+    "resident_permission_tiers", "resident_permission_profiles",
+    "resident_permission_profile_drafts", "resident_permission_tier_rules",
+    "resident_permission_rules",
+    "resident_permission_events",
 )
 EVENT_TRIGGER_FUNCTION = "reject_institutional_authority_event_mutation"
+PROFILE_EVENT_TRIGGER_FUNCTION = "reject_resident_permission_event_mutation"
+APPEND_ONLY_TRIGGER_FUNCTIONS = (EVENT_TRIGGER_FUNCTION, PROFILE_EVENT_TRIGGER_FUNCTION)
 AUTHORIZATION_FUNCTION = "authorize_exact_grant"
 PRINCIPAL_AUTHORIZATION_FUNCTION = "authorize_exact_principal_grant"
 PRINCIPAL_AUTHORIZATION_ARGUMENTS = "p_principal_id text, p_action text, p_scope_ref text"
@@ -61,6 +69,20 @@ RUNTIME_OFFICE_FUNCTION_SIGNATURES = {
     "read_authorized_office_state": "(bytea,text)",
     "write_authorized_office_state": "(bytea,text,jsonb,bigint)",
     "authorized_office_implementation_successor": "(bytea,text,text,text,text,text,text)",
+}
+RUNTIME_PERMISSION_FUNCTIONS = {
+    "list_resident_permission_profiles": "p_actor text",
+    "save_resident_permission_profile": "p_actor text, p_resident text, p_expected_revision bigint, p_profile jsonb",
+    "approve_resident_permission_profile": "p_actor text, p_resident text, p_expected_revision bigint",
+    "revoke_resident_permission_profile": "p_actor text, p_resident text, p_expected_revision bigint",
+    "evaluate_resident_permission": "p_resident text, p_action text, p_resource text, p_access_level text, p_classification text, p_export boolean",
+}
+RUNTIME_PERMISSION_SIGNATURES = {
+    "list_resident_permission_profiles": "(text)",
+    "save_resident_permission_profile": "(text,text,bigint,jsonb)",
+    "approve_resident_permission_profile": "(text,text,bigint)",
+    "revoke_resident_permission_profile": "(text,text,bigint)",
+    "evaluate_resident_permission": "(text,text,text,text,text,boolean)",
 }
 _IDENTIFIER = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,62}$")
 
@@ -185,14 +207,15 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
             cur.execute("""SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS arguments
                            FROM pg_proc p
                            JOIN pg_namespace n ON n.oid=p.pronamespace
-                           WHERE n.nspname=%s AND p.proname<>%s""",
-                        (schema, EVENT_TRIGGER_FUNCTION))
+                           WHERE n.nspname=%s AND NOT (p.proname=ANY(%s))""",
+                        (schema, list(APPEND_ONLY_TRIGGER_FUNCTIONS)))
             function_rows = cur.fetchall()
             expected_auth_arguments = "p_credential_sha256 bytea, p_action text, p_scope_ref text"
             expected_functions = {
                 (AUTHORIZATION_FUNCTION, expected_auth_arguments),
                 (PRINCIPAL_AUTHORIZATION_FUNCTION, PRINCIPAL_AUTHORIZATION_ARGUMENTS),
                 *RUNTIME_OFFICE_FUNCTIONS.items(),
+                *RUNTIME_PERMISSION_FUNCTIONS.items(),
             }
             observed_functions = {(row["proname"], row["arguments"]) for row in function_rows}
             if observed_functions != expected_functions:
@@ -216,13 +239,13 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
 
             cur.execute("""SELECT p.proowner::regrole::text AS function_owner
                            FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
-                           WHERE n.nspname=%s AND p.proname=%s
+                           WHERE n.nspname=%s AND p.proname=ANY(%s)
                              AND p.pronargs=0""",
-                        (schema, EVENT_TRIGGER_FUNCTION))
-            trigger_row = cur.fetchone()
-            if trigger_row is None:
+                        (schema, list(APPEND_ONLY_TRIGGER_FUNCTIONS)))
+            trigger_rows = cur.fetchall()
+            if len(trigger_rows) != len(APPEND_ONLY_TRIGGER_FUNCTIONS):
                 raise BoundaryPreflightError("append-only authority trigger function is missing")
-            if trigger_row["function_owner"] not in acceptable_owners:
+            if any(row["function_owner"] not in acceptable_owners for row in trigger_rows):
                 raise BoundaryPreflightError("authority trigger function owner is outside the approved transition set")
 
             cur.execute("""SELECT p.proowner::regrole::text AS function_owner,
@@ -271,6 +294,23 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                         or function_row["function_owner"] not in acceptable_owners:
                     raise BoundaryPreflightError("resident office function security configuration is unsafe")
                 runtime_office_functions.append(function_row)
+            runtime_permission_functions = []
+            for function_name, arguments in RUNTIME_PERMISSION_FUNCTIONS.items():
+                cur.execute("""SELECT p.proowner::regrole::text AS function_owner,
+                                      p.prosecdef AS security_definer,p.proconfig,
+                                      has_function_privilege(%s::name,p.oid,'EXECUTE') AS runtime_execute,
+                                      has_function_privilege(%s::name,p.oid,'EXECUTE') AS manager_execute
+                               FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+                               WHERE n.nspname=%s AND p.proname=%s
+                                 AND pg_get_function_identity_arguments(p.oid)=%s""",
+                            (runtime_role, manager_role, schema, function_name, arguments))
+                function_row = cur.fetchone()
+                expected_path = f"search_path={schema}, pg_catalog, pg_temp"
+                if (function_row is None or not function_row["security_definer"]
+                        or not function_row["proconfig"] or expected_path not in function_row["proconfig"]
+                        or function_row["function_owner"] not in acceptable_owners):
+                    raise BoundaryPreflightError("resident permission function security configuration is unsafe")
+                runtime_permission_functions.append(function_row)
 
             cur.execute("""SELECT has_schema_privilege(%s::name,%s,'USAGE') AS runtime_usage,
                                   has_schema_privilege(%s::name,%s,'CREATE') AS runtime_create,
@@ -319,6 +359,9 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                        or "search_path=pg_catalog, pg_temp" not in function["proconfig"]
                        or not function["runtime_execute"] or function["manager_execute"]
                        for function in runtime_office_functions)
+                or any(function["function_owner"] != owner_role
+                       or not function["runtime_execute"] or function["manager_execute"]
+                       for function in runtime_permission_functions)
             )
 
             if not apply:
@@ -352,11 +395,12 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                     sql.SQL("{},{}").format(sql.Identifier(runtime_role), sql.Identifier(manager_role))))
                 cur.execute(sql.SQL("GRANT SELECT,INSERT,UPDATE,DELETE ON TABLE {}.{} TO {}").format(
                     sql.Identifier(schema), sql.Identifier(table_name), sql.Identifier(manager_role)))
-            cur.execute(sql.SQL("ALTER FUNCTION {}.{}() OWNER TO {}").format(
-                sql.Identifier(schema), sql.Identifier(EVENT_TRIGGER_FUNCTION), sql.Identifier(owner_role)))
-            cur.execute(sql.SQL("REVOKE ALL PRIVILEGES ON FUNCTION {}.{}() FROM PUBLIC,{},{}").format(
-                sql.Identifier(schema), sql.Identifier(EVENT_TRIGGER_FUNCTION),
-                sql.Identifier(runtime_role), sql.Identifier(manager_role)))
+            for trigger_function in APPEND_ONLY_TRIGGER_FUNCTIONS:
+                cur.execute(sql.SQL("ALTER FUNCTION {}.{}() OWNER TO {}").format(
+                    sql.Identifier(schema), sql.Identifier(trigger_function), sql.Identifier(owner_role)))
+                cur.execute(sql.SQL("REVOKE ALL PRIVILEGES ON FUNCTION {}.{}() FROM PUBLIC,{},{}").format(
+                    sql.Identifier(schema), sql.Identifier(trigger_function),
+                    sql.Identifier(runtime_role), sql.Identifier(manager_role)))
             for function_name, signature in (
                     (AUTHORIZATION_FUNCTION, "(bytea,text,text)"),
                     (PRINCIPAL_AUTHORIZATION_FUNCTION, "(text,text,text)")):
@@ -370,6 +414,17 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                     sql.Identifier(schema), sql.Identifier(function_name), sql.SQL(signature),
                     sql.Identifier(runtime_role)))
             for function_name, signature in RUNTIME_OFFICE_FUNCTION_SIGNATURES.items():
+                cur.execute(sql.SQL("ALTER FUNCTION {}.{}{} OWNER TO {}").format(
+                    sql.Identifier(schema), sql.Identifier(function_name), sql.SQL(signature),
+                    sql.Identifier(owner_role)))
+                cur.execute(sql.SQL("REVOKE ALL PRIVILEGES ON FUNCTION {}.{}{} FROM PUBLIC,{},{}").format(
+                    sql.Identifier(schema), sql.Identifier(function_name), sql.SQL(signature),
+                    sql.Identifier(runtime_role), sql.Identifier(manager_role)))
+                cur.execute(sql.SQL("GRANT EXECUTE ON FUNCTION {}.{}{} TO {}").format(
+                    sql.Identifier(schema), sql.Identifier(function_name), sql.SQL(signature),
+                    sql.Identifier(runtime_role)))
+
+            for function_name, signature in RUNTIME_PERMISSION_SIGNATURES.items():
                 cur.execute(sql.SQL("ALTER FUNCTION {}.{}{} OWNER TO {}").format(
                     sql.Identifier(schema), sql.Identifier(function_name), sql.SQL(signature),
                     sql.Identifier(owner_role)))
@@ -436,6 +491,20 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                 if function_row is None:
                     raise BoundaryPreflightError("resident office function post-apply verification failed")
                 runtime_office_functions.append(function_row)
+            runtime_permission_functions = []
+            for function_name, arguments in RUNTIME_PERMISSION_FUNCTIONS.items():
+                cur.execute("""SELECT p.proowner::regrole::text AS function_owner,
+                                      p.prosecdef AS security_definer,p.proconfig,
+                                      has_function_privilege(%s::name,p.oid,'EXECUTE') AS runtime_execute,
+                                      has_function_privilege(%s::name,p.oid,'EXECUTE') AS manager_execute
+                               FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+                               WHERE n.nspname=%s AND p.proname=%s
+                                 AND pg_get_function_identity_arguments(p.oid)=%s""",
+                            (runtime_role, manager_role, schema, function_name, arguments))
+                function_row = cur.fetchone()
+                if function_row is None:
+                    raise BoundaryPreflightError("resident permission function post-apply verification failed")
+                runtime_permission_functions.append(function_row)
             if (len(verification) != len(AUTHORITY_TABLES)
                     or any(row["owner"] != owner_role for row in verification)
                     or any(row[name] for row in verification
@@ -454,7 +523,12 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                            or not function["security_definer"] or not function["proconfig"]
                            or "search_path=pg_catalog, pg_temp" not in function["proconfig"]
                            or not function["runtime_execute"] or function["manager_execute"]
-                           for function in runtime_office_functions)):
+                           for function in runtime_office_functions)
+                    or any(function["function_owner"] != owner_role
+                           or not function["security_definer"] or not function["proconfig"]
+                           or f"search_path={schema}, pg_catalog, pg_temp" not in function["proconfig"]
+                           or not function["runtime_execute"] or function["manager_execute"]
+                           for function in runtime_permission_functions)):
                 raise BoundaryPreflightError("post-apply privilege verification failed; transaction rolled back")
             return {
                 "status": "APPLIED",

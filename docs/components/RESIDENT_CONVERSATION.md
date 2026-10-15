@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.16
+File Revision: 1.1.20
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -20,6 +20,10 @@ Changed: 2026-10-13 UTC | RV-GRACE-MULTI-STAGE-001 | Record exact OCTO1 provider
 Changed: 2026-10-13 UTC | RV-GRACE-MULTI-STAGE-001 | Clarify local slot contention is not global OCTO1 slot telemetry
 Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Document opt-in audited router continuity, grant revalidation, provenance, and durable claims
 Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-CAPABILITY-001 | Pin deferred retries to their original capability and request context; emit redacted retry diagnostics
+Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Supply canonical Grace office identity and responsibilities to all model turns
+Changed: 2026-10-14 UTC | RV-GRACE-DOPS-TOOLBOX-001 | Ground ordinary and resumed turns in bounded read-only institutional projections with durable context provenance
+Changed: 2026-10-14 UTC | RV-GRACE-DOPS-TOOLBOX-001 | Include the existing Grace execution health projection and classify snapshot evidence explicitly
+Changed: 2026-10-14 UTC | RV-GRACE-DOPS-OBSERVATION-PERSISTENCE-001 | Retain the bounded input observation snapshot in the append-only response event
 Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Bound conversation output at 512 tokens and record non-stop finish diagnostics
 Changed: 2026-10-13 UTC | RV-GRACE-MULTI-STAGE-001 | Document endpoint/model pair pinning and explicit dashboard opt-in
 Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record deployed 390 CSS-pixel responsive fixture while retaining physical-device and Windows verification as pending
@@ -36,6 +40,34 @@ Changed: 2026-10-14 UTC | RV-GRACE-ROUTING-INTEGRATION-001 | Reconcile merged st
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
+
+## Institutional and operational context
+
+Every ordinary and resumed model turn receives the same stable role context
+from `resident_execution/grace_role_context.py` (role-context revision 1.0.0):
+Grace is the continuing occupant of `office:grace` and Director of Operations;
+Alfred is the separate Chief of Staff; the Steward retains final authority.
+The context describes CME progression, operational awareness, Engineering and
+resource coordination, routing, observation, recovery, and exception escalation.
+It explicitly grants no permission. The backend continues to authorize actions
+through the existing exact-grant and governed workflow services.
+
+`resident_execution/operational_context.py` supplies the named read-only
+capability `grace.operations.snapshot.read.v1` by adapting the existing
+`DashboardProjection`; it is not a new database reader or model-selected tool
+interface. It includes bounded CME health, assignment/workflow identities,
+objective status and verification decision, worker readiness, Grace execution
+health, and Steward attention summaries. It excludes request and acceptance text, conversation
+bodies, payloads, artifact paths, and credentials. The snapshot labels
+projection status and observation timestamps, and the append-only conversation
+response event stores the bounded snapshot with its capability, status,
+timestamps, and canonical SHA-256 digest. The same metadata shape is retained
+for deferred and failed requests when a snapshot was obtained, so later
+continuation can distinguish the original observation from a refreshed one.
+Unavailable or oversized context is labeled; it does not create authority or
+an action. Model-generated instructions inside values are not executable.
+Additional historical knowledge retrieval, richer resource readiness, and
+typed action tools remain future integration work.
 
 **Status:** Isolated engineering implementation on the proposed M3.4 workstream. The roadmap's M3.4 sequencing proposal has not been formally accepted; this work does not claim roadmap acceptance, production commissioning, or full Component Definition of Done.
 

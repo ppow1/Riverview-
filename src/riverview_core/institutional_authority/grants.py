@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/grants.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.2
-# Purpose: Resolve exact credential/action/scope grants through the protected SQL function
+# Revision: 1.0.3
+# Purpose: Resolve exact grants and apply an active resident profile as an additional policy gate
 # Execution Model: Request-driven query on the caller's active PostgreSQL transaction
 # Observability: Safe allow/deny status and exact grant ID; no credential is logged
 # Dependencies: Python 3.10+; Psycopg 3; migration 0002 and DBA-applied boundary
 # Authority: Missing, invalid, unavailable, or ambiguous authority denies the operation
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Authorize linked authenticated principals through exact grants
+# Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Enforce active resident profile policy after exact grant
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: tests/test_institutional_authority_boundary.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -46,6 +47,7 @@ class ExactGrantAuthorizer:
 
     FUNCTION = "authorize_exact_grant"
     PRINCIPAL_FUNCTION = "authorize_exact_principal_grant"
+    PROFILE_FUNCTION = "evaluate_resident_permission"
 
     def __init__(self, schema):
         if not isinstance(schema, str) or not _SCHEMA.fullmatch(schema):
@@ -73,6 +75,7 @@ class ExactGrantAuthorizer:
             grant_id = row["grant_id"]
         except (KeyError, TypeError):
             principal_id, grant_id = row[0], row[1]
+        self._require_profile_policy(cursor, principal_id, action, scope_ref)
         return {"principal_id": principal_id, "grant_id": grant_id}
 
     def require_principal(self, cursor, principal_id, action, scope_ref):
@@ -98,4 +101,41 @@ class ExactGrantAuthorizer:
             authorized_principal, grant_id = row["principal_id"], row["grant_id"]
         except (KeyError, TypeError):
             authorized_principal, grant_id = row[0], row[1]
+        self._require_profile_policy(cursor, authorized_principal, action, scope_ref)
         return {"principal_id": authorized_principal, "grant_id": grant_id}
+
+    def _require_profile_policy(self, cursor, principal_id, action, scope_ref):
+        """An active resident profile can narrow, never replace, an exact grant."""
+        level = _access_level(action)
+        query = sql.SQL("SELECT {}.{}(%s,%s,%s,%s,%s,%s)").format(
+            sql.Identifier(self.schema), sql.Identifier(self.PROFILE_FUNCTION))
+        try:
+            cursor.execute(query, (principal_id, action, scope_ref, level,
+                                   "internal", False))
+            row = cursor.fetchone()
+        except psycopg.Error:
+            raise GrantCheckUnavailable("resident permission profile query failed") from None
+        if row is None:
+            raise GrantCheckUnavailable("resident permission profile returned no decision")
+        decision = row[0] if not hasattr(row, "keys") else next(iter(row.values()))
+        if isinstance(decision, str):
+            import json
+            decision = json.loads(decision)
+        if not isinstance(decision, dict) or decision.get("allowed") is not True:
+            raise GrantDenied("resident permission profile denied the exact grant action")
+        if decision.get("approval_required"):
+            raise GrantDenied("resident permission profile requires a separate approval")
+
+
+def _access_level(action):
+    """Map institutional action verbs to a minimum profile access level."""
+    lowered = action.lower()
+    if lowered.endswith((".read", ".view", ".inspect", ".status")):
+        return "read"
+    if lowered.endswith((".manage", ".administer")):
+        return "administer"
+    if lowered.endswith((".delegate", ".grant")):
+        return "delegate"
+    if lowered.endswith((".write", ".submit", ".create", ".update", ".cancel")):
+        return "write"
+    return "execute"

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.6
+# Revision: 1.0.7
 # Purpose: Verify primary 80B routing, capability-pinned recovery, bounded fallback and diagnostics
 # Execution Model: Deterministic provider doubles; no database or model endpoint
 # Observability: Assert selected provider and served-model provenance
@@ -10,6 +10,7 @@
 # Contracts: src/riverview_core/resident_execution/model_router.py
 # Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-CAPABILITY-001 | Verify capability-pinned routing despite later simple history
 # Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Preserve sanitized truncation details on 80B deferred attempts
+# Changed: 2026-10-15 UTC | RV-GRACE-DEMO-BASE-INTEGRATION | Preserve router regressions across integrated release changes
 # =============================================================================
 """Focused tests for Grace's readiness-aware three-stage router."""
 
@@ -19,6 +20,7 @@ import json
 from riverview_core.local_reasoning_provider import (ChatCompletion,
     LocalReasoningUnavailable, ProviderReadiness)
 from riverview_core.resident_execution.model_router import GraceModelRouter, ReasoningDeferred
+from riverview_core.resident_reasoning import PlanProposal, PlanStep, ReasoningRequest
 
 
 class _Provider:
@@ -30,6 +32,7 @@ class _Provider:
         self.calls = []
         self.timeout_values = []
         self.failure = None
+        self.proposal_requests = []
 
     def readiness(self):
         return ProviderReadiness(self.state, self.model, self.state.lower())
@@ -41,6 +44,15 @@ class _Provider:
             raise LocalReasoningUnavailable(self.failure)
         return ChatCompletion("bounded answer", self.model, 2, 3, "stop")
 
+    def propose(self, request):
+        self.proposal_requests.append(request)
+        if self.failure:
+            raise LocalReasoningUnavailable(self.failure)
+        return PlanProposal("Produce report", (PlanStep(
+            "report", "Create a bounded report", ("Report is readable",)),), 8,
+            provider_id=self.provider_id, served_model=self.model,
+            model_revision=self.model_sha256, reasoning_stage="reasoning")
+
 
 class GraceModelRouterTests(unittest.TestCase):
     def setUp(self):
@@ -49,6 +61,34 @@ class GraceModelRouterTests(unittest.TestCase):
         self.reasoner = _Provider("qwen-80b")
         self.router = GraceModelRouter(autonomic=self.cpu, vision=self.vision,
                                        reasoning=self.reasoner)
+
+    def proposal_request(self, *, revision=None):
+        return ReasoningRequest("request:1", "office:grace", "objective:1", "1",
+            9, revision or self.router.model_sha256, "persistent_resident_cycle", 64,
+            {"id":"objective:1"}, (), None)
+
+    def test_persistent_reasoner_proposal_uses_only_ready_80b_and_records_served_model(self):
+        result = self.router.propose(self.proposal_request())
+        self.assertEqual(result.served_model, "qwen-80b")
+        self.assertEqual(result.provider_id, "test.qwen-80b")
+        self.assertEqual(result.model_revision, self.reasoner.model_sha256)
+        self.assertEqual(result.reasoning_stage, "reasoning")
+        self.assertEqual(self.reasoner.proposal_requests[0].implementation_revision,
+                         self.reasoner.model_sha256)
+        self.assertEqual(self.vision.proposal_requests, [])
+        self.assertEqual(self.cpu.proposal_requests, [])
+
+    def test_persistent_proposal_does_not_fallback_when_80b_is_unavailable(self):
+        self.reasoner.state = "MODEL_BUSY"
+        with self.assertRaises(LocalReasoningUnavailable):
+            self.router.propose(self.proposal_request())
+        self.assertEqual(self.reasoner.proposal_requests, [])
+        self.assertEqual(self.vision.proposal_requests, [])
+        self.assertEqual(self.cpu.proposal_requests, [])
+
+    def test_persistent_proposal_rejects_router_binding_mismatch_before_model_call(self):
+        self.assertIsNone(self.router.propose(self.proposal_request(revision="f" * 64)))
+        self.assertEqual(self.reasoner.proposal_requests, [])
 
     def test_autonomic_greeting_uses_cpu_and_marks_provisional(self):
         result = self.router.complete_chat([{"role": "user", "content": "Hello."}],

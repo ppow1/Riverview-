@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_institutional_authority.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.13
+# Revision: 1.0.16
 # Purpose: Verify durable identity separation and fail-closed exact scoped grants
 # Execution Model: PostgreSQL integration tests in rvtest_* disposable schemas
 # Observability: unittest evidence, authority events, binding/state revisions
@@ -15,6 +15,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Include resident office-state API migration in migration sequence assertion
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Include linked-principal exact-grant migration in migration sequence assertion
 # Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Require and checksum-apply the audited successor migration in authority fixtures
+# Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Verify Steward-only office-role CAS, audit event, and binding/occupant preservation
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -76,6 +77,8 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "0004_exact_principal_grant_authorization",
             "0005_audited_model_rebinding",
             "0006_authorized_implementation_successor",
+            "0007_audited_office_role_update",
+            "0008_resident_permission_profiles",
         ])
         self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
         if os.geteuid() != 0:
@@ -85,6 +88,45 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             with self.assertRaises(IdentityConflict):
                 self.registry.bootstrap_steward("steward:second")
 
+    def test_office_role_update_is_steward_only_cas_and_preserves_binding(self):
+        from riverview_core.institutional_authority import AuthorityDenied, IdentityConflict
+        self.registry.create_office(self.steward_token, "office:grace-role",
+                                    "AI director of engineering")
+        self.registry.create_principal(self.steward_token, "resident:grace-role", "resident")
+        self.registry.create_occupant(self.steward_token, "occupant:grace-role",
+                                      principal_id="resident:grace-role")
+        self.registry.create_implementation(self.steward_token, "implementation:grace-role",
+            kind="model", provider_ref="test.provider", revision="a" * 64)
+        self.registry.bind_office(self.steward_token, "office:grace-role",
+            "occupant:grace-role", "implementation:grace-role")
+        service_token = self.registry.create_principal(self.steward_token,
+            "service:role-editor", "service")
+        self.registry.grant(self.steward_token, "service:role-editor", "office.manage",
+            "institution", policy_ref="rv.policy:test.v1")
+        with self.assertRaises(AuthorityDenied):
+            self.registry.update_office_role(service_token, "office:grace-role",
+                "Director of Operations", expected_office_role="AI director of engineering")
+        with self.assertRaises(IdentityConflict):
+            self.registry.update_office_role(self.steward_token, "office:grace-role",
+                "Director of Operations", expected_office_role="stale role")
+        result = self.registry.update_office_role(self.steward_token, "office:grace-role",
+            "Director of Operations", expected_office_role="AI director of engineering")
+        self.assertEqual(result, {"office_id": "office:grace-role",
+            "office_role": "Director of Operations", "changed": True})
+        snapshot = self.registry.office_snapshot("office:grace-role")
+        self.assertEqual(snapshot["occupant_id"], "occupant:grace-role")
+        self.assertEqual(snapshot["implementation_id"], "implementation:grace-role")
+        with self.admin.cursor() as cur:
+            cur.execute(f"SELECT event_type,payload FROM {self.schema}.institutional_authority_events "
+                        "WHERE office_id='office:grace-role' AND event_type='office_role_updated'")
+            event = cur.fetchone()
+        if hasattr(event, "keys"):
+            event_type, payload = event["event_type"], event["payload"]
+        else:
+            event_type, payload = event
+        self.assertEqual(event_type, "office_role_updated")
+        self.assertEqual(payload["previous_office_role"], "AI director of engineering")
+        self.assertEqual(payload["office_role"], "Director of Operations")
     def test_bootstrap_accepts_preallocated_token_for_write_ahead_persistence(self):
         from unittest.mock import patch
         import psycopg

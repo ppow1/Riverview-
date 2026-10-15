@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION_FLOW.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.10
+File Revision: 1.0.12
 Purpose: Generated focused flow for persistent Grace browser conversation
 Authority: Canonical graph JSON; diagram generated and not hand-edited
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Register generated chat workflow view
@@ -51,6 +51,8 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_upgrade_continuity_a3e9f484{"Does the current binding match or follow the explicitly authorized direct router transition for the persisted capability?"}
     g_rv_resident_conversation_browser_chat_upgrade_rejected_183d47de[["Keep the request deferred when grant, capability, successor, or audited transition is invalid"]]
     g_rv_resident_conversation_browser_chat_resume_capability_pin_e7b3b64f["Constrain the resumed turn to its persisted required capability; a deferred 80B turn uses only 80B regardless of later conversation turns"]
+    g_rv_resident_conversation_browser_chat_grace_role_context_dbeb08cc["Inject shared canonical Director of Operations identity, responsibilities and no-permission boundary into ordinary and resumed turns"]
+    g_rv_resident_conversation_browser_chat_operations_snapshot_a7547e58["Attach a bounded read-only CME, assignment, objective, worker and attention snapshot with freshness and redaction provenance"]
   end
   g_rv_grace_operational_integration_objective_intake_55567c14["Registered target<br/>rv:grace:operational-integration"]
   g_rv_resident_conversation_browser_chat_browser_submit_e4a0bb86 --> g_rv_resident_conversation_browser_chat_dashboard_auth_1ec7b499
@@ -63,7 +65,6 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_provider_match_6e2180eb -->|documentation: Read-only readiness probe is available for diagnostics; chat currently requires no probe preflight| g_rv_resident_conversation_browser_chat_model_readiness_diagnostic_90a0703b
   g_rv_resident_conversation_browser_chat_persist_user_50079953 --> g_rv_resident_conversation_browser_chat_context_bound_672d08c9
   g_rv_resident_conversation_browser_chat_context_bound_672d08c9 -->|diagnostic_branch: Context too large; model is not called| g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79
-  g_rv_resident_conversation_browser_chat_context_bound_672d08c9 -->|Within context bound| g_rv_resident_conversation_browser_chat_inference_8bca7614
   g_rv_resident_conversation_browser_chat_inference_8bca7614 -->|diagnostic_branch: Timeout, unavailable or incomplete response| g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79
   g_rv_resident_conversation_browser_chat_inference_8bca7614 --> g_rv_resident_conversation_browser_chat_binding_recheck_06e5ffdc
   g_rv_resident_conversation_browser_chat_binding_recheck_06e5ffdc -->|diagnostic_branch: Office binding changed during inference| g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79
@@ -102,5 +103,8 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_upgrade_rejected_183d47de -->|recovery_route: Leave deferred request durable; resume only after an authorized correction| g_rv_resident_conversation_browser_chat_reasoning_router_failure_43c1e7f2
   g_rv_resident_conversation_browser_chat_resume_capability_pin_e7b3b64f -->|diagnostic_branch: Required 80B unavailable or provider failed; leave pending without 30B or 0.6B substitution| g_rv_resident_conversation_browser_chat_reasoning_router_failure_43c1e7f2
   g_rv_resident_conversation_browser_chat_resume_capability_pin_e7b3b64f -->|verification: 80B inference accepted and actual served-model provenance persisted under the original request| g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b
+  g_rv_resident_conversation_browser_chat_context_bound_672d08c9 --> g_rv_resident_conversation_browser_chat_grace_role_context_dbeb08cc
+  g_rv_resident_conversation_browser_chat_grace_role_context_dbeb08cc -->|Use existing read-only institutional projections; do not expose direct database or action tools| g_rv_resident_conversation_browser_chat_operations_snapshot_a7547e58
+  g_rv_resident_conversation_browser_chat_operations_snapshot_a7547e58 -->|Role and bounded attributed operational observations added before model inference| g_rv_resident_conversation_browser_chat_inference_8bca7614
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

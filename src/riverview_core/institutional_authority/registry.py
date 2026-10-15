@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/registry.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.12
+# Revision: 1.0.13
 # Purpose: Persist separated offices, occupants, implementations and scoped grants
 # Execution Model: Synchronous transactional PostgreSQL registry
 # Observability: Append-only authority events and office binding revisions
@@ -13,6 +13,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-RUNTIME-OFFICE-API | Route restricted runtime office reads/writes through exact-grant database functions
 # Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Add expected-revision audited implementation-only office rebind
 # Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Verify only the current audited predecessor-to-successor binding transition
+# Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Add Steward-only compare-and-swap office-role correction with durable audit event
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: tests/test_institutional_authority.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -398,6 +399,49 @@ class AuthorityRegistry:
             raise
         except psycopg.errors.UniqueViolation as exc:
             raise IdentityConflict("office already exists") from exc
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def update_office_role(self, steward_token, office_id, office_role, *,
+                           expected_office_role):
+        """Correct stable office metadata under Steward authority without rebinding it."""
+        if (not isinstance(office_id, str) or not office_id or len(office_id) > 256
+                or not isinstance(office_role, str) or not office_role.strip()
+                or len(office_role) > 256
+                or not isinstance(expected_office_role, str)
+                or not expected_office_role.strip() or len(expected_office_role) > 256):
+            raise ValueError("office identity and bounded current and replacement roles are required")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    actor = self._require(cur, steward_token, "office.manage", "institution")
+                    if actor.get("principal_kind") != "steward":
+                        raise AuthorityDenied("office role correction requires Steward identity")
+                    cur.execute("""SELECT office_role FROM institutional_offices
+                        WHERE office_id=%s FOR UPDATE""", (office_id,))
+                    current = cur.fetchone()
+                    if current is None:
+                        raise IdentityConflict("office does not exist")
+                    if current["office_role"] != expected_office_role:
+                        raise IdentityConflict("office role changed")
+                    if office_role == expected_office_role:
+                        return {"office_id": office_id, "office_role": office_role,
+                                "changed": False}
+                    cur.execute("""UPDATE institutional_offices SET office_role=%s
+                        WHERE office_id=%s AND office_role=%s RETURNING office_role""",
+                        (office_role.strip(), office_id, expected_office_role))
+                    updated = cur.fetchone()
+                    if updated is None:
+                        raise IdentityConflict("office role changed")
+                    self._event(cur, event_type="office_role_updated",
+                        actor_id=actor["principal_id"], office_id=office_id,
+                        payload={"previous_office_role": expected_office_role,
+                                 "office_role": updated["office_role"]})
+                    return {"office_id": office_id,
+                            "office_role": updated["office_role"], "changed": True}
+        except (AuthorityDenied, IdentityConflict, ValueError):
+            raise
         except Exception as exc:
             raise RegistryUnavailable(type(exc).__name__) from None
 

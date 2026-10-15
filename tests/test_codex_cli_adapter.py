@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.3
+# Revision: 1.0.5
 # Purpose: Verify bounded subscription-authenticated Codex adapter contracts
 # Execution Model: Isolated temporary Git repository and synthetic executable
 # Observability: Assertions inspect sanitized adapter status and artifact metadata
@@ -11,6 +11,8 @@
 # Changed: 2026-10-13 UTC | RV-CODEX-CLI-ADAPTER-001 | Add isolated adapter contract tests
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Test leased worker action and independent Markdown verification contracts
 # Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Verify API-key-free child environment and interactive session gate
+# Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Verify persistent owner-session mode without TTY or credential copy
+# Changed: 2026-10-15 UTC | RV-GRACE-CODEX-SANDBOX-READINESS-001 | Verify workspace sandbox failure blocks before dispatch
 # Contracts: src/riverview_core/resident_execution/codex_cli.py
 # Tests: python3 -m unittest tests.test_codex_cli_adapter -v
 # History: Git
@@ -25,9 +27,11 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from riverview_core.resident_execution.codex_cli import (
-    CAPABILITY, CodexAssignment, CodexCLIExecutionAdapter,
+    CAPABILITY, CodexAdapterError, CodexAssignment, CodexCLIExecutionAdapter,
 )
 from riverview_core.resident_execution.codex_workflow import (
     CodexMarkdownVerifier, CodexWorkAction,
@@ -37,6 +41,10 @@ from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeSt
 
 class CodexCLIAdapterTests(unittest.TestCase):
     def setUp(self):
+        self.sandbox_patch = patch.object(CodexCLIExecutionAdapter,
+            "_verify_workspace_sandbox", return_value=None)
+        self.sandbox_patch.start()
+        self.addCleanup(self.sandbox_patch.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         self.repo = self.root / "source"
@@ -111,6 +119,15 @@ class CodexCLIAdapterTests(unittest.TestCase):
         stale = self.adapter().execute(self.assignment(repository_revision=wrong_revision))
         self.assertEqual(stale.status, "WAITING_FOR_EVIDENCE")
         self.assertEqual(stale.detail_code, "repository_revision_mismatch")
+
+    def test_unavailable_workspace_sandbox_fails_closed_before_codex(self):
+        with patch.object(CodexCLIExecutionAdapter, "_verify_workspace_sandbox",
+                          side_effect=CodexAdapterError("codex_sandbox_unavailable")):
+            result = self.adapter().execute(self.assignment())
+        self.assertEqual(result.status, "UNAVAILABLE")
+        self.assertEqual(result.detail_code, "codex_sandbox_unavailable")
+        self.assertFalse(list(self.artifacts.iterdir()))
+        self.assertFalse(list(self.workspace.iterdir()))
 
     def test_cli_failure_is_sanitized_and_creates_no_artifact(self):
         self.codex.write_text(self.codex.read_text().replace("args=sys.argv[1:]", "args=sys.argv[1:] + ['--fail']"),
@@ -200,6 +217,43 @@ class CodexCLIAdapterTests(unittest.TestCase):
                 repository_reference="repo://example/test", codex_home=Path.home() / ".codex",
                 workspace_root=self.workspace, artifact_root=self.artifacts,
                 supervised_chatgpt_session=True)
+
+    def test_persistent_owner_session_uses_existing_protected_login_without_tty(self):
+        owner_home = self.root / "admin1"
+        codex_home = owner_home / ".codex"
+        codex_home.mkdir(parents=True, mode=0o700)
+        auth = codex_home / "auth.json"
+        auth.write_text("synthetic credential marker", encoding="utf-8")
+        auth.chmod(0o600)
+        with patch("riverview_core.resident_execution.codex_cli.Path.home",
+                   return_value=owner_home), \
+             patch("riverview_core.resident_execution.codex_cli.pwd.getpwnam",
+                   return_value=SimpleNamespace(pw_uid=os.geteuid())):
+            adapter = CodexCLIExecutionAdapter(executable=str(self.codex),
+                repository_path=self.repo, repository_reference="repo://example/test",
+                codex_home=codex_home, workspace_root=self.workspace,
+                artifact_root=self.artifacts, persistent_chatgpt_owner_session=True)
+        self.assertTrue(adapter.persistent_chatgpt_owner_session)
+        self.assertFalse(adapter.supervised_chatgpt_session)
+        self.assertEqual(adapter._preflight()[1], self.repo.resolve())
+        self.assertEqual(auth.read_text(encoding="utf-8"), "synthetic credential marker")
+
+    def test_persistent_owner_session_rejects_copy_or_weak_auth_file(self):
+        owner_home = self.root / "admin1"
+        codex_home = owner_home / ".codex"
+        codex_home.mkdir(parents=True, mode=0o700)
+        auth = codex_home / "auth.json"
+        auth.write_text("synthetic credential marker", encoding="utf-8")
+        auth.chmod(0o644)
+        with patch("riverview_core.resident_execution.codex_cli.Path.home",
+                   return_value=owner_home), \
+             patch("riverview_core.resident_execution.codex_cli.pwd.getpwnam",
+                   return_value=SimpleNamespace(pw_uid=os.geteuid())):
+            with self.assertRaisesRegex(ValueError, "protected local login"):
+                CodexCLIExecutionAdapter(executable=str(self.codex),
+                    repository_path=self.repo, repository_reference="repo://example/test",
+                    codex_home=codex_home, workspace_root=self.workspace,
+                    artifact_root=self.artifacts, persistent_chatgpt_owner_session=True)
 
 
 if __name__ == "__main__":

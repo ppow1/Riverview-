@@ -1858,36 +1858,46 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.1.7",
+      "graph_revision": "1.1.10",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
       "source_references": [
+        "deploy/systemd/riverview-grace-execution-owner-session.service",
         "docs/ROADMAP.md",
         "docs/architecture/CORE_CONTRACT.md",
         "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md",
         "docs/standards/COMPONENT_DEFINITION_OF_DONE.md",
         "scripts/run_grace_execution_service.py",
+        "scripts/run_supervised_grace_execution.sh",
+        "src/riverview_core/assignment_scheduler/scheduler.py",
         "src/riverview_core/institutional_authority/db_boundary.py",
         "src/riverview_core/institutional_authority/migrations/0003_resident_office_state_api.sql",
+        "src/riverview_core/local_reasoning_provider.py",
         "src/riverview_core/resident_execution/codex_cli.py",
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/resident_execution/model_router.py",
         "src/riverview_core/resident_execution/pipeline.py",
         "src/riverview_core/resident_execution/service.py",
         "src/riverview_core/resident_execution/verifier.py",
         "src/riverview_core/resident_execution/worker.py",
+        "src/riverview_core/resident_reasoning.py",
         "src/riverview_core/status_dashboard/projection.py",
         "src/riverview_core/status_dashboard/server.py",
         "src/riverview_core/worker_adapter/continuous.py",
         "src/riverview_core/worker_adapter/migrations/0005_retry_limit.sql",
         "src/riverview_core/worker_adapter/recovery.py",
+        "src/riverview_core/worker_adapter/service.py",
         "tests/test_codex_cli_adapter.py",
-        "src/riverview_core/assignment_scheduler/scheduler.py",
         "tests/test_supervised_codex_dispatch.py",
-        "scripts/run_supervised_grace_execution.sh"
+        "scripts/provision_grace_engineering_demo.py",
+        "scripts/install_grace_owner_session.py",
+        "tests/test_grace_engineering_demo_provisioning.py"
       ],
       "documentation_references": [
         "docs/ROADMAP.md",
         "docs/architecture/INSTITUTIONAL_LEARNING_AND_RESOURCE_CAPABILITY_ROADMAP.md",
+        "docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md",
         "docs/components/GRACE_EXECUTION_COOKBOOK.md",
         "docs/components/GRACE_EXECUTION_PIPELINE.md",
         "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
@@ -1895,9 +1905,14 @@
         "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
       ],
       "verification_evidence": [
+        "tests/test_grace_conversation_result.py",
         "tests/test_grace_execution.py",
+        "tests/test_grace_runtime_provider_wiring.py",
         "tests/test_institutional_authority_boundary.py",
-        "tests/test_supervised_codex_dispatch.py"
+        "tests/test_resident_conversation.py",
+        "tests/test_resident_model_router.py",
+        "tests/test_supervised_codex_dispatch.py",
+        "tests/test_grace_engineering_demo_provisioning.py"
       ],
       "nodes": [
         {
@@ -2382,50 +2397,63 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-resource-check",
-          "node_revision": "1.0.3",
+          "node_revision": "1.0.6",
           "type": "decision",
-          "label": "COMMISSIONING BLOCKED — dedicated service auth or an owning-user supervised ChatGPT TTY; pinned repository, exact objective, isolated workspace and artifact path are required",
+          "label": "Sandbox readiness PASS on Camrui: reviewed per-executable bwrap AppArmor profile and bounded authenticated Codex artifact test; source release and owner-session service still not commissioned",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "scripts/run_grace_execution_service.py",
             "deploy/systemd/riverview-grace-execution.service",
+            "deploy/systemd/riverview-grace-execution-owner-session.service",
             "deploy/grace-execution.env.example",
-            "tests/test_codex_cli_adapter.py"
+            "tests/test_codex_cli_adapter.py",
+            "tests/test_worker_service.py",
+            "scripts/install_grace_owner_session.py",
+            "tests/test_grace_engineering_demo_provisioning.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md",
+            "docs/architecture/INSTITUTIONAL_LEARNING_AND_RESOURCE_CAPABILITY_ROADMAP.md"
+          ],
+          "verification_evidence": [
+            "tests/test_codex_cli_adapter.py",
+            "tests/test_worker_service.py",
+            "tests/test_codex_cli_adapter.py",
+            "tests/test_grace_engineering_demo_provisioning.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:codex-authority-gate",
+          "node_revision": "1.0.3",
+          "type": "decision",
+          "label": "Authorized fixed exact-scope standing grants provisioned through AuthorityRegistry; runtime exact worker.register and assignment.execute checks remain mandatory",
+          "source_references": [
+            "src/riverview_core/resident_execution/codex_cli.py",
+            "src/riverview_core/worker_adapter/adapter.py",
+            "deploy/grace-execution.env.example",
+            "scripts/provision_grace_engineering_demo.py"
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_PIPELINE.md",
             "docs/architecture/INSTITUTIONAL_LEARNING_AND_RESOURCE_CAPABILITY_ROADMAP.md"
           ],
           "verification_evidence": [
-            "tests/test_codex_cli_adapter.py"
+            "tests/test_grace_engineering_demo_provisioning.py"
           ]
         },
         {
-          "id": "rv:grace:operational-integration:codex-authority-gate",
-          "node_revision": "1.0.2",
-          "type": "decision",
-          "label": "FAIL CLOSED — existing worker.register and assignment.execute checks remain mandatory in the exact Engineering scope",
-          "source_references": [
-            "src/riverview_core/resident_execution/codex_cli.py",
-            "src/riverview_core/worker_adapter/adapter.py",
-            "deploy/grace-execution.env.example"
-          ],
-          "documentation_references": [
-            "docs/components/GRACE_EXECUTION_PIPELINE.md",
-            "docs/architecture/INSTITUTIONAL_LEARNING_AND_RESOURCE_CAPABILITY_ROADMAP.md"
-          ],
-          "verification_evidence": []
-        },
-        {
           "id": "rv:grace:operational-integration:codex-cli-run",
-          "node_revision": "1.0.3",
+          "node_revision": "1.0.5",
           "type": "process",
-          "label": "INTEGRATED SOURCE — one TTY-supervised selected proposal uses the existing ChatGPT session, exact assignment lease, network-disabled workspace, and fixed deliverable path",
+          "label": "INTEGRATED SOURCE, HOST BLOCKED — after exact-grant intake the persistent owner-session uses the existing ChatGPT login in place, assignment lease, network-disabled workspace, fixed deliverable path and fail-closed sandbox preflight",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "src/riverview_core/resident_execution/codex_workflow.py",
             "src/riverview_core/resident_execution/service.py",
             "scripts/run_grace_execution_service.py",
+            "deploy/systemd/riverview-grace-execution-owner-session.service",
+            "src/riverview_core/worker_adapter/service.py",
             "tests/test_codex_cli_adapter.py",
             "src/riverview_core/assignment_scheduler/scheduler.py",
             "src/riverview_core/worker_adapter/continuous.py",
@@ -2435,10 +2463,12 @@
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_PIPELINE.md",
-            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md",
+            "docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md"
           ],
           "verification_evidence": [
-            "tests/test_codex_cli_adapter.py"
+            "tests/test_codex_cli_adapter.py",
+            "tests/test_worker_service.py"
           ]
         },
         {
@@ -2462,37 +2492,46 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-execution-failed",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "failure",
-          "label": "Codex auth/session, exact-scope authorization, timeout, output bounds, or workspace integrity failed; objective remains durable and non-complete",
+          "label": "Codex auth/session, exact-scope authorization, sandbox preflight, timeout, output bounds, or workspace integrity failed; objective remains durable and non-complete",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "src/riverview_core/resident_execution/codex_workflow.py",
-            "tests/test_codex_cli_adapter.py"
-          ],
-          "documentation_references": [
-            "docs/components/GRACE_EXECUTION_PIPELINE.md"
-          ],
-          "verification_evidence": [
-            "tests/test_codex_cli_adapter.py",
-            "tests/test_supervised_codex_dispatch.py"
-          ]
-        },
-        {
-          "id": "rv:grace:operational-integration:codex-execution-recovery",
-          "node_revision": "1.0.0",
-          "type": "recovery",
-          "label": "PLANNED — retain objective and assignment; resume only after resource or authority regrounding through normal CME recovery",
-          "source_references": [
-            "src/riverview_core/resident_execution/codex_cli.py",
-            "src/riverview_core/resident_execution/codex_workflow.py",
+            "deploy/systemd/riverview-grace-execution-owner-session.service",
             "tests/test_codex_cli_adapter.py"
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_PIPELINE.md",
-            "docs/architecture/INSTITUTIONAL_LEARNING_AND_RESOURCE_CAPABILITY_ROADMAP.md"
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "tests/test_codex_cli_adapter.py",
+            "tests/test_supervised_codex_dispatch.py",
+            "tests/test_codex_cli_adapter.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:codex-execution-recovery",
+          "node_revision": "1.0.2",
+          "type": "recovery",
+          "label": "SOURCE PATH — retain objective and assignment through lease recovery; sandbox denial requires an approved sandbox-capable executor, while expired ChatGPT login requires owner reauthentication; no unsafe fallback",
+          "source_references": [
+            "src/riverview_core/resident_execution/codex_cli.py",
+            "src/riverview_core/resident_execution/codex_workflow.py",
+            "deploy/systemd/riverview-grace-execution-owner-session.service",
+            "tests/test_codex_cli_adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md",
+            "docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md"
+          ],
+          "verification_evidence": [
+            "tests/test_codex_cli_adapter.py",
+            "tests/test_worker_service.py",
+            "tests/test_codex_cli_adapter.py"
+          ]
         },
         {
           "id": "rv:grace:operational-integration:engineering-resource-request",
@@ -2507,6 +2546,80 @@
             "docs/architecture/INSTITUTIONAL_LEARNING_AND_RESOURCE_CAPABILITY_ROADMAP.md"
           ],
           "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:router-backed-grace-proposal",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "SOURCE IMPLEMENTED — Persistent ResidentReasoner proposals use the active router binding and require actual 80B provenance; smaller stages cannot substitute",
+          "source_references": [
+            "src/riverview_core/resident_execution/model_router.py",
+            "src/riverview_core/resident_reasoning.py",
+            "src/riverview_core/local_reasoning_provider.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_model_router.py",
+            "tests/test_grace_runtime_provider_wiring.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:verified-result-chat-return",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "SOURCE IMPLEMENTED — Independently accepted objective result is reviewed by bound 80B and appended once to its source conversation with durable provenance",
+          "source_references": [
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/service.py",
+            "src/riverview_core/resident_execution/conversation.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_conversation_result.py",
+            "tests/test_resident_conversation.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:verified-result-return-retry",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "SOURCE IMPLEMENTED — Failed authorization/provider return remains in durable outbox; deterministic response identity prevents duplicate chat events after restart",
+          "source_references": [
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/service.py",
+            "src/riverview_core/resident_execution/conversation.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_conversation_result.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:owner-session-provisioning",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Implemented, isolated-tested provisioning: fixed AuthorityRegistry grants and protected credentials; stage reviewed owner-session unit without enabling or starting it",
+          "source_references": [
+            "scripts/provision_grace_engineering_demo.py",
+            "scripts/install_grace_owner_session.py",
+            "deploy/systemd/riverview-grace-execution-owner-session.service"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_engineering_demo_provisioning.py"
+          ]
         }
       ],
       "edges": [
@@ -2811,12 +2924,60 @@
           "to": "rv:grace:operational-integration:evidence-review",
           "type": "prerequisite",
           "label": "Only an independent acceptance decision may feed objective completion"
+        },
+        {
+          "from": "rv:grace:operational-integration:reason-decompose",
+          "to": "rv:grace:operational-integration:router-backed-grace-proposal",
+          "type": "prerequisite",
+          "label": "Persistent grounded objective reasoning is routed through the exact authorized 80B binding"
+        },
+        {
+          "from": "rv:grace:operational-integration:router-backed-grace-proposal",
+          "to": "rv:grace:operational-integration:durable-plan",
+          "type": "runtime_transition",
+          "label": "Typed proposal and actual provider provenance persist before dispatch"
+        },
+        {
+          "from": "rv:grace:operational-integration:objective-complete",
+          "to": "rv:grace:operational-integration:verified-result-chat-return",
+          "type": "runtime_transition",
+          "label": "Only a durable independently accepted completion enters the result outbox"
+        },
+        {
+          "from": "rv:grace:operational-integration:verified-result-chat-return",
+          "to": "rv:grace:operational-integration:verified-result-return-retry",
+          "type": "diagnostic_branch",
+          "label": "Current binding, exact send grant, provider, or durable insert unavailable"
+        },
+        {
+          "from": "rv:grace:operational-integration:verified-result-return-retry",
+          "to": "rv:grace:operational-integration:verified-result-chat-return",
+          "type": "recovery_route",
+          "label": "Persistent poll retries; deterministic conversation response ID makes replay idempotent"
+        },
+        {
+          "from": "rv:grace:operational-integration:codex-resource-check",
+          "to": "rv:grace:operational-integration:owner-session-provisioning",
+          "type": "prerequisite",
+          "label": "Sandbox and subscription CLI readiness pass before owner-session staging"
+        },
+        {
+          "from": "rv:grace:operational-integration:owner-session-provisioning",
+          "to": "rv:grace:operational-integration:codex-authority-gate",
+          "type": "prerequisite",
+          "label": "Fixed standing grants and protected credentials are provisioned; no unit activation occurs here"
+        },
+        {
+          "from": "rv:grace:operational-integration:owner-session-provisioning",
+          "to": "rv:grace:operational-integration:codex-execution-failed",
+          "type": "diagnostic_branch",
+          "label": "Principal, grant, credential metadata, immutable source, or unit validation conflict; fail closed"
         }
       ]
     },
     {
       "graph_id": "rv:institutional-authority:identity-and-grants",
-      "graph_revision": "1.0.12",
+      "graph_revision": "1.0.13",
       "component_id": "INSTITUTIONAL-AUTHORITY",
       "workflow_id": "identity-and-grants.v1",
       "diagram_order": 1,
@@ -2836,7 +2997,8 @@
         "tests/test_grace_provisioning.py",
         "tests/test_institutional_authority.py",
         "tests/test_institutional_authority_boundary.py",
-        "tests/test_worker_adapter.py"
+        "tests/test_worker_adapter.py",
+        "src/riverview_core/institutional_authority/migrations/0007_audited_office_role_update.sql"
       ],
       "documentation_references": [
         "docs/components/INSTITUTIONAL_AUTHORITY.md",
@@ -3477,6 +3639,53 @@
           "verification_evidence": [
             "tests/test_institutional_authority.py"
           ]
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:office-role-update",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Steward compare-and-swap updates stable office title and appends an audit event without changing occupant, binding, or grants",
+          "source_references": [
+            "src/riverview_core/institutional_authority/registry.py",
+            "src/riverview_core/institutional_authority/migrations/0007_audited_office_role_update.sql"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_institutional_authority.py"
+          ]
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:office-role-update-conflict",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Reject stale expected office role, non-Steward actor, or unavailable registry; leave office and binding unchanged",
+          "source_references": [
+            "src/riverview_core/institutional_authority/registry.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_institutional_authority.py"
+          ]
+        },
+        {
+          "id": "rv:institutional-authority:identity-and-grants:office-role-update-retry",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Re-read current office title and retry only after Steward confirms the intended correction",
+          "source_references": [
+            "src/riverview_core/institutional_authority/registry.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_institutional_authority.py"
+          ]
         }
       ],
       "edges": [
@@ -3776,6 +3985,383 @@
           "to": "rv:institutional-authority:identity-and-grants:model-rebind-rollback",
           "type": "recovery_route",
           "label": "Rollback requested; use predecessor implementation and current revision"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:authorize",
+          "to": "rv:institutional-authority:identity-and-grants:office-role-update",
+          "type": "runtime_transition",
+          "label": "Steward exact office.manage grant and expected title supplied"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:office-role-update",
+          "to": "rv:institutional-authority:identity-and-grants:complete",
+          "type": "verification",
+          "label": "Role event persisted; occupant, implementation and grants remain unchanged"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:office-role-update",
+          "to": "rv:institutional-authority:identity-and-grants:office-role-update-conflict",
+          "type": "diagnostic_branch",
+          "label": "Stale title expectation, non-Steward actor or registry failure"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:office-role-update-conflict",
+          "to": "rv:institutional-authority:identity-and-grants:office-role-update-retry",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:institutional-authority:identity-and-grants:office-role-update-retry",
+          "to": "rv:institutional-authority:identity-and-grants:authorize",
+          "type": "runtime_transition",
+          "label": "Refresh authoritative title and revalidate Steward authority"
+        }
+      ]
+    },
+    {
+      "graph_id": "rv:institutional-authority:resident-permission-profiles",
+      "graph_revision": "1.0.1",
+      "component_id": "RESIDENT-PERMISSION-PROFILES",
+      "workflow_id": "resident-permission-profiles.v1",
+      "diagram_order": 2,
+      "source_references": [
+        "src/riverview_core/institutional_authority/permission_profiles.py",
+        "src/riverview_core/institutional_authority/grants.py",
+        "src/riverview_core/institutional_authority/db_boundary.py",
+        "src/riverview_core/institutional_authority/migrations/0008_resident_permission_profiles.sql",
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/resident-permissions.js",
+        "tests/test_permission_profiles.py",
+        "tests/test_institutional_authority_boundary.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_PERMISSION_PROFILES.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
+        "process_graphs/README.md"
+      ],
+      "verification_evidence": [
+        "tests/test_permission_profiles.py"
+      ],
+      "nodes": [
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:steward-open",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Authenticated Steward opens resident permission profiles",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/status_dashboard/static/resident-permissions.js"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_PERMISSION_PROFILES.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:authorize-management",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Current account is Steward and exact office.manage institution grant is active?",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/institutional_authority/migrations/0008_resident_permission_profiles.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_PERMISSION_PROFILES.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:inspect-registry",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Read profiles, tier templates, capability and resource metadata through restricted function",
+          "source_references": [
+            "src/riverview_core/institutional_authority/permission_profiles.py",
+            "src/riverview_core/institutional_authority/migrations/0008_resident_permission_profiles.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_PERMISSION_PROFILES.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:edit-checklist",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Steward edits per-capability, per-resource allow or deny checklist",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/resident-permissions.js"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_PERMISSION_PROFILES.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:save-cas",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Expected profile revision matches current effective revision?",
+          "source_references": [
+            "src/riverview_core/institutional_authority/migrations/0008_resident_permission_profiles.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_PERMISSION_PROFILES.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:pending-draft",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Persist a pending draft separately from the active policy and append audit snapshot",
+          "source_references": [
+            "src/riverview_core/institutional_authority/migrations/0008_resident_permission_profiles.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_PERMISSION_PROFILES.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:approval",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Steward explicitly activates this reviewed draft with current revision?",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/resident-permissions.js",
+            "src/riverview_core/institutional_authority/migrations/0008_resident_permission_profiles.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_PERMISSION_PROFILES.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:activate-profile",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Atomically replace effective rules, activate new revision and append audit event",
+          "source_references": [
+            "src/riverview_core/institutional_authority/migrations/0008_resident_permission_profiles.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_PERMISSION_PROFILES.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:exact-grant-gate",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Exact authority grant and active profile policy both allow action and resource?",
+          "source_references": [
+            "src/riverview_core/institutional_authority/grants.py",
+            "src/riverview_core/institutional_authority/migrations/0008_resident_permission_profiles.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_PERMISSION_PROFILES.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY.md"
+          ],
+          "verification_evidence": [
+            "tests/test_permission_profiles.py"
+          ]
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:deny",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Deny absent, expired, revoked, mismatched, approval-held or unavailable authority",
+          "source_references": [
+            "src/riverview_core/institutional_authority/grants.py",
+            "src/riverview_core/institutional_authority/permission_profiles.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_PERMISSION_PROFILES.md"
+          ],
+          "verification_evidence": [
+            "tests/test_permission_profiles.py"
+          ]
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:resource-readiness",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Check resource readiness and capacity independently from permission",
+          "source_references": [
+            "src/riverview_core/status_dashboard/projection.py",
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_PERMISSION_PROFILES.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:resource-unready",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Authorized capability remains unavailable, busy or unknown until its provider reports readiness",
+          "source_references": [
+            "src/riverview_core/status_dashboard/projection.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_PERMISSION_PROFILES.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:recovery",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Refresh authoritative revision and resource evidence; retry only after authorization recheck",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/resident-permissions.js",
+            "src/riverview_core/institutional_authority/migrations/0008_resident_permission_profiles.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_PERMISSION_PROFILES.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:complete",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "Profile revision or denied decision is persisted and visible with provenance",
+          "source_references": [
+            "src/riverview_core/institutional_authority/migrations/0008_resident_permission_profiles.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_PERMISSION_PROFILES.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:authority-revalidation-jump",
+          "node_revision": "1.0.0",
+          "type": "jump",
+          "label": "Revalidate current institutional grant authority",
+          "jump_target_id": "rv:institutional-authority:identity-and-grants:authorize",
+          "source_references": [
+            "src/riverview_core/institutional_authority/grants.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md"
+          ],
+          "verification_evidence": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:steward-open",
+          "to": "rv:institutional-authority:resident-permission-profiles:authorize-management",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:authorize-management",
+          "to": "rv:institutional-authority:resident-permission-profiles:inspect-registry",
+          "type": "runtime_transition",
+          "label": "Account session and exact grant both valid"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:authorize-management",
+          "to": "rv:institutional-authority:resident-permission-profiles:deny",
+          "type": "diagnostic_branch",
+          "label": "Missing Steward identity or exact office.manage grant"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:inspect-registry",
+          "to": "rv:institutional-authority:resident-permission-profiles:edit-checklist",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:edit-checklist",
+          "to": "rv:institutional-authority:resident-permission-profiles:save-cas",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:save-cas",
+          "to": "rv:institutional-authority:resident-permission-profiles:pending-draft",
+          "type": "runtime_transition",
+          "label": "Compare-and-swap succeeds"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:save-cas",
+          "to": "rv:institutional-authority:resident-permission-profiles:recovery",
+          "type": "diagnostic_branch",
+          "label": "Stale revision, malformed policy or registry failure"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:pending-draft",
+          "to": "rv:institutional-authority:resident-permission-profiles:approval",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:approval",
+          "to": "rv:institutional-authority:resident-permission-profiles:activate-profile",
+          "type": "runtime_transition",
+          "label": "Steward explicitly approves draft"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:approval",
+          "to": "rv:institutional-authority:resident-permission-profiles:complete",
+          "type": "verification",
+          "label": "Draft remains pending; active policy unchanged"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:activate-profile",
+          "to": "rv:institutional-authority:resident-permission-profiles:complete",
+          "type": "verification",
+          "label": "Effective profile and append-only event persisted"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:exact-grant-gate",
+          "to": "rv:institutional-authority:resident-permission-profiles:resource-readiness",
+          "type": "runtime_transition",
+          "label": "Exact grant and profile allow"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:exact-grant-gate",
+          "to": "rv:institutional-authority:resident-permission-profiles:deny",
+          "type": "diagnostic_branch",
+          "label": "Explicit denial, expiry, missing rule or required approval"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:resource-readiness",
+          "to": "rv:institutional-authority:resident-permission-profiles:complete",
+          "type": "verification",
+          "label": "Resource ready and capacity permits operation"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:resource-readiness",
+          "to": "rv:institutional-authority:resident-permission-profiles:resource-unready",
+          "type": "diagnostic_branch",
+          "label": "Provider is offline, busy, degraded or readiness unknown"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:resource-unready",
+          "to": "rv:institutional-authority:resident-permission-profiles:recovery",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:recovery",
+          "to": "rv:institutional-authority:resident-permission-profiles:exact-grant-gate",
+          "type": "runtime_transition",
+          "label": "Re-evaluate exact grant and profile before retry"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:recovery",
+          "to": "rv:institutional-authority:resident-permission-profiles:authority-revalidation-jump",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:authority-revalidation-jump",
+          "to": "rv:institutional-authority:identity-and-grants:authorize",
+          "type": "jump",
+          "label": "Revalidate institutional grant authority"
         }
       ]
     },
@@ -5493,7 +6079,7 @@
     },
     {
       "graph_id": "rv:resident-conversation:browser-chat",
-      "graph_revision": "1.0.10",
+      "graph_revision": "1.0.12",
       "component_id": "RESIDENT-CONVERSATION",
       "workflow_id": "resident.conversation.v1",
       "diagram_order": 14,
@@ -5515,7 +6101,11 @@
         "src/riverview_core/status_dashboard/static/app.js",
         "src/riverview_core/status_dashboard/static/index.html",
         "tests/test_grace_router_readiness.py",
-        "tests/test_resident_conversation.py"
+        "tests/test_resident_conversation.py",
+        "src/riverview_core/resident_execution/grace_role_context.py",
+        "tests/test_grace_role_context.py",
+        "src/riverview_core/resident_execution/operational_context.py",
+        "tests/test_grace_operational_context.py"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_CONVERSATION.md",
@@ -6096,6 +6686,43 @@
             "tests/test_resident_model_router.py",
             "tests/test_resident_conversation.py"
           ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:grace-role-context",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Inject shared canonical Director of Operations identity, responsibilities and no-permission boundary into ordinary and resumed turns",
+          "source_references": [
+            "src/riverview_core/resident_execution/grace_role_context.py",
+            "src/riverview_core/resident_execution/conversation.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/GRACE_DIRECTOR_OF_OPERATIONS_RECONCILIATION.md",
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_role_context.py",
+            "tests/test_resident_conversation.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:operations-snapshot",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Attach a bounded read-only CME, assignment, objective, worker and attention snapshot with freshness and redaction provenance",
+          "source_references": [
+            "src/riverview_core/resident_execution/operational_context.py",
+            "src/riverview_core/status_dashboard/projection.py",
+            "src/riverview_core/resident_execution/conversation.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md",
+            "docs/components/STATUS_DASHBOARD.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_operational_context.py",
+            "tests/test_resident_conversation.py"
+          ]
         }
       ],
       "edges": [
@@ -6154,12 +6781,6 @@
           "to": "rv:resident-conversation:browser-chat:provider-failure",
           "type": "diagnostic_branch",
           "label": "Context too large; model is not called"
-        },
-        {
-          "from": "rv:resident-conversation:browser-chat:context-bound",
-          "to": "rv:resident-conversation:browser-chat:inference",
-          "type": "runtime_transition",
-          "label": "Within context bound"
         },
         {
           "from": "rv:resident-conversation:browser-chat:inference",
@@ -6374,12 +6995,29 @@
           "to": "rv:resident-conversation:browser-chat:persist-response",
           "type": "verification",
           "label": "80B inference accepted and actual served-model provenance persisted under the original request"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:context-bound",
+          "to": "rv:resident-conversation:browser-chat:grace-role-context",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:grace-role-context",
+          "to": "rv:resident-conversation:browser-chat:operations-snapshot",
+          "type": "runtime_transition",
+          "label": "Use existing read-only institutional projections; do not expose direct database or action tools"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:operations-snapshot",
+          "to": "rv:resident-conversation:browser-chat:inference",
+          "type": "runtime_transition",
+          "label": "Role and bounded attributed operational observations added before model inference"
         }
       ]
     },
     {
       "graph_id": "rv:resident-reasoning:runtime",
-      "graph_revision": "1.1.1",
+      "graph_revision": "1.1.2",
       "component_id": "RESIDENT-REASONING",
       "workflow_id": "resident.reasoning.v1",
       "diagram_order": 13,
@@ -6387,6 +7025,7 @@
         "src/riverview_core/institutional_authority/registry.py",
         "src/riverview_core/local_reasoning_provider.py",
         "src/riverview_core/reasoning_escalation.py",
+        "src/riverview_core/resident_execution/grace_role_context.py",
         "src/riverview_core/resident_reasoning.py",
         "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
         "tests/test_local_reasoning_provider.py",
@@ -6646,6 +7285,23 @@
           "verification_evidence": [
             "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md",
             "evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1340Z-fce3c30/result-summary.json"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:grace-role-context",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "For office:grace only, add the shared Director of Operations role and authority boundaries to the assignment proposal prompt",
+          "source_references": [
+            "src/riverview_core/local_reasoning_provider.py",
+            "src/riverview_core/resident_execution/grace_role_context.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/architecture/GRACE_DIRECTOR_OF_OPERATIONS_RECONCILIATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_local_reasoning_provider.py"
           ]
         },
         {
@@ -7063,9 +7719,15 @@
         },
         {
           "from": "rv:resident-reasoning:runtime:budget-gate",
+          "to": "rv:resident-reasoning:runtime:grace-role-context",
+          "type": "runtime_transition",
+          "label": "Budget fits; apply office-specific canonical context before provider call"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:grace-role-context",
           "to": "rv:resident-reasoning:runtime:provider-call",
           "type": "runtime_transition",
-          "label": "budget fits all candidates"
+          "label": "Role context is bounded and supplies no permissions"
         },
         {
           "from": "rv:resident-reasoning:runtime:budget-gate",
@@ -10089,15 +10751,19 @@
     "rv:grace:operational-integration:objective-intake",
     "rv:grace:operational-integration:office-bound-resident-runtime",
     "rv:grace:operational-integration:office-state-restart-and-replacement",
+    "rv:grace:operational-integration:owner-session-provisioning",
     "rv:grace:operational-integration:persistent-service-loop",
     "rv:grace:operational-integration:proposal-validation",
     "rv:grace:operational-integration:reason-decompose",
     "rv:grace:operational-integration:replan",
+    "rv:grace:operational-integration:router-backed-grace-proposal",
     "rv:grace:operational-integration:stale-resident-denied",
     "rv:grace:operational-integration:steward-escalation",
     "rv:grace:operational-integration:typed-proposal-api",
     "rv:grace:operational-integration:verification-failure-isolation",
     "rv:grace:operational-integration:verification-feedback",
+    "rv:grace:operational-integration:verified-result-chat-return",
+    "rv:grace:operational-integration:verified-result-return-retry",
     "rv:grace:operational-integration:waiting-and-failure",
     "rv:grace:operational-integration:work-order-authorization",
     "rv:grace:operational-integration:worker-dispatch",
@@ -10132,6 +10798,9 @@
     "rv:institutional-authority:identity-and-grants:model-rebind-stale",
     "rv:institutional-authority:identity-and-grants:model-rebind-update",
     "rv:institutional-authority:identity-and-grants:model-rebind-verify",
+    "rv:institutional-authority:identity-and-grants:office-role-update",
+    "rv:institutional-authority:identity-and-grants:office-role-update-conflict",
+    "rv:institutional-authority:identity-and-grants:office-role-update-retry",
     "rv:institutional-authority:identity-and-grants:office-state",
     "rv:institutional-authority:identity-and-grants:principal-create",
     "rv:institutional-authority:identity-and-grants:recover",
@@ -10145,6 +10814,21 @@
     "rv:institutional-authority:identity-and-grants:schema-owner-gate",
     "rv:institutional-authority:identity-and-grants:transfer-protected-objects",
     "rv:institutional-authority:identity-and-grants:unavailable",
+    "rv:institutional-authority:resident-permission-profiles:activate-profile",
+    "rv:institutional-authority:resident-permission-profiles:approval",
+    "rv:institutional-authority:resident-permission-profiles:authority-revalidation-jump",
+    "rv:institutional-authority:resident-permission-profiles:authorize-management",
+    "rv:institutional-authority:resident-permission-profiles:complete",
+    "rv:institutional-authority:resident-permission-profiles:deny",
+    "rv:institutional-authority:resident-permission-profiles:edit-checklist",
+    "rv:institutional-authority:resident-permission-profiles:exact-grant-gate",
+    "rv:institutional-authority:resident-permission-profiles:inspect-registry",
+    "rv:institutional-authority:resident-permission-profiles:pending-draft",
+    "rv:institutional-authority:resident-permission-profiles:recovery",
+    "rv:institutional-authority:resident-permission-profiles:resource-readiness",
+    "rv:institutional-authority:resident-permission-profiles:resource-unready",
+    "rv:institutional-authority:resident-permission-profiles:save-cas",
+    "rv:institutional-authority:resident-permission-profiles:steward-open",
     "rv:notification-delivery:visual-attention:ack-receipt",
     "rv:notification-delivery:visual-attention:cme-event",
     "rv:notification-delivery:visual-attention:delivery-receipt",
@@ -10236,10 +10920,12 @@
     "rv:resident-conversation:browser-chat:deny",
     "rv:resident-conversation:browser-chat:exact-grant",
     "rv:resident-conversation:browser-chat:future-objective-jump",
+    "rv:resident-conversation:browser-chat:grace-role-context",
     "rv:resident-conversation:browser-chat:inference",
     "rv:resident-conversation:browser-chat:message-actions",
     "rv:resident-conversation:browser-chat:model-readiness-diagnostic",
     "rv:resident-conversation:browser-chat:office-binding",
+    "rv:resident-conversation:browser-chat:operations-snapshot",
     "rv:resident-conversation:browser-chat:persist-response",
     "rv:resident-conversation:browser-chat:persist-user",
     "rv:resident-conversation:browser-chat:provider-failure",
@@ -10266,6 +10952,7 @@
     "rv:resident-reasoning:runtime:fallback",
     "rv:resident-reasoning:runtime:fallback-gate",
     "rv:resident-reasoning:runtime:freshness-gate",
+    "rv:resident-reasoning:runtime:grace-role-context",
     "rv:resident-reasoning:runtime:ground",
     "rv:resident-reasoning:runtime:grounding-gate",
     "rv:resident-reasoning:runtime:knowledge-contract-jump",

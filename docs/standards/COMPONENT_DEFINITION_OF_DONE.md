@@ -1,6 +1,6 @@
 # Riverview~ Component Definition of Done (DoD)
 
-**Revision:** Rev 1.6
+**Revision:** Rev 1.7
 **Status:** Active engineering standard  
 **Effective:** 2026-10-09  
 **Applies to:** every new or modified Riverview~ component, including the institutional Core, adapters, databases, workers, CME, and Steward-facing services.  
@@ -89,8 +89,8 @@ Purpose and owner; interfaces/dependencies; process and state diagram; events/id
 
 ## Mandatory system-level DoD — Grace Operational Integration
 
-New Riverview as a whole is **NOT DONE** until Grace operates as its first fully
-functional AI director of engineering work and passes roadmap M4.4. This is a
+New Riverview as a whole is **NOT DONE** until Grace operates as Riverview's
+Director of Operations and passes roadmap M4.4. This is a
 system-level gate in addition to each component's eight deliverables; it does
 not make an unimplemented later capability a reason to stop independent current
 roadmap work.
@@ -155,5 +155,6 @@ recovery and CME integration remain mandatory.
 | **1.4** | **2026-10-10** | Require registered canonical process graphs and synchronized generated views; approved by the project owner acting as Steward under RV-GOV-001 |
 | **1.5** | **2026-10-10** | Remove revision-header trailing whitespace for controlled-checkout consistency |
 | **1.6** | **2026-10-10** | Add mandatory system-level Grace Operational Integration acceptance and sustained objective-to-artifact evidence |
+| **1.7** | **2026-10-14** | Restore Grace's canonical Director of Operations title in system-level acceptance |
 
 Future revisions must increment the revision, document what changed and why, and identify affected component acceptance records.

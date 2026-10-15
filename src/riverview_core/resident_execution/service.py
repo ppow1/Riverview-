@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.6
+# Revision: 1.0.7
 # Purpose: Reconcile durable Grace work orders through existing CME worker contracts
 # Execution Model: Persistent scheduled poll over PostgreSQL objective state
 # Observability: Objective events, worker attempts, verification records, dashboard projection
@@ -15,6 +15,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-FAIR-CYCLE | Attempt at most one grounded objective before continuing CME work
 # Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Add a targeted operator-supervised objective execution cycle
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Select registered execution capability for worker and verification queries
+# Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Retry durable verified-result returns to the originating Grace conversation
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -48,7 +49,8 @@ class GraceExecutionService:
     def __init__(self, pipeline, adapter, worker, *, dispatch_credential,
                  authority_ref, verifier_id, verifier_credential, artifact_root,
                  max_dispatch_failures=3, verifier=None, resident_reasoner=None,
-                 resident_token_budget=256, execution_capability=CAPABILITY):
+                 resident_token_budget=256, execution_capability=CAPABILITY,
+                 conversation_result_publisher=None):
         if not 1 <= max_dispatch_failures <= 10:
             raise ValueError("dispatch failure limit must be between 1 and 10")
         if type(resident_token_budget) is not int or not 1 <= resident_token_budget <= 4096:
@@ -67,6 +69,9 @@ class GraceExecutionService:
         if not isinstance(execution_capability, str) or not execution_capability:
             raise ValueError("a registered execution capability is required")
         self.execution_capability = execution_capability
+        if conversation_result_publisher is not None and not callable(conversation_result_publisher):
+            raise ValueError("conversation result publisher must be callable")
+        self.conversation_result_publisher = conversation_result_publisher
         self.instance_id = uuid4()
 
     def reason_one_grounded_objective(self, objective_id=None):
@@ -247,6 +252,28 @@ class GraceExecutionService:
                         "failure_type": type(exc).__name__}, sort_keys=True))
         return completed
 
+    def publish_conversation_results(self, limit=10):
+        """Retry post-verification chat delivery from a durable objective outbox."""
+        if self.conversation_result_publisher is None:
+            return 0
+        published = 0
+        for context in self.pipeline.pending_conversation_results(limit=limit):
+            try:
+                receipt = self.conversation_result_publisher(context)
+                if (not isinstance(receipt, dict)
+                        or receipt.get("status") not in {"published", "already_published"}):
+                    continue
+                durable_receipt = {key: receipt.get(key) for key in
+                    ("request_id", "provider_id", "served_model", "implementation_id")}
+                self.pipeline.record_conversation_result_published(
+                    context["objective_id"], durable_receipt)
+                published += 1
+            except Exception as exc:
+                LOG.warning(json.dumps({"event": "grace_conversation_result_return_failed",
+                    "objective_id": context.get("objective_id"),
+                    "failure_type": type(exc).__name__}, sort_keys=True))
+        return published
+
     def run_once(self):
         """Run bounded dispatch, one existing leased worker poll and verification."""
         try:
@@ -255,9 +282,10 @@ class GraceExecutionService:
             worker_result = self.worker.run_once()
             verified = self.verify_one()
             completed = self.reconcile_completions()
+            returned = self.publish_conversation_results()
             self._heartbeat("healthy")
             return {"reasoned": reasoned, "dispatched": dispatched, "worker": worker_result,
-                    "verified": verified, "completed": completed}
+                    "verified": verified, "completed": completed, "returned": returned}
         except Exception as exc:
             self._heartbeat("degraded", type(exc).__name__)
             raise
@@ -302,7 +330,8 @@ class GraceExecutionService:
             try:
                 result = self.run_once()
                 if (not result["reasoned"] and not result["dispatched"] and result["worker"].get("status") == "IDLE"
-                        and not result["verified"] and not result["completed"]):
+                        and not result["verified"] and not result["completed"]
+                        and not result["returned"]):
                     sleep(poll_seconds)
             except Exception as exc:
                 LOG.error(json.dumps({"event": "grace_execution_cycle_failed",

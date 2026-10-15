@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.4
+# Revision: 1.1.5
 # Purpose: Verify local reasoning provider contract and fail-closed response handling
 # Execution Model: Bounded HTTP contract double; no credentials, database or model required
 # Observability: Typed proposals and sanitized unavailable/schema outcomes
@@ -20,13 +20,16 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Assert readiness timeout is sanitized and distinct
 # Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Reject endpoint/model identity pairings outside the explicit allowlist
 # Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Use the pinned 30B and 80B identities in readiness fixtures
+# Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Verify canonical Grace role context reaches assignment reasoning only for the Grace office
 # Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Assert token-limit finish reason and count are safely retained on truncation
+# Changed: 2026-10-15 UTC | RV-GRACE-DEMO-BASE-INTEGRATION | Retain provider and role-context regressions across integration
 # Tests: This file
 # History: Git
 # =============================================================================
 """Contract tests for the replaceable local reasoning provider."""
 
 from io import BytesIO
+from dataclasses import replace
 import json
 import unittest
 from unittest.mock import patch
@@ -112,6 +115,16 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertEqual(self.request_calls[0][1], self.provider.timeout_seconds)
         self.assertIn("verified_knowledge", sent["messages"][1]["content"])
         self.assertNotIn("execute", sent["messages"][0]["content"].lower())
+        self.assertIn("Director of Operations", sent["messages"][0]["content"])
+        self.assertIn("Alfred", sent["messages"][0]["content"])
+        self.assertIn("grants no permission", sent["messages"][0]["content"])
+
+    def test_non_grace_offices_do_not_receive_grace_identity(self):
+        request = replace(self.request, office_id="office:engineering")
+        self.provider.propose(request)
+        system = self.requests[0]["messages"][0]["content"]
+        self.assertNotIn("Director of Operations", system)
+        self.assertIn("unapproved proposal", system)
 
     def test_model_revision_mismatch_fails_before_network_call(self):
         request = ReasoningRequest(**{**self.request.__dict__,

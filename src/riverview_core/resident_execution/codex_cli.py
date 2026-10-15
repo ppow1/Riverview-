@@ -2,14 +2,16 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_cli.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.2
+# Revision: 1.0.4
 # Purpose: Run a bounded Codex CLI assignment in an isolated pinned repository copy
 # Execution Model: One noninteractive sandboxed Codex invocation per durable assignment
 # Observability: Typed result and artifact digest; prompt and CLI output are not logged
-# Dependencies: Git; pinned Codex CLI; dedicated service or supervised ChatGPT CODEX_HOME
+# Dependencies: Git; pinned Codex CLI; isolated service or owning-user ChatGPT CODEX_HOME
 # Authority: Engineering dispatch only; no authority or approval is created here
 # Changed: 2026-10-13 UTC | RV-CODEX-CLI-ADAPTER-001 | Initial bounded artifact-producing adapter
 # Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Remove API-key support and gate reuse of the owning interactive ChatGPT session
+# Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Support persistent worker use of the owning ChatGPT CLI home without credential copying
+# Changed: 2026-10-15 UTC | RV-GRACE-CODEX-SANDBOX-READINESS-001 | Fail startup preflight when the bounded workspace sandbox is unavailable
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; process_graphs/grace/operational-integration.json
 # Tests: tests/test_codex_cli_adapter.py
 # History: Git
@@ -20,9 +22,11 @@ The adapter accepts no command, path, environment, or model choice from Grace.
 It clones one operator-configured repository at the assignment's pinned commit,
 allows Codex to write one fixed deliverable, discards process output, and returns
 only a bounded digest record. It does not dispatch, verify, approve, or complete
-an assignment. Service mode requires an isolated CODEX_HOME. Supervised mode may
-reuse the owning admin1 user's existing ChatGPT session only from that user's
-interactive terminal; it never copies credentials or accepts an API key.
+an assignment. Service mode requires an isolated CODEX_HOME. Interactive
+supervised mode may reuse admin1's existing ChatGPT session from that user's
+terminal. Persistent owner-session mode uses that login in place, under the
+owning Unix identity and systemd sandbox; it never copies credentials or accepts
+an API key.
 """
 
 from __future__ import annotations
@@ -35,6 +39,7 @@ import pwd
 from pathlib import Path
 import re
 import signal
+import shutil
 import stat
 import subprocess
 import sys
@@ -108,6 +113,7 @@ class CodexCLIExecutionAdapter:
                  repository_reference: str, codex_home: str | Path,
                  workspace_root: str | Path, artifact_root: str | Path,
                  supervised_chatgpt_session: bool = False,
+                 persistent_chatgpt_owner_session: bool = False,
                  ):
         self.executable = Path(executable)
         self.repository_path = Path(repository_path)
@@ -115,14 +121,17 @@ class CodexCLIExecutionAdapter:
         self.codex_home = Path(codex_home)
         self.workspace_root = Path(workspace_root)
         self.artifact_root = Path(artifact_root)
-        if type(supervised_chatgpt_session) is not bool:
+        if (type(supervised_chatgpt_session) is not bool or
+                type(persistent_chatgpt_owner_session) is not bool or
+                (supervised_chatgpt_session and persistent_chatgpt_owner_session)):
             raise ValueError("Codex authentication mode must be explicit")
         self.supervised_chatgpt_session = supervised_chatgpt_session
-        # Subscription auth is permitted only in a human-started run under the
-        # account which already owns the session. Credentials are never copied
-        # into a daemon identity or passed as an API key.
+        self.persistent_chatgpt_owner_session = persistent_chatgpt_owner_session
+        owner_session = supervised_chatgpt_session or persistent_chatgpt_owner_session
+        # The existing subscription login is used only in place by its owning
+        # Unix identity. No auth material enters the worker identity or env.
         personal_homes = (Path.home() / ".codex", Path("/home/admin1/.codex"))
-        if supervised_chatgpt_session:
+        if owner_session:
             try:
                 operator = pwd.getpwnam("admin1")
                 auth = self.codex_home / "auth.json"
@@ -134,10 +143,12 @@ class CodexCLIExecutionAdapter:
                 valid_auth_file = False
                 operator = None
             if (operator is None or os.geteuid() != operator.pw_uid or
-                    not sys.stdin.isatty() or
+                    (supervised_chatgpt_session and not sys.stdin.isatty()) or
                     self.codex_home.resolve() != (Path.home() / ".codex").resolve() or
                     not valid_auth_file):
-                raise ValueError("supervised ChatGPT authentication requires the owning interactive user session")
+                if supervised_chatgpt_session:
+                    raise ValueError("supervised ChatGPT authentication requires the owning interactive user session")
+                raise ValueError("persistent ChatGPT session authentication requires the owning user and protected local login")
         elif any(self.codex_home.resolve() == home.resolve() or
                  home.resolve() in self.codex_home.resolve().parents
                  for home in personal_homes):
@@ -164,7 +175,7 @@ class CodexCLIExecutionAdapter:
             source = self.repository_path.resolve(strict=True)
             if not source.is_dir():
                 raise CodexAdapterError("repository_unavailable")
-            if self.supervised_chatgpt_session:
+            if self.supervised_chatgpt_session or self.persistent_chatgpt_owner_session:
                 info = self.codex_home.lstat()
                 if (not stat.S_ISDIR(info.st_mode) or self.codex_home.is_symlink() or
                         info.st_uid != os.geteuid()):
@@ -176,11 +187,28 @@ class CodexCLIExecutionAdapter:
             if (self.workspace_root.resolve() == self.codex_home.resolve() or
                     self.workspace_root.resolve() in self.codex_home.resolve().parents):
                 raise CodexAdapterError("workspace_overlaps_credential_home")
+            self._verify_workspace_sandbox()
             return binary, source
         except CodexAdapterError:
             raise
         except (OSError, RuntimeError, ValueError):
             raise CodexAdapterError("adapter_preflight_failed") from None
+
+    @staticmethod
+    def _verify_workspace_sandbox():
+        """Check the same Linux bubblewrap user namespace needed by Codex writes."""
+        executable = shutil.which("bwrap")
+        if not executable:
+            raise CodexAdapterError("codex_sandbox_unavailable")
+        try:
+            result = subprocess.run([executable, "--ro-bind", "/", "/", "--proc", "/proc",
+                "--dev", "/dev", "/bin/true"], stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                timeout=5, check=False, close_fds=True)
+        except (OSError, subprocess.TimeoutExpired):
+            raise CodexAdapterError("codex_sandbox_unavailable") from None
+        if result.returncode != 0:
+            raise CodexAdapterError("codex_sandbox_unavailable")
 
     @staticmethod
     def _git(args: Sequence[str], *, timeout=30):
@@ -241,7 +269,8 @@ class CodexCLIExecutionAdapter:
                 self._schema_path(schema_path)
                 prompt = self._prompt(assignment)
                 env = {"PATH": "/usr/local/bin:/usr/bin:/bin",
-                       "HOME": str(self.codex_home.parent if self.supervised_chatgpt_session
+                       "HOME": str(self.codex_home.parent if (self.supervised_chatgpt_session or
+                                   self.persistent_chatgpt_owner_session)
                                    else self.codex_home),
                        "CODEX_HOME": str(self.codex_home),
                        "TMPDIR": str(run_root)}

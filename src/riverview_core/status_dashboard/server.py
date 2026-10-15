@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.7
+# Revision: 1.3.11
 # Purpose: Serve account-authenticated operational projections and existing bounded APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -29,6 +29,8 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Check resident migration and authorized active binding without reading the protected authority ledger
 # Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING-DENIALS | Preserve conversation authorization and unavailable distinctions at promotion boundary
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Expose only the scoped verification endpoint for local bootstrap challenges
+# Changed: 2026-10-14 UTC | RV-GRACE-DOPS-TOOLBOX-001 | Inject existing read-only dashboard projections into Grace's request context
+# Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Add authenticated Steward resident profile registry routes
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
 # History: Git and revision/backup manifest
@@ -88,6 +90,9 @@ _PUBLIC_AUTH_POSTS = {
 _ACCOUNT_ENROLLMENT_DECISION = re.compile(
     r"^/api/v1/account/enrollments/([0-9a-fA-F-]{36})/decision$")
 _ACCOUNT_USER_PATH = re.compile(r"^/api/v1/account/users/([0-9a-fA-F-]{36})/(disable|roles|sessions|grant)$")
+_RESIDENT_PERMISSION_PATH = re.compile(r"^/api/v1/resident-permissions/([^/]+)/(approve|revoke)$")
+_RESIDENT_PERMISSION_PROFILE = re.compile(r"^/api/v1/resident-permissions/([^/]+)$")
+_INSTITUTIONAL_PRINCIPAL_ID = re.compile(r"^[A-Za-z0-9:._-]{1,256}$")
 
 def _bounded_limit(value):
     try:
@@ -177,13 +182,15 @@ class _BoundedHTTPServer(HTTPServer):
     request_queue_size = 64
 
     def __init__(self, address, handler, *, token, projection, notification_service,
-                 objective_pipeline, conversation_service, account_auth_service, static_dir):
+                 objective_pipeline, conversation_service, account_auth_service,
+                 permission_store, static_dir):
         self._token = token
         self._projection = projection
         self._notification_service = notification_service
         self._objective_pipeline = objective_pipeline
         self._conversation_service = conversation_service
         self._account_auth_service = account_auth_service
+        self._permission_store = permission_store
         self._static_dir = Path(static_dir)
         self._slots = threading.BoundedSemaphore(_MAX_THREADS)
         super().__init__(address, handler)
@@ -413,6 +420,11 @@ def make_handler():
             auth_logout = parsed.path == "/api/v1/auth/session" and self.command == "DELETE"
             account_queue = parsed.path == "/api/v1/account/enrollments" and self.command == "GET"
             account_users = parsed.path == "/api/v1/account/users" and self.command == "GET"
+            permission_list = parsed.path == "/api/v1/resident-permissions" and self.command == "GET"
+            permission_profile = (_RESIDENT_PERMISSION_PROFILE.fullmatch(parsed.path)
+                                  if self.command == "PUT" else None)
+            permission_transition = (_RESIDENT_PERMISSION_PATH.fullmatch(parsed.path)
+                                     if self.command == "POST" else None)
             account_email_settings = parsed.path == "/api/v1/account/email-settings" and self.command == "GET"
             account_email_save = parsed.path == "/api/v1/account/email-settings" and self.command == "PUT"
             account_email_test = parsed.path == "/api/v1/account/email-settings/test" and self.command == "POST"
@@ -430,6 +442,7 @@ def make_handler():
                     and not conversation_send and not conversation_session and not public_auth
                     and not conversation_work_order
                     and not auth_logout and not account_decision and not account_user
+                    and not permission_profile and not permission_transition
                     and not account_email_save and not account_email_test):
                 self._error(405, "read_only_method", request_id)
                 return
@@ -440,7 +453,7 @@ def make_handler():
                 except OSError:
                     self._error(503, "ui_unavailable", request_id)
                 return
-            if parsed.path in {"/assets/app.js", "/assets/app.css", "/assets/workflow.js"}:
+            if parsed.path in {"/assets/app.js", "/assets/app.css", "/assets/workflow.js", "/assets/resident-permissions.js"}:
                 name = parsed.path.rsplit("/", 1)[-1]
                 kind = "text/javascript" if name.endswith(".js") else "text/css"
                 try:
@@ -580,6 +593,51 @@ def make_handler():
                     page = self.server._account_auth_service.list_accounts(
                         identity, limit=_bounded_limit(query.get("limit", [50])[0]))
                     self._json(200, {"items": page, "status": "available"}, request_id)
+                    return
+                elif permission_list or permission_profile or permission_transition:
+                    identity = getattr(self, "_account_identity", None)
+                    if (not identity or "steward" not in identity.get("roles", ())
+                            or not identity.get("authority_principal_id")):
+                        self._error(403, "steward_account_required", request_id)
+                        return
+                    store = self.server._permission_store
+                    if store is None:
+                        self._error(503, "resident_permission_registry_unavailable", request_id)
+                        return
+                    if self.command != "GET" and not self._account_public_origin_ok():
+                        self._error(403, "cross_origin_request_denied", request_id)
+                        return
+                    if permission_list:
+                        result = store.list_profiles(identity["authority_principal_id"])
+                    elif permission_profile:
+                        data = self._json_body(_MAX_ACCOUNT_BODY)
+                        if (set(data) != {"expected_revision", "profile"} or
+                                not isinstance(data["expected_revision"], int) or
+                                isinstance(data["expected_revision"], bool) or
+                                data["expected_revision"] < 0):
+                            raise ValueError("invalid_permission_profile_request")
+                        resident_id = unquote(permission_profile.group(1), errors="strict")
+                        if not _INSTITUTIONAL_PRINCIPAL_ID.fullmatch(resident_id):
+                            raise ValueError("invalid_permission_profile_request")
+                        ResidentPermissionStore._validate_profile(data["profile"])
+                        result = store.save_profile(identity["authority_principal_id"],
+                            resident_id, data["expected_revision"], data["profile"])
+                    else:
+                        data = self._json_body(_MAX_ACCOUNT_BODY)
+                        if (set(data) != {"expected_revision"} or
+                                not isinstance(data["expected_revision"], int) or
+                                isinstance(data["expected_revision"], bool) or
+                                data["expected_revision"] < 0):
+                            raise ValueError("invalid_permission_profile_request")
+                        method = (store.approve_profile if permission_transition.group(2) == "approve"
+                                  else store.revoke_profile)
+                        resident_id = unquote(permission_transition.group(1), errors="strict")
+                        if not _INSTITUTIONAL_PRINCIPAL_ID.fullmatch(resident_id):
+                            raise ValueError("invalid_permission_profile_request")
+                        result = method(identity["authority_principal_id"],
+                                        resident_id,
+                                        data["expected_revision"])
+                    self._json(200, result, request_id)
                     return
                 elif account_email_settings:
                     identity=getattr(self,"_account_identity",None)
@@ -1054,6 +1112,15 @@ def make_handler():
                 self._error(503, "projection_unavailable", request_id)
             except Exception as exc:
                 from riverview_core.account_auth import AuthDenied, AuthUnavailable
+                if isinstance(exc, PermissionError):
+                    self._error(403, "resident_permission_change_not_authorized", request_id)
+                    return
+                if isinstance(exc, RuntimeError) and str(exc) == "permission_profile_revision_conflict":
+                    self._error(409, "resident_permission_revision_conflict", request_id)
+                    return
+                if isinstance(exc, RuntimeError) and str(exc).startswith("resident_permission_registry_unavailable"):
+                    self._error(503, "resident_permission_registry_unavailable", request_id)
+                    return
                 if isinstance(exc, AuthDenied):
                     self._error(403, "not_authorized", request_id)
                     return
@@ -1121,7 +1188,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
     def __init__(self, host: str, port: int, token_file: str | Path,
                  projection: DashboardProjection, static_dir: str | Path | None = None,
                  notification_service=None, objective_pipeline=None,
-                 conversation_service=None, account_auth_service=None):
+                 conversation_service=None, account_auth_service=None,
+                 permission_store=None):
         if host not in {"127.0.0.1", "::1"}:
             raise ValueError("dashboard bind host must be a loopback IP literal")
         if not isinstance(port, int) or not 8700 <= port <= 8799:
@@ -1134,6 +1202,7 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                          objective_pipeline=objective_pipeline,
                          conversation_service=conversation_service,
                          account_auth_service=account_auth_service,
+                         permission_store=permission_store,
                          static_dir=static_dir)
 
 
@@ -1185,6 +1254,10 @@ def main():
         lambda: psycopg.connect(dsn, connect_timeout=2), email_transport,
         schema=os.environ.get("RIVERVIEW_ACCOUNT_SCHEMA", "riverview_accounts"),
         public_origin=os.environ.get("RIVERVIEW_PUBLIC_ORIGIN","https://192.168.1.155"))
+    from riverview_core.institutional_authority.permission_profiles import ResidentPermissionStore
+    permission_store = ResidentPermissionStore(
+        lambda: psycopg.connect(dsn, connect_timeout=2),
+        schema=os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority"))
     repository_root = Path(os.environ.get("RIVERVIEW_KNOWLEDGE_ROOT", "/opt/riverview-core"))
     pinned_commit = os.environ.get("RIVERVIEW_SOURCE_COMMIT", _release_commit())
     objective_ledger = None
@@ -1221,6 +1294,7 @@ def main():
             from riverview_core.local_reasoning_provider import LocalReasoningProvider
             from riverview_core.resident_execution.conversation import (
                 ConversationStore, ResidentConversationService)
+            from riverview_core.resident_execution.operational_context import GraceOperationalContext
             authority_schema = os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority")
             authority_registry = AuthorityRegistry(dsn, schema=authority_schema, runtime_safe=True)
             conversation_store = ConversationStore(dsn, schema=schema)
@@ -1259,7 +1333,8 @@ def main():
                 store=conversation_store, registry=authority_registry,
                 authorizer=ExactGrantAuthorizer(authority_schema), office_id=chat_office_id,
                 resident_credential=resident_token,
-                providers=providers)
+                providers=providers,
+                operational_context=GraceOperationalContext(projection))
             conversation_store.recover_pending()
             if routed:
                 def resume_deferred():
@@ -1288,7 +1363,8 @@ def main():
                                  notification_service=notification_service,
                                  objective_pipeline=objective_pipeline,
                                  conversation_service=conversation_service,
-                                 account_auth_service=account_auth_service)
+                                 account_auth_service=account_auth_service,
+                                 permission_store=permission_store)
     print(json.dumps({"event": "dashboard_started", "host": host, "port": port,
                       "source_commit": projection.source_commit,
                       "deployment_id": projection.deployment_id}), flush=True)

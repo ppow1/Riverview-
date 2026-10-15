@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.9
+# Revision: 1.0.10
 # Purpose: Regound institutional resident requests and route bounded plan proposals
 # Execution Model: Request-driven in-process runtime with replaceable reasoning providers
 # Observability: Office-scoped durable state stores grounding and provider outcomes
@@ -16,7 +16,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.2-ENFORCE-PER-ROUTE-TOKEN-BUDGET | Reject provider output that exceeds its allocated attempt budget
 # Changed: 2026-10-11 UTC | RV-M4.2-ROUTE-MINIMUM-BUDGET | Reject a configured route whose provider count cannot fit the requested total token budget
 # Changed: 2026-10-11 UTC | RV-M4.4-CONTEXT-FAILURE-CLASS | Distinguish oversize grounded input from JSON serialization failure
-# Changed: 2026-10-11 UTC | RV-M4.1-BOUND-OCCUPANT-WRITE | Reject stale/re-granted non-occupant credentials before grounding
+# Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Persist actual served-model provenance with typed resident proposals
 # Contracts: docs/components/RESIDENT_REASONING.md
 # Tests: tests/test_resident_reasoning.py
 # History: .riverview-backups/manifest.jsonl
@@ -66,6 +66,10 @@ class PlanProposal:
     summary: str
     steps: tuple[PlanStep, ...]
     tokens_used: int
+    provider_id: str | None = None
+    served_model: str | None = None
+    model_revision: str | None = None
+    reasoning_stage: str | None = None
 
     def __post_init__(self):
         if not isinstance(self.summary, str) or not self.summary.strip() or len(self.summary) > 4000:
@@ -88,6 +92,14 @@ class PlanProposal:
             prior.add(step.step_id)
         if type(self.tokens_used) is not int or self.tokens_used < 0:
             raise ValueError("tokens_used must be a non-negative integer")
+        provenance = (self.provider_id, self.served_model, self.model_revision,
+                      self.reasoning_stage)
+        if any(value is not None for value in provenance):
+            if (not all(isinstance(value, str) and value for value in provenance)
+                    or len(self.model_revision) != 64
+                    or any(char not in "0123456789abcdef" for char in self.model_revision)
+                    or self.reasoning_stage != "reasoning"):
+                raise ValueError("proposal provider provenance is incomplete or invalid")
 
 
 @dataclass(frozen=True)

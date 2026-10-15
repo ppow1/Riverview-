@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.22
+File Revision: 1.0.23
 Purpose: Diagnose and safely recover institutional authority registry state
 Authority: Read-only diagnostics first; grant changes require authenticated Steward
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Keep evidence references as readable paths in safe dashboard renderer
@@ -23,6 +23,7 @@ Changed: 2026-10-11 UTC | RV-M4.1-LIVE-STATE-COOKBOOK-CORRECTION | Make current-
 Changed: 2026-10-11 UTC | RV-M3.3-ASSIGNMENT-INTAKE-COOKBOOK-LINK-FIX | Keep evidence references readable in the dashboard's approved documentation-link scope
 Changed: 2026-10-11 UTC | RV-M3.3-ASSIGNMENT-INTAKE-COOKBOOK | Record isolated exact assignment.create path and explicit live-route boundary
 Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-RECORDS | Record the post-bootstrap live migration baseline and isolated grant-check result
+Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Add profile migration/read-only diagnostics and fail-closed troubleshooting
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional authority registry cookbook
@@ -489,3 +490,37 @@ knowledge provider remain unavailable.
 - **1.0.4 — 2026-10-11:** Present evidence references as readable paths supported by the dashboard's documentation-link policy.
 - **1.0.3 — 2026-10-11:** Record the executed read-only Camrui role preflight and result.
 - **1.0.2 — 2026-10-11:** Correct the read-only SQL example and link exact-head CI evidence.
+
+## Resident permission profile diagnostics (read-only)
+
+The resident permission migration and Steward view described here are source
+only. Do not infer that migration 0008 or its runtime function ACL is live until
+an approved commissioning verifies its exact checksum and protected function
+permissions. Do not run any migration in this development increment.
+
+After approved commissioning, inspect profile metadata and audit events through
+a DBA read-only transaction. These queries do not read credentials or Grace
+conversation content:
+
+```sh
+sudo -n -u postgres psql -d riverview -X -v ON_ERROR_STOP=1 -c \
+  "BEGIN READ ONLY; SELECT version,checksum FROM riverview_authority.schema_migrations WHERE version='0008_resident_permission_profiles'; SELECT principal_id,office_id,tier_id,status,revision,classification_ceiling,export_mode,approved_by,approved_at FROM riverview_authority.resident_permission_profiles ORDER BY principal_id; SELECT principal_id,capability_id,resource_id,effect,access_level,approval_required,data_classification,export_mode,valid_until,revoked_at FROM riverview_authority.resident_permission_rules ORDER BY principal_id,capability_id,resource_id,created_at; SELECT principal_id,actor_id,event_type,profile_revision,recorded_at FROM riverview_authority.resident_permission_events ORDER BY recorded_at,event_id; COMMIT;"
+```
+
+Expected: 0008 has the release-manifest checksum; the runtime cannot directly
+read profile/catalog/audit tables; it can execute the five profile functions,
+and the manager cannot execute those functions. If the dashboard reports
+`resident_permission_registry_unavailable`, compare the checksum, function
+owner and pinned `search_path`, runtime `EXECUTE`, and manager denial with the
+`provision_authority_boundary.py --dry-run` report. Never grant runtime table
+access or repair ACLs with ad hoc SQL.
+
+For an effective action denial, inspect the exact `(principal, action, scope)`
+grant first, then the active profile revision, resource rule, expiry,
+classification/export restriction, and approval hold. A pending draft does not
+change effective policy. A stale revision returns HTTP 409; reload and
+re-review before saving. An offline, busy, degraded, or unknown resource is a
+readiness/capacity condition, not an authorization decision. Resume only after
+rechecking both the exact grant and the current profile revision.
+
+- **1.0.23 — 2026-10-14:** Add source-only resident profile migration diagnostics and explicit runtime/manager function-only ACL expectations.

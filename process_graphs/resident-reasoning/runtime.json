@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-reasoning:runtime",
-  "graph_revision": "1.1.1",
+  "graph_revision": "1.1.2",
   "component_id": "RESIDENT-REASONING",
   "workflow_id": "resident.reasoning.v1",
   "diagram_order": 13,
@@ -8,6 +8,7 @@
     "src/riverview_core/institutional_authority/registry.py",
     "src/riverview_core/local_reasoning_provider.py",
     "src/riverview_core/reasoning_escalation.py",
+    "src/riverview_core/resident_execution/grace_role_context.py",
     "src/riverview_core/resident_reasoning.py",
     "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
     "tests/test_local_reasoning_provider.py",
@@ -267,6 +268,23 @@
       "verification_evidence": [
         "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md",
         "evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1340Z-fce3c30/result-summary.json"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:grace-role-context",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "For office:grace only, add the shared Director of Operations role and authority boundaries to the assignment proposal prompt",
+      "source_references": [
+        "src/riverview_core/local_reasoning_provider.py",
+        "src/riverview_core/resident_execution/grace_role_context.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/architecture/GRACE_DIRECTOR_OF_OPERATIONS_RECONCILIATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_local_reasoning_provider.py"
       ]
     },
     {
@@ -684,9 +702,15 @@
     },
     {
       "from": "rv:resident-reasoning:runtime:budget-gate",
+      "to": "rv:resident-reasoning:runtime:grace-role-context",
+      "type": "runtime_transition",
+      "label": "Budget fits; apply office-specific canonical context before provider call"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:grace-role-context",
       "to": "rv:resident-reasoning:runtime:provider-call",
       "type": "runtime_transition",
-      "label": "budget fits all candidates"
+      "label": "Role context is bounded and supplies no permissions"
     },
     {
       "from": "rv:resident-reasoning:runtime:budget-gate",

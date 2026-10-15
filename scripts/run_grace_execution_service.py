@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.5
+# Revision: 1.0.7
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -13,6 +13,8 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Bind runtime to current Grace office grant and persisted office state
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Select bounded Codex worker/verifier only from explicit service configuration
 # Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Remove API-key auth and permit only interactive owning-user subscription mode
+# Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Use the active bound router for proposal/review and return verified outcomes to chat
+# Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Add persistent no-copy ChatGPT owner-session runtime mode
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -48,19 +50,66 @@ from riverview_core.worker_adapter.service import (WorkerServiceConfigurationErr
     ensure_registered, load_runtime_config, read_worker_credential)
 from riverview_core.resident_reasoning import ResidentReasoner
 from riverview_core.local_reasoning_provider import LocalReasoningProvider
+from riverview_core.resident_execution.model_router import GraceModelRouter
+from riverview_core.resident_execution.conversation import (
+    ConversationStore, ResidentConversationService)
+
+
+def configured_resident_providers(binding, environ=None, provider_factory=None):
+    """Build only the provider set matching the current authorized office binding."""
+    environ = os.environ if environ is None else environ
+    provider_factory = LocalReasoningProvider if provider_factory is None else provider_factory
+    endpoint = environ.get("RIVERVIEW_REASONING_ENDPOINT")
+    model = environ.get("RIVERVIEW_REASONING_MODEL")
+    digest = environ.get("RIVERVIEW_REASONING_MODEL_SHA256")
+    if not all((endpoint, model, digest)):
+        raise WorkerServiceConfigurationError("resident_reasoning_provider_incomplete")
+    allow_lan = environ.get("RIVERVIEW_GRACE_ALLOW_APPROVED_OCTO1") == "1"
+    autonomic = provider_factory(endpoint, model, digest,
+        allow_approved_private_lan=allow_lan)
+    provider_ref = binding.get("provider_ref")
+    if provider_ref == autonomic.provider_id:
+        if binding.get("implementation_revision") != autonomic.model_sha256:
+            raise WorkerServiceConfigurationError("resident_reasoning_binding_mismatch")
+        return {autonomic.provider_id: autonomic}, autonomic.model
+    if provider_ref != GraceModelRouter.provider_id:
+        raise WorkerServiceConfigurationError("resident_reasoning_provider_binding_mismatch")
+    if (environ.get("RIVERVIEW_GRACE_ENABLE_MODEL_ROUTER") != "1" or not allow_lan):
+        raise WorkerServiceConfigurationError("resident_model_router_opt_in_required")
+    vision_digest = environ.get("RIVERVIEW_GRACE_30B_MODEL_SHA256", "")
+    reasoning_digest = environ.get("RIVERVIEW_GRACE_80B_MODEL_SHA256", "")
+    # Reuse the exact endpoint/model pairs already allowlisted by LocalReasoningProvider.
+    endpoint_30b = next(endpoint for endpoint, model_id in
+        LocalReasoningProvider.APPROVED_PRIVATE_LAN_MODELS.items() if "30B" in model_id)
+    model_30b = LocalReasoningProvider.APPROVED_PRIVATE_LAN_MODELS[endpoint_30b]
+    endpoint_80b = next(endpoint for endpoint, model_id in
+        LocalReasoningProvider.APPROVED_PRIVATE_LAN_MODELS.items() if "80B" in model_id)
+    model_80b = LocalReasoningProvider.APPROVED_PRIVATE_LAN_MODELS[endpoint_80b]
+    vision = provider_factory(endpoint_30b, model_30b, vision_digest,
+        allow_approved_private_lan=True)
+    reasoning = provider_factory(endpoint_80b, model_80b, reasoning_digest,
+        allow_approved_private_lan=True)
+    router = GraceModelRouter(autonomic=autonomic, vision=vision, reasoning=reasoning)
+    if binding.get("implementation_revision") != router.model_sha256:
+        raise WorkerServiceConfigurationError("resident_reasoning_binding_mismatch")
+    return {router.provider_id: router}, reasoning.model
 
 SERVICE_UNIT = "riverview-grace-execution.service"
+OWNER_SESSION_SERVICE_UNIT = "riverview-grace-execution-owner-session.service"
 
 
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    ledger = adapter = authority_registry = None
+    ledger = adapter = authority_registry = conversation_store = None
     try:
+        codex_auth_mode = os.environ.get("RIVERVIEW_CODEX_AUTH_MODE", "service")
+        credential_unit = (OWNER_SESSION_SERVICE_UNIT
+            if codex_auth_mode == "chatgpt-owner-session" else SERVICE_UNIT)
         dsn, schema, authority_schema, worker_id, scope_ref, worker_token = load_runtime_config(
-            SERVICE_UNIT, "worker-token")
-        dispatch_token = read_worker_credential(SERVICE_UNIT, "dispatch-token")
-        verifier_token = read_worker_credential(SERVICE_UNIT, "verifier-token")
-        resident_token = read_worker_credential(SERVICE_UNIT, "resident-token")
+            credential_unit, "worker-token")
+        dispatch_token = read_worker_credential(credential_unit, "dispatch-token")
+        verifier_token = read_worker_credential(credential_unit, "verifier-token")
+        resident_token = read_worker_credential(credential_unit, "resident-token")
         office_id = os.environ.get("RIVERVIEW_RESIDENT_OFFICE_ID", "")
         verifier_id = os.environ.get("RIVERVIEW_VERIFIER_ID", "")
         commit = os.environ.get("RIVERVIEW_KNOWLEDGE_COMMIT", "")
@@ -82,29 +131,26 @@ def main() -> int:
         intake = AuthorizedAssignmentIntake(ledger, authorizer)
         resident_knowledge = TaskRelevantRepositoryKnowledgeProvider(repo_root, commit)
         pipeline = GraceExecutionPipeline(ledger, authorizer, intake, resident_knowledge)
-        providers = {}
-        reasoning_endpoint = os.environ.get("RIVERVIEW_REASONING_ENDPOINT")
-        reasoning_model = os.environ.get("RIVERVIEW_REASONING_MODEL")
-        reasoning_sha = os.environ.get("RIVERVIEW_REASONING_MODEL_SHA256")
-        configured_reasoning = (reasoning_endpoint, reasoning_model, reasoning_sha)
-        if any(configured_reasoning) and not all(configured_reasoning):
-            raise WorkerServiceConfigurationError("resident_reasoning_provider_incomplete")
-        if all(configured_reasoning):
-            provider = LocalReasoningProvider(reasoning_endpoint, reasoning_model, reasoning_sha)
-            providers[provider.provider_id] = provider
+        providers, reasoning_model = configured_resident_providers(office)
         resident_reasoner = ResidentReasoner(
             registry=authority_registry, office_id=office_id,
             resident_credential=resident_token, assignments=ObjectiveContextReader(pipeline),
             knowledge=resident_knowledge, providers=providers,
             timeout_seconds=float(os.environ.get("RIVERVIEW_RESIDENT_REASONING_TIMEOUT", "5")))
+        conversation_store = ConversationStore(dsn, schema=schema)
+        conversation_service = ResidentConversationService(
+            store=conversation_store, registry=authority_registry,
+            authorizer=authorizer, office_id=office_id,
+            resident_credential=resident_token, providers=providers,
+            max_response_tokens=int(os.environ.get(
+                "RIVERVIEW_GRACE_RESULT_REVIEW_TOKENS", "128")))
         adapter_mode = os.environ.get("RIVERVIEW_ENGINEERING_ADAPTER", "bounded-artifact")
         execution_capability = "engineering.bounded-artifact.v1"
         execution_action = BoundedLocalCodingWorker(pipeline, artifact_root)
         outcome_verifier = None
-        codex_auth_mode = os.environ.get("RIVERVIEW_CODEX_AUTH_MODE", "service")
-        if codex_auth_mode not in {"service", "supervised-chatgpt"}:
+        if codex_auth_mode not in {"service", "supervised-chatgpt", "chatgpt-owner-session"}:
             raise WorkerServiceConfigurationError("codex_auth_mode_invalid")
-        if codex_auth_mode == "supervised-chatgpt" and adapter_mode != "codex-cli":
+        if codex_auth_mode in {"supervised-chatgpt", "chatgpt-owner-session"} and adapter_mode != "codex-cli":
             raise WorkerServiceConfigurationError("supervised_mode_requires_codex_adapter")
         if adapter_mode == "codex-cli":
             executable = os.environ.get("RIVERVIEW_CODEX_EXECUTABLE", "")
@@ -120,6 +166,18 @@ def main() -> int:
                 codex_home = str(Path.home() / ".codex")
                 codex_workspace = str(operator_state / "workspaces")
                 artifact_root = operator_state / "artifacts"
+            persistent_owner_session = codex_auth_mode == "chatgpt-owner-session"
+            if persistent_owner_session:
+                if pwd.getpwuid(os.geteuid()).pw_name != "admin1":
+                    raise WorkerServiceConfigurationError("chatgpt_owner_session_requires_admin1")
+                state_root = Path(os.environ.get(
+                    "RIVERVIEW_CODEX_STATE_DIR", "/var/lib/riverview-grace-owner-session"))
+                if not state_root.is_absolute() or state_root.resolve() in {
+                        Path("/home/admin1").resolve(), Path("/home/admin1/.codex").resolve()}:
+                    raise WorkerServiceConfigurationError("chatgpt_owner_state_path_invalid")
+                codex_home = str(Path.home() / ".codex")
+                codex_workspace = str(state_root / "workspaces")
+                artifact_root = state_root / "artifacts"
             if not all((executable, codex_home, codex_workspace, codex_repository,
                         repository_reference)):
                 raise WorkerServiceConfigurationError("codex_adapter_configuration_incomplete")
@@ -131,7 +189,8 @@ def main() -> int:
                 executable=executable, repository_path=codex_repository,
                 repository_reference=repository_reference, codex_home=codex_home,
                 workspace_root=codex_workspace, artifact_root=artifact_root,
-                supervised_chatgpt_session=supervised_chatgpt)
+                supervised_chatgpt_session=supervised_chatgpt,
+                persistent_chatgpt_owner_session=persistent_owner_session)
             if Path(executable).resolve().is_relative_to(Path("/home/admin1").resolve()):
                 raise WorkerServiceConfigurationError("personal_codex_executable_forbidden")
             try:
@@ -162,7 +221,8 @@ def main() -> int:
             max_dispatch_failures=int(os.environ.get("RIVERVIEW_GRACE_MAX_DISPATCH_FAILURES", "3")),
             resident_reasoner=resident_reasoner,
             resident_token_budget=int(os.environ.get("RIVERVIEW_RESIDENT_REASONING_TOKENS", "256")),
-            verifier=outcome_verifier, execution_capability=execution_capability)
+            verifier=outcome_verifier, execution_capability=execution_capability,
+            conversation_result_publisher=conversation_service.review_verified_work_order)
         if codex_auth_mode == "supervised-chatgpt":
             if not re.search(r"80b", (reasoning_model or "").lower()) or not providers:
                 raise WorkerServiceConfigurationError("supervised_mode_requires_configured_80b_reasoner")
@@ -188,8 +248,12 @@ def main() -> int:
                     "objective_id": objective_id}, sort_keys=True))
                 return 4
             result = service.execute_supervised_objective(objective_id)
+            result["conversation_results_returned"] = service.publish_conversation_results()
             print(json.dumps(result, sort_keys=True))
             return 0 if result.get("status") == "COMPLETED" else 5
+        if codex_auth_mode == "chatgpt-owner-session" and (
+                not re.search(r"80b", (reasoning_model or "").lower()) or not providers):
+            raise WorkerServiceConfigurationError("owner_session_requires_configured_80b_reasoner")
         stop = threading.Event()
         signal.signal(signal.SIGTERM, lambda *_: stop.set())
         signal.signal(signal.SIGINT, lambda *_: stop.set())
@@ -217,6 +281,8 @@ def main() -> int:
     finally:
         if adapter is not None:
             adapter.close()
+        if conversation_store is not None:
+            conversation_store.close()
         if authority_registry is not None:
             authority_registry.close()
         if ledger is not None:
