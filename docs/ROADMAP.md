@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.55
+**Document Revision:** 1.1.56
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-11
 **Component:** RV-ROADMAP  
@@ -12,6 +12,7 @@
 **Changed:** 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Correct sandbox readiness status and record exact grant provisioning and owner-session install tooling
 **Changed:** 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Record full isolated PostgreSQL regression and unchanged production release/binding
 **Changed:** 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Record PR #34 source commit, passing controlled-checkout CI, and pending review
+**Changed:** 2026-10-15 UTC | RV-AUTH-LEGACY-PROFILE-COMPAT | Restore exact-grant authorization on schemas predating migration 0008; record isolated PostgreSQL evidence and unchanged production state
 **Changed:** 2026-10-11 UTC | RV-M3.3-LIVE-COMMISSIONING | Record live governed request, worker, artifact, verifier, dashboard and recovery evidence; retain concurrency/full-DoD limits
 **Changed:** 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION | Verify a real NO_MATCH assignment remains waiting while the scheduler executes and verifies an unrelated valid assignment
 **Changed:** 2026-10-11 UTC | RV-M3.3-HISTORICAL-BLOCKER-CLARIFICATION | Label pre-commissioning M4.2 checkpoint status as historical and point to current M3.3 evidence
@@ -301,3 +302,4 @@ alignment with that document remains unverified.
 - **1.1.53 — 2026-10-15:** Record the authorized AppArmor/Codex trial, exact standing grants, protected credentials, corrected owner-token path, and unactivated service staging procedure; keep M4.4 open.
 - **1.1.54 — 2026-10-15:** Record full isolated PostgreSQL regression, graph, revision-control, and unchanged-production evidence; keep M4.4 open.
 - **1.1.55 — 2026-10-15:** Record pushed PR head, passing CI, and unfulfilled review/integrated-package gate; keep M4.4 open.
+- **1.1.56 — 2026-10-15:** Restore exact-grant compatibility on pre-0008 authority schemas; record fail-closed partial-state handling and isolated PostgreSQL evidence. The correction is awaiting review/integration; no production migration, grant, service, or release change occurred. M4.4 remains open.

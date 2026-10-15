@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.28
+File Revision: 1.0.29
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -31,6 +31,7 @@ Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Specify explicit co
 Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Document Steward-only office-role correction without changing occupant, binding, or grants
 Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Add audited resident profiles as an additional policy gate to exact grants
 Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Fail closed for revoked/stale profiles and unregistered capability resources
+Changed: 2026-10-15 UTC | RV-AUTH-LEGACY-PROFILE-COMPAT | Preserve deployed exact grants until profile migration 0008 is installed; keep partial states fail closed
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
@@ -83,6 +84,18 @@ See `RESIDENT_PERMISSION_PROFILES.md` and the resident permission profile
 workflow graph. Migration 0008, function ACL changes, profile editing, and
 Grace's proposed institutional-administrator profile have not been deployed or
 activated. Existing exact grants and bindings are unchanged.
+
+The runtime authorizer remains compatible with authority schemas predating
+migration 0008. After a successful exact-grant decision, it detects the
+profile table and evaluator as a paired runtime capability using PostgreSQL
+catalog metadata; it does not read the protected migration ledger. If both
+objects are absent, the exact grant remains the effective policy. If both are
+present, the evaluator is mandatory, including its no-active-profile legacy
+result and all active-profile restrictions. A partial object pair, wrong
+relation/function shape, visible ledger disagreement or checksum mismatch,
+malformed decision, or database error denies the operation as unavailable.
+Migration 0008 remains additive and its runtime function permissions are not
+expanded by this code change.
 
 ## Credential and grant contract
 

@@ -4019,7 +4019,7 @@
     },
     {
       "graph_id": "rv:institutional-authority:resident-permission-profiles",
-      "graph_revision": "1.0.1",
+      "graph_revision": "1.0.2",
       "component_id": "RESIDENT-PERMISSION-PROFILES",
       "workflow_id": "resident-permission-profiles.v1",
       "diagram_order": 2,
@@ -4031,7 +4031,8 @@
         "src/riverview_core/status_dashboard/server.py",
         "src/riverview_core/status_dashboard/static/resident-permissions.js",
         "tests/test_permission_profiles.py",
-        "tests/test_institutional_authority_boundary.py"
+        "tests/test_institutional_authority_boundary.py",
+        "tests/test_authorizer_profile_legacy_compatibility.py"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_PERMISSION_PROFILES.md",
@@ -4040,7 +4041,8 @@
         "process_graphs/README.md"
       ],
       "verification_evidence": [
-        "tests/test_permission_profiles.py"
+        "tests/test_permission_profiles.py",
+        "tests/test_authorizer_profile_legacy_compatibility.py"
       ],
       "nodes": [
         {
@@ -4153,24 +4155,23 @@
         },
         {
           "id": "rv:institutional-authority:resident-permission-profiles:exact-grant-gate",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "decision",
-          "label": "Exact authority grant and active profile policy both allow action and resource?",
+          "label": "Does the exact authority grant match the requested action and scope?",
           "source_references": [
             "src/riverview_core/institutional_authority/grants.py",
-            "src/riverview_core/institutional_authority/migrations/0008_resident_permission_profiles.sql"
+            "src/riverview_core/institutional_authority/migrations/0002_exact_grant_authorization.sql"
           ],
           "documentation_references": [
-            "docs/components/RESIDENT_PERMISSION_PROFILES.md",
             "docs/components/INSTITUTIONAL_AUTHORITY.md"
           ],
           "verification_evidence": [
-            "tests/test_permission_profiles.py"
+            "tests/test_authorizer_profile_legacy_compatibility.py"
           ]
         },
         {
           "id": "rv:institutional-authority:resident-permission-profiles:deny",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "failure",
           "label": "Deny absent, expired, revoked, mismatched, approval-held or unavailable authority",
           "source_references": [
@@ -4181,6 +4182,7 @@
             "docs/components/RESIDENT_PERMISSION_PROFILES.md"
           ],
           "verification_evidence": [
+            "tests/test_authorizer_profile_legacy_compatibility.py",
             "tests/test_permission_profiles.py"
           ]
         },
@@ -4252,6 +4254,69 @@
             "docs/components/INSTITUTIONAL_AUTHORITY.md"
           ],
           "verification_evidence": []
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:profile-capability-check",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Are migration 0008 profile table and evaluator both absent or fully installed?",
+          "source_references": [
+            "src/riverview_core/institutional_authority/grants.py",
+            "src/riverview_core/institutional_authority/migrations/0008_resident_permission_profiles.sql"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md"
+          ],
+          "verification_evidence": [
+            "tests/test_authorizer_profile_legacy_compatibility.py"
+          ]
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:legacy-exact-grant",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "When migration 0008 is absent, preserve the legacy exact-grant decision without reading the protected migration ledger",
+          "source_references": [
+            "src/riverview_core/institutional_authority/grants.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md"
+          ],
+          "verification_evidence": [
+            "tests/test_authorizer_profile_legacy_compatibility.py"
+          ]
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:evaluate-active-profile",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "When migration 0008 is complete, require its evaluator to allow the exact granted action and resource",
+          "source_references": [
+            "src/riverview_core/institutional_authority/grants.py",
+            "src/riverview_core/institutional_authority/migrations/0008_resident_permission_profiles.sql"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md"
+          ],
+          "verification_evidence": [
+            "tests/test_authorizer_profile_legacy_compatibility.py",
+            "tests/test_permission_profiles.py"
+          ]
+        },
+        {
+          "id": "rv:institutional-authority:resident-permission-profiles:profile-migration-inconsistent",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Fail closed on partial profile objects, visible ledger mismatch, malformed decision, or database error",
+          "source_references": [
+            "src/riverview_core/institutional_authority/grants.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY.md"
+          ],
+          "verification_evidence": [
+            "tests/test_authorizer_profile_legacy_compatibility.py"
+          ]
         }
       ],
       "edges": [
@@ -4318,18 +4383,6 @@
           "label": "Effective profile and append-only event persisted"
         },
         {
-          "from": "rv:institutional-authority:resident-permission-profiles:exact-grant-gate",
-          "to": "rv:institutional-authority:resident-permission-profiles:resource-readiness",
-          "type": "runtime_transition",
-          "label": "Exact grant and profile allow"
-        },
-        {
-          "from": "rv:institutional-authority:resident-permission-profiles:exact-grant-gate",
-          "to": "rv:institutional-authority:resident-permission-profiles:deny",
-          "type": "diagnostic_branch",
-          "label": "Explicit denial, expiry, missing rule or required approval"
-        },
-        {
           "from": "rv:institutional-authority:resident-permission-profiles:resource-readiness",
           "to": "rv:institutional-authority:resident-permission-profiles:complete",
           "type": "verification",
@@ -4362,6 +4415,60 @@
           "to": "rv:institutional-authority:identity-and-grants:authorize",
           "type": "jump",
           "label": "Revalidate institutional grant authority"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:exact-grant-gate",
+          "to": "rv:institutional-authority:resident-permission-profiles:profile-capability-check",
+          "type": "runtime_transition",
+          "label": "Exact grant matches"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:exact-grant-gate",
+          "to": "rv:institutional-authority:resident-permission-profiles:deny",
+          "type": "diagnostic_branch",
+          "label": "No active exact grant"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:profile-capability-check",
+          "to": "rv:institutional-authority:resident-permission-profiles:legacy-exact-grant",
+          "type": "runtime_transition",
+          "label": "Both migration 0008 runtime objects are absent"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:profile-capability-check",
+          "to": "rv:institutional-authority:resident-permission-profiles:evaluate-active-profile",
+          "type": "runtime_transition",
+          "label": "Profile table and evaluator are fully installed"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:profile-capability-check",
+          "to": "rv:institutional-authority:resident-permission-profiles:profile-migration-inconsistent",
+          "type": "diagnostic_branch",
+          "label": "Partial, malformed, or visibly inconsistent migration state"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:legacy-exact-grant",
+          "to": "rv:institutional-authority:resident-permission-profiles:resource-readiness",
+          "type": "runtime_transition",
+          "label": "Legacy exact grant is the complete installed policy"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:evaluate-active-profile",
+          "to": "rv:institutional-authority:resident-permission-profiles:resource-readiness",
+          "type": "runtime_transition",
+          "label": "Profile evaluator allows exact action and resource"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:evaluate-active-profile",
+          "to": "rv:institutional-authority:resident-permission-profiles:deny",
+          "type": "diagnostic_branch",
+          "label": "Profile denies, is expired/revoked, requires approval, or returns invalid data"
+        },
+        {
+          "from": "rv:institutional-authority:resident-permission-profiles:profile-migration-inconsistent",
+          "to": "rv:institutional-authority:resident-permission-profiles:recovery",
+          "type": "recovery_route",
+          "label": "Preserve fail-closed behavior; reconcile migration and runtime capability evidence"
         }
       ]
     },
@@ -10821,9 +10928,13 @@
     "rv:institutional-authority:resident-permission-profiles:complete",
     "rv:institutional-authority:resident-permission-profiles:deny",
     "rv:institutional-authority:resident-permission-profiles:edit-checklist",
+    "rv:institutional-authority:resident-permission-profiles:evaluate-active-profile",
     "rv:institutional-authority:resident-permission-profiles:exact-grant-gate",
     "rv:institutional-authority:resident-permission-profiles:inspect-registry",
+    "rv:institutional-authority:resident-permission-profiles:legacy-exact-grant",
     "rv:institutional-authority:resident-permission-profiles:pending-draft",
+    "rv:institutional-authority:resident-permission-profiles:profile-capability-check",
+    "rv:institutional-authority:resident-permission-profiles:profile-migration-inconsistent",
     "rv:institutional-authority:resident-permission-profiles:recovery",
     "rv:institutional-authority:resident-permission-profiles:resource-readiness",
     "rv:institutional-authority:resident-permission-profiles:resource-unready",
