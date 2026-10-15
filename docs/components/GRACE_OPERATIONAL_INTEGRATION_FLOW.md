@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.23
+**Document Revision:** 1.0.24
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -102,8 +102,8 @@ flowchart LR
     g_rv_grace_operational_integration_stale_resident_denied_bacbbff8[["A stale resident grant is denied before grounding/provider use even if it is later reissued; office-state writes recheck the bound principal under a binding-row lock"]]
     g_rv_grace_operational_integration_conversation_origin_intake_ba92fbfa["Explicit Steward promotion validates a persisted principal-authored Grace message, conversation read grant, and exact objective.submit grant on work-order:engineering"]
     g_rv_grace_operational_integration_codex_capability_check_d39b996a{"SOURCE INTEGRATED — exact Codex artifact capability is registered through the existing worker registry; deployment remains blocked on service identity and grants"}
-    g_rv_grace_operational_integration_codex_resource_check_71ed8b3b{"SOURCE READY, NOT COMMISSIONED — owner-session uses existing ChatGPT login in place; exact grants, pinned repository and artifact paths are required; a read-only bubblewrap sandbox preflight must pass before worker registration or dispatch"}
-    g_rv_grace_operational_integration_codex_authority_gate_738aae11{"FAIL CLOSED — existing worker.register and assignment.execute checks remain mandatory in the exact Engineering scope"}
+    g_rv_grace_operational_integration_codex_resource_check_71ed8b3b{"Sandbox readiness PASS on Camrui: reviewed per-executable bwrap AppArmor profile and bounded authenticated Codex artifact test; source release and owner-session service still not commissioned"}
+    g_rv_grace_operational_integration_codex_authority_gate_738aae11{"Authorized fixed exact-scope standing grants provisioned through AuthorityRegistry; runtime exact worker.register and assignment.execute checks remain mandatory"}
     g_rv_grace_operational_integration_codex_cli_run_ade47dcf["INTEGRATED SOURCE, HOST BLOCKED — after exact-grant intake the persistent owner-session uses the existing ChatGPT login in place, assignment lease, network-disabled workspace, fixed deliverable path and fail-closed sandbox preflight"]
     g_rv_grace_operational_integration_codex_artifact_verification_ab484b65["INTEGRATED SOURCE — separate verifier reopens the assignment-bound Markdown artifact and checks mode, size, digest, provenance and literal acceptance criteria"]
     g_rv_grace_operational_integration_codex_execution_failed_f49befea[["Codex auth/session, exact-scope authorization, sandbox preflight, timeout, output bounds, or workspace integrity failed; objective remains durable and non-complete"]]
@@ -112,6 +112,7 @@ flowchart LR
     g_rv_grace_operational_integration_router_backed_grace_proposal_931750ec["SOURCE IMPLEMENTED — Persistent ResidentReasoner proposals use the active router binding and require actual 80B provenance; smaller stages cannot substitute"]
     g_rv_grace_operational_integration_verified_result_chat_return_108e1033["SOURCE IMPLEMENTED — Independently accepted objective result is reviewed by bound 80B and appended once to its source conversation with durable provenance"]
     g_rv_grace_operational_integration_verified_result_return_retry_ce159ed9["SOURCE IMPLEMENTED — Failed authorization/provider return remains in durable outbox; deterministic response identity prevents duplicate chat events after restart"]
+    g_rv_grace_operational_integration_owner_session_provisioning_8f41090c["Implemented, isolated-tested provisioning: fixed AuthorityRegistry grants and protected credentials; stage reviewed owner-session unit without enabling or starting it"]
   end
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_cme_progress_and_recovery_observe_428defda["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -177,6 +178,9 @@ flowchart LR
   g_rv_grace_operational_integration_objective_complete_a6f22d23 -->|Only a durable independently accepted completion enters the result outbox| g_rv_grace_operational_integration_verified_result_chat_return_108e1033
   g_rv_grace_operational_integration_verified_result_chat_return_108e1033 -->|diagnostic_branch: Current binding, exact send grant, provider, or durable insert unavailable| g_rv_grace_operational_integration_verified_result_return_retry_ce159ed9
   g_rv_grace_operational_integration_verified_result_return_retry_ce159ed9 -->|recovery_route: Persistent poll retries; deterministic conversation response ID makes replay idempotent| g_rv_grace_operational_integration_verified_result_chat_return_108e1033
+  g_rv_grace_operational_integration_codex_resource_check_71ed8b3b -->|prerequisite: Sandbox and subscription CLI readiness pass before owner-session staging| g_rv_grace_operational_integration_owner_session_provisioning_8f41090c
+  g_rv_grace_operational_integration_owner_session_provisioning_8f41090c -->|prerequisite: Fixed standing grants and protected credentials are provisioned; no unit activation occurs here| g_rv_grace_operational_integration_codex_authority_gate_738aae11
+  g_rv_grace_operational_integration_owner_session_provisioning_8f41090c -->|diagnostic_branch: Principal, grant, credential metadata, immutable source, or unit validation conflict; fail closed| g_rv_grace_operational_integration_codex_execution_failed_f49befea
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

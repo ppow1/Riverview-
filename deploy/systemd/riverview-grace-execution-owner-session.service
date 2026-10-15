@@ -1,7 +1,8 @@
 # Riverview~ controlled unit
-# File Revision: 1.0.0
+# File Revision: 1.0.1
 # Task: RV-GRACE-OWNER-SESSION-EXECUTION-001
 # Purpose: Persistent bounded Grace Engineering worker using admin1's existing ChatGPT Codex login in place
+# Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Point resident credential at existing protected canonical file
 [Unit]
 Description=Riverview Grace persistent Engineering execution (ChatGPT owner session)
 After=network.target postgresql.service riverview-event-processor.service
@@ -35,7 +36,7 @@ LoadCredential=pgpass:/etc/riverview/pgpass
 LoadCredential=dispatch-token:/etc/riverview/worker/grace-dispatch.credential
 LoadCredential=worker-token:/etc/riverview/worker/grace-executor.credential
 LoadCredential=verifier-token:/etc/riverview/worker/grace-verifier.credential
-LoadCredential=resident-token:/etc/riverview/residents/grace-office.credential
+LoadCredential=resident-token:/etc/riverview/grace/resident.credential
 RuntimeDirectory=riverview-grace-execution-owner-session
 RuntimeDirectoryMode=0700
 StateDirectory=riverview-grace-owner-session

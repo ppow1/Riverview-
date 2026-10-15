@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.4
+File Revision: 1.0.5
 Purpose: Diagnose and safely resume the persistent Grace execution service
 Authority: Read-only diagnosis first; exact grants required for every mutation
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Add service operations and recovery procedures
@@ -10,6 +10,7 @@ Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Document the on
 Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Add diagnosis and retry behavior for proposal routing and source-chat result return
 Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Document the persistent no-copy ChatGPT owner-session unit and its recovery boundary
 Changed: 2026-10-15 UTC | RV-GRACE-CODEX-SANDBOX-READINESS-001 | Document fail-closed sandbox readiness and safe host blocker handling
+Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Record successful bwrap trial, protected credential paths, and reversible owner-session staging
 -->
 # Grace Execution Service — Troubleshooting and Recovery
 
@@ -40,7 +41,7 @@ Expected: `ActiveState=active`, `SubState=running`, a recent `last_heartbeat_at`
 | Verification failures reach three | Inspect objective `verification_failures`, the three `execution.verification_failed` events and verifier journal. | Correct verifier/runtime faults; the poller caps retries per attempt and proceeds to other candidates. Do not change the assignment state manually. | The item remains awaiting verification and objective remains incomplete until independent verification succeeds; escalate unresolved evidence integrity concerns. |
 | Dashboard says Grace unavailable/stale | Check `/api/v1/status`, dashboard journal, migration presence and heartbeat age. | Restore dashboard/database connectivity; do not infer health from systemd active state alone. | Confirm the service instance, fresh heartbeat, objective detail, artifact digest and verification decision. |
 | Process restart during work | Inspect the latest lease generation, execution intent, attempt/result and recovery record. | Start the supervised service; it reads PostgreSQL and CME reconciles expired leases. Do not replay a completion manually. | A preserved result proceeds to verification; a safe action may be requeued; uncertain effects stay blocked for Steward. |
-| Codex capability reports unavailable before assignment | Check sanitized `codex_sandbox_unavailable`; the adapter's read-only `bwrap --ro-bind / / --proc /proc --dev /dev /bin/true` probe could not create the required workspace sandbox. | Keep the objective durable and un-dispatched. Do not relax Codex sandboxing, select a danger-full-access mode, or change host namespace policy as a recovery shortcut. | In the exact owner-session unit context, an authorized host administrator must enable an approved sandbox mechanism or select a supported isolated executor. Repeat the read-only preflight before dispatch. |
+| Codex capability reports unavailable before assignment | Check sanitized `codex_sandbox_unavailable`; run the bwrap probe and inspect the loaded per-executable AppArmor policy without changing the global namespace restriction. | Keep the objective durable and un-dispatched. Do not select a danger-full-access mode. The authorized `/usr/bin/bwrap` profile trial passed; direct `unshare` remains restricted by design. | Repeat `bwrap --ro-bind / / --proc /proc --dev /dev /bin/true` from the owner-session context. If it fails, preserve the request and follow the sandbox rollback record in the commissioning guide. |
 
 ## One-objective supervised Codex run
 
@@ -99,6 +100,14 @@ No `OPENAI_API_KEY`, `CODEX_ACCESS_TOKEN`, or credential copy is part of this
 mode. A machine that requires unattended credential refresh should use a
 separately authorized supported workspace-token arrangement, not bypass this
 owner-session boundary.
+
+## Owner-session provisioning status (2026-10-15)
+
+The authorized fixed grant set and dedicated dispatch, executor, and verifier credentials are provisioned through the root-local `scripts/provision_grace_engineering_demo.py --apply` procedure. It reuses active exact grants and fails on principal-kind, grant-ID, or revoked-grant conflicts. Credential contents are never printed. The resident token loads from `/etc/riverview/grace/resident.credential`; no resident token copy is made.
+
+The owner-session unit and environment installer remains unrun until the reviewed immutable execution package is staged. `scripts/install_grace_owner_session.py --check` validates the immutable source and unit without changing the host. `--apply` stages only the owner-session unit and non-secret environment, then daemon-reloads systemd; it does not enable or start the service. Save the two returned SHA-256 values. Roll back with `scripts/install_grace_owner_session.py --rollback <UNIT_SHA256> <ENV_SHA256>`; both hashes are validated before either file is removed. This procedure does not touch the dashboard.
+
+The per-executable AppArmor profile trial is active and the global user-namespace restriction remains enabled. One bounded Codex CLI task created a real Markdown artifact in a disposable workspace. This does not prove persistent worker dispatch or independent verification.
 
 ## Destructive-operation warning
 

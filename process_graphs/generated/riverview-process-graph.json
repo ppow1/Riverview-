@@ -1858,7 +1858,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.1.9",
+      "graph_revision": "1.1.10",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -1889,7 +1889,10 @@
         "src/riverview_core/worker_adapter/recovery.py",
         "src/riverview_core/worker_adapter/service.py",
         "tests/test_codex_cli_adapter.py",
-        "tests/test_supervised_codex_dispatch.py"
+        "tests/test_supervised_codex_dispatch.py",
+        "scripts/provision_grace_engineering_demo.py",
+        "scripts/install_grace_owner_session.py",
+        "tests/test_grace_engineering_demo_provisioning.py"
       ],
       "documentation_references": [
         "docs/ROADMAP.md",
@@ -1908,7 +1911,8 @@
         "tests/test_institutional_authority_boundary.py",
         "tests/test_resident_conversation.py",
         "tests/test_resident_model_router.py",
-        "tests/test_supervised_codex_dispatch.py"
+        "tests/test_supervised_codex_dispatch.py",
+        "tests/test_grace_engineering_demo_provisioning.py"
       ],
       "nodes": [
         {
@@ -2393,9 +2397,9 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-resource-check",
-          "node_revision": "1.0.5",
+          "node_revision": "1.0.6",
           "type": "decision",
-          "label": "SOURCE READY, NOT COMMISSIONED — owner-session uses existing ChatGPT login in place; exact grants, pinned repository and artifact paths are required; a read-only bubblewrap sandbox preflight must pass before worker registration or dispatch",
+          "label": "Sandbox readiness PASS on Camrui: reviewed per-executable bwrap AppArmor profile and bounded authenticated Codex artifact test; source release and owner-session service still not commissioned",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "scripts/run_grace_execution_service.py",
@@ -2403,7 +2407,9 @@
             "deploy/systemd/riverview-grace-execution-owner-session.service",
             "deploy/grace-execution.env.example",
             "tests/test_codex_cli_adapter.py",
-            "tests/test_worker_service.py"
+            "tests/test_worker_service.py",
+            "scripts/install_grace_owner_session.py",
+            "tests/test_grace_engineering_demo_provisioning.py"
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_PIPELINE.md",
@@ -2413,24 +2419,28 @@
           "verification_evidence": [
             "tests/test_codex_cli_adapter.py",
             "tests/test_worker_service.py",
-            "tests/test_codex_cli_adapter.py"
+            "tests/test_codex_cli_adapter.py",
+            "tests/test_grace_engineering_demo_provisioning.py"
           ]
         },
         {
           "id": "rv:grace:operational-integration:codex-authority-gate",
-          "node_revision": "1.0.2",
+          "node_revision": "1.0.3",
           "type": "decision",
-          "label": "FAIL CLOSED — existing worker.register and assignment.execute checks remain mandatory in the exact Engineering scope",
+          "label": "Authorized fixed exact-scope standing grants provisioned through AuthorityRegistry; runtime exact worker.register and assignment.execute checks remain mandatory",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "src/riverview_core/worker_adapter/adapter.py",
-            "deploy/grace-execution.env.example"
+            "deploy/grace-execution.env.example",
+            "scripts/provision_grace_engineering_demo.py"
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_PIPELINE.md",
             "docs/architecture/INSTITUTIONAL_LEARNING_AND_RESOURCE_CAPABILITY_ROADMAP.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "tests/test_grace_engineering_demo_provisioning.py"
+          ]
         },
         {
           "id": "rv:grace:operational-integration:codex-cli-run",
@@ -2591,6 +2601,24 @@
           ],
           "verification_evidence": [
             "tests/test_grace_conversation_result.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:owner-session-provisioning",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Implemented, isolated-tested provisioning: fixed AuthorityRegistry grants and protected credentials; stage reviewed owner-session unit without enabling or starting it",
+          "source_references": [
+            "scripts/provision_grace_engineering_demo.py",
+            "scripts/install_grace_owner_session.py",
+            "deploy/systemd/riverview-grace-execution-owner-session.service"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_engineering_demo_provisioning.py"
           ]
         }
       ],
@@ -2926,6 +2954,24 @@
           "to": "rv:grace:operational-integration:verified-result-chat-return",
           "type": "recovery_route",
           "label": "Persistent poll retries; deterministic conversation response ID makes replay idempotent"
+        },
+        {
+          "from": "rv:grace:operational-integration:codex-resource-check",
+          "to": "rv:grace:operational-integration:owner-session-provisioning",
+          "type": "prerequisite",
+          "label": "Sandbox and subscription CLI readiness pass before owner-session staging"
+        },
+        {
+          "from": "rv:grace:operational-integration:owner-session-provisioning",
+          "to": "rv:grace:operational-integration:codex-authority-gate",
+          "type": "prerequisite",
+          "label": "Fixed standing grants and protected credentials are provisioned; no unit activation occurs here"
+        },
+        {
+          "from": "rv:grace:operational-integration:owner-session-provisioning",
+          "to": "rv:grace:operational-integration:codex-execution-failed",
+          "type": "diagnostic_branch",
+          "label": "Principal, grant, credential metadata, immutable source, or unit validation conflict; fail closed"
         }
       ]
     },
@@ -10705,6 +10751,7 @@
     "rv:grace:operational-integration:objective-intake",
     "rv:grace:operational-integration:office-bound-resident-runtime",
     "rv:grace:operational-integration:office-state-restart-and-replacement",
+    "rv:grace:operational-integration:owner-session-provisioning",
     "rv:grace:operational-integration:persistent-service-loop",
     "rv:grace:operational-integration:proposal-validation",
     "rv:grace:operational-integration:reason-decompose",
