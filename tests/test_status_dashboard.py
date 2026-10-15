@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.36
+# Revision: 1.0.37
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -30,6 +30,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
 # Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RECOVERY-001 | Cover release-pinned knowledge and idempotent wait-state intake.
 # Changed: 2026-10-15 UTC | RV-WEBSITE-PL004/006/008/011/012/014 | Assert assignment linkage, overview semantics, worker states, activity paging, event provenance, and refresh guidance.
+# Changed: 2026-10-15 UTC | RV-WEBSITE-PL016 | Reuse named dashboard/documentation tabs for return navigation.
 # =============================================================================
 """Security, API, privacy and PostgreSQL integration tests for M3.1."""
 
@@ -92,6 +93,16 @@ class _FakeProjection:
 
 
 class DashboardDeploymentContractTests(unittest.TestCase):
+    def test_documentation_links_reuse_a_named_tab_and_return_to_existing_dashboard(self):
+        app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
+        html = (ROOT / "src/riverview_core/status_dashboard/static/index.html").read_text(encoding="utf-8")
+        rendered = render_markdown("# Test", document="docs/components/STATUS_DASHBOARD.md",
+                                   title="Test").decode("utf-8")
+        self.assertIn('window.name = "rv-dashboard-main"', app)
+        self.assertIn('target="rv-dashboard-documentation"', app)
+        self.assertIn('target="rv-dashboard-documentation"', html)
+        self.assertIn('target="rv-dashboard-main"', rendered)
+
     def test_packaged_dashboard_uses_its_matching_knowledge_sources_by_default(self):
         with tempfile.TemporaryDirectory() as tmp:
             release = Path(tmp) / ("a" * 40)

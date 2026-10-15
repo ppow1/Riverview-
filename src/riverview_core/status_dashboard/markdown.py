@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/markdown.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Render approved component documentation as safe readable HTML
 # Execution Model: Request-time pure rendering of repository-controlled Markdown
 # Observability: Invalid or unsupported links remain inert text
 # Dependencies: Python standard library
 # Authority: No raw HTML; links are limited to HTTPS, anchors, and approved docs
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Preserve final character of validated local documentation links
+# Changed: 2026-10-15 UTC | RV-WEBSITE-PL016 | Return documentation navigation to the existing dashboard tab.
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -180,6 +181,6 @@ def render_markdown(source: str, *, document: str, title: str) -> bytes:
     page = ("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
             "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
             f"<title>{escape(title)}</title><link rel=\"stylesheet\" href=\"/assets/app.css\"></head>"
-            f"<body class=\"doc-page\"><header class=\"doc-topbar\"><a href=\"/#activity\">← Riverview dashboard</a>"
+            f"<body class=\"doc-page\"><header class=\"doc-topbar\"><a href=\"/#activity\" target=\"rv-dashboard-main\">← Riverview dashboard</a>"
             f"<span>{escape(title)}</span></header><main>{''.join(out)}</main></body></html>")
     return page.encode("utf-8")

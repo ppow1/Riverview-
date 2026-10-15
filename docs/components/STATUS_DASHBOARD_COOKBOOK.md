@@ -1,7 +1,7 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.8
+File Revision: 1.1.9
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
@@ -17,6 +17,7 @@ Changed: 2026-10-15 UTC | RV-WEBSITE-PL006 | Clarify overview cursor, projection
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL011 | Explain older/newer sequence paging and activity cursor recovery
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL012 | Explain event provenance and projection diagnostic limits
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL014 | Explain projection refresh, cache, freshness and status transitions
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL016 | Document reusable named-tab navigation and Firefox verification.
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -334,3 +335,28 @@ routes and process graphs against the candidate before switching; after restart
 verify loopback HTTP, authenticated status, service health and dependent service
 continuity. On failure restore only the prior dashboard link/unit and restart
 only `riverview-status-dashboard.service`.
+
+
+## Documentation tab and return navigation (PL-NEW-016)
+
+The dashboard sets its browsing-context name to `rv-dashboard-main`. Same-origin
+allowlisted component documentation links target `rv-dashboard-documentation`,
+so opening a later guide reuses that documentation tab. The rendered guide's
+“Riverview dashboard” link targets the named main context and preserves its
+existing tab. These links intentionally omit `rel=noreferrer`: that relation
+implies `noopener`, which prevents reuse of a named browsing context. This only
+applies to trusted same-origin documentation links.
+
+Verify the full behavior in an isolated Firefox fixture:
+
+```sh
+python3 scripts/verify_worker_inventory_browser.py \
+  --output evidence/checkouts/WEBSITE-PL016/<new-unique-run>/
+```
+
+The account-cookie fixture must report `documentation_link_uses_reusable_named_tab`,
+`documentation_return_reuses_dashboard_window`, and
+`second_document_reuses_documentation_tab` as true, retain exactly two
+browsing contexts, and report no browser errors. Latest evidence:
+`evidence/checkouts/WEBSITE-PL016/20261015T212500Z-documentation-navigation/`.
+The earlier failed iteration is retained separately and is not acceptance evidence.

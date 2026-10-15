@@ -1,5 +1,5 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.4.8
+// Revision: 1.4.9
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
 // Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Use linked Steward account session for exact-grant Grace connection
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password login, grant decisions and email configuration UI
@@ -10,8 +10,10 @@
 // Changed: 2026-10-15 UTC | RV-WEBSITE-PL004 | Show persisted assignment graph/node identity and a safe diagnostic link.
 // Changed: 2026-10-15 UTC | RV-WEBSITE-PL008 | Reconcile worker registration and heartbeat states in the bounded inventory.
 // Changed: 2026-10-15 UTC | RV-WEBSITE-PL011 | Add explicit older/newer activity paging with stable event sequence cursors.
+// Changed: 2026-10-15 UTC | RV-WEBSITE-PL016 | Reuse named dashboard and documentation tabs for safe return navigation.
 (() => {
   "use strict";
+  window.name = "rv-dashboard-main";
   const $ = (id) => document.getElementById(id);
   const state = {token: sessionStorage.getItem("rv.dashboard.token") || "", accountIdentity: null, status: null,
     assignments: [], events: [], attention: [], attentionStatus: "unknown", workers: [], assignmentCursor: null,
@@ -53,7 +55,7 @@
   const item = (label, value) => `<div class="detail-item"><div class="detail-label">${esc(label)}</div><div class="detail-value">${esc(value)}</div></div>`;
   const diagnosticItem = (reference) => {
     const match = /^docs\/components\/([A-Za-z0-9_-]+\.md)$/.exec(String(reference || ""));
-    const value = match ? `<a href="/docs/components/${esc(match[1])}" target="_blank" rel="noreferrer">${esc(reference)}</a>` : esc(reference || "No diagnostic reference recorded");
+    const value = match ? `<a href="/docs/components/${esc(match[1])}" target="rv-dashboard-documentation">${esc(reference)}</a>` : esc(reference || "No diagnostic reference recorded");
     return `<div class="detail-item"><div class="detail-label">Diagnostic reference</div><div class="detail-value">${value}</div></div>`;
   };
   const noData = (text) => `<div class="row"><span class="row-meta">${esc(text)}</span></div>`;
@@ -96,7 +98,7 @@
     host.querySelectorAll("[data-assignment]").forEach((button) => button.addEventListener("click", () => loadDetail(button.dataset.assignment)));
   }
   function eventRows(events) {
-    return events.length ? events.map((e) => `<article class="event-card"><div class="event-head"><span class="event-type">${esc(human(e.event_type))}</span><time class="event-time">${esc(when(e.recorded_at))}</time></div><div class="event-ids"><span>seq ${esc(e.seq)}</span><span>event ${esc(e.event_id)}</span>${e.assignment_id ? `<button data-assignment="${esc(e.assignment_id)}">assignment ${esc(e.assignment_id)}</button>` : "<span>Service-level event</span>"}<span>Actor ${esc(e.actor_id || "not recorded")}</span><span>Correlation ${esc(e.correlation_id || "not recorded")}</span><span>${e.causation_id ? `Caused by ${esc(e.causation_id)}` : "Root event (no parent recorded)"}</span><span>Payload schema ${esc(e.payload_schema || "not reported")}</span></div><div class="row-meta">Event payload and event-specific diagnostic reference are not included in this projection. <a href="/docs/components/STATUS_DASHBOARD_COOKBOOK.md" target="_blank" rel="noreferrer">Dashboard troubleshooting</a></div></article>`).join("") : noData("No institution events in this page.");
+    return events.length ? events.map((e) => `<article class="event-card"><div class="event-head"><span class="event-type">${esc(human(e.event_type))}</span><time class="event-time">${esc(when(e.recorded_at))}</time></div><div class="event-ids"><span>seq ${esc(e.seq)}</span><span>event ${esc(e.event_id)}</span>${e.assignment_id ? `<button data-assignment="${esc(e.assignment_id)}">assignment ${esc(e.assignment_id)}</button>` : "<span>Service-level event</span>"}<span>Actor ${esc(e.actor_id || "not recorded")}</span><span>Correlation ${esc(e.correlation_id || "not recorded")}</span><span>${e.causation_id ? `Caused by ${esc(e.causation_id)}` : "Root event (no parent recorded)"}</span><span>Payload schema ${esc(e.payload_schema || "not reported")}</span></div><div class="row-meta">Event payload and event-specific diagnostic reference are not included in this projection. <a href="/docs/components/STATUS_DASHBOARD_COOKBOOK.md" target="rv-dashboard-documentation">Dashboard troubleshooting</a></div></article>`).join("") : noData("No institution events in this page.");
   }
   function bindEventLinks() { document.querySelectorAll("#event-list [data-assignment],#overview-events [data-assignment]").forEach((b) => b.addEventListener("click", () => loadDetail(b.dataset.assignment))); }
   async function refreshStatus() {

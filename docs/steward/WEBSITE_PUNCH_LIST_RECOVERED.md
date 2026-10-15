@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md
 Component: STEWARD-DASHBOARD / WEBSITE
-File Revision: 1.0.14
+File Revision: 1.0.15
 Purpose: Consolidate traceable website improvement observations and separate them from accepted requirements and completed work
 Authority: Backlog recovery only; no new product requirement or acceptance decision
 Changed: 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Recover and prioritize documented website observations
@@ -24,6 +24,7 @@ Changed: 2026-10-15 UTC | RV-WEBSITE-PL011 | Add explicit older/newer event pagi
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL007 | Record effective heartbeat threshold as unavailable to website and block on source contract
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL012 | Show available event provenance and record task/diagnostic source limits
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL014 | Explain status projection refresh and explicit source transitions
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL016 | Complete same-tab documentation return behavior in the isolated browser.
 History: Git
 -->
 # Recovered Riverview website punch list
@@ -61,7 +62,7 @@ Priority labels and wording below follow the source punch list. “Captured” m
 | PL-NEW-013 | Diagnostics | Audit code-to-graph, cookbook, and diagnostic-catalog coverage. | High | Audit complete; exact-match traceability gaps recorded in [`PL-NEW-013 diagnostic coverage audit`](../development/PL-NEW-013-DIAGNOSTIC-COVERAGE_AUDIT.md); semantic coverage is not exhaustively classified |
 | PL-NEW-014 | Dashboard | Explain projection refresh, cache, freshness, and status transitions. | Medium | Implemented in overview guidance and dashboard troubleshooting: documents no-store refresh, source observation time, healthy/not-initialized/unavailable meanings, and separate event/detail fetches; isolated Firefox and focused tests pass; integration review pending |
 | PL-NEW-015 | Grace objectives | Explain schema/migration initialization, refresh semantics, and commissioning prerequisites. | High | Captured |
-| PL-NEW-016 | Navigation | Prevent documentation-tab/back navigation from creating duplicate dashboard tabs. | Medium | Captured |
+| PL-NEW-016 | Navigation | Prevent documentation-tab/back navigation from creating duplicate dashboard tabs. | Medium | Implemented and isolated Firefox verified; exact two-tab reuse passes. Production acceptance awaits controlled integration/deployment. Evidence: [`PL-NEW-016 browser report`](../../evidence/checkouts/WEBSITE-PL016/20261015T212500Z-documentation-navigation/browser-acceptance.json) |
 | PL-NEW-017 | Chat | Add a future multi-resident selector. | Later | Captured; explicitly future |
 | PL-NEW-018 | Chat | Add meaningful editable conversation titles and searchable persistent history. | High | Captured |
 | PL-NEW-019 | Chat | Fix transcript/composer clipping and last-message visibility. | High | Captured |
@@ -103,7 +104,8 @@ Priority labels and wording below follow the source punch list. “Captured” m
 11. **PL-NEW-006 — implemented on this branch; verification passes:** the overview and cookbook explain event cursor, read-only projection/freshness, independent CME/worker heartbeat states, and Grace execution versus chat availability.
 12. **PL-NEW-012 — available projection fields implemented; source gap recorded:** event cards expose humanized type, timestamp, event/sequence identity, actor, correlation/causation, payload schema and assignment when available. Separate task identity and event-specific diagnostic reference are absent from the API. Full punch-list outcome remains partial pending an integration-owned source contract; see the Activity section in the dashboard cookbook.
 13. **PL-NEW-014 — implemented on this branch:** projection refresh, cache bypass, source observation time, and status transitions are explained in the overview and troubleshooting cookbook; isolated browser and focused tests pass.
-14. **Next eligible item: PL-NEW-016 (Medium):** inspect documentation-tab/back navigation for duplicate dashboard tabs using the existing shell and browser behavior; change only website navigation.
+14. **PL-NEW-016 — implemented and isolated Firefox verified:** the dashboard uses a stable named browsing context; same-origin allowlisted documentation links share one documentation tab; documentation return targets the original dashboard context. Removing `rel=noreferrer` from these same-origin links was required because its implicit `noopener` prevented named-context reuse. The browser confirms two tabs throughout; see the report and screenshots under [`PL-NEW-016 evidence`](../../evidence/checkouts/WEBSITE-PL016/20261015T212500Z-documentation-navigation/). Production acceptance remains pending.
+15. **Next candidate: PL-NEW-003 (Medium):** inspect assignment titles and identifiers, using only persisted source fields; do not derive assignment purpose or deliverables.
 15. **Other captured items:** group by shared UI surface and dependencies. High priority does not itself authorize changing Grace, Engineering execution, authorization, CME, or production services in this website track.
 
 ## Existing implementation evidence (not punch-list closure)
@@ -122,6 +124,8 @@ Priority labels and wording below follow the source punch list. “Captured” m
 The website track owns dashboard presentation and navigation, primarily `status_dashboard/static/workflow.js`, `app.css`, `index.html`, and dashboard tests/docs. PR #40 also touched `status_dashboard/server.py`, `status_dashboard/static/app.js`, `tests/test_status_dashboard.py`, and dashboard component documentation for stream compatibility. This change avoids its shared behavior-code and test files; the only same-file overlaps are additive paragraphs in `STATUS_DASHBOARD.md` and `STATUS_DASHBOARD_COOKBOOK.md` describing workflow navigation. Stream documentation and behavior were left intact. Grace conversation runtime, model routing, migrations, Grace verification, Engineering execution, CME, authority, and deployment configuration remain outside this change. No production service or database was changed.
 
 ## Revision history
+
+- **1.0.15 — 2026-10-15:** Complete PL-NEW-016 named-tab navigation and record isolated Firefox evidence; production acceptance remains pending. Predecessor preserved in `.riverview-backups/20261015T205656097722Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
 
 - **1.0.14 — 2026-10-15:** Record PL-NEW-014 projection refresh guidance and PL-NEW-016 as next eligible. Predecessor preserved in `.riverview-backups/20261015T203611503172Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
 - **1.0.13 — 2026-10-15:** Record PL-NEW-012 available event provenance implementation and event-specific diagnostic source gap. Predecessor preserved in `.riverview-backups/20261015T203354306114Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.

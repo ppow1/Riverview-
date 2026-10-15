@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.130
+**Document Revision:** 1.0.131
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
@@ -18,6 +18,7 @@
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL025 | Record PR #42 update and exact-head CI result
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL012 | Record Activity provenance UI and event-source limitations
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL014 | Record projection status guidance, browser verification and source semantics
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL016 | Verify documentation tab reuse and return without duplicate dashboard windows
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PR42-RECONCILE | Preserve PR #44 integration journal entry and record current base reconciliation
 **Changed:** 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow the explicitly reviewed supervised Bash runner in exact-source packages while retaining strict checks for other scripts
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
@@ -1744,3 +1745,28 @@ Grace work-order recovery source, graph, generated graph, component docs, and
 test coverage. Shared revision, journal, and dashboard-test records were
 resolved additively. No Grace execution behavior was changed in this
 reconciliation.
+
+
+## 2026-10-15 UTC — RV-WEBSITE-PL016
+
+**Classification:** documentation and back-navigation behavior.
+**Owner:** STEWARD-DASHBOARD / website navigation.
+
+Dashboard documentation links now target a reusable named documentation
+browsing context. The rendered documentation header returns to the named
+dashboard context. Same-origin links omit `rel=noreferrer` because its implicit
+`noopener` would force new browsing contexts and defeat name reuse. No route,
+API, authority, event stream, or server behavior changed. The existing dashboard
+process graph's render-documentation node now records this test evidence; its
+node revision was incremented, and generated graph views were synchronized.
+
+The focused test passed (`1 passed`). The isolated Firefox fixture passed all
+checks, including documentation tab reuse, return to the original dashboard,
+second document reuse, cookie-only API requests, no bearer header and no browser
+errors. Evidence is in
+`evidence/checkouts/WEBSITE-PL016/20261015T212500Z-documentation-navigation/`.
+An earlier run exposed the implicit-`noopener` defect; its failed report is
+preserved in the adjacent `20261015T211500Z-documentation-navigation/`
+directory. Production acceptance remains pending controlled integration and
+deployment. No production service, database, schema, grant, CME, worker, OCTO
+configuration, or deployment was touched.

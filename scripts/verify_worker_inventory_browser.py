@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/verify_worker_inventory_browser.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Verify worker registration, heartbeat states and pagination in Firefox
 # Execution Model: Isolated loopback fixture; owns only its HTTP and geckodriver processes
 # Observability: Redacted JSON report and screenshot; synthetic account and assignment data
@@ -9,6 +9,7 @@
 # Authority: No production access; authenticated fixture reads only
 # Changed: 2026-10-15 UTC | RV-WEBSITE-PL008 | Add isolated worker inventory browser verification
 # Changed: 2026-10-15 UTC | RV-WEBSITE-PL012 | Verify event provenance and diagnostic boundary rendering
+# Changed: 2026-10-15 UTC | RV-WEBSITE-PL016 | Verify documentation tab reuse and return to dashboard
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: scripts/verify_worker_inventory_browser.py
 # History: Git
@@ -109,6 +110,15 @@ def main():
                            "resident-permissions.js": "text/javascript", "app.css": "text/css"}
                 if name in allowed:
                     return self.send_file(STATIC / name, allowed[name])
+            if self.path.startswith("/docs/components/"):
+                name = self.path.rsplit("/", 1)[-1]
+                title = name.replace(".md", "")
+                body = (f'<!doctype html><title>{title}</title><main><h1>{title}</h1>'
+                        '<a id="doc-dashboard-link" href="/#activity" target="rv-dashboard-main">Riverview dashboard</a></main>')
+                raw = body.encode()
+                self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(raw))); self.end_headers(); self.wfile.write(raw)
+                return
             if not authenticated:
                 return self.send_json(401, {"error": "authentication_required"})
             if self.path == "/api/v1/auth/session":
@@ -226,6 +236,32 @@ def main():
         wait_js("document.querySelector('#event-list').textContent.includes('seq 4')")
         activity_screenshot = base64.b64decode(webdriver("GET", f"/session/{session_id}/screenshot")["value"])
         event_paging = js("return {sequences:[...document.querySelectorAll('#event-list .event-ids span:first-child')].map(node=>node.textContent),olderHidden:document.querySelector('#more-events').hidden,newerHidden:document.querySelector('#newer-events').hidden}")
+        dashboard_handle = webdriver("GET", f"/session/{session_id}/window")["value"]
+        js("document.querySelector('#event-list a').click()")
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            handles = webdriver("GET", f"/session/{session_id}/window/handles")["value"]
+            if len(handles) == 2: break
+            time.sleep(0.2)
+        docs_handle = next((handle for handle in handles if handle != dashboard_handle), None)
+        webdriver("POST", f"/session/{session_id}/window", {"handle": docs_handle})
+        first_docs_url = webdriver("GET", f"/session/{session_id}/url")["value"]
+        js("document.querySelector('#doc-dashboard-link').click()")
+        time.sleep(0.5)
+        dashboard_url_after_return = None
+        handles_after_return = webdriver("GET", f"/session/{session_id}/window/handles")["value"]
+        webdriver("POST", f"/session/{session_id}/window", {"handle": dashboard_handle})
+        dashboard_url_after_return = webdriver("GET", f"/session/{session_id}/url")["value"]
+        js("document.querySelector('#view-activity .diagnostics a').click()")
+        time.sleep(0.5)
+        handles_after_second_doc = webdriver("GET", f"/session/{session_id}/window/handles")["value"]
+        webdriver("POST", f"/session/{session_id}/window", {"handle": docs_handle})
+        second_docs_url = webdriver("GET", f"/session/{session_id}/url")["value"]
+        docs_navigation = {"dashboard_handle": dashboard_handle, "documentation_handle": docs_handle,
+            "handles_after_first_doc": handles, "handles_after_dashboard_return": handles_after_return,
+            "handles_after_second_doc": handles_after_second_doc, "first_docs_url": first_docs_url,
+            "dashboard_url_after_return": dashboard_url_after_return, "second_docs_url": second_docs_url}
+        webdriver("POST", f"/session/{session_id}/window", {"handle": dashboard_handle})
         errors = js("return window.__rvBrowserErrors")
         protected_requests = [r for r in requests if r["path"].startswith("/api/v1/")]
         report = {"browser": subprocess.check_output(["firefox", "--version"], text=True).strip(),
@@ -235,6 +271,7 @@ def main():
                   "overview_guidance": guidance,
                   "initial_event_page": initial_event_page, "older_event_page": older_event_page,
                   "activity_paging": event_paging,
+                  "documentation_navigation": docs_navigation,
                   "api_requests": protected_requests, "browser_errors": errors,
                   "screenshot_bytes": len(screenshot), "checks": {}}
         report["checks"] = {
@@ -253,6 +290,9 @@ def main():
             "activity_page_controls_match_cursors": not initial_event_page["olderHidden"] and not initial_event_page["newerHidden"] and event_paging["olderHidden"] and not event_paging["newerHidden"],
             "event_cards_show_actor_schema_causation_and_assignment": all(term in js("return document.querySelector('#event-list').textContent") for term in ["Actor service:fixture.v1", "Payload schema rv.fixture_event.v1", "Caused by fixture-parent-event", "assignment fixture-linked"]),
             "event_cards_disclose_payload_and_diagnostic_boundary": "event-specific diagnostic reference are not included" in js("return document.querySelector('#event-list').textContent") and js("return [...document.querySelectorAll('#event-list a')].some(a => a.href.includes('STATUS_DASHBOARD_COOKBOOK.md'))"),
+            "documentation_link_uses_reusable_named_tab": len(docs_navigation["handles_after_first_doc"]) == 2 and docs_navigation["first_docs_url"].endswith("STATUS_DASHBOARD_COOKBOOK.md"),
+            "documentation_return_reuses_dashboard_window": len(docs_navigation["handles_after_dashboard_return"]) == 2 and docs_navigation["dashboard_url_after_return"].endswith("/#activity"),
+            "second_document_reuses_documentation_tab": len(docs_navigation["handles_after_second_doc"]) == 2 and docs_navigation["second_docs_url"].endswith("RIVERVIEW_OPERATIONS_COOKBOOK.md"),
             "requests_use_account_cookie": bool(protected_requests) and all(r["cookie_authenticated"] for r in protected_requests),
             "no_bearer_authorization": all(not r["authorization_present"] for r in protected_requests),
             "no_browser_errors": not errors,
