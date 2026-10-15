@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.28
+**Document Revision:** 1.0.29
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -73,7 +73,7 @@ flowchart LR
 flowchart LR
   subgraph g_rv_grace_operational_integration["RESIDENT-ORCHESTRATION / grace-engineering-objective.v1"]
     g_rv_grace_operational_integration_objective_intake_55567c14(["IMPLEMENTED — exact objective.submit persists one objective per authenticated conversation message origin; retries revalidate the grant and retain original criteria"])
-    g_rv_grace_operational_integration_objective_intake_retry_fdc5836e["SAME-SOURCE RETRY — revalidate objective.submit, retain immutable criteria, resume the durable objective without creating a duplicate"]
+    g_rv_grace_operational_integration_objective_intake_retry_fdc5836e["SAME-SOURCE RETRY — revalidate objective.submit, retain immutable criteria, and rerun grounding for the existing durable objective"]
     g_rv_grace_operational_integration_authority_check_71ce44bf["IMPLEMENTED — objective.submit and assignment.create use exact active grants; no proposal grants authority"]
     g_rv_grace_operational_integration_reason_decompose_d48619ca["ISOLATED PERSISTENT INTEGRATION TESTED — existing ResidentReasoner handles grounded objectives and stores office-keyed plans; live model and supervised resident commissioning remain unverified"]
     g_rv_grace_operational_integration_durable_plan_26bc431c["IMPLEMENTED — objective, complete evidence provenance, and unapproved plan persist in PostgreSQL"]
@@ -90,8 +90,8 @@ flowchart LR
     g_rv_grace_operational_integration_proposal_validation_90e4c0ca["IMPLEMENTED — persist only typed proposals after complete VERIFIED grounding"]
     g_rv_grace_operational_integration_work_order_authorization_829196dd["IMPLEMENTED — assignment.create exact grant precedes durable CME handoff"]
     g_rv_grace_operational_integration_independent_artifact_check_2502f001["IMPLEMENTED TEST ADAPTER — reopen artifact and verify digest, task identity, criteria, and provenance"]
-    g_rv_grace_operational_integration_waiting_and_failure_0a7985d4[["IMPLEMENTED — missing or unverified evidence remains pending; preserve the objective and recover by retrying its authenticated origin after the knowledge source is corrected"]]
-    g_rv_grace_operational_integration_governed_objective_api_39b3aa23["Authenticated exact-grant request persists a durable receipt; verified grounding advances, incomplete evidence remains WAITING_FOR_EVIDENCE and same-origin retry resumes without duplication"]
+    g_rv_grace_operational_integration_waiting_and_failure_0a7985d4[["IMPLEMENTED — incomplete evidence remains pending; an authenticated retry after source correction either atomically advances the same objective to GROUNDED or records another pending revision"]]
+    g_rv_grace_operational_integration_governed_objective_api_39b3aa23["Authenticated exact-grant request persists one receipt; VERIFIED grounding advances RECEIVED or WAITING_FOR_EVIDENCE to GROUNDED atomically, while incomplete evidence stays pending"]
     g_rv_grace_operational_integration_typed_proposal_api_9e97178a["Typed PlanProposal is persisted only after verified grounding and complete acceptance criteria; proposal does not grant authority"]
     g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8["Persistent loop reads and records authorized Grace objectives/events, dispatches eligible proposals, polls the existing leased worker, verifies outcomes, and persists heartbeat through the narrowly scoped runtime ACL; missing privileges remain a visible failure"]
     g_rv_grace_operational_integration_dispatch_retry_limit_3d51ab17{"Persist authorization/dispatch failures; stop automatic dispatch after three attempts and expose the proposal for operator attention"}
@@ -144,9 +144,9 @@ flowchart LR
   g_rv_grace_operational_integration_independent_artifact_check_2502f001 -->|diagnostic_branch| g_rv_grace_operational_integration_waiting_and_failure_0a7985d4
   g_rv_grace_operational_integration_evidence_review_600fe7b4 --> g_rv_grace_operational_integration_independent_artifact_check_2502f001
   g_rv_grace_operational_integration_governed_objective_api_39b3aa23 --> g_rv_grace_operational_integration_objective_intake_55567c14
-  g_rv_grace_operational_integration_objective_intake_55567c14 --> g_rv_grace_operational_integration_typed_proposal_api_9e97178a
+  g_rv_grace_operational_integration_objective_intake_55567c14 --> g_rv_grace_operational_integration_bounded_evidence_selection_eb29b3f5
   g_rv_grace_operational_integration_objective_intake_55567c14 -->|recovery_route: Retry the same authenticated source without changing original objective acceptance criteria| g_rv_grace_operational_integration_objective_intake_retry_fdc5836e
-  g_rv_grace_operational_integration_objective_intake_retry_fdc5836e -->|The durable objective remains eligible for normal grounded CME processing| g_rv_grace_operational_integration_typed_proposal_api_9e97178a
+  g_rv_grace_operational_integration_objective_intake_retry_fdc5836e -->|Reground the same objective; verified evidence advances it once to normal proposal processing| g_rv_grace_operational_integration_typed_proposal_api_9e97178a
   g_rv_grace_operational_integration_objective_intake_retry_fdc5836e -->|diagnostic_branch: Revoked exact grant or mismatched source identity fails closed without changing the objective| g_rv_grace_operational_integration_waiting_and_failure_0a7985d4
   g_rv_grace_operational_integration_typed_proposal_api_9e97178a --> g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8
   g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8 --> g_rv_grace_operational_integration_work_order_authorization_829196dd

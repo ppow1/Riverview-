@@ -1858,7 +1858,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.1.14",
+      "graph_revision": "1.1.15",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -1934,9 +1934,9 @@
         },
         {
           "id": "rv:grace:operational-integration:objective-intake-retry",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "recovery",
-          "label": "SAME-SOURCE RETRY — revalidate objective.submit, retain immutable criteria, resume the durable objective without creating a duplicate",
+          "label": "SAME-SOURCE RETRY — revalidate objective.submit, retain immutable criteria, and rerun grounding for the existing durable objective",
           "source_references": [
             "src/riverview_core/status_dashboard/server.py",
             "src/riverview_core/resident_execution/pipeline.py"
@@ -1950,7 +1950,7 @@
         },
         {
           "id": "rv:grace:operational-integration:authority-check",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "verification",
           "label": "IMPLEMENTED — objective.submit and assignment.create use exact active grants; no proposal grants authority",
           "source_references": [
@@ -2187,9 +2187,9 @@
         },
         {
           "id": "rv:grace:operational-integration:waiting-and-failure",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "failure",
-          "label": "IMPLEMENTED — missing or unverified evidence remains pending; preserve the objective and recover by retrying its authenticated origin after the knowledge source is corrected",
+          "label": "IMPLEMENTED — incomplete evidence remains pending; an authenticated retry after source correction either atomically advances the same objective to GROUNDED or records another pending revision",
           "source_references": [
             "src/riverview_core/status_dashboard/server.py",
             "src/riverview_core/resident_execution/pipeline.py"
@@ -2198,14 +2198,15 @@
             "docs/components/GRACE_EXECUTION_COOKBOOK.md"
           ],
           "verification_evidence": [
-            "tests/test_status_dashboard.py"
+            "tests/test_status_dashboard.py",
+            "tests/test_grace_execution.py"
           ]
         },
         {
           "id": "rv:grace:operational-integration:governed-objective-api",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "process",
-          "label": "Authenticated exact-grant request persists a durable receipt; verified grounding advances, incomplete evidence remains WAITING_FOR_EVIDENCE and same-origin retry resumes without duplication",
+          "label": "Authenticated exact-grant request persists one receipt; VERIFIED grounding advances RECEIVED or WAITING_FOR_EVIDENCE to GROUNDED atomically, while incomplete evidence stays pending",
           "source_references": [
             "src/riverview_core/status_dashboard/server.py",
             "src/riverview_core/resident_execution/pipeline.py"
@@ -2215,7 +2216,8 @@
             "docs/components/GRACE_EXECUTION_COOKBOOK.md"
           ],
           "verification_evidence": [
-            "tests/test_status_dashboard.py"
+            "tests/test_status_dashboard.py",
+            "tests/test_grace_execution.py"
           ]
         },
         {
@@ -2784,7 +2786,7 @@
         },
         {
           "from": "rv:grace:operational-integration:objective-intake",
-          "to": "rv:grace:operational-integration:typed-proposal-api",
+          "to": "rv:grace:operational-integration:bounded-evidence-selection",
           "type": "runtime_transition"
         },
         {
@@ -2797,7 +2799,7 @@
           "from": "rv:grace:operational-integration:objective-intake-retry",
           "to": "rv:grace:operational-integration:typed-proposal-api",
           "type": "runtime_transition",
-          "label": "The durable objective remains eligible for normal grounded CME processing"
+          "label": "Reground the same objective; verified evidence advances it once to normal proposal processing"
         },
         {
           "from": "rv:grace:operational-integration:objective-intake-retry",
