@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.30
+File Revision: 1.1.31
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -45,6 +45,7 @@ Changed: 2026-10-15 UTC | RV-GRACE-AUTONOMIC-LATENCY-BOUND-001 | Cap 0.6B acknow
 Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Add authenticated durable streaming, reconnect, browser latency, recovery, and diagnostics contract
 Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Compact discarded partial output behind a monotonic reset marker on retry
 Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Compact partial text immediately on deferral and keep repeated deferral state idempotent
+Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RECOVERY-001 | Pin default grounding to the active immutable dashboard release and make origin retries idempotent
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
@@ -107,6 +108,24 @@ objective receipt event. The account role and the legacy dashboard recovery
 token do not substitute for those grants. A successful response means objective
 intake/grounding only; assignment creation and execution remain separately
 authorized.
+
+The route resolves repository knowledge from an explicit
+`RIVERVIEW_KNOWLEDGE_ROOT`, when configured. Otherwise a packaged dashboard
+uses its own immutable release directory when both `SOURCE_COMMIT` and
+`PACKAGE_SHA256SUMS` are present. This keeps the knowledge provider's pinned
+revision aligned with the dashboard code; development checkouts retain the
+legacy shared-core default.
+
+Intake is a durable receipt. The objective is recorded before evidence
+grounding, so missing or unverified repository evidence is returned as
+`202 WAITING_FOR_EVIDENCE`, not reported as a conflicting submission. The
+conversation and source sequence identify one objective. An exact repeat of
+that authenticated message and acceptance criteria reuses the same objective
+and retries grounding; changed criteria, submitter, scope, or source are a
+conflict. A previously created objective is never silently duplicated. The
+receipt includes only bounded evidence status and source metadata, not request
+or evidence contents. Exact `objective.submit` authorization and conversation
+ownership are revalidated on every intake request.
 
 | Method and route | Purpose | Result |
 | --- | --- | --- |

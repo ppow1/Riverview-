@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.27
+# Revision: 1.0.28
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -28,6 +28,7 @@
 # Tests: This file
 # History: Git and revision/backup manifest
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
+# Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RECOVERY-001 | Cover release-pinned knowledge and idempotent wait-state intake.
 # =============================================================================
 """Security, API, privacy and PostgreSQL integration tests for M3.1."""
 
@@ -46,7 +47,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from riverview_core.status_dashboard.projection import DashboardProjection
-from riverview_core.status_dashboard.server import DashboardHTTPServer, _read_token
+from riverview_core.status_dashboard.server import DashboardHTTPServer, _knowledge_root, _read_token
 from riverview_core.status_dashboard.markdown import render_markdown
 
 DSN = os.environ.get("RIVERVIEW_TEST_PG_DSN")
@@ -90,6 +91,18 @@ class _FakeProjection:
 
 
 class DashboardDeploymentContractTests(unittest.TestCase):
+    def test_packaged_dashboard_uses_its_matching_knowledge_sources_by_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            release = Path(tmp) / ("a" * 40)
+            release.mkdir()
+            (release / "SOURCE_COMMIT").write_text("a" * 40 + "\n", encoding="ascii")
+            (release / "PACKAGE_SHA256SUMS").write_text("manifest\n", encoding="ascii")
+            self.assertEqual(_knowledge_root(release_root=release), release)
+            self.assertEqual(_knowledge_root(release_root=release, configured="/srv/approved"),
+                             Path("/srv/approved"))
+            (release / "PACKAGE_SHA256SUMS").unlink()
+            self.assertEqual(_knowledge_root(release_root=release), Path("/opt/riverview-core"))
+
     def test_workflow_registry_client_supports_account_cookie_sessions(self):
         static = Path(__file__).resolve().parents[1] / "src/riverview_core/status_dashboard/static"
         js = (static / "workflow.js").read_text(encoding="utf-8")
@@ -236,6 +249,113 @@ class DashboardHTTPTests(unittest.TestCase):
         status, _, body = self.request("POST", path, token=self.token)
         self.assertEqual(status, 403)
         self.assertEqual(json.loads(body)["error"], "steward_account_session_required")
+
+    def test_conversation_work_order_wait_is_receipted_and_same_origin_retry_is_idempotent(self):
+        from contextlib import contextmanager
+        from riverview_core.resident_execution import ObjectiveStateError
+
+        principal_id = "steward:camrui"
+        conversation_id = "00000000-0000-4000-8000-000000000001"
+        criteria = ["criterion one", "criterion two"]
+
+        class AccountAuth:
+            def authenticate(self, credential, *, csrf_token, state_changing):
+                self.assertion = (credential, csrf_token, state_changing)
+                return {"roles": ["steward"], "authority_principal_id": principal_id}
+            def require_role(self, identity, *roles):
+                return None
+
+        class StoreCursor:
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def execute(self, *_): return None
+            def fetchone(self):
+                return {"body": "bounded source message", "actor_kind": "principal",
+                        "actor_id": principal_id}
+
+        class ConversationStore:
+            db = type("DB", (), {"cursor": lambda _: StoreCursor()})()
+            def _path(self, _cursor): return None
+
+        class ConversationService:
+            store = ConversationStore()
+            def history(self, _authority, _conversation_id): return []
+
+        class PipelineCursor:
+            def __init__(self, pipeline): self.pipeline = pipeline
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def execute(self, *_): return None
+            def fetchall(self):
+                return ([{"objective_id": self.pipeline.objective["objective_id"]}]
+                        if self.pipeline.objective else [])
+
+        class PipelineDB:
+            def __init__(self, pipeline): self.pipeline = pipeline
+            def cursor(self): return PipelineCursor(self.pipeline)
+
+        class PipelineLedger:
+            def __init__(self, pipeline): self.db = PipelineDB(pipeline)
+            def _set_search_path(self, _cursor): return None
+
+        class Pipeline:
+            def __init__(self):
+                self.objective = None
+                self.submit_count = 0
+                self.ground_count = 0
+                self.ledger = PipelineLedger(self)
+            def submit_objective(self, objective_id, request, acceptance_criteria, *,
+                                 scope_ref, principal, origin):
+                self.submit_count += 1
+                self.objective = {"objective_id": objective_id, "request": request.strip(),
+                    "acceptance_criteria": acceptance_criteria, "scope_ref": scope_ref,
+                    "submitter_id": principal.principal_id, "status": "RECEIVED",
+                    "evidence": None, "source_revision": None, "origin": origin}
+                return self.objective
+            def ground_objective(self, _objective_id):
+                self.ground_count += 1
+                self.objective.update({"status": "WAITING_FOR_EVIDENCE", "revision": 2,
+                    "evidence": {"status": "UNVERIFIED", "retrieval_complete": False,
+                                 "source_references": [], "source_revision": "b" * 40}})
+                raise ObjectiveStateError("repository evidence is not complete and verified")
+            def get_objective(self, objective_id):
+                if self.objective and self.objective["objective_id"] == objective_id:
+                    return self.objective
+                return None
+
+        auth = AccountAuth()
+        pipeline = Pipeline()
+        self.server._account_auth_service = auth
+        self.server._conversation_service = ConversationService()
+        self.server._objective_pipeline = pipeline
+
+        def post_work_order(criteria_value):
+            body = json.dumps({"source_sequence": 6,
+                               "acceptance_criteria": criteria_value}).encode("utf-8")
+            conn = HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
+            conn.request("POST", f"/api/v1/resident/conversations/{conversation_id}/work-orders",
+                body=body, headers={"Cookie": "rv_account_session=session; rv_account_csrf=csrf",
+                                    "X-Riverview-CSRF": "csrf", "Content-Type": "application/json"})
+            response = conn.getresponse()
+            status, payload = response.status, json.loads(response.read())
+            conn.close()
+            return status, payload
+
+        first_status, first = post_work_order(criteria)
+        second_status, second = post_work_order(criteria)
+        self.assertEqual(first_status, 202)
+        self.assertEqual(second_status, 202)
+        self.assertEqual(first["objective_id"], second["objective_id"])
+        self.assertEqual(second["status"], "WAITING_FOR_EVIDENCE")
+        self.assertEqual(second["evidence"]["status"], "UNVERIFIED")
+        self.assertEqual(pipeline.submit_count, 1)
+        self.assertEqual(pipeline.ground_count, 2)
+        self.assertEqual(auth.assertion, ("session", "csrf", True))
+
+        conflict_status, conflict = post_work_order(["different criteria"])
+        self.assertEqual(conflict_status, 409)
+        self.assertEqual(conflict["error"], "work_order_conflict")
+        self.assertEqual(pipeline.submit_count, 1)
 
     def test_conversation_stream_requires_authentication_and_existing_service(self):
         path="/api/v1/resident/conversations/00000000-0000-4000-8000-000000000001/responses/00000000-0000-4000-8000-000000000002/stream?after=0"
