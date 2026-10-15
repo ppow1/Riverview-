@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.54
+**Document Revision:** 1.1.55
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-11
 **Component:** RV-ROADMAP  
@@ -11,6 +11,7 @@
 **Changed:** 2026-10-15 UTC | RV-GRACE-CODEX-SANDBOX-READINESS-001 | Record Camrui sandbox denial and fail-closed Codex dispatch readiness gate
 **Changed:** 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Correct sandbox readiness status and record exact grant provisioning and owner-session install tooling
 **Changed:** 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Record full isolated PostgreSQL regression and unchanged production release/binding
+**Changed:** 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Record PR #34 source commit, passing controlled-checkout CI, and pending review
 **Changed:** 2026-10-11 UTC | RV-M3.3-LIVE-COMMISSIONING | Record live governed request, worker, artifact, verifier, dashboard and recovery evidence; retain concurrency/full-DoD limits
 **Changed:** 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION | Verify a real NO_MATCH assignment remains waiting while the scheduler executes and verifies an unrelated valid assignment
 **Changed:** 2026-10-11 UTC | RV-M3.3-HISTORICAL-BLOCKER-CLARIFICATION | Label pre-commissioning M4.2 checkpoint status as historical and point to current M3.3 evidence
@@ -215,6 +216,8 @@ alignment with that document remains unverified.
 
 **Grace demo verification correction (2026-10-15):** Full isolated PostgreSQL 16 regression passed 369/369 with zero skips after using the system Python test dependencies and creating `riverview_core` only in the disposable cluster; cleanup completed. Canonical graph validation/check passed at 19 workflows/440 nodes and the controlled revision audit passed. Final live metadata confirms release `98287c9a344f8ead203b55d50366b02014d9ce62`, Grace binding revision 9 and occupant unchanged; the owner-session service remains absent/inactive. This corrects the prior record that only focused tests were run. Website-originated Engineering acceptance remains open.
 
+**PR #34 review status correction (2026-10-15):** Commit `1108f3cbcc7ff1e51746433c8c4dba15182a71ed` was pushed to `codex/grace-deferred-80b-route`; controlled-checkout run `38681197322` passed. PR #34 is open/mergeable with no recorded review decision and remains unmerged. The predecessor package is not a release candidate for this new head; no package from an integrated commit has been built. No production service activation occurred.
+
 **M4.3 isolated local-inference technical criterion (2026-10-11):** On the existing M4.2 engineering branch, an optional loopback-only `local.inference.v1` action now uses the existing PostgreSQL worker capability, exact-grant, durable intent/artifact and independent-verification boundaries. At source commit `bbe9a6c1c63345861da5bfeb7cfb77931961e005`, a pinned CPU llama.cpp/Qwen3 test run processed two distinct assignments concurrently; both artifacts had independently recomputed SHA-256 digests, distinct verifier records, and completed states. The measured model calls overlapped for 18.551 seconds; the isolated schema and temporary server were removed. The complete suite passed 155/155 with zero skips; graph validation passed 13 workflows / 269 nodes; controlled revision audit had zero findings; and exact-head CI run 38129918014 passed. This advances M4.3 isolated technical engineering only: no persistent worker service, general reasoning quality, external knowledge provider, M3.3 completion, M4.3 full DoD, or Grace acceptance is claimed. The earliest roadmap cursor remains M3.3, blocked by authorized assignment intake, operational worker commissioning, and the real institutional knowledge provider. Evidence and a preserved failed classification attempt are in `evidence/checkouts/M4.3-LOCAL-INFERENCE/` and `docs/development/M4.3-001_REVISION_RECORD.md`.
 
 **M1.4 live dependency correction (2026-10-11 UTC):** A read-only `sudo -u postgres psql` inspection found the shared `riverview_dev.schema_migrations` row `0001_assignment_leases` applied at `2026-10-10 18:27:04.341175-04:00`, with SHA-256 `ce29c2994904f54706db883f61127bf05ee195ecbdce90e7242886e86711b717`, matching `src/riverview_core/assignment_scheduler/migrations/0001_assignment_leases.sql`. This was applied as part of the later worker and monitor migration chain. It corrects the earlier “no shared migration” statement without claiming M1.4 runtime commissioning; the standalone scheduler service, full M1.4 exit gate and Component DoD remain open. Exact read-only output is in `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T055428Z-pg-doc-safety/live-peer-inspection.txt`.
@@ -297,3 +300,4 @@ alignment with that document remains unverified.
 - **1.1.52 — 2026-10-15:** Record fail-closed Codex sandbox readiness and the concrete Camrui host blocker; keep M4.4 open.
 - **1.1.53 — 2026-10-15:** Record the authorized AppArmor/Codex trial, exact standing grants, protected credentials, corrected owner-token path, and unactivated service staging procedure; keep M4.4 open.
 - **1.1.54 — 2026-10-15:** Record full isolated PostgreSQL regression, graph, revision-control, and unchanged-production evidence; keep M4.4 open.
+- **1.1.55 — 2026-10-15:** Record pushed PR head, passing CI, and unfulfilled review/integrated-package gate; keep M4.4 open.

@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.4
+File Revision: 1.0.5
 Purpose: Prepare the first bounded authenticated Grace-to-Codex Engineering demonstration
 Authority: Existing Steward grants, AuthorityRegistry, CME, worker, verifier, and conversation contracts
 Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Record exact source, database, grant, worker, and rollback gates
@@ -10,6 +10,7 @@ Changed: 2026-10-15 UTC | RV-GRACE-CODEX-SANDBOX-READINESS-001 | Record the fail
 Changed: 2026-10-15 UTC | RV-GRACE-DEMO-BLOCKERS-001 | Record AppArmor cause, reviewed host-policy option, exact standing grants, and deployment stop gates
 Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Record the successful per-executable sandbox trial, exact grants, and repeatable owner-session staging/rollback
 Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Record full isolated PostgreSQL regression and unchanged production baseline
+Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Record pushed PR head, successful CI, and pending human review gate
 Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md; docs/components/GRACE_EXECUTION_PIPELINE.md
 Tests: tests/test_codex_cli_adapter.py; tests/test_worker_service.py; PostgreSQL integration suite
 History: Git and .riverview-backups/manifest.jsonl
@@ -29,8 +30,8 @@ History: Git and .riverview-backups/manifest.jsonl
 
 ## Current verified baseline
 
-- Engineering checkout: `ppow1/Riverview-`, branch `codex/grace-deferred-80b-route`; PR #34 head `a4c955dc7062d1930d96166086f25afcffed4e85`, base `codex/grace-conversation-ui-refinement`. It is open, non-draft, and GitHub reports mergeable/clean. Exact-head controlled-checkout run `38676067561` passed. No review approval is recorded; it is not merged.
-- The existing PR-head package `/tmp/riverview-grace-demo-a4c955d.tar.gz` verifies against source commit `a4c955dc7062d1930d96166086f25afcffed4e85`; archive SHA-256 `a1c1a5701cb73f44816e1021bb8f1b78dbecf3035aae414d040aed2049583625`, manifest PASS and shell compatibility PASS. This is a review artifact for an unmerged PR, not an integrated or activation-ready release. The commissioning-document update in this revision is not in that archive.
+- Engineering checkout: `ppow1/Riverview-`, branch `codex/grace-deferred-80b-route`; current pushed source commit `1108f3cbcc7ff1e51746433c8c4dba15182a71ed`. PR #34 targets `codex/grace-conversation-ui-refinement`, remains open/non-draft and mergeable. Controlled-checkout CI run `38681197322` passed the full test, canonical graph, and controlled revision steps. GitHub has no review decision yet; PR #34 is not merged.
+- The earlier package `/tmp/riverview-grace-demo-a4c955d.tar.gz` and SHA-256 `a1c1a5701cb73f44816e1021bb8f1b78dbecf3035aae414d040aed2049583625` apply only to predecessor commit `a4c955dc7062d1930d96166086f25afcffed4e85`; they are historical review evidence and do not package the current PR head. No immutable package has been built from `1108f3cb...` or an integrated merge commit.
 - Production dashboard: `/opt/riverview-status-dashboard/current` resolves to release `98287c9a344f8ead203b55d50366b02014d9ce62`; the dashboard remains active. The owner-session execution unit is `LoadState=not-found`, and `/etc/riverview/grace-execution.env` is absent. The dedicated dispatch, executor, and verifier credential files now have root:root 0600 metadata; the existing resident credential is reused at its canonical protected location. No service activation is included.
 - Grace is `resident:grace`, occupant `occupant:grace:initial`, office binding `office:grace` revision 9, implementation `implementation:grace:readiness-router:608aa519346c` (`grace.readiness_router.v1`).
 - Read-only comparison of all source checksums with the installed PostgreSQL migration ledger passed for the relevant authority migrations 0000–0006, assignment/event ledger, leases, event cursor, worker attempts/knowledge/verification/recovery/retry limit, Grace objectives/health/conversation/deferred responses/dashboard health read/deferred execution claims, CME monitoring and durable notifications. No new migration is required by this demonstration change. Authority migration 0008 and the proposed Level 4 permission profile are not required and remain unapplied.
