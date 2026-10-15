@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-reasoning:runtime",
-  "graph_revision": "1.1.2",
+  "graph_revision": "1.1.3",
   "component_id": "RESIDENT-REASONING",
   "workflow_id": "resident.reasoning.v1",
   "diagram_order": 13,
@@ -92,13 +92,15 @@
     },
     {
       "id": "rv:resident-reasoning:runtime:load-context",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "process",
-      "label": "Read current office binding and assignment revision; reject credential fields and oversized inputs",
+      "label": "Read current office binding and assignment revision; attach the resident-engineering contract reference; reject credential fields and oversized inputs",
       "source_references": [
+        "src/riverview_core/resident_execution/pipeline.py",
         "src/riverview_core/resident_reasoning.py"
       ],
       "documentation_references": [
+        "docs/components/GRACE_EXECUTION_PIPELINE.md",
         "docs/components/RESIDENT_REASONING.md",
         "docs/components/RESIDENT_REASONING_COOKBOOK.md"
       ],

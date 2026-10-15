@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_COOKBOOK.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Diagnose and safely recover resident grounding and provider routing
 Authority: Read-only checks first; proposals never grant action authority
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add M4.2 isolated runtime troubleshooting procedure
+Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-CONTEXT-001 | Diagnose missing resident grounding contract reference
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Resident reasoning operations cookbook
@@ -21,6 +22,7 @@ manager DSN, or model secret in a command, log, or evidence artifact.
 |---|---|---|
 | `AUTHORITY_DENIED / OFFICE_STATE_GRANT_REQUIRED` | Missing, revoked, expired, or wrong office scope | Do not invoke provider. Inspect exact office binding and grant metadata using the read-only queries in `INSTITUTIONAL_AUTHORITY_COOKBOOK.md`. Steward must issue the exact grant; never insert it with SQL. |
 | `WAITING_FOR_EVIDENCE / GROUNDING_NOT_VERIFIED` | Knowledge provider is unavailable, incomplete, contradictory, stale, or has no match | Inspect the durable office-state outcome summary: grounding and regrounding statuses, references, revision/hash and trigger. Do not replace the status with verified manually. |
+| `GROUNDING_NOT_VERIFIED` with both statuses `NO_MATCH` and empty provider references | The durable objective context may omit `repo://riverview/resident-engineering.v1`, routing lookup to the generic provider | Check the context contract reference in `GraceExecutionPipeline.read_reasoning_context`; restore the exact constant and verify the pinned resident source set. Do not alter the objective evidence or mark the outcome verified manually. |
 | `WAITING_FOR_EVIDENCE / KNOWLEDGE_NOT_SERIALIZABLE` | Provider returned data outside its JSON result contract | Record provider ID and outcome code; repair the provider contract adapter, then reground. |
 | `WAITING_FOR_EVIDENCE` with assignment context error | Reader returned wrong assignment ID, missing revision, credential-shaped field, or input over 32 KiB | Read only the assignment's approved metadata projection. Remove secrets at the source boundary; do not broaden the redaction allowlist without review. |
 | `UNAVAILABLE / PROVIDER_ROUTE_UNAVAILABLE` | Active `provider_ref` is not registered or explicit fallback config is invalid | Compare the office binding's implementation/provider revision with the in-memory registry. Configure only a reviewed provider ID and explicit fallback. |

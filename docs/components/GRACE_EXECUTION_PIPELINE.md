@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.1
+File Revision: 1.1.2
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
 Authority: Engineering contract; not evidence of production Grace commissioning
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Link persistent reconciliation and authenticated dashboard handoff
@@ -16,6 +16,7 @@ Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Route proposals through the bo
 Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Reuse immutable acceptance criteria on authorized same-origin retries
 Changed: 2026-10-15 UTC | RV-GRACE-GROUNDING-BOUNDED-001 | Rank complete task-relevant passages within the evidence envelope
 Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-REGROUND-001 | Allow a verified same-origin retry to advance WAITING_FOR_EVIDENCE atomically
+Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-CONTEXT-001 | Include the exact resident reasoning contract in durable assignment context
 -->
 # Grace Execution Pipeline — infrastructure slice
 
@@ -40,6 +41,13 @@ claims live installation or Camrui commissioning.
 6. BoundedArtifactVerifier reopens the artifact by an assignment-derived name, verifies bytes/provenance/shape independently, and the existing adapter persists verification before completion. The objective can be marked complete only from a completed assignment plus persisted ACCEPTED verification.
 7. For a `grace.readiness_router.v1` binding, ResidentReasoner proposals use the router's typed `propose()` method, which checks the router revision and calls only the authorized 80B provider. The 0.6B and 30B cannot substitute for an Engineering proposal. Provider, served model, digest and reasoning stage are persisted with the plan.
 8. Conversation-origin objectives with an independently accepted completion enter a PostgreSQL-backed result outbox. The persistent service rechecks Grace's current office binding and exact `resident.conversation.send` grant, asks the bound 80B to review verifier evidence, and appends one assistant response to the original conversation. A stable objective-derived response ID makes retries idempotent; the outbox is acknowledged only after the conversation event is durable. Provider or authorization failure leaves it pending for retry.
+
+`read_reasoning_context(...)` includes the exact `repo://riverview/resident-engineering.v1`
+contract reference expected by the resident knowledge adapter. Without it, the
+generic repository path returns `NO_MATCH` and the persistent service waits before
+calling the bound reasoning provider. With it, the existing pinned resident source
+set is selected and revalidated; the reference grants no authority. Both grounding
+and regrounding must still be complete and verified before a proposal is requested.
 
 The authenticated chat UI exposes an explicit Steward action for a selected,
 persisted user-authored conversation message. `POST
