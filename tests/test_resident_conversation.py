@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.22
+# Revision: 1.0.23
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -30,6 +30,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Ensure resumed and fallback generations compact discarded partial text behind a monotonic reset marker.
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Keep repeated 80B deferrals idempotent and discard incomplete text while pending.
+# Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-GUIDANCE-001 | Assert user-facing Engineering proposal guidance reaches the actual inference prompt and retain a stable context-limit boundary case.
 # =============================================================================
 """Isolated PostgreSQL and authority tests for Grace's persistent conversation path."""
 
@@ -193,12 +194,14 @@ class ResidentConversationTests(unittest.TestCase):
         self.assertIn("Alfred is the separate Chief of Staff", prompt)
         self.assertIn("Continuous Momentum Engine (CME)", prompt)
         self.assertIn("this role description grants no permission", prompt)
+        self.assertIn("state a proposed assignment in the response", prompt)
+        self.assertIn("Do not invent prerequisites", prompt)
         history = self.service.history(self.steward_token, result["conversation_id"])
         self.assertEqual([e["event_type"] for e in history["events"]],
                          ["user_message", "assistant_message"])
         self.assertEqual(history["events"][1]["implementation_revision"], self.model_a)
         self.assertEqual(history["events"][1]["metadata"]["completion_tokens"], 9)
-        self.assertEqual(history["events"][1]["metadata"]["role_context_revision"], "1.1.1")
+        self.assertEqual(history["events"][1]["metadata"]["role_context_revision"], "1.1.2")
         self.assertEqual([row[1] for row in self._fresh_events(result["conversation_id"])],
                          ["user_message", "assistant_message"])
         self._assert_connection_idle()
@@ -978,13 +981,13 @@ class ResidentConversationTests(unittest.TestCase):
     def test_large_relevant_context_is_rejected_without_model_call(self):
         conversation_id = None
         for index in range(5):
-            result = self.service.send(self.steward_token, message=str(index) + "x" * 6000,
+            result = self.service.send(self.steward_token, message=str(index) + "x" * 5200,
                 conversation_id=conversation_id, client_message_id=str(uuid4()))
             conversation_id = result["conversation_id"]
         self.assertEqual(result["status"], "completed")
         # The sixth current turn plus the bounded recent history exceeds 32 KiB.
         self.provider_a.calls.clear()
-        result = self.service.send(self.steward_token, message="sixth" + "y" * 6000,
+        result = self.service.send(self.steward_token, message="sixth" + "y" * 5200,
             conversation_id=conversation_id, client_message_id=str(uuid4()))
         self.assertEqual(result["status"], "unavailable")
         self.assertEqual(result["error_code"], "context_too_large")
