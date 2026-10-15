@@ -1,13 +1,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/build_camrui_package.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Build a self-contained package from an exact committed Git revision
 # Execution Model: Request-driven engineering utility
 # Observability: Source commit, file checksums and archive SHA-256
 # Dependencies: Python 3, Git
-# Authority: Writes an absent output outside checkout; excludes credentials and Git metadata
+# Authority: Writes an absent output outside checkout; excludes credentials, Git metadata and predecessor archives
 # Changed: 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow one reviewed Bash runner by exact path and shebang
+# Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PACKAGING | Exclude tracked .riverview-backups artifacts from release archives
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: tests/test_runtime_baseline.py
 # History: docs/history/RV-M1.1-002/rev1.0.0/scripts/build_camrui_package.py
@@ -48,6 +49,8 @@ def committed_files(root, commit):
         metadata, name_bytes = record.split(b"\t", 1)
         mode, kind, oid = metadata.split()
         name = name_bytes.decode("utf-8")
+        if name.startswith(".riverview-backups/"):
+            continue
         if mode not in (b"100644", b"100755") or kind != b"blob":
             raise ValueError("Only regular committed files may be packaged: " + name)
         if Path(name).is_absolute() or ".." in Path(name).parts or "\n" in name or "\r" in name or "\\" in name:

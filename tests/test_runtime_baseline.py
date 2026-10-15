@@ -1,13 +1,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_runtime_baseline.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.8
+# Revision: 1.0.9
 # Purpose: Identity/credential security, DB contract, observer and package regression tests
 # Execution Model: Request-driven tests; simulated DB explicitly distinct from live proof
 # Observability: unittest counts and failures
 # Dependencies: Python 3.10+, Git, Linux
 # Authority: Temporary fixtures only; no live DB or credentials
 # Changed: 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Cover allowlisted Bash packaging and safe runner behavior
+# Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PACKAGING | Ensure tracked predecessor archives never enter release packages
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: This file
 # History: docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py
@@ -314,8 +315,11 @@ class RuntimeBaselineTests(unittest.TestCase):
             root.mkdir()
             subprocess.run(["git", "init", "-q", str(root)], check=True)
             (root / "code.py").write_text("print('fixture')\n")
+            backup = root / ".riverview-backups" / "old" / "code.py"
+            backup.parent.mkdir(parents=True)
+            backup.write_text("predecessor must stay out of release\n")
             (root / "untracked-secret").write_text("NEVER_PACKAGE")
-            subprocess.run(["git", "-C", str(root), "add", "code.py"], check=True)
+            subprocess.run(["git", "-C", str(root), "add", "code.py", ".riverview-backups"], check=True)
             subprocess.run(["git", "-C", str(root), "-c", "user.name=Fixture", "-c",
                             "user.email=fixture@example.invalid", "commit", "-qm", "fixture"], check=True)
             output = Path(folder) / "package.tar.gz"
@@ -323,6 +327,8 @@ class RuntimeBaselineTests(unittest.TestCase):
             self.assertEqual(digest, hashlib.sha256(output.read_bytes()).hexdigest())
             with tarfile.open(output) as archive:
                 self.assertNotIn("untracked-secret", archive.getnames())
+                self.assertFalse(any(name.startswith(".riverview-backups/")
+                                     for name in archive.getnames()))
                 self.assertEqual(archive.extractfile("SOURCE_COMMIT").read().decode().strip(), commit)
                 manifest = archive.extractfile("PACKAGE_SHA256SUMS").read().decode().splitlines()
                 for line in manifest:
