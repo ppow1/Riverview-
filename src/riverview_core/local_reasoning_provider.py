@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.3
+# Revision: 1.1.4
 # Purpose: Adapt bounded resident proposals and conversation turns to local inference
 # Execution Model: Bounded loopback OpenAI-compatible request
 # Observability: Sanitized provider failures; no prompts or raw model output logged
@@ -11,7 +11,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.2-STRUCTURED-OUTPUT-BOUNDARY | Request the exact typed proposal through the verified llama.cpp JSON-schema API
 # Changed: 2026-10-11 UTC | RV-M4.2-COMPLETE-JSON-AT-TOKEN-BOUND | Parse and validate complete schema output before considering length-stop status
 # Changed: 2026-10-11 UTC | RV-M4.2-CPU-BOUNDED-PLAN | Constrain this low-capacity local model to one concise typed step
-# Changed: 2026-10-11 UTC | RV-M4.2-HTTPERROR-CLOSE | Close HTTPError response resources before returning sanitized provider failures
+# Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Attach validated served-model provenance to typed plan proposals
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Add bounded plain conversation completion to the same pinned loopback adapter
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Add bounded model-specific chat prefix without changing stored conversation content
 # Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Add exact OCTO1 endpoint allowlist, model readiness probe, and explicit slot-busy state
@@ -297,7 +297,9 @@ class LocalReasoningProvider:
                     step_id=item["step_id"], objective=item["objective"],
                     acceptance_criteria=tuple(item["acceptance_criteria"]),
                     depends_on=tuple(item["depends_on"])))
-            return PlanProposal(plan["summary"], tuple(steps), completion_tokens)
+            return PlanProposal(plan["summary"], tuple(steps), completion_tokens,
+                provider_id=self.provider_id, served_model=served_model,
+                model_revision=self.model_sha256, reasoning_stage="reasoning")
         except Exception:
             return None
 

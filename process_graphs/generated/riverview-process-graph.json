@@ -1868,22 +1868,26 @@
         "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md",
         "docs/standards/COMPONENT_DEFINITION_OF_DONE.md",
         "scripts/run_grace_execution_service.py",
+        "scripts/run_supervised_grace_execution.sh",
+        "src/riverview_core/assignment_scheduler/scheduler.py",
         "src/riverview_core/institutional_authority/db_boundary.py",
         "src/riverview_core/institutional_authority/migrations/0003_resident_office_state_api.sql",
+        "src/riverview_core/local_reasoning_provider.py",
         "src/riverview_core/resident_execution/codex_cli.py",
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/resident_execution/model_router.py",
         "src/riverview_core/resident_execution/pipeline.py",
         "src/riverview_core/resident_execution/service.py",
         "src/riverview_core/resident_execution/verifier.py",
         "src/riverview_core/resident_execution/worker.py",
+        "src/riverview_core/resident_reasoning.py",
         "src/riverview_core/status_dashboard/projection.py",
         "src/riverview_core/status_dashboard/server.py",
         "src/riverview_core/worker_adapter/continuous.py",
         "src/riverview_core/worker_adapter/migrations/0005_retry_limit.sql",
         "src/riverview_core/worker_adapter/recovery.py",
         "tests/test_codex_cli_adapter.py",
-        "src/riverview_core/assignment_scheduler/scheduler.py",
-        "tests/test_supervised_codex_dispatch.py",
-        "scripts/run_supervised_grace_execution.sh"
+        "tests/test_supervised_codex_dispatch.py"
       ],
       "documentation_references": [
         "docs/ROADMAP.md",
@@ -1895,8 +1899,12 @@
         "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
       ],
       "verification_evidence": [
+        "tests/test_grace_conversation_result.py",
         "tests/test_grace_execution.py",
+        "tests/test_grace_runtime_provider_wiring.py",
         "tests/test_institutional_authority_boundary.py",
+        "tests/test_resident_conversation.py",
+        "tests/test_resident_model_router.py",
         "tests/test_supervised_codex_dispatch.py"
       ],
       "nodes": [
@@ -2507,6 +2515,62 @@
             "docs/architecture/INSTITUTIONAL_LEARNING_AND_RESOURCE_CAPABILITY_ROADMAP.md"
           ],
           "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:router-backed-grace-proposal",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "SOURCE IMPLEMENTED — Persistent ResidentReasoner proposals use the active router binding and require actual 80B provenance; smaller stages cannot substitute",
+          "source_references": [
+            "src/riverview_core/resident_execution/model_router.py",
+            "src/riverview_core/resident_reasoning.py",
+            "src/riverview_core/local_reasoning_provider.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_model_router.py",
+            "tests/test_grace_runtime_provider_wiring.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:verified-result-chat-return",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "SOURCE IMPLEMENTED — Independently accepted objective result is reviewed by bound 80B and appended once to its source conversation with durable provenance",
+          "source_references": [
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/service.py",
+            "src/riverview_core/resident_execution/conversation.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_conversation_result.py",
+            "tests/test_resident_conversation.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:verified-result-return-retry",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "SOURCE IMPLEMENTED — Failed authorization/provider return remains in durable outbox; deterministic response identity prevents duplicate chat events after restart",
+          "source_references": [
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/service.py",
+            "src/riverview_core/resident_execution/conversation.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_conversation_result.py"
+          ]
         }
       ],
       "edges": [
@@ -2811,6 +2875,36 @@
           "to": "rv:grace:operational-integration:evidence-review",
           "type": "prerequisite",
           "label": "Only an independent acceptance decision may feed objective completion"
+        },
+        {
+          "from": "rv:grace:operational-integration:reason-decompose",
+          "to": "rv:grace:operational-integration:router-backed-grace-proposal",
+          "type": "prerequisite",
+          "label": "Persistent grounded objective reasoning is routed through the exact authorized 80B binding"
+        },
+        {
+          "from": "rv:grace:operational-integration:router-backed-grace-proposal",
+          "to": "rv:grace:operational-integration:durable-plan",
+          "type": "runtime_transition",
+          "label": "Typed proposal and actual provider provenance persist before dispatch"
+        },
+        {
+          "from": "rv:grace:operational-integration:objective-complete",
+          "to": "rv:grace:operational-integration:verified-result-chat-return",
+          "type": "runtime_transition",
+          "label": "Only a durable independently accepted completion enters the result outbox"
+        },
+        {
+          "from": "rv:grace:operational-integration:verified-result-chat-return",
+          "to": "rv:grace:operational-integration:verified-result-return-retry",
+          "type": "diagnostic_branch",
+          "label": "Current binding, exact send grant, provider, or durable insert unavailable"
+        },
+        {
+          "from": "rv:grace:operational-integration:verified-result-return-retry",
+          "to": "rv:grace:operational-integration:verified-result-chat-return",
+          "type": "recovery_route",
+          "label": "Persistent poll retries; deterministic conversation response ID makes replay idempotent"
         }
       ]
     },
@@ -10594,11 +10688,14 @@
     "rv:grace:operational-integration:proposal-validation",
     "rv:grace:operational-integration:reason-decompose",
     "rv:grace:operational-integration:replan",
+    "rv:grace:operational-integration:router-backed-grace-proposal",
     "rv:grace:operational-integration:stale-resident-denied",
     "rv:grace:operational-integration:steward-escalation",
     "rv:grace:operational-integration:typed-proposal-api",
     "rv:grace:operational-integration:verification-failure-isolation",
     "rv:grace:operational-integration:verification-feedback",
+    "rv:grace:operational-integration:verified-result-chat-return",
+    "rv:grace:operational-integration:verified-result-return-retry",
     "rv:grace:operational-integration:waiting-and-failure",
     "rv:grace:operational-integration:work-order-authorization",
     "rv:grace:operational-integration:worker-dispatch",

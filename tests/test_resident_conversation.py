@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.17
+# Revision: 1.0.18
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -22,6 +22,7 @@
 # Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Verify canonical office context reaches model and is persisted as provenance
 # Changed: 2026-10-14 UTC | RV-GRACE-DOPS-TOOLBOX-001 | Verify read-only operational snapshot reaches inference and its digest is persisted
 # Changed: 2026-10-14 UTC | RV-GRACE-DOPS-OBSERVATION-PERSISTENCE-001 | Verify the exact bounded observation snapshot is durably retained beside its digest
+# Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Verify verified Engineering results return once to the originating conversation
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: python3 -m unittest tests.test_resident_conversation
 # History: Git and .riverview-backups/manifest.jsonl
@@ -173,6 +174,43 @@ class ResidentConversationTests(unittest.TestCase):
         self._assert_connection_idle()
         self.assertEqual(self.service.response_status(self.steward_token,
             result["conversation_id"], result["request_id"])["status"], "completed")
+
+    def test_verified_engineering_result_returns_once_to_source_conversation(self):
+        self.registry.grant(self.steward_token, self.resident_id,
+            "resident.conversation.send", "office:" + self.office_id,
+            policy_ref="rv.policy:resident-conversation-result.v1")
+        self.provider_a.model = "Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf"
+        self.provider_a.answer = "The verified report is ready at the recorded path."
+        turn = self.service.send(self.steward_token, message="Create a short verified engineering report.",
+            client_message_id=str(uuid4()))
+        context = {"objective_id":"objective:grace-conversation:result-test",
+            "assignment_id":"assignment:grace:result-test",
+            "request":"Create a short verified engineering report.",
+            "acceptance_criteria":["The report is readable."],
+            "proposal":{"summary":"Create report", "steps":[]},
+            "submitter_id":self.steward_id,
+            "origin":{"conversation_id":turn["conversation_id"], "source_sequence":1},
+            "completion":{"decision":"ACCEPTED", "assignment_id":"assignment:grace:result-test",
+                "verifier_revision":"1.0.0", "evidence_references":["urn:test:verified"],
+                "artifact":{"artifact_path":"/var/lib/riverview-grace/artifacts/report.md",
+                    "artifact_sha256":"f" * 64}}}
+        first = self.service.review_verified_work_order(context)
+        second = self.service.review_verified_work_order(context)
+        self.assertEqual(first["status"], "published")
+        self.assertEqual(second["status"], "already_published")
+        self.assertEqual(len(self.provider_a.calls), 2)  # one initial turn, one result review
+        self.assertEqual(self.provider_a.calls[-1][0][1]["role"], "user")
+        self.assertIn("The report is readable", self.provider_a.calls[-1][0][1]["content"])
+        self.assertEqual(self.provider_a.calls[-1][2], self.model_a)
+        history = self.service.history(self.steward_token, turn["conversation_id"])
+        reviews = [event for event in history["events"] if
+                   event["metadata"].get("result_kind") == "verified_engineering_review"]
+        self.assertEqual(len(reviews), 1)
+        self.assertEqual(reviews[0]["model_id"], self.provider_a.model)
+        self.assertEqual(reviews[0]["metadata"]["verification_decision"], "ACCEPTED")
+        self.assertEqual(reviews[0]["metadata"]["artifact"]["artifact_sha256"], "f" * 64)
+        self.assertEqual([row[1] for row in self._fresh_events(turn["conversation_id"])],
+            ["user_message", "assistant_message", "assistant_message"])
 
     def test_exact_grant_denial_does_not_create_a_conversation_or_call_model(self):
         from riverview_core.resident_execution.conversation import ConversationDenied

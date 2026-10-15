@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.6
+# Revision: 1.0.7
 # Purpose: Prefer 80B for substantive turns and persist bounded routing diagnostics
 # Execution Model: Request-driven; persisted deferred turns are resumed by the conversation owner
 # Observability: Selected stage and served model are returned as completion provenance
@@ -11,6 +11,7 @@
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: tests/test_resident_model_router.py
 # Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-CAPABILITY-001 | Pin deferred resumption to its persisted capability and log readiness attempts
+# Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Route persistent typed proposals through the authorized 80B stage
 # =============================================================================
 """Small readiness-aware router for Grace's three existing model resources."""
 
@@ -87,6 +88,32 @@ class GraceModelRouter:
     def supports_capability(self, capability):
         """Report the one bounded reasoning capability this router can satisfy."""
         return capability == "grace.reasoning.80b" and self.providers.get("reasoning") is not None
+
+    def propose(self, request):
+        """Produce a typed Engineering proposal only through the bound 80B provider.
+
+        ResidentReasoner binds its request to this router revision. The underlying
+        adapter still verifies its own model digest, so both identities are checked
+        and the returned proposal records the actual served model.
+        """
+        if request.implementation_revision != self.model_sha256:
+            return None
+        provider = self.providers["reasoning"]
+        readiness = provider.readiness()
+        if readiness.state != "READY":
+            detail = getattr(readiness, "detail_code", "endpoint_unavailable")
+            code = detail if detail in self._SAFE_ERRORS else "endpoint_unavailable"
+            raise LocalReasoningUnavailable(code)
+        proposal = provider.propose(replace(
+            request, implementation_revision=provider.model_sha256))
+        if proposal is None:
+            return None
+        if (proposal.provider_id != provider.provider_id
+                or proposal.served_model != provider.model
+                or proposal.model_revision != provider.model_sha256
+                or proposal.reasoning_stage != "reasoning"):
+            return None
+        return proposal
 
     def select(self, messages, *, required_capability=None):
         if required_capability is not None:

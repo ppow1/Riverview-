@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.7
+File Revision: 1.0.8
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
 Authority: Engineering contract; not evidence of production Grace commissioning
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Link persistent reconciliation and authenticated dashboard handoff
@@ -12,6 +12,7 @@ Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Wire a registered Codex capa
 Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH-CREDENTIAL | Bind the Codex API key to a protected systemd credential and exact Engineering scope
 Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Replace API-key execution with a bounded one-objective ChatGPT-session mode
 Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Pin supervised reasoning, dispatch, claim, verification, and completion to one objective
+Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Route proposals through the bound 80B and return independently verified results to source chat
 -->
 # Grace Execution Pipeline — infrastructure slice
 
@@ -33,6 +34,8 @@ claims live installation or Camrui commissioning.
 4. authorize_and_dispatch(...) requires exact assignment.create, the same scope as intake, and complete verified evidence. It uses AuthorizedAssignmentIntake; assignment + creation event + objective/work-order link are one PostgreSQL transaction. The event processor remains responsible for queued-to-ready.
 5. ContinuousWorker obtains a lease, rechecks its registered engineering.bounded-artifact.v1 capability, and writes one small JSON work product into a mode-0700 workspace. The worker has no shell, command, or caller-selected path.
 6. BoundedArtifactVerifier reopens the artifact by an assignment-derived name, verifies bytes/provenance/shape independently, and the existing adapter persists verification before completion. The objective can be marked complete only from a completed assignment plus persisted ACCEPTED verification.
+7. For a `grace.readiness_router.v1` binding, ResidentReasoner proposals use the router's typed `propose()` method, which checks the router revision and calls only the authorized 80B provider. The 0.6B and 30B cannot substitute for an Engineering proposal. Provider, served model, digest and reasoning stage are persisted with the plan.
+8. Conversation-origin objectives with an independently accepted completion enter a PostgreSQL-backed result outbox. The persistent service rechecks Grace's current office binding and exact `resident.conversation.send` grant, asks the bound 80B to review verifier evidence, and appends one assistant response to the original conversation. A stable objective-derived response ID makes retries idempotent; the outbox is acknowledged only after the conversation event is durable. Provider or authorization failure leaves it pending for retry.
 
 The authenticated chat UI exposes an explicit Steward action for a selected,
 persisted user-authored conversation message. `POST
@@ -45,6 +48,30 @@ origin. Ordinary chat is never promoted automatically. This is objective intake;
 it is not a Grace proposal, assignment dispatch, worker authorization, or proof
 of execution. The currently deployed registry has no such objective grant, and
 the new route is uncommissioned until the Steward approves the exact authority.
+
+The return-to-chat path is source implemented, not production commissioned. It returns artifact reference, digest and independent verifier evidence for Grace's 80B review; the reviewer does not reopen arbitrary files. PostgreSQL integration tests require `RIVERVIEW_TEST_PG_DSN`; this checkout has no such DSN. The execution service and exact resident-send, assignment-create, executor and verifier grants remain commissioning prerequisites. No code in this increment creates or broadens grants.
+
+```mermaid
+flowchart TD
+    A[Steward message selected in Grace chat] --> B{Session ownership and exact objective.submit?}
+    B -- No --> F[Denied and diagnosed]
+    B -- Yes --> C[Persist grounded objective and source conversation]
+    C --> D[Grace proposes through bound 80B]
+    D --> E{Provenance and criteria valid?}
+    E -- No --> W[Durable wait or failure]
+    E -- Yes --> G[Existing assignment.create intake and CME]
+    G --> H[Authorized Codex executor]
+    H --> I[Independent artifact verifier]
+    I --> J[Objective completion and result outbox]
+    J --> K{Current binding and resident.conversation.send?}
+    K -- No --> W
+    K -- Yes --> L[Bound 80B reviews verifier evidence]
+    L --> M[Idempotent result appended to source chat]
+    M --> N[Durable outbox receipt; history reloadable]
+    W --> J
+```
+
+This source increment is not proof of the live demonstration: no production deployment or migration occurred, PostgreSQL integration tests were skipped without a test DSN, and no real Codex artifact was produced here.
 
 Cancellation is supported only before execution for queued/ready assignments and requires exact assignment.cancel. Running work cannot be force-cancelled by this slice; CME lease/recovery behavior remains authoritative.
 
@@ -59,8 +86,7 @@ Cancellation is supported only before execution for queued/ready assignments and
 - Work order: assignment ID, objective ref, exact authority scope, contract ref, workflow ID/step, and correlation ID persist in the assignment ledger.
 - Conversation origin: selected message sequence and conversation ID are attached to `objective.received`; only the authenticated linked Steward principal can submit from the chat route.
 - Worker request: CodingWorkOrder carries assignment/objective identity, pinned repository revision, bounded task scope, criteria, exact allowed operation (write_bounded_json_artifact), and a 1–90 second timeout.
-- The worker is a deterministic infrastructure adapter, not a general coding
-  executor. A real coding executor and resident service remain later integration work.
+- The default bounded-artifact worker is deterministic and is not a general coding executor. The separate Codex CLI executor exists and is selected only by explicit configuration; this increment does not claim a real Codex run or commissioned resident service.
 - Result: status, workspace URI/name, SHA-256, size, source revision/hash. No credential or objective authorization is inferred from a worker result.
 - Failure, unavailable provider, serialization failure, oversized context, rejected authorization, incomplete verification, and cancellation do not produce objective completion.
 

@@ -2,12 +2,13 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_PERSISTENT_EXECUTION.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.5
+File Revision: 1.0.6
 Purpose: Define persistent model-independent Grace objective execution service
 Authority: Existing exact-grant registry and CME assignment/worker contracts
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-CONFIG-EXAMPLE | Add a secret-free environment template for exact service identity configuration
 Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Bind persistent reasoning to current office identity and durable office state
 Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Use exact-grant office-state functions through the restricted runtime role
+Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Bind router-backed proposals and idempotent verified-result return to persistent execution
 -->
 # Grace Persistent Execution Service
 
@@ -18,6 +19,10 @@ Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Use exact-grant office-stat
 `GraceExecutionService` reconciles durable grounded objectives and proposals. When configured with the existing `ResidentReasoner`, the runner authenticates its resident credential against the exact `office.state.write` grant for `office:<office_id>` and requires a bound office occupant and implementation. The reasoner loads and CAS-writes office-keyed state, rechecks the current binding before persistence, and only produces a typed proposal. The objective adapter exposes only complete VERIFIED evidence and a durable objective revision. A proposal alone does not grant authority. Dispatch separately uses the service's `assignment.create` credential for one configured scope; the existing event processor owns queued-to-ready transitions, the leased `ContinuousWorker` owns execution, and the separately registered verifier owns acceptance. The service marks an objective complete only after a persisted ACCEPTED verification and a completed assignment.
 
 The supervised poll has no run-once exit. It records a durable `grace_execution_health` row and continues after assignment-local worker failures. PostgreSQL remains the work source. A process restart reconstructs work and office identity from objective, assignment, lease, attempt, result, verification, office binding, grants, and office-state rows; stable objective-derived assignment IDs and ledger idempotency keys prevent duplicate handoff. Occupant replacement revokes the old exact office-state grant while preserving office-keyed plans. A restarted service loads the replacement credential; the reasoner rejects the former credential and rechecks the active binding before persistence. Existing worker execution-intent recovery fences interrupted attempts; the Grace runner caps dispatch authorization failures at three durable retries. Unknown external effects remain governed by the worker recovery contract.
+
+For a router-bound Grace, `configured_resident_providers()` constructs the same provider set for ResidentReasoner and the result-return conversation service. It verifies the live binding revision, explicit private-LAN router opt-in, configured model digests and allowlisted endpoint/model identities. Typed proposals require `grace.reasoning.80b`; the router does not substitute smaller models. Provider, served model, digest and stage are persisted with the proposal.
+
+After independent `ACCEPTED` verification and durable objective completion, `pending_conversation_results()` selects conversation-origin objectives without a `conversation.result_published` event. The service rechecks the current resident binding and exact `resident.conversation.send` grant, performs a bounded 80B review of completion evidence, and inserts a deterministic objective-derived assistant response in the source conversation. If insertion succeeds but outbox acknowledgment fails, retry finds the response receipt without another model call or assistant event. Failures before insertion leave the outbox eligible for retry. This is source implementation only; this increment applies no migrations and provisions no service credentials or grants.
 
 ## HTTP contract
 
@@ -38,7 +43,7 @@ API errors never log request text or credentials. Missing/invalid exact grants r
 
 The service is configured for one exact `work-order:` scope, a registered executor with `engineering.bounded-artifact.v1`, and a distinct verifier with `assignment.verify.v1`. Its only current worker action writes one assignment-derived JSON artifact in a private 0700 workspace; no shell command, caller-supplied path, model, or arbitrary code execution is available. Artifact bytes are reopened and checked independently before acceptance.
 
-The default runner sets three persisted dispatch failures, three persisted retry-safe lease recoveries, and three persisted verifier invocation failures per attempt before leaving work for operator review. Retry exhaustion and verifier failures remain visible in objective projections. The execution retry ceiling is enforced by the worker recovery coordinator and its `retry_exhausted` record; no retry count is stored only in process memory. Verifier failures are isolated per candidate, so one malformed result cannot starve other assignments in a poll. Side effects of this bounded artifact action are idempotent by assignment and content. Other capabilities must supply their own effect classification and recovery contract. Cancellation uses the pre-execution exact-grant pipeline path. A running action is never force-cancelled.
+The default runner sets three persisted dispatch failures, three persisted retry-safe lease recoveries, and three persisted verifier invocation failures per attempt before leaving work for operator review. Retry exhaustion and verifier failures remain visible in objective projections. The execution retry ceiling is enforced by the worker recovery coordinator and its `retry_exhausted` record; no retry count is stored only in process memory. Verifier failures are isolated per candidate, so one malformed result cannot starve other assignments in a poll. Conversation result publication retries from objective state and uses a deterministic response ID. Side effects of this bounded artifact action are idempotent by assignment and content. Other capabilities must supply their own effect classification and recovery contract. Cancellation uses the pre-execution exact-grant pipeline path. A running action is never force-cancelled.
 
 ## Runtime configuration and commissioning boundary
 
@@ -56,6 +61,6 @@ Expected service status is `healthy`, with `last_heartbeat_at` newer than the da
 
 ## Verification and limitations
 
-The integration tests use isolated PostgreSQL schemas, a temporary Git repository, local HTTP server, deterministic typed proposal, existing bounded worker, and a separate verifier identity. They also compose `ResidentReasoner` with the persistent service across service reconstruction and occupant replacement: office plans remain durable, the replacement provider receives prior office state under the new binding revision, the old exact grant is denied, and the replacement plan becomes current. This is isolated evidence only. The service is not live-commissioned; no real inference, general coding executor, browser Steward session, service restart on Camrui, systemd credential provisioning, or repeated unattended operational Grace run is claimed.
+The integration tests use isolated PostgreSQL schemas, a temporary Git repository, local HTTP server, deterministic typed proposal, existing bounded worker, and a separate verifier identity. They also compose `ResidentReasoner` with the persistent service across service reconstruction and occupant replacement: office plans remain durable, the replacement provider receives prior office state under the new binding revision, the old exact grant is denied, and the replacement plan becomes current. This checkout has no `RIVERVIEW_TEST_PG_DSN`, so those PostgreSQL tests are skipped here. The service is not live-commissioned; no real inference, actual Codex artifact, browser Steward session, service restart on Camrui, systemd credential provisioning, or repeated unattended operational Grace run is claimed.
 
 Canonical graph: `process_graphs/grace/operational-integration.json`. Generated views are updated with `python3 scripts/process_graph.py generate`; validate with `python3 scripts/process_graph.py check` and `python3 scripts/process_graph.py validate`.

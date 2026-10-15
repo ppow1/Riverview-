@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
 # Execution Model: Request-driven orchestration over existing PostgreSQL authority and ledger
 # Observability: Append-only objective events linked to assignment and evidence provenance
@@ -12,7 +12,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Expose bounded grounded objective context to ResidentReasoner
 # Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER | Accept authenticated principals and retain conversation origin
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Carry independently verified artifact location into Grace completion event
-# Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Filter grounded resident reasoning to one objective
+# Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Add durable retryable outbox for verified conversation-origin work results
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -413,3 +413,64 @@ class GraceExecutionPipeline:
                 FROM grace_objective_events WHERE objective_id=%s ORDER BY sequence""",
                 (objective_id,))
             return cur.fetchall()
+
+    def pending_conversation_results(self, *, limit=10):
+        """Return completed conversation-origin objectives not yet returned to chat."""
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("conversation result limit must be between 1 and 100")
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT o.objective_id FROM grace_objectives o
+                WHERE o.status='COMPLETED'
+                  AND EXISTS (SELECT 1 FROM grace_objective_events r
+                    WHERE r.objective_id=o.objective_id AND r.event_type='objective.received'
+                      AND r.payload ? 'origin')
+                  AND EXISTS (SELECT 1 FROM grace_objective_events c
+                    WHERE c.objective_id=o.objective_id AND c.event_type='objective.completed')
+                  AND NOT EXISTS (SELECT 1 FROM grace_objective_events p
+                    WHERE p.objective_id=o.objective_id
+                      AND p.event_type='conversation.result_published')
+                ORDER BY o.updated_at,o.objective_id LIMIT %s""", (limit,))
+            objective_ids = [row["objective_id"] for row in cur.fetchall()]
+        results = []
+        for objective_id in objective_ids:
+            objective = self.get_objective(objective_id)
+            events = self.objective_events(objective_id)
+            received = next((event for event in events
+                if event["event_type"] == "objective.received"), None)
+            completed = next((event for event in reversed(events)
+                if event["event_type"] == "objective.completed"), None)
+            origin = ((received or {}).get("payload") or {}).get("origin")
+            completion = (completed or {}).get("payload")
+            if (not objective or not isinstance(origin, dict)
+                    or not isinstance(completion, dict)
+                    or not objective.get("assignment_id")):
+                continue
+            results.append({"objective_id": objective_id,
+                "assignment_id": objective["assignment_id"],
+                "request": objective["request"],
+                "acceptance_criteria": list(objective["acceptance_criteria"]),
+                "proposal": objective.get("proposal"),
+                "submitter_id": received.get("actor_id"),
+                "origin": origin,
+                "completion": completion})
+        return results
+
+    def record_conversation_result_published(self, objective_id, receipt):
+        """Acknowledge a durable chat reply after the conversation insert succeeds."""
+        if (not isinstance(receipt, dict) or set(receipt) != {
+                "request_id", "provider_id", "served_model", "implementation_id"}
+                or any(not isinstance(value, str) or not value for value in receipt.values())):
+            raise ValueError("conversation result receipt is invalid")
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("""SELECT status FROM grace_objectives
+                    WHERE objective_id=%s FOR UPDATE""", (objective_id,))
+                row = cur.fetchone()
+                if not row or row["status"] != "COMPLETED":
+                    raise ObjectiveStateError("verified completion is required before chat return")
+                self._event(cur, objective_id, "conversation.result_published",
+                    f"grace-conversation-result-published:{objective_id}",
+                    "office:grace", receipt)
+        return True
