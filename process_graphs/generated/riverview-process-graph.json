@@ -1858,7 +1858,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.1.11",
+      "graph_revision": "1.1.12",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -1917,17 +1917,20 @@
       "nodes": [
         {
           "id": "rv:grace:operational-integration:objective-intake",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "entry",
-          "label": "IMPLEMENTED INFRASTRUCTURE — exact objective.submit grant persists objective and receipt event",
+          "label": "IMPLEMENTED — exact objective.submit persists one objective per authenticated conversation message origin; same-origin retries reuse it",
           "source_references": [
+            "src/riverview_core/status_dashboard/server.py",
             "src/riverview_core/resident_execution/pipeline.py"
           ],
           "documentation_references": [
-            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+            "docs/components/RESIDENT_CONVERSATION.md",
             "docs/components/GRACE_EXECUTION_PIPELINE.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "tests/test_status_dashboard.py"
+          ]
         },
         {
           "id": "rv:grace:operational-integration:authority-check",
@@ -2166,34 +2169,35 @@
         },
         {
           "id": "rv:grace:operational-integration:waiting-and-failure",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "failure",
-          "label": "IMPLEMENTED — unavailable/missing/oversized evidence and worker failures remain non-complete",
-          "source_references": [
-            "src/riverview_core/resident_execution/pipeline.py",
-            "src/riverview_core/worker_adapter/continuous.py"
-          ],
-          "documentation_references": [
-            "docs/components/GRACE_EXECUTION_PIPELINE.md",
-            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
-          ],
-          "verification_evidence": []
-        },
-        {
-          "id": "rv:grace:operational-integration:governed-objective-api",
-          "node_revision": "1.0.0",
-          "type": "process",
-          "label": "Authenticated dashboard request plus exact objective.submit grant persists a bounded human objective; grounding may wait fail-closed",
+          "label": "IMPLEMENTED — missing or unverified evidence remains pending; preserve the objective and recover by retrying its authenticated origin after the knowledge source is corrected",
           "source_references": [
             "src/riverview_core/status_dashboard/server.py",
             "src/riverview_core/resident_execution/pipeline.py"
           ],
           "documentation_references": [
-            "docs/components/GRACE_PERSISTENT_EXECUTION.md",
             "docs/components/GRACE_EXECUTION_COOKBOOK.md"
           ],
           "verification_evidence": [
-            "tests/test_grace_execution.py"
+            "tests/test_status_dashboard.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:governed-objective-api",
+          "node_revision": "1.0.1",
+          "type": "process",
+          "label": "Authenticated exact-grant request persists a durable receipt; verified grounding advances, incomplete evidence remains WAITING_FOR_EVIDENCE and same-origin retry resumes without duplication",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/resident_execution/pipeline.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_status_dashboard.py"
           ]
         },
         {

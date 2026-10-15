@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.12
+# Revision: 1.3.13
 # Purpose: Serve account-authenticated operational projections and existing bounded APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -35,6 +35,7 @@
 # Tests: tests/test_status_dashboard.py
 # History: Git and revision/backup manifest
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
+# Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RECOVERY-001 | Ground against the active immutable release and make conversation intake recoverable/idempotent.
 # =============================================================================
 """Loopback-only Steward dashboard with read projections and receipt-only writes."""
 
@@ -49,6 +50,7 @@ import secrets
 import stat
 import threading
 import time
+from uuid import NAMESPACE_URL, uuid5
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -885,19 +887,52 @@ def make_handler():
                                 source["actor_id"] != principal_id):
                             self._error(404, "conversation_message_not_found", request_id)
                             return
-                        from uuid import uuid4
                         from riverview_core.institutional_authority.grants import InstitutionalPrincipal
-                        objective_id = "objective:grace-conversation:" + str(uuid4())
                         origin = {"conversation_id": conversation_id,
                                   "source_sequence": sequence}
-                        result = pipeline.submit_objective(
-                            objective_id, source["body"], criteria,
-                            scope_ref="work-order:engineering",
-                            principal=InstitutionalPrincipal(principal_id), origin=origin)
-                        grounded = pipeline.ground_objective(objective_id)
-                        self._json(202, {"objective_id": objective_id,
-                            "status": grounded["status"],
-                            "source_revision": grounded["source_revision"]}, request_id)
+                        from riverview_core.resident_execution import ObjectiveStateError
+                        existing = _find_conversation_objective(
+                            pipeline, conversation_id, sequence)
+                        if existing is not None:
+                            # The first receipt is durable even when grounding is
+                            # unavailable. A same-origin retry resumes that exact
+                            # objective; it must never mint a second objective ID.
+                            if (existing.get("scope_ref") != "work-order:engineering"
+                                    or existing.get("submitter_id") != principal_id
+                                    or existing.get("request", "").strip() != source["body"].strip()
+                                    or existing.get("acceptance_criteria") != criteria):
+                                raise ObjectiveStateError(
+                                    "conversation source conflicts with its recorded objective")
+                            grounded = (_ground_conversation_objective(pipeline, existing["objective_id"])
+                                if existing["status"] in {"RECEIVED", "WAITING_FOR_EVIDENCE"}
+                                else existing)
+                        else:
+                            # Deterministic origin identity closes the concurrent
+                            # double-submit race without a new migration or grant.
+                            suffix = uuid5(NAMESPACE_URL,
+                                f"riverview:grace-conversation-objective:{conversation_id}:{sequence}")
+                            objective_id = "objective:grace-conversation:" + str(suffix)
+                            try:
+                                accepted = pipeline.submit_objective(
+                                    objective_id, source["body"], criteria,
+                                    scope_ref="work-order:engineering",
+                                    principal=InstitutionalPrincipal(principal_id), origin=origin)
+                            except ObjectiveStateError:
+                                # A simultaneous request may have committed the
+                                # same deterministic ID while this request waited.
+                                existing = _find_conversation_objective(
+                                    pipeline, conversation_id, sequence)
+                                if existing is None:
+                                    raise
+                                if (existing.get("scope_ref") != "work-order:engineering"
+                                        or existing.get("submitter_id") != principal_id
+                                        or existing.get("request", "").strip() != source["body"].strip()
+                                        or existing.get("acceptance_criteria") != criteria):
+                                    raise
+                                accepted = existing
+                            grounded = _ground_conversation_objective(
+                                pipeline, accepted["objective_id"])
+                        self._json(202, _conversation_objective_response(grounded), request_id)
                     except Exception as exc:
                         from riverview_core.resident_execution import ObjectiveNotAuthorized, ObjectiveStateError
                         from riverview_core.institutional_authority import GrantCheckUnavailable
@@ -1312,8 +1347,73 @@ class DashboardHTTPServer(_BoundedHTTPServer):
 
 
 def _release_commit() -> str:
-    release_root = Path(__file__).resolve().parents[3]
+    release_root = _release_root()
     return release_root.name if re.fullmatch(r"[0-9a-f]{40,64}", release_root.name) else "unknown"
+
+
+def _release_root() -> Path:
+    """Return the immutable package root that owns this loaded dashboard module."""
+    return Path(__file__).resolve().parents[3]
+
+
+def _knowledge_root(*, release_root=None, configured=None) -> Path:
+    """Use an explicit knowledge root or this package's verified release files.
+
+    The legacy shared core symlink can lag the dashboard release. In a packaged
+    dashboard, the module's own release contains the matching SOURCE_COMMIT and
+    PACKAGE_SHA256SUMS used by RepositoryKnowledgeProvider. Development checkouts
+    without those package markers retain the legacy default.
+    """
+    explicit = os.environ.get("RIVERVIEW_KNOWLEDGE_ROOT") if configured is None else configured
+    if explicit:
+        return Path(explicit)
+    root = Path(release_root) if release_root is not None else _release_root()
+    if (root / "SOURCE_COMMIT").is_file() and (root / "PACKAGE_SHA256SUMS").is_file():
+        return root
+    return Path("/opt/riverview-core")
+
+
+def _find_conversation_objective(pipeline, conversation_id, source_sequence):
+    """Find the durable objective already bound to one authenticated source message."""
+    with pipeline.ledger.db.cursor() as cur:
+        pipeline.ledger._set_search_path(cur)
+        cur.execute("""SELECT DISTINCT objective_id FROM grace_objective_events
+            WHERE event_type='objective.received'
+              AND payload->'origin'->>'conversation_id'=%s
+              AND payload->'origin'->>'source_sequence'=%s
+            ORDER BY objective_id""", (conversation_id, str(source_sequence)))
+        rows = cur.fetchall()
+    if len(rows) > 1:
+        from riverview_core.resident_execution import ObjectiveStateError
+        raise ObjectiveStateError("conversation source already has conflicting objectives")
+    return pipeline.get_objective(rows[0]["objective_id"]) if rows else None
+
+
+def _ground_conversation_objective(pipeline, objective_id):
+    """Return durable wait/progress state after grounding, without mislabeling it conflict."""
+    from riverview_core.resident_execution import ObjectiveStateError
+    try:
+        return pipeline.ground_objective(objective_id)
+    except ObjectiveStateError:
+        current = pipeline.get_objective(objective_id)
+        if current and current.get("status") in {
+                "WAITING_FOR_EVIDENCE", "GROUNDED", "PROPOSED",
+                "WORK_ORDER_CREATED", "COMPLETED"}:
+            return current
+        raise
+
+
+def _conversation_objective_response(objective):
+    """Build a bounded intake receipt that never returns request or evidence content."""
+    result = {"objective_id": objective["objective_id"], "status": objective["status"]}
+    if objective.get("source_revision"):
+        result["source_revision"] = objective["source_revision"]
+    if objective["status"] == "WAITING_FOR_EVIDENCE":
+        evidence = objective.get("evidence") or {}
+        result["evidence"] = {key: evidence.get(key) for key in (
+            "status", "error_code", "source_references", "source_revision",
+            "source_sha256", "retrieval_complete")}
+    return result
 
 
 def main():
@@ -1363,7 +1463,7 @@ def main():
     permission_store = ResidentPermissionStore(
         lambda: psycopg.connect(dsn, connect_timeout=2),
         schema=os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority"))
-    repository_root = Path(os.environ.get("RIVERVIEW_KNOWLEDGE_ROOT", "/opt/riverview-core"))
+    repository_root = _knowledge_root()
     pinned_commit = os.environ.get("RIVERVIEW_SOURCE_COMMIT", _release_commit())
     objective_ledger = None
     objective_pipeline = None

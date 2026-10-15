@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.35
+# Revision: 1.0.36
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -28,7 +28,8 @@
 # Tests: This file
 # History: Git and revision/backup manifest
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
-# Changed: 2026-10-15 UTC | RV-WEBSITE-PL004/006/008/011 | Assert assignment linkage, overview semantics, worker states, and activity paging.
+# Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RECOVERY-001 | Cover release-pinned knowledge and idempotent wait-state intake.
+# Changed: 2026-10-15 UTC | RV-WEBSITE-PL004/006/008/011/012/014 | Assert assignment linkage, overview semantics, worker states, activity paging, event provenance, and refresh guidance.
 # =============================================================================
 """Security, API, privacy and PostgreSQL integration tests for M3.1."""
 
@@ -47,7 +48,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from riverview_core.status_dashboard.projection import DashboardProjection
-from riverview_core.status_dashboard.server import DashboardHTTPServer, _read_token
+from riverview_core.status_dashboard.server import DashboardHTTPServer, _knowledge_root, _read_token
 from riverview_core.status_dashboard.markdown import render_markdown
 
 DSN = os.environ.get("RIVERVIEW_TEST_PG_DSN")
@@ -91,6 +92,18 @@ class _FakeProjection:
 
 
 class DashboardDeploymentContractTests(unittest.TestCase):
+    def test_packaged_dashboard_uses_its_matching_knowledge_sources_by_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            release = Path(tmp) / ("a" * 40)
+            release.mkdir()
+            (release / "SOURCE_COMMIT").write_text("a" * 40 + "\n", encoding="ascii")
+            (release / "PACKAGE_SHA256SUMS").write_text("manifest\n", encoding="ascii")
+            self.assertEqual(_knowledge_root(release_root=release), release)
+            self.assertEqual(_knowledge_root(release_root=release, configured="/srv/approved"),
+                             Path("/srv/approved"))
+            (release / "PACKAGE_SHA256SUMS").unlink()
+            self.assertEqual(_knowledge_root(release_root=release), Path("/opt/riverview-core"))
+
     def test_activity_has_explicit_older_and_newer_sequence_paging(self):
         app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
         html = (ROOT / "src/riverview_core/status_dashboard/static/index.html").read_text(encoding="utf-8")

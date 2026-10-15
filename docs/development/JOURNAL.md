@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.129
+**Document Revision:** 1.0.130
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
@@ -18,6 +18,7 @@
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL025 | Record PR #42 update and exact-head CI result
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL012 | Record Activity provenance UI and event-source limitations
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL014 | Record projection status guidance, browser verification and source semantics
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PR42-RECONCILE | Preserve PR #44 integration journal entry and record current base reconciliation
 **Changed:** 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow the explicitly reviewed supervised Bash runner in exact-source packages while retaining strict checks for other scripts
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
 **Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record responsive conversation interface implementation and isolated real-model browser acceptance
@@ -1723,3 +1724,23 @@ PL-NEW-007 is separately blocked because `RIVERVIEW_STALE_AFTER_SECONDS` has a 3
 **Verification:** `PYTHONPATH=.:src pytest -q -rs tests/test_status_dashboard.py tests/test_process_graph.py` — 36 passed, 8 PostgreSQL-dependent skips (`RIVERVIEW_TEST_PG_DSN` is unset). `python3 scripts/process_graph.py check` — PASS, 19 workflows / 458 nodes. `git diff --check` — PASS. The staged controlled revision audit passes with zero findings. Isolated Firefox reports and screenshots: `evidence/checkouts/WEBSITE-PL004/20261015T203000Z-assignment-linkage/` and `evidence/checkouts/WEBSITE-PL-UI-REGRESSIONS/20261015T203000Z-overview-workers-activity/`. No production service, database, schema, grant, CME, worker, OCTO1/OCTO2 configuration, or deployment was touched.
 
 **Next:** push the rebased website branch with lease protection, refresh PR #42's scope/evidence, and confirm exact-head checks before marking it ready for controlled integration review. Do not merge or deploy in this website task. Next independent punch-list audit: PL-NEW-012 event meaning and diagnostic evidence, using only available projection fields.
+
+## 2026-10-15 UTC — RV-GRACE-WORKORDER-RECOVERY-001 (integration journal)
+
+Preserved the integration journal entry from PR #44: its work-order recovery
+changes bind packaged knowledge to the matching release by default, preserve
+durable wait receipts, and use authenticated conversation/message origin for
+idempotent retries. The entry records that production retry and subsequent
+CME/Codex/verifier work remain pending controlled review. This website branch
+does not implement, alter, or commission that behavior.
+
+## 2026-10-15 UTC — RV-WEBSITE-PR42-RECONCILE
+
+The integration base advanced from PR #43 merge
+`665ae8100a50faa26985b0cfee8834e68bf2a847` to PR #44 merge
+`29d196f879d0a3a1dad5f782b305d9d52a0baadd` while PR #42 exact-head CI was
+running. The website branch now merges the current base and retains Codex 1's
+Grace work-order recovery source, graph, generated graph, component docs, and
+test coverage. Shared revision, journal, and dashboard-test records were
+resolved additively. No Grace execution behavior was changed in this
+reconciliation.
