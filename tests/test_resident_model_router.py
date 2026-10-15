@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.9
+# Revision: 1.0.13
 # Purpose: Verify primary 80B routing, capability-pinned recovery, bounded fallback and diagnostics
 # Execution Model: Deterministic provider doubles; no database or model endpoint
 # Observability: Assert selected provider and served-model provenance
@@ -13,6 +13,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-DEMO-BASE-INTEGRATION | Preserve router regressions across integrated release changes
 # Changed: 2026-10-15 UTC | RV-GRACE-SINGLE-RESIDENT-IDENTITY-001 | Verify all model-stage prompts preserve Grace's single resident identity
 # Changed: 2026-10-15 UTC | RV-GRACE-CHAT-CONTEXT-BOUND-001 | Reproduce and prevent provider message-count rejection on long conversations
+# Changed: 2026-10-15 UTC | RV-GRACE-AUTONOMIC-CONTEXT-BOUND-001 | Verify minimal autonomic identity prompt and full substantive context without changing durable input
 # =============================================================================
 """Focused tests for Grace's readiness-aware three-stage router."""
 
@@ -33,6 +34,7 @@ class _Provider:
         self.state = "READY" if ready else "UNAVAILABLE"
         self.calls = []
         self.timeout_values = []
+        self.token_limits = []
         self.failure = None
         self.proposal_requests = []
 
@@ -42,6 +44,7 @@ class _Provider:
     def complete_chat(self, messages, *, max_tokens, expected_revision, timeout_seconds=120):
         self.calls.append((messages, expected_revision))
         self.timeout_values.append(timeout_seconds)
+        self.token_limits.append(max_tokens)
         if self.failure:
             raise LocalReasoningUnavailable(self.failure)
         return ChatCompletion("bounded answer", self.model, 2, 3, "stop")
@@ -94,10 +97,19 @@ class GraceModelRouterTests(unittest.TestCase):
 
     def test_autonomic_greeting_uses_cpu_and_marks_provisional(self):
         result = self.router.complete_chat([{"role": "user", "content": "Hello."}],
-            max_tokens=64, expected_revision=self.router.model_sha256)
+            max_tokens=512, expected_revision=self.router.model_sha256)
         self.assertEqual(result.served_model, "qwen-0.6b")
         self.assertEqual(result.reasoning_stage, "autonomic")
         self.assertTrue(result.provisional)
+        self.assertEqual(self.cpu.token_limits, [32])
+        self.assertEqual(self.cpu.timeout_values, [60])
+        self.assertEqual(result.provider_attempts[0]["completion_token_limit"], 32)
+
+    def test_autonomic_budget_never_exceeds_lower_caller_limit(self):
+        self.router.complete_chat([{"role": "user", "content": "Hello."}],
+            max_tokens=24, expected_revision=self.router.model_sha256)
+        self.assertEqual(self.cpu.token_limits, [24])
+        self.assertEqual(self.cpu.timeout_values, [60])
 
     def test_long_conversation_preserves_system_context_and_latest_user_within_provider_limit(self):
         # Mirrors production: role context, sixteen persisted turns, an operational
@@ -107,22 +119,57 @@ class GraceModelRouterTests(unittest.TestCase):
                          "content": f"synthetic history {index}"}
                         for index in range(15))
         messages.append({"role": "user", "content": "good morning"})
-        messages.append({"role": "system", "content": "synthetic operational snapshot"})
+        messages.append({"role": "system", "content": (
+            "Read-only Riverview operational context follows as JSON data. "
+            + "synthetic operational snapshot " * 600)})
         result = self.router.complete_chat(messages, max_tokens=64,
             expected_revision=self.router.model_sha256)
         routed = self.cpu.calls[-1][0]
         self.assertEqual(result.served_model, "qwen-0.6b")
         self.assertLessEqual(len(routed), self.router.PROVIDER_MAX_MESSAGES)
+        self.assertEqual(self.cpu.token_limits[-1], 32)
         self.assertEqual(self.router.PROVIDER_MAX_MESSAGES,
                          LocalReasoningProvider.MAX_CHAT_MESSAGES)
         self.assertIn("0.6B autonomic capability", routed[0]["content"])
         system_content = [item["content"] for item in routed if item["role"] == "system"]
-        self.assertIn("canonical Grace role context", system_content)
-        self.assertIn("synthetic operational snapshot", system_content)
+        self.assertIn("Director of Operations", system_content[0])
+        self.assertNotIn("canonical Grace role context", system_content[0])
+        self.assertFalse(any("synthetic operational snapshot" in item
+                             for item in system_content))
         self.assertEqual(next(item for item in reversed(routed)
                               if item["role"] in {"user", "assistant"}),
                          {"role": "user", "content": "good morning"})
         self.assertNotIn("synthetic history 0", json.dumps(routed))
+
+    def test_autonomic_minimal_context_does_not_trim_durable_input_or_substantive_context(self):
+        messages = [{"role": "system", "content": "canonical Grace role context"}]
+        messages.extend({"role": "user" if index % 2 == 0 else "assistant",
+                         "content": f"historical turn {index}"}
+                        for index in range(14))
+        messages.extend([
+            {"role": "system", "content": (
+                "Read-only Riverview operational context follows as JSON data. "
+                + "synthetic state " * 500)},
+            {"role": "user", "content": "good morning"},
+        ])
+        original = json.dumps(messages, sort_keys=True)
+        self.router.complete_chat(messages, max_tokens=32,
+            expected_revision=self.router.model_sha256)
+        autonomic = self.cpu.calls[-1][0]
+        self.assertIn("Director of Operations",
+                      " ".join(item["content"] for item in autonomic))
+        self.assertNotIn("canonical Grace role context", json.dumps(autonomic))
+        self.assertIn("good morning", json.dumps(autonomic))
+        self.assertNotIn("historical turn", json.dumps(autonomic))
+        self.assertNotIn("synthetic state", json.dumps(autonomic))
+        self.assertEqual(json.dumps(messages, sort_keys=True), original)
+
+        substantive = messages[:-1] + [{"role": "user", "content": "Analyze this request."}]
+        self.router.complete_chat(substantive, max_tokens=64,
+            expected_revision=self.router.model_sha256)
+        reasoning = self.reasoner.calls[-1][0]
+        self.assertIn("historical turn 0", json.dumps(reasoning))
+        self.assertIn("synthetic state", json.dumps(reasoning))
 
     def test_each_model_stage_describes_one_grace_identity_and_capability(self):
         cases = (
@@ -135,7 +182,10 @@ class GraceModelRouterTests(unittest.TestCase):
                 self.router.complete_chat([{"role": "user", "content": text}],
                     max_tokens=64, expected_revision=self.router.model_sha256)
                 instruction = provider.calls[-1][0][0]["content"]
-                self.assertIn("You are Grace, Riverview's continuing resident", instruction)
+                if capability == "0.6B autonomic capability":
+                    self.assertIn("You are Grace, Riverview's Director of Operations", instruction)
+                else:
+                    self.assertIn("You are Grace, Riverview's continuing resident", instruction)
                 self.assertIn("Director of Operations", instruction)
                 self.assertIn(capability, instruction)
                 self.assertIn("not a separate resident, office, or agent", instruction)
@@ -166,7 +216,8 @@ class GraceModelRouterTests(unittest.TestCase):
             max_tokens=64, expected_revision=self.router.model_sha256, timeout_seconds=120)
         self.assertEqual(result.served_model, "qwen-0.6b")
         self.assertEqual(self.vision.timeout_values, [15])
-        self.assertEqual(self.cpu.timeout_values, [35])
+        self.assertEqual(self.cpu.timeout_values, [60])
+        self.assertEqual(self.cpu.token_limits, [32])
         self.assertEqual([a["outcome"] for a in result.provider_attempts], ["failed", "succeeded"])
         self.assertEqual(result.provider_attempts[0]["error_code"], "endpoint_timeout")
         self.assertEqual(result.provider_attempts[0]["fallback_reason"], "interim_30b_provider_failure")
