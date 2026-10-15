@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/__init__.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Export the durable identity and scoped authority registry
 # Execution Model: Request-driven, PostgreSQL-backed authority checks
 # Observability: Durable identity, grant and office-binding events
@@ -17,7 +17,10 @@
 from .registry import (AuthorityDenied, AuthorityRegistry, IdentityConflict,
                        RegistryUnavailable)
 from .grants import ExactGrantAuthorizer, GrantCheckUnavailable, GrantDenied
+from .permission_profiles import (PermissionDecision, ResidentPermissionStore,
+                                  evaluate_profile)
 
 __all__ = ["AuthorityDenied", "AuthorityRegistry", "IdentityConflict",
            "RegistryUnavailable", "ExactGrantAuthorizer",
-           "GrantCheckUnavailable", "GrantDenied"]
+           "GrantCheckUnavailable", "GrantDenied", "PermissionDecision",
+           "ResidentPermissionStore", "evaluate_profile"]

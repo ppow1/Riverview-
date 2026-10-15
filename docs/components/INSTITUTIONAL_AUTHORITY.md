@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.26
+File Revision: 1.0.28
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
@@ -29,6 +29,8 @@ Changed: 2026-10-11 UTC | RV-M3.3-STATUS-RECONCILIATION | Correct current summar
 Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Add exact-grant check for linked authenticated account principals
 Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Specify explicit continuity opt-in on audited implementation CAS and its least-privilege runtime query
 Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Document Steward-only office-role correction without changing occupant, binding, or grants
+Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Add audited resident profiles as an additional policy gate to exact grants
+Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Fail closed for revoked/stale profiles and unregistered capability resources
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
@@ -36,7 +38,7 @@ History: Git and .riverview-backups/manifest.jsonl
 **Milestone:** M4.1 — Office, occupant, implementation and state separation
 **Status:** Additive live authority schema, privilege boundary, and root-local Steward bootstrap verified; service integration remains unverified
 **Implementation:** `src/riverview_core/institutional_authority/registry.py`
-**Migrations:** `0000_authority_migration_ledger.sql` bootstraps the checksum ledger if absent; `0001_institutional_authority.sql` creates registry tables and trigger; `0002_exact_grant_authorization.sql` creates the protected runtime credential exact-grant function; `0003_resident_office_state_api.sql` adds resident snapshot and compare-and-swap state functions; `0004_exact_principal_grant_authorization.sql` adds an exact-grant check for a principal established by a separately authenticated, linked Riverview account session.
+**Migrations:** `0000_authority_migration_ledger.sql` bootstraps the checksum ledger if absent; `0001_institutional_authority.sql` creates registry tables and trigger; `0002_exact_grant_authorization.sql` creates the protected runtime credential exact-grant function; `0003_resident_office_state_api.sql` adds resident snapshot and compare-and-swap state functions; `0004_exact_principal_grant_authorization.sql` adds an exact-grant check for a principal established by a separately authenticated, linked Riverview account session; `0008_resident_permission_profiles.sql` adds resident policy profiles and capability/resource metadata.
 **Process graph:** `rv:institutional-authority:identity-and-grants`
 
 ## Identity model
@@ -55,6 +57,32 @@ implements an office:
   each replacement increments a binding revision and appends an audit event.
 - `office_runtime_state` is keyed by office, not occupant or model. Replacing an
   occupant or implementation therefore preserves durable office state.
+
+## Resident capability and profile policy (development-only)
+
+Migration 0008 adds a Steward-reviewed resident profile layer. Tiers describe
+onboarding defaults; explicit resident policy can allow or deny a capability on
+a resource, with access level, approval hold, data classification, export mode,
+provenance, expiration and revocation. An active profile is an additional gate
+after the exact authority grant, never a substitute for it. Explicit resident
+policy overrides an inherited tier rule; a deny wins at equal specificity, and
+no matching allow denies. The selected resource must independently report
+ready capacity before dispatch. Revoked/suspended profiles deny, and an
+approved profile is invalidated by resident deactivation or a current-office
+mismatch. Capability-to-resource registration is required independently from
+the profile allow rule. Health and capacity are not yet projected by the new
+profile view; owning service/worker readiness remains authoritative.
+
+Edits remain pending drafts separate from effective rules. Save, activation and
+revocation use an expected revision; activation/revocation and every draft
+write append audit evidence. Functions check the authenticated Steward
+principal's existing exact `office.manage` grant. The database boundary grants
+the runtime EXECUTE on the five profile functions only; profile, capability,
+resource and event tables remain protected from direct runtime reads/writes.
+See `RESIDENT_PERMISSION_PROFILES.md` and the resident permission profile
+workflow graph. Migration 0008, function ACL changes, profile editing, and
+Grace's proposed institutional-administrator profile have not been deployed or
+activated. Existing exact grants and bindings are unchanged.
 
 ## Credential and grant contract
 

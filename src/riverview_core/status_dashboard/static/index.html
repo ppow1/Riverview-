@@ -1,7 +1,8 @@
 <!-- Riverview~ controlled asset; component STEWARD-DASHBOARD. -->
-<!-- Revision: 1.1.5 -->
+<!-- Revision: 1.1.7 -->
 <!-- Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Clarify legacy Connect fallback beside automatic linked Steward session -->
 <!-- Changed: 2026-10-13 UTC | RV-GRACE-EXPLICIT-WORKORDER-PROMOTION | Add explicit Steward criteria dialog for a persisted Grace message -->
+<!-- Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Add Steward resident profile checklist view -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -24,6 +25,7 @@
         <button class="nav-item" data-view="workflows"><span class="nav-mark">◇</span>Workflows</button>
         <button class="nav-item" data-view="notifications"><span class="nav-mark">◎</span>Notifications</button>
         <button class="nav-item" id="account-nav" data-view="account" hidden><span class="nav-mark">♙</span>Account access</button>
+        <button class="nav-item" id="resident-permissions-nav" data-view="resident-permissions" hidden><span class="nav-mark">⚿</span>Resident permissions</button>
       </nav>
       <div class="rail-foot"><span class="pulse-dot" id="pulse-dot"></span><span id="rail-health">Connecting</span><button id="snapshot" class="quiet-button" title="Download bounded diagnostic snapshot">Snapshot ↓</button></div>
     </aside>
@@ -57,6 +59,12 @@
           </div>
           <div class="panel diagnostics"><div class="eyebrow">IDENTITY AND RECOVERY</div><p>Conversation history belongs to this human principal and Grace's office. The bound model can change without changing the office, occupant, or stored history. A service restart preserves messages; an interrupted response is recorded as interrupted and is not silently retried.</p><a href="/docs/components/RESIDENT_CONVERSATION.md" target="_blank" rel="noreferrer">Conversation contract and troubleshooting</a></div>
         </section>
+        <section class="view" id="view-resident-permissions" aria-label="Resident permissions" hidden>
+          <div class="section-intro"><div><div class="eyebrow">INSTITUTIONAL AUTHORITY</div><h2>Resident permissions</h2></div><div class="note">Profiles add a policy gate to existing exact grants. A tier never creates authority; resource readiness is shown separately.</div></div>
+          <div id="resident-permission-state" class="muted" role="status">Loading permission registry…</div>
+          <div id="resident-permission-list" class="rows muted">No profile data returned.</div>
+          <div class="panel diagnostics"><h3>Profile change workflow</h3><p>Save creates a pending revision. Activate requires a separate explicit Steward action and the existing exact institutional office.manage grant. Revocation is immediate after its compare-and-swap transaction. Each transaction writes an append-only audit event.</p></div>
+        </section>
         <section class="view" id="view-activity" aria-label="Activity" hidden><div class="section-intro"><div><div class="eyebrow">CAUSAL EVENT LEDGER</div><h2>Activity</h2></div><div class="note">Correlation and causation IDs are shown as recorded.</div></div><div class="panel"><div class="panel-head"><div><h3>Persisted events</h3><span class="muted" id="event-cursor"></span></div><button id="more-events" class="secondary" hidden>Load next page</button></div><div id="event-list" class="rows muted">Waiting for events…</div></div><div class="panel diagnostics"><div class="eyebrow">DIAGNOSTIC REFERENCES</div><div><a href="/docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md" target="_blank" rel="noreferrer">Complete operations and recovery guide</a><span> · </span><a href="/docs/components/CME_MONITOR_COOKBOOK.md" target="_blank" rel="noreferrer">CME monitoring cookbook</a><span> · </span><a href="/docs/components/STATUS_DASHBOARD_COOKBOOK.md" target="_blank" rel="noreferrer">Dashboard read-only troubleshooting</a></div></div></section>
         <section class="view" id="view-workflows" aria-label="Process workflows" hidden>
           <div class="section-intro"><div><div class="eyebrow">CANONICAL PROCESS GRAPH</div><h2>Workflows</h2></div><div class="note">Read-only view generated from the versioned graph registry. No activity is inferred.</div></div>
@@ -87,6 +95,7 @@
   <dialog id="chat-details-dialog" class="chat-dialog" aria-labelledby="chat-details-title"><div class="dialog-head"><h2 id="chat-details-title">Conversation details</h2><button type="button" class="secondary" data-close-dialog>Close</button></div><div id="chat-details-content" class="chat-details-content"></div></dialog>
   <dialog id="message-details-dialog" class="chat-dialog" aria-labelledby="message-details-title"><div class="dialog-head"><h2 id="message-details-title">Message details</h2><button type="button" class="secondary" data-close-dialog>Close</button></div><div id="message-details-content" class="chat-details-content"></div></dialog>
   <dialog id="work-order-dialog" class="chat-dialog" aria-labelledby="work-order-title"><div class="dialog-head"><h2 id="work-order-title">Create Engineering objective</h2><button type="button" class="secondary" data-close-dialog>Close</button></div><p>The selected persisted message will be the objective request. Submission requires the exact Steward grant. It does not approve execution.</p><div class="panel"><strong>Selected Grace conversation message</strong><div id="work-order-source" class="message-detail-copy"></div></div><form id="work-order-form"><label for="work-order-criteria">Acceptance criteria (one per line)</label><textarea id="work-order-criteria" rows="5" maxlength="8192" required></textarea><div id="work-order-error" class="inline-error" role="status" aria-live="polite"></div><div class="composer-actions"><button id="work-order-submit" class="primary" type="submit">Submit objective</button></div></form></dialog>
+  <script src="/assets/resident-permissions.js" defer></script>
   <script src="/assets/app.js" defer></script>
   <script src="/assets/workflow.js" defer></script>
 </body>

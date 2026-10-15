@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_institutional_authority.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.14
+# Revision: 1.0.16
 # Purpose: Verify durable identity separation and fail-closed exact scoped grants
 # Execution Model: PostgreSQL integration tests in rvtest_* disposable schemas
 # Observability: unittest evidence, authority events, binding/state revisions
@@ -78,6 +78,7 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "0005_audited_model_rebinding",
             "0006_authorized_implementation_successor",
             "0007_audited_office_role_update",
+            "0008_resident_permission_profiles",
         ])
         self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
         if os.geteuid() != 0:
@@ -119,9 +120,13 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             cur.execute(f"SELECT event_type,payload FROM {self.schema}.institutional_authority_events "
                         "WHERE office_id='office:grace-role' AND event_type='office_role_updated'")
             event = cur.fetchone()
-        self.assertEqual(event["event_type"], "office_role_updated")
-        self.assertEqual(event["payload"]["previous_office_role"], "AI director of engineering")
-        self.assertEqual(event["payload"]["office_role"], "Director of Operations")
+        if hasattr(event, "keys"):
+            event_type, payload = event["event_type"], event["payload"]
+        else:
+            event_type, payload = event
+        self.assertEqual(event_type, "office_role_updated")
+        self.assertEqual(payload["previous_office_role"], "AI director of engineering")
+        self.assertEqual(payload["office_role"], "Director of Operations")
     def test_bootstrap_accepts_preallocated_token_for_write_ahead_persistence(self):
         from unittest.mock import patch
         import psycopg

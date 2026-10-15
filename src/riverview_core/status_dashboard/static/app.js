@@ -1,10 +1,11 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.3.3
+// Revision: 1.3.4
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
 // Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Use linked Steward account session for exact-grant Grace connection
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password login, grant decisions and email configuration UI
 // Changed: 2026-10-13 UTC | RV-GRACE-EXPLICIT-WORKORDER-PROMOTION | Let a Steward promote one persisted Grace message with explicit criteria.
 // Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Display durable deferred reasoning state in chat history.
+// Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Add Steward-only resident profile navigation.
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -227,6 +228,7 @@
     $("login").hidden = true; $("workspace").hidden = false;
     const steward = state.accountIdentity?.roles?.includes("steward") === true;
     $("account-nav").hidden = !steward;
+    $("resident-permissions-nav").hidden = !steward;
     $("account-label").textContent = state.accountIdentity ? `${state.accountIdentity.email} · ${state.accountIdentity.roles.join(", ")}` : "";
     $("sign-out").hidden = !state.accountIdentity;
   }
@@ -317,12 +319,12 @@
   }
   function navigate(name) {
     const start = performance.now();
-    const view = ["overview","assignments","objectives","grace-chat","activity","workflows","notifications","account"].includes(name) ? name : "overview";
-    if (view === "account" && !state.accountIdentity?.roles?.includes("steward")) { navigate("overview"); return; }
+    const view = ["overview","assignments","objectives","grace-chat","activity","workflows","notifications","account","resident-permissions"].includes(name) ? name : "overview";
+    if (["account","resident-permissions"].includes(view) && !state.accountIdentity?.roles?.includes("steward")) { navigate("overview"); return; }
     state.activeView = view;
     document.querySelectorAll(".view").forEach((node) => { const active = node.id === `view-${view}`; node.hidden = !active; node.classList.toggle("active", active); });
     document.querySelectorAll(".nav-item").forEach((node) => node.classList.toggle("selected", node.dataset.view === view));
-    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",objectives:"Grace objectives","grace-chat":"Talk with Grace",activity:"Activity",workflows:"Process workflows",notifications:"Notifications",account:"Account access"})[view];
+    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",objectives:"Grace objectives","grace-chat":"Talk with Grace",activity:"Activity",workflows:"Process workflows",notifications:"Notifications",account:"Account access","resident-permissions":"Resident permissions"})[view];
     history.replaceState(null,"",`#${view}`);
     const duration = performance.now() - start;
     state.navSamples.push({view,ms:duration}); state.navSamples=state.navSamples.slice(-100);
@@ -334,6 +336,7 @@
     if (view === "notifications") loadNotifications();
     if (view === "grace-chat") loadGraceConversation();
     if (view === "account") { loadEnrollments(); loadAccounts(); loadEmailSettings(); }
+    if (view === "resident-permissions") window.dispatchEvent(new Event("rv:resident-permissions"));
   }
   document.querySelectorAll(".nav-item").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.view)));
   document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.go)));

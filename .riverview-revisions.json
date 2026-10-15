@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.130",
+  "manifest_revision": "1.1.131",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.95",
+      "revision": "1.0.96",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "2756e9b93a72dd38cc1b729743e8db101ecc57672f1dfc65ea2e318b29cd88aa",
-      "size_bytes": 447123
+      "sha256": "64d5e51eafabc7d34c858140b4b0543e5d57084cd5a304f8b8cd634d074b3cf6",
+      "size_bytes": 464286
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 33631
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.130"
+      "revision": "1.1.131"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -207,6 +207,12 @@
       "path": "process_graphs/account-authentication/account-lifecycle.json",
       "sha256": "00b5fc68b2a4849c1f7f5dca52ee27306ce73ceb1676c773d45de411bf0cf7d4",
       "size_bytes": 19068
+    },
+    "process_graphs/institutional-authority/resident-permission-profiles.json": {
+      "revision": "1.0.1",
+      "path": "process_graphs/institutional-authority/resident-permission-profiles.json",
+      "sha256": "01f48edc434cae02923b7af4e20c391255bf84da04125189480b415880d51b98",
+      "size_bytes": 12418
     }
   }
 }
