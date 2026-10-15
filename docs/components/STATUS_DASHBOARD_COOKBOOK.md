@@ -1,12 +1,13 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.9
+File Revision: 1.1.0
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Link durable notification receipt diagnostics
 Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-CURRENT-DOCS-RELEASE | Document immutable composite docs release provenance and verification
+Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Require checksum-verified stream-delivery migration before enabling SSE
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -160,9 +161,17 @@ existing PostgreSQL credential.
    the deployment record, reload systemd and restart only that unit. Confirm the
    event processor and baseline service did not change.
 
-No shared database migration is required. Do not use the dashboard to apply one.
-The default source returns truthful unavailable/not-initialized states if its
-database tables are absent or unreadable.
+The durable Grace conversation stream requires the resident-execution migration
+`0008_resident_conversation_stream_delivery.sql`. Before activating an integrated
+release that enables SSE, verify all earlier resident-execution migration checksums,
+then apply only a missing reviewed migration through the established migration
+runner after a protected backup and disposable restore. This migration adds one
+stream-delivery table and grants the runtime role SELECT/INSERT/UPDATE on that
+table only; it does not change authority permissions or canonical conversation
+history. Dashboard startup never applies migrations. If the migration is absent,
+has a checksum mismatch, or the runtime table ACL is incomplete, stop activation;
+do not fall back to broad database privileges. The legacy non-streaming API remains
+available for clients that cannot stream.
 
 For a docs-only release, preserve the existing dashboard executable and static
 assets; install updated component documents and synchronized canonical graph
