@@ -1,9 +1,9 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.117
+**Document Revision:** 1.0.118
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
-**Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
+**Changed:** 2026-10-15 UTC | RV-GRACE-AUTHORIZED-SNAPSHOT-001 | Revalidate resident reasoning through the protected office-state capability
 **Changed:** 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow the explicitly reviewed supervised Bash runner in exact-source packages while retaining strict checks for other scripts
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
 **Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record responsive conversation interface implementation and isolated real-model browser acceptance
@@ -1654,3 +1654,26 @@ Regression coverage verifies package-root selection, same-origin retry without
 duplicate submission, and changed-criteria conflict. Production retry and the
 subsequent CME/Codex/verifier cycle remain pending a reviewed release and the
 Steward's same-message retry through the authenticated website.
+
+
+## 2026-10-15 UTC — RV-GRACE-AUTHORIZED-SNAPSHOT-001
+
+After deployment of the 60-second proposal deadline, the existing objective
+`2c573041-cc5e-4b54-9f93-8163de91e52c` reached model inference but proposal
+persistence failed during post-inference authority revalidation. The owner
+service reported only the sanitized `RegistryUnavailable` category. A read-only
+reproduction with the production runtime role confirmed SQLSTATE 42501 when it
+selected protected office-binding tables directly; the role is intentionally
+limited to the approved `read_authorized_office_state` and
+`write_authorized_office_state` functions. No authority ACL was widened and no
+objective or conversation row was changed.
+
+The correction replaces the direct post-provider `office_snapshot` call with
+`authorize_office_state`, so the original exact office-state grant, current
+occupant, active binding and implementation revisions are rechecked through the
+existing narrow security-definer API before the proposal is persisted. A
+restricted-login PostgreSQL regression denies direct `office_bindings` reads
+while the proposal succeeds and persists through the allowed functions. Focused
+resident reasoning tests pass 15/15; full isolated-suite verification is in
+progress. The live objective remains grounded with no assignment until this
+correction is integrated and deployed.

@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_FLOW.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.6
+File Revision: 1.0.7
 Purpose: Generated focused process view for resident reasoning routing
 Authority: Graph-generated view; canonical source is JSON
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add graph-generated resident reasoning flow
@@ -36,7 +36,7 @@ flowchart LR
     g_rv_resident_reasoning_runtime_fallback_6dc058bf["Try the next explicitly configured provider only; no implicit provider selection"]
     g_rv_resident_reasoning_runtime_proposal_gate_8918a316["Validate typed plan schema, ordered dependencies, and attempt token budget"]
     g_rv_resident_reasoning_runtime_proposal_invalid_182e56de[["Reject malformed or over-budget output; do not persist a proposal"]]
-    g_rv_resident_reasoning_runtime_freshness_gate_bef2dc13{"Did office binding and assignment revision remain current?"}
+    g_rv_resident_reasoning_runtime_freshness_gate_bef2dc13{"Did authorized office-state revalidation and assignment revision checks remain current?"}
     g_rv_resident_reasoning_runtime_stale_context_20ce95a2[["Discard stale result and require a new authoritative grounding cycle"]]
     g_rv_resident_reasoning_runtime_persist_plan_66486e35["Persist source references, statuses, request metadata and plan via office-state CAS"]
     g_rv_resident_reasoning_runtime_persistence_gate_d9f96702{"Did exact-grant state write succeed against the expected revision?"}
