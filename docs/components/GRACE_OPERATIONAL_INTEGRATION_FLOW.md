@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.27
+**Document Revision:** 1.0.28
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -86,7 +86,7 @@ flowchart LR
     g_rv_grace_operational_integration_replan_58351ccd["PLANNED — revise plan and initiate follow-up work after evidence or failure"]
     g_rv_grace_operational_integration_steward_escalation_ca57acbb[["PLANNED — request only genuine Steward decision or authority"]]
     g_rv_grace_operational_integration_objective_complete_a6f22d23(["TEST VERIFIED — objective closes only after persisted independent ACCEPTED verification"])
-    g_rv_grace_operational_integration_bounded_evidence_selection_eb29b3f5["IMPLEMENTED — select complete task-relevant passages from commit-pinned repository sources"]
+    g_rv_grace_operational_integration_bounded_evidence_selection_eb29b3f5["IMPLEMENTED — verify the full pinned source set and deterministically select ranked complete passages within the evidence bound; retain source provenance and coverage metadata"]
     g_rv_grace_operational_integration_proposal_validation_90e4c0ca["IMPLEMENTED — persist only typed proposals after complete VERIFIED grounding"]
     g_rv_grace_operational_integration_work_order_authorization_829196dd["IMPLEMENTED — assignment.create exact grant precedes durable CME handoff"]
     g_rv_grace_operational_integration_independent_artifact_check_2502f001["IMPLEMENTED TEST ADAPTER — reopen artifact and verify digest, task identity, criteria, and provenance"]
