@@ -1,3 +1,13 @@
+<!--
+Riverview~ Controlled Document
+File: docs/steward/Riverview_Steward_Punch_List_2026-10-13.md
+Component: STEWARD-BACKLOG
+File Revision: 1.0.0
+Purpose: Preserve Steward-captured operational and website improvement observations
+Authority: Backlog capture only; entries do not authorize implementation or change active scope
+Changed: 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Add controlled revision metadata without changing captured items
+History: Git and .riverview-backups/manifest.jsonl
+-->
 # Riverview Steward Punch List
 
 Captured: 2026-10-13. Proposed IDs only; not yet registered in GitHub or Riverview's database. This backlog must not interrupt the active Grace-to-Engineering work-production campaign.

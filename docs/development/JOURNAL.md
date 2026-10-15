@@ -1,9 +1,12 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.116
+**Document Revision:** 1.0.119
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Recover website punch list and implement cross-workflow destination focus/return
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL027 | Record final workflow map revision, controlled-source repair, and verification outcome
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Clarify PR #40 documentation overlap and website ownership boundaries
 **Changed:** 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow the explicitly reviewed supervised Bash runner in exact-source packages while retaining strict checks for other scripts
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
 **Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record responsive conversation interface implementation and isolated real-model browser acceptance
@@ -1595,3 +1598,20 @@ bound to the 0.6B implementation at binding revision 3. The corrected release
 still needs PR/CI and a new immutable candidate archive before a later
 commissioning attempt. The real authenticated 80B browser acceptance remains
 open.
+
+## 2026-10-15 UTC — RV-WEBSITE-PUNCH-LIST-001
+
+**Classification:** website backlog recovery and workflow navigation enhancement.
+**Owner:** STEWARD-DASHBOARD / website presentation.
+**Branch:** `codex/website-improvements`.
+**Integration baseline:** `codex/grace-conversation-ui-refinement` at PR #41 merge `218cb58491bcb939466a1eebb51bd666fd97005`; PR #40's durable SSE and deferred-response recovery are included. The website branch contains the two later Steward punch-list documentation commits replayed onto this integration point. PR #40 touched the shared dashboard `server.py`, `static/app.js`, dashboard tests/docs, and Grace runtime. This change avoids the shared behavior-code and test files; its only same-file documentation overlaps are additive workflow-navigation paragraphs in the dashboard contract and cookbook. Stream behavior and stream-specific documentation remain intact.
+
+**Production baseline:** NOT VERIFIED from this environment. The punch list's last reported dashboard release is `3639f680` (captured 2026-10-13); it is historical reporting, not a current live check. The authorized read-only SSH check failed because this environment could not resolve `camrui`. No production service or database was contacted or changed.
+
+Recovered PL-NEW-001 through PL-NEW-041 into `docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`. Original IDs, source priorities, later observations, and the distinction between captured observations, roadmap requirements, existing implementations, and proposals are retained. PL-NEW-027 was selected as an independent, explicit website usability improvement. PL-NEW-041 remains P1 as captured and is queued after the Grace commissioning repair; the current 128 KiB snapshot cap and the larger canonical workflow export are recorded as design constraints, not as a new requirement.
+
+The workflow viewer now follows the exact registered `jump_target_id`, focuses the destination node and its accessible detail, and exposes a return control that restores the originating graph and jump node. A failed target request retains the return control. The canonical dashboard graph advanced to revision 1.1.3; generated aggregate and focused flow views were synchronized, including the normal no-jump-selected path. The captured source punch list received a controlled file revision header after its original bytes were backed up; no captured item text was changed. The dashboard contract/cookbook and this journal were updated. No SSE, deferred-resume, Grace, engineering-execution, authorization, CME, schema, or deployment code was changed.
+
+**Verification:** `PYTHONPATH=.:src pytest -q tests/test_status_dashboard.py tests/test_process_graph.py` — 32 passed, 8 skipped. The skips are database-dependent cases; this work did not connect to production PostgreSQL. `python3 scripts/process_graph.py check` — PASS, 19 workflows / 458 nodes. An isolated Firefox/geckodriver loopback fixture loaded all 19 canonical graphs and passed exact target focus/detail plus return-to-source focus/detail; report and screenshots: `evidence/checkouts/WEBSITE-PL027/20261015T193400Z-workflow-navigation/`. The first browser fixture attempt lacked its local test token and timed out before loading the graph list; the setup error and correction are retained in the adjacent evidence directory. Production account-cookie transport and live browser acceptance remain NOT VERIFIED.
+
+**Next:** review the complete diff and evidence manifests, commit to the assigned branch, and prepare a draft PR against `codex/grace-conversation-ui-refinement`. PL-NEW-025 account-cookie browser regression is the next website verification item; PL-NEW-041 remains sequenced after the independently owned Grace commissioning repair.

@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.2
+File Revision: 1.1.3
 Purpose: Specify operational projections and exact-grant Grace objective and conversation interfaces
 Authority: Reads require dashboard authentication; objective and resident conversation operations require exact institutional grants
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
@@ -14,6 +14,7 @@ Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Keep persisted historical interru
 Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Document password login, grant controls and configurable SMTP administration
 Changed: 2026-10-14 UTC | RV-GRACE-HEALTH-PROJECTION-ACL-001 | Grant dashboard runtime SELECT only on Grace execution health for status projection
 Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Document bounded authenticated conversation streaming writes and migration dependency
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL027 | Document focused cross-workflow jump navigation and return behavior
 History: Git and revision/backup manifest
 -->
 # Steward status dashboard
@@ -151,6 +152,14 @@ and resolvable cross-workflow jump controls. There is no second maintained graph
 source. The execution-position field stays `unknown` while assignment state does
 not persist a canonical process-node identity; in that state the viewer
 highlights no node and displays the reason. It does not infer a node from prose.
+
+Selecting a cross-workflow jump loads the registered destination graph, verifies
+the exact `jump_target_id` is present, focuses that node, and displays its detail.
+The viewer retains the source workflow and originating jump node in the current
+page session. Its **Back to source node** control restores that workflow and
+focuses the originating jump. Selecting another workflow from the selector starts
+a new navigation path. If the target graph or node cannot be loaded, the viewer
+reports it as unavailable and keeps the return control available.
 
 Component-document routes read only regular files from the package's
 `docs/components` directory. The standard-library renderer supports headings,

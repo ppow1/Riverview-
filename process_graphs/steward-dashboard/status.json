@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:steward-dashboard:status",
-  "graph_revision": "1.1.1",
+  "graph_revision": "1.1.3",
   "component_id": "STEWARD-DASHBOARD",
   "workflow_id": "status-projection.v1",
   "diagram_order": 1,
@@ -640,6 +640,58 @@
       "verification_evidence": [
         "tests/test_status_dashboard.py"
       ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:select-cross-workflow-jump",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Steward selects a registered cross-workflow destination?",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:navigate-to-jump-target",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Load destination workflow and focus the exact target node",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:jump-target-unavailable",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Show target unavailable and retain the source return path",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:return-to-source-jump",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Return to the source workflow and focus its originating jump node",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": []
     }
   ],
   "edges": [
@@ -914,6 +966,48 @@
       "to": "rv:steward-dashboard:status:deny-request",
       "type": "diagnostic_branch",
       "label": "Expired or absent account session; return authorization denial"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-process-graph",
+      "to": "rv:steward-dashboard:status:select-cross-workflow-jump",
+      "type": "runtime_transition",
+      "label": "Steward selects a jump destination"
+    },
+    {
+      "from": "rv:steward-dashboard:status:select-cross-workflow-jump",
+      "to": "rv:steward-dashboard:status:navigate-to-jump-target",
+      "type": "runtime_transition",
+      "label": "Registered target selected"
+    },
+    {
+      "from": "rv:steward-dashboard:status:navigate-to-jump-target",
+      "to": "rv:steward-dashboard:status:jump-target-unavailable",
+      "type": "diagnostic_branch",
+      "label": "Destination graph or exact node unavailable"
+    },
+    {
+      "from": "rv:steward-dashboard:status:navigate-to-jump-target",
+      "to": "rv:steward-dashboard:status:return-to-source-jump",
+      "type": "runtime_transition",
+      "label": "Return to source requested"
+    },
+    {
+      "from": "rv:steward-dashboard:status:jump-target-unavailable",
+      "to": "rv:steward-dashboard:status:return-to-source-jump",
+      "type": "recovery_route",
+      "label": "Use the preserved return control"
+    },
+    {
+      "from": "rv:steward-dashboard:status:return-to-source-jump",
+      "to": "rv:steward-dashboard:status:render-process-graph",
+      "type": "runtime_transition",
+      "label": "Source graph and jump node restored"
+    },
+    {
+      "from": "rv:steward-dashboard:status:select-cross-workflow-jump",
+      "to": "rv:steward-dashboard:status:render-process-graph",
+      "type": "runtime_transition",
+      "label": "No jump selected; continue viewing this workflow"
     }
   ]
 }

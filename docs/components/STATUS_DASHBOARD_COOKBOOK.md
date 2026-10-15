@@ -1,13 +1,14 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.0
+File Revision: 1.1.1
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Link durable notification receipt diagnostics
 Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-CURRENT-DOCS-RELEASE | Document immutable composite docs release provenance and verification
 Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Require checksum-verified stream-delivery migration before enabling SSE
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL027 | Add expected cross-workflow target focus and return-path diagnostics
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -33,8 +34,12 @@ The **Workflows** view reads authenticated `GET /api/v1/graphs` and
 `GET /api/v1/graphs/<graph_id>` projections from the deployed
 `process_graphs/*/*.json` registry. It shows graph revision, stable node IDs,
 node type, typed transitions and cross-workflow jump destinations. Selecting a
-node shows its source, documentation and evidence references. The browser is
-read-only. It highlights live execution only when the API supplies an exact
+node shows its source, documentation and evidence references. Following a jump
+loads the target workflow, checks the exact target node ID, focuses it and shows
+its details; **Back to source node** restores the originating jump. A missing
+target is shown as unavailable and retains that return path. A disabled jump
+button means the target workflow is not present in the loaded graph index. The
+browser is read-only. It highlights live execution only when the API supplies an exact
 persisted process-node identity. Assignment records do not currently store that
 identity; `unknown` with no highlighted node is expected, not a failure or an
 inferred position.
@@ -47,6 +52,12 @@ and generated views locally:
 python3 scripts/process_graph.py check
 python3 scripts/revision_control.py check --baseline evidence/checkouts/ENG-REVISION-CONTROL/20261010T1530Z-27a8c55/baseline-inventory.json
 ```
+
+If a registered jump does not resolve, inspect its `jump_target_id`, verify that
+the destination graph and node IDs exist, then run the graph check above. If the
+destination request fails in the browser, use **Back to source node** to restore
+the prior context; the viewer does not infer a substitute target. The canonical
+navigation path is recorded in `process_graphs/steward-dashboard/status.json`.
 
 The service reads from its selected root-owned release. Deploy a new verified
 full-SHA release to update code and graph data together; never hot-edit the

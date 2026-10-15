@@ -1,0 +1,35 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "browser-report.json": {
+      "path": "browser-report.json",
+      "revision": "1.0.0",
+      "sha256": "535608247a03b25b08624d9214699974dd83704e5675bc0f9ba1cc31ce7f1b49",
+      "size_bytes": 1091
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "89aae1e56205ed093cc7dc8b8ac7f2ae96a2386eaea86141d8173ba4700c26cc",
+      "size_bytes": 731
+    },
+    "geckodriver-initial-fixture.log": {
+      "path": "geckodriver-initial-fixture.log",
+      "revision": "1.0.0",
+      "sha256": "f3a2bdeae62bfedc3f10e4f685eaf44f069f0c4d643252ed6872aa8355d2d6b6",
+      "size_bytes": 747
+    },
+    "geckodriver.log": {
+      "path": "geckodriver.log",
+      "revision": "1.0.0",
+      "sha256": "a51931aba3fb08b29ae8f3c76ec0c970a6fb79a500e3de1d47dd9f837d139392",
+      "size_bytes": 967
+    },
+    "workflow-return.png": {
+      "path": "workflow-return.png",
+      "revision": "1.0.0",
+      "sha256": "db2b4cf606badba8cd098121914ddb737bee384c892085824ce90333f05dbea1",
+      "size_bytes": 86164
+    }
+  }
+}

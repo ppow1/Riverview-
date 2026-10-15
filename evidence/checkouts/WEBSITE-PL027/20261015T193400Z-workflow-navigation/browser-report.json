@@ -1,0 +1,18 @@
+{
+  "schema_version": "rv.website.workflow-navigation-check.v1",
+  "result": "PASS",
+  "captured_at": "2026-10-15T19:35:23.687501+00:00",
+  "environment": "Isolated loopback graph API fixture using working-tree workflow.js and app.css plus canonical graph JSON; Firefox headless through geckodriver; no production service, account, database, or external network endpoint.",
+  "graphs_available": 19,
+  "source_graph_id": "rv:assignment-intake:governed-request",
+  "source_jump_node_id": "rv:assignment-intake:governed-request:exact-grant-jump",
+  "target_graph_id": "rv:institutional-authority:identity-and-grants",
+  "target_node_id": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+  "checks": [
+    "workflow registry loaded",
+    "cross-workflow jump opened destination graph and focused exact target identity",
+    "target detail showed exact ID",
+    "Back to source node restored source graph and originating jump-node focus/details"
+  ],
+  "limitation": "Fixture uses a test-only sessionStorage bearer token; production account-cookie authorization is not exercised."
+}
