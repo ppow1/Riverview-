@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_knowledge.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify commit-pinned relevant evidence selection and fail-closed bounds
 # Execution Model: Temporary committed fixture repository; no live model or database
 # Observability: Status, refs, source revision/hash, retrieval completeness, context size
 # Dependencies: Python 3.10+; Git
 # Authority: Temporary directories only
 # Changed: 2026-10-11 UTC | RV-M4.4-OBJECTIVE-WORKORDER-PIPELINE | Initial selector regressions
+# Changed: 2026-10-15 UTC | RV-GRACE-GROUNDING-BOUNDED-001 | Cover ranked retrieval when broad objectives match more evidence than the context bound
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -21,7 +22,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from riverview_core.worker_adapter.knowledge import KnowledgeStatus
+from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
 from riverview_core.worker_adapter.resident_knowledge import TaskRelevantRepositoryKnowledgeProvider
 
 
@@ -103,6 +104,52 @@ class ResidentKnowledgeTests(unittest.TestCase):
         self.assertFalse(result.retrieval_complete)
         self.assertEqual(result.source_revision, self.commit)
         self.assertIsNone(result.value)
+
+    def test_broad_query_selects_complete_ranked_passages_under_bound(self):
+        provider = TaskRelevantRepositoryKnowledgeProvider(self.root, self.commit)
+        documents = []
+        references = []
+        for path in RESIDENT_PATHS:
+            reference = "repo://" + path
+            content = "\n\n".join(
+                f"Complete paragraph {index}: repository work order independent verification. "
+                + ("Context evidence remains source-pinned. " * 7)
+                for index in range(30))
+            references.append(reference)
+            documents.append({"reference": reference, "content": content})
+        source_digest = hashlib.sha256("fixture-source-set".encode()).hexdigest()
+        verified_source = KnowledgeResult(
+            KnowledgeStatus.VERIFIED, value={"documents": documents},
+            source_references=tuple(references), source_revision=self.commit,
+            source_sha256=source_digest, retrieval_complete=True)
+        provider.repository.ground_assignment = lambda _assignment: verified_source
+
+        result = provider.ground_assignment({
+            "id": "objective:broad",
+            "contract_ref": provider.CONTRACT_REF,
+            "objective": "repository work order independent verification",
+        })
+
+        self.assertIs(result.status, KnowledgeStatus.VERIFIED)
+        self.assertTrue(result.retrieval_complete)
+        self.assertEqual(result.source_references, tuple(references))
+        encoded = __import__("json").dumps(
+            result.value, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":")).encode("utf-8")
+        self.assertLessEqual(len(encoded), provider.MAX_SELECTION_BYTES)
+        self.assertEqual(result.value["selection_policy"],
+                         "ranked-complete-paragraphs-v1")
+        self.assertEqual(result.value["query_term_coverage"],
+                         {"matched": 3, "selected": 3})
+        self.assertLess(sum(len(document["passages"])
+                            for document in result.value["documents"]), 30 * len(RESIDENT_PATHS))
+        for document in result.value["documents"]:
+            original = next(item["content"] for item in documents
+                            if item["reference"] == document["reference"])
+            whole_paragraphs = set(provider._paragraphs(original))
+            for passage in document["passages"]:
+                self.assertIn((passage["line_start"], passage["line_end"],
+                               passage["text"]), whole_paragraphs)
 
     def test_unknown_or_unmatched_objective_does_not_claim_verification(self):
         provider = TaskRelevantRepositoryKnowledgeProvider(self.root, self.commit)
