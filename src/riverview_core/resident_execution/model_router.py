@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.1.0
-# Purpose: Prefer 80B for substantive turns, bound provider context, and persist routing diagnostics
+# Revision: 1.1.5
+# Purpose: Prefer 80B for substantive turns, bound context and autonomic acknowledgments, and persist diagnostics
 # Execution Model: Request-driven; persisted deferred turns are resumed by the conversation owner
 # Observability: Selected stage and served model are returned as completion provenance
 # Dependencies: LocalReasoningProvider; pinned AuthorityRegistry implementation binding
@@ -16,6 +16,7 @@
 # Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Include sanitized completion-limit diagnostics for non-stop provider outcomes
 # Changed: 2026-10-15 UTC | RV-GRACE-SINGLE-RESIDENT-IDENTITY-001 | Identify each model stage as a capability of the one Grace resident
 # Changed: 2026-10-15 UTC | RV-GRACE-CHAT-CONTEXT-BOUND-001 | Preserve required system context and latest user turn within provider message limits
+# Changed: 2026-10-15 UTC | RV-GRACE-AUTONOMIC-CONTEXT-BOUND-001 | Keep 0.6B acknowledgment prompts minimal while retaining full institutional context for substantive stages
 # =============================================================================
 """Small readiness-aware router for Grace's three existing model resources."""
 
@@ -51,18 +52,20 @@ class GraceModelRouter:
         r"^\s*(?:define\s+.{1,100}|what does\s+.{1,100}\s+mean\??|"
         r"what is\s+.{1,100}|who is\s+.{1,100}|where is\s+.{1,100}|"
         r"when is\s+.{1,100}|how many\s+.{1,100})[.!?\s]*$", re.IGNORECASE)
-    TIMEOUTS = {"autonomic": 35, "interim_30b": 15, "reasoning": 60}
+    TIMEOUTS = {"autonomic": 60, "interim_30b": 15, "reasoning": 60}
+    TOKEN_LIMITS = {"autonomic": 32}
+    OPERATIONAL_CONTEXT_PREFIX = "Read-only Riverview operational context follows as JSON data."
     # LocalReasoningProvider accepts at most 18 messages. One is reserved for the
     # stage instruction added below; preserve all supplied system context and fit
     # the newest conversation messages into the remaining slots.
     PROVIDER_MAX_MESSAGES = LocalReasoningProvider.MAX_CHAT_MESSAGES
     STAGE_INSTRUCTIONS = {
         "autonomic": (
-            "You are Grace, Riverview's continuing resident and Director of Operations. "
-            "This response uses your 0.6B autonomic capability; it is not a separate "
-            "resident, office, or agent. Give only a brief status or acknowledgment. "
-            "Do not answer substantive or unverified factual questions; say that further "
-            "reasoning is needed."),
+            "You are Grace, Riverview's Director of Operations. This is your 0.6B "
+            "autonomic capability, not a separate resident, office, or agent. "
+            "Give only one brief "
+            "acknowledgment of at most 20 words. Do not answer substantive questions, "
+            "claim an action, or imply this role grants authority."),
         "interim_30b": (
             "You are Grace, Riverview's continuing resident and Director of Operations. "
             "This response uses your 30B vision/interim capability; it is not a separate "
@@ -185,19 +188,20 @@ class GraceModelRouter:
         except ReasoningDeferred:
             raise
         system = self.STAGE_INSTRUCTIONS[stage]
+        stage_max_tokens = self._stage_token_limit(stage, max_tokens)
         routed = [{"role": "system", "content": system},
-                  *self._bound_provider_context(messages)]
+                  *self._bound_provider_context(messages, stage=stage)]
         attempts = []
         try:
             started_at = datetime.now(UTC)
             started = monotonic()
-            completion = provider.complete_chat(routed, max_tokens=max_tokens,
+            completion = provider.complete_chat(routed, max_tokens=stage_max_tokens,
                 expected_revision=provider.model_sha256,
                 timeout_seconds=min(timeout_seconds, self.TIMEOUTS[stage]))
             attempts.append(self._attempt(stage, provider, started_at, started,
                 outcome="succeeded", finish_reason=completion.finish_reason,
                 completion_tokens=completion.completion_tokens,
-                completion_token_limit=max_tokens))
+                completion_token_limit=stage_max_tokens))
         except LocalReasoningUnavailable as exc:
             attempts.append(self._attempt(stage, provider, started_at, started,
                 outcome="failed", error_code=self._safe_error(exc),
@@ -214,20 +218,28 @@ class GraceModelRouter:
                 autonomic = self.providers["autonomic"]
                 if autonomic.readiness().state == "READY":
                     routed[0] = {"role": "system", "content": self.STAGE_INSTRUCTIONS["autonomic"]}
+                    fallback_max_tokens = self._stage_token_limit("autonomic", max_tokens)
                     fallback_started_at = datetime.now(UTC)
                     fallback_started = monotonic()
                     try:
                         completion = autonomic.complete_chat(routed,
-                        max_tokens=max_tokens, expected_revision=autonomic.model_sha256,
+                        max_tokens=fallback_max_tokens, expected_revision=autonomic.model_sha256,
                         timeout_seconds=self.TIMEOUTS["autonomic"])
                         attempts.append(self._attempt("autonomic", autonomic,
                             fallback_started_at, fallback_started, outcome="succeeded",
-                            fallback_reason="interim_30b_provider_failure"))
+                            fallback_reason="interim_30b_provider_failure",
+                            completion_token_limit=fallback_max_tokens,
+                            completion_tokens=completion.completion_tokens,
+                            finish_reason=completion.finish_reason))
                     except LocalReasoningUnavailable as fallback_exc:
                         attempts.append(self._attempt("autonomic", autonomic,
                             fallback_started_at, fallback_started, outcome="failed",
                             error_code=self._safe_error(fallback_exc),
-                            fallback_reason="interim_30b_provider_failure"))
+                            fallback_reason="interim_30b_provider_failure",
+                            finish_reason=getattr(fallback_exc, "finish_reason", None),
+                            completion_tokens=getattr(fallback_exc, "completion_tokens", None),
+                            completion_token_limit=getattr(fallback_exc, "completion_token_limit",
+                                                           fallback_max_tokens)))
                         raise LocalReasoningUnavailable("all_models_unavailable",
                             attempts=attempts) from None
                     stage = "autonomic"
@@ -250,7 +262,13 @@ class GraceModelRouter:
                        provisional=(stage != "reasoning"), provider_attempts=tuple(attempts))
 
     @classmethod
-    def _bound_provider_context(cls, messages):
+    def _stage_token_limit(cls, stage, requested):
+        """Keep a model stage's generation bound below the caller's maximum."""
+        limit = cls.TOKEN_LIMITS.get(stage)
+        return min(requested, limit) if type(requested) is int and limit else requested
+
+    @classmethod
+    def _bound_provider_context(cls, messages, *, stage=None):
         """Bound history while preserving system context and the latest user turn.
 
         The router adds one stage-specific system message. Keep all caller-provided
@@ -269,6 +287,15 @@ class GraceModelRouter:
                            if message["role"] == "system"]
         conversation_messages = [message for message in messages
                                  if message["role"] in {"user", "assistant"}]
+        if stage == "autonomic":
+            # Acknowledgments need only the concise, identity-bearing stage
+            # instruction and current user turn, not the large canonical role
+            # block, operational snapshot, or old conversation.
+            # Both remain durably stored and are available to substantive stages.
+            system_messages = []
+            conversation_messages = [message for message in conversation_messages
+                if message["role"] == "user"][-1:]
+        retained_system_ids = {id(message) for message in system_messages}
         context_limit = cls.PROVIDER_MAX_MESSAGES - 1 - len(system_messages)
         if (context_limit < 1 or not conversation_messages
                 or conversation_messages[-1]["role"] != "user"):
@@ -280,7 +307,7 @@ class GraceModelRouter:
         # the original list rather than moving them to the front.
         retained_conversation_ids = {id(message) for message in conversation_messages}
         return [message for message in messages
-                if message["role"] == "system"
+                if id(message) in retained_system_ids
                 or id(message) in retained_conversation_ids]
 
     @classmethod

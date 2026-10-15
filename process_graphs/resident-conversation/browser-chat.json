@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-conversation:browser-chat",
-  "graph_revision": "1.0.12",
+  "graph_revision": "1.0.14",
   "component_id": "RESIDENT-CONVERSATION",
   "workflow_id": "resident.conversation.v1",
   "diagram_order": 14,
@@ -179,6 +179,22 @@
       ],
       "verification_evidence": [
         "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:stage-context-policy",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "For 0.6B acknowledgments use concise Director of Operations identity context and current user turn; retain full canonical context for substantive stages",
+      "source_references": [
+        "src/riverview_core/resident_execution/model_router.py",
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_model_router.py"
       ]
     },
     {
@@ -930,9 +946,21 @@
     },
     {
       "from": "rv:resident-conversation:browser-chat:operations-snapshot",
+      "to": "rv:resident-conversation:browser-chat:stage-context-policy",
+      "type": "runtime_transition",
+      "label": "Router applies the selected capability's bounded context policy before provider invocation"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stage-context-policy",
       "to": "rv:resident-conversation:browser-chat:inference",
       "type": "runtime_transition",
-      "label": "Role and bounded attributed operational observations added before model inference"
+      "label": "Use concise identity context for autonomic acknowledgments; retain full supplied context for substantive stages"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stage-context-policy",
+      "to": "rv:resident-conversation:browser-chat:provider-failure",
+      "type": "diagnostic_branch",
+      "label": "Malformed context or no current user turn; reject before inference"
     }
   ]
 }

@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION_FLOW.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.12
+File Revision: 1.0.14
 Purpose: Generated focused flow for persistent Grace browser conversation
 Authority: Canonical graph JSON; diagram generated and not hand-edited
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Register generated chat workflow view
@@ -26,6 +26,7 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_model_readiness_diagnostic_90a0703b["Optional read-only readiness probe verifies health and exact served model; HTTP unavailability does not identify host power state"]
     g_rv_resident_conversation_browser_chat_persist_user_50079953["Append user event and idempotency key before inference"]
     g_rv_resident_conversation_browser_chat_context_bound_672d08c9["Assemble recent persisted history and reject serialized context above 32 KiB"]
+    g_rv_resident_conversation_browser_chat_stage_context_policy_b35672ba["For 0.6B acknowledgments use concise Director of Operations identity context and current user turn; retain full canonical context for substantive stages"]
     g_rv_resident_conversation_browser_chat_inference_8bca7614["Call the office-bound local model adapter; only loopback or explicitly allowlisted OCTO1 routes are accepted, with served-model and binding checks"]
     g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79[["Persist a sanitized unavailable or incomplete response outcome"]]
     g_rv_resident_conversation_browser_chat_binding_recheck_06e5ffdc["Reject a result if the office implementation changed during inference"]
@@ -105,6 +106,8 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_resume_capability_pin_e7b3b64f -->|verification: 80B inference accepted and actual served-model provenance persisted under the original request| g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b
   g_rv_resident_conversation_browser_chat_context_bound_672d08c9 --> g_rv_resident_conversation_browser_chat_grace_role_context_dbeb08cc
   g_rv_resident_conversation_browser_chat_grace_role_context_dbeb08cc -->|Use existing read-only institutional projections; do not expose direct database or action tools| g_rv_resident_conversation_browser_chat_operations_snapshot_a7547e58
-  g_rv_resident_conversation_browser_chat_operations_snapshot_a7547e58 -->|Role and bounded attributed operational observations added before model inference| g_rv_resident_conversation_browser_chat_inference_8bca7614
+  g_rv_resident_conversation_browser_chat_operations_snapshot_a7547e58 -->|Router applies the selected capability's bounded context policy before provider invocation| g_rv_resident_conversation_browser_chat_stage_context_policy_b35672ba
+  g_rv_resident_conversation_browser_chat_stage_context_policy_b35672ba -->|Use concise identity context for autonomic acknowledgments; retain full supplied context for substantive stages| g_rv_resident_conversation_browser_chat_inference_8bca7614
+  g_rv_resident_conversation_browser_chat_stage_context_policy_b35672ba -->|diagnostic_branch: Malformed context or no current user turn; reject before inference| g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
