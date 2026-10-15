@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.13
+# Revision: 1.0.14
 # Purpose: Verify resident regrounding, bounded provider routing and durable resume
 # Execution Model: Isolated PostgreSQL authority registry integration tests
 # Observability: Assertions inspect persisted office state and provider outcomes
@@ -23,6 +23,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-M4.2-OCCUPANT-REPLACEMENT-INTEGRATION | Verify a replacement Grace occupant resumes office-keyed reasoning state under its own exact grant
 # Changed: 2026-10-11 UTC | RV-M4.1-PERSISTENT-RUNTIME-INTEGRATION | Exercise office-bound reasoning through the persistent execution service across replacement
 # Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Verify sixty-second provider deadlines remain bounded
+# Changed: 2026-10-15 UTC | RV-GRACE-AUTHORIZED-SNAPSHOT-001 | Revalidate through authorized function when direct snapshot SELECT is denied
 # =============================================================================
 
 import hashlib
@@ -162,6 +163,70 @@ class ResidentReasoningTests(unittest.TestCase):
         self.assertEqual(runtime.timeout_seconds, 60)
         with self.assertRaises(ValueError):
             self._runtime({"provider.a": _Provider("provider.a")}, timeout=60.1)
+
+    def test_proposal_uses_runtime_office_function_when_authority_tables_are_restricted(self):
+        import psycopg
+        from psycopg import sql
+        from psycopg.conninfo import make_conninfo
+        from psycopg.errors import InsufficientPrivilege
+        from riverview_core.institutional_authority import AuthorityRegistry, RegistryUnavailable
+        from riverview_core.resident_reasoning import ReasoningStatus
+
+        identity = self.admin.execute(
+            "SELECT rolsuper FROM pg_roles WHERE rolname=current_user").fetchone()
+        if not identity[0]:
+            self.skipTest("isolated PostgreSQL test DSN needs temporary-role authority")
+        runtime_role = "rvtest_reasoner_" + uuid4().hex[:20]
+        runtime_password = secrets.token_urlsafe(32)
+        runtime_registry = None
+        try:
+            self.admin.execute(sql.SQL(
+                "CREATE ROLE {} LOGIN NOINHERIT PASSWORD {} NOSUPERUSER NOCREATEDB "
+                "NOCREATEROLE NOBYPASSRLS").format(
+                    sql.Identifier(runtime_role), sql.Literal(runtime_password)))
+            self.admin.execute(sql.SQL("GRANT USAGE ON SCHEMA {} TO {}").format(
+                sql.Identifier(self.schema), sql.Identifier(runtime_role)))
+            self.admin.execute(sql.SQL(
+                "GRANT EXECUTE ON FUNCTION {}.read_authorized_office_state(bytea,text) TO {}"
+            ).format(sql.Identifier(self.schema), sql.Identifier(runtime_role)))
+            self.admin.execute(sql.SQL(
+                "GRANT EXECUTE ON FUNCTION {}.write_authorized_office_state(bytea,text,jsonb,bigint) TO {}"
+            ).format(sql.Identifier(self.schema), sql.Identifier(runtime_role)))
+            runtime_dsn = make_conninfo(DSN, user=runtime_role, password=runtime_password)
+            runtime_registry = AuthorityRegistry(runtime_dsn, schema=self.schema, runtime_safe=True)
+            with psycopg.connect(runtime_dsn) as restricted:
+                with self.assertRaises(InsufficientPrivilege):
+                    restricted.execute(
+                        sql.SQL("SELECT * FROM {}.office_bindings LIMIT 1").format(
+                            sql.Identifier(self.schema))).fetchone()
+
+            provider = _Provider("provider.a", summary="authorized snapshot proposal")
+            reasoner = self._runtime({"provider.a": provider}, timeout=1)
+            reasoner.registry = runtime_registry
+            reasoner._credential = self.resident_token
+            result = reasoner.propose(
+                self.assignments.current["id"], trigger="restricted_runtime_role",
+                token_budget=100)
+            self.assertEqual(result.status, ReasoningStatus.PROPOSED)
+            self.assertEqual(len(provider.requests), 1)
+            persisted = self.registry.office_snapshot(self.office_id)["state"][
+                "resident_reasoning_v1"]["plans"][self.assignments.current["id"]]
+            self.assertEqual(persisted["summary"], "authorized snapshot proposal")
+            with self.assertRaises(RegistryUnavailable):
+                runtime_registry.office_snapshot(self.office_id)
+        finally:
+            if runtime_registry is not None:
+                runtime_registry.close()
+            self.admin.execute(sql.SQL("REVOKE USAGE ON SCHEMA {} FROM {}").format(
+                sql.Identifier(self.schema), sql.Identifier(runtime_role)))
+            self.admin.execute(sql.SQL(
+                "REVOKE EXECUTE ON FUNCTION {}.read_authorized_office_state(bytea,text) FROM {}"
+            ).format(sql.Identifier(self.schema), sql.Identifier(runtime_role)))
+            self.admin.execute(sql.SQL(
+                "REVOKE EXECUTE ON FUNCTION {}.write_authorized_office_state(bytea,text,jsonb,bigint) FROM {}"
+            ).format(sql.Identifier(self.schema), sql.Identifier(runtime_role)))
+            self.admin.execute(sql.SQL("DROP ROLE IF EXISTS {}").format(
+                sql.Identifier(runtime_role)))
 
     def test_plan_and_grounding_are_durable_across_runtime_replacement(self):
         from riverview_core.resident_reasoning import ReasoningStatus

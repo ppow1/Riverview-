@@ -7471,7 +7471,7 @@
     },
     {
       "graph_id": "rv:resident-reasoning:runtime",
-      "graph_revision": "1.1.4",
+      "graph_revision": "1.1.5",
       "component_id": "RESIDENT-REASONING",
       "workflow_id": "resident.reasoning.v1",
       "diagram_order": 13,
@@ -7830,15 +7830,17 @@
         },
         {
           "id": "rv:resident-reasoning:runtime:freshness-gate",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "decision",
-          "label": "Did office binding and assignment revision remain current?",
+          "label": "Did authorized office-state revalidation and assignment revision checks remain current?",
           "source_references": [
-            "src/riverview_core/resident_reasoning.py"
+            "src/riverview_core/resident_reasoning.py",
+            "src/riverview_core/institutional_authority/registry.py"
           ],
           "documentation_references": [
             "docs/components/RESIDENT_REASONING.md",
-            "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+            "docs/components/RESIDENT_REASONING_COOKBOOK.md",
+            "docs/components/GRACE_EXECUTION_PIPELINE.md"
           ],
           "verification_evidence": [
             "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"

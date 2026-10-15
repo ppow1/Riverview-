@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.11
+# Revision: 1.0.12
 # Purpose: Regound institutional resident requests and route bounded plan proposals
 # Execution Model: Request-driven in-process runtime with replaceable reasoning providers
 # Observability: Office-scoped durable state stores grounding and provider outcomes
@@ -18,6 +18,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.4-CONTEXT-FAILURE-CLASS | Distinguish oversize grounded input from JSON serialization failure
 # Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Persist actual served-model provenance with typed resident proposals
 # Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Permit bounded 60-second 80B proposal inference
+# Changed: 2026-10-15 UTC | RV-GRACE-AUTHORIZED-SNAPSHOT-001 | Revalidate office through the restricted runtime function after inference
 # Contracts: docs/components/RESIDENT_REASONING.md
 # Tests: tests/test_resident_reasoning.py
 # History: .riverview-backups/manifest.jsonl
@@ -397,7 +398,10 @@ class ResidentReasoner:
                                         provider_id=provider_id, code="PROPOSAL_SCHEMA_OR_BUDGET")
                 return self._result_after_record(revision, ReasoningStatus.INVALID_PROPOSAL,
                                                  request_id, "PROPOSAL_SCHEMA_OR_BUDGET", provider_id)
-            latest = self.registry.office_snapshot(self.office_id)
+            # The persistent runtime role is intentionally denied direct reads of
+            # AuthorityRegistry tables. Revalidate authorization and binding via
+            # the narrowly granted runtime-safe function.
+            latest = self.registry.authorize_office_state(self._credential, self.office_id)
             if (latest.get("binding_revision") != request.binding_revision
                     or latest.get("implementation_revision") != request.implementation_revision):
                 revision = self._record(latest, assignment_id, request_id,

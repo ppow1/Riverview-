@@ -2,12 +2,13 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_COOKBOOK.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.2
+File Revision: 1.0.3
 Purpose: Diagnose and safely recover resident grounding and provider routing
 Authority: Read-only checks first; proposals never grant action authority
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add M4.2 isolated runtime troubleshooting procedure
 Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-CONTEXT-001 | Diagnose missing resident grounding contract reference
 Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Document bounded 60-second 80B proposal timeout
+Changed: 2026-10-15 UTC | RV-GRACE-AUTHORIZED-SNAPSHOT-001 | Diagnose protected table reads after provider completion
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Resident reasoning operations cookbook
@@ -33,6 +34,7 @@ or model secret in a command, log, or evidence artifact.
 | `STALE_CONTEXT` | Office implementation/binding or assignment revision changed during provider execution | Discard the returned output. Reload current authoritative context and call again with a new trigger/request ID. Never force the old plan into state. |
 | `STATE_CONFLICT` | Concurrent office-state writer changed the expected revision or state exceeded its bound | Read current office revision and current resident state; preserve both writers. Reconcile using a new context load and fresh proposal. Never blind-retry a stale write. |
 | `UNAVAILABLE / OFFICE_STATE_STORE_UNAVAILABLE` | Registry database unavailable | Follow PostgreSQL and authority registry diagnosis. Do not fall back to in-memory authority or accept provider success as durable. |
+| `RegistryUnavailable` after provider completion under the restricted runtime role | Post-inference revision check attempted a direct read of protected AuthorityRegistry tables | Revalidate via `AuthorityRegistry.authorize_office_state` and its narrow runtime-safe function. Do not grant runtime SELECT on authority tables or use `office_snapshot` for runtime authorization.
 
 ## Isolated verification
 

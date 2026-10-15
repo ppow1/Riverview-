@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.151",
+  "manifest_revision": "1.1.152",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.116",
+      "revision": "1.0.117",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "ecc74b944636995cde64db9fcb5a09e2b2ab5d75dc12b868605a2d479779d7e7",
-      "size_bytes": 496700
+      "sha256": "58c306e087b9869d4bcd601c16397cbd40c168f9d5ab5c036e73af3041e7d8cb",
+      "size_bytes": 496858
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 33631
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.151"
+      "revision": "1.1.152"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -173,10 +173,10 @@
       "size_bytes": 42764
     },
     "process_graphs/resident-reasoning/runtime.json": {
-      "revision": "1.0.11",
+      "revision": "1.0.12",
       "path": "process_graphs/resident-reasoning/runtime.json",
-      "sha256": "39ea0af71c524dd6fd18f5666886621089f62da73a5b36963b72c0297a37ccc1",
-      "size_bytes": 28634
+      "sha256": "19171278b9dcd4efc4f93e66d32ac8891748a884a63ed0c24aac9b62740cfe36",
+      "size_bytes": 28784
     },
     "process_graphs/knowledge-provider/repository-contracts.json": {
       "revision": "1.0.3",
