@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_role_context.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify stable Grace office identity is shared and cannot imply permissions
 # Execution Model: Request-driven unit test
 # Observability: Assertion results; no external resources
@@ -25,7 +25,7 @@ from riverview_core.resident_execution.grace_role_context import (
 class GraceRoleContextTests(unittest.TestCase):
     def test_context_names_one_operations_office_and_preserves_authority_boundary(self):
         context = build_grace_role_context()
-        self.assertEqual(ROLE_CONTEXT_REVISION, "1.0.0")
+        self.assertEqual(ROLE_CONTEXT_REVISION, "1.1.1")
         self.assertIn("You are Grace", context)
         self.assertIn("Director of Operations", context)
         self.assertIn("Alfred is the separate Chief of Staff", context)

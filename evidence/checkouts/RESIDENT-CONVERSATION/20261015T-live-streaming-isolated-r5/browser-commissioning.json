@@ -1,0 +1,137 @@
+{
+  "browser_refresh": {
+    "assistant_response_sha256": "efd1c4a01ba7545110ae49f646d25ef9360ce312d9d289cb4dc012f5452f863c",
+    "asynchronous_verified_result_visible_without_manual_refresh": true,
+    "complete_assistant_response_restored": true,
+    "conversation_id_retained": "5474b37e-1b39-41ec-9ee6-be9080bfe187",
+    "history_refresh_requests": 1,
+    "history_reloaded": true,
+    "post_restart_continuation": "PASS",
+    "status": "PASS"
+  },
+  "cleanup": {
+    "browser_session_closed": true,
+    "dashboard_process_stopped": true,
+    "model_process_stopped": false,
+    "test_schema_dropped": true
+  },
+  "database_schema": "rvtest_chat_ebfbde8bdddf435d94baca6976279c2c",
+  "database_socket": "private /tmp/rv-m43-sock-* test cluster",
+  "finished_at_epoch": 1792087254.4550698,
+  "host": "Camrui",
+  "mode": "isolated",
+  "model": {
+    "binary_sha256": "observed_existing_service_not_restarted",
+    "context_size": 4096,
+    "endpoint": "loopback only",
+    "gpu_layers": 0,
+    "id": "qwen3-0.6b-q8_0-local",
+    "loaded_model": "qwen3-0.6b-q8_0-local",
+    "management": "existing loopback service reused; not started, stopped, or reconfigured by this harness",
+    "runtime_context": 4096,
+    "served_ids": [
+      "qwen3-0.6b-q8_0-local"
+    ],
+    "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031"
+  },
+  "ports": {
+    "dashboard_loopback": 8700,
+    "geckodriver_loopback": 58023,
+    "model_loopback": 18796
+  },
+  "postgresql": {
+    "assistant_messages": 3,
+    "interruptions": 1,
+    "models": 1,
+    "objectives_created_by_chat": 0,
+    "user_messages": 3
+  },
+  "recovery": {
+    "browser_history_and_interruption_visible": true,
+    "supporting_http_service_restarted": true,
+    "unfinished_turns_marked_interrupted": 1
+  },
+  "schema_version": "rv.grace.conversation.commissioning.v1",
+  "source_commit": "fb0ded9adb536e9ff3cbb9fc9774a242598a3843+working-tree",
+  "stage": "browser_chat_model_turn",
+  "status": "PASS",
+  "task_id": "RV-M3.4-GRACE-CHAT",
+  "turns": [
+    {
+      "assistant_response_sha256": "efd1c4a01ba7545110ae49f646d25ef9360ce312d9d289cb4dc012f5452f863c",
+      "browser_elapsed_ms": 46851,
+      "conversation_id": "5474b37e-1b39-41ec-9ee6-be9080bfe187",
+      "elapsed_wall_ms": 46873.05,
+      "end_to_end_persisted_ms": 46557.339,
+      "first_text_chars": 2,
+      "first_text_preceded_persisted_completion": true,
+      "generation_elapsed_ms": 46483.331,
+      "last_message_chars": 54,
+      "last_message_complete": true,
+      "phase": "first_browser_inference",
+      "processing_indicator_observed": true,
+      "request_id": "92849e1a-cd0d-4065-8af8-6db885d24c44",
+      "time_to_first_text_ms": 37511,
+      "time_to_first_token_server_ms": 37121.351,
+      "user_message_chars": 770,
+      "user_message_exactly_rendered": true,
+      "user_message_mismatch_index": -1,
+      "user_message_multiline_rendered": true
+    },
+    {
+      "assistant_response_sha256": "efd1c4a01ba7545110ae49f646d25ef9360ce312d9d289cb4dc012f5452f863c",
+      "browser_elapsed_ms": 61143,
+      "conversation_id": "5474b37e-1b39-41ec-9ee6-be9080bfe187",
+      "elapsed_wall_ms": 61166.94,
+      "end_to_end_persisted_ms": 60697.394,
+      "first_text_chars": 2,
+      "first_text_preceded_persisted_completion": true,
+      "generation_elapsed_ms": 60610.11,
+      "last_message_chars": 54,
+      "last_message_complete": true,
+      "phase": "post_restart_browser_inference",
+      "processing_indicator_observed": true,
+      "request_id": "a0b2eb56-0cfa-470d-9234-99f8917f35e1",
+      "time_to_first_text_ms": 49762,
+      "time_to_first_token_server_ms": 49199.824,
+      "user_message_chars": 84,
+      "user_message_exactly_rendered": true,
+      "user_message_mismatch_index": -1,
+      "user_message_multiline_rendered": false
+    }
+  ],
+  "ui_checks": {
+    "chat_details_accuracy": "PASS",
+    "chat_details_dialog": "PASS",
+    "composer": {
+      "draftPreserved": true,
+      "expanded": true
+    },
+    "denied_request_suppressed_until_reconnect": {
+      "after_tab_switch": 1,
+      "initial": 1,
+      "status": "PASS"
+    },
+    "desktop_layout": {
+      "documentWidth": 1268,
+      "sendVisible": true,
+      "viewport": 1280
+    },
+    "future_capability_disabled": true,
+    "long_message_rendering_fixture": {
+      "complete": true,
+      "noHorizontalOverflow": true
+    },
+    "message_copy": "PASS",
+    "message_details": "PASS",
+    "mobile_layout": {
+      "composerVisible": true,
+      "documentWidth": 488,
+      "sendVisible": true,
+      "viewport": 500
+    },
+    "more_menu_precedes_send": true,
+    "persistent_cookie_attributes": "HttpOnly, Secure, SameSite=Strict, path-scoped; no credential exposed to JavaScript",
+    "unauthorized_conversation_access": "403"
+  }
+}

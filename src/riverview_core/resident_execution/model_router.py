@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.1.5
+# Revision: 1.2.1
 # Purpose: Prefer 80B for substantive turns, bound context and autonomic acknowledgments, and persist diagnostics
 # Execution Model: Request-driven; persisted deferred turns are resumed by the conversation owner
 # Observability: Selected stage and served model are returned as completion provenance
@@ -17,6 +17,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-SINGLE-RESIDENT-IDENTITY-001 | Identify each model stage as a capability of the one Grace resident
 # Changed: 2026-10-15 UTC | RV-GRACE-CHAT-CONTEXT-BOUND-001 | Preserve required system context and latest user turn within provider message limits
 # Changed: 2026-10-15 UTC | RV-GRACE-AUTONOMIC-CONTEXT-BOUND-001 | Keep 0.6B acknowledgment prompts minimal while retaining full institutional context for substantive stages
+# Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Route validated text deltas through the same capability and fallback policy
 # =============================================================================
 """Small readiness-aware router for Grace's three existing model resources."""
 
@@ -260,6 +261,90 @@ class GraceModelRouter:
                                             attempts=attempts)
         return replace(completion, reasoning_stage=stage,
                        provisional=(stage != "reasoning"), provider_attempts=tuple(attempts))
+
+    def stream_chat(self, messages, *, max_tokens, expected_revision, on_delta,
+                    on_reset=lambda: None, timeout_seconds=120,
+                    required_capability=None, selected_route=None):
+        """Stream one routed answer while preserving the non-streaming route policy."""
+        if expected_revision != self.model_sha256 or not callable(on_delta) or not callable(on_reset):
+            raise LocalReasoningUnavailable("router_binding_mismatch")
+        stage, provider = (selected_route if selected_route is not None else
+                           self.select(messages, required_capability=required_capability))
+        provider_key = "vision" if stage == "interim_30b" else stage
+        if (provider_key not in self.providers or self.providers[provider_key] is not provider
+                or (required_capability is not None and stage != "reasoning")):
+            raise LocalReasoningUnavailable("required_capability_not_satisfied")
+        stage_limit = self._stage_token_limit(stage, max_tokens)
+        routed = [{"role": "system", "content": self.STAGE_INSTRUCTIONS[stage]},
+                  *self._bound_provider_context(messages, stage=stage)]
+        attempts = []
+        emitted = False
+
+        def emit(text):
+            nonlocal emitted
+            emitted = True
+            on_delta(text)
+
+        def invoke(selected_stage, selected_provider, selected_messages, selected_limit,
+                   *, fallback_reason=None):
+            started_at = datetime.now(UTC)
+            started = monotonic()
+            try:
+                result = selected_provider.stream_chat(selected_messages,
+                    max_tokens=selected_limit,
+                    expected_revision=selected_provider.model_sha256,
+                    on_delta=emit,
+                    timeout_seconds=min(timeout_seconds, self.TIMEOUTS[selected_stage]))
+                attempts.append(self._attempt(selected_stage, selected_provider,
+                    started_at, started, outcome="succeeded", fallback_reason=fallback_reason,
+                    finish_reason=result.finish_reason, completion_tokens=result.completion_tokens,
+                    completion_token_limit=selected_limit))
+                return result
+            except LocalReasoningUnavailable as exc:
+                attempts.append(self._attempt(selected_stage, selected_provider,
+                    started_at, started, outcome="failed", fallback_reason=fallback_reason,
+                    error_code=self._safe_error(exc),
+                    finish_reason=exc.finish_reason,
+                    completion_tokens=exc.completion_tokens,
+                    completion_token_limit=exc.completion_token_limit or selected_limit))
+                raise
+
+        try:
+            completion = invoke(stage, provider, routed, stage_limit)
+        except LocalReasoningUnavailable as exc:
+            if stage == "reasoning":
+                raise ReasoningDeferred(
+                    "MODEL_BUSY" if self._safe_error(exc) in {"endpoint_busy", "endpoint_http_503"}
+                    else "UNAVAILABLE", attempts=attempts) from None
+            if stage != "interim_30b":
+                raise LocalReasoningUnavailable(self._safe_error(exc), attempts=attempts) from None
+            attempts[-1]["fallback_reason"] = "interim_30b_provider_failure"
+            fallback = self.providers["autonomic"]
+            if fallback.readiness().state != "READY":
+                raise ReasoningDeferred("UNAVAILABLE", attempts=attempts) from None
+            if emitted:
+                on_reset()
+                emitted = False
+            routed[0] = {"role": "system", "content": self.STAGE_INSTRUCTIONS["autonomic"]}
+            fallback_messages = self._bound_provider_context(messages, stage="autonomic")
+            routed = [routed[0], *fallback_messages]
+            try:
+                completion = invoke("autonomic", fallback, routed,
+                    self._stage_token_limit("autonomic", max_tokens),
+                    fallback_reason="interim_30b_provider_failure")
+                stage = "autonomic"
+            except LocalReasoningUnavailable as fallback_exc:
+                raise LocalReasoningUnavailable("all_models_unavailable",
+                    attempts=attempts) from None
+        if required_capability is not None and (stage != "reasoning" or completion.provisional):
+            raise LocalReasoningUnavailable("required_capability_not_satisfied", attempts=attempts)
+        final_provider = getattr(self.providers["vision" if stage == "interim_30b" else stage],
+                                 "provider_id", stage)
+        attempts = [dict(item, final_served_provider=final_provider,
+                         final_served_model=completion.served_model) for item in attempts]
+        return replace(completion, reasoning_stage=stage,
+                       provisional=(stage != "reasoning"),
+                       provider_id=final_provider, provider_attempts=tuple(attempts))
 
     @classmethod
     def _stage_token_limit(cls, stage, requested):

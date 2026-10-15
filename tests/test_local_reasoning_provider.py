@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.5
+# Revision: 1.1.6
 # Purpose: Verify local reasoning provider contract and fail-closed response handling
 # Execution Model: Bounded HTTP contract double; no credentials, database or model required
 # Observability: Typed proposals and sanitized unavailable/schema outcomes
@@ -25,6 +25,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-DEMO-BASE-INTEGRATION | Retain provider and role-context regressions across integration
 # Tests: This file
 # History: Git
+# Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
 # =============================================================================
 """Contract tests for the replaceable local reasoning provider."""
 
@@ -58,6 +59,11 @@ class _Response:
 
     def __exit__(self, *_args):
         return False
+
+
+class _SSEResponse(_Response):
+    def readline(self, size=-1):
+        return self.body.readline(size)
 
 
 class LocalReasoningProviderTests(unittest.TestCase):
@@ -118,6 +124,39 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertIn("Director of Operations", sent["messages"][0]["content"])
         self.assertIn("Alfred", sent["messages"][0]["content"])
         self.assertIn("grants no permission", sent["messages"][0]["content"])
+
+    def test_stream_chat_emits_text_before_terminal_chunk_and_validates_provenance(self):
+        chunks = [
+            {"model":"fixture-model","choices":[{"delta":{"content":"first"},"finish_reason":None}]},
+            {"model":"fixture-model","choices":[{"delta":{"content":" token"},"finish_reason":"stop"}],
+             "usage":{"completion_tokens":2}},
+        ]
+        body = b"".join(b"data: "+json.dumps(item).encode()+b"\n\n" for item in chunks)+b"data: [DONE]\n\n"
+        self.urlopen.side_effect = None
+        self.urlopen.return_value = _SSEResponse(BytesIO(body))
+        emitted=[]
+        completion=self.provider.stream_chat([{"role":"user","content":"bounded request"}],
+            max_tokens=64,expected_revision=MODEL_SHA,on_delta=emitted.append)
+        self.assertEqual(emitted,["first"," token"])
+        self.assertEqual(completion.content,"first token")
+        self.assertEqual(completion.served_model,"fixture-model")
+        self.assertEqual(completion.finish_reason,"stop")
+        request=self.urlopen.call_args.args[0]
+        sent=json.loads(request.data)
+        self.assertTrue(sent["stream"])
+        self.assertEqual(sent["stream_options"],{"include_usage":True})
+
+    def test_stream_chat_rejects_non_stop_finish_without_suppressing_partial_output(self):
+        body=b'data: {"model":"fixture-model","choices":[{"delta":{"content":"partial"},"finish_reason":"length"}]}\n\n'
+        self.urlopen.side_effect=None
+        self.urlopen.return_value=_SSEResponse(BytesIO(body))
+        emitted=[]
+        with self.assertRaises(LocalReasoningUnavailable) as caught:
+            self.provider.stream_chat([{"role":"user","content":"bounded request"}],
+                max_tokens=64,expected_revision=MODEL_SHA,on_delta=emitted.append)
+        self.assertEqual(emitted,["partial"])
+        self.assertEqual(caught.exception.code,"response_incomplete")
+        self.assertEqual(caught.exception.finish_reason,"length")
 
     def test_non_grace_offices_do_not_receive_grace_identity(self):
         request = replace(self.request, office_id="office:engineering")

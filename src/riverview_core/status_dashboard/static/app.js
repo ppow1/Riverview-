@@ -1,11 +1,12 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.3.4
+// Revision: 1.4.3
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
 // Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Use linked Steward account session for exact-grant Grace connection
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password login, grant decisions and email configuration UI
 // Changed: 2026-10-13 UTC | RV-GRACE-EXPLICIT-WORKORDER-PROMOTION | Let a Steward promote one persisted Grace message with explicit criteria.
 // Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Display durable deferred reasoning state in chat history.
 // Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Add Steward-only resident profile navigation.
+// Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Stream durable conversation output, clear deferred partials, and refresh active history for verified results.
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -13,7 +14,9 @@
     assignments: [], events: [], attention: [], attentionStatus: "unknown", workers: [], assignmentCursor: null,
     workerCursor: null, eventCursor: 0, olderEventCursor: null, notifications: [], notificationStatus: "unknown", activeView: "overview",
     objectives: [], recentErrors: [], navSamples: [], lastFetch: 0, timer: null, workOrderSourceSequence: null,
-    chatConversationId: localStorage.getItem("rv.grace.conversation") || "", chatEvents: [], chatMeta: null, selectedEventId: null, chatInFlight: false, chatDialogReturnFocus: null, chatAuthRejected:false, chatLoading:false};
+    chatConversationId: localStorage.getItem("rv.grace.conversation") || "", chatEvents: [], chatMeta: null, selectedEventId: null, chatInFlight: false, chatDialogReturnFocus: null, chatAuthRejected:false, chatLoading:false,
+    streamBuffers:{},streamStates:{},streamMetrics:{},activeStreams:new Set(),chatPollTimer:null,
+    chatHistoryRefreshing:false};
   const esc = (value) => String(value ?? "—").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   const human = (value) => String(value || "unknown").replaceAll("_", " ").replaceAll(".", " · ");
   const api = async (path, timeout = 2600, method = "GET", options = {}) => {
@@ -416,6 +419,8 @@
     const terminal=new Set(events.filter((e)=>["assistant_message","response_failed","response_interrupted"].includes(e.event_type)).map((e)=>e.request_id));
     const deferred=events.some((e)=>e.event_type==="response_deferred"&&!terminal.has(e.request_id));
     if(deferred)return "Waiting for reasoning capability";
+    const active=Object.values(state.streamStates).find((item)=>item.status==="queued"||item.status==="generating");
+    if(active)return active.status==="queued"?"Queued":"Generating response";
     const pending=events.some((e)=>e.event_type==="user_message"&&!terminal.has(e.request_id));
     if (state.chatInFlight || pending) return "Generating response";
     const last=[...events].reverse().find((e)=>["assistant_message","response_failed","response_interrupted"].includes(e.event_type));
@@ -428,6 +433,94 @@
   async function copyChatText(text) {
     try { await navigator.clipboard.writeText(text); toast("Copied to clipboard."); }
     catch (_) { const box=document.createElement("textarea");box.value=text;box.setAttribute("readonly","");box.style.position="fixed";box.style.opacity="0";document.body.append(box);box.select();const ok=document.execCommand("copy");box.remove();if(!ok)throw new Error("clipboard_unavailable");toast("Copied to clipboard."); }
+  }
+  async function subscribeResponseStream(conversationId,requestId) {
+    if(state.activeStreams.has(requestId))return;
+    state.activeStreams.add(requestId);
+    let cursor=0,delay=500,terminal=false;
+    const metrics=state.streamMetrics[requestId]||{started:performance.now(),first:null};
+    state.streamMetrics[requestId]=metrics;
+    try {
+      while(!terminal&&!state.chatAuthRejected) {
+        if(!navigator.onLine){await new Promise((resolve)=>setTimeout(resolve,1000));continue;}
+        try {
+          const headers={Accept:"text/event-stream"};
+          if(state.token)headers.Authorization=`Bearer ${state.token}`;
+          const response=await fetch(`/api/v1/resident/conversations/${encodeURIComponent(conversationId)}/responses/${encodeURIComponent(requestId)}/stream?after=${cursor}`,
+            {method:"GET",credentials:"same-origin",headers,cache:"no-store"});
+          if(response.status===404)return; // Legacy turns without stream records use history polling.
+          if(response.status===401||response.status===403){showChatAuthorization("Grace conversation access was revoked or expired.");return;}
+          if(!response.ok||!response.body)throw new Error(`stream_http_${response.status}`);
+          delay=500;
+          const reader=response.body.getReader(),decoder=new TextDecoder();let buffer="",eventName="message",eventId=null,data=[];
+          const handle=()=>{
+            if(!data.length)return;
+            let value;try{value=JSON.parse(data.join("\n"));}catch(_){data=[];return;}
+            const sequence=Number(value.sequence??eventId);
+            if(Number.isInteger(sequence)&&sequence<=cursor){data=[];return;}
+            if(Number.isInteger(sequence))cursor=sequence;
+            const type=eventName;
+            if(type==="queued"||type==="generating")state.streamStates[requestId]={status:type};
+            else if(type==="reset"){state.streamBuffers[requestId]="";state.streamStates[requestId]={status:"generating",stage:value.reasoning_stage};}
+            else if(type==="delta"){if(metrics.first===null)metrics.first=performance.now();state.streamStates[requestId]={status:"generating",stage:state.streamStates[requestId]?.stage};state.streamBuffers[requestId]=(state.streamBuffers[requestId]||"")+String(value.text||"");}
+            else if(type==="completed"){state.streamStates[requestId]={status:"completed",metadata:value.metadata||{}};terminal=true;}
+            else if(type==="failed"||type==="interrupted"){state.streamStates[requestId]={status:"failed",metadata:value.metadata||{}};terminal=true;}
+    else if(type==="deferred"){state.streamBuffers[requestId]="";state.streamStates[requestId]={status:"queued",requiredCapability:value.metadata?.required_capability};}
+            if(type!=="message"&&type!=="reconnect")renderConversation(state.chatEvents);
+            data=[];eventName="message";eventId=null;
+          };
+          while(!terminal) {
+            const {value,done}=await reader.read();
+            if(done)break;
+            buffer+=decoder.decode(value,{stream:true});
+            let boundary;
+            while((boundary=buffer.indexOf("\n\n"))>=0){
+              const block=buffer.slice(0,boundary);buffer=buffer.slice(boundary+2);
+              for(const line of block.split("\n")){
+                if(line.startsWith("event:"))eventName=line.slice(6).trim();
+                else if(line.startsWith("id:"))eventId=line.slice(3).trim();
+                else if(line.startsWith("data:"))data.push(line.slice(5).trimStart());
+              }
+              handle();
+            }
+          }
+          if(!terminal)await new Promise((resolve)=>setTimeout(resolve,delay));
+          if(terminal){
+            const elapsed=(performance.now()-metrics.started)/1000;
+            const first=metrics.first===null?null:(metrics.first-metrics.started)/1000;
+            if(state.streamStates[requestId]?.status==="completed")
+              $("chat-state").textContent=`Completed · first text ${first===null?"unavailable":first.toFixed(2)+"s"} · end-to-end ${elapsed.toFixed(2)}s`;
+            delete state.streamBuffers[requestId];
+            await refreshConversationHistory();
+          }
+        } catch(_) {
+          if(!navigator.onLine){await new Promise((resolve)=>setTimeout(resolve,1000));continue;}
+          await new Promise((resolve)=>setTimeout(resolve,delay));delay=Math.min(delay*2,5000);
+        }
+      }
+    } finally {state.activeStreams.delete(requestId);}
+  }
+  async function refreshConversationHistory() {
+    if(!state.chatConversationId||state.chatAuthRejected||state.chatHistoryRefreshing)return;
+    state.chatHistoryRefreshing=true;
+    try {
+      const history=await api(`/api/v1/resident/conversations/${encodeURIComponent(state.chatConversationId)}`,10000);
+      if(history.conversation_id===state.chatConversationId){renderConversation(history.events||[]);watchPendingResponses(history.events||[]);}
+    }catch(_){}finally{state.chatHistoryRefreshing=false;}
+  }
+  function watchPendingResponses(events) {
+    const terminal=new Set(events.filter((item)=>["assistant_message","response_failed","response_interrupted"].includes(item.event_type)).map((item)=>item.request_id));
+    for(const item of events.filter((event)=>event.event_type==="user_message"&&!terminal.has(event.request_id))) {
+      state.streamStates[item.request_id]=state.streamStates[item.request_id]||{status:"queued"};
+      if(typeof ReadableStream!=="undefined")subscribeResponseStream(state.chatConversationId,item.request_id);
+    }
+    if(!state.chatPollTimer)state.chatPollTimer=setInterval(()=>{
+      // A verified Engineering result may be appended after the original chat
+      // response is terminal. Refresh the active conversation so that durable
+      // work-order reviews appear without requiring a manual page refresh.
+      if(state.activeView==="grace-chat"&&document.visibilityState==="visible")
+        refreshConversationHistory();
+    },4000);
   }
   function openChatDetails() {
     state.chatDialogReturnFocus=document.activeElement;
@@ -485,6 +578,13 @@
     const deferredIds=new Set(events.filter((e)=>e.event_type==="response_deferred").map((e)=>e.request_id));
     const activePending=[...pendingIds].some((id)=>!deferredIds.has(id));
     if(state.chatInFlight||activePending){host.insertAdjacentHTML("beforeend",`<article class="message-row grace pending" aria-label="Grace is generating a response"><div class="message-bubble"><div class="message-state"><span>Grace is responding</span><span class="typing-dots" aria-hidden="true"><i class="typing-dot"></i><i class="typing-dot"></i><i class="typing-dot"></i></span></div></div></article>`);}
+    for(const [requestId,text] of Object.entries(state.streamBuffers)){
+      if(timeline.some((event)=>event.request_id===requestId&&["assistant_message","response_failed","response_interrupted"].includes(event.event_type))){delete state.streamBuffers[requestId];continue;}
+      if(!text)continue;
+      const stage=state.streamStates[requestId]?.stage;
+      const preview='<article class="message-row grace pending" data-stream-response="'+esc(requestId)+'"><div class="message-bubble"><div class="message-meta"><strong class="message-speaker">Grace</strong><span class="message-state">Generating</span>'+(stage?'<span>'+esc(stage)+'</span>':'')+'</div><div class="message-content">'+esc(text)+'</div></div></article>';
+      host.insertAdjacentHTML("beforeend",preview);
+    }
     $("chat-state").textContent=conversationStatus(events);
     const lastFailure=timeline.length&&["response_failed","response_interrupted"].includes(timeline[timeline.length-1].event_type)?timeline[timeline.length-1]:null;
     $("chat-error").textContent=lastFailure?.error_code||"";
@@ -538,6 +638,7 @@
         const history = await api(`/api/v1/resident/conversations/${encodeURIComponent(state.chatConversationId)}`, 10000);
         $("chat-title").textContent = `Conversation ${history.conversation_id}`;
         renderConversation(history.events || []);
+        watchPendingResponses(history.events||[]);
         if (!$("chat-message").value) $("chat-message").value=sessionStorage.getItem("rv.grace.draft."+state.chatConversationId)||"";
         resizeChatComposer();
       }
@@ -581,14 +682,21 @@
     if (state.chatAuthRejected || !message.trim()) { $("chat-error").textContent = "Connect to Grace before sending a message."; return; }
     const send = $("chat-send"); send.disabled = true;state.chatInFlight=true;send.textContent="Sending…";$("chat-state").textContent = "Your message is being processed."; $("chat-error").textContent = "";renderConversation(state.chatEvents);
     const clientMessageId = crypto.randomUUID();
+      const clientRequestStarted=performance.now();
     try {
-      const result = await api("/api/v1/resident/conversations", 150000, "POST", {
+      const canStream=typeof ReadableStream!=="undefined"&&typeof TextDecoder!=="undefined";
+      const result = await api(canStream?"/api/v1/resident/conversations/stream":"/api/v1/resident/conversations", canStream?15000:150000, "POST", {
         body:{conversation_id:state.chatConversationId || null, client_message_id:clientMessageId, message}});
       state.chatConversationId = result.conversation_id; localStorage.setItem("rv.grace.conversation", state.chatConversationId);
+      if(canStream&&result.request_id)state.streamMetrics[result.request_id]={started:clientRequestStarted,first:null};
       sessionStorage.removeItem("rv.grace.draft."+state.chatConversationId);
       sessionStorage.removeItem("rv.grace.draft.new");
-      $("chat-message").value = ""; $("chat-state").textContent = `Response ${result.status}; request ${result.request_id}.`;
+      $("chat-message").value = ""; $("chat-state").textContent = `${result.status}; request ${result.request_id}.`;
       await loadGraceConversation();
+      if(canStream&&result.request_id&&["queued","generating","deferred"].includes(result.status)) {
+        state.streamStates[result.request_id]={status:result.status==="queued"?"queued":"generating"};
+        await subscribeResponseStream(result.conversation_id,result.request_id);
+      }
     } catch (error) {
       if(error.payload?.error==="resident_conversation_not_authorized"){
         showChatAuthorization("Grace access was denied. Reconnect before retrying; no automatic retry will be made.");

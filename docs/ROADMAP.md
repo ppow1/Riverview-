@@ -1,12 +1,13 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.57
+**Document Revision:** 1.1.59
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-11
 **Component:** RV-ROADMAP  
 **Owner:** Steward  
 **Changed:** 2026-10-11 UTC | RV-M3.3-GOVERNED-INTAKE-ROUTE | Update M3.3 engineering and commissioning state after request API/provider integration
 **Changed:** 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Record development-only resident policy profile, capability/resource metadata, and Steward checklist
+**Changed:** 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Implement default authenticated SSE delivery, durable cursors, reconnect, active conversation refresh and atomic terminal response state in development; no production deployment claimed
 **Changed:** 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Record persistent no-copy ChatGPT CLI owner-session path and current exact-grant commissioning blockers
 **Changed:** 2026-10-15 UTC | RV-GRACE-CODEX-SANDBOX-READINESS-001 | Record Camrui sandbox denial and fail-closed Codex dispatch readiness gate
 **Changed:** 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Correct sandbox readiness status and record exact grant provisioning and owner-session install tooling
@@ -233,6 +234,9 @@ alignment with that document remains unverified.
 **M4.1 live authority bootstrap correction (2026-10-11):** A protected `riverview_dev` dump was restored successfully into a disposable database and removed after matching catalog checks. Exact source `d3a0ed4fdec3061923964451ce2fccff18fadca7` passed preflight/apply/postflight in the dedicated authority schema. The root-only token bootstrap returned `BOOTSTRAPPED`, then `ALREADY_BOOTSTRAPPED` on a fresh process; an independent database-role check matched its digest and confirmed three scoped active grants without displaying the token. Runtime direct reads and manager DDL remained denied; core state remained at 9 migrations, 4 assignments, 11 events. PostgreSQL, event processor, CME monitor, notification dispatcher, dashboard and SSH stayed active. Evidence: `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T081700Z-live-bootstrap/`. Exact-head CI run 38124331966 passed on `f807d95d688b8a486db34eb5aa4be9f78c8f998d`. This is scoped M4.1 DB/bootstrap verification, not M4.1 DONE: no resident/worker service yet consumes the registry. M3.3 still requires exact-grant assignment/worker integration and a real knowledge provider. PR #21 remains open/draft/unmerged.
 
 **M4.1/M4.2 occupant-replacement integration regression (2026-10-11):** A new isolated PostgreSQL integration test composes the authority registry with `ResidentReasoner`: it persists a plan as the first occupant, replaces the bound occupant and implementation, confirms the former occupant's exact office-state grant is revoked, then constructs a replacement runtime that resumes the office-keyed plan under the new binding revision and provider. The focused ResidentReasoning suite passed 12/12; the complete isolated PostgreSQL 16 suite passed 212/212 with zero skips, errors or failures. Process graph validation passed at 16 workflows / 330 nodes and the controlled revision audit returned zero issues. The fixture schema count was zero and the private test cluster was stopped. Exact-head GitHub CI passed on commit `89752f79487cf9178484db6451a4c36fd107b80a` (run [38165302494](https://github.com/ppow1/Riverview-/actions/runs/38165302494)). This is isolated test evidence, not live occupant replacement or resident-service commissioning. M4.1 remains in progress; the M3.3 scoped technical gate remains ready for formal Steward acceptance, which is still open. Evidence and limits are recorded in `docs/development/M4.1-001_REVISION_RECORD.md`.
+
+
+**Grace live response delivery (2026-10-15, development only):** Added the existing authenticated conversation's default streaming transport with durable PostgreSQL events, same-conversation/request correlation, cursor-based SSE reconnect, reload from canonical history, queued/generating/completed/failed UI states, active-conversation refresh for asynchronously appended work-order reviews, and first-token/generation/delivery timing. Final streamed response and completion cursor are atomic; deferred state remains recoverable. Existing 0.6B/30B/80B router policy and exact authorization boundaries are reused. The stream accepts text; it does not add browser image upload. Isolated PostgreSQL and browser verification are required before any deployment claim. No production release or Steward-browser acceptance is claimed by this source change; the bounded deliverable work-order cycle remains separately open.
 
 ## Revision history
 

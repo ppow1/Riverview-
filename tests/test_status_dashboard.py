@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.26
+# Revision: 1.0.27
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -27,6 +27,7 @@
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: This file
 # History: Git and revision/backup manifest
+# Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
 # =============================================================================
 """Security, API, privacy and PostgreSQL integration tests for M3.1."""
 
@@ -127,6 +128,10 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn('credentials: "same-origin"', js)
         self.assertIn("state.chatAuthRejected || state.chatLoading", js)
         self.assertIn('resident_conversation_not_authorized', js)
+        self.assertIn('/api/v1/resident/conversations/stream', js)
+        self.assertIn('text/event-stream', (ROOT / "src/riverview_core/status_dashboard/server.py").read_text())
+        self.assertIn('watchPendingResponses', js)
+        self.assertIn('after=${cursor}', js)
         self.assertIn('rv_grace_authority', (ROOT / "src/riverview_core/status_dashboard/server.py").read_text())
 
     def test_unit_uses_private_runtime_pgpass_delivery(self):
@@ -188,13 +193,15 @@ class DashboardHTTPTests(unittest.TestCase):
         self.thread.join(timeout=2)
         self.temp.cleanup()
 
-    def request(self, method, path, *, token=None, host=None):
+    def request(self, method, path, *, token=None, host=None, cookie=None):
         conn = HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
         headers = {}
         if token is not None:
             headers["Authorization"] = "Bearer " + token
         if host:
             headers["Host"] = host
+        if cookie:
+            headers["Cookie"] = cookie
         conn.request(method, path, headers=headers)
         response = conn.getresponse()
         body = response.read()
@@ -230,6 +237,47 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(status, 403)
         self.assertEqual(json.loads(body)["error"], "steward_account_session_required")
 
+    def test_conversation_stream_requires_authentication_and_existing_service(self):
+        path="/api/v1/resident/conversations/00000000-0000-4000-8000-000000000001/responses/00000000-0000-4000-8000-000000000002/stream?after=0"
+        status,_,_=self.request("GET",path)
+        self.assertEqual(status,401)
+        status,_,body=self.request("GET",path,token=self.token)
+        self.assertEqual(status,503)
+        self.assertEqual(json.loads(body)["error"],"resident_conversation_unavailable")
+        status,_,body=self.request("POST","/api/v1/resident/conversations/stream",token=self.token)
+        self.assertEqual(status,503)
+
+    def test_authenticated_sse_replays_durable_response_events(self):
+        class StreamService:
+            def stream_snapshot(self,credential,conversation_id,response_id,*,after_sequence):
+                self_credential=credential
+                self.asserted = self_credential
+                events=[
+                    {"sequence":1,"event_type":"generating","generation":1},
+                    {"sequence":2,"event_type":"delta","text":"first chunk"},
+                    {"sequence":3,"event_type":"completed","metadata":{"model_id":"test"}},
+                ]
+                return {"status":"completed","events":[e for e in events if e["sequence"]>after_sequence]}
+        service=StreamService()
+        self.server._conversation_service=service
+        conversation_id="00000000-0000-4000-8000-000000000001"
+        request_id="00000000-0000-4000-8000-000000000002"
+        path=f"/api/v1/resident/conversations/{conversation_id}/responses/{request_id}/stream?after=0"
+        status,headers,body=self.request("GET",path,token=self.token,
+            cookie="rv_grace_authority="+"C"*43)
+        self.assertEqual(status,200)
+        header_map=dict(headers)
+        self.assertEqual(header_map["Content-Type"],"text/event-stream; charset=utf-8")
+        self.assertEqual(header_map["X-Accel-Buffering"],"no")
+        self.assertIn(b"event: delta",body)
+        self.assertIn(b'"text":"first chunk"',body)
+        self.assertIn(b"event: completed",body)
+        resumed_path=path.replace("after=0","after=2")
+        status,_,resumed=self.request("GET",resumed_path,token=self.token,
+            cookie="rv_grace_authority="+"C"*43)
+        self.assertEqual(status,200)
+        self.assertNotIn(b'"text":"first chunk"',resumed)
+        self.assertIn(b"event: completed",resumed)
     def test_api_is_read_only_host_checked_and_never_claims_healthy_without_source(self):
         status, _, body = self.request("GET", "/api/v1/status", token=self.token)
         self.assertEqual(status, 200)

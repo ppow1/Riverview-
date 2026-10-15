@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.19
+# Revision: 1.0.22
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -27,6 +27,9 @@
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: python3 -m unittest tests.test_resident_conversation
 # History: Git and .riverview-backups/manifest.jsonl
+# Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
+# Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Ensure resumed and fallback generations compact discarded partial text behind a monotonic reset marker.
+# Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Keep repeated 80B deferrals idempotent and discard incomplete text while pending.
 # =============================================================================
 """Isolated PostgreSQL and authority tests for Grace's persistent conversation path."""
 
@@ -63,6 +66,32 @@ class _ChatProvider:
         if self.during_completion is not None:
             self.during_completion(messages)
         return ChatCompletion(self.answer, self.model, 23, 9, "stop")
+
+
+class _StreamingChatProvider(_ChatProvider):
+    def __init__(self, model, digest):
+        super().__init__(model,digest,"First chunk and second chunk.")
+        self.first_chunk=threading.Event()
+        self.release=threading.Event()
+
+    def stream_chat(self,messages,*,max_tokens,expected_revision,on_delta,
+                    on_reset=lambda:None,timeout_seconds=120):
+        from riverview_core.local_reasoning_provider import ChatCompletion
+        self.calls.append((messages,max_tokens,expected_revision))
+        on_delta("First chunk")
+        self.first_chunk.set()
+        if not self.release.wait(10):
+            raise TimeoutError("test stream release timed out")
+        on_delta(" and second chunk.")
+        return ChatCompletion(self.answer,self.model,23,9,"stop",
+            provider_id=self.provider_id,reasoning_stage="reasoning")
+
+
+class _FailingStreamingChatProvider(_ChatProvider):
+    def stream_chat(self,messages,*,max_tokens,expected_revision,on_delta,
+                    on_reset=lambda:None,timeout_seconds=120):
+        from riverview_core.local_reasoning_provider import LocalReasoningUnavailable
+        raise LocalReasoningUnavailable("endpoint_unavailable")
 
 
 @unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")
@@ -169,12 +198,138 @@ class ResidentConversationTests(unittest.TestCase):
                          ["user_message", "assistant_message"])
         self.assertEqual(history["events"][1]["implementation_revision"], self.model_a)
         self.assertEqual(history["events"][1]["metadata"]["completion_tokens"], 9)
-        self.assertEqual(history["events"][1]["metadata"]["role_context_revision"], "1.0.0")
+        self.assertEqual(history["events"][1]["metadata"]["role_context_revision"], "1.1.1")
         self.assertEqual([row[1] for row in self._fresh_events(result["conversation_id"])],
                          ["user_message", "assistant_message"])
         self._assert_connection_idle()
         self.assertEqual(self.service.response_status(self.steward_token,
             result["conversation_id"], result["request_id"])["status"], "completed")
+
+    def test_stream_is_durable_incremental_and_reconnects_without_replaying_consumed_chunks(self):
+        provider=_StreamingChatProvider("cpu-test-a",self.model_a)
+        self.service.providers[provider.provider_id]=provider
+        client_message_id=str(uuid4())
+        submitted=self.service.submit_stream(self.steward_token,message="Stream this response.",
+            client_message_id=client_message_id)
+        self.assertEqual(submitted["status"],"queued")
+        duplicate=self.service.submit_stream(self.steward_token,message="Stream this response.",
+            client_message_id=client_message_id)
+        self.assertTrue(duplicate["duplicate"])
+        self.assertEqual(duplicate["request_id"],submitted["request_id"])
+        self.assertTrue(provider.first_chunk.wait(5))
+        partial=self.service.stream_snapshot(self.steward_token,submitted["conversation_id"],
+            submitted["request_id"],after_sequence=0)
+        self.assertEqual(partial["status"],"generating")
+        first=next(event for event in partial["events"] if event["event_type"]=="delta")
+        self.assertEqual(first["text"],"First chunk")
+        partial_history=self.service.history(self.steward_token,submitted["conversation_id"])
+        self.assertEqual([event["event_type"] for event in partial_history["events"]],
+                         ["user_message"])
+        provider.release.set()
+        deadline=time.monotonic()+5
+        while time.monotonic()<deadline:
+            history=self.service.history(self.steward_token,submitted["conversation_id"])
+            if any(event["event_type"]=="assistant_message" for event in history["events"]):break
+            time.sleep(.02)
+        terminal=[event for event in history["events"] if event["request_id"]==submitted["request_id"]
+                  and event["event_type"]=="assistant_message"]
+        self.assertEqual(len(terminal),1)
+        self.assertEqual(terminal[0]["body"],"First chunk and second chunk.")
+        resumed=self.service.stream_snapshot(self.steward_token,submitted["conversation_id"],
+            submitted["request_id"],after_sequence=first["sequence"])
+        self.assertFalse(any(event.get("text")=="First chunk" for event in resumed["events"]))
+        self.assertTrue(any(event["event_type"]=="completed" for event in resumed["events"]))
+        self.assertEqual(self.service.stream_snapshot(self.steward_token,
+            submitted["conversation_id"],submitted["request_id"])["status"],"completed")
+        self.assertIsNotNone(terminal[0]["metadata"]["time_to_first_token_ms"])
+        self.assertIsNotNone(terminal[0]["metadata"]["generation_elapsed_ms"])
+
+    def test_stream_provider_failure_persists_one_failure_and_terminal_cursor(self):
+        provider=_FailingStreamingChatProvider("cpu-test-a",self.model_a)
+        self.service.providers[provider.provider_id]=provider
+        submitted=self.service.submit_stream(self.steward_token,message="Fail safely.",
+            client_message_id=str(uuid4()))
+        deadline=time.monotonic()+5
+        history=None
+        while time.monotonic()<deadline:
+            history=self.service.history(self.steward_token,submitted["conversation_id"])
+            if any(event["event_type"]=="response_failed" for event in history["events"]):break
+            time.sleep(.02)
+        failed=[event for event in history["events"] if event["request_id"]==submitted["request_id"]
+            and event["event_type"]=="response_failed"]
+        self.assertEqual(len(failed),1)
+        snapshot=self.service.stream_snapshot(self.steward_token,submitted["conversation_id"],
+            submitted["request_id"])
+        self.assertEqual(snapshot["status"],"failed")
+        self.assertEqual(snapshot["events"][-1]["event_type"],"failed")
+
+    def test_stream_generation_reset_discards_old_partial_chunks_without_cursor_replay(self):
+        binding=self.registry.authorize_office_state(self.resident_token,self.office_id)
+        implementation={"office_id":self.office_id,"implementation_id":binding["implementation_id"],
+            "implementation_revision":binding["implementation_revision"],
+            "provider_ref":binding["provider_ref"],"model_id":"cpu-test-a"}
+        conversation_id,request_id,duplicate,_history=self.store.begin_turn(
+            office_id=self.office_id,principal_id=self.steward_id,occupant=binding,
+            implementation=implementation,message="Retry one stream safely.",
+            client_message_id=str(uuid4()),authorization={"principal_id":self.steward_id},
+            streaming=True)
+        self.assertFalse(duplicate)
+        self.store.stream_generation_started(request_id,provider_ref="cpu-test-a",
+            model_id="cpu-test-a",reasoning_stage="reasoning")
+        first=self.store.append_stream_delta(request_id,"discarded partial answer")
+        before=self.store.stream_snapshot(conversation_id,request_id,self.office_id,
+            self.steward_id,after_sequence=0)
+        self.assertTrue(any(item.get("text")=="discarded partial answer"
+            for item in before["events"]))
+
+        self.store.stream_generation_started(request_id,provider_ref="cpu-test-a",
+            model_id="cpu-test-a",reasoning_stage="reasoning")
+        resumed=self.store.stream_snapshot(conversation_id,request_id,self.office_id,
+            self.steward_id,after_sequence=0)
+        self.assertEqual([item["event_type"] for item in resumed["events"]],["reset"])
+        self.assertGreater(resumed["events"][0]["sequence"],first)
+        self.assertFalse(any("text" in item for item in resumed["events"]))
+        self.store.append_stream_delta(request_id,"new generation")
+        after_cursor=self.store.stream_snapshot(conversation_id,request_id,self.office_id,
+            self.steward_id,after_sequence=first)
+        self.assertEqual([item["event_type"] for item in after_cursor["events"]],
+                         ["reset","delta"])
+        self.assertEqual(after_cursor["events"][1]["text"],"new generation")
+
+        self.store.reset_stream_generation(request_id,provider_ref="cpu-test-fallback",
+            model_id="cpu-test-fallback",reasoning_stage="autonomic")
+        fallback=self.store.stream_snapshot(conversation_id,request_id,self.office_id,
+            self.steward_id,after_sequence=0)
+        self.assertEqual([item["event_type"] for item in fallback["events"]],["reset"])
+        self.assertGreater(fallback["events"][0]["sequence"],
+                           after_cursor["events"][-1]["sequence"])
+
+    def test_repeated_stream_deferral_compacts_partial_text_without_duplicate_history(self):
+        binding=self.registry.authorize_office_state(self.resident_token,self.office_id)
+        implementation={"office_id":self.office_id,"implementation_id":binding["implementation_id"],
+            "implementation_revision":binding["implementation_revision"],
+            "provider_ref":binding["provider_ref"],"model_id":"cpu-test-a"}
+        conversation_id,request_id,duplicate,_history=self.store.begin_turn(
+            office_id=self.office_id,principal_id=self.steward_id,occupant=binding,
+            implementation=implementation,message="Wait for required reasoning.",
+            client_message_id=str(uuid4()),authorization={"principal_id":self.steward_id},
+            streaming=True)
+        self.assertFalse(duplicate)
+        for partial in ("discarded first attempt","discarded second attempt"):
+            self.store.stream_generation_started(request_id,provider_ref="cpu-test-a",
+                model_id="cpu-test-a",reasoning_stage="reasoning")
+            self.store.append_stream_delta(request_id,partial)
+            self.store.defer_turn(conversation_id,request_id,occupant=binding,
+                implementation=implementation,provider_ref="cpu-test-a",model_id="cpu-test-a",
+                required_capability="grace.reasoning.80b",readiness_state="MODEL_BUSY")
+            snapshot=self.store.stream_snapshot(conversation_id,request_id,self.office_id,
+                self.steward_id,after_sequence=0)
+            self.assertEqual(snapshot["status"],"deferred")
+            self.assertEqual([event["event_type"] for event in snapshot["events"]],["deferred"])
+            self.assertNotIn("text",snapshot["events"][0])
+        history=self.store.history(conversation_id,self.office_id,self.steward_id)
+        self.assertEqual(sum(event["event_type"]=="response_deferred"
+            and event["request_id"]==request_id for event in history["events"]),1)
 
     def test_verified_engineering_result_returns_once_to_source_conversation(self):
         self.registry.grant(self.steward_token, self.resident_id,

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.11
+# Revision: 1.3.12
 # Purpose: Serve account-authenticated operational projections and existing bounded APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -34,6 +34,7 @@
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
 # History: Git and revision/backup manifest
+# Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
 # =============================================================================
 """Loopback-only Steward dashboard with read projections and receipt-only writes."""
 
@@ -47,6 +48,7 @@ import re
 import secrets
 import stat
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -73,6 +75,8 @@ _CONVERSATION_COOKIE_MAX_AGE = 30 * 24 * 60 * 60
 _COOKIE_CREDENTIAL = re.compile(r"^[A-Za-z0-9_-]{32,512}$")
 _CONVERSATION_STATUS = re.compile(
     r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/responses/([0-9a-fA-F-]{36})$")
+_CONVERSATION_STREAM = re.compile(
+    r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/responses/([0-9a-fA-F-]{36})/stream$")
 _CONVERSATION_WORK_ORDER = re.compile(
     r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/work-orders$")
 _MAX_CHAT_BODY = 12 * 1024
@@ -120,14 +124,29 @@ def _verify_grace_router_startup_readiness(connection, *, schema, registry,
             sql.SQL("SELECT version FROM {}.schema_migrations WHERE version=ANY(%s)").format(
                 sql.Identifier(schema)),
             (["0004_deferred_conversation_responses",
-              "0006_deferred_execution_claims"],))
+              "0006_deferred_execution_claims",
+              "0008_resident_conversation_stream_delivery"],))
         rows = cur.fetchall()
         versions = {row["version"] if hasattr(row, "keys") else row[0]
                     for row in rows}
         if versions != {
                 "0004_deferred_conversation_responses",
-                "0006_deferred_execution_claims"}:
+                "0006_deferred_execution_claims",
+                "0008_resident_conversation_stream_delivery"}:
             raise RuntimeError("resident deferred-resumption migrations are not applied")
+        cur.execute("""SELECT to_regclass(%s) AS table_name,
+            has_table_privilege(current_user,%s,'SELECT') AS can_select,
+            has_table_privilege(current_user,%s,'INSERT') AS can_insert,
+            has_table_privilege(current_user,%s,'UPDATE') AS can_update""",
+            tuple([schema+".resident_conversation_streams"]*4))
+        capability=cur.fetchone()
+        if hasattr(capability,"keys"):
+            values=(capability["table_name"],capability["can_select"],
+                    capability["can_insert"],capability["can_update"])
+        else:
+            values=tuple(capability) if capability else ()
+        if not values or not values[0] or not all(bool(v) for v in values[1:]):
+            raise RuntimeError("resident streaming database capability is not ready")
 
     binding = registry.authorize_office_state(resident_credential, office_id)
     if (not isinstance(binding, dict)
@@ -218,6 +237,7 @@ class _BoundedHTTPServer(HTTPServer):
 
 def make_handler():
     class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
         server_version = "RiverviewStatus/1"
         sys_version = ""
 
@@ -256,6 +276,58 @@ def make_handler():
                 status, body = 500, b'{"error":"response_too_large"}'
             self._send(status, body, "application/json; charset=utf-8", request_id,
                        extra_headers=extra_headers)
+
+        def _stream_sse(self, service, conversation_id, response_id, after_sequence,
+                        request_id):
+            """Replay durable, authorized stream events with bounded SSE framing."""
+            self.send_response(200)
+            self._headers(request_id)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Transfer-Encoding", "chunked")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("X-Accel-Buffering", "no")
+            self.end_headers()
+
+            def write(payload):
+                chunk=f"{len(payload):X}\r\n".encode()+payload+b"\r\n"
+                self.wfile.write(chunk)
+                self.wfile.flush()
+
+            cursor=after_sequence
+            deadline=time.monotonic()+180
+            last_heartbeat=time.monotonic()
+            try:
+                write(b": riverview stream connected\n\n")
+                while time.monotonic()<deadline:
+                    snapshot=service.stream_snapshot(self._conversation_authority(),
+                        conversation_id,response_id,after_sequence=cursor)
+                    for item in snapshot["events"]:
+                        cursor=item["sequence"]
+                        payload=json.dumps(item,separators=(",",":"),ensure_ascii=True).encode()
+                        write(b"id: "+str(cursor).encode()+b"\nevent: "+item["event_type"].encode()+
+                              b"\ndata: "+payload+b"\n\n")
+                    if snapshot["status"] in {"completed","failed","interrupted"}:
+                        break
+                    now=time.monotonic()
+                    if now-last_heartbeat>=10:
+                        write(b": keepalive\n\n")
+                        last_heartbeat=now
+                    time.sleep(0.35)
+                if time.monotonic()>=deadline:
+                    write(b"event: reconnect\ndata: {\"status\":\"pending\"}\n\n")
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                # Generation is independent of the browser socket and continues durably.
+                return
+            except Exception:
+                # A grant revoked after headers were sent closes the stream; the
+                # next reconnect receives a normal authenticated denial response.
+                return
+            finally:
+                try:
+                    self.wfile.write(b"0\r\n\r\n")
+                    self.wfile.flush()
+                except OSError:
+                    pass
 
         def _conversation_authority(self):
             """Use authenticated linked Steward identity or the retained legacy credential."""
@@ -430,6 +502,8 @@ def make_handler():
             account_email_test = parsed.path == "/api/v1/account/email-settings/test" and self.command == "POST"
             conversation_send = (parsed.path == "/api/v1/resident/conversations"
                                  and self.command == "POST")
+            conversation_stream_send = (parsed.path == "/api/v1/resident/conversations/stream"
+                                        and self.command == "POST")
             conversation_work_order = (_CONVERSATION_WORK_ORDER.fullmatch(parsed.path)
                                        if self.command == "POST" else None)
             conversation_session = (parsed.path == _CONVERSATION_SESSION
@@ -439,7 +513,7 @@ def make_handler():
                 return
             if (self.command not in {"GET", "HEAD"} and not notification_write
                     and not objective_submit and not objective_proposal and not objective_cancel
-                    and not conversation_send and not conversation_session and not public_auth
+                    and not conversation_send and not conversation_stream_send and not conversation_session and not public_auth
                     and not conversation_work_order
                     and not auth_logout and not account_decision and not account_user
                     and not permission_profile and not permission_transition
@@ -1009,6 +1083,37 @@ def make_handler():
                         self._json(status, result, request_id)
                     except Exception as exc:
                         self._conversation_error(exc, request_id)
+                elif conversation_stream_send:
+                    service=self.server._conversation_service
+                    if service is None:
+                        self._error(503,"resident_conversation_unavailable",request_id)
+                        return
+                    try:
+                        data=self._json_body(_MAX_CHAT_BODY)
+                        if (set(data)-{"conversation_id","client_message_id","message"}
+                                or not isinstance(data.get("message"),str)):
+                            raise ValueError("invalid conversation request")
+                        result=service.submit_stream(self._conversation_authority(),
+                            message=data["message"],conversation_id=data.get("conversation_id"),
+                            client_message_id=data.get("client_message_id"))
+                        self._json(202,result,request_id)
+                    except Exception as exc:
+                        self._conversation_error(exc,request_id)
+                elif (stream_match := _CONVERSATION_STREAM.fullmatch(parsed.path)):
+                    service=self.server._conversation_service
+                    if service is None:
+                        self._error(503,"resident_conversation_unavailable",request_id)
+                        return
+                    try:
+                        after=query.get("after",["0"])[0]
+                        if not after.isdigit() or len(after)>12:
+                            raise ValueError("invalid stream cursor")
+                        service.stream_snapshot(self._conversation_authority(),
+                            stream_match.group(1),stream_match.group(2),after_sequence=int(after))
+                        self._stream_sse(service,stream_match.group(1),stream_match.group(2),
+                                         int(after),request_id)
+                    except Exception as exc:
+                        self._conversation_error(exc,request_id)
                 elif (conversation_match := _CONVERSATION_STATUS.fullmatch(parsed.path)):
                     service = self.server._conversation_service
                     if service is None:
@@ -1336,6 +1441,7 @@ def main():
                 providers=providers,
                 operational_context=GraceOperationalContext(projection))
             conversation_store.recover_pending()
+            conversation_service.resume_streams(limit=20)
             if routed:
                 def resume_deferred():
                     while True:

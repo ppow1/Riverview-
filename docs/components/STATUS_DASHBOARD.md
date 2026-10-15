@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.1
+File Revision: 1.1.2
 Purpose: Specify operational projections and exact-grant Grace objective and conversation interfaces
 Authority: Reads require dashboard authentication; objective and resident conversation operations require exact institutional grants
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
@@ -13,6 +13,7 @@ Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Integrate the isolated resident c
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Keep persisted historical interruption notices out of current response error state
 Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Document password login, grant controls and configurable SMTP administration
 Changed: 2026-10-14 UTC | RV-GRACE-HEALTH-PROJECTION-ACL-001 | Grant dashboard runtime SELECT only on Grace execution health for status projection
+Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Document bounded authenticated conversation streaming writes and migration dependency
 History: Git and revision/backup manifest
 -->
 # Steward status dashboard
@@ -234,8 +235,11 @@ it has no dashboard dependency. Remote access, when needed, uses an authenticate
 forward rather than an internet/LAN listener. systemd runs the root-owned release
 as OS account `riverview`; systemd `LoadCredential` provides the existing
 PostgreSQL passfile and separate dashboard bearer token. The token source is
-owner-only under the Steward account. The process has no database write route or
-DDL/startup migration path. See `deploy/riverview-status-dashboard.service` and
+owner-only under the Steward account. Dashboard runtime APIs include narrowly
+authorized conversation and stream-record writes; migration 0008 grants the
+conversation runtime only SELECT/INSERT/UPDATE on
+`resident_conversation_streams`. The process has no DDL or startup-migration path.
+See `deploy/riverview-status-dashboard.service` and
 `docs/components/STATUS_DASHBOARD_COOKBOOK.md`.
 
 Deployment procedure copies a verified commit to a versioned root-owned
@@ -243,7 +247,9 @@ Deployment procedure copies a verified commit to a versioned root-owned
 package hash, updates only the dashboard `current` symlink and new dedicated
 systemd unit, and captures the existing symlink/unit before first install.
 Rollback restores that symlink/unit from the recorded predecessor and restarts
-only the dashboard unit. PostgreSQL migration changes are not part of M3.1.
+only the dashboard unit. Conversation-stream migrations are applied separately
+through the reviewed migration runner after protected backup and checksum
+preflight.
 
 ## Verification and status
 

@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION_FLOW.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.14
+File Revision: 1.0.18
 Purpose: Generated focused flow for persistent Grace browser conversation
 Authority: Canonical graph JSON; diagram generated and not hand-edited
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Register generated chat workflow view
@@ -32,7 +32,7 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_binding_recheck_06e5ffdc["Reject a result if the office implementation changed during inference"]
     g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b["Append one terminal response with actual served model and original plus executing implementation provenance"]
     g_rv_resident_conversation_browser_chat_restart_recovery_57f09430["After service restart mark unfinished request interrupted without automatic duplicate inference"]
-    g_rv_resident_conversation_browser_chat_browser_history_c2d99277(["Return durable response/status and render persisted conversation in dashboard"])
+    g_rv_resident_conversation_browser_chat_browser_history_c2d99277(["Return durable response/status and refresh the active conversation for later verified Engineering results"])
     g_rv_resident_conversation_browser_chat_future_objective_jump_be36018d["Future explicit authorization remains a separate objective submission path"]
     g_rv_resident_conversation_browser_chat_browser_render_ce223021["Render complete persisted messages with role, status, timestamp and provenance"]
     g_rv_resident_conversation_browser_chat_composer_47498ab0["Keep an editable local draft; Enter submits and Shift+Enter inserts a line break"]
@@ -54,6 +54,15 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_resume_capability_pin_e7b3b64f["Constrain the resumed turn to its persisted required capability; a deferred 80B turn uses only 80B regardless of later conversation turns"]
     g_rv_resident_conversation_browser_chat_grace_role_context_dbeb08cc["Inject shared canonical Director of Operations identity, responsibilities and no-permission boundary into ordinary and resumed turns"]
     g_rv_resident_conversation_browser_chat_operations_snapshot_a7547e58["Attach a bounded read-only CME, assignment, objective, worker and attention snapshot with freshness and redaction provenance"]
+    g_rv_resident_conversation_browser_chat_stream_capability_check_1c5ad149{"Does this browser support authenticated fetch streaming?"}
+    g_rv_resident_conversation_browser_chat_stream_submit_10a9739e["Persist the user turn and idempotency key, then return queued status without waiting for inference."]
+    g_rv_resident_conversation_browser_chat_stream_events_3110d0b1["Persist bounded provider text deltas and sanitized queued/generating/completed/failed state."]
+    g_rv_resident_conversation_browser_chat_stream_authorized_sse_9ad92368["Replay durable response events over same-origin authenticated SSE after a monotonic sequence cursor."]
+    g_rv_resident_conversation_browser_chat_stream_render_dc01ef84["Render arriving text safely in the original conversation and measure first-text and delivery latency."]
+    g_rv_resident_conversation_browser_chat_stream_reconnect_388d817d["Reconnect from the monotonic cursor; clear superseded partial generations and deferred text without duplicating terminal history."]
+    g_rv_resident_conversation_browser_chat_stream_history_verify_0f5110ca["Load the canonical completed response from history after reload; stream and conversation terminal state commit atomically."]
+    g_rv_resident_conversation_browser_chat_stream_nonstream_fallback_c2c28c67["Use the existing bounded synchronous conversation route when browser streaming is unavailable."]
+    g_rv_resident_conversation_browser_chat_stream_failure_f82a9aa6[["Retain the user turn and one sanitized terminal failure; do not expose prompts, output logs, or credentials."]]
   end
   g_rv_grace_operational_integration_objective_intake_55567c14["Registered target<br/>rv:grace:operational-integration"]
   g_rv_resident_conversation_browser_chat_browser_submit_e4a0bb86 --> g_rv_resident_conversation_browser_chat_dashboard_auth_1ec7b499
@@ -109,5 +118,21 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_operations_snapshot_a7547e58 -->|Router applies the selected capability's bounded context policy before provider invocation| g_rv_resident_conversation_browser_chat_stage_context_policy_b35672ba
   g_rv_resident_conversation_browser_chat_stage_context_policy_b35672ba -->|Use concise identity context for autonomic acknowledgments; retain full supplied context for substantive stages| g_rv_resident_conversation_browser_chat_inference_8bca7614
   g_rv_resident_conversation_browser_chat_stage_context_policy_b35672ba -->|diagnostic_branch: Malformed context or no current user turn; reject before inference| g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79
+  g_rv_resident_conversation_browser_chat_browser_submit_e4a0bb86 --> g_rv_resident_conversation_browser_chat_stream_capability_check_1c5ad149
+  g_rv_resident_conversation_browser_chat_stream_capability_check_1c5ad149 -->|Streaming available; authenticated POST preserves original conversation and request IDs| g_rv_resident_conversation_browser_chat_stream_submit_10a9739e
+  g_rv_resident_conversation_browser_chat_stream_capability_check_1c5ad149 -->|No stream support; use existing bounded response API| g_rv_resident_conversation_browser_chat_stream_nonstream_fallback_c2c28c67
+  g_rv_resident_conversation_browser_chat_stream_submit_10a9739e -->|Idempotently persist before returning queued| g_rv_resident_conversation_browser_chat_persist_user_50079953
+  g_rv_resident_conversation_browser_chat_persist_user_50079953 -->|Background generation uses the same authorization and routing checks| g_rv_resident_conversation_browser_chat_stream_events_3110d0b1
+  g_rv_resident_conversation_browser_chat_stream_events_3110d0b1 -->|0.6B, provisional 30B, or 80B selected by existing router; image upload is not part of this route| g_rv_resident_conversation_browser_chat_inference_8bca7614
+  g_rv_resident_conversation_browser_chat_stream_events_3110d0b1 -->|diagnostic_branch: Provider, authorization, or persistence failure| g_rv_resident_conversation_browser_chat_stream_failure_f82a9aa6
+  g_rv_resident_conversation_browser_chat_stream_events_3110d0b1 -->|Atomic durable response and stream completion| g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b
+  g_rv_resident_conversation_browser_chat_stream_authorized_sse_9ad92368 -->|Read authorized durable cursor events only| g_rv_resident_conversation_browser_chat_stream_events_3110d0b1
+  g_rv_resident_conversation_browser_chat_stream_authorized_sse_9ad92368 -->|recovery_route: Disconnect or bounded 180-second stream closure| g_rv_resident_conversation_browser_chat_stream_reconnect_388d817d
+  g_rv_resident_conversation_browser_chat_stream_reconnect_388d817d -->|Resume after last consumed sequence| g_rv_resident_conversation_browser_chat_stream_authorized_sse_9ad92368
+  g_rv_resident_conversation_browser_chat_stream_authorized_sse_9ad92368 -->|Sanitized text chunks and status state| g_rv_resident_conversation_browser_chat_stream_render_dc01ef84
+  g_rv_resident_conversation_browser_chat_stream_render_dc01ef84 --> g_rv_resident_conversation_browser_chat_browser_render_ce223021
+  g_rv_resident_conversation_browser_chat_browser_history_c2d99277 -->|verification: Reload canonical persisted response; no preview duplicates| g_rv_resident_conversation_browser_chat_stream_history_verify_0f5110ca
+  g_rv_resident_conversation_browser_chat_stream_nonstream_fallback_c2c28c67 --> g_rv_resident_conversation_browser_chat_context_bound_672d08c9
+  g_rv_resident_conversation_browser_chat_stream_failure_f82a9aa6 --> g_rv_resident_conversation_browser_chat_browser_history_c2d99277
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
