@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_FLOW.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.5
+File Revision: 1.0.6
 Purpose: Generated focused process view for resident reasoning routing
 Authority: Graph-generated view; canonical source is JSON
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add graph-generated resident reasoning flow
@@ -30,7 +30,7 @@ flowchart LR
     g_rv_resident_reasoning_runtime_select_provider_46047639["Choose the provider matching the active office implementation provider_ref"]
     g_rv_resident_reasoning_runtime_route_gate_56e9828c{"Is the primary provider and every configured fallback exact, registered and bounded?"}
     g_rv_resident_reasoning_runtime_route_unavailable_854025a6[["Persist route failure and return UNAVAILABLE without inferred fallback"]]
-    g_rv_resident_reasoning_runtime_provider_call_c528110c["Call one provider under per-call timeout and divided token budget"]
+    g_rv_resident_reasoning_runtime_provider_call_c528110c["Call the bound provider under a shared explicitly bounded deadline of at most 60 seconds and divided token budget"]
     g_rv_resident_reasoning_runtime_grace_role_context_8af6db52["For office:grace only, add the shared Director of Operations role and authority boundaries to the assignment proposal prompt"]
     g_rv_resident_reasoning_runtime_fallback_gate_7e77ebca{"Did the call time out or fail before returning a plan?"}
     g_rv_resident_reasoning_runtime_fallback_6dc058bf["Try the next explicitly configured provider only; no implicit provider selection"]

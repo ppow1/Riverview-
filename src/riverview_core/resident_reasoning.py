@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.10
+# Revision: 1.0.11
 # Purpose: Regound institutional resident requests and route bounded plan proposals
 # Execution Model: Request-driven in-process runtime with replaceable reasoning providers
 # Observability: Office-scoped durable state stores grounding and provider outcomes
@@ -17,6 +17,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.2-ROUTE-MINIMUM-BUDGET | Reject a configured route whose provider count cannot fit the requested total token budget
 # Changed: 2026-10-11 UTC | RV-M4.4-CONTEXT-FAILURE-CLASS | Distinguish oversize grounded input from JSON serialization failure
 # Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Persist actual served-model provenance with typed resident proposals
+# Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Permit bounded 60-second 80B proposal inference
 # Contracts: docs/components/RESIDENT_REASONING.md
 # Tests: tests/test_resident_reasoning.py
 # History: .riverview-backups/manifest.jsonl
@@ -186,7 +187,7 @@ class ResidentReasoner:
         self.knowledge = knowledge
         self.providers = dict(providers)
         self.fallback_routes = {key: tuple(value) for key, value in (fallback_routes or {}).items()}
-        if (len(self.providers) > 8 or not 0 < timeout_seconds <= 30
+        if (len(self.providers) > 8 or not 0 < timeout_seconds <= 60
                 or any(not isinstance(key, str) or not key or len(route) > 2
                        or len(route) != len(set(route)) or key in route
                        for key, route in self.fallback_routes.items())):

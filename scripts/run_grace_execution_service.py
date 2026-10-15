@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -15,6 +15,7 @@
 # Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Remove API-key auth and permit only interactive owning-user subscription mode
 # Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Use the active bound router for proposal/review and return verified outcomes to chat
 # Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Add persistent no-copy ChatGPT owner-session runtime mode
+# Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Align bounded 80B provider and resident proposal deadlines
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -55,6 +56,17 @@ from riverview_core.resident_execution.conversation import (
     ConversationStore, ResidentConversationService)
 
 
+def resident_reasoning_timeout(environ):
+    """Return the shared bounded proposal-provider and caller deadline."""
+    try:
+        timeout = float(environ.get("RIVERVIEW_RESIDENT_REASONING_TIMEOUT", "60"))
+    except (TypeError, ValueError):
+        raise WorkerServiceConfigurationError("resident_reasoning_timeout_invalid") from None
+    if not 1 <= timeout <= 60:
+        raise WorkerServiceConfigurationError("resident_reasoning_timeout_invalid")
+    return timeout
+
+
 def configured_resident_providers(binding, environ=None, provider_factory=None):
     """Build only the provider set matching the current authorized office binding."""
     environ = os.environ if environ is None else environ
@@ -76,6 +88,7 @@ def configured_resident_providers(binding, environ=None, provider_factory=None):
         raise WorkerServiceConfigurationError("resident_reasoning_provider_binding_mismatch")
     if (environ.get("RIVERVIEW_GRACE_ENABLE_MODEL_ROUTER") != "1" or not allow_lan):
         raise WorkerServiceConfigurationError("resident_model_router_opt_in_required")
+    proposal_timeout = resident_reasoning_timeout(environ)
     vision_digest = environ.get("RIVERVIEW_GRACE_30B_MODEL_SHA256", "")
     reasoning_digest = environ.get("RIVERVIEW_GRACE_80B_MODEL_SHA256", "")
     # Reuse the exact endpoint/model pairs already allowlisted by LocalReasoningProvider.
@@ -88,7 +101,7 @@ def configured_resident_providers(binding, environ=None, provider_factory=None):
     vision = provider_factory(endpoint_30b, model_30b, vision_digest,
         allow_approved_private_lan=True)
     reasoning = provider_factory(endpoint_80b, model_80b, reasoning_digest,
-        allow_approved_private_lan=True)
+        timeout_seconds=proposal_timeout, allow_approved_private_lan=True)
     router = GraceModelRouter(autonomic=autonomic, vision=vision, reasoning=reasoning)
     if binding.get("implementation_revision") != router.model_sha256:
         raise WorkerServiceConfigurationError("resident_reasoning_binding_mismatch")
@@ -131,12 +144,13 @@ def main() -> int:
         intake = AuthorizedAssignmentIntake(ledger, authorizer)
         resident_knowledge = TaskRelevantRepositoryKnowledgeProvider(repo_root, commit)
         pipeline = GraceExecutionPipeline(ledger, authorizer, intake, resident_knowledge)
+        reasoning_timeout = resident_reasoning_timeout(os.environ)
         providers, reasoning_model = configured_resident_providers(office)
         resident_reasoner = ResidentReasoner(
             registry=authority_registry, office_id=office_id,
             resident_credential=resident_token, assignments=ObjectiveContextReader(pipeline),
             knowledge=resident_knowledge, providers=providers,
-            timeout_seconds=float(os.environ.get("RIVERVIEW_RESIDENT_REASONING_TIMEOUT", "5")))
+            timeout_seconds=reasoning_timeout)
         conversation_store = ConversationStore(dsn, schema=schema)
         conversation_service = ResidentConversationService(
             store=conversation_store, registry=authority_registry,
