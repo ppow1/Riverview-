@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.116
+**Document Revision:** 1.0.117
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
@@ -1595,3 +1595,62 @@ bound to the 0.6B implementation at binding revision 3. The corrected release
 still needs PR/CI and a new immutable candidate archive before a later
 commissioning attempt. The real authenticated 80B browser acceptance remains
 open.
+
+
+## 2026-10-15 UTC — RV-GRACE-WORKORDER-RECOVERY-001
+
+The authenticated production intake for conversation
+`269535bd-8556-41f2-9d42-3b722837fbab`, source sequence 6, returned HTTP 409
+`work_order_conflict` after persisting objective
+`objective:grace-conversation:2c573041-cc5e-4b54-9f93-8163de91e52c` and its
+`objective.received` event. Metadata showed `WAITING_FOR_EVIDENCE`, zero source
+references, `retrieval_complete=false`, and repository source revision
+`64e8f14ad6d71102a864755739a1c8a61506235c`; no assignment or proposal existed.
+The active dashboard was release `665ae8100a50faa26985b0cfee8834e68bf2a847`,
+but its default knowledge root resolved through `/opt/riverview-core` to the
+older 64e8… checkout. Because that checkout did not match the dashboard's
+verified package revision, the knowledge provider correctly failed closed.
+The route then incorrectly translated the post-persistence grounding wait into
+a conflict response. No prior objective collision caused this incident.
+
+The bounded correction makes a packaged dashboard use its own immutable
+release as the default knowledge root (an explicit configured root still wins),
+returns the existing durable wait state as a receipt, and resolves retries by
+authenticated conversation/message origin so the same objective is reused.
+Exact source, criteria, scope, submitter, current authorization, and evidence
+verification remain required. A different request for the same origin fails
+closed. No production row was deleted or rewritten, no assignment was
+fabricated, and no production configuration was changed during diagnosis.
+Regression coverage verifies package-root selection, same-origin retry without
+duplicate submission, and changed-criteria conflict. Production retry and the
+subsequent CME/Codex/verifier cycle remain pending a reviewed release and the
+Steward's same-message retry through the authenticated website.
+
+## 2026-10-15 UTC — RV-GRACE-WORKORDER-RECOVERY-001
+
+The authenticated production intake for conversation
+`269535bd-8556-41f2-9d42-3b722837fbab`, source sequence 6, returned HTTP 409
+`work_order_conflict` after persisting objective
+`objective:grace-conversation:2c573041-cc5e-4b54-9f93-8163de91e52c` and its
+`objective.received` event. Metadata showed `WAITING_FOR_EVIDENCE`, zero source
+references, `retrieval_complete=false`, and repository source revision
+`64e8f14ad6d71102a864755739a1c8a61506235c`; no assignment or proposal existed.
+The active dashboard was release `665ae8100a50faa26985b0cfee8834e68bf2a847`,
+but its default knowledge root resolved through `/opt/riverview-core` to the
+older 64e8… checkout. Because that checkout did not match the dashboard's
+verified package revision, the knowledge provider correctly failed closed.
+The route then incorrectly translated the post-persistence grounding wait into
+a conflict response. No prior objective collision caused this incident.
+
+The bounded correction makes a packaged dashboard use its own immutable
+release as the default knowledge root (an explicit configured root still wins),
+returns the existing durable wait state as a receipt, and resolves retries by
+authenticated conversation/message origin so the same objective is reused.
+Exact source, criteria, scope, submitter, current authorization, and evidence
+verification remain required. A different request for the same origin fails
+closed. No production row was deleted or rewritten, no assignment was
+fabricated, and no production configuration was changed during diagnosis.
+Regression coverage verifies package-root selection, same-origin retry without
+duplicate submission, and changed-criteria conflict. Production retry and the
+subsequent CME/Codex/verifier cycle remain pending a reviewed release and the
+Steward's same-message retry through the authenticated website.
