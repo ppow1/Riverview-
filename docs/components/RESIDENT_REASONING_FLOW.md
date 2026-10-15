@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_FLOW.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.4
+File Revision: 1.0.5
 Purpose: Generated focused process view for resident reasoning routing
 Authority: Graph-generated view; canonical source is JSON
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add graph-generated resident reasoning flow
@@ -20,7 +20,7 @@ flowchart LR
     g_rv_resident_reasoning_runtime_authorize_state_01b83150["Require exact active office.state.write grant before reading assignment context"]
     g_rv_resident_reasoning_runtime_authority_gate_f71eec68{"Is the exact resident office-state grant active?"}
     g_rv_resident_reasoning_runtime_authority_denied_24a96278[["Return AUTHORITY_DENIED without reading context or invoking provider"]]
-    g_rv_resident_reasoning_runtime_load_context_d318d274["Read current office binding and assignment revision; reject credential fields and oversized inputs"]
+    g_rv_resident_reasoning_runtime_load_context_d318d274["Read current office binding and assignment revision; attach the resident-engineering contract reference; reject credential fields and oversized inputs"]
     g_rv_resident_reasoning_runtime_ground_fedaa2c8["Ground the current assignment through knowledge-provider v1"]
     g_rv_resident_reasoning_runtime_reground_480fc411["Reground at the request trigger and retain source revision/hash"]
     g_rv_resident_reasoning_runtime_grounding_gate_64658003{"Are grounding and regrounding both VERIFIED and complete?"}

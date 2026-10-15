@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
 # Execution Model: Request-driven orchestration over existing PostgreSQL authority and ledger
 # Observability: Append-only objective events linked to assignment and evidence provenance
@@ -15,6 +15,7 @@
 # Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Add durable retryable outbox for verified conversation-origin work results
 # Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Revalidate exact submission grant before retrying existing objectives
 # Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-REGROUND-001 | Commit verified grounding when resuming a durable WAITING_FOR_EVIDENCE objective
+# Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-CONTEXT-001 | Include resident contract reference in durable reasoning context
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -417,6 +418,7 @@ class GraceExecutionPipeline:
             "id": objective["objective_id"],
             "revision": str(objective["revision"]),
             "state": objective["status"],
+            "contract_ref": self.CONTRACT_REF,
             "objective": objective["request"],
             "acceptance_criteria": list(objective["acceptance_criteria"]),
             "verified_evidence": objective["evidence"],

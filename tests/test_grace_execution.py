@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.13
+# Revision: 1.0.14
 # Purpose: Exercise objective-to-authorized-worker-to-independent-verification pipeline
 # Execution Model: Isolated PostgreSQL schema, committed repository fixture, deterministic proposal
 # Observability: Durable objective/assignment events, worker attempt, artifact, verifier decision
@@ -22,6 +22,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-FAIR-CYCLE | Prove waiting reasoning does not delay existing worker execution
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-FAIR-FIX | Advance queued work through the event processor before fairness assertion
 # Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-REGROUND-001 | Verify successful evidence retry advances a waiting objective exactly once
+# Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-CONTEXT-001 | Verify grounded objective context resolves resident knowledge contract
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -240,7 +241,15 @@ class GraceExecutionTests(unittest.TestCase):
         context = self.pipeline.read_reasoning_context(row["objective_id"])
         self.assertEqual(context["id"], row["objective_id"])
         self.assertEqual(context["revision"], str(row["revision"]))
+        self.assertEqual(context["contract_ref"], self.pipeline.CONTRACT_REF)
         self.assertEqual(context["verified_evidence"]["status"], "VERIFIED")
+        resident_grounding = self.knowledge.ground_assignment(context)
+        resident_regrounding = self.knowledge.reground_assignment(
+            context, "persistent_resident_cycle")
+        self.assertEqual(resident_grounding.status.value, "VERIFIED")
+        self.assertTrue(resident_grounding.retrieval_complete)
+        self.assertEqual(resident_regrounding.status.value, "VERIFIED")
+        self.assertTrue(resident_regrounding.retrieval_complete)
         proposal = PlanProposal("Document worker retry contract", (
             PlanStep("document", "Create a bounded retry-contract work product",
                      ("artifact contains the task and verified repository provenance",)),), 0)
