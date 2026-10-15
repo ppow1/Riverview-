@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.4
+# Revision: 1.1.5
 # Purpose: Adapt bounded resident proposals and conversation turns to local inference
 # Execution Model: Bounded loopback OpenAI-compatible request
 # Observability: Sanitized provider failures; no prompts or raw model output logged
@@ -18,6 +18,7 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Bind each approved URL to its exact observed model identity
 # Changed: 2026-10-14 UTC | RV-GRACE-ROUTING-DIAGNOSTICS-001 | Carry sanitized router attempt metadata in validated chat completions
 # Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Supply the shared Director of Operations context to Grace's assignment reasoning
+# Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Preserve bounded finish reason and token usage on rejected truncated responses
 # Authority: Returns unapproved proposals or plain text only; cannot execute actions or grant authority
 # Contracts: docs/components/RESIDENT_REASONING.md; worker_adapter.local_inference
 # Tests: tests/test_local_reasoning_provider.py
@@ -42,9 +43,19 @@ from .resident_execution.grace_role_context import build_grace_role_context
 class LocalReasoningUnavailable(RuntimeError):
     """Sanitized transport/model failure; never includes prompt or response."""
 
-    def __init__(self, code, *, attempts=()):
+    def __init__(self, code, *, attempts=(), finish_reason=None,
+                 completion_tokens=None, completion_token_limit=None):
         self.code = code
         self.attempts = tuple(attempts)
+        safe_finish_reasons = {"stop", "length", "content_filter", "tool_calls", "function_call"}
+        self.finish_reason = (finish_reason if isinstance(finish_reason, str)
+                              and finish_reason in safe_finish_reasons
+                              else ("other" if finish_reason is not None else None))
+        self.completion_tokens = (completion_tokens if type(completion_tokens) is int
+                                  and 0 <= completion_tokens <= 512 else None)
+        self.completion_token_limit = (completion_token_limit
+            if type(completion_token_limit) is int and 1 <= completion_token_limit <= 512
+            else None)
         super().__init__(code)
 
 
@@ -380,7 +391,9 @@ class LocalReasoningProvider:
             prompt_tokens = usage["prompt_tokens"]
             completion_tokens = usage["completion_tokens"]
             if finish_reason != "stop":
-                raise LocalReasoningUnavailable("response_incomplete")
+                raise LocalReasoningUnavailable("response_incomplete",
+                    finish_reason=finish_reason, completion_tokens=completion_tokens,
+                    completion_token_limit=max_tokens)
             if (served_model != self.model
                     or not isinstance(text, str) or not text.strip()
                     or len(text.encode("utf-8")) > 8192

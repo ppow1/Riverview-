@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.4
+# Revision: 1.1.5
 # Purpose: Verify local reasoning provider contract and fail-closed response handling
 # Execution Model: Bounded HTTP contract double; no credentials, database or model required
 # Observability: Typed proposals and sanitized unavailable/schema outcomes
@@ -21,6 +21,8 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Reject endpoint/model identity pairings outside the explicit allowlist
 # Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Use the pinned 30B and 80B identities in readiness fixtures
 # Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Verify canonical Grace role context reaches assignment reasoning only for the Grace office
+# Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Assert token-limit finish reason and count are safely retained on truncation
+# Changed: 2026-10-15 UTC | RV-GRACE-DEMO-BASE-INTEGRATION | Retain provider and role-context regressions across integration
 # Tests: This file
 # History: Git
 # =============================================================================
@@ -267,9 +269,14 @@ class LocalReasoningProviderTests(unittest.TestCase):
                 "message":{"content":"hello"},"finish_reason":finish}],
                 "usage":{"prompt_tokens":2,"completion_tokens":1}}).encode()
             with self.subTest(served=served, finish=finish):
-                with self.assertRaises(LocalReasoningUnavailable):
+                with self.assertRaises(LocalReasoningUnavailable) as caught:
                     self.provider.complete_chat(messages, max_tokens=64,
                                                expected_revision=MODEL_SHA)
+                if finish == "length":
+                    self.assertEqual(caught.exception.code, "response_incomplete")
+                    self.assertEqual(caught.exception.finish_reason, "length")
+                    self.assertEqual(caught.exception.completion_tokens, 1)
+                    self.assertEqual(caught.exception.completion_token_limit, 64)
 
     def test_chat_prefix_changes_only_the_inference_copy(self):
         self.response_body = json.dumps({"model":"fixture-model","choices":[{

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.18
+# Revision: 1.0.19
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -23,6 +23,7 @@
 # Changed: 2026-10-14 UTC | RV-GRACE-DOPS-TOOLBOX-001 | Verify read-only operational snapshot reaches inference and its digest is persisted
 # Changed: 2026-10-14 UTC | RV-GRACE-DOPS-OBSERVATION-PERSISTENCE-001 | Verify the exact bounded observation snapshot is durably retained beside its digest
 # Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Verify verified Engineering results return once to the originating conversation
+# Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Verify 512-token budget on resumed and ordinary durable turns
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: python3 -m unittest tests.test_resident_conversation
 # History: Git and .riverview-backups/manifest.jsonl
@@ -157,7 +158,7 @@ class ResidentConversationTests(unittest.TestCase):
                                    client_message_id=str(uuid4()))
         self.assertEqual(result["status"], "completed")
         self.assertEqual(result["response"], "Grace is ready to help.")
-        self.assertEqual(self.provider_a.calls[0][1], 64)
+        self.assertEqual(self.provider_a.calls[0][1], 512)
         prompt = self.provider_a.calls[0][0][0]["content"]
         self.assertIn("Director of Operations", prompt)
         self.assertIn("Alfred is the separate Chief of Staff", prompt)

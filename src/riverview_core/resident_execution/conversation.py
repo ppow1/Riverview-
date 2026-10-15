@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.13
+# Revision: 1.1.1
 # Purpose: Persist and serve office-bound, authorized Grace conversations
 # Execution Model: Authenticated request-driven completion with durable event history
 # Observability: Redacted response status and append-only PostgreSQL conversation events
@@ -21,6 +21,7 @@
 # Changed: 2026-10-14 UTC | RV-GRACE-DOPS-TOOLBOX-001 | Ground conversation and deferred completion in bounded projection context with durable provenance
 # Changed: 2026-10-14 UTC | RV-GRACE-DOPS-OBSERVATION-PERSISTENCE-001 | Persist the bounded read-only observation snapshot with response provenance for later audit and continuation
 # Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Append verified Engineering review to its source conversation idempotently
+# Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Raise bounded turn budget to 512 tokens and retain safe truncation diagnostics
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: tests/test_resident_conversation.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -54,7 +55,8 @@ _HISTORY_CONTEXT_MESSAGES = 16
 _LOG = logging.getLogger(__name__)
 _DIAGNOSTIC_FIELDS = ("selected_provider", "selected_model", "reasoning_stage",
     "started_at", "ended_at", "elapsed_ms", "outcome", "error_code",
-    "fallback_reason", "final_served_provider", "final_served_model")
+    "fallback_reason", "final_served_provider", "final_served_model",
+    "finish_reason", "completion_tokens", "completion_token_limit")
 _SAFE_DIAGNOSTIC_CODES = frozenset({"endpoint_busy", "endpoint_timeout",
     "endpoint_unavailable", "endpoint_loading", "endpoint_http_400",
     "endpoint_http_404", "endpoint_http_408", "endpoint_http_413",
@@ -546,12 +548,12 @@ class ResidentConversationService:
     MAX_SERIALIZED_CONVERSATIONS = 1024
 
     def __init__(self, *, store, registry, authorizer, office_id,
-                 resident_credential, providers, max_response_tokens=64,
+                 resident_credential, providers, max_response_tokens=512,
                  operational_context=None):
         if not office_id or not resident_credential:
             raise ValueError("office identity and current resident credential are required")
-        if type(max_response_tokens) is not int or not 16 <= max_response_tokens <= 256:
-            raise ValueError("resident conversation output budget must be between 16 and 256 tokens")
+        if type(max_response_tokens) is not int or not 16 <= max_response_tokens <= 512:
+            raise ValueError("resident conversation output budget must be between 16 and 512 tokens")
         self.store = store
         self.registry = registry
         self.authorizer = authorizer
@@ -978,6 +980,7 @@ class ResidentConversationService:
                         "reasoning_stage": completion.reasoning_stage,
                         "provisional": completion.provisional,
                         "resumed_deferred_request": True,
+                        "finish_reason": completion.finish_reason,
                         "prompt_tokens": completion.prompt_tokens,
                         "completion_tokens": completion.completion_tokens,
                         "provider_attempts": list(getattr(completion, "provider_attempts", ())),
