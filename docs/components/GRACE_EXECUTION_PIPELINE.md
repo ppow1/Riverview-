@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.2
+File Revision: 1.1.3
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
 Authority: Engineering contract; not evidence of production Grace commissioning
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Link persistent reconciliation and authenticated dashboard handoff
@@ -17,6 +17,7 @@ Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Reuse immutable accepta
 Changed: 2026-10-15 UTC | RV-GRACE-GROUNDING-BOUNDED-001 | Rank complete task-relevant passages within the evidence envelope
 Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-REGROUND-001 | Allow a verified same-origin retry to advance WAITING_FOR_EVIDENCE atomically
 Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-CONTEXT-001 | Include the exact resident reasoning contract in durable assignment context
+Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Bound 80B proposal inference to a shared 60-second request deadline
 -->
 # Grace Execution Pipeline — infrastructure slice
 
@@ -48,6 +49,11 @@ generic repository path returns `NO_MATCH` and the persistent service waits befo
 calling the bound reasoning provider. With it, the existing pinned resident source
 set is selected and revalidated; the reference grants no authority. Both grounding
 and regrounding must still be complete and verified before a proposal is requested.
+The owner-session 80B proposal HTTP call and ResidentReasoner caller share the
+explicit `RIVERVIEW_RESIDENT_REASONING_TIMEOUT` deadline, bounded to 1–60 seconds.
+The commissioned default is 60 seconds; model output remains subject to the
+existing 256-token proposal budget, typed schema, binding revalidation, and CME
+authorization. Chat routing retains its separate per-stage limits.
 
 The authenticated chat UI exposes an explicit Steward action for a selected,
 persisted user-authored conversation message. `POST

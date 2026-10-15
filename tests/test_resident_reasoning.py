@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.12
+# Revision: 1.0.13
 # Purpose: Verify resident regrounding, bounded provider routing and durable resume
 # Execution Model: Isolated PostgreSQL authority registry integration tests
 # Observability: Assertions inspect persisted office state and provider outcomes
@@ -22,6 +22,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.4-CONTEXT-FAILURE-CLASS | Verify oversized evidence and unserializable evidence have distinct outcomes
 # Changed: 2026-10-11 UTC | RV-M4.1-M4.2-OCCUPANT-REPLACEMENT-INTEGRATION | Verify a replacement Grace occupant resumes office-keyed reasoning state under its own exact grant
 # Changed: 2026-10-11 UTC | RV-M4.1-PERSISTENT-RUNTIME-INTEGRATION | Exercise office-bound reasoning through the persistent execution service across replacement
+# Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Verify sixty-second provider deadlines remain bounded
 # =============================================================================
 
 import hashlib
@@ -155,6 +156,12 @@ class ResidentReasoningTests(unittest.TestCase):
                                 knowledge=knowledge or self.knowledge,
                                 providers=providers, fallback_routes=fallbacks,
                                 timeout_seconds=timeout)
+
+    def test_provider_deadline_accepts_sixty_seconds_and_remains_bounded(self):
+        runtime = self._runtime({"provider.a": _Provider("provider.a")}, timeout=60)
+        self.assertEqual(runtime.timeout_seconds, 60)
+        with self.assertRaises(ValueError):
+            self._runtime({"provider.a": _Provider("provider.a")}, timeout=60.1)
 
     def test_plan_and_grounding_are_durable_across_runtime_replacement(self):
         from riverview_core.resident_reasoning import ReasoningStatus

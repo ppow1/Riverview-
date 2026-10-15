@@ -1,11 +1,12 @@
 # Riverview~ controlled test
 # File: tests/test_grace_runtime_provider_wiring.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify persistent Grace reasoning follows the authorized office binding
 # Execution Model: Deterministic provider factory; no database or inference service
 # Observability: Assert provider identities and router model digest
 # Authority: This test does not provision grants or change bindings
+# Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Verify the 80B proposal client uses the shared bounded timeout
 """Tests for the persistent executor's model-provider wiring."""
 
 import unittest
@@ -23,6 +24,7 @@ class FakeProvider:
         self.endpoint = endpoint
         self.model = model
         self.model_sha256 = digest
+        self.kwargs = _kwargs
 
 
 def make_router(environ):
@@ -62,6 +64,15 @@ class GraceRuntimeProviderWiringTests(unittest.TestCase):
         self.assertEqual(tuple(providers), (router.provider_id,))
         self.assertEqual(providers[router.provider_id].model_sha256, router.model_sha256)
         self.assertEqual(model, router.providers["reasoning"].model)
+        self.assertEqual(providers[router.provider_id].providers["reasoning"].kwargs["timeout_seconds"], 60)
+
+    def test_reasoning_timeout_is_shared_and_bounded(self):
+        from scripts.run_grace_execution_service import resident_reasoning_timeout
+        self.assertEqual(resident_reasoning_timeout({"RIVERVIEW_RESIDENT_REASONING_TIMEOUT": "45"}), 45)
+        with self.assertRaises(WorkerServiceConfigurationError):
+            resident_reasoning_timeout({"RIVERVIEW_RESIDENT_REASONING_TIMEOUT": "60.1"})
+        with self.assertRaises(WorkerServiceConfigurationError):
+            resident_reasoning_timeout({"RIVERVIEW_RESIDENT_REASONING_TIMEOUT": "invalid"})
 
     def test_direct_binding_still_uses_existing_local_provider(self):
         providers, model = configured_resident_providers({
