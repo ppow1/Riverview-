@@ -2,12 +2,14 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.2
+File Revision: 1.0.4
 Purpose: Diagnose and safely resume the persistent Grace execution service
 Authority: Read-only diagnosis first; exact grants required for every mutation
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Add service operations and recovery procedures
 Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Document the one-objective ChatGPT-session run and its fail-closed checks
 Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Add diagnosis and retry behavior for proposal routing and source-chat result return
+Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Document the persistent no-copy ChatGPT owner-session unit and its recovery boundary
+Changed: 2026-10-15 UTC | RV-GRACE-CODEX-SANDBOX-READINESS-001 | Document fail-closed sandbox readiness and safe host blocker handling
 -->
 # Grace Execution Service — Troubleshooting and Recovery
 
@@ -38,6 +40,7 @@ Expected: `ActiveState=active`, `SubState=running`, a recent `last_heartbeat_at`
 | Verification failures reach three | Inspect objective `verification_failures`, the three `execution.verification_failed` events and verifier journal. | Correct verifier/runtime faults; the poller caps retries per attempt and proceeds to other candidates. Do not change the assignment state manually. | The item remains awaiting verification and objective remains incomplete until independent verification succeeds; escalate unresolved evidence integrity concerns. |
 | Dashboard says Grace unavailable/stale | Check `/api/v1/status`, dashboard journal, migration presence and heartbeat age. | Restore dashboard/database connectivity; do not infer health from systemd active state alone. | Confirm the service instance, fresh heartbeat, objective detail, artifact digest and verification decision. |
 | Process restart during work | Inspect the latest lease generation, execution intent, attempt/result and recovery record. | Start the supervised service; it reads PostgreSQL and CME reconciles expired leases. Do not replay a completion manually. | A preserved result proceeds to verification; a safe action may be requeued; uncertain effects stay blocked for Steward. |
+| Codex capability reports unavailable before assignment | Check sanitized `codex_sandbox_unavailable`; the adapter's read-only `bwrap --ro-bind / / --proc /proc --dev /dev /bin/true` probe could not create the required workspace sandbox. | Keep the objective durable and un-dispatched. Do not relax Codex sandboxing, select a danger-full-access mode, or change host namespace policy as a recovery shortcut. | In the exact owner-session unit context, an authorized host administrator must enable an approved sandbox mechanism or select a supported isolated executor. Repeat the read-only preflight before dispatch. |
 
 ## One-objective supervised Codex run
 
@@ -67,6 +70,35 @@ The selected objective remains tied to the existing `grace.objective-work-order.
 workflow. Targeted claim skips global expired-lease reconciliation so this
 supervised invocation cannot mutate unrelated assignments. Resume broader
 recovery through the persistent CME service only.
+
+## Persistent ChatGPT owner-session service
+
+For automatic progression after website intake, the explicit
+`riverview-grace-execution-owner-session.service` template runs continuously as
+`admin1` and uses the existing `~/.codex` login in place. `ProtectHome=tmpfs`
+and `BindReadOnlyPaths=/home/admin1/.codex` expose only that read-only path; no
+Codex login file is copied into the `riverview` identity. The five Riverview
+credentials are separate, exact-unit `LoadCredential` inputs. The owner-session
+unit is opt-in and does not install itself or alter live authority.
+
+Read-only diagnostics:
+
+```sh
+systemctl show riverview-grace-execution-owner-session.service -p ActiveState -p SubState -p MainPID
+journalctl -u riverview-grace-execution-owner-session.service --since=-15m --no-pager
+sudo -u postgres psql -X -d riverview -c "SELECT service_id,status,last_heartbeat_at,last_cycle_at,last_error_type FROM riverview_dev.grace_execution_health WHERE service_id='grace.execution.v1'"
+```
+
+Expected: active unit, recent healthy heartbeat, and separately registered
+executor/verifier capabilities in the `work-order:engineering` scope. If the
+saved ChatGPT login expires, a Codex child failure leaves the assignment
+durable and incomplete. Authenticate again as `admin1` using the existing
+interactive Codex login procedure, then allow the current service's normal
+lease/recovery cycle to resume it. Do not replay or create another objective.
+No `OPENAI_API_KEY`, `CODEX_ACCESS_TOKEN`, or credential copy is part of this
+mode. A machine that requires unattended credential refresh should use a
+separately authorized supported workspace-token arrangement, not bypass this
+owner-session boundary.
 
 ## Destructive-operation warning
 

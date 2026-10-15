@@ -1,0 +1,63 @@
+# Riverview~ controlled unit
+# File Revision: 1.0.0
+# Task: RV-GRACE-OWNER-SESSION-EXECUTION-001
+# Purpose: Persistent bounded Grace Engineering worker using admin1's existing ChatGPT Codex login in place
+[Unit]
+Description=Riverview Grace persistent Engineering execution (ChatGPT owner session)
+After=network.target postgresql.service riverview-event-processor.service
+Wants=postgresql.service riverview-event-processor.service
+
+[Service]
+Type=simple
+User=admin1
+Group=admin1
+WorkingDirectory=/opt/riverview-grace-execution/current
+Environment=HOME=/home/admin1
+Environment=PYTHONPATH=/opt/riverview-grace-execution/current/src:/opt/riverview-grace-execution/current/scripts
+Environment="RIVERVIEW_PG_DSN=host=127.0.0.1 port=5432 dbname=riverview user=riverview_core application_name=riverview-grace-execution"
+Environment=RIVERVIEW_PG_SCHEMA=riverview_dev
+Environment=RIVERVIEW_AUTHORITY_SCHEMA=riverview_authority
+Environment=RIVERVIEW_KNOWLEDGE_ROOT=/opt/riverview-grace-execution/current
+Environment=RIVERVIEW_ARTIFACT_DIR=/var/lib/riverview-grace-owner-session/artifacts
+Environment=RIVERVIEW_CODEX_STATE_DIR=/var/lib/riverview-grace-owner-session
+Environment=RIVERVIEW_CODEX_AUTH_MODE=chatgpt-owner-session
+Environment=RIVERVIEW_ENGINEERING_ADAPTER=codex-cli
+Environment=RIVERVIEW_CODEX_EXECUTABLE=/opt/riverview-codex/bin/codex
+Environment=RIVERVIEW_CODEX_WORKSPACE_DIR=/var/lib/riverview-grace-owner-session/workspaces
+Environment=RIVERVIEW_CODEX_REPOSITORY_PATH=/opt/riverview-engineering-source
+Environment=RIVERVIEW_CODEX_REPOSITORY_REF=repo://riverview/engineering-source
+Environment=RIVERVIEW_CODEX_TIMEOUT_SECONDS=180
+Environment=RIVERVIEW_GRACE_POLL_SECONDS=1
+Environment=RIVERVIEW_GRACE_MAX_DISPATCH_FAILURES=3
+Environment=RIVERVIEW_GRACE_MAX_WORKER_RECOVERIES=3
+EnvironmentFile=/etc/riverview/grace-execution.env
+LoadCredential=pgpass:/etc/riverview/pgpass
+LoadCredential=dispatch-token:/etc/riverview/worker/grace-dispatch.credential
+LoadCredential=worker-token:/etc/riverview/worker/grace-executor.credential
+LoadCredential=verifier-token:/etc/riverview/worker/grace-verifier.credential
+LoadCredential=resident-token:/etc/riverview/residents/grace-office.credential
+RuntimeDirectory=riverview-grace-execution-owner-session
+RuntimeDirectoryMode=0700
+StateDirectory=riverview-grace-owner-session
+StateDirectoryMode=0700
+ExecStart=/opt/riverview-core/.venv/bin/python /opt/riverview-grace-execution/current/scripts/run_grace_execution_service.py
+Restart=on-failure
+RestartSec=3s
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=tmpfs
+BindReadOnlyPaths=/home/admin1/.codex
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_INET AF_UNIX
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

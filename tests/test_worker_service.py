@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_service.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Enforce service identity, package paths, credentials and unit boundaries
 # Execution Model: Local contract tests; PostgreSQL behavior is covered separately
 # Observability: Safe configuration failure codes and reviewed unit properties
@@ -15,6 +15,7 @@
 # Changed: 2026-10-11 UTC | RV-M33-VERIFIER-PACKAGE-ROOT | Require verifier service package-root pin
 # Changed: 2026-10-11 UTC | RV-M33-CREDENTIAL-NEWLINE | Cover the protected token file's single line terminator
 # Changed: 2026-10-11 UTC | RV-M4.4-SERVICE-PATH-CONTRACT | Require Grace unit to use its own release and runner path
+# Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Verify persistent owner-session unit stays bounded and no-copy
 # Contracts: deploy/systemd/riverview-m33-worker.service; deploy/systemd/riverview-m33-verifier.service
 # Tests: This file
 # History: .riverview-backups/manifest.jsonl and Git
@@ -27,6 +28,7 @@ from unittest.mock import patch
 
 from riverview_core.worker_adapter.service import (
     WorkerServiceConfigurationError, _read_systemd_credential,
+    _SERVICE_CREDENTIALS, _SERVICE_RUNTIME_USERS,
     read_worker_credential,
 )
 
@@ -43,6 +45,22 @@ class WorkerServiceContractTests(unittest.TestCase):
         self.assertIn(f"{release}/scripts/run_grace_execution_service.py", unit)
         self.assertIn(f"RIVERVIEW_KNOWLEDGE_ROOT={release}", unit)
         self.assertNotIn("/opt/riverview-m33/current", unit)
+
+    def test_persistent_owner_session_unit_reuses_home_without_exposing_it_or_copying_auth(self):
+        unit = (ROOT / "deploy/systemd/riverview-grace-execution-owner-session.service").read_text()
+        self.assertIn("User=admin1", unit)
+        self.assertIn("RIVERVIEW_CODEX_AUTH_MODE=chatgpt-owner-session", unit)
+        self.assertIn("RIVERVIEW_ENGINEERING_ADAPTER=codex-cli", unit)
+        self.assertIn("ProtectHome=tmpfs", unit)
+        self.assertIn("BindReadOnlyPaths=/home/admin1/.codex", unit)
+        self.assertIn("LoadCredential=worker-token:/etc/riverview/worker/grace-executor.credential", unit)
+        self.assertIn("LoadCredential=verifier-token:/etc/riverview/worker/grace-verifier.credential", unit)
+        self.assertIn("StateDirectoryMode=0700", unit)
+        self.assertIn("NoNewPrivileges=yes", unit)
+        self.assertIn("ProtectSystem=strict", unit)
+        self.assertNotIn("CODEX_ACCESS_TOKEN", unit)
+        self.assertNotIn("OPENAI_API_KEY", unit)
+        self.assertNotIn("LoadCredential=codex", unit)
 
     def test_credential_reader_accepts_only_one_trailing_line_feed(self):
         token = "t" * 64
@@ -65,6 +83,17 @@ class WorkerServiceContractTests(unittest.TestCase):
             with self.subTest(unit=unit, name=name):
                 with self.assertRaises(WorkerServiceConfigurationError):
                     _read_systemd_credential(name, unit)
+
+    def test_owner_session_unit_has_only_its_registered_protected_credentials(self):
+        unit = "riverview-grace-execution-owner-session.service"
+        self.assertEqual(_SERVICE_CREDENTIALS[unit], frozenset({
+            "pgpass", "dispatch-token", "worker-token", "verifier-token", "resident-token"}))
+        self.assertNotIn("worker-token", _SERVICE_CREDENTIALS["riverview-m33-verifier.service"])
+        self.assertEqual(_SERVICE_RUNTIME_USERS[unit], "admin1")
+        token = "R" * 48
+        with patch("riverview_core.worker_adapter.service._read_systemd_credential",
+                   return_value=token.encode("ascii")):
+            self.assertEqual(read_worker_credential(unit, "resident-token"), token)
 
     def test_executor_and_verifier_have_separate_credentials_and_identities(self):
         worker = (ROOT / "deploy/systemd/riverview-m33-worker.service").read_text()

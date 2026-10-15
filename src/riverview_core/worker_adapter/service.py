@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/service.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Validate systemd worker credentials and idempotent registry state
 # Execution Model: Shared startup preflight for supervised executor/verifier units
 # Observability: Safe identity/configuration errors without bearer disclosure
@@ -10,6 +10,7 @@
 # Authority: Service identity and exact scope remain Steward-grant controlled
 # Changed: 2026-10-11 UTC | RV-M3.3-WORKER-SERVICE | Initial systemd service preflight
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Permit fixed Grace executor credential names and unit
+# Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Register the owner-session unit and its least-privilege credentials
 # Contracts: docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_service.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -33,12 +34,27 @@ class WorkerServiceConfigurationError(RuntimeError):
     """A required service identity, credential or pin does not match policy."""
 
 
+_SERVICE_CREDENTIALS = {
+    "riverview-m33-worker.service": frozenset({"pgpass", "worker-token"}),
+    "riverview-m33-verifier.service": frozenset({"pgpass", "verifier-token"}),
+    "riverview-grace-execution.service": frozenset({
+        "pgpass", "dispatch-token", "worker-token", "verifier-token", "resident-token"}),
+    "riverview-grace-execution-owner-session.service": frozenset({
+        "pgpass", "dispatch-token", "worker-token", "verifier-token", "resident-token"}),
+}
+_SERVICE_RUNTIME_USERS = {
+    "riverview-m33-worker.service": "riverview",
+    "riverview-m33-verifier.service": "riverview",
+    "riverview-grace-execution.service": "riverview",
+    "riverview-grace-execution-owner-session.service": "admin1",
+}
+
+
 def _read_systemd_credential(name: str, service_unit: str) -> bytes:
-    if name not in {"pgpass", "worker-token", "verifier-token", "dispatch-token"}:
-        raise WorkerServiceConfigurationError("credential_name_invalid")
-    if service_unit not in {"riverview-m33-worker.service", "riverview-m33-verifier.service",
-                            "riverview-grace-execution.service"}:
+    if service_unit not in _SERVICE_CREDENTIALS:
         raise WorkerServiceConfigurationError("credential_unit_invalid")
+    if name not in _SERVICE_CREDENTIALS[service_unit]:
+        raise WorkerServiceConfigurationError("credential_name_invalid")
     expected = Path("/run/credentials") / service_unit
     configured = os.environ.get("CREDENTIALS_DIRECTORY")
     path = expected / name
@@ -73,7 +89,8 @@ def prepare_database_credential(service_unit: str) -> str:
     data = _read_systemd_credential("pgpass", service_unit)
     if not data.endswith(b"\n") or b"\n" in data[:-1] or b"\x00" in data:
         raise WorkerServiceConfigurationError("database_credential_format_invalid")
-    identity = pwd.getpwnam("riverview")
+    runtime_user = _SERVICE_RUNTIME_USERS[service_unit]
+    identity = pwd.getpwnam(runtime_user)
     if identity.pw_uid == 0 or os.geteuid() != identity.pw_uid:
         raise WorkerServiceConfigurationError("runtime_identity_mismatch")
     runtime = Path("/run") / service_unit.removesuffix(".service")

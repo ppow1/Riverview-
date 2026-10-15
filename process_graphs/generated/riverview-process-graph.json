@@ -1858,11 +1858,12 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.1.7",
+      "graph_revision": "1.1.9",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
       "source_references": [
+        "deploy/systemd/riverview-grace-execution-owner-session.service",
         "docs/ROADMAP.md",
         "docs/architecture/CORE_CONTRACT.md",
         "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md",
@@ -1886,12 +1887,14 @@
         "src/riverview_core/worker_adapter/continuous.py",
         "src/riverview_core/worker_adapter/migrations/0005_retry_limit.sql",
         "src/riverview_core/worker_adapter/recovery.py",
+        "src/riverview_core/worker_adapter/service.py",
         "tests/test_codex_cli_adapter.py",
         "tests/test_supervised_codex_dispatch.py"
       ],
       "documentation_references": [
         "docs/ROADMAP.md",
         "docs/architecture/INSTITUTIONAL_LEARNING_AND_RESOURCE_CAPABILITY_ROADMAP.md",
+        "docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md",
         "docs/components/GRACE_EXECUTION_COOKBOOK.md",
         "docs/components/GRACE_EXECUTION_PIPELINE.md",
         "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
@@ -2390,21 +2393,26 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-resource-check",
-          "node_revision": "1.0.3",
+          "node_revision": "1.0.5",
           "type": "decision",
-          "label": "COMMISSIONING BLOCKED — dedicated service auth or an owning-user supervised ChatGPT TTY; pinned repository, exact objective, isolated workspace and artifact path are required",
+          "label": "SOURCE READY, NOT COMMISSIONED — owner-session uses existing ChatGPT login in place; exact grants, pinned repository and artifact paths are required; a read-only bubblewrap sandbox preflight must pass before worker registration or dispatch",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "scripts/run_grace_execution_service.py",
             "deploy/systemd/riverview-grace-execution.service",
+            "deploy/systemd/riverview-grace-execution-owner-session.service",
             "deploy/grace-execution.env.example",
-            "tests/test_codex_cli_adapter.py"
+            "tests/test_codex_cli_adapter.py",
+            "tests/test_worker_service.py"
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md",
             "docs/architecture/INSTITUTIONAL_LEARNING_AND_RESOURCE_CAPABILITY_ROADMAP.md"
           ],
           "verification_evidence": [
+            "tests/test_codex_cli_adapter.py",
+            "tests/test_worker_service.py",
             "tests/test_codex_cli_adapter.py"
           ]
         },
@@ -2426,14 +2434,16 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-cli-run",
-          "node_revision": "1.0.3",
+          "node_revision": "1.0.5",
           "type": "process",
-          "label": "INTEGRATED SOURCE — one TTY-supervised selected proposal uses the existing ChatGPT session, exact assignment lease, network-disabled workspace, and fixed deliverable path",
+          "label": "INTEGRATED SOURCE, HOST BLOCKED — after exact-grant intake the persistent owner-session uses the existing ChatGPT login in place, assignment lease, network-disabled workspace, fixed deliverable path and fail-closed sandbox preflight",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "src/riverview_core/resident_execution/codex_workflow.py",
             "src/riverview_core/resident_execution/service.py",
             "scripts/run_grace_execution_service.py",
+            "deploy/systemd/riverview-grace-execution-owner-session.service",
+            "src/riverview_core/worker_adapter/service.py",
             "tests/test_codex_cli_adapter.py",
             "src/riverview_core/assignment_scheduler/scheduler.py",
             "src/riverview_core/worker_adapter/continuous.py",
@@ -2443,10 +2453,12 @@
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_PIPELINE.md",
-            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md",
+            "docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md"
           ],
           "verification_evidence": [
-            "tests/test_codex_cli_adapter.py"
+            "tests/test_codex_cli_adapter.py",
+            "tests/test_worker_service.py"
           ]
         },
         {
@@ -2470,37 +2482,46 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-execution-failed",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "failure",
-          "label": "Codex auth/session, exact-scope authorization, timeout, output bounds, or workspace integrity failed; objective remains durable and non-complete",
+          "label": "Codex auth/session, exact-scope authorization, sandbox preflight, timeout, output bounds, or workspace integrity failed; objective remains durable and non-complete",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "src/riverview_core/resident_execution/codex_workflow.py",
-            "tests/test_codex_cli_adapter.py"
-          ],
-          "documentation_references": [
-            "docs/components/GRACE_EXECUTION_PIPELINE.md"
-          ],
-          "verification_evidence": [
-            "tests/test_codex_cli_adapter.py",
-            "tests/test_supervised_codex_dispatch.py"
-          ]
-        },
-        {
-          "id": "rv:grace:operational-integration:codex-execution-recovery",
-          "node_revision": "1.0.0",
-          "type": "recovery",
-          "label": "PLANNED — retain objective and assignment; resume only after resource or authority regrounding through normal CME recovery",
-          "source_references": [
-            "src/riverview_core/resident_execution/codex_cli.py",
-            "src/riverview_core/resident_execution/codex_workflow.py",
+            "deploy/systemd/riverview-grace-execution-owner-session.service",
             "tests/test_codex_cli_adapter.py"
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_PIPELINE.md",
-            "docs/architecture/INSTITUTIONAL_LEARNING_AND_RESOURCE_CAPABILITY_ROADMAP.md"
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "tests/test_codex_cli_adapter.py",
+            "tests/test_supervised_codex_dispatch.py",
+            "tests/test_codex_cli_adapter.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:codex-execution-recovery",
+          "node_revision": "1.0.2",
+          "type": "recovery",
+          "label": "SOURCE PATH — retain objective and assignment through lease recovery; sandbox denial requires an approved sandbox-capable executor, while expired ChatGPT login requires owner reauthentication; no unsafe fallback",
+          "source_references": [
+            "src/riverview_core/resident_execution/codex_cli.py",
+            "src/riverview_core/resident_execution/codex_workflow.py",
+            "deploy/systemd/riverview-grace-execution-owner-session.service",
+            "tests/test_codex_cli_adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md",
+            "docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md"
+          ],
+          "verification_evidence": [
+            "tests/test_codex_cli_adapter.py",
+            "tests/test_worker_service.py",
+            "tests/test_codex_cli_adapter.py"
+          ]
         },
         {
           "id": "rv:grace:operational-integration:engineering-resource-request",

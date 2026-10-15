@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.21
+**Document Revision:** 1.0.23
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -102,12 +102,12 @@ flowchart LR
     g_rv_grace_operational_integration_stale_resident_denied_bacbbff8[["A stale resident grant is denied before grounding/provider use even if it is later reissued; office-state writes recheck the bound principal under a binding-row lock"]]
     g_rv_grace_operational_integration_conversation_origin_intake_ba92fbfa["Explicit Steward promotion validates a persisted principal-authored Grace message, conversation read grant, and exact objective.submit grant on work-order:engineering"]
     g_rv_grace_operational_integration_codex_capability_check_d39b996a{"SOURCE INTEGRATED — exact Codex artifact capability is registered through the existing worker registry; deployment remains blocked on service identity and grants"}
-    g_rv_grace_operational_integration_codex_resource_check_71ed8b3b{"COMMISSIONING BLOCKED — dedicated service auth or an owning-user supervised ChatGPT TTY; pinned repository, exact objective, isolated workspace and artifact path are required"}
+    g_rv_grace_operational_integration_codex_resource_check_71ed8b3b{"SOURCE READY, NOT COMMISSIONED — owner-session uses existing ChatGPT login in place; exact grants, pinned repository and artifact paths are required; a read-only bubblewrap sandbox preflight must pass before worker registration or dispatch"}
     g_rv_grace_operational_integration_codex_authority_gate_738aae11{"FAIL CLOSED — existing worker.register and assignment.execute checks remain mandatory in the exact Engineering scope"}
-    g_rv_grace_operational_integration_codex_cli_run_ade47dcf["INTEGRATED SOURCE — one TTY-supervised selected proposal uses the existing ChatGPT session, exact assignment lease, network-disabled workspace, and fixed deliverable path"]
+    g_rv_grace_operational_integration_codex_cli_run_ade47dcf["INTEGRATED SOURCE, HOST BLOCKED — after exact-grant intake the persistent owner-session uses the existing ChatGPT login in place, assignment lease, network-disabled workspace, fixed deliverable path and fail-closed sandbox preflight"]
     g_rv_grace_operational_integration_codex_artifact_verification_ab484b65["INTEGRATED SOURCE — separate verifier reopens the assignment-bound Markdown artifact and checks mode, size, digest, provenance and literal acceptance criteria"]
-    g_rv_grace_operational_integration_codex_execution_failed_f49befea[["Codex auth/session, exact-scope authorization, timeout, output bounds, or workspace integrity failed; objective remains durable and non-complete"]]
-    g_rv_grace_operational_integration_codex_execution_recovery_5c33f626["PLANNED — retain objective and assignment; resume only after resource or authority regrounding through normal CME recovery"]
+    g_rv_grace_operational_integration_codex_execution_failed_f49befea[["Codex auth/session, exact-scope authorization, sandbox preflight, timeout, output bounds, or workspace integrity failed; objective remains durable and non-complete"]]
+    g_rv_grace_operational_integration_codex_execution_recovery_5c33f626["SOURCE PATH — retain objective and assignment through lease recovery; sandbox denial requires an approved sandbox-capable executor, while expired ChatGPT login requires owner reauthentication; no unsafe fallback"]
     g_rv_grace_operational_integration_engineering_resource_request_5f8561c6[["PLANNED — persist pending resource request for HR/Helen or Steward decision; Helen is not commissioned and no allocation is presumed"]]
     g_rv_grace_operational_integration_router_backed_grace_proposal_931750ec["SOURCE IMPLEMENTED — Persistent ResidentReasoner proposals use the active router binding and require actual 80B provenance; smaller stages cannot substitute"]
     g_rv_grace_operational_integration_verified_result_chat_return_108e1033["SOURCE IMPLEMENTED — Independently accepted objective result is reviewed by bound 80B and appended once to its source conversation with durable provenance"]
