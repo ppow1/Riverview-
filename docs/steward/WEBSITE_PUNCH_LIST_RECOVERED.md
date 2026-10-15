@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md
 Component: STEWARD-DASHBOARD / WEBSITE
-File Revision: 1.0.4
+File Revision: 1.0.8
 Purpose: Consolidate traceable website improvement observations and separate them from accepted requirements and completed work
 Authority: Backlog recovery only; no new product requirement or acceptance decision
 Changed: 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Recover and prioritize documented website observations
@@ -10,6 +10,11 @@ Changed: 2026-10-15 UTC | RV-WEBSITE-PL027 | Record completed branch implementat
 Changed: 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Clarify additive documentation overlap with PR #40 and active ownership boundaries
 Changed: 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Record controlled document revision history
 Changed: 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Note source ID mismatch in workflow rendering addendum
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL025 | Record isolated account-cookie browser regression and live acceptance access blocker
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL026 | Record in-view workflow interaction documentation
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL025 | Link final styled browser evidence and record focused validation results
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL013 | Record bounded diagnostic coverage audit findings
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL028 | Record notification summary contract gap and website-scope blocker
 History: Git
 -->
 # Recovered Riverview website punch list
@@ -44,7 +49,7 @@ Priority labels and wording below follow the source punch list. “Captured” m
 | PL-NEW-010 | Grace execution | Explain chat-operational versus execution-not-initialized status and prerequisites. | High | Captured |
 | PL-NEW-011 | Activity | Add bidirectional database-backed pagination with stable cursors. | High | Captured |
 | PL-NEW-012 | Activity | Show human-readable event meaning, causation, task, and diagnostic evidence. | High | Captured |
-| PL-NEW-013 | Diagnostics | Audit code-to-graph, cookbook, and diagnostic-catalog coverage. | High | Captured; source says coverage is unverified, not known missing |
+| PL-NEW-013 | Diagnostics | Audit code-to-graph, cookbook, and diagnostic-catalog coverage. | High | Audit complete; exact-match traceability gaps recorded in [`PL-NEW-013 diagnostic coverage audit`](../development/PL-NEW-013-DIAGNOSTIC-COVERAGE_AUDIT.md); semantic coverage is not exhaustively classified |
 | PL-NEW-014 | Dashboard | Explain projection refresh, cache, freshness, and status transitions. | Medium | Captured |
 | PL-NEW-015 | Grace objectives | Explain schema/migration initialization, refresh semantics, and commissioning prerequisites. | High | Captured |
 | PL-NEW-016 | Navigation | Prevent documentation-tab/back navigation from creating duplicate dashboard tabs. | Medium | Captured |
@@ -56,10 +61,10 @@ Priority labels and wording below follow the source punch list. “Captured” m
 | PL-NEW-022 | Chat | Provide secure bounded file/image upload, drag/drop, and vision routing. | High | Captured |
 | PL-NEW-023 | Chat | Distinguish available menu actions from unavailable/future actions. | Medium | Captured |
 | PL-NEW-024 | Milestones | Distinguish dashboard M3.1 release label from roadmap, deployment, and commissioning status. | Medium | Captured |
-| PL-NEW-025 | Workflows | Verify authenticated account-cookie registry loading and preserve deployed browser acceptance evidence. | High / failed acceptance | Addendum later reports workflows rendered after refresh; automated regression remains pending |
-| PL-NEW-026 | Workflows | Document selector, canvas, node types/legend, selection, revisions, and interaction semantics. | Medium | Captured; addendum confirms legend is a color key and current node details are accepted for now |
+| PL-NEW-025 | Workflows | Verify authenticated account-cookie registry loading and preserve deployed browser acceptance evidence. | High / failed acceptance | Isolated Firefox regression passes for cookie-only registry/detail requests; deployed acceptance remains pending because SSH authentication to `admin1@192.168.1.155` was denied |
+| PL-NEW-026 | Workflows | Document selector, canvas, node types/legend, selection, revisions, and interaction semantics. | Medium | Implemented in viewer and cookbook on this branch; integration review pending |
 | PL-NEW-027 | Workflows | Navigate cross-workflow jumps to the exact target and provide return navigation preserving context. | Medium | Captured; current work implements this item |
-| PL-NEW-028 | Notifications | Show source assignment, required action, reason, priority/deadline, and details before acknowledgment. | High | Captured |
+| PL-NEW-028 | Notifications | Show source assignment, required action, reason, priority/deadline, and details before acknowledgment. | High | Blocked pending notification projection fields for priority, rationale, and actionable details; current UI cannot truthfully infer them |
 | PL-NEW-029 | Notifications | Distinguish delivered, seen, acknowledged, approved, denied, and resolved; acknowledgment grants no authority. | High | Captured |
 | PL-NEW-030 | Notifications | Reconcile legacy Windows/Estate audio with Camrui and report supported routes. | High | Captured; source evidence says these are not established as equivalent |
 | PL-NEW-031 | Notifications | Propose layered visible/audio/phone attention with escalation, retries, quiet hours, and storm prevention. | High | Captured proposal |
@@ -76,10 +81,13 @@ Priority labels and wording below follow the source punch list. “Captured” m
 
 ### Current implementation order
 
-1. **PL-NEW-027 — implemented on this branch; integration review pending:** exact target-node focus plus a return path to the source jump node. This is isolated to the canonical workflow viewer asset and its workflow map; Firefox evidence is in `evidence/checkouts/WEBSITE-PL027/20261015T193400Z-workflow-navigation/`.
-2. **PL-NEW-025 — next verification:** run an authenticated browser regression against an isolated environment, including account-cookie registry loading. The addendum records a successful manual refresh, not automated acceptance.
-3. **PL-NEW-041 — queued by the source priority:** snapshot completeness is P1 but explicitly sequenced after the active Grace 80B commissioning repair. The snapshot currently has a 128 KiB browser-side bound and the canonical graph JSON alone is larger than that; snapshot format, size handling, and visual capture need a deliberate design before implementation.
-4. **Remaining captured items:** group by shared UI surface and dependencies, then audit against the current branch before implementation. High priority does not itself authorize changing Grace, Engineering execution, authorization, CME, or production services in this website track.
+1. **PL-NEW-025 — isolated regression passes; deployed acceptance blocked on host access:** the Firefox fixture verifies that account-cookie-only requests load the registry and graph detail and render a node. Final styled evidence: `evidence/checkouts/WEBSITE-PL025/20261015T-account-cookie-browser-final/`. SSH to the user-specified production host failed with `Permission denied (publickey,password)`; no live service was contacted.
+2. **PL-NEW-026 — implemented on this branch; integration review pending:** the view and cookbook explain selector use, mouse/keyboard node selection, graph/node revisions, and the legend's static visual meaning.
+3. **PL-NEW-027 — implemented on this branch; integration review pending:** exact target-node focus plus a return path to the source jump node. Firefox evidence is in `evidence/checkouts/WEBSITE-PL027/20261015T193400Z-workflow-navigation/`.
+4. **PL-NEW-013 — audit completed on this branch; integration review pending:** exact-match analysis found no server error identifiers in the canonical dashboard workflow and only five of 59 literal HTTP error codes in the dashboard contract/cookbook; no dedicated catalog was found. The audit explicitly limits these results to exact-match traceability. See [`PL-NEW-013 diagnostic coverage audit`](../development/PL-NEW-013-DIAGNOSTIC-COVERAGE_AUDIT.md).
+5. **PL-NEW-028 — genuine data-contract blocker:** the current projection supplies assignment, event type/generic summary, timestamps, and optional decision status, but not priority, rationale, or actionable details. Those fields cannot be fabricated in the website layer; their source and contract need an integration owner outside this website-only scope. No notification/backend/CME or authority changes were made.
+6. **PL-NEW-041 — queued by the source priority:** snapshot completeness is P1 but explicitly sequenced after the active Grace 80B commissioning repair. The snapshot currently has a 128 KiB browser-side bound and the canonical graph JSON alone is larger than that; snapshot format, size handling, and visual capture need a deliberate design before implementation.
+7. **Other captured items:** group by shared UI surface and dependencies. High priority does not itself authorize changing Grace, Engineering execution, authorization, CME, or production services in this website track.
 
 ## Existing implementation evidence (not punch-list closure)
 
@@ -89,6 +97,8 @@ Priority labels and wording below follow the source punch list. “Captured” m
 | Authenticated canonical graph index/detail APIs and SVG workflow viewer with node identities, revisions, typed transitions, selection, and cross-workflow jump controls | Same M3.1 record; `server.py`, `workflow.js`; process-graph checks | Manual deployed workflow rendering was evidenced; PL-NEW-025 automated account-cookie regression remains pending |
 | Durable conversation SSE, reconnect/replay, terminal states, and deferred-response recovery | PR #40 merge `e897c52`; [`RESIDENT_CONVERSATION.md`](../components/RESIDENT_CONVERSATION.md); integration browser evidence | Existing compatibility behavior. Website changes must retain it; it is not a new website feature request here |
 | Persistent account sessions and protected Steward/account views | Integration baseline `218cb584`; account-authentication component docs and tests | Account-session workflow loading needs its own PL-NEW-025 browser check |
+| Workflow registry/detail client sends same-origin credentials without requiring a recovery bearer token | `workflow.js`; isolated Firefox evidence under `evidence/checkouts/WEBSITE-PL025/` | Synthetic cookie fixture proves browser transport and rendering only; production account authentication and deployed release remain unverified |
+| Dashboard diagnostic coverage was audited across literal server errors, workflow nodes, and dashboard documentation | [`PL-NEW-013 diagnostic coverage audit`](../development/PL-NEW-013-DIAGNOSTIC-COVERAGE_AUDIT.md) | Exact-match traceability audit only; semantic coverage gaps are not presumed from missing identifier strings |
 
 ## Ownership and integration map
 

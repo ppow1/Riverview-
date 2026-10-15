@@ -1,7 +1,7 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.1
+File Revision: 1.1.2
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
@@ -9,6 +9,8 @@ Changed: 2026-10-11 UTC | RV-M3.2-001 | Link durable notification receipt diagno
 Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-CURRENT-DOCS-RELEASE | Document immutable composite docs release provenance and verification
 Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Require checksum-verified stream-delivery migration before enabling SSE
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL027 | Add expected cross-workflow target focus and return-path diagnostics
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL025 | Record isolated account-cookie workflow browser regression and production access limitation
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL026 | Explain workflow selector, canvas interaction, revision labels and static legend
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -47,6 +49,26 @@ inferred position.
 An unknown graph ID returns `404 process_graph_not_found`. Source unavailability
 is displayed as unavailable, with no stale highlight. Check the canonical source
 and generated views locally:
+
+Use the **Workflow** selector to switch among registered graphs. Select a node
+with a mouse click or keyboard Enter/Space to show its stable ID, node revision,
+and available references. The graph revision label describes the loaded graph;
+each selected node reports its own revision. The process/decision/failure/recovery
+legend is a visual key, not a set of controls. Both the graph registry and graph
+detail requests use same-origin browser credentials, so an active account session
+cookie is sufficient; the workflow viewer does not require a recovery bearer token.
+
+The isolated browser regression can be run without production access:
+
+```sh
+python3 scripts/verify_workflow_account_cookie_browser.py \
+  --output evidence/checkouts/WEBSITE-PL025/<new-run-directory>
+```
+
+It uses a synthetic account-cookie fixture and the checked-out `workflow.js`; it
+does not establish acceptance against a deployed account or release. For live
+acceptance, run the deployed dashboard browser check after account-session access
+is available and retain its redacted report and screenshots.
 
 ```sh
 python3 scripts/process_graph.py check

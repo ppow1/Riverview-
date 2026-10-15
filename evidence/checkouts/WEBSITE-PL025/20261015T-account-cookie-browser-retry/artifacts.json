@@ -1,0 +1,23 @@
+{
+  "artifacts": {
+    "account-cookie-workflow.png": {
+      "path": "account-cookie-workflow.png",
+      "revision": "1.0.0",
+      "sha256": "f9aadaf55019131b51be1b0309df7f52069f36f29d65e07fef60c8b76475f9a5",
+      "size_bytes": 39251
+    },
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "7749508b3dd2d245f90313d952b9fa5899a775cec8cdd0ed463aade0c41333c2",
+      "size_bytes": 522
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "bf157d0aa90bf68838ff29922d5a0236a10a4bc0600f205e770c7a47e8318d5d",
+      "size_bytes": 1599
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

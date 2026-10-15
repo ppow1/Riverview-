@@ -1,0 +1,11 @@
+{
+  "artifacts": {
+    "attempt.md": {
+      "path": "attempt.md",
+      "revision": "1.0.0",
+      "sha256": "b0de3379a5652ab4aa77d28a15bc4398d0852481ae8ddc99d946de32cbb2d230",
+      "size_bytes": 591
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

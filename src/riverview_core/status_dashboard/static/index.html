@@ -1,8 +1,9 @@
 <!-- Riverview~ controlled asset; component STEWARD-DASHBOARD. -->
-<!-- Revision: 1.1.7 -->
+<!-- Revision: 1.1.8 -->
 <!-- Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Clarify legacy Connect fallback beside automatic linked Steward session -->
 <!-- Changed: 2026-10-13 UTC | RV-GRACE-EXPLICIT-WORKORDER-PROMOTION | Add explicit Steward criteria dialog for a persisted Grace message -->
 <!-- Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Add Steward resident profile checklist view -->
+<!-- Changed: 2026-10-15 UTC | RV-WEBSITE-PL026 | Explain workflow selector, node selection, revisions and static legend semantics -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -72,6 +73,7 @@
             <div id="graph-execution-position" class="graph-position">Live execution position: unknown until the ledger records a process graph node identity.</div>
             <div id="graph-canvas" class="graph-canvas" role="img" aria-label="Canonical process workflow diagram"><p class="muted">Select a workflow to view its nodes and transitions.</p></div>
             <div class="graph-legend"><span class="graph-chip process">Process</span><span class="graph-chip decision">Decision</span><span class="graph-chip failure">Failure / escalation</span><span class="graph-chip recovery">Recovery / verification</span></div>
+            <p class="note">Use the Workflow selector to switch registered graphs. In the canvas, select a node with a click or keyboard Enter/Space to inspect its stable ID, node revision and references. The graph revision above describes the loaded graph; the revision on each node appears in its detail. The legend is a visual key only; its labels are not controls.</p>
             <aside id="graph-node-detail" class="graph-node-detail muted">Select a node for its stable identity, revision and references.</aside>
           </div>
           <div class="panel"><div class="panel-head"><div><div class="eyebrow">LOGICAL JUMP POINTS</div><h3>Cross-workflow destinations</h3></div></div><div id="graph-jumps" class="rows muted">Select a workflow to inspect its registered jump points.</div></div>

@@ -1,12 +1,18 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.119
+**Document Revision:** 1.0.124
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Recover website punch list and implement cross-workflow destination focus/return
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL027 | Record final workflow map revision, controlled-source repair, and verification outcome
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Clarify PR #40 documentation overlap and website ownership boundaries
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL025 | Add cookie-only Firefox workflow regression and record production SSH denial
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL026 | Clarify workflow viewer interaction and legend semantics
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL025 | Record final styled Firefox evidence and focused suite results
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL013 | Record exact-match code-to-workflow/cookbook coverage audit
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL028 | Record missing notification summary fields as cross-scope blocker
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL025 | Record clean controlled-revision and evidence-manifest checks
 **Changed:** 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow the explicitly reviewed supervised Bash runner in exact-source packages while retaining strict checks for other scripts
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
 **Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record responsive conversation interface implementation and isolated real-model browser acceptance
@@ -1615,3 +1621,32 @@ The workflow viewer now follows the exact registered `jump_target_id`, focuses t
 **Verification:** `PYTHONPATH=.:src pytest -q tests/test_status_dashboard.py tests/test_process_graph.py` — 32 passed, 8 skipped. The skips are database-dependent cases; this work did not connect to production PostgreSQL. `python3 scripts/process_graph.py check` — PASS, 19 workflows / 458 nodes. An isolated Firefox/geckodriver loopback fixture loaded all 19 canonical graphs and passed exact target focus/detail plus return-to-source focus/detail; report and screenshots: `evidence/checkouts/WEBSITE-PL027/20261015T193400Z-workflow-navigation/`. The first browser fixture attempt lacked its local test token and timed out before loading the graph list; the setup error and correction are retained in the adjacent evidence directory. Production account-cookie transport and live browser acceptance remain NOT VERIFIED.
 
 **Next:** review the complete diff and evidence manifests, commit to the assigned branch, and prepare a draft PR against `codex/grace-conversation-ui-refinement`. PL-NEW-025 account-cookie browser regression is the next website verification item; PL-NEW-041 remains sequenced after the independently owned Grace commissioning repair.
+
+## 2026-10-15 UTC — RV-WEBSITE-PL025 / RV-WEBSITE-PL026
+
+**Classification:** account-cookie browser verification and workflow-viewer usability documentation.
+**Owner:** STEWARD-DASHBOARD / website presentation.
+**Branch:** `codex/website-improvements`, resumed from `2578626` on PR #42.
+**Baseline:** production/integration worktree base is `codex/grace-conversation-ui-refinement` at PR #41 merge `218cb58491bcb939466a1eebb51bd666fd97005`; PR #42 was open as a draft and its prior CI run passed. PR #40 stream behavior remains in the baseline.
+
+PL-NEW-025's acceptance calls for investigating the actual account-cookie path and establishing deployed browser acceptance evidence for the prior “Loading canonical registry” failure. The existing workflow client already uses `credentials:"same-origin"` and makes bearer authorization conditional on a recovery token. Added `scripts/verify_workflow_account_cookie_browser.py`, which runs the checked-out workflow client and stylesheet in Firefox against a loopback fixture that issues a synthetic HttpOnly account cookie and requires it for both registry and graph-detail reads. The browser sent no bearer authorization, rendered the expected graph node and details, and reported no browser errors. Final report and screenshot: `evidence/checkouts/WEBSITE-PL025/20261015T-account-cookie-browser-final/`. Earlier failed harness attempts are retained in sibling evidence directories and explained in the checkout note.
+
+The requested read-only SSH check using `admin1@192.168.1.155` reached the host-key prompt but failed authentication with `Permission denied (publickey,password)`. No production service, database, or account was contacted. Therefore isolated cookie transport is verified, while deployed account-cookie acceptance and the current live production release remain unverified. No browser or service was pointed at production.
+
+PL-NEW-026's requested distinctions are now explained beside the viewer controls and in the dashboard cookbook: the workflow selector switches graphs, mouse or keyboard selection opens node identity/revision/references, graph and node revisions are separately labeled, and legend chips are static visual keys. The existing canonical dashboard flow already describes same-origin account-session workflow transport, so its runtime graph needed no semantic change. The recovery backlog now records PL-025's remaining deployed-evidence blocker, PL-026's branch implementation, and PL-013's coverage audit as the next independent item.
+
+**Verification:** isolated Firefox account-cookie test PASS (`scripts/verify_workflow_account_cookie_browser.py`); browser error list empty; index and detail requests both included the synthetic account cookie and omitted Authorization. `PYTHONPATH=.:src pytest -q -rs tests/test_status_dashboard.py tests/test_process_graph.py` — 32 passed, 8 skipped because `RIVERVIEW_TEST_PG_DSN` is unset. `python3 scripts/process_graph.py check` — PASS, 19 workflows / 458 nodes. Python compile and focused `git diff --check` passed. Controlled revision audit — PASS, zero issues; final browser evidence manifest — PASS, three checksummed artifacts. The browser test verifies transport/rendering against a fixture; it does not substitute for live account authentication or deployment acceptance. PL-013 audit is recorded below. PR #42 update remains.
+
+## 2026-10-15 UTC — RV-WEBSITE-PL013
+
+**Classification:** bounded dashboard diagnostic coverage audit.
+**Owner:** STEWARD-DASHBOARD / website diagnostics.
+**Evidence:** [`PL-NEW-013 diagnostic coverage audit`](PL-NEW-013-DIAGNOSTIC-COVERAGE_AUDIT.md).
+
+Read-only inspection found 59 distinct literal HTTP error identifiers in the dashboard handler and one dynamic `exc.code` path. Exact-match analysis found five identifiers in the dashboard contract/cookbook and none in the canonical dashboard workflow JSON. Broad failure/recovery nodes and area-level cookbook procedures exist; the audit makes no claim that each unmatched string lacks semantic guidance. No dedicated dashboard diagnostic catalog or route was found. PL-NEW-013's audit deliverable is complete with the traceability limits and evidence recorded. Building a complete searchable catalog remains a separate PL-NEW-038 captured proposal and requires a governed mapping source.
+
+No canonical workflow map change was needed: its broad failure and recovery branches already point to the relevant dashboard troubleshooting material. No server, authorization, CME, production, or schema code changed.
+
+## 2026-10-15 UTC — RV-WEBSITE-PL028 preflight
+
+Read-only inspection of `NotificationService.list_notifications`, its dashboard projection route, and the notification renderer found assignment ID, event type, a fixed generic summary, source/queued timestamps, delivery status, and optional decision request ID/status. The projection does not expose priority, rationale, actionable details, or an explicit required-action field. PL-NEW-028 requires these details before receipt acknowledgment. The website cannot provide truthful values from its current payload. Adding the missing source fields requires a notification service/CME/API contract change outside this assignment's backend/CME boundary. The item is recorded as blocked pending an integration-owned contract; no changes were made to notification, backend, CME, authority, or shared streaming behavior.
