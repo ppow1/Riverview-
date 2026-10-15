@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.5
+File Revision: 1.0.6
 Purpose: Diagnose and safely resume the persistent Grace execution service
 Authority: Read-only diagnosis first; exact grants required for every mutation
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Add service operations and recovery procedures
@@ -10,6 +10,7 @@ Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Document the on
 Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Add diagnosis and retry behavior for proposal routing and source-chat result return
 Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Document the persistent no-copy ChatGPT owner-session unit and its recovery boundary
 Changed: 2026-10-15 UTC | RV-GRACE-CODEX-SANDBOX-READINESS-001 | Document fail-closed sandbox readiness and safe host blocker handling
+Changed: 2026-10-15 UTC | RV-GRACE-HEALTH-WRITER-ACL-001 | Diagnose and recover the restricted-role heartbeat privilege failure
 Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Record successful bwrap trial, protected credential paths, and reversible owner-session staging
 -->
 # Grace Execution Service — Troubleshooting and Recovery
@@ -31,6 +32,7 @@ Expected: `ActiveState=active`, `SubState=running`, a recent `last_heartbeat_at`
 | Symptom | Likely cause / first check | Safe recovery | Verify / escalation |
 | --- | --- | --- | --- |
 | Unit exits during startup | Check sanitized `grace_service_configuration_error` or `grace_service_start_failed`; inspect unit environment and migration version. | Correct the exact missing non-secret setting or protected credential file through the authorized provisioning process. Do not edit live DB grants by hand. | Re-read health and journal; escalate missing/ambiguous grants to Steward/authority owner. |
+| `grace_heartbeat_write_failed` or `grace_execution_cycle_failed` with `InsufficientPrivilege` | The restricted runtime role lacks the selected objective/event and health columns. Inspect only `has_column_privilege` for required columns and verify migration `0007_grace_runtime_objective_and_health_acl` checksum in `riverview_dev.schema_migrations`; do not read objective or conversation data to diagnose ACLs. | After a protected backup and exact checksum preflight, apply only the reviewed additive resident-execution migration with the standard migration runner, then start/restart only the Grace owner-session unit. It grants selected columns on `grace_objectives`, `grace_objective_events`, the one required event sequence, and `grace_execution_health`. It grants no event update/delete, objective identity update, unrelated table DML, or protected authority access. | Require `_proposed()`/objective projections to return without privilege errors, a fresh healthy heartbeat with `last_error_type IS NULL`, and a working restricted-role dashboard projection. If the relation, role, or checksum differs, stop and retain diagnostics. |
 | Objective remains `WAITING_FOR_EVIDENCE` | Read objective evidence status, source commit and references through the authenticated dashboard. | Restore the pinned repository package or knowledge provider; resubmission is not necessary. | It may advance only after complete `VERIFIED` grounding. Missing knowledge cannot be overridden. |
 | Grounded conversation objective has no proposal | Inspect sanitized `resident_reasoning_cycle_failed` events and current office binding/provider identifiers; do not use conversation bodies from logs. | Confirm router digest matches the active binding and approved 80B readiness is `READY`; correct configuration only through the authorized release process. | Persistent service retries; any proposal must carry 80B provider/model provenance. Smaller models cannot propose Engineering work. |
 | Objective completed but source conversation has no result | Inspect `objective.completed`, `conversation.result_published`, current Grace binding, and sanitized service failure type. Use the authenticated API for metadata-only conversation inspection. | Restore exact `resident.conversation.send` authorization or 80B readiness through the approved process. Never manually mark the outbox published. | Next service cycle retries. Deterministic response identity prevents a duplicate assistant event after a successful insert. |
