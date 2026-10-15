@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.12
+# Revision: 1.0.13
 # Purpose: Exercise objective-to-authorized-worker-to-independent-verification pipeline
 # Execution Model: Isolated PostgreSQL schema, committed repository fixture, deterministic proposal
 # Observability: Durable objective/assignment events, worker attempt, artifact, verifier decision
@@ -21,6 +21,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-PERSISTENT-RUNTIME-INTEGRATION | Verify only complete grounded objectives enter resident context
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-FAIR-CYCLE | Prove waiting reasoning does not delay existing worker execution
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-FAIR-FIX | Advance queued work through the event processor before fairness assertion
+# Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-REGROUND-001 | Verify successful evidence retry advances a waiting objective exactly once
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -357,6 +358,55 @@ class GraceExecutionTests(unittest.TestCase):
         oversized_record = oversized.get_objective("objective:oversized")
         self.assertEqual(oversized_record["status"], "WAITING_FOR_EVIDENCE")
         self.assertEqual(oversized_record["evidence"]["error_code"], "EVIDENCE_TOO_LARGE")
+
+    def test_verified_grounding_retry_advances_waiting_objective_once(self):
+        from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
+
+        class MutableKnowledge:
+            def __init__(inner_self):
+                inner_self.result = KnowledgeResult(
+                    KnowledgeStatus.INCOMPLETE,
+                    source_references=("repo://docs/verified.md",),
+                    source_revision=self.commit,
+                    source_sha256="a" * 64,
+                    retrieval_complete=False)
+
+            def ground_assignment(inner_self, _assignment):
+                return inner_self.result
+
+        knowledge = MutableKnowledge()
+        self.pipeline.knowledge = knowledge
+        criteria = ["preserve the original acceptance criteria"]
+        self.pipeline.submit_objective(
+            "objective:retry-grounding", "document the verified retry behavior", criteria,
+            credential=self.credentials["steward"], scope_ref=self.scope)
+
+        with self.assertRaises(ObjectiveStateError):
+            self.pipeline.ground_objective("objective:retry-grounding")
+        waiting = self.pipeline.get_objective("objective:retry-grounding")
+        self.assertEqual(waiting["status"], "WAITING_FOR_EVIDENCE")
+        self.assertEqual(waiting["revision"], 2)
+
+        knowledge.result = KnowledgeResult(
+            KnowledgeStatus.VERIFIED,
+            value={"verified_fact": "complete bounded evidence"},
+            source_references=("repo://docs/verified.md",),
+            source_revision=self.commit,
+            source_sha256="b" * 64,
+            retrieval_complete=True)
+        grounded = self.pipeline.ground_objective("objective:retry-grounding")
+
+        self.assertEqual(grounded["status"], "GROUNDED")
+        self.assertEqual(grounded["revision"], 3)
+        self.assertEqual(grounded["acceptance_criteria"], criteria)
+        self.assertEqual(grounded["source_revision"], self.commit)
+        self.assertEqual(grounded["evidence"]["status"], "VERIFIED")
+        self.assertEqual([event["event_type"] for event in
+                          self.pipeline.objective_events("objective:retry-grounding")],
+                         ["objective.received", "objective.waiting_for_evidence",
+                          "objective.grounded"])
+        self.assertEqual(self.pipeline.grounded_objectives(scope_ref=self.scope),
+                         [{"objective_id": "objective:retry-grounding", "revision": 3}])
 
     def test_worker_failure_and_incomplete_verification_do_not_complete_objective(self):
         from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus

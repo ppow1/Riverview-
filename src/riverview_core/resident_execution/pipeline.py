@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.6
+# Revision: 1.0.7
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
 # Execution Model: Request-driven orchestration over existing PostgreSQL authority and ledger
 # Observability: Append-only objective events linked to assignment and evidence provenance
@@ -14,6 +14,7 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Carry independently verified artifact location into Grace completion event
 # Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Add durable retryable outbox for verified conversation-origin work results
 # Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Revalidate exact submission grant before retrying existing objectives
+# Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-REGROUND-001 | Commit verified grounding when resuming a durable WAITING_FOR_EVIDENCE objective
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -194,7 +195,7 @@ class GraceExecutionPipeline:
                 self.ledger._set_search_path(cur)
                 cur.execute("""UPDATE grace_objectives SET status='GROUNDED',evidence=%s::jsonb,
                     source_revision=%s,source_sha256=%s,revision=revision+1,updated_at=clock_timestamp()
-                    WHERE objective_id=%s AND status='RECEIVED'""",
+                    WHERE objective_id=%s AND status IN ('RECEIVED','WAITING_FOR_EVIDENCE')""",
                     (_json(evidence), result.source_revision, result.source_sha256, objective_id))
                 if cur.rowcount != 1:
                     raise ObjectiveStateError("objective changed during grounding")
