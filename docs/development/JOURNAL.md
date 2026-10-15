@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.125
+**Document Revision:** 1.0.127
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
@@ -12,6 +12,8 @@
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL025 | Record final styled Firefox evidence and focused suite results
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL013 | Record exact-match code-to-workflow/cookbook coverage audit
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL028 | Record missing notification summary fields as cross-scope blocker
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL004 | Record graph linkage implementation, browser evidence, revision audit and PR #42 reconciliation
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL006/008/011 | Record overview guidance, worker inventory, activity paging, evidence and integration-owned blockers
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL025 | Record clean controlled-revision and evidence-manifest checks
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL025 | Record PR #42 update and exact-head CI result
 **Changed:** 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow the explicitly reviewed supervised Bash runner in exact-source packages while retaining strict checks for other scripts
@@ -1651,3 +1653,24 @@ No canonical workflow map change was needed: its broad failure and recovery bran
 ## 2026-10-15 UTC — RV-WEBSITE-PL028 preflight
 
 Read-only inspection of `NotificationService.list_notifications`, its dashboard projection route, and the notification renderer found assignment ID, event type, a fixed generic summary, source/queued timestamps, delivery status, and optional decision request ID/status. The projection does not expose priority, rationale, actionable details, or an explicit required-action field. PL-NEW-028 requires these details before receipt acknowledgment. The website cannot provide truthful values from its current payload. Adding the missing source fields requires a notification service/CME/API contract change outside this assignment's backend/CME boundary. The item is recorded as blocked pending an integration-owned contract; no changes were made to notification, backend, CME, authority, or shared streaming behavior.
+
+## 2026-10-15 UTC — RV-WEBSITE-PL004/006/008/011 / PR #42 reconciliation
+
+**Classification:** assignment-detail linkage, overview guidance, worker inventory usability, activity pagination, and controlled branch reconciliation.
+**Owner:** STEWARD-DASHBOARD / website presentation and navigation.
+**Branch / PR:** `codex/website-improvements` / draft PR #42, base `codex/grace-conversation-ui-refinement`.
+**Integration baseline:** PR #43 merge `665ae8100a50faa26985b0cfee8834e68bf2a847`, which includes Codex 1's Grace Engineering proposal-guidance change. The PR #42 head that previously passed CI was `d4d7ba57b249dd477f811ae3c155f139c37c06a7`; it had become conflicting after PR #43. Rebased the website worktree onto the new base. Source changes did not conflict with PR #43. The only rebase conflict was the append-only `.riverview-backups/manifest.jsonl`; both integration and website records were retained. No PR #43 source file was modified. PR #42 remains draft/open pending push and exact-head controlled CI; it is not merged or deployed.
+
+PL-NEW-004 audit confirmed the assignment projection already returns nullable persisted `process_graph_id` and `process_node_id`, but the detail renderer omitted them and printed the diagnostic path as unlinked text. Detail now shows both IDs, explicit not-recorded states, a restricted `/docs/components/<name>.md` link, and the boundary that these references do not establish current execution position. A synthetic Firefox run verified populated and null-linked records, safe diagnostic routing, cookie-only requests, and no browser errors. Evidence: `evidence/checkouts/WEBSITE-PL004/20261015T203000Z-assignment-linkage/`.
+
+PL-NEW-008 uses only the existing worker fields. The overview now counts records in loaded pages, distinguishes active/inactive/unknown registration from healthy/stale/unknown/unverified heartbeat status, marks inactive registrations as such, and reports whether more cursor pages remain. The 390px Firefox fixture had no worker-row overflow. PL-NEW-006 added overview text for the event sequence cursor, projection/freshness, independent CME/worker heartbeats, and Grace execution versus chat availability. No runtime configuration value was inferred.
+
+PL-NEW-011 adds explicit older and newer Activity controls using existing exclusive `before_seq` and `after_seq` cursors. Older events prepend, newer events append, and overlapping event IDs are deduplicated. The isolated browser sequence 2–3 → older 1–3 → newer 1–4 remained ordered with no duplicates. Existing canonical dashboard nodes already describe bounded event paging and worker listing; no new API path, state transition, or workflow node was needed. PR #40 streaming and deferred-response code was not changed.
+
+PL-NEW-028 is blocked pending an integration-owned notification/CME/API contract. The current notice payload has `assignment_id`, `event_type`, a static generic `summary`, timestamps, delivery/acknowledgment state, and optional decision request ID/status/version. It lacks `required_action`, `rationale`, `priority`, optional `deadline` with an explicit absent state, and structured `actionable_details`. `source_event_id` identifies the CME event, but its authoritative details are not exposed by the notification API. The integration owner must source condition rationale/details from the CME event and action/priority/deadline from applicable assignment or decision policy, define a versioned API shape and provenance, then satisfy the acceptance criteria recorded in `docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`. The website does not synthesize notification content or modify CME/backend contracts.
+
+PL-NEW-007 is separately blocked because `RIVERVIEW_STALE_AFTER_SECONDS` has a 30-second code default but `/api/v1/status` does not return the effective runtime value, and CME has a separate freshness setting. PL-NEW-009 is blocked because the worker projection omits capabilities, host, task identity/context, execution detail, and failure history. Exact source requirements and acceptance are in the recovered punch list. PL-NEW-025's isolated account-cookie evidence remains preserved; production acceptance is **UNVERIFIED** because SSH authentication to the requested host failed before a service check. This is not evidence of production service failure.
+
+**Verification:** `PYTHONPATH=.:src pytest -q -rs tests/test_status_dashboard.py tests/test_process_graph.py` — 36 passed, 8 PostgreSQL-dependent skips (`RIVERVIEW_TEST_PG_DSN` is unset). `python3 scripts/process_graph.py check` — PASS, 19 workflows / 458 nodes. `git diff --check` — PASS. The staged controlled revision audit passes with zero findings. Isolated Firefox reports and screenshots: `evidence/checkouts/WEBSITE-PL004/20261015T203000Z-assignment-linkage/` and `evidence/checkouts/WEBSITE-PL-UI-REGRESSIONS/20261015T203000Z-overview-workers-activity/`. No production service, database, schema, grant, CME, worker, OCTO1/OCTO2 configuration, or deployment was touched.
+
+**Next:** push the rebased website branch with lease protection, refresh PR #42's scope/evidence, and confirm exact-head checks before marking it ready for controlled integration review. Do not merge or deploy in this website task. Next independent punch-list audit: PL-NEW-012 event meaning and diagnostic evidence, using only available projection fields.

@@ -1,5 +1,5 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.4.3
+// Revision: 1.4.8
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
 // Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Use linked Steward account session for exact-grant Grace connection
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password login, grant decisions and email configuration UI
@@ -7,6 +7,9 @@
 // Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Display durable deferred reasoning state in chat history.
 // Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Add Steward-only resident profile navigation.
 // Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Stream durable conversation output, clear deferred partials, and refresh active history for verified results.
+// Changed: 2026-10-15 UTC | RV-WEBSITE-PL004 | Show persisted assignment graph/node identity and a safe diagnostic link.
+// Changed: 2026-10-15 UTC | RV-WEBSITE-PL008 | Reconcile worker registration and heartbeat states in the bounded inventory.
+// Changed: 2026-10-15 UTC | RV-WEBSITE-PL011 | Add explicit older/newer activity paging with stable event sequence cursors.
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -48,6 +51,11 @@
   const when = (value) => { if (!value) return "time unavailable"; const d = new Date(value); return Number.isNaN(d.valueOf()) ? "time unavailable" : d.toLocaleString(); };
   const stateClass = (v) => `status-${String(v || "unknown").toLowerCase().replace(/[^a-z0-9_-]/g, "_")}`;
   const item = (label, value) => `<div class="detail-item"><div class="detail-label">${esc(label)}</div><div class="detail-value">${esc(value)}</div></div>`;
+  const diagnosticItem = (reference) => {
+    const match = /^docs\/components\/([A-Za-z0-9_-]+\.md)$/.exec(String(reference || ""));
+    const value = match ? `<a href="/docs/components/${esc(match[1])}" target="_blank" rel="noreferrer">${esc(reference)}</a>` : esc(reference || "No diagnostic reference recorded");
+    return `<div class="detail-item"><div class="detail-label">Diagnostic reference</div><div class="detail-value">${value}</div></div>`;
+  };
   const noData = (text) => `<div class="row"><span class="row-meta">${esc(text)}</span></div>`;
   function renderStatus(s) {
     state.status = s; state.lastFetch = performance.now();
@@ -124,20 +132,36 @@
     try {
       const after = append ? state.eventCursor : null;
       const page = await api(`/api/v1/events?${append ? `after_seq=${after}&` : ""}limit=25`);
-      state.events = append ? state.events.concat(page.items || []) : (page.items || []);
+      const known = new Set(state.events.map((event) => event.event_id));
+      state.events = append ? state.events.concat((page.items || []).filter((event) => !known.has(event.event_id))) : (page.items || []);
       state.eventCursor = page.next_cursor || (state.events.at(-1)?.seq || state.eventCursor);
       state.olderEventCursor = append ? state.olderEventCursor : page.older_cursor;
       $("event-cursor").textContent = `Observed through sequence ${state.status?.event_cursor ?? state.eventCursor}`;
       $("event-list").innerHTML = eventRows(state.events);
       $("overview-events").innerHTML = eventRows(state.events.slice(-5).reverse());
       $("more-events").hidden = !state.olderEventCursor;
+      $("newer-events").hidden = !state.events.length;
       bindEventLinks();
     } catch (error) { $("event-list").innerHTML = noData(`Event source unavailable (${error.message}).`); $("overview-events").innerHTML = noData(`Unavailable (${error.message}).`); }
   }
   function renderWorkers() {
     const host = $("worker-list");
-    host.innerHTML = state.workers.length ? state.workers.map((w) => `<div class="row"><span class="row-main">${esc(w.worker_id)}</span><span class="status-text ${stateClass(w.status)}">${esc(human(w.status))}</span><span class="row-meta">${esc(w.active_leases)} active leases · heartbeat ${esc(when(w.last_heartbeat_at))}</span></div>`).join("") : noData("No worker identities are present in this page.");
-    $("worker-page-note").textContent = state.workers.length ? `${state.workers.length} observed · page limit 25` : "";
+    const counts = {active: 0, inactive: 0, registration_unknown: 0,
+      heartbeat: {healthy: 0, stale: 0, unknown: 0, unverified: 0}};
+    state.workers.forEach((worker) => {
+      if (worker.active === true) counts.active += 1;
+      else if (worker.active === false) counts.inactive += 1;
+      else counts.registration_unknown += 1;
+      if (Object.hasOwn(counts.heartbeat, worker.status)) counts.heartbeat[worker.status] += 1;
+    });
+    $("worker-inventory-summary").textContent = state.workers.length ?
+      `Loaded pages: ${state.workers.length} registered · ${counts.active} active · ${counts.inactive} inactive · ${counts.registration_unknown} registration unknown · heartbeat ${counts.heartbeat.healthy} healthy / ${counts.heartbeat.stale} stale / ${counts.heartbeat.unknown + counts.heartbeat.unverified} unknown or unverified${state.workerCursor ? " · more records available" : " · all records observed"}` : "No worker records observed.";
+    host.innerHTML = state.workers.length ? state.workers.map((w) => {
+      const registration = w.active === true ? "Registered · active" : w.active === false ? "Registered · inactive" : "Registration state unknown";
+      const health = w.status === "inactive" ? "Registry inactive" : `Heartbeat ${human(w.status)}`;
+      return `<div class="row worker-row"><div><span class="row-main">${esc(w.worker_id)}</span><div class="row-meta">${registration}</div></div><span class="status-text ${stateClass(w.status)}">${esc(health)}</span><span class="row-meta worker-heartbeat">${esc(w.active_leases)} active leases · heartbeat ${esc(when(w.last_heartbeat_at))}</span></div>`;
+    }).join("") : noData("No worker identities are present in the loaded page.");
+    $("worker-page-note").textContent = state.workers.length ? `${state.workers.length} observed in loaded pages · page limit 25` : "";
     $("more-workers").hidden = !state.workerCursor;
   }
   function renderNotifications(page) {
@@ -194,6 +218,7 @@
     if (state.status?.workers?.status === "not_initialized") {
       state.workers = []; state.workerCursor = null;
       $("worker-list").innerHTML = noData("Worker registry and lease health are not initialized in this schema.");
+      $("worker-inventory-summary").textContent = "Worker registry not initialized; no inventory is available.";
       $("worker-page-note").textContent = "Not initialized"; $("more-workers").hidden = true;
       return;
     }
@@ -204,6 +229,7 @@
       state.workerCursor = page.next_cursor; renderWorkers();
     } catch (error) {
       $("worker-list").innerHTML = noData(`Worker health unavailable (${error.message}).`);
+      $("worker-inventory-summary").textContent = "Worker inventory unavailable; current registration and heartbeat states are not confirmed.";
       $("worker-page-note").textContent = "Unavailable"; $("more-workers").hidden = true;
     }
   }
@@ -211,10 +237,12 @@
     if (!state.olderEventCursor) return;
     try {
       const page = await api(`/api/v1/events?before_seq=${state.olderEventCursor}&limit=25`);
-      state.events = (page.items || []).concat(state.events);
+      const known = new Set(state.events.map((event) => event.event_id));
+      state.events = (page.items || []).filter((event) => !known.has(event.event_id)).concat(state.events);
       state.olderEventCursor = page.older_cursor;
       $("event-list").innerHTML = eventRows(state.events);
       $("more-events").hidden = !state.olderEventCursor;
+      $("newer-events").hidden = !state.events.length;
       bindEventLinks();
     } catch (error) { recordUiError(error.message,"/api/v1/events"); toast(`Older events unavailable: ${error.message}`); }
   }
@@ -223,7 +251,7 @@
     try {
       const detail = await api(`/api/v1/assignments/${encodeURIComponent(id)}`);
       const a = detail.assignment;
-      $("assignment-detail").innerHTML = `<div class="eyebrow">ASSIGNMENT DETAIL · READ ONLY</div><h3>${esc(a.assignment_id)} <span class="status-text ${stateClass(a.state)}">${esc(human(a.state))}</span></h3><div class="detail-stack">${item("Workflow", `${a.workflow_id} / ${a.workflow_step}`)}${item("Owner", a.owner)}${item("Correlation", a.correlation_id)}${item("Version", a.version)}${item("Observed update", when(a.updated_at))}${item("Diagnostic reference", detail.diagnostic_ref)}</div><h4>Independent verification</h4>${detail.verifications.length ? detail.verifications.map((v) => `<div class="row"><span>${esc(v.decision)}</span><span>${esc(v.verifier_id)} ${esc(v.verifier_revision)}</span><span class="row-meta">${esc(v.evidence_count)} evidence references · ${esc(when(v.recorded_at))}</span></div>`).join("") : noData("No verification record was returned.")}<h4>Worker attempts</h4>${detail.attempts.length ? detail.attempts.map((x) => `<div class="row"><span>${esc(x.worker_id)}</span><span>${esc(x.status)}</span><span class="row-meta">${esc(x.capability)} · lease ${esc(x.lease_generation)} · ${esc(when(x.started_at))}</span></div>`).join("") : noData("No attempt rows returned.")}<h4>Recent lifecycle events</h4>${eventRows(detail.events)}</div>`;
+      $("assignment-detail").innerHTML = `<div class="eyebrow">ASSIGNMENT DETAIL · READ ONLY</div><h3>${esc(a.assignment_id)} <span class="status-text ${stateClass(a.state)}">${esc(human(a.state))}</span></h3><div class="detail-stack">${item("Workflow", `${a.workflow_id} / ${a.workflow_step}`)}${item("Owner", a.owner)}${item("Correlation", a.correlation_id)}${item("Version", a.version)}${item("Observed update", when(a.updated_at))}${item("Canonical graph ID", a.process_graph_id || "No graph ID recorded")}${item("Canonical node ID", a.process_node_id || "No process node ID recorded")}${diagnosticItem(detail.diagnostic_ref)}</div><p class="muted">Graph and node IDs are persisted assignment references. Missing IDs are not inferred as a live workflow position.</p><h4>Independent verification</h4>${detail.verifications.length ? detail.verifications.map((v) => `<div class="row"><span>${esc(v.decision)}</span><span>${esc(v.verifier_id)} ${esc(v.verifier_revision)}</span><span class="row-meta">${esc(v.evidence_count)} evidence references · ${esc(when(v.recorded_at))}</span></div>`).join("") : noData("No verification record was returned.")}<h4>Worker attempts</h4>${detail.attempts.length ? detail.attempts.map((x) => `<div class="row"><span>${esc(x.worker_id)}</span><span>${esc(x.status)}</span><span class="row-meta">${esc(x.capability)} · lease ${esc(x.lease_generation)} · ${esc(when(x.started_at))}</span></div>`).join("") : noData("No attempt rows returned.")}<h4>Recent lifecycle events</h4>${eventRows(detail.events)}</div>`;
     } catch (error) { $("assignment-detail").innerHTML = `<div class="inline-error">Diagnostic detail unavailable (${esc(error.message)}).</div>`; }
   }
   function recordUiError(code, route) { state.recentErrors.push({at:new Date().toISOString(),code:String(code).slice(0,48),route:String(route).split("?")[0].slice(0,96)}); state.recentErrors=state.recentErrors.slice(-20); }
@@ -398,6 +426,7 @@
   $("auth-open").addEventListener("click", () => { sessionStorage.removeItem("rv.dashboard.token"); state.token=""; if(state.timer)clearInterval(state.timer); $("workspace").hidden=true; $("login").hidden=false; $("token").focus(); });
   $("more-assignments").addEventListener("click", () => loadAssignments(true));
   $("more-events").addEventListener("click", () => loadOlderEvents());
+  $("newer-events").addEventListener("click", () => loadEvents(true));
   $("more-workers").addEventListener("click", () => loadWorkers(true));
   $("refresh-notifications").addEventListener("click", loadNotifications);
   $("refresh-objectives").addEventListener("click", loadObjectives);

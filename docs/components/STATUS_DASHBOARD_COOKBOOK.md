@@ -1,7 +1,7 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.2
+File Revision: 1.1.6
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
@@ -11,6 +11,10 @@ Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Require checksum-verifie
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL027 | Add expected cross-workflow target focus and return-path diagnostics
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL025 | Record isolated account-cookie workflow browser regression and production access limitation
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL026 | Explain workflow selector, canvas interaction, revision labels and static legend
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL004 | Document persisted assignment graph/node references, missing states and safe diagnostic links
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL008 | Explain worker registration versus heartbeat health and bounded inventory totals
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL006 | Clarify overview cursor, projection, component health and Grace execution meanings
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL011 | Explain older/newer sequence paging and activity cursor recovery
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -42,9 +46,10 @@ its details; **Back to source node** restores the originating jump. A missing
 target is shown as unavailable and retains that return path. A disabled jump
 button means the target workflow is not present in the loaded graph index. The
 browser is read-only. It highlights live execution only when the API supplies an exact
-persisted process-node identity. Assignment records do not currently store that
-identity; `unknown` with no highlighted node is expected, not a failure or an
-inferred position.
+persisted process-node identity with a current execution position. Assignment detail
+also displays the nullable `process_graph_id` and `process_node_id` fields as recorded;
+those references alone do not establish that execution is currently at that node.
+Missing identity is shown as not recorded and is never inferred.
 
 An unknown graph ID returns `404 process_graph_not_found`. Source unavailability
 is displayed as unavailable, with no stale highlight. Check the canonical source
@@ -69,6 +74,33 @@ It uses a synthetic account-cookie fixture and the checked-out `workflow.js`; it
 does not establish acceptance against a deployed account or release. For live
 acceptance, run the deployed dashboard browser check after account-session access
 is available and retain its redacted report and screenshots.
+
+### Assignment graph and diagnostic references
+
+Assignment detail displays the persisted `process_graph_id` and
+`process_node_id` values returned by the read-only assignment projection. A
+missing value appears as “No … ID recorded”; do not derive an ID from the
+workflow label, step name, event text, or current graph. These assignment
+references are not by themselves proof of current live execution position.
+The diagnostic reference is linked only when it matches a component Markdown
+document path accepted by the dashboard route; unknown reference formats remain
+plain text.
+
+Reproduce the assignment-detail check without production access:
+
+```sh
+python3 scripts/verify_assignment_graph_linkage_browser.py \
+  --output evidence/checkouts/WEBSITE-PL004/<new-run-directory>
+PYTHONPATH=.:src pytest -q tests/test_status_dashboard.py -k assignment_detail_exposes
+```
+
+The Firefox fixture uses synthetic assignments with both populated and missing
+identity fields. It checks the displayed IDs, explicit missing state, safe
+cookbook URL, account-cookie-only API requests, and absence of browser errors.
+It does not verify production data or prove that the referenced node is a live
+execution position. If the database projection omits either value, inspect the
+assignment's persisted nullable fields through the approved read-only source;
+do not backfill or alter ledger records as a presentation repair.
 
 ```sh
 python3 scripts/process_graph.py check
@@ -134,11 +166,65 @@ required by libpq. The token remains a separate credential and is never logged.
 
 ## Worker health
 
-The overview shows a bounded worker page from GET /api/v1/workers. Health is
-derived from each worker’s latest assignment-lease heartbeat; missing heartbeat
-is unknown, future heartbeat is unverified, and expired lease does not mean a
-worker is healthy. Pagination is keyset-bounded. A missing worker/lease relation
-is not_initialized and does not fabricate worker health.
+The overview shows rows from the bounded, keyset-paginated
+`GET /api/v1/workers` inventory. Each row separates registry state (`active`,
+`inactive`, or unknown) from heartbeat health (`healthy`, `stale`, `unknown`, or
+`unverified`). An inactive registration is labeled **Registry inactive**; it is
+not described as a heartbeat result. Health is derived from the latest
+assignment-lease heartbeat; a missing heartbeat is unknown, a future heartbeat
+is unverified, and expired lease does not mean a worker is healthy.
+
+Inventory totals count only records in pages already loaded. The summary says
+**more records available** while a cursor remains and **all records observed**
+after the final page. Do not treat a partial-page count as a registry-wide
+total. A missing worker/lease relation is `not_initialized`; a read failure is
+unavailable, and neither state fabricates worker health.
+
+The isolated regression covers active and inactive registrations, healthy,
+stale and unknown heartbeat states, reconciliation after loading the final
+page, and a narrow browser viewport:
+
+```sh
+python3 scripts/verify_worker_inventory_browser.py \
+  --output evidence/checkouts/WEBSITE-PL008/<new-run-directory>
+PYTHONPATH=.:src pytest -q tests/test_status_dashboard.py -k worker_inventory_separates
+```
+
+The fixture is synthetic and read-only; it does not claim live worker inventory
+or host, task, capability, execution or failure detail that the API does not
+provide.
+
+## Overview status labels
+
+The event cursor is the last observed institution event sequence; it is not a
+total event count. Projection health and freshness describe the bounded,
+read-only ledger query. CME and worker states come from their own monitor or
+lease heartbeat observations and can differ from projection health. Grace
+execution status reports whether its execution projection and heartbeat are
+available; `not_initialized` there does not mean that the separate chat surface
+is unavailable. Use the source-specific state and observation time shown in
+each card; do not infer one subsystem's health from another subsystem's label.
+
+## Activity event paging
+
+The Activity view keeps events in ascending sequence order. **Load older
+events** requests `before_seq` using the first visible sequence and prepends the
+returned page. **Load newer events** requests `after_seq` using the last
+observed sequence and appends results. Both cursors are exclusive; repeated or
+overlapping responses are deduplicated by `event_id`. The newer control can
+check for events beyond the current tail, while background refresh continues
+to use the same last-sequence cursor. Event payloads remain excluded from this
+projection.
+
+The isolated Firefox regression exercises initial, older and newer pages and
+checks sequence order and duplicate suppression together with the adjacent
+overview and worker states:
+
+```sh
+python3 scripts/verify_worker_inventory_browser.py \
+  --output evidence/checkouts/WEBSITE-PL011/<new-run-directory>
+PYTHONPATH=.:src pytest -q tests/test_status_dashboard.py -k activity_has_explicit
+```
 
 ## Fast read-only checks
 

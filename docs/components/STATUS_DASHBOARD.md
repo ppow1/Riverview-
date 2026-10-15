@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.3
+File Revision: 1.1.4
 Purpose: Specify operational projections and exact-grant Grace objective and conversation interfaces
 Authority: Reads require dashboard authentication; objective and resident conversation operations require exact institutional grants
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
@@ -13,6 +13,7 @@ Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Integrate the isolated resident c
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Keep persisted historical interruption notices out of current response error state
 Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Document password login, grant controls and configurable SMTP administration
 Changed: 2026-10-14 UTC | RV-GRACE-HEALTH-PROJECTION-ACL-001 | Grant dashboard runtime SELECT only on Grace execution health for status projection
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL011 | Document sequence-based older and newer activity pagination
 Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Document bounded authenticated conversation streaming writes and migration dependency
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL027 | Document focused cross-workflow jump navigation and return behavior
 History: Git and revision/backup manifest
@@ -90,7 +91,7 @@ verification decision and pinned source revision.
 | `POST /api/v1/objectives/<id>/cancel` | Cancel only queued/ready pre-execution work. | Dashboard bearer plus exact `assignment.cancel` grant for the objective scope. |
 | `GET /api/v1/assignments?after=<id>&limit=<n>` | Keyset page of lifecycle, owner, workflow/step, version, correlation and last persisted progress event. | Default 25, max 100. No progress percent. |
 | `GET /api/v1/assignments/<id>` | One assignment, 20 latest visible lifecycle events, 5 attempts and 5 independent-verification summaries. | Fixed limits; no event payload/evidence URI. |
-| `GET /api/v1/events?after_seq=<n>&limit=<n>` | Institution event cursor page with event/correlation/causation identity. | Default 25, max 100; no payload. |
+| `GET /api/v1/events?after_seq=<n>&limit=<n>` or `?before_seq=<n>&limit=<n>` | Institution event cursor page with event/correlation/causation identity. The website appends newer sequences and prepends older sequences using the returned cursors. | Default 25, max 100; no payload. Sequence cursors are exclusive and stable; the response reports when more records remain. |
 | `GET /api/v1/workers?after=<id>&limit=<n>` | Bounded worker identity, active/inactive state, latest lease heartbeat health and visible active-lease count. | Default 25, max 100; keyset by worker ID. |
 | `GET /api/v1/attention?limit=<n>` | Bounded CME attention and recovery event records. | Default 25, max 100; sanitized error class only. |
 | `GET /api/v1/notifications?limit=<n>` | Durable visual notices, dispatcher freshness, and pending decision-request state. | Default 25, max 50; fixed summaries only. |

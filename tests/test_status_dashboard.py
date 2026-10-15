@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.27
+# Revision: 1.0.35
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -28,6 +28,7 @@
 # Tests: This file
 # History: Git and revision/backup manifest
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
+# Changed: 2026-10-15 UTC | RV-WEBSITE-PL004/006/008/011 | Assert assignment linkage, overview semantics, worker states, and activity paging.
 # =============================================================================
 """Security, API, privacy and PostgreSQL integration tests for M3.1."""
 
@@ -90,6 +91,48 @@ class _FakeProjection:
 
 
 class DashboardDeploymentContractTests(unittest.TestCase):
+    def test_activity_has_explicit_older_and_newer_sequence_paging(self):
+        app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
+        html = (ROOT / "src/riverview_core/status_dashboard/static/index.html").read_text(encoding="utf-8")
+        self.assertIn('id="more-events"', html)
+        self.assertIn("Load older events", html)
+        self.assertIn('id="newer-events"', html)
+        self.assertIn("Load newer events", html)
+        self.assertIn("before_seq=${state.olderEventCursor}", app)
+        self.assertIn("after_seq=${after}", app)
+        self.assertIn('$("newer-events").addEventListener("click", () => loadEvents(true))', app)
+        self.assertIn("new Set(state.events.map((event) => event.event_id))", app)
+
+    def test_overview_explains_authoritative_projection_and_component_health_boundaries(self):
+        html = (ROOT / "src/riverview_core/status_dashboard/static/index.html").read_text(encoding="utf-8")
+        guidance = html[html.index('id="overview-guidance"'):html.index('</div>', html.index('id="overview-guidance"'))]
+        for phrase in ("last observed institution event sequence", "read-only ledger response",
+                       "separate heartbeat signals", "separate from chat availability"):
+            self.assertIn(phrase, guidance)
+
+    def test_worker_inventory_separates_registration_health_and_loaded_page_counts(self):
+        app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
+        html = (ROOT / "src/riverview_core/status_dashboard/static/index.html").read_text(encoding="utf-8")
+        css = (ROOT / "src/riverview_core/status_dashboard/static/app.css").read_text(encoding="utf-8")
+        self.assertIn('w.active === true ? "Registered · active"', app)
+        self.assertIn('w.active === false ? "Registered · inactive"', app)
+        self.assertIn('const health = w.status === "inactive" ? "Registry inactive"', app)
+        self.assertIn("registered · ${counts.active} active · ${counts.inactive} inactive", app)
+        self.assertIn("counts.heartbeat.healthy", app)
+        self.assertIn("more records available", app)
+        self.assertIn('id="worker-inventory-summary"', html)
+        self.assertIn("Counts cover loaded 25-record pages", html)
+        self.assertIn(".worker-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)", css)
+
+    def test_assignment_detail_exposes_persisted_graph_identity_and_safe_diagnostic_reference(self):
+        app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
+        self.assertIn('item("Canonical graph ID", a.process_graph_id || "No graph ID recorded")', app)
+        self.assertIn('item("Canonical node ID", a.process_node_id || "No process node ID recorded")', app)
+        self.assertIn(r'^docs\/components\/([A-Za-z0-9_-]+\.md)$', app)
+        self.assertIn('href="/docs/components/${esc(match[1])}"', app)
+        self.assertIn("persisted assignment references", app)
+        self.assertIn("Missing IDs are not inferred", app)
+
     def test_workflow_registry_client_supports_account_cookie_sessions(self):
         static = Path(__file__).resolve().parents[1] / "src/riverview_core/status_dashboard/static"
         js = (static / "workflow.js").read_text(encoding="utf-8")
