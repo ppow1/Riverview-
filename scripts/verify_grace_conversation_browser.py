@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SCRIPT
 # File: scripts/verify_grace_conversation_browser.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.1.2
+# Revision: 1.1.5
 # Purpose: Commission the dashboard-to-Grace chat path in an isolated PostgreSQL and CPU-model environment
 # Execution Model: Temporary loopback llama.cpp, dashboard, Firefox WebDriver, and disposable schema
 # Observability: Redacted structured result with request, persistence, refresh, recovery and timing evidence
@@ -20,6 +20,8 @@
 # Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Verify full-message rendering, composer controls, menus, responsive layout and unauthorized access in Firefox
 # Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Exercise persistent browser authorization, denied-request suppression, refresh and service restart without credential re-entry
 # Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Retain denied-request browser evidence in the initialized acceptance record
+# Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Prove first browser text arrives before canonical assistant completion and await durable streamed history
+# Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Verify response hash across reload, persisted TTFT/generation/delivery timing, and later verified-result visibility
 # Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Exercise keyboard submission and distinguish historical interruptions from the latest response outcome
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Read objective count by named column with the verifier's dict row factory
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Record source commit and checksum-backed evidence manifest
@@ -424,13 +426,18 @@ def main():
             report["stage"] = "browser_chat_model_turn"
             started = time.monotonic()
             before = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
-                "script":"window.__rvTurnStart=performance.now();window.__rvBeforeChatCount=document.querySelectorAll('#chat-history article.message-row:not([aria-label])').length;const box=document.getElementById('chat-message');box.value=arguments[0];box.dispatchEvent(new Event('input'));box.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));const state=document.getElementById('chat-state').textContent;return {sendDisabled:document.getElementById('chat-send').disabled,processing:state.includes('processing')||state.includes('Generating response')};",
+                "script":"window.__rvTurnStart=performance.now();window.__rvBeforeChatCount=document.querySelectorAll('#chat-history article.message-row:not([aria-label])').length;window.__rvBeforeGraceCount=document.querySelectorAll('#chat-history article.message-row.grace[data-message-row]').length;const box=document.getElementById('chat-message');box.value=arguments[0];box.dispatchEvent(new Event('input'));box.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));const state=document.getElementById('chat-state').textContent;return {sendDisabled:document.getElementById('chat-send').disabled,processing:state.includes('processing')||state.includes('Generating response')};",
                 "args":[message]})
             if not before.get("value", {}).get("sendDisabled"):
                 raise RuntimeError("composer did not enter a duplicate-protected processing state")
             _wait_browser(browser_base, browser_session,
-                "(document.getElementById('chat-history').querySelectorAll('article.message-row:not([aria-label])').length >= window.__rvBeforeChatCount + 2 || (!document.getElementById('chat-send').disabled && document.getElementById('chat-error').textContent.includes('Grace response failed'))) && document.getElementById('chat-state').textContent.length > 0",
+                "document.querySelector('#chat-history [data-stream-response] .message-content')?.textContent.trim().length>0 && document.querySelectorAll('#chat-history article.message-row.grace[data-message-row]').length===window.__rvBeforeGraceCount",
                 timeout=150)
+            first_text = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+                "script":"return {text:document.querySelector('#chat-history [data-stream-response] .message-content')?.textContent||'',elapsed_ms:performance.now()-window.__rvTurnStart};","args":[]})["value"]
+            _wait_browser(browser_base, browser_session,
+                "document.querySelectorAll('#chat-history article.message-row.grace[data-message-row]').length>window.__rvBeforeGraceCount && !document.querySelector('#chat-history [data-stream-response]')",
+                timeout=180)
             failure = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
                 "script":"return document.getElementById('chat-error').textContent;","args":[]})["value"]
             if failure:
@@ -442,7 +449,12 @@ def main():
                 "browser_elapsed_ms":round(values["elapsed_ms"],2),
                 "conversation_id":values["conversation"],
                 "last_message_chars":len(str(values["messages"][-1])),
+                "assistant_response_sha256":hashlib.sha256(
+                    str(values["messages"][-1]).encode("utf-8")).hexdigest(),
                 "last_message_complete":bool(values["messages"][-1].strip()),
+                "first_text_chars":len(first_text["text"]),
+                "time_to_first_text_ms":round(first_text["elapsed_ms"],2),
+                "first_text_preceded_persisted_completion":True,
                 "user_message_chars":len(str(values["messages"][-2])),
                 "user_message_exactly_rendered":values["userExact"],
                 "user_message_multiline_rendered":values["userMultiline"],
@@ -513,11 +525,42 @@ def main():
             "args":[]})
         _wait_browser(browser_base, browser_session,
             "document.getElementById('chat-history').innerText.includes('Hi Grace')&&document.getElementById('chat-auth-form').hidden", timeout=30)
+        restored_text = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"const rows=Array.from(document.querySelectorAll('#chat-history article.message-row.grace[data-message-row]'));return rows.length?rows[rows.length-1].querySelector('.message-content')?.textContent||'':'';",
+            "args":[]})["value"]
+        if hashlib.sha256(str(restored_text).encode("utf-8")).hexdigest() != first["assistant_response_sha256"]:
+            raise RuntimeError("browser reload did not restore the complete persisted assistant response")
         report["browser_refresh"] = {"status":"PASS","history_reloaded":True,
+            "complete_assistant_response_restored":True,
+            "assistant_response_sha256":first["assistant_response_sha256"],
             "conversation_id_retained":conversation_id}
 
         binding = runtime["registry"].authorize_office_state(
             runtime["resident_token"], runtime["office_id"])
+        refreshed_count = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"window.__chatRequests=0;const rvFetch=window.fetch.bind(window);window.fetch=(...args)=>{if(String(args[0]).startsWith('/api/v1/resident/conversations'))window.__chatRequests++;return rvFetch(...args)};return window.__chatRequests;",
+            "args":[]})["value"]
+        history = runtime["store"].history(conversation_id,runtime["office_id"],runtime["steward_id"])
+        source = next(event for event in reversed(history["events"])
+                      if event["event_type"]=="user_message")
+        runtime["store"].finish_work_order_review(conversation_id,str(uuid4()),
+            source_sequence=source["sequence"],principal_id=runtime["steward_id"],
+            occupant=binding,implementation={"office_id":runtime["office_id"],
+                "implementation_id":binding["implementation_id"],
+                "implementation_revision":binding["implementation_revision"]},
+            provider_ref="synthetic.verified-result-fixture",model_id=MODEL_ID,
+            body="Synthetic verified work-order result visibility fixture.",
+            metadata={"result_kind":"synthetic_stream_visibility_test",
+                "verification_decision":"ACCEPTED"})
+        _wait_browser(browser_base,browser_session,
+            "document.getElementById('chat-history').innerText.includes('Synthetic verified work-order result visibility fixture.')",
+            timeout=12)
+        refreshed_count_after = _webdriver(browser_base, f"/session/{browser_session}/execute/sync", "POST", {
+            "script":"return window.__chatRequests;","args":[]})["value"]
+        if refreshed_count_after<=refreshed_count:
+            raise RuntimeError("asynchronous verified result was not fetched through active conversation refresh")
+        report["browser_refresh"]["asynchronous_verified_result_visible_without_manual_refresh"] = True
+        report["browser_refresh"]["history_refresh_requests"] = int(refreshed_count_after-refreshed_count)
         runtime["store"].begin_turn(office_id=runtime["office_id"],
             principal_id=runtime["steward_id"], occupant=binding,
             implementation={"office_id":runtime["office_id"],
@@ -559,6 +602,27 @@ def main():
 
         with psycopg.connect(args.dsn, row_factory=psycopg.rows.dict_row) as verify_db:
             verify_db.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(schema)))
+            for turn in report["turns"]:
+                stored = verify_db.execute("""SELECT u.request_id,u.occurred_at AS submitted_at,
+                    r.occurred_at AS completed_at,r.metadata
+                    FROM resident_conversation_events u JOIN resident_conversation_events r
+                      USING (request_id,conversation_id)
+                    WHERE u.conversation_id=%s AND u.event_type='user_message'
+                      AND r.event_type='assistant_message'
+                    ORDER BY u.sequence""",(turn["conversation_id"],)).fetchall()
+                if not stored:
+                    raise RuntimeError("streamed browser turn has no durable terminal response")
+                selected=stored[0] if turn["phase"]=="first_browser_inference" else stored[-1]
+                metadata=selected["metadata"] or {}
+                ttft=metadata.get("time_to_first_token_ms")
+                generation=metadata.get("generation_elapsed_ms")
+                end_to_end=(selected["completed_at"]-selected["submitted_at"]).total_seconds()*1000
+                if not isinstance(ttft,(int,float)) or not isinstance(generation,(int,float)):
+                    raise RuntimeError("durable stream timing metadata is incomplete")
+                turn["request_id"]=str(selected["request_id"])
+                turn["time_to_first_token_server_ms"]=round(float(ttft),3)
+                turn["generation_elapsed_ms"]=round(float(generation),3)
+                turn["end_to_end_persisted_ms"]=round(end_to_end,3)
             row = verify_db.execute("""SELECT count(*) FILTER (WHERE event_type='user_message') AS user_messages,
                 count(*) FILTER (WHERE event_type='assistant_message') AS assistant_messages,
                 count(*) FILTER (WHERE event_type='response_interrupted') AS interruptions,

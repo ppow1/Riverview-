@@ -6189,7 +6189,7 @@
     },
     {
       "graph_id": "rv:resident-conversation:browser-chat",
-      "graph_revision": "1.0.14",
+      "graph_revision": "1.0.18",
       "component_id": "RESIDENT-CONVERSATION",
       "workflow_id": "resident.conversation.v1",
       "diagram_order": 14,
@@ -6202,20 +6202,21 @@
         "src/riverview_core/institutional_authority/migrations/0006_authorized_implementation_successor.sql",
         "src/riverview_core/local_reasoning_provider.py",
         "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/resident_execution/grace_role_context.py",
         "src/riverview_core/resident_execution/migrations/0003_resident_conversation.sql",
         "src/riverview_core/resident_execution/migrations/0004_deferred_conversation_responses.sql",
         "src/riverview_core/resident_execution/migrations/0006_deferred_execution_claims.sql",
+        "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql",
         "src/riverview_core/resident_execution/model_router.py",
+        "src/riverview_core/resident_execution/operational_context.py",
         "src/riverview_core/status_dashboard/server.py",
         "src/riverview_core/status_dashboard/static/app.css",
         "src/riverview_core/status_dashboard/static/app.js",
         "src/riverview_core/status_dashboard/static/index.html",
-        "tests/test_grace_router_readiness.py",
-        "tests/test_resident_conversation.py",
-        "src/riverview_core/resident_execution/grace_role_context.py",
+        "tests/test_grace_operational_context.py",
         "tests/test_grace_role_context.py",
-        "src/riverview_core/resident_execution/operational_context.py",
-        "tests/test_grace_operational_context.py"
+        "tests/test_grace_router_readiness.py",
+        "tests/test_resident_conversation.py"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_CONVERSATION.md",
@@ -6224,13 +6225,13 @@
       ],
       "verification_evidence": [
         "evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/browser-commissioning.json",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-live-0382ce1/commissioning-summary.json",
         "scripts/verify_grace_conversation_browser.py",
         "tests/test_local_reasoning_provider.py",
         "tests/test_resident_conversation.py",
-        "tests/test_status_dashboard.py",
-        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json",
-        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-live-0382ce1/commissioning-summary.json",
-        "tests/test_resident_model_router.py"
+        "tests/test_resident_model_router.py",
+        "tests/test_status_dashboard.py"
       ],
       "nodes": [
         {
@@ -6466,9 +6467,9 @@
         },
         {
           "id": "rv:resident-conversation:browser-chat:browser-history",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "exit",
-          "label": "Return durable response/status and render persisted conversation in dashboard",
+          "label": "Return durable response/status and refresh the active conversation for later verified Engineering results",
           "source_references": [
             "src/riverview_core/status_dashboard/server.py",
             "src/riverview_core/status_dashboard/static/app.js"
@@ -6480,7 +6481,8 @@
           "verification_evidence": [
             "tests/test_status_dashboard.py",
             "tests/test_resident_conversation.py",
-            "evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/browser-commissioning.json"
+            "evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/browser-commissioning.json",
+            "scripts/verify_grace_conversation_browser.py"
           ]
         },
         {
@@ -6849,6 +6851,186 @@
             "tests/test_grace_operational_context.py",
             "tests/test_resident_conversation.py"
           ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:stream-capability-check",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Does this browser support authenticated fetch streaming?",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py",
+            "tests/test_status_dashboard.py",
+            "tests/test_local_reasoning_provider.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:stream-submit",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Persist the user turn and idempotency key, then return queued status without waiting for inference.",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py",
+            "tests/test_status_dashboard.py",
+            "tests/test_local_reasoning_provider.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:stream-events",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Persist bounded provider text deltas and sanitized queued/generating/completed/failed state.",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py",
+            "tests/test_status_dashboard.py",
+            "tests/test_local_reasoning_provider.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:stream-authorized-sse",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Replay durable response events over same-origin authenticated SSE after a monotonic sequence cursor.",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py",
+            "tests/test_status_dashboard.py",
+            "tests/test_local_reasoning_provider.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:stream-render",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Render arriving text safely in the original conversation and measure first-text and delivery latency.",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py",
+            "tests/test_status_dashboard.py",
+            "tests/test_local_reasoning_provider.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:stream-reconnect",
+          "node_revision": "1.0.2",
+          "type": "recovery",
+          "label": "Reconnect from the monotonic cursor; clear superseded partial generations and deferred text without duplicating terminal history.",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py",
+            "tests/test_status_dashboard.py",
+            "tests/test_local_reasoning_provider.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:stream-history-verify",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Load the canonical completed response from history after reload; stream and conversation terminal state commit atomically.",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py",
+            "tests/test_status_dashboard.py",
+            "tests/test_local_reasoning_provider.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:stream-nonstream-fallback",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Use the existing bounded synchronous conversation route when browser streaming is unavailable.",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py",
+            "tests/test_status_dashboard.py",
+            "tests/test_local_reasoning_provider.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:stream-failure",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Retain the user turn and one sanitized terminal failure; do not expose prompts, output logs, or credentials.",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py",
+            "tests/test_status_dashboard.py",
+            "tests/test_local_reasoning_provider.py"
+          ]
         }
       ],
       "edges": [
@@ -7150,6 +7332,98 @@
           "to": "rv:resident-conversation:browser-chat:provider-failure",
           "type": "diagnostic_branch",
           "label": "Malformed context or no current user turn; reject before inference"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:browser-submit",
+          "to": "rv:resident-conversation:browser-chat:stream-capability-check",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:stream-capability-check",
+          "to": "rv:resident-conversation:browser-chat:stream-submit",
+          "type": "runtime_transition",
+          "label": "Streaming available; authenticated POST preserves original conversation and request IDs"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:stream-capability-check",
+          "to": "rv:resident-conversation:browser-chat:stream-nonstream-fallback",
+          "type": "runtime_transition",
+          "label": "No stream support; use existing bounded response API"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:stream-submit",
+          "to": "rv:resident-conversation:browser-chat:persist-user",
+          "type": "runtime_transition",
+          "label": "Idempotently persist before returning queued"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:persist-user",
+          "to": "rv:resident-conversation:browser-chat:stream-events",
+          "type": "runtime_transition",
+          "label": "Background generation uses the same authorization and routing checks"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:stream-events",
+          "to": "rv:resident-conversation:browser-chat:inference",
+          "type": "runtime_transition",
+          "label": "0.6B, provisional 30B, or 80B selected by existing router; image upload is not part of this route"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:stream-events",
+          "to": "rv:resident-conversation:browser-chat:stream-failure",
+          "type": "diagnostic_branch",
+          "label": "Provider, authorization, or persistence failure"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:stream-events",
+          "to": "rv:resident-conversation:browser-chat:persist-response",
+          "type": "runtime_transition",
+          "label": "Atomic durable response and stream completion"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:stream-authorized-sse",
+          "to": "rv:resident-conversation:browser-chat:stream-events",
+          "type": "runtime_transition",
+          "label": "Read authorized durable cursor events only"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:stream-authorized-sse",
+          "to": "rv:resident-conversation:browser-chat:stream-reconnect",
+          "type": "recovery_route",
+          "label": "Disconnect or bounded 180-second stream closure"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:stream-reconnect",
+          "to": "rv:resident-conversation:browser-chat:stream-authorized-sse",
+          "type": "runtime_transition",
+          "label": "Resume after last consumed sequence"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:stream-authorized-sse",
+          "to": "rv:resident-conversation:browser-chat:stream-render",
+          "type": "runtime_transition",
+          "label": "Sanitized text chunks and status state"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:stream-render",
+          "to": "rv:resident-conversation:browser-chat:browser-render",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:browser-history",
+          "to": "rv:resident-conversation:browser-chat:stream-history-verify",
+          "type": "verification",
+          "label": "Reload canonical persisted response; no preview duplicates"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:stream-nonstream-fallback",
+          "to": "rv:resident-conversation:browser-chat:context-bound",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:stream-failure",
+          "to": "rv:resident-conversation:browser-chat:browser-history",
+          "type": "runtime_transition"
         }
       ]
     },
@@ -11083,6 +11357,15 @@
     "rv:resident-conversation:browser-chat:session-cookie",
     "rv:resident-conversation:browser-chat:session-present",
     "rv:resident-conversation:browser-chat:stage-context-policy",
+    "rv:resident-conversation:browser-chat:stream-authorized-sse",
+    "rv:resident-conversation:browser-chat:stream-capability-check",
+    "rv:resident-conversation:browser-chat:stream-events",
+    "rv:resident-conversation:browser-chat:stream-failure",
+    "rv:resident-conversation:browser-chat:stream-history-verify",
+    "rv:resident-conversation:browser-chat:stream-nonstream-fallback",
+    "rv:resident-conversation:browser-chat:stream-reconnect",
+    "rv:resident-conversation:browser-chat:stream-render",
+    "rv:resident-conversation:browser-chat:stream-submit",
     "rv:resident-conversation:browser-chat:upgrade-continuity",
     "rv:resident-conversation:browser-chat:upgrade-rejected",
     "rv:resident-reasoning:runtime:authority-denied",

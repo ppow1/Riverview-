@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.13
+# Revision: 1.0.14
 # Purpose: Verify primary 80B routing, capability-pinned recovery, bounded fallback and diagnostics
 # Execution Model: Deterministic provider doubles; no database or model endpoint
 # Observability: Assert selected provider and served-model provenance
@@ -14,6 +14,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-SINGLE-RESIDENT-IDENTITY-001 | Verify all model-stage prompts preserve Grace's single resident identity
 # Changed: 2026-10-15 UTC | RV-GRACE-CHAT-CONTEXT-BOUND-001 | Reproduce and prevent provider message-count rejection on long conversations
 # Changed: 2026-10-15 UTC | RV-GRACE-AUTONOMIC-CONTEXT-BOUND-001 | Verify minimal autonomic identity prompt and full substantive context without changing durable input
+# Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
 # =============================================================================
 """Focused tests for Grace's readiness-aware three-stage router."""
 
@@ -48,6 +49,17 @@ class _Provider:
         if self.failure:
             raise LocalReasoningUnavailable(self.failure)
         return ChatCompletion("bounded answer", self.model, 2, 3, "stop")
+
+    def stream_chat(self,messages,*,max_tokens,expected_revision,on_delta,
+                    on_reset=lambda:None,timeout_seconds=120):
+        self.calls.append((messages,expected_revision))
+        self.token_limits.append(max_tokens)
+        self.timeout_values.append(timeout_seconds)
+        if self.failure:raise LocalReasoningUnavailable(self.failure)
+        on_delta("bounded ")
+        on_delta("answer")
+        return ChatCompletion("bounded answer",self.model,2,3,"stop",
+            provider_id=self.provider_id)
 
     def propose(self, request):
         self.proposal_requests.append(request)
@@ -101,9 +113,24 @@ class GraceModelRouterTests(unittest.TestCase):
         self.assertEqual(result.served_model, "qwen-0.6b")
         self.assertEqual(result.reasoning_stage, "autonomic")
         self.assertTrue(result.provisional)
-        self.assertEqual(self.cpu.token_limits, [32])
-        self.assertEqual(self.cpu.timeout_values, [60])
-        self.assertEqual(result.provider_attempts[0]["completion_token_limit"], 32)
+
+    def test_streaming_routes_each_grace_stage_and_preserves_provenance(self):
+        for request,required,expected in (
+            ([{"role":"user","content":"Hello."}],None,"qwen-0.6b"),
+            ([{"role":"user","content":"Analyze this complex engineering objective"}],None,"qwen-80b"),
+            ([{"role":"user","content":"What is in this scene?"}],None,"huihui-30b"),
+        ):
+            emitted=[]
+            result=self.router.stream_chat(request,max_tokens=512,
+                expected_revision=self.router.model_sha256,on_delta=emitted.append,
+                required_capability=required)
+            self.assertEqual(result.served_model,expected)
+            self.assertEqual(emitted,["bounded ","answer"])
+            self.assertEqual(result.provider_id,"test."+expected)
+            if expected=="qwen-0.6b":
+                self.assertEqual(self.cpu.token_limits,[32])
+                self.assertEqual(self.cpu.timeout_values,[60])
+                self.assertEqual(result.provider_attempts[0]["completion_token_limit"],32)
 
     def test_autonomic_budget_never_exceeds_lower_caller_limit(self):
         self.router.complete_chat([{"role": "user", "content": "Hello."}],

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_router_readiness.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Verify router startup readiness under restricted authority-ledger access
 # Execution Model: Isolated PostgreSQL integration test
 # Observability: Explicit migration, ledger-denial, authority, and binding assertions
@@ -90,6 +90,12 @@ class GraceRouterReadinessPostgresTests(unittest.TestCase):
             ("0006_deferred_execution_claims", "d" * 64))
         self.db.execute(sql.SQL(
             "INSERT INTO {}.schema_migrations(version,checksum) VALUES (%s,%s)"
+        ).format(sql.Identifier(self.app_schema)),
+            ("0008_resident_conversation_stream_delivery", "e" * 64))
+        self.db.execute(sql.SQL("CREATE TABLE {}.resident_conversation_streams(id integer)").format(
+            sql.Identifier(self.app_schema)))
+        self.db.execute(sql.SQL(
+            "INSERT INTO {}.schema_migrations(version,checksum) VALUES (%s,%s)"
         ).format(sql.Identifier(self.authority_schema)),
             ("0005_audited_model_rebinding", "c" * 64))
         for schema in (self.app_schema, self.authority_schema):
@@ -97,6 +103,9 @@ class GraceRouterReadinessPostgresTests(unittest.TestCase):
                 sql.Identifier(schema), sql.Identifier(self.runtime_role)))
         self.db.execute(sql.SQL("GRANT SELECT ON {}.schema_migrations TO {}").format(
             sql.Identifier(self.app_schema), sql.Identifier(self.runtime_role)))
+        self.db.execute(sql.SQL(
+            "GRANT SELECT,INSERT,UPDATE ON {}.resident_conversation_streams TO {}"
+        ).format(sql.Identifier(self.app_schema), sql.Identifier(self.runtime_role)))
         self.db.execute(sql.SQL("REVOKE ALL ON {}.schema_migrations FROM {}").format(
             sql.Identifier(self.authority_schema), sql.Identifier(self.runtime_role)))
 

@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.25
+File Revision: 1.1.29
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -41,6 +41,9 @@ Changed: 2026-10-14 UTC | RV-GRACE-ROUTING-INTEGRATION-001 | Reconcile merged st
 Changed: 2026-10-15 UTC | RV-GRACE-SINGLE-RESIDENT-IDENTITY-001 | Specify one Grace identity across autonomic, vision and reasoning stage prompts
 Changed: 2026-10-15 UTC | RV-GRACE-CHAT-CONTEXT-BOUND-001 | Bound routed messages to the provider limit while preserving system context and the latest turn
 Changed: 2026-10-15 UTC | RV-GRACE-AUTONOMIC-LATENCY-BOUND-001 | Cap 0.6B acknowledgment generation at 32 tokens and set its measured 60-second socket timeout
+Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Add authenticated durable streaming, reconnect, browser latency, recovery, and diagnostics contract
+Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Compact discarded partial output behind a monotonic reset marker on retry
+Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Compact partial text immediately on deferral and keep repeated deferral state idempotent
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
@@ -48,7 +51,7 @@ History: Git and .riverview-backups/manifest.jsonl
 ## Institutional and operational context
 
 Every ordinary and resumed model turn receives the same stable role context
-from `resident_execution/grace_role_context.py` (role-context revision 1.0.0):
+from `resident_execution/grace_role_context.py` (role-context revision 1.1.1):
 Grace is the continuing occupant of `office:grace` and Director of Operations;
 Alfred is the separate Chief of Staff; the Steward retains final authority.
 The context describes CME progression, operational awareness, Engineering and
@@ -389,3 +392,72 @@ requests retain the prior router implementation fingerprint
 successor fingerprint is 608aa519346c4643050b1dff6bc0f0a4d65d2cb9d64b9c07cf1d8faeae3b8c7e.
 This continuity correction and its two new migrations are development-only.
 They have not been migrated, deployed, or rebound in production.
+
+
+## Live streaming and delivery recovery (development increment)
+
+When the browser supports `ReadableStream`, it POSTs to
+`/api/v1/resident/conversations/stream` with the same conversation ID and a UUID
+idempotency key. The response is acknowledged as queued after the user event and
+stream cursor are durable; inference then runs independently of the HTTP POST. The
+existing non-streaming POST remains the compatibility path. The browser reads
+`GET /api/v1/resident/conversations/{conversation_id}/responses/{request_id}/stream?after=N`
+using its existing account cookie or conversation credential. Each read rechecks
+conversation ownership and exact read authorization. SSE event IDs are durable
+monotonic sequence numbers; reconnect starts after the last consumed ID. Text is
+HTML-escaped before display. No streaming event authorizes tools, work-order
+creation, or execution.
+
+The resident migration `0008_resident_conversation_stream_delivery.sql` creates a
+bounded per-request delivery row, status, generation number, cursor, and text-event
+buffer. The runtime receives only SELECT/INSERT/UPDATE on this one table. User and
+assistant conversation events remain canonical. Successful assistant event and
+stream completion are committed in one transaction; deferral is committed with its
+stream state. Exact grants and current office binding are checked before inference
+and before a terminal response. Model routing continues to select the autonomic
+0.6B, provisional/interim 30B, or substantive 80B under existing rules. The stream
+route accepts text only; image upload is not part of this route, so a 30B vision
+response can stream text only when the existing request contains supported text
+context.
+
+SSE connections close after 180 seconds and emit a reconnect marker; the browser
+reconnects automatically with bounded backoff. A disconnect does not cancel model
+generation. On page reload, history is loaded from the canonical event ledger, and
+pending requests reconnect from cursor zero to reconstruct the current generation;
+a retry/fallback reset marker clears discarded partial text and compacts older
+chunks while preserving the monotonic cursor. Deferral also compacts any incomplete
+text into one durable waiting event; repeating the deferral does not create another
+canonical history event. Once a terminal event is present, the preview is removed and
+cannot duplicate the saved message. The client shows queued,
+generating, completed, deferred/waiting, and
+failed states. Browser timing displays time to first text and submission-to-delivery;
+server response metadata records time to first token and generation duration. These
+measurements begin at the browser POST or provider invocation respectively and do
+not include a common clock offset. While Talk with Grace is the active view, the
+browser also refreshes authorized canonical history every four seconds so a later
+verified Engineering review appended to the original conversation appears without
+a manual reload. The same history refresh rechecks pending request state.
+
+The isolated Firefox acceptance harness checks that the complete assistant response
+is unchanged after reload and that a durable verified-result fixture appended after
+the chat response appears through active-view refresh. Its evidence records only
+response hashes, identifiers, state, and timing values; it does not retain
+conversation text. This fixture proves browser delivery only, not an Engineering
+assignment or live 80B response.
+
+### Stream diagnostics and recovery
+
+Read-only checks: inspect authenticated conversation history and response metadata;
+then request the response stream with `after=0` using the same authorized session.
+Expected: monotonically increasing event IDs, deltas, then one completed/failed
+terminal state. HTTP 401/403 means authentication or the exact read grant is no
+longer valid. HTTP 404 means this is a legacy non-streaming turn; use history. A
+stream record that remains queued/generating after a restart is eligible for bounded
+startup recovery only if no terminal conversation event exists; original send
+authority and office binding are revalidated before execution. `response_failed`
+retains only a bounded error code and provider-attempt diagnostics. Do not query or
+log prompt, response, or credentials in operational troubleshooting.
+
+This source increment is not production commissioning. It requires isolated
+PostgreSQL tests, browser execution against a disposable schema, migration checksum
+verification, integrated packaging, and the approved production release process.
