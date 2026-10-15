@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/verify_worker_inventory_browser.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.8
+# Revision: 1.0.17
 # Purpose: Verify worker registration, heartbeat states and pagination in Firefox
 # Execution Model: Isolated loopback fixture; owns only its HTTP and geckodriver processes
 # Observability: Redacted JSON report and screenshot; synthetic account and assignment data
@@ -10,6 +10,12 @@
 # Changed: 2026-10-15 UTC | RV-WEBSITE-PL008 | Add isolated worker inventory browser verification
 # Changed: 2026-10-15 UTC | RV-WEBSITE-PL012 | Verify event provenance and diagnostic boundary rendering
 # Changed: 2026-10-15 UTC | RV-WEBSITE-PL016 | Verify documentation tab reuse and return to dashboard
+# Changed: 2026-10-15 UTC | RV-WEBSITE-PL010/015/020/023/024 | Verify readiness guidance, chat controls, menu states and milestone copy
+# Changed: 2026-10-15 UTC | RV-WEBSITE-PL019 | Verify long conversation and composer visibility at desktop and mobile sizes
+# Changed: 2026-10-15 UTC | RV-WEBSITE-PL036 | Verify accessible collapse/expand, persistent rail state, health and snapshot controls
+# Changed: 2026-10-15 UTC | RV-WEBSITE-PL003 | Verify assignment titles resolve only from exact canonical graph/node identity
+# Changed: 2026-10-15 UTC | RV-WEBSITE-PL029 | Verify notification rendering, receipt and decision status remain distinct
+# Changed: 2026-10-16 UTC | RV-WEBSITE-PL038 | Verify searchable canonical workflow, provenance, documentation and evidence catalog
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: scripts/verify_worker_inventory_browser.py
 # History: Git
@@ -61,6 +67,28 @@ EVENTS = [{"seq": seq, "event_id": f"fixture-event-{seq}", "event_type": f"fixtu
            "correlation_id": f"fixture-correlation-{seq}",
            "causation_id": "fixture-parent-event" if seq > 1 else None}
           for seq in range(1, 5)]
+CHAT_EVENTS = []
+for pair in range(1, 21):
+    request_id = f"fixture-chat-request-{pair}"
+    CHAT_EVENTS.extend([
+        {"sequence": pair * 2 - 1, "request_id": request_id, "event_type": "user_message",
+         "occurred_at": f"2026-10-15T00:{pair:02}:00Z", "body": (f"fixture prompt {pair} " + "long transcript text " * 18)},
+        {"sequence": pair * 2, "request_id": request_id, "event_type": "assistant_message",
+         "occurred_at": f"2026-10-15T00:{pair:02}:10Z", "body": (f"fixture response {pair} " + "long response text " * 18),
+         "model_id": "fixture-model", "provider_ref": "fixture-provider"},
+    ])
+NOTIFICATIONS = [
+    {"notification_id": "fixture-notice-delivered", "source_event_id": "fixture-source-event-1",
+     "assignment_id": "fixture-linked", "event_type": "assignment_attention",
+     "summary": "A fixture attention notice.", "source_recorded_at": "2026-10-15T00:01:00Z",
+     "created_at": "2026-10-15T00:01:01Z", "delivery_status": "delivered",
+     "decision_request_id": "fixture-decision-pending", "decision_status": "pending"},
+    {"notification_id": "fixture-notice-acknowledged", "source_event_id": "fixture-source-event-2",
+     "assignment_id": None, "event_type": "attention_resolved",
+     "summary": "A fixture condition event.", "source_recorded_at": "2026-10-15T00:02:00Z",
+     "created_at": "2026-10-15T00:02:01Z", "delivery_status": "acknowledged",
+     "decision_request_id": None, "decision_status": None},
+]
 
 
 def main():
@@ -123,10 +151,43 @@ def main():
                 return self.send_json(401, {"error": "authentication_required"})
             if self.path == "/api/v1/auth/session":
                 return self.send_json(200, {"identity": {"email": "fixture@example.invalid", "roles": ["steward"]}})
+            if self.path == "/api/v1/resident/conversations":
+                return self.send_json(200, {"items": [{"conversation_id": "fixture-chat",
+                    "created_at": "2026-10-15T00:00:00Z", "updated_at": "2026-10-15T00:20:10Z"}]})
+            if self.path.startswith("/api/v1/resident/conversations/fixture-chat"):
+                return self.send_json(200, {"conversation_id": "fixture-chat", "events": CHAT_EVENTS})
             if self.path == "/api/v1/status":
                 return self.send_json(200, STATUS)
             if self.path.startswith("/api/v1/assignments?"):
                 return self.send_json(200, {"status": "available", "items": ASSIGNMENTS, "next_cursor": None})
+            if self.path == "/api/v1/graphs":
+                return self.send_json(200, {"items": [{"graph_id": "rv:test:assignment",
+                    "component_id": "Test Component", "workflow_id": "test-assignment.v1",
+                    "graph_revision": "1.0.0"}]})
+            if self.path.startswith("/api/v1/graphs/"):
+                graph_id = unquote(self.path.rsplit("/", 1)[-1])
+                if graph_id == "rv:test:assignment":
+                    return self.send_json(200, {"graph": {"graph_id": graph_id,
+                        "component_id": "Test Component", "workflow_id": "test-assignment.v1",
+                        "graph_revision": "1.0.0",
+                        "documentation_references": ["docs/components/STATUS_DASHBOARD_COOKBOOK.md"],
+                        "source_references": ["src/riverview_core/status_dashboard/static/app.js"],
+                        "verification_evidence": ["tests/test_status_dashboard.py"],
+                        "nodes": [
+                            {"id": "rv:test:assignment:inspect", "type": "process", "label": "Inspect delivery readiness",
+                             "source_references": ["src/riverview_core/status_dashboard/static/app.js"],
+                             "documentation_references": ["docs/components/STATUS_DASHBOARD_COOKBOOK.md"],
+                             "verification_evidence": ["tests/test_status_dashboard.py"]},
+                            {"id": "rv:test:assignment:worker-failure", "type": "failure", "label": "Worker execution unavailable",
+                             "source_references": ["src/riverview_core/status_dashboard/projection.py"],
+                             "documentation_references": ["docs/components/STATUS_DASHBOARD_COOKBOOK.md"],
+                             "verification_evidence": []},
+                            {"id": "rv:test:assignment:worker-recovery", "type": "recovery", "label": "Retry after verified worker readiness",
+                             "source_references": ["src/riverview_core/status_dashboard/static/workflow.js"],
+                             "documentation_references": ["docs/components/STATUS_DASHBOARD_COOKBOOK.md"],
+                             "verification_evidence": ["tests/test_status_dashboard.py"]},
+                        ]}})
+                return self.send_json(404, {"error": "graph_not_found"})
             if self.path.startswith("/api/v1/events?"):
                 query = parse_qs(urlsplit(self.path).query)
                 if "before_seq" in query:
@@ -140,7 +201,10 @@ def main():
                 return self.send_json(200, {"status": "available", "items": EVENTS[1:3],
                     "next_cursor": None, "older_cursor": 2})
             if self.path.startswith("/api/v1/objectives?"):
-                return self.send_json(200, {"status": "available", "items": []})
+                return self.send_json(200, {"status": "not_initialized", "items": []})
+            if self.path.startswith("/api/v1/notifications?"):
+                return self.send_json(200, {"status": "available", "dispatcher": {"status": "healthy"},
+                    "items": NOTIFICATIONS})
             if self.path.startswith("/api/v1/workers?"):
                 after = "after=worker-cursor" in self.path
                 return self.send_json(200, {"status": "available", "items": WORKERS[3:] if after else WORKERS[:3],
@@ -153,6 +217,14 @@ def main():
                 return self.send_json(200, {"assignment": assignment, "events": [], "attempts": [],
                     "verifications": [], "diagnostic_ref": ("docs/components/STATUS_DASHBOARD_COOKBOOK.md"
                     if assignment_id == "fixture-linked" else "javascript:alert(1)")})
+            return self.send_json(404, {"error": "not_found"})
+
+        def do_POST(self):
+            authenticated = "rv_account_session=fixture-session" in self.headers.get("Cookie", "")
+            requests.append({"path": self.path, "cookie_authenticated": authenticated,
+                             "authorization_present": bool(self.headers.get("Authorization"))})
+            if authenticated and self.path == "/api/v1/resident/conversation-session":
+                return self.send_json(200, {"status": "connected"})
             return self.send_json(404, {"error": "not_found"})
 
     with socket.socket() as reservation:
@@ -206,10 +278,20 @@ def main():
         webdriver("POST", f"/session/{session_id}/url", {"url": f"http://127.0.0.1:{port}/"})
         js("window.__rvBrowserErrors=[];addEventListener('error',e=>window.__rvBrowserErrors.push(String(e.message||'error'))) ")
         wait_js("document.querySelector('#workspace') && !document.querySelector('#workspace').hidden")
+        wait_js("document.querySelector('#rail-health').textContent==='healthy'")
+        rail_initial = js("return {collapsed:document.querySelector('.shell').classList.contains('rail-collapsed'),expanded:document.querySelector('#rail-toggle').getAttribute('aria-expanded'),names:[...document.querySelectorAll('.nav-item')].filter(button=>!button.hidden).every(button=>Boolean(button.getAttribute('aria-label')))}")
+        js("document.querySelector('#rail-toggle').click()")
+        wait_js("document.querySelector('.shell').classList.contains('rail-collapsed')")
+        rail_compact = js("return {expanded:document.querySelector('#rail-toggle').getAttribute('aria-expanded'),label:document.querySelector('#rail-toggle').getAttribute('aria-label'),health:document.querySelector('#pulse-dot').getAttribute('aria-label'),healthVisible:document.querySelector('#pulse-dot').getClientRects().length>0,snapshotVisible:document.querySelector('#snapshot').getClientRects().length>0,snapshotLabel:document.querySelector('#snapshot').getAttribute('aria-label'),navLabelsHidden:[...document.querySelectorAll('.nav-item:not([hidden]) .nav-label')].every(label=>getComputedStyle(label).display==='none')}")
+        js("document.querySelector('#rail-toggle').click()")
+        wait_js("!document.querySelector('.shell').classList.contains('rail-collapsed')")
+        rail_expanded = js("return {expanded:document.querySelector('#rail-toggle').getAttribute('aria-expanded'),label:document.querySelector('#rail-toggle').getAttribute('aria-label'),navLabelsVisible:[...document.querySelectorAll('.nav-item:not([hidden]) .nav-label')].every(label=>getComputedStyle(label).display!=='none')}")
         js("document.querySelector('[data-view=assignments]').click()")
         wait_js("document.querySelector('#assignment-list [data-assignment=fixture-linked]')")
+        wait_js("document.querySelector('#assignment-list [data-assignment-title=fixture-linked]').textContent.includes('Inspect delivery readiness')")
+        assignment_list_title = js("return {title:document.querySelector('#assignment-list [data-assignment-title=fixture-linked]').textContent,id:document.querySelector('#assignment-list [data-assignment=fixture-linked] .row-main').textContent}")
         js("document.querySelector('#assignment-list [data-assignment=fixture-linked]').click()")
-        detail = wait_js("document.querySelector('#assignment-detail').textContent.includes('rv:test:assignment:inspect')")
+        detail = wait_js("document.querySelector('#assignment-detail').textContent.includes('Inspect delivery readiness') && document.querySelector('#assignment-detail').textContent.includes('rv:test:assignment:inspect')")
         first = js("return {text:document.querySelector('#assignment-detail').innerText,href:document.querySelector('#assignment-detail a')?.getAttribute('href')}")
         screenshot = base64.b64decode(webdriver("GET", f"/session/{session_id}/screenshot")["value"])
         js("document.querySelector('#assignment-list [data-assignment=fixture-unlinked]').click()")
@@ -252,7 +334,9 @@ def main():
         handles_after_return = webdriver("GET", f"/session/{session_id}/window/handles")["value"]
         webdriver("POST", f"/session/{session_id}/window", {"handle": dashboard_handle})
         dashboard_url_after_return = webdriver("GET", f"/session/{session_id}/url")["value"]
-        js("document.querySelector('#view-activity .diagnostics a').click()")
+        js("document.querySelector('[data-view=documentation]').click()")
+        wait_js("document.querySelector('#view-documentation:not([hidden]) a[href=\\\"/docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md\\\"]')")
+        js("document.querySelector('#view-documentation a[href=\\\"/docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md\\\"]').click()")
         time.sleep(0.5)
         handles_after_second_doc = webdriver("GET", f"/session/{session_id}/window/handles")["value"]
         webdriver("POST", f"/session/{session_id}/window", {"handle": docs_handle})
@@ -262,22 +346,59 @@ def main():
             "handles_after_second_doc": handles_after_second_doc, "first_docs_url": first_docs_url,
             "dashboard_url_after_return": dashboard_url_after_return, "second_docs_url": second_docs_url}
         webdriver("POST", f"/session/{session_id}/window", {"handle": dashboard_handle})
+        js("document.querySelector('[data-view=objectives]').click()")
+        wait_js("document.querySelector('#objective-state').textContent.includes('not initialized')")
+        objective_guidance = js("return {status:document.querySelector('#objective-state').textContent,text:document.querySelector('#objective-readiness-guidance').textContent}")
+        chat_guidance = js("return document.querySelector('#chat-controls-guidance').textContent")
+        milestone_guidance = js("return document.querySelector('#overview-guidance').textContent")
+        chat_actions = js("return [...document.querySelectorAll('.chat-more-menu button')].map(button=>({text:button.textContent,disabled:button.disabled}))")
+        webdriver("POST", f"/session/{session_id}/window/rect", {"x": 0, "y": 0, "width": 390, "height": 844})
+        if not js("return document.querySelector('.shell').classList.contains('rail-collapsed')"):
+            js("document.querySelector('#rail-toggle').click()")
+            wait_js("document.querySelector('.shell').classList.contains('rail-collapsed')")
+        js("document.querySelector('[data-view=grace-chat]').click()")
+        wait_js("document.querySelector('#chat-history').textContent.includes('fixture response 20')")
+        js("document.querySelector('#chat-form').scrollIntoView({block:'end'})")
+        chat_layout_mobile = js("const box=document.querySelector('#chat-history'),last=box.querySelector('.message-row:last-child'),composer=document.querySelector('#chat-form');const b=box.getBoundingClientRect(),l=last.getBoundingClientRect(),c=composer.getBoundingClientRect();return {messages:box.querySelectorAll('.message-row').length,scrollHeight:box.scrollHeight,clientHeight:box.clientHeight,scrollTop:box.scrollTop,lastMessage:last.innerText,boxBottom:b.bottom,lastBottom:l.bottom,composerTop:c.top,composerBottom:c.bottom,viewportHeight:innerHeight,documentWidth:document.documentElement.scrollWidth,viewportWidth:innerWidth,overflowing:[...document.querySelectorAll('body *')].map(e=>({tag:e.tagName,id:e.id,cls:String(e.className||''),right:Math.round(e.getBoundingClientRect().right),width:Math.round(e.getBoundingClientRect().width)})).filter(e=>e.right>innerWidth+1).slice(0,8)}")
+        chat_screenshot = base64.b64decode(webdriver("GET", f"/session/{session_id}/screenshot")["value"])
+        js("document.querySelector('[data-view=notifications]').click()")
+        wait_js("document.querySelector('#notification-list').textContent.includes('Person seen: not reported by this source')")
+        notification_lifecycle = js("return document.querySelector('#notification-list').innerText")
+        js("document.querySelector('[data-view=documentation]').click()")
+        wait_js("document.querySelector('#documentation-catalog').textContent.includes('Worker execution unavailable')")
+        catalog_initial = js("return {state:document.querySelector('#documentation-catalog-state').textContent,text:document.querySelector('#documentation-catalog').innerText,documentTarget:document.querySelector('#documentation-catalog a')?.target}")
+        catalog_screenshot = base64.b64decode(webdriver("GET", f"/session/{session_id}/screenshot")["value"])
+        js("document.querySelector('#documentation-search').value='retry after verified worker readiness';document.querySelector('#documentation-search').dispatchEvent(new Event('input',{bubbles:true}))")
+        catalog_search = js("return {state:document.querySelector('#documentation-catalog-state').textContent,text:document.querySelector('#documentation-catalog').innerText}")
         errors = js("return window.__rvBrowserErrors")
         protected_requests = [r for r in requests if r["path"].startswith("/api/v1/")]
         report = {"browser": subprocess.check_output(["firefox", "--version"], text=True).strip(),
                   "mode": "isolated_synthetic_account_cookie_fixture", "first_assignment": first,
+                  "assignment_list_title": assignment_list_title,
                   "unlinked_assignment": second, "first_worker_page": first_page,
                   "worker_inventory": inventory, "mobile_worker_row": mobile,
                   "overview_guidance": guidance,
                   "initial_event_page": initial_event_page, "older_event_page": older_event_page,
                   "activity_paging": event_paging,
                   "documentation_navigation": docs_navigation,
+                  "objective_readiness_guidance": objective_guidance,
+                  "chat_control_guidance": chat_guidance,
+                  "milestone_guidance": milestone_guidance,
+                  "chat_menu_actions": chat_actions,
+                  "chat_layout_mobile": chat_layout_mobile,
+                  "notification_lifecycle": notification_lifecycle,
+                  "documentation_catalog": catalog_initial,
+                  "documentation_catalog_search": catalog_search,
+                  "rail_initial": rail_initial,
+                  "rail_compact": rail_compact,
+                  "rail_expanded": rail_expanded,
                   "api_requests": protected_requests, "browser_errors": errors,
                   "screenshot_bytes": len(screenshot), "checks": {}}
         report["checks"] = {
             "graph_and_node_ids_rendered": "rv:test:assignment:inspect" in first["text"],
             "safe_documentation_link": first["href"] == "/docs/components/STATUS_DASHBOARD_COOKBOOK.md",
             "missing_identity_is_explicit": "No process node ID recorded" in second["text"],
+            "canonical_assignment_title_is_paired_with_stable_ids": "Inspect delivery readiness" in assignment_list_title["title"] and assignment_list_title["id"] == "fixture-linked" and "Inspect delivery readiness" in first["text"] and "rv:test:assignment:inspect" in first["text"],
             "unsafe_diagnostic_not_linked": second["unsafeLinks"] == 0,
             "inactive_registration_visible": "Registered · inactive" in inventory["rows"],
             "heartbeat_states_distinct": all(value in inventory["rows"].lower() for value in ["heartbeat healthy", "heartbeat stale", "heartbeat unknown"]),
@@ -293,6 +414,19 @@ def main():
             "documentation_link_uses_reusable_named_tab": len(docs_navigation["handles_after_first_doc"]) == 2 and docs_navigation["first_docs_url"].endswith("STATUS_DASHBOARD_COOKBOOK.md"),
             "documentation_return_reuses_dashboard_window": len(docs_navigation["handles_after_dashboard_return"]) == 2 and docs_navigation["dashboard_url_after_return"].endswith("/#activity"),
             "second_document_reuses_documentation_tab": len(docs_navigation["handles_after_second_doc"]) == 2 and docs_navigation["second_docs_url"].endswith("RIVERVIEW_OPERATIONS_COOKBOOK.md"),
+            "objective_not_initialized_guidance_names_safe_next_step": objective_guidance["status"].endswith("not initialized · 0 observed") and "does not apply migrations" in objective_guidance["text"] and "A responsive chat is separate" in objective_guidance["text"],
+            "chat_controls_explain_session_history_and_newlines": all(term in chat_guidance for term in ["ends this browser's Grace session", "saved history remains", "reloads the current saved conversation", "Shift+Enter"]),
+            "milestone_label_is_distinguished_from_release_acceptance": "DASHBOARD MILESTONE M3.1" in js("return document.querySelector('.topbar .eyebrow').textContent") and "roadmap progress, deployed release, and commissioning acceptance are tracked separately" in milestone_guidance,
+            "chat_menu_marks_future_actions_unavailable": len(chat_actions) == 7 and all(item["disabled"] for item in chat_actions if any(term in item["text"] for term in ["future capability", "unavailable", "coming later"])),
+            "chat_transcript_scrolls_and_last_message_is_visible": chat_layout_mobile["messages"] == 40 and chat_layout_mobile["scrollHeight"] > chat_layout_mobile["clientHeight"] and chat_layout_mobile["scrollTop"] >= chat_layout_mobile["scrollHeight"] - chat_layout_mobile["clientHeight"] - 2 and "fixture response 20" in chat_layout_mobile["lastMessage"] and chat_layout_mobile["lastBottom"] <= chat_layout_mobile["boxBottom"] + 1,
+            "mobile_chat_composer_is_visible_without_horizontal_overflow": chat_layout_mobile["composerBottom"] <= chat_layout_mobile["viewportHeight"] + 1 and chat_layout_mobile["documentWidth"] <= chat_layout_mobile["viewportWidth"] and chat_layout_mobile["composerTop"] >= chat_layout_mobile["boxBottom"] - 1,
+            "rail_collapses_with_explicit_accessible_state": rail_initial["expanded"] == "true" and rail_initial["names"] and rail_compact["expanded"] == "false" and rail_compact["label"] == "Expand navigation" and rail_compact["navLabelsHidden"],
+            "compact_rail_retains_accessible_health_and_snapshot": rail_compact["health"] == "Source health: healthy" and rail_compact["healthVisible"] and rail_compact["snapshotVisible"] and rail_compact["snapshotLabel"] == "Download bounded diagnostic snapshot",
+            "rail_expands_with_visible_labels": rail_expanded["expanded"] == "true" and rail_expanded["label"] == "Collapse navigation" and rail_expanded["navLabelsVisible"],
+            "notification_render_receipt_and_person_seen_are_separate": "Dashboard rendering: confirmed" in notification_lifecycle and "Person seen: not reported by this source" in notification_lifecycle and "Receipt acknowledgment: not recorded" in notification_lifecycle and "Acknowledge receipt" in notification_lifecycle,
+            "notification_decision_status_is_separate_from_receipt": "Decision request: fixture-decision-pending · status pending" in notification_lifecycle and "A receipt cannot resolve this request" in notification_lifecycle and "Receipt acknowledgment: recorded" in notification_lifecycle and "attention resolved" in notification_lifecycle and "Decision request: none linked" in notification_lifecycle,
+            "documentation_catalog_lists_workflows_provenance_and_evidence": "1 of 1 registered workflows" in catalog_initial["state"] and "Test Component" in catalog_initial["text"] and "Worker execution unavailable" in catalog_initial["text"] and "Retry after verified worker readiness" in catalog_initial["text"] and "src/riverview_core/status_dashboard/projection.py" in catalog_initial["text"] and "tests/test_status_dashboard.py" in catalog_initial["text"] and "STATUS_DASHBOARD_COOKBOOK.md" in catalog_initial["text"] and catalog_initial["documentTarget"] == "rv-dashboard-documentation",
+            "documentation_catalog_search_filters_registered_recovery_steps": "1 of 1 registered workflows" in catalog_search["state"] and "Retry after verified worker readiness" in catalog_search["text"] and "Inspect delivery readiness" not in catalog_search["text"],
             "requests_use_account_cookie": bool(protected_requests) and all(r["cookie_authenticated"] for r in protected_requests),
             "no_bearer_authorization": all(not r["authorization_present"] for r in protected_requests),
             "no_browser_errors": not errors,
@@ -300,6 +434,8 @@ def main():
         report["failed_checks"] = [name for name, passed in report["checks"].items() if not passed]
         (args.output / "worker-inventory.png").write_bytes(screenshot)
         (args.output / "activity-pagination.png").write_bytes(activity_screenshot)
+        (args.output / "chat-layout-mobile.png").write_bytes(chat_screenshot)
+        (args.output / "documentation-catalog.png").write_bytes(catalog_screenshot)
         (args.output / "browser-acceptance.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
         print(json.dumps(report, sort_keys=True))
         if report["failed_checks"]:

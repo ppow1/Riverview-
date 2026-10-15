@@ -1,0 +1,29 @@
+{
+  "artifacts": {
+    "activity-pagination.png": {
+      "path": "activity-pagination.png",
+      "revision": "1.0.0",
+      "sha256": "b86d248f3f0e780d42884c160cda112a9ef5263bb717acde1bb0c380cf1ee289",
+      "size_bytes": 239419
+    },
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "4e1230b18528d4ebb479be1385081849e0ca289296d11cddc7fdd6003050327d",
+      "size_bytes": 11864
+    },
+    "chat-layout-mobile.png": {
+      "path": "chat-layout-mobile.png",
+      "revision": "1.0.0",
+      "sha256": "e9ef83f0f4af657b6dbe4461a1a54d91afc4319f4c2c41541802f5f23282439b",
+      "size_bytes": 92042
+    },
+    "worker-inventory.png": {
+      "path": "worker-inventory.png",
+      "revision": "1.0.0",
+      "sha256": "46323ba387d507b9527cad8e2e0ab692e3837e46da23f22e78263acd5b0c6016",
+      "size_bytes": 140910
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

@@ -1,0 +1,290 @@
+{
+  "activity_paging": {
+    "newerHidden": false,
+    "olderHidden": true,
+    "sequences": [
+      "seq 1",
+      "seq 2",
+      "seq 3",
+      "seq 4"
+    ]
+  },
+  "api_requests": [
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/auth/session"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/status"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/assignments?limit=25"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/events?limit=25"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/objectives?limit=25"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/status"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/graphs/rv%3Atest%3Aassignment"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/workers?limit=25"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/assignments/fixture-linked"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/assignments/fixture-unlinked"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/workers?limit=25&after=worker-cursor"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/events?before_seq=2&limit=25"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/events?after_seq=3&limit=25"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/objectives?limit=25"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/status"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/events?after_seq=4&limit=25"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/workers?limit=25"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/resident/conversation-session"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/resident/conversations"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/resident/conversations/fixture-chat"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/notifications?limit=25"
+    }
+  ],
+  "assignment_list_title": {
+    "id": "fixture-linked",
+    "title": "Task title \u00b7 Inspect delivery readiness"
+  },
+  "browser": "Mozilla Firefox 156.0.1",
+  "browser_errors": [],
+  "chat_control_guidance": "Disconnect ends this browser's Grace session and hides the transcript; saved history remains. Refresh history reloads the current saved conversation. Enter sends a message; Shift+Enter or Insert line break adds a newline.",
+  "chat_layout_mobile": {
+    "boxBottom": 544.6333312988281,
+    "clientHeight": 438,
+    "composerBottom": 757.63330078125,
+    "composerTop": 564.63330078125,
+    "documentWidth": 488,
+    "lastBottom": 516,
+    "lastMessage": "Grace\n10/14/2026, 8:20:10 PM\n10.0 seconds\nCompleted\nfixture-model \u00b7 fixture-provider\nfixture response 20 long response text long response text long response text long response text long response text long response text long response text long response text long response text long response text long response text long response text long response text long response text long response text long response text long response text long response text \n\u22ef",
+    "messages": 40,
+    "overflowing": [],
+    "scrollHeight": 15488,
+    "scrollTop": 15050,
+    "viewportHeight": 758,
+    "viewportWidth": 500
+  },
+  "chat_menu_actions": [
+    {
+      "disabled": false,
+      "text": "Chat details"
+    },
+    {
+      "disabled": false,
+      "text": "Copy selected message"
+    },
+    {
+      "disabled": false,
+      "text": "Copy conversation"
+    },
+    {
+      "disabled": true,
+      "text": "Edit submitted message \u2014 future capability"
+    },
+    {
+      "disabled": true,
+      "text": "Forward to Riverview \u2014 unavailable"
+    },
+    {
+      "disabled": true,
+      "text": "Image generation \u2014 coming later"
+    },
+    {
+      "disabled": true,
+      "text": "Attachments \u2014 coming later"
+    }
+  ],
+  "checks": {
+    "activity_page_controls_match_cursors": true,
+    "canonical_assignment_title_is_paired_with_stable_ids": true,
+    "chat_controls_explain_session_history_and_newlines": true,
+    "chat_menu_marks_future_actions_unavailable": true,
+    "chat_transcript_scrolls_and_last_message_is_visible": true,
+    "compact_rail_retains_accessible_health_and_snapshot": true,
+    "documentation_link_uses_reusable_named_tab": true,
+    "documentation_return_reuses_dashboard_window": true,
+    "event_cards_disclose_payload_and_diagnostic_boundary": true,
+    "event_cards_show_actor_schema_causation_and_assignment": true,
+    "graph_and_node_ids_rendered": true,
+    "heartbeat_states_distinct": true,
+    "inactive_registration_visible": true,
+    "loaded_inventory_counts_reconcile": true,
+    "milestone_label_is_distinguished_from_release_acceptance": true,
+    "missing_identity_is_explicit": true,
+    "mobile_chat_composer_is_visible_without_horizontal_overflow": true,
+    "mobile_worker_row_fits": true,
+    "newer_event_page_appended_without_duplicates": true,
+    "no_bearer_authorization": true,
+    "no_browser_errors": true,
+    "notification_decision_status_is_separate_from_receipt": true,
+    "notification_render_receipt_and_person_seen_are_separate": true,
+    "objective_not_initialized_guidance_names_safe_next_step": true,
+    "older_event_page_prepended": true,
+    "overview_health_guidance_present": true,
+    "pagination_boundary_is_truthful": true,
+    "rail_collapses_with_explicit_accessible_state": true,
+    "rail_expands_with_visible_labels": true,
+    "requests_use_account_cookie": true,
+    "safe_documentation_link": true,
+    "second_document_reuses_documentation_tab": true,
+    "unsafe_diagnostic_not_linked": true
+  },
+  "documentation_navigation": {
+    "dashboard_handle": "2d949e89-8e13-41cc-b5f7-3d762f12a484",
+    "dashboard_url_after_return": "http://127.0.0.1:58945/#activity",
+    "documentation_handle": "9b21737d-04b2-410d-8a69-9b64b5080504",
+    "first_docs_url": "http://127.0.0.1:58945/docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+    "handles_after_dashboard_return": [
+      "2d949e89-8e13-41cc-b5f7-3d762f12a484",
+      "9b21737d-04b2-410d-8a69-9b64b5080504"
+    ],
+    "handles_after_first_doc": [
+      "2d949e89-8e13-41cc-b5f7-3d762f12a484",
+      "9b21737d-04b2-410d-8a69-9b64b5080504"
+    ],
+    "handles_after_second_doc": [
+      "2d949e89-8e13-41cc-b5f7-3d762f12a484",
+      "9b21737d-04b2-410d-8a69-9b64b5080504"
+    ],
+    "second_docs_url": "http://127.0.0.1:58945/docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md"
+  },
+  "failed_checks": [],
+  "first_assignment": {
+    "href": "/docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+    "text": "ASSIGNMENT DETAIL \u00b7 READ ONLY\nfixture-linked ACTIVE\nCanonical task title\nInspect delivery readiness\nWorkflow\nrv:test:assignment / inspect\nOwner\nfixture\nCorrelation\nfixture-correlation\nVersion\n3\nObserved update\n10/14/2026, 8:00:00 PM\nCanonical graph ID\nrv:test:assignment\nCanonical node ID\nrv:test:assignment:inspect\nDiagnostic reference\ndocs/components/STATUS_DASHBOARD_COOKBOOK.md\n\nTask title is read from the registered graph node matching persisted graph/node IDs. Missing or unresolved references are not inferred as a live workflow position.\n\nIndependent verification\nNo verification record was returned.\nWorker attempts\nNo attempt rows returned.\nRecent lifecycle events\nNo institution events in this page."
+  },
+  "first_worker_page": {
+    "pagerHidden": false,
+    "rows": "worker-active\nRegistered \u00b7 active\nHEARTBEAT HEALTHY\n1 active leases \u00b7 heartbeat 10/14/2026, 8:00:00 PM\nworker-inactive\nRegistered \u00b7 inactive\nREGISTRY INACTIVE\n0 active leases \u00b7 heartbeat time unavailable\nworker-stale\nRegistered \u00b7 active\nHEARTBEAT STALE\n0 active leases \u00b7 heartbeat 10/13/2026, 8:00:00 PM",
+    "summary": "Loaded pages: 3 registered \u00b7 2 active \u00b7 1 inactive \u00b7 0 registration unknown \u00b7 heartbeat 1 healthy / 1 stale / 0 unknown or unverified \u00b7 more records available"
+  },
+  "initial_event_page": {
+    "newerHidden": false,
+    "olderHidden": false,
+    "rows": [
+      "seq 2",
+      "seq 3"
+    ]
+  },
+  "milestone_guidance": "Event cursor is the last observed institution event sequence, not an event count. Projection health and freshness describe the read-only ledger response; CME and worker health use separate heartbeat signals. Grace execution status describes its execution registry and is separate from chat availability. Refresh reads use browser cache bypass; the displayed time is the source observation time. Healthy means the required ledger query succeeded; not initialized means PostgreSQL responded but required ledger tables are absent; unavailable means current state could not be confirmed. M3.1 identifies this dashboard milestone; roadmap progress, deployed release, and commissioning acceptance are tracked separately.",
+  "mobile_worker_row": {
+    "grid": "98.5px 98.5px",
+    "overflow": false
+  },
+  "mode": "isolated_synthetic_account_cookie_fixture",
+  "notification_lifecycle": "assignment attention\n\nA fixture attention notice.\n\nfixture-linked \u00b7 source 10/14/2026, 8:01:00 PM \u00b7 queued 10/14/2026, 8:01:01 PM\nDashboard rendering: confirmed \u00b7 Person seen: not reported by this source \u00b7 Receipt acknowledgment: not recorded\nDecision request: fixture-decision-pending \u00b7 status pending. A receipt cannot resolve this request.\nDELIVERED\nAcknowledge receipt\nattention resolved\n\nA fixture condition event.\n\nService event \u00b7 source 10/14/2026, 8:02:00 PM \u00b7 queued 10/14/2026, 8:02:01 PM\nDashboard rendering: confirmed \u00b7 Person seen: not reported by this source \u00b7 Receipt acknowledgment: recorded\nDecision request: none linked in this projection.\nACKNOWLEDGED\nACKNOWLEDGED",
+  "objective_readiness_guidance": {
+    "status": "Source not initialized \u00b7 0 observed",
+    "text": "If the source reports not initialized, verify the selected database and schema against the reviewed resident-execution migrations. Refresh reads the projection; it does not apply migrations or commission the Grace executor, CME dispatcher, or workers. A responsive chat is separate from durable objective execution."
+  },
+  "older_event_page": [
+    "seq 1",
+    "seq 2",
+    "seq 3"
+  ],
+  "overview_guidance": "Event cursor is the last observed institution event sequence, not an event count. Projection health and freshness describe the read-only ledger response; CME and worker health use separate heartbeat signals. Grace execution status describes its execution registry and is separate from chat availability. Refresh reads use browser cache bypass; the displayed time is the source observation time. Healthy means the required ledger query succeeded; not initialized means PostgreSQL responded but required ledger tables are absent; unavailable means current state could not be confirmed. M3.1 identifies this dashboard milestone; roadmap progress, deployed release, and commissioning acceptance are tracked separately.",
+  "rail_compact": {
+    "expanded": "false",
+    "health": "Source health: healthy",
+    "healthVisible": true,
+    "label": "Expand navigation",
+    "navLabelsHidden": true,
+    "snapshotLabel": "Download bounded diagnostic snapshot",
+    "snapshotVisible": true
+  },
+  "rail_expanded": {
+    "expanded": "true",
+    "label": "Collapse navigation",
+    "navLabelsVisible": true
+  },
+  "rail_initial": {
+    "collapsed": false,
+    "expanded": "true",
+    "names": true
+  },
+  "screenshot_bytes": 134852,
+  "unlinked_assignment": {
+    "text": "ASSIGNMENT DETAIL \u00b7 READ ONLY\nfixture-unlinked BLOCKED\nCanonical task title\nNo canonical graph/node reference recorded\nWorkflow\nrv:test:assignment / unknown\nOwner\nfixture\nCorrelation\nfixture-correlation-2\nVersion\n1\nObserved update\ntime unavailable\nCanonical graph ID\nNo graph ID recorded\nCanonical node ID\nNo process node ID recorded\nDiagnostic reference\njavascript:alert(1)\n\nTask title is read from the registered graph node matching persisted graph/node IDs. Missing or unresolved references are not inferred as a live workflow position.\n\nIndependent verification\nNo verification record was returned.\nWorker attempts\nNo attempt rows returned.\nRecent lifecycle events\nNo institution events in this page.",
+    "unsafeLinks": 0
+  },
+  "worker_inventory": {
+    "pageNote": "4 observed in loaded pages \u00b7 page limit 25",
+    "pagerHidden": true,
+    "rows": "worker-active\nRegistered \u00b7 active\nHEARTBEAT HEALTHY\n1 active leases \u00b7 heartbeat 10/14/2026, 8:00:00 PM\nworker-inactive\nRegistered \u00b7 inactive\nREGISTRY INACTIVE\n0 active leases \u00b7 heartbeat time unavailable\nworker-stale\nRegistered \u00b7 active\nHEARTBEAT STALE\n0 active leases \u00b7 heartbeat 10/13/2026, 8:00:00 PM\nworker-unknown\nRegistration state unknown\nHEARTBEAT UNKNOWN\n0 active leases \u00b7 heartbeat time unavailable",
+    "summary": "Loaded pages: 4 registered \u00b7 2 active \u00b7 1 inactive \u00b7 1 registration unknown \u00b7 heartbeat 1 healthy / 1 stale / 1 unknown or unverified \u00b7 all records observed"
+  }
+}

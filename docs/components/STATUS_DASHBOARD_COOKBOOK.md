@@ -1,7 +1,7 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.9
+File Revision: 1.1.15
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
@@ -18,6 +18,12 @@ Changed: 2026-10-15 UTC | RV-WEBSITE-PL011 | Explain older/newer sequence paging
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL012 | Explain event provenance and projection diagnostic limits
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL014 | Explain projection refresh, cache, freshness and status transitions
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL016 | Document reusable named-tab navigation and Firefox verification.
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL010/015/020/023/024 | Explain Grace readiness, chat controls, action states and milestone copy.
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL019 | Document independent transcript scrolling and narrow-screen composer recovery.
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL036 | Document navigation rail preferences, accessible states, and compact affordances.
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL003 | Document exact graph/node title lookup and unresolved-title behavior.
+Changed: 2026-10-16 UTC | RV-WEBSITE-PL029 | Explain delivery, person-seen, receipt and decision lifecycle boundaries.
+Changed: 2026-10-16 UTC | RV-WEBSITE-PL038 | Add searchable graph registry traceability catalog and qualify references.
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -53,6 +59,20 @@ persisted process-node identity with a current execution position. Assignment de
 also displays the nullable `process_graph_id` and `process_node_id` fields as recorded;
 those references alone do not establish that execution is currently at that node.
 Missing identity is shown as not recorded and is never inferred.
+
+The **Documentation and diagnostics** view replaces the fixed Activity and
+Workflows diagnostic shortcuts with a searchable index built on demand from the
+same authenticated graph registry. It displays each registered graph's component,
+workflow, graph revision, process/failure/recovery nodes, linked component
+troubleshooting documents, source provenance, and declared test/evidence
+references. A search narrows matching nodes and references within each matching
+workflow. Component documents retain the freshness and recovery instructions;
+the index does not manufacture a freshness value. Declared evidence paths are
+traceability pointers only: they do not establish that a test passed or prove
+semantic test coverage. If a workflow has no declared references, the interface
+states that none are declared. The index is limited to the first 50 registry
+entries and reports the returned workflow count; review the Workflows view for
+interactive graph inspection.
 
 An unknown graph ID returns `404 process_graph_not_found`. Source unavailability
 is displayed as unavailable, with no stale highlight. Check the canonical source
@@ -360,3 +380,109 @@ The account-cookie fixture must report `documentation_link_uses_reusable_named_t
 browsing contexts, and report no browser errors. Latest evidence:
 `evidence/checkouts/WEBSITE-PL016/20261015T212500Z-documentation-navigation/`.
 The earlier failed iteration is retained separately and is not acceptance evidence.
+
+
+## Grace readiness, chat controls and milestone labels (PL-NEW-010/015/020/023/024)
+
+Grace conversation access and durable objective execution are separate surfaces.
+An available conversation does not prove the objective schema, Grace executor,
+CME dispatcher or workers are commissioned. If the objective source reports
+`not_initialized`, verify the selected database/schema and reviewed resident
+execution migration inventory. Refresh only re-reads the projection; dashboard
+startup and Refresh never apply migrations or commission runtime services. Use
+the [Grace execution commissioning cookbook](GRACE_EXECUTION_COOKBOOK.md) for
+its authorized service and migration checks.
+
+In the conversation view, Disconnect ends the browser's Grace session and hides
+the transcript while persisted history remains. Refresh history reloads the
+selected saved conversation. Enter sends; Shift+Enter and Insert line break add
+a newline. Menu options marked unavailable or future remain disabled. The M3.1
+header names the dashboard milestone; roadmap progress, deployed release, and
+commissioning acceptance are independent records.
+
+The isolated Firefox run `evidence/checkouts/WEBSITE-CLARITY/20261015T215000Z-guidance-and-controls/` verifies the `not_initialized` case, wording, all seven menu action states, and milestone label. It does not establish production acceptance.
+
+
+## Conversation clipping and composer recovery (PL-NEW-019)
+
+The transcript owns its own vertical scroll area. The message composer follows
+it in document flow instead of sticking over the transcript; after a long history,
+scroll the page to the composer while the transcript retains its last-message
+scroll position. At narrow widths, the dashboard header stacks and wraps its
+account controls so they do not force document-wide horizontal scrolling.
+
+The isolated fixture supplies 40 long synthetic messages and checks that the
+transcript overflows vertically, remains at its last message after page scrolling,
+and the composer is visible below it without horizontal overflow. The browser
+request for 390px was clamped by Firefox to a 500px CSS viewport; physical-device
+verification below that width remains open. Passing evidence:
+`evidence/checkouts/WEBSITE-PL019/20261015T224500Z-conversation-layout/`.
+
+
+## Collapsible navigation (PL-NEW-036)
+
+Use the rail control labelled “Collapse navigation” to switch to the compact
+icon state; it becomes “Expand navigation” while compact. The preference is
+saved in this browser. Every view button retains an accessible name when its
+visible text is compacted. The health dot exposes the current source health as
+accessible text, and the snapshot download remains available in compact mode.
+The application defaults to compact navigation on screens at or below 920px
+when no preference has been saved.
+
+The isolated browser run verifies both states, ARIA expansion values, navigation
+labels, health status and snapshot visibility. Evidence:
+`evidence/checkouts/WEBSITE-PL036/20261015T231000Z-collapsible-navigation/`.
+
+
+## Assignment task titles and IDs (PL-NEW-003)
+
+Assignment rows retain the stable assignment ID. When both persisted process
+graph and node IDs are present, the browser retrieves that canonical graph and
+uses the exact matching node's registered label as the task title. The detail
+view retains assignment, workflow, graph, and node IDs alongside the label. If
+either ID is missing, the graph is unavailable, or the exact node is absent, the
+UI reports the title unavailable and does not guess from `workflow_step`.
+
+The authenticated graph API is read-only. The isolated Firefox fixture verifies
+a registered title, stable identifiers, explicit missing references, and
+cookie-only graph requests. Evidence: `evidence/checkouts/WEBSITE-PL003/20261015T233000Z-canonical-task-title/`.
+Assignment purpose, request, deliverable, result, acceptance criteria, evidence,
+and blocked-action details are not in this projection; those remain blocked on
+the integration-owned assignment contract recorded in the recovered punch list.
+
+
+## Notification delivery, person-seen, receipt and decision state (PL-NEW-029)
+
+The notification API's `delivered` state means an authenticated dashboard client
+confirmed rendering while the Notifications view was visible. It does not report
+that a person saw the message. The website explicitly shows “Person seen: not
+reported by this source.” `acknowledged` records a separate receipt action and
+has no decision authority. A linked decision request and its current status are
+shown separately; an `attention_resolved` event describes the attention
+condition, not approval, denial, or decision resolution.
+
+The current API has no `seen_at`/`seen_by` state and M3.2 has no decision
+resolution operation/outcome contract. Full PL-NEW-029 closure requires the
+integration owner to define sourced decision outcomes (`approved`, `denied`,
+`resolved`) with actor/time/provenance and preserve the distinction from delivery
+and receipts. The website must not infer those states. Passing isolated evidence:
+`evidence/checkouts/WEBSITE-PL029/20261016T001000Z-notification-state-clarity/`.
+
+
+## Searchable workflow and diagnostic catalog (PL-NEW-038)
+
+The Documentation and diagnostics navigation view queries the authenticated
+canonical graph index and its graph details when opened. It displays component
+and graph revision, process/failure/recovery node labels, component-document
+links, source provenance, and declared test/evidence references. Search narrows
+matching workflows and then filters their nodes and references. Activity and
+Workflows diagnostic shortcuts open this index; the allowlisted documentation
+links open in the reusable documentation tab.
+
+The registry currently declares document/source/evidence paths, not effective
+freshness policies or semantic coverage outcomes. Use the linked component
+documents for freshness/troubleshooting instructions. A reference path does not
+mean its test passed, and it is not a semantic coverage result. Full PL-NEW-038
+acceptance remains blocked until an authoritative source provides attributable
+freshness metadata and test-coverage outcomes. Isolated Firefox evidence:
+`evidence/checkouts/WEBSITE-PL038/20261016T020000Z-searchable-workflow-catalog/`.

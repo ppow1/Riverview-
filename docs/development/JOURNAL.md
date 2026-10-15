@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.131
+**Document Revision:** 1.0.138
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
@@ -19,6 +19,12 @@
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL012 | Record Activity provenance UI and event-source limitations
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL014 | Record projection status guidance, browser verification and source semantics
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL016 | Verify documentation tab reuse and return without duplicate dashboard windows
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL010/015/020/023/024 | Record readiness, control, menu and milestone usability verification
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL019 | Record narrow-screen conversation overflow defect, correction, and evidence
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL036 | Record accessible persistent navigation collapse and browser evidence
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL003 | Record exact canonical task-title lookup and assignment-contract gaps
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PL029 | Clarify notification delivery/receipt and record seen/decision API blockers
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PL038 | Record searchable catalog behavior, isolated browser evidence, and freshness/coverage source boundary
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PR42-RECONCILE | Preserve PR #44 integration journal entry and record current base reconciliation
 **Changed:** 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow the explicitly reviewed supervised Bash runner in exact-source packages while retaining strict checks for other scripts
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
@@ -1770,3 +1776,159 @@ preserved in the adjacent `20261015T211500Z-documentation-navigation/`
 directory. Production acceptance remains pending controlled integration and
 deployment. No production service, database, schema, grant, CME, worker, OCTO
 configuration, or deployment was touched.
+
+
+## 2026-10-15 UTC — RV-WEBSITE-PL010/015/020/023/024
+
+**Classification:** Grace execution readiness, objective commissioning, chat
+controls, menu availability, and dashboard milestone semantics.
+**Owner:** STEWARD-DASHBOARD / website presentation.
+
+The overview and Objectives view now state that conversation access and durable
+execution have separate readiness. An uninitialized objective source directs the
+Steward to verify the selected database/schema and reviewed resident-execution
+migrations; Refresh is read-only and does not commission CME or workers. The
+conversation view explains Disconnect (session ends, persisted history remains),
+Refresh history, Enter/Shift+Enter, and Insert line break. Existing future or
+unavailable menu choices remain disabled and are explicitly labeled. The header
+identifies M3.1 as the dashboard milestone and separates roadmap, deployed
+release, and commissioning status.
+
+Focused tests passed 2/2. Isolated Firefox account-cookie browser verification
+passed 25/25 checks with no browser errors, including a synthetic objective
+`not_initialized` response, all menu states, and mobile layout. The canonical
+process graph already represents these existing view and refresh paths; no state
+transition or route changed. No PR #40 streaming code, backend, authorization,
+CME, database, service, or production configuration changed. Production
+acceptance remains pending. Evidence will be checksummed under
+`evidence/checkouts/WEBSITE-CLARITY/20261015T215000Z-guidance-and-controls/`.
+
+
+## 2026-10-15 UTC — RV-WEBSITE-PL019
+
+**Classification:** conversation transcript and composer visibility.
+**Owner:** STEWARD-DASHBOARD / website presentation.
+
+A synthetic 40-message Firefox run exposed an overlay: the sticky composer
+covered the lower portion of the separately scrollable transcript. The same run
+found document-wide horizontal overflow from the narrow top bar's account
+controls. The composer now follows the transcript in document flow, and the
+narrow top bar stacks and wraps. The transcript remains vertically scrollable
+and auto-scrolls to the newest message. No conversation API, SSE delivery,
+deferred-response handling, or persistence behavior changed.
+
+Focused layout test passed 1/1. The corrected browser run passed all checks,
+including final-message visibility, composer below transcript, and no horizontal
+overflow. Firefox clamped the requested 390px window to a 500px CSS viewport,
+so narrower physical-device verification is not claimed. Initial failed and
+corrected reports are preserved under `evidence/checkouts/WEBSITE-PL019/`.
+No production service or deployment was touched.
+
+
+## 2026-10-15 UTC — RV-WEBSITE-PL036
+
+**Classification:** dashboard navigation rail usability.
+**Owner:** STEWARD-DASHBOARD / website navigation.
+
+Added an accessible expand/collapse control with an explicit `aria-expanded`
+state, durable browser preference, named navigation controls, and responsive
+compact default for screens at or below 920 CSS pixels when no preference exists.
+The compact rail retains a health indicator with a current accessible label and
+the bounded diagnostic snapshot control. No route, state transition, or API
+changed; the existing dashboard shell node now references the passing browser
+evidence.
+
+The focused test passed 1/1 and the isolated Firefox fixture passed all 29
+checks with no browser errors, including both rail states, health/snapshot
+affordances, and a narrow viewport. Evidence:
+`evidence/checkouts/WEBSITE-PL036/20261015T231000Z-collapsible-navigation/`.
+Production acceptance remains unverified.
+
+
+## 2026-10-15 UTC — RV-WEBSITE-PL003
+
+**Classification:** assignment title presentation and source-contract audit.
+**Owner:** STEWARD-DASHBOARD / website presentation; assignment payload ownership
+remains with integration/Engineering intake.
+
+Assignment rows and details now display the canonical workflow-node label only
+when the existing authenticated graph API returns an exact match for the
+persisted process graph and node IDs. Stable assignment, graph and node IDs
+remain visible. Missing or unregistered references display an explicit
+unavailable state; `workflow_step` is not repurposed as a title. The same
+canonical assignment page behavior supplies Current Work title/state content.
+
+The integration-owned assignment projection does not include purpose, original
+request, expected deliverable, result, acceptance criteria, evidence records, or
+blocked reason/missing evidence/owner/unblock action. Those source fields and
+acceptance criteria are recorded as blockers for PL-NEW-001/002/005. No
+Engineering intake, backend, CME, or authorization changes were made.
+
+The focused test passed 1/1. Isolated Firefox passed the title lookup, stable ID,
+missing-reference, account-cookie and no-browser-error checks; evidence is
+`evidence/checkouts/WEBSITE-PL003/20261015T233000Z-canonical-task-title/`.
+The process graph's bounded assignment-page node now links this verification.
+Production acceptance remains pending.
+
+
+## 2026-10-16 UTC — RV-WEBSITE-PL029
+
+**Classification:** notification lifecycle semantics and source-contract audit.
+**Owner:** STEWARD-DASHBOARD / website presentation; notification/decision API
+ownership remains with integration.
+
+Notification cards now show dashboard rendering confirmation, person-seen as
+not reported, receipt acknowledgment state, and linked decision request status
+as separate concepts. The interface states that acknowledgment cannot resolve
+a decision. A source event labelled `attention_resolved` is presented as a
+condition event and not as a decision outcome.
+
+The current integration contract contains no `seen_at` or `seen_by` field and
+no decision-resolution operation/outcome contract for approved/denied/resolved
+with actor/time/provenance. PL-NEW-029 is therefore partially addressed and
+blocked on that external contract. No notification service, CME, decision API,
+or backend changes were made. The focused test passed 1/1; isolated Firefox
+passed all browser checks with no errors. Evidence:
+`evidence/checkouts/WEBSITE-PL029/20261016T001000Z-notification-state-clarity/`.
+
+
+## 2026-10-16 UTC — RV-WEBSITE-PL038
+
+**Classification:** searchable workflow and documentation traceability catalog.
+**Owner:** STEWARD-DASHBOARD / website presentation and client-side search.
+
+Added an on-demand catalog view fed by the existing authenticated canonical
+graph index/detail APIs. It lists each returned workflow's component and graph
+revision, typed process/failure/recovery nodes, allowlisted component-doc links,
+source references, and declared verification references. Search narrows matching
+workflow entries and their nodes/references. Activity and Workflows diagnostic
+shortcuts now open this catalog. No backend, API, authorization, CME, or graph
+contract was changed. PR #40 conversation streaming and deferred-response
+recovery code was not changed.
+
+The browser fixture passed all checks in Firefox 156.0.1, including workflow
+index/detail loading with the synthetic account cookie and no Authorization
+header, a search resolving to the matching recovery node, documentation-tab
+reuse, and no browser errors. The focused dashboard test file passed 33 tests;
+8 PostgreSQL tests were skipped because `RIVERVIEW_TEST_PG_DSN` is unset.
+Process graph validation passed at 19 workflows / 458 nodes. Evidence,
+including retained failed attempts, is under
+`evidence/checkouts/WEBSITE-PL038/`; the passing report is
+`20261016T020000Z-searchable-workflow-catalog/browser-acceptance.json`.
+
+The catalog exposes only metadata already declared by the graph registry. A
+documented source freshness value and semantic test-coverage result are not
+present in that contract, so the UI links to freshness guidance and states that
+evidence paths do not establish a pass or prove coverage. This qualifies the
+catalog rather than inventing either value. Production acceptance remains
+unverified; this branch has not been deployed.
+
+Final local verification passed: dashboard plus process-graph tests 46 passed,
+8 PostgreSQL-dependent skips; graph check 19 workflows / 458 nodes; controlled
+revision audit against integration commit `29d196f` passed with zero findings;
+`git diff --check` passed. PR #42's previous exact-head CI failed only because
+the retained PL-016 failed browser attempt lacked `artifacts.json`; that
+timestamped evidence directory now has a checksum manifest without changing or
+deleting its artifacts. The integration branch advanced with merged PR #45
+after the PR #44 baseline; this website branch is being reconciled before the
+next exact-head CI run.

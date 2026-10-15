@@ -1,0 +1,47 @@
+{
+  "artifacts": {
+    "activity-pagination.png": {
+      "path": "activity-pagination.png",
+      "revision": "1.0.0",
+      "sha256": "94ae5ba541c487705540356bc55f6d3df2684d37132937aa222e5e33cff55b95",
+      "size_bytes": 242151
+    },
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "9e2cd91c5d5d7500cf838b349c85f00dee5ebde1c77d1c121be7c56e68e2b76a",
+      "size_bytes": 15824
+    },
+    "chat-layout-mobile.png": {
+      "path": "chat-layout-mobile.png",
+      "revision": "1.0.0",
+      "sha256": "94b86aebd60995fa03877d8a0317eca9bae89eebdd3fe601a63f9bc1c31f7073",
+      "size_bytes": 94000
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "8f1c82d4113f3246f54d34ce49e24b194a8527039872191a5c1aa9734a52216d",
+      "size_bytes": 1201
+    },
+    "documentation-catalog.png": {
+      "path": "documentation-catalog.png",
+      "revision": "1.0.0",
+      "sha256": "b0731b4b90d62df1f7b6f2df0b6c32e646db8623f4af98d375f3728f3062bb10",
+      "size_bytes": 144350
+    },
+    "validation-summary.json": {
+      "path": "validation-summary.json",
+      "revision": "1.0.0",
+      "sha256": "cfa9c4a347e3aeb76368fd98edf480d19a8fb1529f0fa3316776280fb4343e6f",
+      "size_bytes": 714
+    },
+    "worker-inventory.png": {
+      "path": "worker-inventory.png",
+      "revision": "1.0.0",
+      "sha256": "2a0605655c92467e168efa21edcda3c8d7fc42e0d25a15941880332afb65df24",
+      "size_bytes": 136950
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

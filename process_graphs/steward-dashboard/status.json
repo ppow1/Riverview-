@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:steward-dashboard:status",
-  "graph_revision": "1.1.4",
+  "graph_revision": "1.1.9",
   "component_id": "STEWARD-DASHBOARD",
   "workflow_id": "status-projection.v1",
   "diagram_order": 1,
@@ -159,7 +159,7 @@
     },
     {
       "id": "rv:steward-dashboard:status:render-cached",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.3",
       "type": "process",
       "label": "Render shell and current local view",
       "source_references": [
@@ -168,7 +168,13 @@
       "documentation_references": [
         "docs/components/STATUS_DASHBOARD.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "tests/test_status_dashboard.py",
+        "evidence/checkouts/WEBSITE-CLARITY/20261015T215000Z-guidance-and-controls/browser-acceptance.json",
+        "evidence/checkouts/WEBSITE-PL019/20261015T224500Z-conversation-layout/browser-acceptance.json",
+        "evidence/checkouts/WEBSITE-PL036/20261015T231000Z-collapsible-navigation/browser-acceptance.json",
+        "evidence/checkouts/WEBSITE-PL029/20261016T001000Z-notification-state-clarity/browser-acceptance.json"
+      ]
     },
     {
       "id": "rv:steward-dashboard:status:navigate",
@@ -187,7 +193,7 @@
     },
     {
       "id": "rv:steward-dashboard:status:page-events",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "process",
       "label": "Fetch bounded event and assignment pages",
       "source_references": [
@@ -197,7 +203,10 @@
       "documentation_references": [
         "docs/components/STATUS_DASHBOARD.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "tests/test_status_dashboard.py",
+        "evidence/checkouts/WEBSITE-PL003/20261015T233000Z-canonical-task-title/browser-acceptance.json"
+      ]
     },
     {
       "id": "rv:steward-dashboard:status:inspect-detail",
@@ -425,20 +434,27 @@
     },
     {
       "id": "rv:steward-dashboard:status:render-documentation",
-      "node_revision": "1.0.1",
+      "node_revision": "1.0.2",
       "type": "process",
       "label": "Render allowlisted cookbooks as safe readable HTML",
       "source_references": [
         "src/riverview_core/status_dashboard/server.py",
-        "src/riverview_core/status_dashboard/markdown.py"
+        "src/riverview_core/status_dashboard/markdown.py",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/static/index.html",
+        "src/riverview_core/status_dashboard/static/app.css",
+        "tests/test_status_dashboard.py",
+        "scripts/verify_worker_inventory_browser.py"
       ],
       "documentation_references": [
         "docs/components/STATUS_DASHBOARD.md",
-        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+        "docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md"
       ],
       "verification_evidence": [
         "tests/test_status_dashboard.py",
-        "evidence/checkouts/WEBSITE-PL016/20261015T212500Z-documentation-navigation/browser-acceptance.json"
+        "evidence/checkouts/WEBSITE-PL016/20261015T212500Z-documentation-navigation/browser-acceptance.json",
+        "evidence/checkouts/WEBSITE-PL038/20261016T020000Z-searchable-workflow-catalog/browser-acceptance.json"
       ]
     },
     {

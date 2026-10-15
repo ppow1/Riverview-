@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.37
+# Revision: 1.0.43
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -31,6 +31,12 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RECOVERY-001 | Cover release-pinned knowledge and idempotent wait-state intake.
 # Changed: 2026-10-15 UTC | RV-WEBSITE-PL004/006/008/011/012/014 | Assert assignment linkage, overview semantics, worker states, activity paging, event provenance, and refresh guidance.
 # Changed: 2026-10-15 UTC | RV-WEBSITE-PL016 | Reuse named dashboard/documentation tabs for return navigation.
+# Changed: 2026-10-15 UTC | RV-WEBSITE-PL010/015/020/023/024 | Explain execution readiness, chat controls, menu availability and milestone semantics.
+# Changed: 2026-10-15 UTC | RV-WEBSITE-PL019 | Prevent transcript/composer overlap and verify responsive long-history layout.
+# Changed: 2026-10-15 UTC | RV-WEBSITE-PL036 | Verify persistent rail state, accessible names and retained status/snapshot controls.
+# Changed: 2026-10-15 UTC | RV-WEBSITE-PL003 | Resolve assignment task labels from exact persisted graph/node IDs.
+# Changed: 2026-10-15 UTC | RV-WEBSITE-PL029 | Separate notification rendering, receipt, person-seen and decision states.
+# Changed: 2026-10-16 UTC | RV-WEBSITE-PL038 | Verify searchable canonical traceability catalog and evidence qualification.
 # =============================================================================
 """Security, API, privacy and PostgreSQL integration tests for M3.1."""
 
@@ -102,6 +108,72 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn('target="rv-dashboard-documentation"', app)
         self.assertIn('target="rv-dashboard-documentation"', html)
         self.assertIn('target="rv-dashboard-main"', rendered)
+
+    def test_grace_execution_and_chat_readiness_are_distinct_and_explained(self):
+        html = (ROOT / "src/riverview_core/status_dashboard/static/index.html").read_text(encoding="utf-8")
+        self.assertIn("Chat access alone does not establish execution readiness.", html)
+        self.assertIn("verify the selected database and schema against the reviewed resident-execution migrations", html)
+        self.assertIn("Refresh reads the projection; it does not apply migrations", html)
+        self.assertIn("Disconnect ends this browser's Grace session and hides the transcript; saved history remains.", html)
+        self.assertIn("Refresh history reloads the current saved conversation.", html)
+        self.assertIn("Shift+Enter or Insert line break adds a newline.", html)
+
+    def test_future_chat_actions_are_disabled_and_milestone_label_is_scoped(self):
+        html = (ROOT / "src/riverview_core/status_dashboard/static/index.html").read_text(encoding="utf-8")
+        self.assertIn("Image generation — coming later</button>", html)
+        self.assertIn("Attachments — coming later</button>", html)
+        self.assertIn("Forward to Riverview — unavailable</button>", html)
+        self.assertIn("DASHBOARD MILESTONE M3.1", html)
+        self.assertIn("roadmap progress, deployed release, and commissioning acceptance are tracked separately", html)
+
+    def test_chat_timeline_owns_scroll_and_composer_remains_in_document_flow(self):
+        css = (ROOT / "src/riverview_core/status_dashboard/static/app.css").read_text(encoding="utf-8")
+        self.assertIn(".conversation-timeline{height:min(62vh,760px);min-height:320px;overflow-y:auto", css)
+        composer = css.split(".chat-composer{", 1)[1].split("}", 1)[0]
+        self.assertNotIn("position:sticky", composer)
+        self.assertIn(".topbar{height:auto;min-height:84px;align-items:flex-start;flex-direction:column", css)
+
+    def test_navigation_rail_has_accessible_persistent_compact_state(self):
+        html = (ROOT / "src/riverview_core/status_dashboard/static/index.html").read_text(encoding="utf-8")
+        app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
+        css = (ROOT / "src/riverview_core/status_dashboard/static/app.css").read_text(encoding="utf-8")
+        self.assertIn('id="rail-toggle"', html)
+        self.assertIn('aria-controls="primary-navigation"', html)
+        self.assertIn('aria-label="Download bounded diagnostic snapshot"', html)
+        self.assertIn('role="img" aria-label="Source health: connecting"', html)
+        self.assertIn('rv.dashboard.rail-collapsed', app)
+        self.assertIn('setAttribute("aria-expanded"', app)
+        self.assertIn(".shell.rail-collapsed .nav-label", css)
+        self.assertIn(".shell.rail-collapsed .rail-foot .quiet-button{display:inline-flex", css)
+
+    def test_assignment_titles_use_exact_registered_node_labels_and_keep_ids(self):
+        app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
+        self.assertIn("/api/v1/graphs/${encodeURIComponent(graphId)}", app)
+        self.assertIn("item.id === nodeId", app)
+        self.assertIn("Canonical task title", app)
+        self.assertIn("Task title · ${title}", app)
+        self.assertIn("Canonical title unavailable", app)
+
+    def test_notifications_do_not_equate_rendering_or_receipt_with_person_seen_or_decision(self):
+        app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
+        self.assertIn("Person seen: not reported by this source", app)
+        self.assertIn("Receipt acknowledgment:", app)
+        self.assertIn("Dashboard rendering:", app)
+        self.assertIn("A receipt cannot resolve this request.", app)
+        self.assertIn("Decision request: none linked in this projection.", app)
+
+    def test_documentation_catalog_uses_canonical_graph_refs_and_qualifies_evidence(self):
+        app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
+        html = (ROOT / "src/riverview_core/status_dashboard/static/index.html").read_text(encoding="utf-8")
+        self.assertIn('data-view="documentation"', html)
+        self.assertIn('id="documentation-search"', html)
+        self.assertIn("/api/v1/graphs", app)
+        self.assertIn("/api/v1/graphs/${encodeURIComponent(summary.graph_id)}", app)
+        self.assertIn("node.source_references", app)
+        self.assertIn("node.documentation_references", app)
+        self.assertIn("node.verification_evidence", app)
+        self.assertIn("Declared test/evidence references", app)
+        self.assertIn("do not assert that a test passed", html)
 
     def test_packaged_dashboard_uses_its_matching_knowledge_sources_by_default(self):
         with tempfile.TemporaryDirectory() as tmp:

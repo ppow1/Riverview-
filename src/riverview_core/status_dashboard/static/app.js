@@ -1,5 +1,5 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.4.9
+// Revision: 1.4.14
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
 // Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Use linked Steward account session for exact-grant Grace connection
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password login, grant decisions and email configuration UI
@@ -11,17 +11,33 @@
 // Changed: 2026-10-15 UTC | RV-WEBSITE-PL008 | Reconcile worker registration and heartbeat states in the bounded inventory.
 // Changed: 2026-10-15 UTC | RV-WEBSITE-PL011 | Add explicit older/newer activity paging with stable event sequence cursors.
 // Changed: 2026-10-15 UTC | RV-WEBSITE-PL016 | Reuse named dashboard and documentation tabs for safe return navigation.
+// Changed: 2026-10-15 UTC | RV-WEBSITE-PL036 | Add persisted accessible navigation collapse and compact health/snapshot affordances.
+// Changed: 2026-10-15 UTC | RV-WEBSITE-PL003 | Resolve human task titles from persisted canonical graph/node IDs.
+// Changed: 2026-10-15 UTC | RV-WEBSITE-PL029 | Separate confirmed dashboard rendering, person-seen absence, receipt and decision status.
+// Changed: 2026-10-16 UTC | RV-WEBSITE-PL038 | Build a searchable client-side registry of workflows and declared traceability references.
 (() => {
   "use strict";
   window.name = "rv-dashboard-main";
   const $ = (id) => document.getElementById(id);
+  const railPreference = localStorage.getItem("rv.dashboard.rail-collapsed");
+  const setRailCollapsed = (collapsed, persist = true) => {
+    document.querySelector(".shell").classList.toggle("rail-collapsed", collapsed);
+    $("rail-toggle").setAttribute("aria-expanded", String(!collapsed));
+    $("rail-toggle").setAttribute("aria-label", collapsed ? "Expand navigation" : "Collapse navigation");
+    $("rail-toggle").title = collapsed ? "Expand navigation" : "Collapse navigation";
+    $("rail-toggle").textContent = collapsed ? "»" : "«";
+    if (persist) localStorage.setItem("rv.dashboard.rail-collapsed", String(collapsed));
+  };
+  setRailCollapsed(railPreference === null ? window.innerWidth <= 920 : railPreference === "true", false);
   const state = {token: sessionStorage.getItem("rv.dashboard.token") || "", accountIdentity: null, status: null,
     assignments: [], events: [], attention: [], attentionStatus: "unknown", workers: [], assignmentCursor: null,
     workerCursor: null, eventCursor: 0, olderEventCursor: null, notifications: [], notificationStatus: "unknown", activeView: "overview",
-    objectives: [], recentErrors: [], navSamples: [], lastFetch: 0, timer: null, workOrderSourceSequence: null,
+    objectives: [], documentationCatalog: [], documentationCatalogLoaded: false, documentationCatalogLoading: false,
+    recentErrors: [], navSamples: [], lastFetch: 0, timer: null, workOrderSourceSequence: null,
     chatConversationId: localStorage.getItem("rv.grace.conversation") || "", chatEvents: [], chatMeta: null, selectedEventId: null, chatInFlight: false, chatDialogReturnFocus: null, chatAuthRejected:false, chatLoading:false,
     streamBuffers:{},streamStates:{},streamMetrics:{},activeStreams:new Set(),chatPollTimer:null,
     chatHistoryRefreshing:false};
+  const assignmentTitleCache = new Map();
   const esc = (value) => String(value ?? "—").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   const human = (value) => String(value || "unknown").replaceAll("_", " ").replaceAll(".", " · ");
   const api = async (path, timeout = 2600, method = "GET", options = {}) => {
@@ -58,11 +74,27 @@
     const value = match ? `<a href="/docs/components/${esc(match[1])}" target="rv-dashboard-documentation">${esc(reference)}</a>` : esc(reference || "No diagnostic reference recorded");
     return `<div class="detail-item"><div class="detail-label">Diagnostic reference</div><div class="detail-value">${value}</div></div>`;
   };
+  async function canonicalAssignmentTitle(graphId, nodeId) {
+    if (!graphId || !nodeId) return "No canonical graph/node reference recorded";
+    const key = `${graphId}\u0000${nodeId}`;
+    if (!assignmentTitleCache.has(key)) {
+      const lookup = api(`/api/v1/graphs/${encodeURIComponent(graphId)}`).then((result) => {
+        if (result.graph?.graph_id !== graphId) return null;
+        const node = (result.graph.nodes || []).find((item) => item.id === nodeId);
+        return typeof node?.label === "string" && node.label.trim() ? node.label.trim() : null;
+      }).catch(() => null);
+      assignmentTitleCache.set(key, lookup);
+    }
+    const title = await assignmentTitleCache.get(key);
+    assignmentTitleCache.set(key, title);
+    return title || "Canonical title unavailable";
+  }
   const noData = (text) => `<div class="row"><span class="row-meta">${esc(text)}</span></div>`;
   function renderStatus(s) {
     state.status = s; state.lastFetch = performance.now();
     const health = s.projection_status || "unavailable";
     $("rail-health").textContent = human(health);
+    $("pulse-dot").setAttribute("aria-label", `Source health: ${human(health)}`);
     $("pulse-dot").className = `pulse-dot ${stateClass(health).replace("status-", "")}`;
     $("freshness").textContent = `${human(s.freshness)} · ${when(s.observed_at)}`;
     $("hero-status").textContent = ({healthy:"Connected to authoritative state", not_initialized:"Ledger not initialized", unavailable:"Source unavailable"})[health] || human(health);
@@ -94,8 +126,13 @@
   }
   function renderAssignments(target, items) {
     const host = $(target);
-    host.innerHTML = items.length ? items.map((a) => `<button class="row row-button" data-assignment="${esc(a.assignment_id)}"><span class="row-main">${esc(a.assignment_id)}</span><span class="status-text ${stateClass(a.state)}">${esc(human(a.state))}</span><span class="row-meta">${esc(a.workflow_id)} / ${esc(a.workflow_step)}</span><span class="row-meta">${esc(a.owner)}</span><span class="row-meta">Progress event ${esc(a.last_meaningful_progress?.event_seq ?? "not observed")}</span><span class="row-meta">${esc(when(a.last_meaningful_progress?.recorded_at))}</span></button>`).join("") : noData("No visible institutional assignments were returned.");
+    host.innerHTML = items.length ? items.map((a) => `<button class="row row-button" data-assignment="${esc(a.assignment_id)}"><span class="row-main">${esc(a.assignment_id)}</span><span class="status-text ${stateClass(a.state)}">${esc(human(a.state))}</span><span class="row-meta" data-assignment-title="${esc(a.assignment_id)}">${a.process_graph_id && a.process_node_id ? "Loading canonical task title…" : "Canonical title unavailable · no graph/node reference recorded"}</span><span class="row-meta">${esc(a.workflow_id)} / ${esc(a.workflow_step)}</span><span class="row-meta">${esc(a.owner)}</span><span class="row-meta">Progress event ${esc(a.last_meaningful_progress?.event_seq ?? "not observed")}</span><span class="row-meta">${esc(when(a.last_meaningful_progress?.recorded_at))}</span></button>`).join("") : noData("No visible institutional assignments were returned.");
     host.querySelectorAll("[data-assignment]").forEach((button) => button.addEventListener("click", () => loadDetail(button.dataset.assignment)));
+    items.filter((a) => a.process_graph_id && a.process_node_id).forEach(async (assignment) => {
+      const title = await canonicalAssignmentTitle(assignment.process_graph_id, assignment.process_node_id);
+      const label = host.querySelector(`[data-assignment-title="${CSS.escape(assignment.assignment_id)}"]`);
+      if (label) label.textContent = `Task title · ${title}`;
+    });
   }
   function eventRows(events) {
     return events.length ? events.map((e) => `<article class="event-card"><div class="event-head"><span class="event-type">${esc(human(e.event_type))}</span><time class="event-time">${esc(when(e.recorded_at))}</time></div><div class="event-ids"><span>seq ${esc(e.seq)}</span><span>event ${esc(e.event_id)}</span>${e.assignment_id ? `<button data-assignment="${esc(e.assignment_id)}">assignment ${esc(e.assignment_id)}</button>` : "<span>Service-level event</span>"}<span>Actor ${esc(e.actor_id || "not recorded")}</span><span>Correlation ${esc(e.correlation_id || "not recorded")}</span><span>${e.causation_id ? `Caused by ${esc(e.causation_id)}` : "Root event (no parent recorded)"}</span><span>Payload schema ${esc(e.payload_schema || "not reported")}</span></div><div class="row-meta">Event payload and event-specific diagnostic reference are not included in this projection. <a href="/docs/components/STATUS_DASHBOARD_COOKBOOK.md" target="rv-dashboard-documentation">Dashboard troubleshooting</a></div></article>`).join("") : noData("No institution events in this page.");
@@ -172,10 +209,13 @@
     const health = page.dispatcher?.status || "not_initialized";
     $("notification-state").textContent = `Source ${human(page.status)} · dispatcher ${human(health)}`;
     const rows = state.notifications.map((n) => {
-      const request = n.decision_request_id ? `<div class="row-meta">Decision request ${esc(n.decision_request_id)} · ${esc(n.decision_status || "unknown")}; receipt cannot resolve it.</div>` : "";
+      const rendered = ["delivered", "acknowledged"].includes(n.delivery_status);
+      const acknowledged = n.delivery_status === "acknowledged";
+      const request = n.decision_request_id ? `<div class="row-meta">Decision request: ${esc(n.decision_request_id)} · status ${esc(n.decision_status || "unavailable")}. A receipt cannot resolve this request.</div>` : `<div class="row-meta">Decision request: none linked in this projection.</div>`;
+      const lifecycle = `<div class="row-meta">Dashboard rendering: ${rendered ? "confirmed" : n.delivery_status === "queued" ? "not confirmed" : "unavailable"} · Person seen: not reported by this source · Receipt acknowledgment: ${acknowledged ? "recorded" : n.delivery_status === "delivered" ? "not recorded" : "not available yet"}</div>`;
       const receipt = n.delivery_status === "delivered" ? `<button class="secondary" data-acknowledge="${esc(n.notification_id)}">Acknowledge receipt</button>` :
         `<span class="status-text status-accepted">${esc(human(n.delivery_status))}</span>`;
-      return `<article class="notification-row"><div><strong>${esc(human(n.event_type))}</strong><p>${esc(n.summary)}</p><div class="row-meta">${esc(n.assignment_id || "Service event")} · source ${esc(when(n.source_recorded_at))} · queued ${esc(when(n.created_at))}</div>${request}</div><div class="notification-actions"><span class="status-text ${stateClass(n.delivery_status)}">${esc(human(n.delivery_status))}</span>${receipt}</div></article>`;
+      return `<article class="notification-row"><div><strong>${esc(human(n.event_type))}</strong><p>${esc(n.summary)}</p><div class="row-meta">${esc(n.assignment_id || "Service event")} · source ${esc(when(n.source_recorded_at))} · queued ${esc(when(n.created_at))}</div>${lifecycle}${request}</div><div class="notification-actions"><span class="status-text ${stateClass(n.delivery_status)}">${esc(human(n.delivery_status))}</span>${receipt}</div></article>`;
     });
     const messages = {not_initialized:"Notification migration is not initialized.", unavailable:"Notification source is unavailable; no delivery is claimed.", available:"No durable notices in this bounded page."};
     $("notification-list").innerHTML = rows.length ? rows.join("") : noData(messages[state.notificationStatus] || "No notification state observed.");
@@ -201,6 +241,57 @@
     if (!state.token && !state.accountIdentity) return;
     try { renderNotifications(await api("/api/v1/notifications?limit=25")); }
     catch (error) { state.notificationStatus = "unavailable"; $("notification-state").textContent = "Notification source unavailable"; $("notification-list").innerHTML = noData(`No delivery is claimed (${error.message}).`); }
+  }
+  function renderDocumentationCatalog() {
+    const query = $("documentation-search").value.trim().toLowerCase();
+    const rows = state.documentationCatalog.filter((entry) => !query || entry.search.includes(query));
+    $("documentation-catalog-state").textContent = state.documentationCatalogLoading ?
+      "Loading registered workflows and traceability references…" :
+      `${rows.length} of ${state.documentationCatalog.length} registered workflows · source: canonical graph registry`;
+    const list = (values, render) => values.length ? `<ul class="catalog-ref-list">${values.map(render).join("")}</ul>` : `<p class="row-meta">${query ? "No matching references." : "No references declared."}</p>`;
+    $("documentation-catalog").innerHTML = rows.length ? rows.map((entry) => {
+      const identityMatches = !query || [entry.component_id, entry.workflow_id, entry.graph_revision].some((value) => String(value).toLowerCase().includes(query));
+      const matching = (value) => identityMatches || String(value).toLowerCase().includes(query);
+      const docs = entry.documentation.filter(matching).map((ref) => /^docs\/components\/[A-Za-z0-9_-]+\.md$/.test(ref) ?
+        `<li><a class="catalog-doc-link" href="/${esc(ref)}" target="rv-dashboard-documentation">${esc(ref)}</a></li>` : `<li><code>${esc(ref)}</code></li>`);
+      const visibleNodes = entry.nodes.filter((node) => matching(`${node.type} ${node.label}`));
+      const visibleSources = entry.sources.filter(matching);
+      const visibleEvidence = entry.evidence.filter(matching);
+      const nodes = visibleNodes.map((node) => `<li><strong>${esc(human(node.type))}:</strong> ${esc(node.label)}</li>`);
+      return `<article class="panel documentation-catalog-card"><div class="panel-head"><div><div class="eyebrow">${esc(entry.component_id)}</div><h3>${esc(entry.workflow_id)}</h3></div><span class="muted">Graph ${esc(entry.graph_revision)}</span></div><div class="catalog-columns"><section><h4>Workflow and failure/recovery steps (${visibleNodes.length} of ${entry.nodes.length} nodes)</h4>${list(nodes, (row) => row)}<h4>Documentation and troubleshooting</h4>${list(docs, (row) => row)}</section><section><h4>Source provenance (${visibleSources.length})</h4>${list(visibleSources, (ref) => `<li><code>${esc(ref)}</code></li>`)}<h4>Declared test/evidence references (${visibleEvidence.length})</h4>${list(visibleEvidence, (ref) => `<li><code>${esc(ref)}</code></li>`)}</section></div></article>`;
+    }).join("") : `<div class="row"><span class="row-meta">${state.documentationCatalog.length ? "No catalog entries match this search." : "No registered workflow references are available."}</span></div>`;
+  }
+  async function loadDocumentationCatalog() {
+    if (state.documentationCatalogLoaded || state.documentationCatalogLoading) return;
+    state.documentationCatalogLoading = true;
+    renderDocumentationCatalog();
+    try {
+      const index = await api("/api/v1/graphs");
+      const summaries = (index.items || []).slice(0, 50);
+      const details = await Promise.allSettled(summaries.map((summary) => api(`/api/v1/graphs/${encodeURIComponent(summary.graph_id)}`)));
+      state.documentationCatalog = details.map((result, position) => {
+        const summary = summaries[position];
+        const graph = result.status === "fulfilled" ? result.value.graph : null;
+        const nodes = graph?.nodes || [];
+        const unique = (values) => [...new Set(values.filter((value) => typeof value === "string" && value))].sort();
+        const sources = unique([...(graph?.source_references || []), ...nodes.flatMap((node) => node.source_references || [])]);
+        const documentation = unique([...(graph?.documentation_references || []), ...nodes.flatMap((node) => node.documentation_references || [])]);
+        const evidence = unique([...(graph?.verification_evidence || []), ...nodes.flatMap((node) => node.verification_evidence || [])]);
+        const entry = {component_id:graph?.component_id || summary.component_id || "Component unavailable",
+          workflow_id:graph?.workflow_id || summary.workflow_id || summary.graph_id,
+          graph_revision:graph?.graph_revision || summary.graph_revision || "unavailable",
+          nodes:nodes.map((node) => ({type:node.type || "unknown",label:node.label || node.id || "Unlabelled node"})),
+          sources,documentation,evidence};
+        entry.search = JSON.stringify(entry).toLowerCase();
+        return entry;
+      });
+      state.documentationCatalogLoaded = true;
+    } catch (error) {
+      $("documentation-catalog-state").textContent = `Workflow catalog unavailable (${error.message}).`;
+    } finally {
+      state.documentationCatalogLoading = false;
+      renderDocumentationCatalog();
+    }
   }
   async function loadObjectives() {
     if (!state.token && !state.accountIdentity) return;
@@ -253,7 +344,8 @@
     try {
       const detail = await api(`/api/v1/assignments/${encodeURIComponent(id)}`);
       const a = detail.assignment;
-      $("assignment-detail").innerHTML = `<div class="eyebrow">ASSIGNMENT DETAIL · READ ONLY</div><h3>${esc(a.assignment_id)} <span class="status-text ${stateClass(a.state)}">${esc(human(a.state))}</span></h3><div class="detail-stack">${item("Workflow", `${a.workflow_id} / ${a.workflow_step}`)}${item("Owner", a.owner)}${item("Correlation", a.correlation_id)}${item("Version", a.version)}${item("Observed update", when(a.updated_at))}${item("Canonical graph ID", a.process_graph_id || "No graph ID recorded")}${item("Canonical node ID", a.process_node_id || "No process node ID recorded")}${diagnosticItem(detail.diagnostic_ref)}</div><p class="muted">Graph and node IDs are persisted assignment references. Missing IDs are not inferred as a live workflow position.</p><h4>Independent verification</h4>${detail.verifications.length ? detail.verifications.map((v) => `<div class="row"><span>${esc(v.decision)}</span><span>${esc(v.verifier_id)} ${esc(v.verifier_revision)}</span><span class="row-meta">${esc(v.evidence_count)} evidence references · ${esc(when(v.recorded_at))}</span></div>`).join("") : noData("No verification record was returned.")}<h4>Worker attempts</h4>${detail.attempts.length ? detail.attempts.map((x) => `<div class="row"><span>${esc(x.worker_id)}</span><span>${esc(x.status)}</span><span class="row-meta">${esc(x.capability)} · lease ${esc(x.lease_generation)} · ${esc(when(x.started_at))}</span></div>`).join("") : noData("No attempt rows returned.")}<h4>Recent lifecycle events</h4>${eventRows(detail.events)}</div>`;
+      const taskTitle = await canonicalAssignmentTitle(a.process_graph_id, a.process_node_id);
+      $("assignment-detail").innerHTML = `<div class="eyebrow">ASSIGNMENT DETAIL · READ ONLY</div><h3>${esc(a.assignment_id)} <span class="status-text ${stateClass(a.state)}">${esc(human(a.state))}</span></h3><div class="detail-stack">${item("Canonical task title", taskTitle)}${item("Workflow", `${a.workflow_id} / ${a.workflow_step}`)}${item("Owner", a.owner)}${item("Correlation", a.correlation_id)}${item("Version", a.version)}${item("Observed update", when(a.updated_at))}${item("Canonical graph ID", a.process_graph_id || "No graph ID recorded")}${item("Canonical node ID", a.process_node_id || "No process node ID recorded")}${diagnosticItem(detail.diagnostic_ref)}</div><p class="muted">Task title is read from the registered graph node matching persisted assignment references (graph/node IDs). Missing IDs are not inferred; missing or unresolved references do not establish a live workflow position.</p><h4>Independent verification</h4>${detail.verifications.length ? detail.verifications.map((v) => `<div class="row"><span>${esc(v.decision)}</span><span>${esc(v.verifier_id)} ${esc(v.verifier_revision)}</span><span class="row-meta">${esc(v.evidence_count)} evidence references · ${esc(when(v.recorded_at))}</span></div>`).join("") : noData("No verification record was returned.")}<h4>Worker attempts</h4>${detail.attempts.length ? detail.attempts.map((x) => `<div class="row"><span>${esc(x.worker_id)}</span><span>${esc(x.status)}</span><span class="row-meta">${esc(x.capability)} · lease ${esc(x.lease_generation)} · ${esc(when(x.started_at))}</span></div>`).join("") : noData("No attempt rows returned.")}<h4>Recent lifecycle events</h4>${eventRows(detail.events)}</div>`;
     } catch (error) { $("assignment-detail").innerHTML = `<div class="inline-error">Diagnostic detail unavailable (${esc(error.message)}).</div>`; }
   }
   function recordUiError(code, route) { state.recentErrors.push({at:new Date().toISOString(),code:String(code).slice(0,48),route:String(route).split("?")[0].slice(0,96)}); state.recentErrors=state.recentErrors.slice(-20); }
@@ -352,12 +444,12 @@
   }
   function navigate(name) {
     const start = performance.now();
-    const view = ["overview","assignments","objectives","grace-chat","activity","workflows","notifications","account","resident-permissions"].includes(name) ? name : "overview";
+    const view = ["overview","assignments","objectives","grace-chat","activity","workflows","notifications","documentation","account","resident-permissions"].includes(name) ? name : "overview";
     if (["account","resident-permissions"].includes(view) && !state.accountIdentity?.roles?.includes("steward")) { navigate("overview"); return; }
     state.activeView = view;
     document.querySelectorAll(".view").forEach((node) => { const active = node.id === `view-${view}`; node.hidden = !active; node.classList.toggle("active", active); });
     document.querySelectorAll(".nav-item").forEach((node) => node.classList.toggle("selected", node.dataset.view === view));
-    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",objectives:"Grace objectives","grace-chat":"Talk with Grace",activity:"Activity",workflows:"Process workflows",notifications:"Notifications",account:"Account access","resident-permissions":"Resident permissions"})[view];
+    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",objectives:"Grace objectives","grace-chat":"Talk with Grace",activity:"Activity",workflows:"Process workflows",notifications:"Notifications",documentation:"Documentation and diagnostics",account:"Account access","resident-permissions":"Resident permissions"})[view];
     history.replaceState(null,"",`#${view}`);
     const duration = performance.now() - start;
     state.navSamples.push({view,ms:duration}); state.navSamples=state.navSamples.slice(-100);
@@ -367,12 +459,15 @@
     if (view === "objectives") loadObjectives();
     if (view === "activity" && !state.events.length) loadEvents();
     if (view === "notifications") loadNotifications();
+    if (view === "documentation") loadDocumentationCatalog();
     if (view === "grace-chat") loadGraceConversation();
     if (view === "account") { loadEnrollments(); loadAccounts(); loadEmailSettings(); }
     if (view === "resident-permissions") window.dispatchEvent(new Event("rv:resident-permissions"));
   }
   document.querySelectorAll(".nav-item").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.view)));
+  $("rail-toggle").addEventListener("click", () => setRailCollapsed(!document.querySelector(".shell").classList.contains("rail-collapsed")));
   document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.go)));
+  $("documentation-search").addEventListener("input", renderDocumentationCatalog);
   $("login-form").addEventListener("submit", (event) => { event.preventDefault(); connect($("token").value.trim()); $("token").value = ""; });
   $("account-login-form").addEventListener("submit", async (event) => {
     event.preventDefault();
