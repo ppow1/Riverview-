@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.21
+File Revision: 1.1.22
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -38,6 +38,7 @@ Changed: 2026-10-14 UTC | RV-GRACE-ROUTING-DIAGNOSTICS-001 | Prefer 80B outside 
 Changed: 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Verify runtime-readable migration and active authority binding without reading protected migration ledgers
 Changed: 2026-10-14 UTC | RV-GRACE-ROUTING-INTEGRATION-001 | Reconcile merged startup-readiness and routing-diagnostics requirements
 Changed: 2026-10-15 UTC | RV-GRACE-SINGLE-RESIDENT-IDENTITY-001 | Specify one Grace identity across autonomic, vision and reasoning stage prompts
+Changed: 2026-10-15 UTC | RV-GRACE-CHAT-CONTEXT-BOUND-001 | Bound routed messages to the provider limit while preserving system context and the latest turn
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
@@ -110,7 +111,7 @@ authorized.
 | `GET /api/v1/resident/conversations/{conversation_id}` | Retrieve the latest 100 durable events | `rv.resident.conversation.v1` |
 | `GET /api/v1/resident/conversations/{conversation_id}/responses/{request_id}` | Inspect one turn's durable response state | `rv.resident.response.v1` |
 
-`client_message_id` is a UUID used as an idempotency key. Repeating a submitted key never starts another inference call. Messages are limited to 8192 UTF-8 bytes. Conversation context is assembled from at most the 16 newest persisted user/assistant messages and the fixed office-resident system instruction. The resident sends at most 512 output tokens per turn. A non-`stop` finish remains incomplete and cannot become a terminal response; safe diagnostics retain the bounded finish reason, completion-token count and configured limit without retaining response text. Router request timeouts are capped at 60 seconds for 80B reasoning, 15 seconds for provisional 30B, and 35 seconds for a brief 0.6B autonomic response; a lower caller-supplied bound remains effective. These are provider socket timeouts, not a guarantee of a hard end-to-end deadline. The serialized provider request must fit 32 KiB. If it does not, the user message remains recorded and the turn is marked `context_too_large`; required context is not silently truncated. Older history is visible through the bounded history API but is outside the explicitly stated recent-context policy.
+`client_message_id` is a UUID used as an idempotency key. Repeating a submitted key never starts another inference call. Messages are limited to 8192 UTF-8 bytes. Conversation context is assembled from at most the 16 newest persisted user/assistant messages and the fixed office-resident system instruction. The readiness router preserves all supplied system messages and the latest user turn, trimming only the oldest user/assistant context required to fit its additional stage instruction within the provider's 18-message contract. This trim affects only the inference context; durable history is unchanged. The resident sends at most 512 output tokens per turn. A non-`stop` finish remains incomplete and cannot become a terminal response; safe diagnostics retain the bounded finish reason, completion-token count and configured limit without retaining response text. Router request timeouts are capped at 60 seconds for 80B reasoning, 15 seconds for provisional 30B, and 35 seconds for a brief 0.6B autonomic response; a lower caller-supplied bound remains effective. These are provider socket timeouts, not a guarantee of a hard end-to-end deadline. The serialized provider request must fit 32 KiB. If it does not, the user message remains recorded and the turn is marked `context_too_large`; system context is never silently discarded. Older history is visible through the bounded history API but is outside the explicitly stated recent-context policy.
 
 Routing sends exact acknowledgments/status greetings to the 0.6B when ready. Only a short allowlisted definition/simple-fact pattern may use the 30B as a provisional response. All other user requests default to the 80B when its readiness probe confirms the pinned model; if it is unavailable or busy, the original request is durably deferred for the 80B. The 30B is not an automatic substitute for substantive reasoning. A 30B inference failure may produce a constrained 0.6B acknowledgment only when that provider is ready; otherwise the turn remains deferred.
 

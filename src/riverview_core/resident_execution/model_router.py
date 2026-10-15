@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.9
-# Purpose: Prefer 80B for substantive turns and persist bounded routing diagnostics
+# Revision: 1.1.0
+# Purpose: Prefer 80B for substantive turns, bound provider context, and persist routing diagnostics
 # Execution Model: Request-driven; persisted deferred turns are resumed by the conversation owner
 # Observability: Selected stage and served model are returned as completion provenance
 # Dependencies: LocalReasoningProvider; pinned AuthorityRegistry implementation binding
@@ -15,6 +15,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-DEMO-BASE-INTEGRATION | Reconcile router contract with integrated deferred-budget release
 # Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Include sanitized completion-limit diagnostics for non-stop provider outcomes
 # Changed: 2026-10-15 UTC | RV-GRACE-SINGLE-RESIDENT-IDENTITY-001 | Identify each model stage as a capability of the one Grace resident
+# Changed: 2026-10-15 UTC | RV-GRACE-CHAT-CONTEXT-BOUND-001 | Preserve required system context and latest user turn within provider message limits
 # =============================================================================
 """Small readiness-aware router for Grace's three existing model resources."""
 
@@ -27,7 +28,7 @@ import json
 import re
 from time import monotonic
 
-from ..local_reasoning_provider import LocalReasoningUnavailable
+from ..local_reasoning_provider import LocalReasoningProvider, LocalReasoningUnavailable
 
 
 class ReasoningDeferred(RuntimeError):
@@ -51,6 +52,10 @@ class GraceModelRouter:
         r"what is\s+.{1,100}|who is\s+.{1,100}|where is\s+.{1,100}|"
         r"when is\s+.{1,100}|how many\s+.{1,100})[.!?\s]*$", re.IGNORECASE)
     TIMEOUTS = {"autonomic": 35, "interim_30b": 15, "reasoning": 60}
+    # LocalReasoningProvider accepts at most 18 messages. One is reserved for the
+    # stage instruction added below; preserve all supplied system context and fit
+    # the newest conversation messages into the remaining slots.
+    PROVIDER_MAX_MESSAGES = LocalReasoningProvider.MAX_CHAT_MESSAGES
     STAGE_INSTRUCTIONS = {
         "autonomic": (
             "You are Grace, Riverview's continuing resident and Director of Operations. "
@@ -180,7 +185,8 @@ class GraceModelRouter:
         except ReasoningDeferred:
             raise
         system = self.STAGE_INSTRUCTIONS[stage]
-        routed = [{"role": "system", "content": system}, *messages]
+        routed = [{"role": "system", "content": system},
+                  *self._bound_provider_context(messages)]
         attempts = []
         try:
             started_at = datetime.now(UTC)
@@ -242,6 +248,40 @@ class GraceModelRouter:
                                             attempts=attempts)
         return replace(completion, reasoning_stage=stage,
                        provisional=(stage != "reasoning"), provider_attempts=tuple(attempts))
+
+    @classmethod
+    def _bound_provider_context(cls, messages):
+        """Bound history while preserving system context and the latest user turn.
+
+        The router adds one stage-specific system message. Keep all caller-provided
+        system messages and retain the newest chronological conversational messages
+        that fit the provider's 18-message contract. This makes old history a
+        bounded context window; it never alters durable conversation events.
+        """
+        if (not isinstance(messages, list)
+                or any(not isinstance(message, dict)
+                       or set(message) != {"role", "content"}
+                       or message.get("role") not in {"system", "user", "assistant"}
+                       or not isinstance(message.get("content"), str)
+                       for message in messages)):
+            raise LocalReasoningUnavailable("request_contract_invalid")
+        system_messages = [message for message in messages
+                           if message["role"] == "system"]
+        conversation_messages = [message for message in messages
+                                 if message["role"] in {"user", "assistant"}]
+        context_limit = cls.PROVIDER_MAX_MESSAGES - 1 - len(system_messages)
+        if (context_limit < 1 or not conversation_messages
+                or conversation_messages[-1]["role"] != "user"):
+            raise LocalReasoningUnavailable("request_contract_invalid")
+        if len(conversation_messages) > context_limit:
+            conversation_messages = conversation_messages[-context_limit:]
+        # Keep the original order of system and conversational context. System
+        # observations may occur after older messages, so select by identity from
+        # the original list rather than moving them to the front.
+        retained_conversation_ids = {id(message) for message in conversation_messages}
+        return [message for message in messages
+                if message["role"] == "system"
+                or id(message) in retained_conversation_ids]
 
     @classmethod
     def _safe_error(cls, exc):
