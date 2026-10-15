@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.5
+File Revision: 1.0.6
 Purpose: Prepare the first bounded authenticated Grace-to-Codex Engineering demonstration
 Authority: Existing Steward grants, AuthorityRegistry, CME, worker, verifier, and conversation contracts
 Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Record exact source, database, grant, worker, and rollback gates
@@ -11,6 +11,7 @@ Changed: 2026-10-15 UTC | RV-GRACE-DEMO-BLOCKERS-001 | Record AppArmor cause, re
 Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Record the successful per-executable sandbox trial, exact grants, and repeatable owner-session staging/rollback
 Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Record full isolated PostgreSQL regression and unchanged production baseline
 Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Record pushed PR head, successful CI, and pending human review gate
+Changed: 2026-10-15 UTC | RV-AUTH-LEGACY-PROFILE-COMPAT | Record migration 0008 compatibility correction and current production-safe release gate
 Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md; docs/components/GRACE_EXECUTION_PIPELINE.md
 Tests: tests/test_codex_cli_adapter.py; tests/test_worker_service.py; PostgreSQL integration suite
 History: Git and .riverview-backups/manifest.jsonl
@@ -18,7 +19,11 @@ History: Git and .riverview-backups/manifest.jsonl
 
 # Grace Engineering Demonstration Commissioning
 
-**Status: NO-GO for live demonstration.** The authorized per-executable AppArmor trial passed, exact standing AuthorityRegistry grants and dedicated credentials are provisioned, and repeatable owner-session staging/rollback tooling is implemented and isolated-tested. The Grace worker remains uninstalled and inactive; PR #34 remains unmerged.
+**Current status (2026-10-15): NO-GO for activation.** A preflight found that the integrated authorizer called `evaluate_resident_permission` even when production's deliberately restricted runtime role could not see migration 0008, although both the function and profile table were absent. Exact grants therefore failed before profile policy could be evaluated. The source correction preserves exact-grant behavior only when both profile objects are absent; it keeps profile evaluation mandatory when both exist and fails closed for partial or inconsistent states. The corrected source passed isolated PostgreSQL regression and full-suite checks, but is not yet reviewed, integrated, or packaged. Production migration 0008 remains unapplied; production grants, bindings, dashboard, and inactive Grace service are unchanged. Do not activate until the correction is reviewed, integrated, packaged, and independently verified. The prior commissioning narrative below records earlier evidence and is superseded where its status differs from this dated update.
+
+## Legacy authority compatibility correction
+
+The correction checks `pg_catalog` for the exact profile table and evaluator signature after the existing exact-grant function allows the request. With neither object installed, legacy exact grants remain effective. With both objects installed, the evaluator runs and can narrow the grant through active-profile status, explicit denials, expiration, revocation, and resource scope. One object without the other, unexpected database errors, malformed decisions, or visible migration-ledger disagreement/checksum drift produce an unavailable authorization result. The dashboard runtime is not granted access to the protected migration ledger. No migration, production authority record, or service was changed for this correction.
 
 ## Demonstration path
 

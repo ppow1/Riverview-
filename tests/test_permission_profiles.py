@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_permission_profiles.py
 # Component: RESIDENT-PERMISSION-PROFILES
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Verify deterministic resident profile policy and fail-closed validation
 # Execution Model: unittest policy tests plus disposable PostgreSQL integration
 # Observability: Explicit allow/deny reasons
@@ -162,6 +162,7 @@ class PermissionProfileTests(unittest.TestCase):
             def fetchone(self): return next(self.decisions)
         authorized = Cursor([
             {"principal_id":"steward:grace","grant_id":"grant:exact"},
+            ("r", True, 1), (False,),
             ({"allowed":True,"approval_required":False},),
         ])
         result = ExactGrantAuthorizer("riverview_authority").require_principal(
@@ -178,7 +179,10 @@ class PermissionProfileTests(unittest.TestCase):
             def execute(self,*_args): pass
             def fetchone(self):
                 self.index+=1
-                return {"principal_id":"steward:grace","grant_id":"grant:exact"} if self.index==1 else ({"allowed":False},)
+                return {
+                    1: {"principal_id":"steward:grace","grant_id":"grant:exact"},
+                    2: ("r", True, 1), 3: (False,), 4: ({"allowed":False},),
+                }[self.index]
         with self.assertRaises(GrantDenied):
             ExactGrantAuthorizer("riverview_authority").require_principal(
                 Cursor(),"steward:grace","cme.progress.read","service:cme")
