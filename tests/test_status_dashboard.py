@@ -103,11 +103,22 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn('$("newer-events").addEventListener("click", () => loadEvents(true))', app)
         self.assertIn("new Set(state.events.map((event) => event.event_id))", app)
 
+    def test_activity_events_show_available_provenance_and_missing_diagnostic_boundary(self):
+        app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
+        self.assertIn('Actor ${esc(e.actor_id || "not recorded")}', app)
+        self.assertIn('Payload schema ${esc(e.payload_schema || "not reported")}', app)
+        self.assertIn('Root event (no parent recorded)', app)
+        self.assertIn("event-specific diagnostic reference are not included in this projection", app)
+        self.assertIn('/docs/components/STATUS_DASHBOARD_COOKBOOK.md', app)
+
     def test_overview_explains_authoritative_projection_and_component_health_boundaries(self):
         html = (ROOT / "src/riverview_core/status_dashboard/static/index.html").read_text(encoding="utf-8")
         guidance = html[html.index('id="overview-guidance"'):html.index('</div>', html.index('id="overview-guidance"'))]
         for phrase in ("last observed institution event sequence", "read-only ledger response",
-                       "separate heartbeat signals", "separate from chat availability"):
+                       "separate heartbeat signals", "separate from chat availability",
+                       "browser cache bypass", "source observation time",
+                       "required ledger query succeeded", "required ledger tables are absent",
+                       "current state could not be confirmed"):
             self.assertIn(phrase, guidance)
 
     def test_worker_inventory_separates_registration_health_and_loaded_page_counts(self):

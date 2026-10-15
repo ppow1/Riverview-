@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md
 Component: STEWARD-DASHBOARD / WEBSITE
-File Revision: 1.0.12
+File Revision: 1.0.14
 Purpose: Consolidate traceable website improvement observations and separate them from accepted requirements and completed work
 Authority: Backlog recovery only; no new product requirement or acceptance decision
 Changed: 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Recover and prioritize documented website observations
@@ -22,6 +22,8 @@ Changed: 2026-10-15 UTC | RV-WEBSITE-PL008 | Reconcile loaded worker inventory c
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL006 | Explain overview projection and subsystem status semantics
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL011 | Add explicit older/newer event pagination and stable sequence handling
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL007 | Record effective heartbeat threshold as unavailable to website and block on source contract
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL012 | Show available event provenance and record task/diagnostic source limits
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL014 | Explain status projection refresh and explicit source transitions
 History: Git
 -->
 # Recovered Riverview website punch list
@@ -55,9 +57,9 @@ Priority labels and wording below follow the source punch list. “Captured” m
 | PL-NEW-009 | Workers | Show worker identity, capabilities, task, host, heartbeat, execution, and failures. | High | **Blocked on integration-owned worker inventory contract.** Current `/api/v1/workers` exposes `worker_id`, `active`, derived `status`, `last_heartbeat_at`, `heartbeat_age_seconds`, `active_leases`, and `source=assignment_leases`. Missing: capabilities, host/worker location, current task identity/context, execution detail/progress, and failure/recovery history. The worker registry/lease integration owner must define authoritative sources, privacy boundaries, field provenance and versioned API shape. Acceptance: each field is sourced from that owner, absent values are explicit, task/host/failure details are privacy-filtered, worker registration remains distinct from heartbeat health, and the dashboard reports bounded/paginated totals truthfully. No backend/worker contract change is made here |
 | PL-NEW-010 | Grace execution | Explain chat-operational versus execution-not-initialized status and prerequisites. | High | Captured |
 | PL-NEW-011 | Activity | Add bidirectional database-backed pagination with stable cursors. | High | Implemented on this branch using existing exclusive `before_seq` / `after_seq` API cursors; page order and duplicate suppression pass isolated Firefox and focused tests; integration review pending |
-| PL-NEW-012 | Activity | Show human-readable event meaning, causation, task, and diagnostic evidence. | High | Captured |
+| PL-NEW-012 | Activity | Show human-readable event meaning, causation, task, and diagnostic evidence. | High | Event cards now show humanized event type, timestamp, sequence/event ID, actor, correlation/causation, payload schema, and assignment link when present. Event API has no separate task ID, payload body, or event-specific diagnostic reference; those remain explicitly unavailable and cannot be inferred. Dashboard cookbook is linked as a general troubleshooting entry. Browser and focused checks pass; further event-specific diagnostics require an integration-owned source contract |
 | PL-NEW-013 | Diagnostics | Audit code-to-graph, cookbook, and diagnostic-catalog coverage. | High | Audit complete; exact-match traceability gaps recorded in [`PL-NEW-013 diagnostic coverage audit`](../development/PL-NEW-013-DIAGNOSTIC-COVERAGE_AUDIT.md); semantic coverage is not exhaustively classified |
-| PL-NEW-014 | Dashboard | Explain projection refresh, cache, freshness, and status transitions. | Medium | Captured |
+| PL-NEW-014 | Dashboard | Explain projection refresh, cache, freshness, and status transitions. | Medium | Implemented in overview guidance and dashboard troubleshooting: documents no-store refresh, source observation time, healthy/not-initialized/unavailable meanings, and separate event/detail fetches; isolated Firefox and focused tests pass; integration review pending |
 | PL-NEW-015 | Grace objectives | Explain schema/migration initialization, refresh semantics, and commissioning prerequisites. | High | Captured |
 | PL-NEW-016 | Navigation | Prevent documentation-tab/back navigation from creating duplicate dashboard tabs. | Medium | Captured |
 | PL-NEW-017 | Chat | Add a future multi-resident selector. | Later | Captured; explicitly future |
@@ -99,8 +101,10 @@ Priority labels and wording below follow the source punch list. “Captured” m
 9. **PL-NEW-026 — implemented on this branch; integration review pending:** the view and cookbook explain selector use, mouse/keyboard node selection, graph/node revisions, and the legend's static visual meaning.
 10. **PL-NEW-027 — implemented on this branch; integration review pending:** exact target-node focus plus a return path to the source jump node. Firefox evidence is in `evidence/checkouts/WEBSITE-PL027/20261015T193400Z-workflow-navigation/`.
 11. **PL-NEW-006 — implemented on this branch; verification passes:** the overview and cookbook explain event cursor, read-only projection/freshness, independent CME/worker heartbeat states, and Grace execution versus chat availability.
-12. **Next eligible audit: PL-NEW-012 (High):** verify whether the existing event card meets human-readable meaning and diagnostic-evidence outcomes using only available projection fields; record any missing event-source contract dependency before changing rendering.
-13. **Other captured items:** group by shared UI surface and dependencies. High priority does not itself authorize changing Grace, Engineering execution, authorization, CME, or production services in this website track.
+12. **PL-NEW-012 — available projection fields implemented; source gap recorded:** event cards expose humanized type, timestamp, event/sequence identity, actor, correlation/causation, payload schema and assignment when available. Separate task identity and event-specific diagnostic reference are absent from the API. Full punch-list outcome remains partial pending an integration-owned source contract; see the Activity section in the dashboard cookbook.
+13. **PL-NEW-014 — implemented on this branch:** projection refresh, cache bypass, source observation time, and status transitions are explained in the overview and troubleshooting cookbook; isolated browser and focused tests pass.
+14. **Next eligible item: PL-NEW-016 (Medium):** inspect documentation-tab/back navigation for duplicate dashboard tabs using the existing shell and browser behavior; change only website navigation.
+15. **Other captured items:** group by shared UI surface and dependencies. High priority does not itself authorize changing Grace, Engineering execution, authorization, CME, or production services in this website track.
 
 ## Existing implementation evidence (not punch-list closure)
 
@@ -119,6 +123,8 @@ The website track owns dashboard presentation and navigation, primarily `status_
 
 ## Revision history
 
+- **1.0.14 — 2026-10-15:** Record PL-NEW-014 projection refresh guidance and PL-NEW-016 as next eligible. Predecessor preserved in `.riverview-backups/20261015T203611503172Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
+- **1.0.13 — 2026-10-15:** Record PL-NEW-012 available event provenance implementation and event-specific diagnostic source gap. Predecessor preserved in `.riverview-backups/20261015T203354306114Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
 - **1.0.9 — 2026-10-15:** Reconcile PR #42 with PR #43 integration, record PL-NEW-004 outcome, clarify PL-NEW-025's unverified production acceptance, and define PL-NEW-028 contract blocker fields/source/acceptance. Predecessor preserved in `.riverview-backups/20261015T201227715209Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
 - **1.0.10 — 2026-10-15:** Record PL-NEW-008 completion, PL-NEW-009's exact source-contract blocker, and PL-NEW-006 as next eligible item. Predecessor preserved in `.riverview-backups/20261015T202051419052Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
 - **1.0.11 — 2026-10-15:** Record PL-NEW-006 completion and PL-NEW-007 as the next candidate after threshold-source audit. Predecessor preserved in `.riverview-backups/20261015T202136269723Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.

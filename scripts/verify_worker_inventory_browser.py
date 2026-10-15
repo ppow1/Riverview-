@@ -1,13 +1,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/verify_worker_inventory_browser.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.6
+# Revision: 1.0.7
 # Purpose: Verify worker registration, heartbeat states and pagination in Firefox
 # Execution Model: Isolated loopback fixture; owns only its HTTP and geckodriver processes
 # Observability: Redacted JSON report and screenshot; synthetic account and assignment data
 # Dependencies: Python 3.10+, Firefox, geckodriver
 # Authority: No production access; authenticated fixture reads only
 # Changed: 2026-10-15 UTC | RV-WEBSITE-PL008 | Add isolated worker inventory browser verification
+# Changed: 2026-10-15 UTC | RV-WEBSITE-PL012 | Verify event provenance and diagnostic boundary rendering
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: scripts/verify_worker_inventory_browser.py
 # History: Git
@@ -54,8 +55,10 @@ WORKERS = [
      "last_heartbeat_at": None},
 ]
 EVENTS = [{"seq": seq, "event_id": f"fixture-event-{seq}", "event_type": f"fixture_event_{seq}",
-           "recorded_at": f"2026-10-15T00:00:0{seq}Z", "assignment_id": None,
-           "correlation_id": f"fixture-correlation-{seq}", "causation_id": None}
+           "recorded_at": f"2026-10-15T00:00:0{seq}Z", "assignment_id": "fixture-linked",
+           "actor_id": "service:fixture.v1", "payload_schema": "rv.fixture_event.v1",
+           "correlation_id": f"fixture-correlation-{seq}",
+           "causation_id": "fixture-parent-event" if seq > 1 else None}
           for seq in range(1, 5)]
 
 
@@ -244,10 +247,12 @@ def main():
             "loaded_inventory_counts_reconcile": "4 registered · 2 active · 1 inactive · 1 registration unknown" in inventory["summary"],
             "pagination_boundary_is_truthful": "more records available" in first_page["summary"] and inventory["pagerHidden"],
             "mobile_worker_row_fits": not mobile["overflow"],
-            "overview_health_guidance_present": all(term in guidance for term in ["last observed institution event sequence", "separate heartbeat signals", "separate from chat availability"]),
+            "overview_health_guidance_present": all(term in guidance for term in ["last observed institution event sequence", "separate heartbeat signals", "separate from chat availability", "browser cache bypass", "source observation time", "required ledger query succeeded", "current state could not be confirmed"]),
             "older_event_page_prepended": older_event_page == ["seq 1", "seq 2", "seq 3"],
             "newer_event_page_appended_without_duplicates": event_paging["sequences"] == ["seq 1", "seq 2", "seq 3", "seq 4"],
             "activity_page_controls_match_cursors": not initial_event_page["olderHidden"] and not initial_event_page["newerHidden"] and event_paging["olderHidden"] and not event_paging["newerHidden"],
+            "event_cards_show_actor_schema_causation_and_assignment": all(term in js("return document.querySelector('#event-list').textContent") for term in ["Actor service:fixture.v1", "Payload schema rv.fixture_event.v1", "Caused by fixture-parent-event", "assignment fixture-linked"]),
+            "event_cards_disclose_payload_and_diagnostic_boundary": "event-specific diagnostic reference are not included" in js("return document.querySelector('#event-list').textContent") and js("return [...document.querySelectorAll('#event-list a')].some(a => a.href.includes('STATUS_DASHBOARD_COOKBOOK.md'))"),
             "requests_use_account_cookie": bool(protected_requests) and all(r["cookie_authenticated"] for r in protected_requests),
             "no_bearer_authorization": all(not r["authorization_present"] for r in protected_requests),
             "no_browser_errors": not errors,

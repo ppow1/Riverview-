@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.127
+**Document Revision:** 1.0.129
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
@@ -16,6 +16,8 @@
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL006/008/011 | Record overview guidance, worker inventory, activity paging, evidence and integration-owned blockers
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL025 | Record clean controlled-revision and evidence-manifest checks
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL025 | Record PR #42 update and exact-head CI result
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL012 | Record Activity provenance UI and event-source limitations
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL014 | Record projection status guidance, browser verification and source semantics
 **Changed:** 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow the explicitly reviewed supervised Bash runner in exact-source packages while retaining strict checks for other scripts
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
 **Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record responsive conversation interface implementation and isolated real-model browser acceptance
@@ -1639,6 +1641,53 @@ The requested read-only SSH check using `admin1@192.168.1.155` reached the host-
 PL-NEW-026's requested distinctions are now explained beside the viewer controls and in the dashboard cookbook: the workflow selector switches graphs, mouse or keyboard selection opens node identity/revision/references, graph and node revisions are separately labeled, and legend chips are static visual keys. The existing canonical dashboard flow already describes same-origin account-session workflow transport, so its runtime graph needed no semantic change. The recovery backlog now records PL-025's remaining deployed-evidence blocker, PL-026's branch implementation, and PL-013's coverage audit as the next independent item.
 
 **Verification:** isolated Firefox account-cookie test PASS (`scripts/verify_workflow_account_cookie_browser.py`); browser error list empty; index and detail requests both included the synthetic account cookie and omitted Authorization. `PYTHONPATH=.:src pytest -q -rs tests/test_status_dashboard.py tests/test_process_graph.py` — 32 passed, 8 skipped because `RIVERVIEW_TEST_PG_DSN` is unset. `python3 scripts/process_graph.py check` — PASS, 19 workflows / 458 nodes. Python compile and focused `git diff --check` passed. Controlled revision audit — PASS, zero issues; final browser evidence manifest — PASS, three checksummed artifacts. The browser test verifies transport/rendering against a fixture; it does not substitute for live account authentication or deployment acceptance. PR #42 was updated; exact-head CI run `38797619074` on `b46bf33` passed the full suite, graph checks and controlled revision checks. PL-013 audit is recorded below.
+
+## 2026-10-15 UTC — RV-WEBSITE-PL014
+
+**Classification:** dashboard refresh, freshness, and projection-state guidance.
+**Owner:** STEWARD-DASHBOARD / website presentation.
+
+The overview now states that status reads bypass browser cache and that the
+displayed timestamp comes from the API's `observed_at`. It defines healthy
+as a successful required ledger read, not initialized as reachable PostgreSQL
+with required ledger tables absent, and unavailable as inability to confirm
+current state. It also clarifies that event/detail refreshes are separate
+bounded requests and an optional relation's `not_initialized` value is a
+domain state. The troubleshooting cookbook records the same behavior against
+the implemented fetch and projection code.
+
+The isolated browser fixture and focused tests validate the visible guidance.
+No API route, state transition, or workflow node changed, so the canonical
+dashboard graph remains accurate. No cache policy, server, or status contract
+was changed. Focused browser assertions passed with the adjacent PL-NEW-012
+regression; the broader dashboard/process-graph suite passed 37 tests with 8
+PostgreSQL-dependent skips because `RIVERVIEW_TEST_PG_DSN` is unset. The
+canonical graph check passed (19 workflows / 458 nodes), and the controlled
+revision audit reported zero findings. Evidence and checksums are stored in
+`evidence/checkouts/WEBSITE-PL014/20261015T204600Z-projection-guidance/`.
+
+## 2026-10-15 UTC — RV-WEBSITE-PL012
+
+**Classification:** Activity event presentation and source-boundary audit.
+**Owner:** STEWARD-DASHBOARD / website presentation.
+
+The canonical event projection already carries event type, recorded time,
+sequence and event IDs, nullable assignment ID, actor ID, correlation and
+causation IDs, and payload schema. Activity cards previously omitted actor
+and payload schema and presented identifiers with terse labels. They now show
+the available provenance, humanized event type, explicit root-event state,
+assignment link when available, and a dashboard troubleshooting link. Cards
+state that payload bodies and event-specific diagnostic references are absent.
+The assignment ID is the only task reference exposed; no separate task ID is
+available. No missing field is inferred from event type.
+
+The fixture browser and focused test verify provenance rendering and the
+payload/diagnostic boundary. Existing dashboard process graph already covers
+event paging and links its failure branches to the troubleshooting cookbook;
+no new route, state transition or graph node was introduced, so no graph file
+changed. PL-NEW-012 is implemented for available projection fields and remains
+partial pending an integration-owned event detail/diagnostic source contract.
+No server, event schema, authorization, CME, or streaming behavior changed.
 
 ## 2026-10-15 UTC — RV-WEBSITE-PL013
 

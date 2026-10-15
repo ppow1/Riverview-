@@ -1,0 +1,9 @@
+{
+  "browser": "PASS: 18/18 checks; isolated synthetic account-cookie fixture; no browser errors",
+  "canonical_graph": "PASS: 19 workflows, 458 nodes",
+  "focused_tests": "2 focused Activity tests passed; broader dashboard/process graph run passed",
+  "production": "Not contacted",
+  "revision_audit": "PASS: zero findings",
+  "suite": "37 passed, 8 skipped (PostgreSQL integration cases; RIVERVIEW_TEST_PG_DSN unset)",
+  "task": "RV-WEBSITE-PL012"
+}

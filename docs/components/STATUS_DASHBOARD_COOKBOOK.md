@@ -1,7 +1,7 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.6
+File Revision: 1.1.8
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
@@ -15,6 +15,8 @@ Changed: 2026-10-15 UTC | RV-WEBSITE-PL004 | Document persisted assignment graph
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL008 | Explain worker registration versus heartbeat health and bounded inventory totals
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL006 | Clarify overview cursor, projection, component health and Grace execution meanings
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL011 | Explain older/newer sequence paging and activity cursor recovery
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL012 | Explain event provenance and projection diagnostic limits
+Changed: 2026-10-15 UTC | RV-WEBSITE-PL014 | Explain projection refresh, cache, freshness and status transitions
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -205,6 +207,18 @@ available; `not_initialized` there does not mean that the separate chat surface
 is unavailable. Use the source-specific state and observation time shown in
 each card; do not infer one subsystem's health from another subsystem's label.
 
+Status refresh uses same-origin `fetch` with browser cache bypass
+(`cache: no-store`). The header time is the API's `observed_at` value, not
+the browser's refresh time. A successful required ledger read reports
+`projection_status=healthy` and `freshness=current`; a reachable database
+missing required ledger tables reports `not_initialized` and
+`freshness=unknown`; a database/query failure reports `unavailable`.
+Refresh errors replace the freshness display with an unavailable message and
+do not present last-known values as current. A manual refresh and periodic
+status polling request a new bounded projection; event and detail refreshes
+are separate requests. A successful response with optional-relation
+`status=not_initialized` is a domain state, not a transport failure.
+
 ## Activity event paging
 
 The Activity view keeps events in ascending sequence order. **Load older
@@ -225,6 +239,23 @@ python3 scripts/verify_worker_inventory_browser.py \
   --output evidence/checkouts/WEBSITE-PL011/<new-run-directory>
 PYTHONPATH=.:src pytest -q tests/test_status_dashboard.py -k activity_has_explicit
 ```
+
+### Event meaning and provenance
+
+Activity cards humanize the event type and show the recorded timestamp,
+sequence/event identity, actor, correlation and causation IDs, payload schema,
+and the related assignment link when present. A missing causation ID is shown
+as a root event with no parent recorded. Assignment identity is the task
+reference currently available in this projection; service events have no
+assignment task reference.
+
+The bounded event projection excludes payload bodies and does not provide an
+event-specific diagnostic reference or a separate task ID. The card labels
+those limits and links to this cookbook as the dashboard-level troubleshooting
+entry point. Do not infer a task, parent event, or diagnostic from the event
+type. To investigate a particular event, use its recorded event/correlation/
+causation IDs with the authoritative event owner and retain the payload
+redaction boundary.
 
 ## Fast read-only checks
 
