@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.141
+**Document Revision:** 1.0.142
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
@@ -28,6 +28,7 @@
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PR45-RECONCILE | Preserve merged same-source work-order retry behavior while reconciling website changes
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PL038-POST-PR45 | Record final integrated browser/test/graph verification
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PR45-REVISION-AUDIT | Record and repair predecessor evidence gaps found after integration
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PR46-RECONCILE | Reconcile current integration head and preserve resident-knowledge changes unchanged
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PR42-RECONCILE | Preserve PR #44 integration journal entry and record current base reconciliation
 **Changed:** 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow the explicitly reviewed supervised Bash runner in exact-source packages while retaining strict checks for other scripts
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
@@ -1955,3 +1956,16 @@ source diff checks passed. The first revision audit identified missing exact
 predecessors for the revision manifest, generated graph, shared client script,
 and dashboard tests. Restored those exact PR #45 integration-head bytes long
 enough to capture verified backups, then reran the audit with zero findings.
+
+
+## 2026-10-16 UTC — RV-WEBSITE-PR46-RECONCILE
+
+Before controlled PR #42 review, fetched the integration branch again and found
+merged PR #46 at `8f95c83af4e3a6269b25d96e1092baf8175e431c`. Its changes add
+bounded repository grounding in `resident_knowledge.py` and update related
+reasoning/Engineering documents, tests, and process graph. Merged this current
+integration head into the website branch. The resident-knowledge implementation
+and its tests/docs were included unchanged from integration; no resident
+reasoning behavior was edited in the website worktree. The graph generator and
+controlled revision audit pass after reconciliation. A new exact-head CI run is
+required for the updated website PR head.

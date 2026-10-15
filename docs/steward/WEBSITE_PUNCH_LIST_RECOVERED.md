@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md
 Component: STEWARD-DASHBOARD / WEBSITE
-File Revision: 1.0.23
+File Revision: 1.0.24
 Purpose: Consolidate traceable website improvement observations and separate them from accepted requirements and completed work
 Authority: Backlog recovery only; no new product requirement or acceptance decision
 Changed: 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Recover and prioritize documented website observations
@@ -34,12 +34,13 @@ Changed: 2026-10-16 UTC | RV-WEBSITE-PL038 | Add a searchable registry traceabil
 Changed: 2026-10-16 UTC | RV-WEBSITE-PUNCH-LIST-AUDIT | Classify all 41 captured items against implementation, evidence, ownership, and external dependencies.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PR45-RECONCILE | Reconcile the website branch with current integration PR #45 while preserving its retry behavior.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PL038-POST-PR45 | Record integrated browser regression and updated 459-node graph baseline.
+Changed: 2026-10-16 UTC | RV-WEBSITE-PR46-RECONCILE | Update PR #42's integration baseline through PR #46 without editing resident-reasoning changes.
 History: Git
 -->
 # Recovered Riverview website punch list
 
 **Captured source:** [`Riverview_Steward_Punch_List_2026-10-13.md`](Riverview_Steward_Punch_List_2026-10-13.md), including its 2026-10-13 review addenda.  
-**Baseline:** integration branch `codex/grace-conversation-ui-refinement` at PR #45 merge `ef73c6d6410cd30e00ebda6d68ee76e5a35a10f6` (which includes PR #44 merge `29d196f879d0a3a1dad5f782b305d9d52a0baadd`); website work branch `codex/website-improvements`.
+**Baseline:** integration branch `codex/grace-conversation-ui-refinement` at PR #46 merge `8f95c83af4e3a6269b25d96e1092baf8175e431c` (which includes PR #45 merge `ef73c6d6410cd30e00ebda6d68ee76e5a35a10f6` and PR #44 merge `29d196f879d0a3a1dad5f782b305d9d52a0baadd`); website work branch `codex/website-improvements`.
 **Purpose:** consolidate the recorded website observations without promoting them to accepted requirements. The original PL-NEW identifiers and stated priorities are retained.
 
 ## Requirement and implementation boundaries
@@ -148,7 +149,7 @@ Disposition uses the requested categories. “Implemented but awaiting productio
 
 ### Current implementation order and readiness
 
-1. **PR #42:** reconciled through PR #45 at integration head `ef73c6d6410cd30e00ebda6d68ee76e5a35a10f6`, retaining the PR #44 work-order intake behavior and PR #45 same-source immutable-criteria retry behavior. Keep open/draft until controlled review, exact-head CI and required approval are satisfied. It has not been merged or deployed.
+1. **PR #42:** reconciled through PR #46 at integration head `8f95c83af4e3a6269b25d96e1092baf8175e431c`, retaining PR #44 work-order intake and PR #45 same-source immutable-criteria retry behavior. PR #46's resident-knowledge/reasoning changes were included from integration unchanged. Keep open/draft until controlled review, exact-head CI and required approval are satisfied. It has not been merged or deployed.
 2. **PL-NEW-038:** searchable graph registry and declared traceability UI are implemented and isolated-browser verified. Full item remains blocked on authoritative freshness metadata and attributable semantic test-coverage outcomes; the canonical API exposes references only. Its browser report is linked in the audit table.
 3. **Independent website-scope implementations already on this branch:** PL-003/004/006/008/010/011/014/015/016/019/020/023/024/026/027/036. Isolated browser or documented audit evidence is linked in the item rows and journal. Production acceptance remains separate and pending controlled release.
 4. **Next high-priority source contracts:** PL-018 resident conversation titles/history search (conversation integration); PL-001/002/005 assignment intent and blocker records (assignment intake/Engineering); PL-007/009 worker thresholds and inventory (worker/CME integration); PL-012 event task/diagnostic linkage (event integration); PL-028/029/032 notification/decision lifecycle (notification/CME integration). The exact known gaps are recorded in the audit table. No fabricated fields or backend edits are allowed in this website track.
@@ -175,6 +176,8 @@ The website track owns dashboard presentation and navigation, primarily `status_
 - **1.0.22 — 2026-10-16:** Reconcile the recorded integration baseline through PR #45 and confirm the work-order retry UI remains Codex 1-owned behavior. Predecessor preserved in `.riverview-backups/20261015T212921860469Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
 
 - **1.0.23 — 2026-10-16:** Add the post-PR #45 isolated browser run and update the validated graph count. Predecessor preserved in `.riverview-backups/20261015T213030949991Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
+
+- **1.0.24 — 2026-10-16:** Reconcile the documented integration baseline through PR #46 while leaving its resident-knowledge implementation untouched. Predecessor preserved in `.riverview-backups/20261015T213508120442Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
 
 - **1.0.21 — 2026-10-16:** Record PL-038 searchable catalog implementation and full audit dispositions for PL-NEW-001–041; retain the freshness/coverage contract blocker and production-acceptance boundary. Predecessor preserved in `.riverview-backups/20261015T211442725960Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
 

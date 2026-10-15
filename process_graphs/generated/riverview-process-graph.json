@@ -1858,7 +1858,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.1.13",
+      "graph_revision": "1.1.14",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -2126,9 +2126,9 @@
         },
         {
           "id": "rv:grace:operational-integration:bounded-evidence-selection",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
-          "label": "IMPLEMENTED — select complete task-relevant passages from commit-pinned repository sources",
+          "label": "IMPLEMENTED — verify the full pinned source set and deterministically select ranked complete passages within the evidence bound; retain source provenance and coverage metadata",
           "source_references": [
             "src/riverview_core/worker_adapter/repository_knowledge.py",
             "src/riverview_core/worker_adapter/resident_knowledge.py"
@@ -2137,7 +2137,9 @@
             "docs/components/GRACE_EXECUTION_PIPELINE.md",
             "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "tests/test_resident_knowledge.py"
+          ]
         },
         {
           "id": "rv:grace:operational-integration:proposal-validation",

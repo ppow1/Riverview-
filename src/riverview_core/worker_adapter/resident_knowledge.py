@@ -2,30 +2,33 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/resident_knowledge.py
 # Component: REPOSITORY-KNOWLEDGE-PROVIDER
-# Revision: 1.0.0
-# Purpose: Select complete, task-relevant excerpts from pinned resident sources
+# Revision: 1.0.1
+# Purpose: Rank bounded task-relevant excerpts from pinned resident sources
 # Execution Model: In-process bounded lexical selection over verified source files
 # Observability: Full-source provenance with explicit VERIFIED/NO_MATCH/INCOMPLETE outcomes
 # Dependencies: RepositoryKnowledgeProvider; knowledge-provider v1
 # Authority: Read-only repository evidence; never authorizes an action
 # Changed: 2026-10-11 UTC | RV-M4.4-RESIDENT-KNOWLEDGE-SELECT | Initial bounded resident knowledge selector
+# Changed: 2026-10-15 UTC | RV-GRACE-GROUNDING-BOUNDED-001 | Rank complete passages within the evidence envelope while verifying the full source set
 # Contracts: docs/components/RESIDENT_REASONING.md; knowledge-provider v1
 # Tests: tests/test_resident_knowledge.py
 # History: .riverview-backups/manifest.jsonl and Git
 # =============================================================================
-"""Select complete matching passages without silently truncating evidence.
+"""Select ranked complete passages from a fully verified source corpus.
 
 The base provider verifies every allowlisted source at one commit. This adapter
-scans that complete source set, includes every matching paragraph, and returns
-INCOMPLETE when the complete selection will not fit the configured byte cap.
-The full-source digest is retained even though only task-relevant passages are
-sent to a reasoning provider.
+scans that complete source set and selects informative complete paragraphs
+within the evidence envelope. It does not claim to return every lexical match:
+the full source references, revision and digest prove which corpus was scanned,
+and coverage metadata makes the bounded selection explicit. Text is never
+clipped; no viable selection remains INCOMPLETE.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from typing import Mapping
 
@@ -38,6 +41,8 @@ class TaskRelevantRepositoryKnowledgeProvider:
 
     CONTRACT_REF = RepositoryKnowledgeProvider.RESIDENT_CONTRACT
     MAX_CONTEXT_BYTES = 8 * 1024
+    # Leave room for KnowledgeResult provenance and the pipeline evidence envelope.
+    MAX_SELECTION_BYTES = 7 * 1024
     MAX_QUERY_BYTES = 4096
     _STOP_WORDS = frozenset({
         "about", "after", "again", "also", "and", "are", "because", "before",
@@ -103,29 +108,108 @@ class TaskRelevantRepositoryKnowledgeProvider:
             return source
 
         term_set = set(terms)
-        selected = []
+        candidates = []
         for document in source.value["documents"]:
-            passages = []
+            document_digest = hashlib.sha256(
+                document["content"].encode("utf-8")).hexdigest()
             for first, last, text in self._paragraphs(document["content"]):
-                found = term_set.intersection(re.findall(r"[a-z0-9_]+", text.lower()))
+                words = re.findall(r"[a-z0-9_]+", text.lower())
+                found = term_set.intersection(words)
                 if found:
-                    passages.append({"line_start": first, "line_end": last, "text": text})
-            if passages:
-                raw = document["content"].encode("utf-8")
-                selected.append({"reference": document["reference"],
-                                 "source_sha256": hashlib.sha256(raw).hexdigest(),
-                                 "passages": passages})
-        if not selected:
+                    candidates.append({
+                        "reference": document["reference"],
+                        "source_sha256": document_digest,
+                        "line_start": first,
+                        "line_end": last,
+                        "text": text,
+                        "matches": found,
+                        "word_count": max(1, len(words)),
+                    })
+        if not candidates:
             return self._result(KnowledgeStatus.NO_MATCH, refs=source.source_references,
                                 revision=source.source_revision, digest=source.source_sha256,
                                 complete=True)
-        value = {"contract_ref": self.CONTRACT_REF,
-                 "selection_complete": True,
-                 "query_sha256": hashlib.sha256(" ".join(terms).encode()).hexdigest(),
-                 "documents": selected}
+
+        document_frequency = {
+            term: sum(term in item["matches"] for item in candidates)
+            for term in terms
+        }
+        paragraph_count = len(candidates)
+        idf = {
+            term: math.log(1 + (paragraph_count - frequency + 0.5) /
+                           (frequency + 0.5))
+            for term, frequency in document_frequency.items()
+        }
+        selected = []
+        covered = set()
+        remaining = list(candidates)
+        selection_budget = min(self.max_context_bytes, self.MAX_SELECTION_BYTES)
+
+        def make_value(passages):
+            documents = []
+            selected_terms = set().union(*(item["matches"] for item in passages))
+            for document in source.value["documents"]:
+                matches = [item for item in passages
+                           if item["reference"] == document["reference"]]
+                if matches:
+                    documents.append({
+                        "reference": document["reference"],
+                        "source_sha256": matches[0]["source_sha256"],
+                        "passages": [{
+                            "line_start": item["line_start"],
+                            "line_end": item["line_end"],
+                            "text": item["text"],
+                        } for item in matches],
+                    })
+            return {
+                "contract_ref": self.CONTRACT_REF,
+                "selection_complete": True,
+                "selection_policy": "ranked-complete-paragraphs-v1",
+                "query_sha256": hashlib.sha256(" ".join(terms).encode()).hexdigest(),
+                "query_term_coverage": {
+                    "matched": len(set().union(*(item["matches"] for item in candidates))),
+                    "selected": len(selected_terms),
+                },
+                "documents": documents,
+            }
+
+        # Greedily cover high-information query terms per byte. Stable source
+        # and line tie breakers keep identical retries deterministic.
+        while remaining:
+            current_size = len(json.dumps(
+                make_value(selected), ensure_ascii=False, sort_keys=True,
+                separators=(",", ":")).encode("utf-8"))
+            ranked = []
+            for item in remaining:
+                new_terms = item["matches"] - covered
+                if not new_terms:
+                    continue
+                trial = make_value(selected + [item])
+                trial_size = len(json.dumps(
+                    trial, ensure_ascii=False, sort_keys=True,
+                    separators=(",", ":")).encode("utf-8"))
+                if trial_size > selection_budget:
+                    continue
+                gain = sum(idf[term] for term in new_terms)
+                added_bytes = max(1, trial_size - current_size)
+                ranked.append((gain / added_bytes, gain, -item["word_count"],
+                               item["reference"], -item["line_start"], item))
+            if not ranked:
+                break
+            item = max(ranked, key=lambda result: result[:-1])[-1]
+            selected.append(item)
+            covered.update(item["matches"])
+            remaining.remove(item)
+
+        if not selected:
+            return self._result(KnowledgeStatus.INCOMPLETE,
+                                refs=source.source_references,
+                                revision=source.source_revision,
+                                digest=source.source_sha256, complete=False)
+        value = make_value(selected)
         encoded = json.dumps(value, ensure_ascii=False, sort_keys=True,
                              separators=(",", ":")).encode("utf-8")
-        if len(encoded) > self.max_context_bytes:
+        if len(encoded) > selection_budget:
             return self._result(KnowledgeStatus.INCOMPLETE,
                                 refs=source.source_references,
                                 revision=source.source_revision,
