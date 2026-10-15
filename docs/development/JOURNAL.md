@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.124
+**Document Revision:** 1.0.125
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
@@ -13,6 +13,7 @@
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL013 | Record exact-match code-to-workflow/cookbook coverage audit
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL028 | Record missing notification summary fields as cross-scope blocker
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL025 | Record clean controlled-revision and evidence-manifest checks
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL025 | Record PR #42 update and exact-head CI result
 **Changed:** 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow the explicitly reviewed supervised Bash runner in exact-source packages while retaining strict checks for other scripts
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
 **Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record responsive conversation interface implementation and isolated real-model browser acceptance
@@ -1635,7 +1636,7 @@ The requested read-only SSH check using `admin1@192.168.1.155` reached the host-
 
 PL-NEW-026's requested distinctions are now explained beside the viewer controls and in the dashboard cookbook: the workflow selector switches graphs, mouse or keyboard selection opens node identity/revision/references, graph and node revisions are separately labeled, and legend chips are static visual keys. The existing canonical dashboard flow already describes same-origin account-session workflow transport, so its runtime graph needed no semantic change. The recovery backlog now records PL-025's remaining deployed-evidence blocker, PL-026's branch implementation, and PL-013's coverage audit as the next independent item.
 
-**Verification:** isolated Firefox account-cookie test PASS (`scripts/verify_workflow_account_cookie_browser.py`); browser error list empty; index and detail requests both included the synthetic account cookie and omitted Authorization. `PYTHONPATH=.:src pytest -q -rs tests/test_status_dashboard.py tests/test_process_graph.py` — 32 passed, 8 skipped because `RIVERVIEW_TEST_PG_DSN` is unset. `python3 scripts/process_graph.py check` — PASS, 19 workflows / 458 nodes. Python compile and focused `git diff --check` passed. Controlled revision audit — PASS, zero issues; final browser evidence manifest — PASS, three checksummed artifacts. The browser test verifies transport/rendering against a fixture; it does not substitute for live account authentication or deployment acceptance. PL-013 audit is recorded below. PR #42 update remains.
+**Verification:** isolated Firefox account-cookie test PASS (`scripts/verify_workflow_account_cookie_browser.py`); browser error list empty; index and detail requests both included the synthetic account cookie and omitted Authorization. `PYTHONPATH=.:src pytest -q -rs tests/test_status_dashboard.py tests/test_process_graph.py` — 32 passed, 8 skipped because `RIVERVIEW_TEST_PG_DSN` is unset. `python3 scripts/process_graph.py check` — PASS, 19 workflows / 458 nodes. Python compile and focused `git diff --check` passed. Controlled revision audit — PASS, zero issues; final browser evidence manifest — PASS, three checksummed artifacts. The browser test verifies transport/rendering against a fixture; it does not substitute for live account authentication or deployment acceptance. PR #42 was updated; exact-head CI run `38797619074` on `b46bf33` passed the full suite, graph checks and controlled revision checks. PL-013 audit is recorded below.
 
 ## 2026-10-15 UTC — RV-WEBSITE-PL013
 
