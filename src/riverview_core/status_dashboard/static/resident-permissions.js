@@ -1,7 +1,8 @@
 // Riverview~ controlled asset; component RESIDENT-PERMISSION-PROFILES.
-// Revision: 1.0.3
+// Revision: 1.0.4
 // Purpose: Steward resident capability/resource checklist over existing account session.
 // Authority: Server-side exact office.manage and profile CAS functions remain authoritative.
+// Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PACKAGING | Fix rule-summary JavaScript syntax before release verification
 (() => {
   "use strict";
   const byId = (id) => document.getElementById(id);
@@ -38,7 +39,7 @@
         if (p.status && p.status !== "revoked") buttons += " <button class=\"secondary\" data-revoke=\"" + esc(p.principal_id) + "\" data-revision=\"" + esc(p.revision) + "\">Revoke</button>";
         const ruleHtml = rules.length ? rules.map((r) => "<div class=\"row\"><span class=\"row-main\">" + esc(r.capability_id) + " → " + esc(r.resource_id) +
           "</span><span>" + esc(r.effect) + " · " + esc(r.access_level) + " · " + esc(r.data_classification) + " · export " + esc(r.export_mode) +
-          " · approval " + (r.approval_required ? "required" : "not required") + " · expires " + esc(r.valid_until || "never") + "</span></div>").join("") : "<p>No explicit rules; no profile permissions are inferred from the tier.");
+          " · approval " + (r.approval_required ? "required" : "not required") + " · expires " + esc(r.valid_until || "never") + "</span></div>").join("") : "<p>No explicit rules; no profile permissions are inferred from the tier.";
         const inherited = p.inherited_rules || [];
         const inheritedHtml = inherited.length ? "<h4>Inherited tier rules</h4>" + inherited.map((r) => "<div class=\"row-meta\">" + esc(r.capability_id) + " → " + esc(r.resource_id) + " · " + esc(r.effect) + " · " + esc(r.access_level) + "</div>").join("") : "<div class=\"row-meta\">No inherited allow rules are configured for this tier.</div>";
         const audits = (p.audit || []).map((a) => "<div class=\"row-meta\">" + esc(a.event_type) + " · " + esc(a.actor_id) + " · rev " + esc(a.revision) + " · " + esc(a.recorded_at) + "</div>").join("");
