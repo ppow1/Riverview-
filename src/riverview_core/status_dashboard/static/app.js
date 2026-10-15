@@ -1,5 +1,5 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.4.3
+// Revision: 1.4.4
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
 // Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Use linked Steward account session for exact-grant Grace connection
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password login, grant decisions and email configuration UI
@@ -7,6 +7,7 @@
 // Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Display durable deferred reasoning state in chat history.
 // Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Add Steward-only resident profile navigation.
 // Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Stream durable conversation output, clear deferred partials, and refresh active history for verified results.
+// Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Explain immutable criteria reuse on same-origin retries.
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -599,11 +600,11 @@
   $("work-order-form").addEventListener("submit",async(event)=>{
     event.preventDefault();
     const criteria=$("work-order-criteria").value.split(/\r?\n/).map((item)=>item.trim()).filter(Boolean);
-    if(!state.chatConversationId||!Number.isInteger(state.workOrderSourceSequence)||!criteria.length){$("work-order-error").textContent="Select a persisted Grace conversation message and provide at least one acceptance criterion.";return;}
+    if(!state.chatConversationId||!Number.isInteger(state.workOrderSourceSequence)){$("work-order-error").textContent="Select a persisted Grace conversation message.";return;}
     const submit=$("work-order-submit");submit.disabled=true;submit.textContent="Submitting…";$("work-order-error").textContent="";
     try{
       const result=await api(`/api/v1/resident/conversations/${encodeURIComponent(state.chatConversationId)}/work-orders`,10000,"POST",{body:{source_sequence:state.workOrderSourceSequence,acceptance_criteria:criteria}});
-      $("work-order-dialog").close();toast(`Objective ${result.objective_id} recorded (${result.status}).`);await loadObjectives();
+      $("work-order-dialog").close();toast(result.reused_existing_objective?`Existing objective ${result.objective_id} resumed (${result.status}); its original acceptance criteria were retained.`:`Objective ${result.objective_id} recorded (${result.status}).`);await loadObjectives();
     }catch(error){
       const message=error.payload?.error==="engineering_work_order_submission_not_authorized"?"The authenticated Steward lacks objective.submit on work-order:engineering. No work order was created.":`Work-order intake failed (${error.payload?.error||error.message}). No approval or execution is implied.`;
       $("work-order-error").textContent=message;

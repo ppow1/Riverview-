@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.28
+# Revision: 1.0.29
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -29,6 +29,7 @@
 # History: Git and revision/backup manifest
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
 # Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RECOVERY-001 | Cover release-pinned knowledge and idempotent wait-state intake.
+# Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Verify same-origin retries reuse immutable criteria and recheck authority.
 # =============================================================================
 """Security, API, privacy and PostgreSQL integration tests for M3.1."""
 
@@ -115,6 +116,8 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn('/work-orders', app)
         self.assertIn('id="work-order-criteria"', html)
         self.assertIn('objective.submit on work-order:engineering', app)
+        self.assertIn('its original acceptance criteria were retained', app)
+        self.assertIn('leave this field blank to resume that recorded objective', html)
 
     def test_grace_conversation_workspace_controls_and_complete_rendering_contract(self):
         static = Path(__file__).resolve().parents[1] / "src/riverview_core/status_dashboard/static"
@@ -303,7 +306,15 @@ class DashboardHTTPTests(unittest.TestCase):
                 self.objective = None
                 self.submit_count = 0
                 self.ground_count = 0
+                self.authorization_count = 0
+                self.authorization_revoked = False
                 self.ledger = PipelineLedger(self)
+            def authorize_objective_submission(self, _principal_id, _scope_ref):
+                self.authorization_count += 1
+                if self.authorization_revoked:
+                    from riverview_core.resident_execution import ObjectiveNotAuthorized
+                    raise ObjectiveNotAuthorized("objective.submit is not authorized")
+                return {"principal_id": principal_id, "grant_id": "grant:test"}
             def submit_objective(self, objective_id, request, acceptance_criteria, *,
                                  scope_ref, principal, origin):
                 self.submit_count += 1
@@ -330,8 +341,10 @@ class DashboardHTTPTests(unittest.TestCase):
         self.server._objective_pipeline = pipeline
 
         def post_work_order(criteria_value):
-            body = json.dumps({"source_sequence": 6,
-                               "acceptance_criteria": criteria_value}).encode("utf-8")
+            payload = {"source_sequence": 6}
+            if criteria_value is not None:
+                payload["acceptance_criteria"] = criteria_value
+            body = json.dumps(payload).encode("utf-8")
             conn = HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
             conn.request("POST", f"/api/v1/resident/conversations/{conversation_id}/work-orders",
                 body=body, headers={"Cookie": "rv_account_session=session; rv_account_csrf=csrf",
@@ -346,16 +359,45 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(first_status, 202)
         self.assertEqual(second_status, 202)
         self.assertEqual(first["objective_id"], second["objective_id"])
+        self.assertFalse(first["reused_existing_objective"])
+        self.assertTrue(second["reused_existing_objective"])
         self.assertEqual(second["status"], "WAITING_FOR_EVIDENCE")
         self.assertEqual(second["evidence"]["status"], "UNVERIFIED")
         self.assertEqual(pipeline.submit_count, 1)
         self.assertEqual(pipeline.ground_count, 2)
         self.assertEqual(auth.assertion, ("session", "csrf", True))
 
-        conflict_status, conflict = post_work_order(["different criteria"])
-        self.assertEqual(conflict_status, 409)
-        self.assertEqual(conflict["error"], "work_order_conflict")
+        original_criteria = list(pipeline.objective["acceptance_criteria"])
+        recorded_objective = dict(pipeline.objective)
+        normalized_retry_status, normalized_retry = post_work_order(["criteria with different whitespace "])
+        self.assertEqual(normalized_retry_status, 202)
+        self.assertTrue(normalized_retry["reused_existing_objective"])
+        self.assertEqual(pipeline.objective["acceptance_criteria"], original_criteria)
+        blank_retry_status, blank_retry = post_work_order(None)
+        self.assertEqual(blank_retry_status, 202)
+        self.assertTrue(blank_retry["reused_existing_objective"])
+        self.assertEqual(blank_retry["objective_id"], first["objective_id"])
+        self.assertEqual(pipeline.objective["acceptance_criteria"], original_criteria)
         self.assertEqual(pipeline.submit_count, 1)
+        self.assertEqual(pipeline.authorization_count, 3)
+        self.assertEqual(pipeline.ground_count, 4)
+
+        pipeline.authorization_revoked = True
+        denied_status, denied = post_work_order(None)
+        self.assertEqual(denied_status, 403)
+        self.assertEqual(denied["error"], "engineering_work_order_submission_not_authorized")
+        self.assertEqual(pipeline.submit_count, 1)
+        pipeline.objective = None
+        empty_new_status, empty_new = post_work_order(None)
+        self.assertEqual(empty_new_status, 400)
+        self.assertEqual(empty_new["error"], "invalid_work_order_request")
+        self.assertEqual(pipeline.submit_count, 1)
+        pipeline.objective = recorded_objective
+        pipeline.authorization_revoked = False
+        pipeline.objective["scope_ref"] = "work-order:other"
+        origin_conflict_status, origin_conflict = post_work_order(None)
+        self.assertEqual(origin_conflict_status, 409)
+        self.assertEqual(origin_conflict["error"], "work_order_origin_conflict")
 
     def test_conversation_stream_requires_authentication_and_existing_service(self):
         path="/api/v1/resident/conversations/00000000-0000-4000-8000-000000000001/responses/00000000-0000-4000-8000-000000000002/stream?after=0"

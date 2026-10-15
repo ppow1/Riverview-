@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.13
+# Revision: 1.3.15
 # Purpose: Serve account-authenticated operational projections and existing bounded APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -23,6 +23,8 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Bind authenticated Steward sessions to existing exact office grants
 # Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING | Add explicit conversation-to-objective intake gate
 # Changed: 2026-10-13 UTC | RV-LEDGER-GRAPH-POSITION | Read live execution position only from persisted canonical ledger identity
+# Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Reuse immutable same-origin objective criteria on authorized retries
+# Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Return a distinct safe code for conflicting objective origins
 # Changed: 2026-10-13 UTC | RV-GRACE-OCTO-PRIVATE-LAN-PROVIDER | Permit only explicit allowlisted OCTO1 model URLs when an opt-in service flag is set
 # Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Add opt-in readiness router and deferred-turn resumption loop
 # Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Fail startup closed unless deferred compatibility and claim migrations are ready
@@ -81,6 +83,12 @@ _CONVERSATION_STREAM = re.compile(
     r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/responses/([0-9a-fA-F-]{36})/stream$")
 _CONVERSATION_WORK_ORDER = re.compile(
     r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/work-orders$")
+
+
+class WorkOrderOriginConflict(Exception):
+    """A selected conversation source is already bound to a different objective."""
+
+
 _MAX_CHAT_BODY = 12 * 1024
 _MAX_OBJECTIVE_BODY = 16 * 1024
 _MAX_ACCOUNT_BODY = 8 * 1024
@@ -860,12 +868,14 @@ def make_handler():
                         return
                     try:
                         data = self._json_body(_MAX_CHAT_BODY)
-                        if set(data) != {"source_sequence", "acceptance_criteria"}:
+                        if set(data) not in ({"source_sequence"}, {"source_sequence", "acceptance_criteria"}):
                             raise ValueError("invalid work order shape")
                         sequence = data["source_sequence"]
-                        criteria = data["acceptance_criteria"]
+                        criteria = data.get("acceptance_criteria", [])
                         if (type(sequence) is not int or sequence < 1 or
-                                not isinstance(criteria, list) or not criteria or len(criteria) > 20):
+                                not isinstance(criteria, list) or len(criteria) > 20 or
+                                any(not isinstance(item, str) or not item.strip() or len(item) > 1000
+                                    for item in criteria)):
                             raise ValueError("invalid source sequence or criteria")
                         conversation_id = conversation_work_order.group(1)
                         principal_id = identity.get("authority_principal_id")
@@ -896,17 +906,24 @@ def make_handler():
                         if existing is not None:
                             # The first receipt is durable even when grounding is
                             # unavailable. A same-origin retry resumes that exact
-                            # objective; it must never mint a second objective ID.
+                            # objective; its accepted criteria are immutable. The
+                            # current form may be empty or differently normalized,
+                            # so retries retain the original criteria instead of
+                            # treating a second submission as a new objective.
                             if (existing.get("scope_ref") != "work-order:engineering"
                                     or existing.get("submitter_id") != principal_id
-                                    or existing.get("request", "").strip() != source["body"].strip()
-                                    or existing.get("acceptance_criteria") != criteria):
-                                raise ObjectiveStateError(
+                                    or existing.get("request", "").strip() != source["body"].strip()):
+                                raise WorkOrderOriginConflict(
                                     "conversation source conflicts with its recorded objective")
+                            pipeline.authorize_objective_submission(
+                                principal_id, "work-order:engineering")
                             grounded = (_ground_conversation_objective(pipeline, existing["objective_id"])
                                 if existing["status"] in {"RECEIVED", "WAITING_FOR_EVIDENCE"}
                                 else existing)
+                            reused_existing = True
                         else:
+                            if not criteria:
+                                raise ValueError("new objectives require acceptance criteria")
                             # Deterministic origin identity closes the concurrent
                             # double-submit race without a new migration or grant.
                             suffix = uuid5(NAMESPACE_URL,
@@ -923,16 +940,22 @@ def make_handler():
                                 existing = _find_conversation_objective(
                                     pipeline, conversation_id, sequence)
                                 if existing is None:
-                                    raise
+                                    raise WorkOrderOriginConflict(
+                                        "conversation source conflicts with its recorded objective")
                                 if (existing.get("scope_ref") != "work-order:engineering"
                                         or existing.get("submitter_id") != principal_id
-                                        or existing.get("request", "").strip() != source["body"].strip()
-                                        or existing.get("acceptance_criteria") != criteria):
+                                        or existing.get("request", "").strip() != source["body"].strip()):
                                     raise
+                                pipeline.authorize_objective_submission(
+                                    principal_id, "work-order:engineering")
                                 accepted = existing
+                                reused_existing = True
+                            else:
+                                reused_existing = False
                             grounded = _ground_conversation_objective(
                                 pipeline, accepted["objective_id"])
-                        self._json(202, _conversation_objective_response(grounded), request_id)
+                        self._json(202, _conversation_objective_response(
+                            grounded, reused_existing=reused_existing), request_id)
                     except Exception as exc:
                         from riverview_core.resident_execution import ObjectiveNotAuthorized, ObjectiveStateError
                         from riverview_core.institutional_authority import GrantCheckUnavailable
@@ -940,6 +963,8 @@ def make_handler():
                             ConversationDenied, ConversationNotFound, ConversationUnavailable)
                         if isinstance(exc, ObjectiveNotAuthorized):
                             self._error(403, "engineering_work_order_submission_not_authorized", request_id)
+                        elif isinstance(exc, WorkOrderOriginConflict):
+                            self._error(409, "work_order_origin_conflict", request_id)
                         elif isinstance(exc, ConversationDenied):
                             self._error(403, "resident_conversation_not_authorized", request_id)
                         elif isinstance(exc, ConversationNotFound):
@@ -1384,8 +1409,7 @@ def _find_conversation_objective(pipeline, conversation_id, source_sequence):
             ORDER BY objective_id""", (conversation_id, str(source_sequence)))
         rows = cur.fetchall()
     if len(rows) > 1:
-        from riverview_core.resident_execution import ObjectiveStateError
-        raise ObjectiveStateError("conversation source already has conflicting objectives")
+        raise WorkOrderOriginConflict("conversation source already has conflicting objectives")
     return pipeline.get_objective(rows[0]["objective_id"]) if rows else None
 
 
@@ -1403,9 +1427,10 @@ def _ground_conversation_objective(pipeline, objective_id):
         raise
 
 
-def _conversation_objective_response(objective):
+def _conversation_objective_response(objective, *, reused_existing=False):
     """Build a bounded intake receipt that never returns request or evidence content."""
     result = {"objective_id": objective["objective_id"], "status": objective["status"]}
+    result["reused_existing_objective"] = bool(reused_existing)
     if objective.get("source_revision"):
         result["source_revision"] = objective["source_revision"]
     if objective["status"] == "WAITING_FOR_EVIDENCE":

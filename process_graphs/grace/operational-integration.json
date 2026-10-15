@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:grace:operational-integration",
-  "graph_revision": "1.1.12",
+  "graph_revision": "1.1.13",
   "component_id": "RESIDENT-ORCHESTRATION",
   "workflow_id": "grace-engineering-objective.v1",
   "diagram_order": 9,
@@ -59,15 +59,31 @@
   "nodes": [
     {
       "id": "rv:grace:operational-integration:objective-intake",
-      "node_revision": "1.0.2",
+      "node_revision": "1.0.3",
       "type": "entry",
-      "label": "IMPLEMENTED \u2014 exact objective.submit persists one objective per authenticated conversation message origin; same-origin retries reuse it",
+      "label": "IMPLEMENTED \u2014 exact objective.submit persists one objective per authenticated conversation message origin; retries revalidate the grant and retain original criteria",
       "source_references": [
         "src/riverview_core/status_dashboard/server.py",
         "src/riverview_core/resident_execution/pipeline.py"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_CONVERSATION.md",
+        "docs/components/GRACE_EXECUTION_PIPELINE.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:grace:operational-integration:objective-intake-retry",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "SAME-SOURCE RETRY — revalidate objective.submit, retain immutable criteria, resume the durable objective without creating a duplicate",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/resident_execution/pipeline.py"
+      ],
+      "documentation_references": [
         "docs/components/GRACE_EXECUTION_PIPELINE.md"
       ],
       "verification_evidence": [
@@ -910,6 +926,24 @@
       "from": "rv:grace:operational-integration:objective-intake",
       "to": "rv:grace:operational-integration:typed-proposal-api",
       "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:operational-integration:objective-intake",
+      "to": "rv:grace:operational-integration:objective-intake-retry",
+      "type": "recovery_route",
+      "label": "Retry the same authenticated source without changing original objective acceptance criteria"
+    },
+    {
+      "from": "rv:grace:operational-integration:objective-intake-retry",
+      "to": "rv:grace:operational-integration:typed-proposal-api",
+      "type": "runtime_transition",
+      "label": "The durable objective remains eligible for normal grounded CME processing"
+    },
+    {
+      "from": "rv:grace:operational-integration:objective-intake-retry",
+      "to": "rv:grace:operational-integration:waiting-and-failure",
+      "type": "diagnostic_branch",
+      "label": "Revoked exact grant or mismatched source identity fails closed without changing the objective"
     },
     {
       "from": "rv:grace:operational-integration:typed-proposal-api",
