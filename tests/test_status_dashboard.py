@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.43
+# Revision: 1.0.44
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -386,6 +386,152 @@ class DashboardHTTPTests(unittest.TestCase):
         status, _, body = self.request("POST", path, token=self.token)
         self.assertEqual(status, 403)
         self.assertEqual(json.loads(body)["error"], "steward_account_session_required")
+
+    def test_conversation_work_order_wait_is_receipted_and_same_origin_retry_is_idempotent(self):
+        from contextlib import contextmanager
+        from riverview_core.resident_execution import ObjectiveStateError
+
+        principal_id = "steward:camrui"
+        conversation_id = "00000000-0000-4000-8000-000000000001"
+        criteria = ["criterion one", "criterion two"]
+
+        class AccountAuth:
+            def authenticate(self, credential, *, csrf_token, state_changing):
+                self.assertion = (credential, csrf_token, state_changing)
+                return {"roles": ["steward"], "authority_principal_id": principal_id}
+            def require_role(self, identity, *roles):
+                return None
+
+        class StoreCursor:
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def execute(self, *_): return None
+            def fetchone(self):
+                return {"body": "bounded source message", "actor_kind": "principal",
+                        "actor_id": principal_id}
+
+        class ConversationStore:
+            db = type("DB", (), {"cursor": lambda _: StoreCursor()})()
+            def _path(self, _cursor): return None
+
+        class ConversationService:
+            store = ConversationStore()
+            def history(self, _authority, _conversation_id): return []
+
+        class PipelineCursor:
+            def __init__(self, pipeline): self.pipeline = pipeline
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def execute(self, *_): return None
+            def fetchall(self):
+                return ([{"objective_id": self.pipeline.objective["objective_id"]}]
+                        if self.pipeline.objective else [])
+
+        class PipelineDB:
+            def __init__(self, pipeline): self.pipeline = pipeline
+            def cursor(self): return PipelineCursor(self.pipeline)
+
+        class PipelineLedger:
+            def __init__(self, pipeline): self.db = PipelineDB(pipeline)
+            def _set_search_path(self, _cursor): return None
+
+        class Pipeline:
+            def __init__(self):
+                self.objective = None
+                self.submit_count = 0
+                self.ground_count = 0
+                self.authorization_count = 0
+                self.authorization_revoked = False
+                self.ledger = PipelineLedger(self)
+            def authorize_objective_submission(self, _principal_id, _scope_ref):
+                self.authorization_count += 1
+                if self.authorization_revoked:
+                    from riverview_core.resident_execution import ObjectiveNotAuthorized
+                    raise ObjectiveNotAuthorized("objective.submit is not authorized")
+                return {"principal_id": principal_id, "grant_id": "grant:test"}
+            def submit_objective(self, objective_id, request, acceptance_criteria, *,
+                                 scope_ref, principal, origin):
+                self.submit_count += 1
+                self.objective = {"objective_id": objective_id, "request": request.strip(),
+                    "acceptance_criteria": acceptance_criteria, "scope_ref": scope_ref,
+                    "submitter_id": principal.principal_id, "status": "RECEIVED",
+                    "evidence": None, "source_revision": None, "origin": origin}
+                return self.objective
+            def ground_objective(self, _objective_id):
+                self.ground_count += 1
+                self.objective.update({"status": "WAITING_FOR_EVIDENCE", "revision": 2,
+                    "evidence": {"status": "UNVERIFIED", "retrieval_complete": False,
+                                 "source_references": [], "source_revision": "b" * 40}})
+                raise ObjectiveStateError("repository evidence is not complete and verified")
+            def get_objective(self, objective_id):
+                if self.objective and self.objective["objective_id"] == objective_id:
+                    return self.objective
+                return None
+
+        auth = AccountAuth()
+        pipeline = Pipeline()
+        self.server._account_auth_service = auth
+        self.server._conversation_service = ConversationService()
+        self.server._objective_pipeline = pipeline
+
+        def post_work_order(criteria_value):
+            payload = {"source_sequence": 6}
+            if criteria_value is not None:
+                payload["acceptance_criteria"] = criteria_value
+            body = json.dumps(payload).encode("utf-8")
+            conn = HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
+            conn.request("POST", f"/api/v1/resident/conversations/{conversation_id}/work-orders",
+                body=body, headers={"Cookie": "rv_account_session=session; rv_account_csrf=csrf",
+                                    "X-Riverview-CSRF": "csrf", "Content-Type": "application/json"})
+            response = conn.getresponse()
+            status, payload = response.status, json.loads(response.read())
+            conn.close()
+            return status, payload
+
+        first_status, first = post_work_order(criteria)
+        second_status, second = post_work_order(criteria)
+        self.assertEqual(first_status, 202)
+        self.assertEqual(second_status, 202)
+        self.assertEqual(first["objective_id"], second["objective_id"])
+        self.assertFalse(first["reused_existing_objective"])
+        self.assertTrue(second["reused_existing_objective"])
+        self.assertEqual(second["status"], "WAITING_FOR_EVIDENCE")
+        self.assertEqual(second["evidence"]["status"], "UNVERIFIED")
+        self.assertEqual(pipeline.submit_count, 1)
+        self.assertEqual(pipeline.ground_count, 2)
+        self.assertEqual(auth.assertion, ("session", "csrf", True))
+
+        original_criteria = list(pipeline.objective["acceptance_criteria"])
+        recorded_objective = dict(pipeline.objective)
+        normalized_retry_status, normalized_retry = post_work_order(["criteria with different whitespace "])
+        self.assertEqual(normalized_retry_status, 202)
+        self.assertTrue(normalized_retry["reused_existing_objective"])
+        self.assertEqual(pipeline.objective["acceptance_criteria"], original_criteria)
+        blank_retry_status, blank_retry = post_work_order(None)
+        self.assertEqual(blank_retry_status, 202)
+        self.assertTrue(blank_retry["reused_existing_objective"])
+        self.assertEqual(blank_retry["objective_id"], first["objective_id"])
+        self.assertEqual(pipeline.objective["acceptance_criteria"], original_criteria)
+        self.assertEqual(pipeline.submit_count, 1)
+        self.assertEqual(pipeline.authorization_count, 3)
+        self.assertEqual(pipeline.ground_count, 4)
+
+        pipeline.authorization_revoked = True
+        denied_status, denied = post_work_order(None)
+        self.assertEqual(denied_status, 403)
+        self.assertEqual(denied["error"], "engineering_work_order_submission_not_authorized")
+        self.assertEqual(pipeline.submit_count, 1)
+        pipeline.objective = None
+        empty_new_status, empty_new = post_work_order(None)
+        self.assertEqual(empty_new_status, 400)
+        self.assertEqual(empty_new["error"], "invalid_work_order_request")
+        self.assertEqual(pipeline.submit_count, 1)
+        pipeline.objective = recorded_objective
+        pipeline.authorization_revoked = False
+        pipeline.objective["scope_ref"] = "work-order:other"
+        origin_conflict_status, origin_conflict = post_work_order(None)
+        self.assertEqual(origin_conflict_status, 409)
+        self.assertEqual(origin_conflict["error"], "work_order_origin_conflict")
 
     def test_conversation_stream_requires_authentication_and_existing_service(self):
         path="/api/v1/resident/conversations/00000000-0000-4000-8000-000000000001/responses/00000000-0000-4000-8000-000000000002/stream?after=0"

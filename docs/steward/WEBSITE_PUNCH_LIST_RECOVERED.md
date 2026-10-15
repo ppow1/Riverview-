@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md
 Component: STEWARD-DASHBOARD / WEBSITE
-File Revision: 1.0.21
+File Revision: 1.0.23
 Purpose: Consolidate traceable website improvement observations and separate them from accepted requirements and completed work
 Authority: Backlog recovery only; no new product requirement or acceptance decision
 Changed: 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Recover and prioritize documented website observations
@@ -32,12 +32,14 @@ Changed: 2026-10-15 UTC | RV-WEBSITE-PL003 | Resolve canonical task titles from 
 Changed: 2026-10-16 UTC | RV-WEBSITE-PL029 | Separate visible rendering and receipt from person-seen and decision state; record missing API lifecycle fields.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PL038 | Add a searchable registry traceability catalog and record freshness/coverage source limits.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PUNCH-LIST-AUDIT | Classify all 41 captured items against implementation, evidence, ownership, and external dependencies.
+Changed: 2026-10-16 UTC | RV-WEBSITE-PR45-RECONCILE | Reconcile the website branch with current integration PR #45 while preserving its retry behavior.
+Changed: 2026-10-16 UTC | RV-WEBSITE-PL038-POST-PR45 | Record integrated browser regression and updated 459-node graph baseline.
 History: Git
 -->
 # Recovered Riverview website punch list
 
 **Captured source:** [`Riverview_Steward_Punch_List_2026-10-13.md`](Riverview_Steward_Punch_List_2026-10-13.md), including its 2026-10-13 review addenda.  
-**Baseline:** integration branch `codex/grace-conversation-ui-refinement` at PR #44 merge `29d196f879d0a3a1dad5f782b305d9d52a0baadd`; website work branch `codex/website-improvements`.
+**Baseline:** integration branch `codex/grace-conversation-ui-refinement` at PR #45 merge `ef73c6d6410cd30e00ebda6d68ee76e5a35a10f6` (which includes PR #44 merge `29d196f879d0a3a1dad5f782b305d9d52a0baadd`); website work branch `codex/website-improvements`.
 **Purpose:** consolidate the recorded website observations without promoting them to accepted requirements. The original PL-NEW identifiers and stated priorities are retained.
 
 ## Requirement and implementation boundaries
@@ -91,7 +93,7 @@ Priority labels and wording below follow the source punch list. “Captured” m
 | PL-NEW-035 | Resources | Add an initially read-only Resources/Capabilities surface for hosts, models, tools, dependencies, readiness, performance, power, and wake controls. | High / later milestone | Captured; later-milestone qualifier retained |
 | PL-NEW-036 | Navigation | Add collapsible sidebar with compact icon state and accessible expansion; retain health/snapshot affordances. | Medium | Implemented persisted compact/expanded state, accessible labels/ARIA, and visible health/snapshot affordances; Firefox verified; production acceptance pending. Evidence: [`PL-NEW-036 browser report`](../../evidence/checkouts/WEBSITE-PL036/20261015T231000Z-collapsible-navigation/browser-acceptance.json) |
 | PL-NEW-037 | Global health | Show segmented model/host readiness, selected versus merely online provider, and accessible textual explanation. | Medium | Captured |
-| PL-NEW-038 | Documentation | Replace fixed diagnostic links with searchable indexed catalog of per-component troubleshooting, workflows, failure/recovery, provenance, freshness and test coverage. | High | **Partial website implementation; full acceptance blocked on authoritative freshness/coverage sources.** Searchable workflow, typed node, component-document, provenance, and declared test/evidence references are implemented and isolated-browser verified. Existing registry references do not provide freshness policy/value or semantic test-coverage outcomes. Required source: integration-owned versioned graph/evidence metadata or an authoritative linked coverage record with provenance. Acceptance: searchable, component-linked freshness guidance and attributable test coverage/outcomes; declared paths alone remain traceability, not a pass/coverage claim. Production acceptance of the implemented UI is also pending |
+| PL-NEW-038 | Documentation | Replace fixed diagnostic links with searchable indexed catalog of per-component troubleshooting, workflows, failure/recovery, provenance, freshness and test coverage. | High | **Partial website implementation; full acceptance blocked on authoritative freshness/coverage sources.** Searchable workflow, typed node, component-document, provenance, and declared test/evidence references are implemented and isolated-browser verified. Existing registry references do not provide freshness policy/value or semantic test-coverage outcomes. Required source: integration-owned versioned graph/evidence metadata or an authoritative linked coverage record with provenance. Acceptance: searchable, component-linked freshness guidance and attributable test coverage/outcomes; declared paths alone remain traceability, not a pass/coverage claim. Post-PR #45 regression evidence: [`PL-038 report`](../../evidence/checkouts/WEBSITE-PL038/20261016T023000Z-post-PR45-regression/browser-acceptance.json). Production acceptance of the implemented UI is also pending |
 | PL-NEW-039 | Automated QA | Evaluate seeded role-based audit precedent and add authenticated browser route/interaction tests as a distinct stage. | High / proposal | Captured proposal; CueMastery source findings are historical evidence only |
 | PL-NEW-040 | Automated QA | Define test-account lifecycle, safe permissions, scheduled/post-deploy runs, outcome states, regression detection, and historical reports. | High / proposal | Captured proposal |
 | PL-NEW-041 | Dashboard snapshots / Workflows | Include every website workflow's status and website-faithful visual, structured definitions, cross-references, and all required dashboard sections in a recoverable snapshot. | P1 — after active Grace 80B commissioning repair | Captured; detailed acceptance specification remains in the source record |
@@ -146,7 +148,7 @@ Disposition uses the requested categories. “Implemented but awaiting productio
 
 ### Current implementation order and readiness
 
-1. **PR #42:** based on the reconciled PR #44 integration head `29d196f879d0a3a1dad5f782b305d9d52a0baadd`. Keep open/draft until controlled review, exact-head CI and required approval are satisfied. It has not been merged or deployed.
+1. **PR #42:** reconciled through PR #45 at integration head `ef73c6d6410cd30e00ebda6d68ee76e5a35a10f6`, retaining the PR #44 work-order intake behavior and PR #45 same-source immutable-criteria retry behavior. Keep open/draft until controlled review, exact-head CI and required approval are satisfied. It has not been merged or deployed.
 2. **PL-NEW-038:** searchable graph registry and declared traceability UI are implemented and isolated-browser verified. Full item remains blocked on authoritative freshness metadata and attributable semantic test-coverage outcomes; the canonical API exposes references only. Its browser report is linked in the audit table.
 3. **Independent website-scope implementations already on this branch:** PL-003/004/006/008/010/011/014/015/016/019/020/023/024/026/027/036. Isolated browser or documented audit evidence is linked in the item rows and journal. Production acceptance remains separate and pending controlled release.
 4. **Next high-priority source contracts:** PL-018 resident conversation titles/history search (conversation integration); PL-001/002/005 assignment intent and blocker records (assignment intake/Engineering); PL-007/009 worker thresholds and inventory (worker/CME integration); PL-012 event task/diagnostic linkage (event integration); PL-028/029/032 notification/decision lifecycle (notification/CME integration). The exact known gaps are recorded in the audit table. No fabricated fields or backend edits are allowed in this website track.
@@ -169,6 +171,10 @@ Disposition uses the requested categories. “Implemented but awaiting productio
 The website track owns dashboard presentation and navigation, primarily `status_dashboard/static/workflow.js`, `app.css`, `index.html`, and dashboard tests/docs. PR #40 also touched `status_dashboard/server.py`, `status_dashboard/static/app.js`, `tests/test_status_dashboard.py`, and dashboard component documentation for stream compatibility. This change avoids its shared behavior-code and test files; the only same-file overlaps are additive paragraphs in `STATUS_DASHBOARD.md` and `STATUS_DASHBOARD_COOKBOOK.md` describing workflow navigation. Stream documentation and behavior were left intact. Grace conversation runtime, model routing, migrations, Grace verification, Engineering execution, CME, authority, and deployment configuration remain outside this change. No production service or database was changed.
 
 ## Revision history
+
+- **1.0.22 — 2026-10-16:** Reconcile the recorded integration baseline through PR #45 and confirm the work-order retry UI remains Codex 1-owned behavior. Predecessor preserved in `.riverview-backups/20261015T212921860469Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
+
+- **1.0.23 — 2026-10-16:** Add the post-PR #45 isolated browser run and update the validated graph count. Predecessor preserved in `.riverview-backups/20261015T213030949991Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
 
 - **1.0.21 — 2026-10-16:** Record PL-038 searchable catalog implementation and full audit dispositions for PL-NEW-001–041; retain the freshness/coverage contract blocker and production-acceptance boundary. Predecessor preserved in `.riverview-backups/20261015T211442725960Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
 

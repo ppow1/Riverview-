@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:steward-dashboard:status",
-  "graph_revision": "1.1.9",
+  "graph_revision": "1.1.10",
   "component_id": "STEWARD-DASHBOARD",
   "workflow_id": "status-projection.v1",
   "diagram_order": 1,
@@ -434,7 +434,7 @@
     },
     {
       "id": "rv:steward-dashboard:status:render-documentation",
-      "node_revision": "1.0.2",
+      "node_revision": "1.0.3",
       "type": "process",
       "label": "Render allowlisted cookbooks as safe readable HTML",
       "source_references": [
@@ -454,7 +454,8 @@
       "verification_evidence": [
         "tests/test_status_dashboard.py",
         "evidence/checkouts/WEBSITE-PL016/20261015T212500Z-documentation-navigation/browser-acceptance.json",
-        "evidence/checkouts/WEBSITE-PL038/20261016T020000Z-searchable-workflow-catalog/browser-acceptance.json"
+        "evidence/checkouts/WEBSITE-PL038/20261016T020000Z-searchable-workflow-catalog/browser-acceptance.json",
+        "evidence/checkouts/WEBSITE-PL038/20261016T023000Z-post-PR45-regression/browser-acceptance.json"
       ]
     },
     {

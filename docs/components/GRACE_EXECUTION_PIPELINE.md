@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.8
+File Revision: 1.0.9
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
 Authority: Engineering contract; not evidence of production Grace commissioning
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Link persistent reconciliation and authenticated dashboard handoff
@@ -13,6 +13,7 @@ Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH-CREDENTIAL | Bind the Codex AP
 Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Replace API-key execution with a bounded one-objective ChatGPT-session mode
 Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Pin supervised reasoning, dispatch, claim, verification, and completion to one objective
 Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Route proposals through the bound 80B and return independently verified results to source chat
+Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Reuse immutable acceptance criteria on authorized same-origin retries
 -->
 # Grace Execution Pipeline — infrastructure slice
 
@@ -44,10 +45,12 @@ source sequence and Steward-entered acceptance criteria. The server rechecks the
 account session, Steward website role, exact conversation read grant, source
 message principal/ownership, and `objective.submit` on the fixed
 `work-order:engineering` scope before persisting an objective with conversation
-origin. Ordinary chat is never promoted automatically. This is objective intake;
-it is not a Grace proposal, assignment dispatch, worker authorization, or proof
-of execution. The currently deployed registry has no such objective grant, and
-the new route is uncommissioned until the Steward approves the exact authority.
+origin. A same-source retry revalidates that exact grant, reuses the durable
+objective, and retains the original acceptance criteria; retry input cannot
+rewrite them. A blank criteria field is accepted only when the same source
+already has an objective. Ordinary chat is never promoted automatically. This
+is objective intake; it is not a Grace proposal, assignment dispatch, worker
+authorization, or proof of execution.
 
 The return-to-chat path is source implemented, not production commissioned. It returns artifact reference, digest and independent verifier evidence for Grace's 80B review; the reviewer does not reopen arbitrary files. PostgreSQL integration tests require `RIVERVIEW_TEST_PG_DSN`; this checkout has no such DSN. The execution service and exact resident-send, assignment-create, executor and verifier grants remain commissioning prerequisites. No code in this increment creates or broadens grants.
 

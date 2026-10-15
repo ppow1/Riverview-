@@ -1,0 +1,53 @@
+{
+  "artifacts": {
+    "activity-pagination.png": {
+      "path": "activity-pagination.png",
+      "revision": "1.0.0",
+      "sha256": "94ae5ba541c487705540356bc55f6d3df2684d37132937aa222e5e33cff55b95",
+      "size_bytes": 242151
+    },
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "1f9ba87afb92ade4753f9dd494f5b051afe367edee49db844e78f23c2a54fac1",
+      "size_bytes": 15685
+    },
+    "chat-layout-mobile.png": {
+      "path": "chat-layout-mobile.png",
+      "revision": "1.0.0",
+      "sha256": "94b86aebd60995fa03877d8a0317eca9bae89eebdd3fe601a63f9bc1c31f7073",
+      "size_bytes": 94000
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "d3946cc05c4cf09569947a0d62cc4d21f56589e955eea8319c082a269b0b4c03",
+      "size_bytes": 1210
+    },
+    "documentation-catalog.png": {
+      "path": "documentation-catalog.png",
+      "revision": "1.0.0",
+      "sha256": "4239156adeb4db4e0221976dc5a965e91a8b5175bf098496623a907c2ab717bf",
+      "size_bytes": 144306
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "809e52a5ca5765f0c712e878f1d4a9c30e31afadfac1d16758a29e6661837d19",
+      "size_bytes": 200
+    },
+    "validation-summary.json": {
+      "path": "validation-summary.json",
+      "revision": "1.0.0",
+      "sha256": "3ed453f473947fd2d895f98f86fa727e845e4e9c4d7506b8e10d5b7eac9577db",
+      "size_bytes": 658
+    },
+    "worker-inventory.png": {
+      "path": "worker-inventory.png",
+      "revision": "1.0.0",
+      "sha256": "2a0605655c92467e168efa21edcda3c8d7fc42e0d25a15941880332afb65df24",
+      "size_bytes": 136950
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

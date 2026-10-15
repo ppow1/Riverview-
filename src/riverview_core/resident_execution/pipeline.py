@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
 # Execution Model: Request-driven orchestration over existing PostgreSQL authority and ledger
 # Observability: Append-only objective events linked to assignment and evidence provenance
@@ -13,6 +13,7 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER | Accept authenticated principals and retain conversation origin
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Carry independently verified artifact location into Grace completion event
 # Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Add durable retryable outbox for verified conversation-origin work results
+# Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Revalidate exact submission grant before retrying existing objectives
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -86,6 +87,20 @@ class GraceExecutionPipeline:
             (objective_id,event_type,idempotency_key,actor_id,payload)
             VALUES (%s,%s,%s,%s,%s::jsonb) ON CONFLICT (idempotency_key) DO NOTHING""",
             (objective_id, event_type, idem, actor_id, _json(payload)))
+
+    def authorize_objective_submission(self, principal_id, scope_ref):
+        """Recheck the existing exact objective.submit grant for an idempotent retry."""
+        db = self.ledger.db
+        try:
+            with db.transaction():
+                with db.cursor() as cur:
+                    self.ledger._set_search_path(cur)
+                    return self.authorizer.require_principal(
+                        cur, principal_id, "objective.submit", scope_ref)
+        except Exception as exc:
+            if type(exc).__name__ == "GrantDenied":
+                raise ObjectiveNotAuthorized("objective.submit is not authorized") from None
+            raise
 
     def submit_objective(self, objective_id, request, acceptance_criteria, *,
                          scope_ref, credential=None, principal=None, origin=None):

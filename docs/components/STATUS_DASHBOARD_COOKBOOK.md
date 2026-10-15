@@ -1,7 +1,7 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.15
+File Revision: 1.1.16
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
@@ -24,6 +24,7 @@ Changed: 2026-10-15 UTC | RV-WEBSITE-PL036 | Document navigation rail preference
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL003 | Document exact graph/node title lookup and unresolved-title behavior.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PL029 | Explain delivery, person-seen, receipt and decision lifecycle boundaries.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PL038 | Add searchable graph registry traceability catalog and qualify references.
+Changed: 2026-10-16 UTC | RV-WEBSITE-PL038-POST-PR45 | Link the final post-integration browser verification.
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -485,4 +486,4 @@ documents for freshness/troubleshooting instructions. A reference path does not
 mean its test passed, and it is not a semantic coverage result. Full PL-NEW-038
 acceptance remains blocked until an authoritative source provides attributable
 freshness metadata and test-coverage outcomes. Isolated Firefox evidence:
-`evidence/checkouts/WEBSITE-PL038/20261016T020000Z-searchable-workflow-catalog/`.
+`evidence/checkouts/WEBSITE-PL038/20261016T023000Z-post-PR45-regression/`.

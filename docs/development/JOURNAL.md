@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.138
+**Document Revision:** 1.0.141
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
@@ -25,6 +25,9 @@
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL003 | Record exact canonical task-title lookup and assignment-contract gaps
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PL029 | Clarify notification delivery/receipt and record seen/decision API blockers
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PL038 | Record searchable catalog behavior, isolated browser evidence, and freshness/coverage source boundary
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PR45-RECONCILE | Preserve merged same-source work-order retry behavior while reconciling website changes
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PL038-POST-PR45 | Record final integrated browser/test/graph verification
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PR45-REVISION-AUDIT | Record and repair predecessor evidence gaps found after integration
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PR42-RECONCILE | Preserve PR #44 integration journal entry and record current base reconciliation
 **Changed:** 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow the explicitly reviewed supervised Bash runner in exact-source packages while retaining strict checks for other scripts
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
@@ -1932,3 +1935,23 @@ timestamped evidence directory now has a checksum manifest without changing or
 deleting its artifacts. The integration branch advanced with merged PR #45
 after the PR #44 baseline; this website branch is being reconciled before the
 next exact-head CI run.
+
+
+## 2026-10-16 UTC — RV-WEBSITE-PR45-RECONCILE
+
+Fetched the integration branch and found merged PR #45 at
+`ef73c6d6410cd30e00ebda6d68ee76e5a35a10f6`, after the previously recorded PR
+#44 baseline. Merged that integration head into `codex/website-improvements`.
+Resolved shared dashboard JavaScript, HTML, test, and revision-manifest
+conflicts by retaining the website improvements and PR #45's same-source
+work-order retry behavior. The regression test for immutable criteria reuse,
+authority recheck, and origin conflict is retained. Codex 1's server and
+resident-execution changes were brought in from the integration branch without
+being edited in the website worktree. Canonical graph generation now reports
+19 workflows / 459 nodes. Post-merge dashboard and process-graph tests passed
+47 tests with 8 PostgreSQL-dependent skips; the Firefox account-cookie regression
+passed all 35 checks with zero browser errors. Revision audit against PR #45 and
+source diff checks passed. The first revision audit identified missing exact
+predecessors for the revision manifest, generated graph, shared client script,
+and dashboard tests. Restored those exact PR #45 integration-head bytes long
+enough to capture verified backups, then reran the audit with zero findings.

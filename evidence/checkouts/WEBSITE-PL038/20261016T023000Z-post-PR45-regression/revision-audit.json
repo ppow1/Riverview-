@@ -1,0 +1,6 @@
+{
+  "baseline_commit": "ef73c6d6410cd30e00ebda6d68ee76e5a35a10f6",
+  "command": "python3 scripts/revision_control.py check --baseline <PR45 baseline inventory>",
+  "findings": 0,
+  "result": "PASS"
+}
