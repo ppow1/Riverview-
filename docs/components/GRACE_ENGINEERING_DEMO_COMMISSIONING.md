@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.6
+File Revision: 1.0.7
 Purpose: Prepare the first bounded authenticated Grace-to-Codex Engineering demonstration
 Authority: Existing Steward grants, AuthorityRegistry, CME, worker, verifier, and conversation contracts
 Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Record exact source, database, grant, worker, and rollback gates
@@ -12,6 +12,7 @@ Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Record the successful 
 Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Record full isolated PostgreSQL regression and unchanged production baseline
 Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Record pushed PR head, successful CI, and pending human review gate
 Changed: 2026-10-15 UTC | RV-AUTH-LEGACY-PROFILE-COMPAT | Record migration 0008 compatibility correction and current production-safe release gate
+Changed: 2026-10-15 UTC | RV-GRACE-HEALTH-WRITER-ACL-001 | Record the restricted-role heartbeat ACL defect and controlled rollback
 Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md; docs/components/GRACE_EXECUTION_PIPELINE.md
 Tests: tests/test_codex_cli_adapter.py; tests/test_worker_service.py; PostgreSQL integration suite
 History: Git and .riverview-backups/manifest.jsonl
@@ -19,7 +20,16 @@ History: Git and .riverview-backups/manifest.jsonl
 
 # Grace Engineering Demonstration Commissioning
 
-**Current status (2026-10-15): NO-GO for activation.** A preflight found that the integrated authorizer called `evaluate_resident_permission` even when production's deliberately restricted runtime role could not see migration 0008, although both the function and profile table were absent. Exact grants therefore failed before profile policy could be evaluated. The source correction preserves exact-grant behavior only when both profile objects are absent; it keeps profile evaluation mandatory when both exist and fails closed for partial or inconsistent states. The corrected source passed isolated PostgreSQL regression and full-suite checks, but is not yet reviewed, integrated, or packaged. Production migration 0008 remains unapplied; production grants, bindings, dashboard, and inactive Grace service are unchanged. Do not activate until the correction is reviewed, integrated, packaged, and independently verified. The prior commissioning narrative below records earlier evidence and is superseded where its status differs from this dated update.
+**Current status (2026-10-15): NO-GO pending a corrected release.** The first authorized activation attempt was stopped before restarting the dashboard. The owner-session process loaded integrated source `b7ddfc7…`, preserved Grace's occupant and binding revision 9, and logged `InsufficientPrivilege` for both health writes and service cycles. Read-only ACL inspection showed `riverview_core` had SELECT but no INSERT/UPDATE on `riverview_dev.grace_execution_health`, and no SELECT access to `grace_objectives` or `grace_objective_events`, which the existing loop reads. The owner-session unit was stopped, and the dashboard and Grace release/configuration pointers were restored to their predecessors (`98287c9…` and `abfbaf9…`). The dashboard remained healthy. Additive migration `0007_grace_runtime_objective_and_health_acl` is being prepared with selected column grants and one sequence USAGE grant for those existing pipeline operations; it does not modify authority tables, migration ledgers, unrelated relations, or event history. Migration 0008 remains absent, Grace's binding/occupant are unchanged, and no dashboard restart occurred during the failed attempt. The migration must pass restricted-role PostgreSQL integration, full suite, graph validation and controlled revision audit, then be reviewed, integrated, packaged and staged. Take a fresh protected backup before applying 0007. Do not retry activation until those gates pass. Earlier commissioning notes remain historical and are superseded where they differ from this update.
+
+The standard checksum-verified application command, after the corrected immutable Grace release is installed at `current` and a fresh backup is verified, is:
+
+```sh
+sudo -n -u postgres env PYTHONPATH=/opt/riverview-grace-execution/current/src \
+  /opt/riverview-core/.venv/bin/python -c 'from riverview_core.postgres_migrations import apply_migrations; print(apply_migrations("dbname=riverview user=postgres", schema="riverview_dev", migrations_dir="/opt/riverview-grace-execution/current/src/riverview_core/resident_execution/migrations"))'
+```
+
+Expected result is exactly `['0007_grace_runtime_objective_and_health_acl']`; the runner also verifies every previously applied migration checksum and aborts on drift. Do not invoke the institutional-authority migration directory or apply the separate migration 0008.
 
 ## Legacy authority compatibility correction
 

@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.135",
+  "manifest_revision": "1.1.137",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.100",
+      "revision": "1.0.102",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "74eadf02b05a970dc709d1c2980be5bea02a80c218cc29127027efbefd7f9823",
-      "size_bytes": 478737
+      "sha256": "5cc24e20077fbcbcf552247343e4f99a5fa88cb2553312e39be6abeb13bd8232",
+      "size_bytes": 478983
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 33631
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.135"
+      "revision": "1.1.137"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -131,10 +131,10 @@
       "size_bytes": 17159
     },
     "process_graphs/grace/operational-integration.json": {
-      "revision": "1.0.23",
+      "revision": "1.0.24",
       "path": "process_graphs/grace/operational-integration.json",
-      "sha256": "1d86b6e58158185b7aefaf347ad3bf235842d29358fd0f425f44111d69dd1f17",
-      "size_bytes": 47536
+      "sha256": "1f6fe6ddc8702b37127a249934dc141a8b7b116c71f90b8fa047e48414ef6c3a",
+      "size_bytes": 47770
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "revision": "1.0.0",
