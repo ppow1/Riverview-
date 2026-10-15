@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Verify primary 80B routing, capability-pinned recovery, bounded fallback and diagnostics
 # Execution Model: Deterministic provider doubles; no database or model endpoint
 # Observability: Assert selected provider and served-model provenance
@@ -11,6 +11,7 @@
 # Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-CAPABILITY-001 | Verify capability-pinned routing despite later simple history
 # Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Preserve sanitized truncation details on 80B deferred attempts
 # Changed: 2026-10-15 UTC | RV-GRACE-DEMO-BASE-INTEGRATION | Preserve router regressions across integrated release changes
+# Changed: 2026-10-15 UTC | RV-GRACE-SINGLE-RESIDENT-IDENTITY-001 | Verify all model-stage prompts preserve Grace's single resident identity
 # =============================================================================
 """Focused tests for Grace's readiness-aware three-stage router."""
 
@@ -96,6 +97,24 @@ class GraceModelRouterTests(unittest.TestCase):
         self.assertEqual(result.served_model, "qwen-0.6b")
         self.assertEqual(result.reasoning_stage, "autonomic")
         self.assertTrue(result.provisional)
+
+    def test_each_model_stage_describes_one_grace_identity_and_capability(self):
+        cases = (
+            ("Hello.", self.cpu, "0.6B autonomic capability"),
+            ("What is a river?", self.vision, "30B vision/interim capability"),
+            ("Tell me about yourself.", self.reasoner, "80B reasoning capability"),
+        )
+        for text, provider, capability in cases:
+            with self.subTest(capability=capability):
+                self.router.complete_chat([{"role": "user", "content": text}],
+                    max_tokens=64, expected_revision=self.router.model_sha256)
+                instruction = provider.calls[-1][0][0]["content"]
+                self.assertIn("You are Grace, Riverview's continuing resident", instruction)
+                self.assertIn("Director of Operations", instruction)
+                self.assertIn(capability, instruction)
+                self.assertIn("not a separate resident, office, or agent", instruction)
+                self.assertNotIn("Grace's autonomic layer", instruction)
+                self.assertNotIn("Grace's 80B layer", instruction)
 
     def test_substantive_unmatched_request_prefers_80b(self):
         result = self.router.complete_chat([{"role": "user", "content": "Tell me about yourself."}],

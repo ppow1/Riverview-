@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.8
+# Revision: 1.0.9
 # Purpose: Prefer 80B for substantive turns and persist bounded routing diagnostics
 # Execution Model: Request-driven; persisted deferred turns are resumed by the conversation owner
 # Observability: Selected stage and served model are returned as completion provenance
@@ -14,6 +14,7 @@
 # Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Route persistent typed proposals through the authorized 80B stage
 # Changed: 2026-10-15 UTC | RV-GRACE-DEMO-BASE-INTEGRATION | Reconcile router contract with integrated deferred-budget release
 # Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Include sanitized completion-limit diagnostics for non-stop provider outcomes
+# Changed: 2026-10-15 UTC | RV-GRACE-SINGLE-RESIDENT-IDENTITY-001 | Identify each model stage as a capability of the one Grace resident
 # =============================================================================
 """Small readiness-aware router for Grace's three existing model resources."""
 
@@ -50,6 +51,25 @@ class GraceModelRouter:
         r"what is\s+.{1,100}|who is\s+.{1,100}|where is\s+.{1,100}|"
         r"when is\s+.{1,100}|how many\s+.{1,100})[.!?\s]*$", re.IGNORECASE)
     TIMEOUTS = {"autonomic": 35, "interim_30b": 15, "reasoning": 60}
+    STAGE_INSTRUCTIONS = {
+        "autonomic": (
+            "You are Grace, Riverview's continuing resident and Director of Operations. "
+            "This response uses your 0.6B autonomic capability; it is not a separate "
+            "resident, office, or agent. Give only a brief status or acknowledgment. "
+            "Do not answer substantive or unverified factual questions; say that further "
+            "reasoning is needed."),
+        "interim_30b": (
+            "You are Grace, Riverview's continuing resident and Director of Operations. "
+            "This response uses your 30B vision/interim capability; it is not a separate "
+            "resident, office, or agent. Answer only simple questions grounded in supplied "
+            "evidence. If evidence is absent or uncertainty is material, say you do not know "
+            "and defer substantive reasoning to your 80B reasoning capability."),
+        "reasoning": (
+            "You are Grace, Riverview's continuing resident and Director of Operations. "
+            "This response uses your 80B reasoning capability; it is not a separate "
+            "resident, office, or agent. Preserve uncertainty, distinguish supplied facts "
+            "from inference, and do not claim actions or authority that were not performed."),
+    }
     _SAFE_ERRORS = frozenset({"endpoint_busy", "endpoint_timeout", "endpoint_unavailable",
         "endpoint_loading", "endpoint_http_503", "endpoint_http_502", "endpoint_http_504",
         "endpoint_http_500", "endpoint_http_400", "endpoint_http_404",
@@ -159,11 +179,7 @@ class GraceModelRouter:
                 required_capability=required_capability)
         except ReasoningDeferred:
             raise
-        system = {
-            "autonomic": "You are Grace's autonomic layer. Give only a brief status or acknowledgment. Do not answer substantive or factual questions; say that the request is being deferred.",
-            "interim_30b": "You are Grace's provisional interim reasoning layer. Answer only simple questions grounded in supplied evidence. If evidence is absent or uncertainty is material, say you do not know and defer substantive reasoning to Grace's 80B layer.",
-            "reasoning": "You are Grace's substantive reasoning layer. Preserve uncertainty, distinguish supplied facts from inference, and do not claim actions or authority that were not performed.",
-        }[stage]
+        system = self.STAGE_INSTRUCTIONS[stage]
         routed = [{"role": "system", "content": system}, *messages]
         attempts = []
         try:
@@ -191,10 +207,7 @@ class GraceModelRouter:
                 attempts[-1]["fallback_reason"] = "interim_30b_provider_failure"
                 autonomic = self.providers["autonomic"]
                 if autonomic.readiness().state == "READY":
-                    routed[0] = {"role": "system", "content": (
-                        "You are Grace's autonomic layer. Give only a brief status or "
-                        "acknowledgment. Do not answer substantive or factual questions; "
-                        "say that the request is being deferred.")}
+                    routed[0] = {"role": "system", "content": self.STAGE_INSTRUCTIONS["autonomic"]}
                     fallback_started_at = datetime.now(UTC)
                     fallback_started = monotonic()
                     try:

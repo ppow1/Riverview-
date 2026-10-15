@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.20
+File Revision: 1.1.21
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -37,6 +37,7 @@ Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Constrain CPU fallba
 Changed: 2026-10-14 UTC | RV-GRACE-ROUTING-DIAGNOSTICS-001 | Prefer 80B outside narrow provisional class; persist bounded per-attempt metadata and use stage-specific timeouts
 Changed: 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Verify runtime-readable migration and active authority binding without reading protected migration ledgers
 Changed: 2026-10-14 UTC | RV-GRACE-ROUTING-INTEGRATION-001 | Reconcile merged startup-readiness and routing-diagnostics requirements
+Changed: 2026-10-15 UTC | RV-GRACE-SINGLE-RESIDENT-IDENTITY-001 | Specify one Grace identity across autonomic, vision and reasoning stage prompts
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace resident conversation
@@ -51,6 +52,12 @@ The context describes CME progression, operational awareness, Engineering and
 resource coordination, routing, observation, recovery, and exception escalation.
 It explicitly grants no permission. The backend continues to authorize actions
 through the existing exact-grant and governed workflow services.
+
+The router's stage-specific system instruction must preserve that same resident
+identity. It describes the 0.6B autonomic, 30B vision/interim, or 80B reasoning
+as the capability serving the current turn, never as a separate Grace, resident,
+office, or agent. The stage may constrain the response, but it cannot redefine
+Grace's title, institutional identity, authority, or continuity.
 
 `resident_execution/operational_context.py` supplies the named read-only
 capability `grace.operations.snapshot.read.v1` by adapting the existing
