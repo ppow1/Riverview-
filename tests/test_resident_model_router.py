@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.8
+# Revision: 1.0.9
 # Purpose: Verify primary 80B routing, capability-pinned recovery, bounded fallback and diagnostics
 # Execution Model: Deterministic provider doubles; no database or model endpoint
 # Observability: Assert selected provider and served-model provenance
@@ -12,6 +12,7 @@
 # Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Preserve sanitized truncation details on 80B deferred attempts
 # Changed: 2026-10-15 UTC | RV-GRACE-DEMO-BASE-INTEGRATION | Preserve router regressions across integrated release changes
 # Changed: 2026-10-15 UTC | RV-GRACE-SINGLE-RESIDENT-IDENTITY-001 | Verify all model-stage prompts preserve Grace's single resident identity
+# Changed: 2026-10-15 UTC | RV-GRACE-CHAT-CONTEXT-BOUND-001 | Reproduce and prevent provider message-count rejection on long conversations
 # =============================================================================
 """Focused tests for Grace's readiness-aware three-stage router."""
 
@@ -19,7 +20,7 @@ import unittest
 import json
 
 from riverview_core.local_reasoning_provider import (ChatCompletion,
-    LocalReasoningUnavailable, ProviderReadiness)
+    LocalReasoningProvider, LocalReasoningUnavailable, ProviderReadiness)
 from riverview_core.resident_execution.model_router import GraceModelRouter, ReasoningDeferred
 from riverview_core.resident_reasoning import PlanProposal, PlanStep, ReasoningRequest
 
@@ -97,6 +98,31 @@ class GraceModelRouterTests(unittest.TestCase):
         self.assertEqual(result.served_model, "qwen-0.6b")
         self.assertEqual(result.reasoning_stage, "autonomic")
         self.assertTrue(result.provisional)
+
+    def test_long_conversation_preserves_system_context_and_latest_user_within_provider_limit(self):
+        # Mirrors production: role context, sixteen persisted turns, an operational
+        # snapshot, and the router's additional stage instruction.
+        messages = [{"role": "system", "content": "canonical Grace role context"}]
+        messages.extend({"role": "user" if index % 2 == 0 else "assistant",
+                         "content": f"synthetic history {index}"}
+                        for index in range(15))
+        messages.append({"role": "user", "content": "good morning"})
+        messages.append({"role": "system", "content": "synthetic operational snapshot"})
+        result = self.router.complete_chat(messages, max_tokens=64,
+            expected_revision=self.router.model_sha256)
+        routed = self.cpu.calls[-1][0]
+        self.assertEqual(result.served_model, "qwen-0.6b")
+        self.assertLessEqual(len(routed), self.router.PROVIDER_MAX_MESSAGES)
+        self.assertEqual(self.router.PROVIDER_MAX_MESSAGES,
+                         LocalReasoningProvider.MAX_CHAT_MESSAGES)
+        self.assertIn("0.6B autonomic capability", routed[0]["content"])
+        system_content = [item["content"] for item in routed if item["role"] == "system"]
+        self.assertIn("canonical Grace role context", system_content)
+        self.assertIn("synthetic operational snapshot", system_content)
+        self.assertEqual(next(item for item in reversed(routed)
+                              if item["role"] in {"user", "assistant"}),
+                         {"role": "user", "content": "good morning"})
+        self.assertNotIn("synthetic history 0", json.dumps(routed))
 
     def test_each_model_stage_describes_one_grace_identity_and_capability(self):
         cases = (

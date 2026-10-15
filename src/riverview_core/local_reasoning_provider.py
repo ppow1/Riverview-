@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.5
+# Revision: 1.1.6
 # Purpose: Adapt bounded resident proposals and conversation turns to local inference
 # Execution Model: Bounded loopback OpenAI-compatible request
 # Observability: Sanitized provider failures; no prompts or raw model output logged
@@ -19,6 +19,7 @@
 # Changed: 2026-10-14 UTC | RV-GRACE-ROUTING-DIAGNOSTICS-001 | Carry sanitized router attempt metadata in validated chat completions
 # Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Supply the shared Director of Operations context to Grace's assignment reasoning
 # Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Preserve bounded finish reason and token usage on rejected truncated responses
+# Changed: 2026-10-15 UTC | RV-GRACE-CHAT-CONTEXT-BOUND-001 | Expose and enforce the shared provider chat-message limit
 # Authority: Returns unapproved proposals or plain text only; cannot execute actions or grant authority
 # Contracts: docs/components/RESIDENT_REASONING.md; worker_adapter.local_inference
 # Tests: tests/test_local_reasoning_provider.py
@@ -93,6 +94,7 @@ class LocalReasoningProvider:
 
     provider_id = "local.inference.v1"
     MAX_PROMPT_BYTES = 32 * 1024
+    MAX_CHAT_MESSAGES = 18
     MAX_RESPONSE_BYTES = 16 * 1024
     APPROVED_PRIVATE_LAN_ENDPOINTS = frozenset({
         "http://192.168.1.160:8080/v1",
@@ -333,7 +335,7 @@ class LocalReasoningProvider:
         """Generate ordinary conversation text; this method has no tool or work-order API."""
         if (expected_revision != self.model_sha256 or type(max_tokens) is not int
                 or not 1 <= max_tokens <= 512 or not isinstance(messages, list)
-                or not 1 <= len(messages) <= 18
+                or not 1 <= len(messages) <= self.MAX_CHAT_MESSAGES
                 or not 0 < timeout_seconds <= 180):
             raise LocalReasoningUnavailable("request_contract_invalid")
         if any(not isinstance(item, dict) or set(item) != {"role", "content"}
