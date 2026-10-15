@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.7
+File Revision: 1.0.8
 Purpose: Prepare the first bounded authenticated Grace-to-Codex Engineering demonstration
 Authority: Existing Steward grants, AuthorityRegistry, CME, worker, verifier, and conversation contracts
 Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Record exact source, database, grant, worker, and rollback gates
@@ -13,6 +13,7 @@ Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Record full isolated P
 Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Record pushed PR head, successful CI, and pending human review gate
 Changed: 2026-10-15 UTC | RV-AUTH-LEGACY-PROFILE-COMPAT | Record migration 0008 compatibility correction and current production-safe release gate
 Changed: 2026-10-15 UTC | RV-GRACE-HEALTH-WRITER-ACL-001 | Record the restricted-role heartbeat ACL defect and controlled rollback
+Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-GUIDANCE-001 | Correct grant status and document model-generated refusal versus authorization outcome
 Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md; docs/components/GRACE_EXECUTION_PIPELINE.md
 Tests: tests/test_codex_cli_adapter.py; tests/test_worker_service.py; PostgreSQL integration suite
 History: Git and .riverview-backups/manifest.jsonl
@@ -65,7 +66,7 @@ All resources being available is separate from permission. The current live auth
 | Executor `worker:grace-engineering` | `worker.register`, `assignment.execute` — `work-order:engineering` | Dedicated worker principal, credential, and grants provisioned. |
 | Verifier `verifier:grace-engineering` | `worker.register`, `assignment.verify` — `work-order:engineering` | Separate worker-kind principal, credential, and grants provisioned. |
 
-Do not issue these grants from SQL or infer them from Grace's title, a website checkbox, or provider readiness. Provision credentials and exact grants only through the existing Steward-authorized AuthorityRegistry procedure, then read back principal/action/scope/expiry/revocation metadata without displaying credential material. The current grant state is the concrete institutional blocker to a live work order.
+Do not issue these grants from SQL or infer them from Grace's title, a website checkbox, or provider readiness. Read and change exact grants only through the existing Steward-authorized AuthorityRegistry procedure, then inspect principal/action/scope/expiry/revocation metadata without displaying credential material. A read-only production audit on 2026-10-15 confirmed the listed submit, conversation-return, dispatch, executor, and verifier grants and worker registrations are active. No objective submission or assignment exists for the audited conversation because the authenticated website action was not used. The logged 80B response's unsupported prerequisite claims were therefore model-generated assumptions; no authorization denial was recorded.
 
 ### Current scope semantics and minimum standing grant set
 
@@ -87,6 +88,8 @@ The minimum standing authority set for the already implemented website-to-Codex 
 The dispatch identity is the configured `service:grace-engineering-dispatch`; executor and verifier are distinct and use separate bearer credentials. For Codex, the existing adapter is authorized through worker registration/capability plus `assignment.execute`; this source path has no additional `codex.execute` grant. The root-only state record at `/etc/riverview/worker/grace-engineering-demo.json` contains identity and grant references only, never bearer values. Grant audit events in AuthorityRegistry are authoritative. No unrestricted shell, filesystem, or database grant was issued.
 
 ## Commissioning checklist
+
+**Live state note (2026-10-15):** The streaming dashboard release `218cb58491bcb939466a1eebb51bd666fd97005e` and `riverview-grace-execution-owner-session.service` were read-only verified active and healthy. The configured ChatGPT-subscription Codex CLI reports an authenticated login without an API key. The exact standing grants and separate executor/verifier registrations listed above are active. Checklist boxes below describe gates from the earlier activation sequence and are not current-state assertions; recheck their evidence before later release changes.
 
 ### Source and release
 
