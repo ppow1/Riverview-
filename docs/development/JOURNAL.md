@@ -1,10 +1,11 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.153
+**Document Revision:** 1.0.154
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record offline diagnostic snapshot source, verification evidence and production boundary
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PR67-SNAPSHOT-CSP-FIX | Record controlled f957 release, verified migration and live service, partial diagnostic export, and isolated CSP correction evidence
+**Changed:** 2026-10-16 UTC | RV-PROPOSAL-AUTHORING-GUIDANCE | Link the AI startup hints to a concise proposal authoring playbook
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record PR #65 integration reconciliation, full-inventory browser fixture package results, proposal readiness, and Windows CA findings
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record final exact-graph-set ZIP integrity and synthetic page-shell versus live-dashboard acceptance boundary
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Correct final archive byte count from independently inspected ZIP
@@ -2279,3 +2280,16 @@ page/workflow PNGs, complete manifest hashes, viewport-independent workflow
 visuals, and zero browser errors. This isolated API-fixture pass does not claim
 the code correction is deployed. Sanitized release and regression evidence is
 under `evidence/checkouts/WEBSITE-PR67-SNAPSHOT-CSP/20261016T211638Z/`.
+
+## 2026-10-16 UTC — RV-PROPOSAL-AUTHORING-GUIDANCE
+
+Added `docs/operations/INSTITUTIONAL_PROPOSAL_AUTHORING.md` as a concise
+source-to-registry guide and linked it from `AI_HINTS.md` revision 1.0.5. The
+playbook follows the eight proposal content fields and separate source-reference
+and server-provenance contract in `docs/components/INSTITUTIONAL_PROPOSALS.md`.
+It covers validation, idempotent retries, immutable revisions, Steward-only
+registry access, and the distinction between proposals and execution authority.
+The predecessor copies for `AI_HINTS.md` and this journal are recorded in
+`.riverview-backups/manifest.jsonl`. Documentation checks, `git diff --check`,
+and the controlled revision audit against the f957 integration inventory passed.
+This is a separate documentation PR and is not included in the Camrui release.
