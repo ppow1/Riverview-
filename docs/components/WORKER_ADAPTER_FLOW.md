@@ -1,6 +1,6 @@
 # Riverview~ worker adapter flow
 
-**Document Revision:** 1.0.8
+**Document Revision:** 1.0.10
 **Component:** WORKER-ADAPTER
 **Canonical workflow:** `process_graphs/worker-adapter/deterministic-attempt.json`
 **Generated from:** canonical workflow JSON; do not edit the Mermaid projection by hand.
@@ -27,7 +27,7 @@ flowchart LR
     g_rv_worker_adapter_deterministic_attempt_preflight_gate_ce23b57c{"Is the requested action preflight VERIFIED?"}
     g_rv_worker_adapter_deterministic_attempt_reground_5d56433b["Refresh assignment context before action or on a recovery trigger"]
     g_rv_worker_adapter_deterministic_attempt_reground_gate_f5063204{"Is the current assignment context VERIFIED?"}
-    g_rv_worker_adapter_deterministic_attempt_evidence_wait_e57f58d4[["Persist non-verified status and wait for evidence for this assignment only"]]
+    g_rv_worker_adapter_deterministic_attempt_evidence_wait_e57f58d4[["Persist non-VERIFIED status and wait for fresh evidence for this assignment; only a same-scope Codex assignment with revalidated VERIFIED grounding and no unresolved effect may enter the bounded resume path"]]
     g_rv_worker_adapter_deterministic_attempt_action_cef7346f["Invoke the assigned, preflighted execution capability"]
     g_rv_worker_adapter_deterministic_attempt_action_failure_d12eae6a[["Record assignment-local failure and reground without stopping other polls"]]
     g_rv_worker_adapter_deterministic_attempt_learning_83260d87["Persist learning outcome and provenance without automatic promotion"]
@@ -45,6 +45,7 @@ flowchart LR
     g_rv_worker_adapter_deterministic_attempt_local_inference_call_8fb3f636["Run registered local inference capability on grounded input"]
     g_rv_worker_adapter_deterministic_attempt_local_inference_failure_d21fb2df[["Reject unavailable, oversized, malformed, or truncated inference output"]]
     g_rv_worker_adapter_deterministic_attempt_structured_artifact_6b88f0e1["Persist bounded JSON output and canonical digest under current lease"]
+    g_rv_worker_adapter_deterministic_attempt_verified_grounding_resume_5364b9b9["Re-ground and re-preflight the same blocked Codex assignment; return it to ready only when the original work order remains verified, lease is absent or expired, retry budget remains, prior typed intents are retry-safe, and no attempt, result, verification, or artifact exists; the normal claim rechecks the exact assignment.execute grant"]
   end
   g_rv_assignment_scheduler_independent_claims_start_check_f588e935["Registered target<br/>rv:assignment-scheduler:independent-claims"]
   g_rv_outcome_verifier_independent_result_verification_intake_faa4dd99["Registered target<br/>rv:outcome-verifier:independent-result"]
@@ -98,6 +99,9 @@ flowchart LR
   g_rv_worker_adapter_deterministic_attempt_local_inference_failure_d21fb2df -->|recovery_route: fail this assignment; retry-safe recovery only| g_rv_worker_adapter_deterministic_attempt_action_failure_d12eae6a
   g_rv_worker_adapter_deterministic_attempt_local_endpoint_check_ae8f9d87 -->|complete bounded response| g_rv_worker_adapter_deterministic_attempt_structured_artifact_6b88f0e1
   g_rv_worker_adapter_deterministic_attempt_structured_artifact_6b88f0e1 -->|exact grant and current lease rechecked| g_rv_worker_adapter_deterministic_attempt_complete_check_6605f820
+  g_rv_worker_adapter_deterministic_attempt_evidence_wait_e57f58d4 -->|recovery_route: A later fresh VERIFIED grounding result permits only the same assignment to be checked against its original objective, lease, effect, artifact, and exact-scope invariants| g_rv_worker_adapter_deterministic_attempt_verified_grounding_resume_5364b9b9
+  g_rv_worker_adapter_deterministic_attempt_verified_grounding_resume_5364b9b9 -->|Atomic evidence recovery returns the existing assignment to ready; the normal authenticated claim rechecks assignment.execute before leasing| g_rv_worker_adapter_deterministic_attempt_claim_ad2357b6
+  g_rv_worker_adapter_deterministic_attempt_verified_grounding_resume_5364b9b9 -->|diagnostic_branch: Fresh grounding remains non-VERIFIED or any lease, objective, intent, attempt, verifier, artifact, or scope invariant fails; preserve blocked state| g_rv_worker_adapter_deterministic_attempt_evidence_wait_e57f58d4
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

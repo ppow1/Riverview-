@@ -1,9 +1,53 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.118
+## 2026-10-16 UTC — RV-GRACE-VERIFIED-GROUNDING-RESUME-001
+
+The existing objective `objective:grace-conversation:2c573041-cc5e-4b54-9f93-8163de91e52c` and assignment
+`assignment:grace:6759a4f47a95aad779e0bd76699fed9a71098ae8` remained intact
+after the owner-session release correction. Read-only metadata showed five
+retry-safe Codex intents/recovery records, zero worker attempts/results/
+verifications, and no assignment artifact. The worker last persisted
+`ground_assignment=UNVERIFIED` and left the same assignment at
+`blocked/WAITING_FOR_EVIDENCE`.
+
+The active knowledge root is the immutable Grace execution release
+`63798c237ff8231191de5efa315ed7f11547e8bc`; its 1,093 listed package files
+passed checksum verification. The protected runtime environment still pinned
+knowledge to predecessor `4a51865201b0e578937aab4fb1cc370ab6e5fe71`, which
+made the provider reject the active package identity. The pin was updated to
+the verified active release after preserving the prior root-owned environment
+file in `/var/backups/riverview-grace-env.20261016TJnbUpN/`. A read-only provider
+call then returned VERIFIED with complete retrieval, the active release ID,
+and five references. The owner-session service stayed healthy; no dashboard,
+database, authority grant, migration, OCTO model, objective, or assignment data
+was modified.
+
+That runtime pin correction alone could not resume the durable assignment:
+`claim_next()` admits only `ready` work, while the assignment was blocked at
+`WAITING_FOR_EVIDENCE`. A bounded recovery path is therefore being integrated
+in the existing worker loop. It rechecks the registered worker and exact
+execution grant, requires fresh verified grounding and action preflight, the
+original verified work order, expired/absent lease, remaining retry budget,
+only previously reconciled typed Codex intents, and no attempt/result/
+verification/artifact before atomically transitioning that same assignment to
+the canonical ready node. The ordinary claim rechecks authority before action.
+The regression verifies retry-ceiling enforcement, same-objective completion
+to the claimed execution boundary, and revoked-grant denial.
+
+The new isolated PostgreSQL worker suite passed 25/25. The complete isolated
+PostgreSQL regression passed 436 tests with one intentional skip and no
+failures; process graph synchronization reports 19 workflows/464 nodes and
+controlled revision audit had zero findings before the final record update.
+This implementation is not yet integrated or deployed. The production
+assignment remains blocked pending the reviewed release and its ordinary
+lease/recovery path; no replacement objective, direct SQL state edit, or
+synthetic production artifact was created.
+
+**Document Revision:** 1.0.119
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-15 UTC | RV-GRACE-AUTHORIZED-SNAPSHOT-001 | Revalidate resident reasoning through the protected office-state capability
+**Changed:** 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001 | Record exact source-pin mismatch, same-assignment evidence recovery, regression, and production boundary
 **Changed:** 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow the explicitly reviewed supervised Bash runner in exact-source packages while retaining strict checks for other scripts
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
 **Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record responsive conversation interface implementation and isolated real-model browser acceptance
