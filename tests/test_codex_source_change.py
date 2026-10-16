@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_codex_source_change.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.1
+# Revision: 1.0.3
 # Purpose: Verify explicit multi-file Codex source-change scope and independent patch checking
 # Execution Model: Isolated temporary Git repository and synthetic CLI; no production services
 # Observability: Assert patch digest, changed-file inventory, path rejection and verifier decision
@@ -10,6 +10,8 @@
 # Authority: Synthetic assignment only; does not grant execution or apply production patches
 # Changed: 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-001 | Add bounded source-change adapter tests
 # Changed: 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-001 | Exercise isolated offline tests and ensure source capability stays independently registered
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Reuse an owner-only patch safely when worker-result persistence is interrupted
+# Changed: 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-OBJECTIVE-CONTEXT | Ensure source-change Codex receives the original task while scope remains step-specific
 # Contracts: src/riverview_core/resident_execution/codex_source_change.py
 # Tests: This file
 # History: Git
@@ -51,6 +53,8 @@ class CodexSourceChangeTests(unittest.TestCase):
         self.codex = self.root / "codex"
         self.codex.write_text("#!/usr/bin/env python3\n"
             "import json,pathlib,sys\n"
+            f"marker=pathlib.Path({str(self.root / 'codex-calls')!r})\n"
+            "marker.write_text(str(int(marker.read_text())+1) if marker.exists() else '1')\n"
             "root=pathlib.Path.cwd()\n"
             "(root/'src/a.py').parent.mkdir(parents=True,exist_ok=True)\n"
             "(root/'src/a.py').write_text('A=1\\n')\n"
@@ -95,7 +99,12 @@ class CodexSourceChangeTests(unittest.TestCase):
             verifier = CodexSourceChangeVerifier(base_adapter=self.base,
                 authorized_paths=self.paths)
             decision = verifier.verify(self.assignment, result)
+            calls_before_recovery = (self.root / "codex-calls").read_text()
+            recovered = adapter.execute(self.assignment)
         self.assertEqual(decision["decision"], "ACCEPTED")
+        self.assertEqual(recovered.status, "PATCH_PRODUCED")
+        self.assertEqual(recovered.detail_code, "recovered_existing_patch")
+        self.assertEqual((self.root / "codex-calls").read_text(), calls_before_recovery)
         self.assertIn("base-revision:" + self.revision, decision["evidence"])
         self.assertEqual(list(self.workspace.iterdir()), [])
 
@@ -112,6 +121,32 @@ class CodexSourceChangeTests(unittest.TestCase):
             result = adapter.execute(self.assignment)
         self.assertEqual(result.status, "BLOCKED")
         self.assertEqual(result.detail_code, "source_scope_not_registered")
+
+    def test_source_action_carries_original_objective_into_bounded_step(self):
+        from riverview_core.resident_execution.codex_workflow import CodexSourceChangeWorkAction
+        source_scope = ("src/a.py", "tests/test_ab.py")
+        step = {"step_id": "step-1", "objective": "Implement the addition function",
+            "acceptance_criteria": ("Test zero and signed values",), "depends_on": (),
+            "execution_capability": CAPABILITY, "authorized_paths": source_scope,
+            "test_targets": ("tests/test_ab.py",)}
+        objective = {"status": "WORK_ORDER_CREATED", "assignment_id": "assignment:scope-context",
+            "request": "Implement exact addition and test positive, negative, and zero values.",
+            "source_revision": self.revision, "proposal": {"steps": [step]}}
+
+        class Pipeline:
+            def get_objective(self, _objective_id): return objective
+            def proposal_step_for_assignment(self, _objective_id, _assignment_id): return step
+
+        action = CodexSourceChangeWorkAction(Pipeline(),
+            CodexSourceChangeAdapter(base_adapter=self.base,
+                repository_reference="repo://test/repo", authorized_paths=source_scope),
+            "repo://test/repo")
+        _objective, _step, request = action._assignment({
+            "id": "assignment:scope-context", "objective_ref": "objective:scope-context"})
+        self.assertIn(objective["request"], request.task_scope)
+        self.assertIn(step["objective"], request.task_scope)
+        self.assertEqual(request.authorized_paths, source_scope)
+        self.assertEqual(request.test_targets, ("tests/test_ab.py",))
 
     @unittest.skipUnless(shutil.which("bwrap"), "bubblewrap is not installed")
     def test_fixed_pytest_target_runs_in_offline_bubblewrap_sandbox(self):

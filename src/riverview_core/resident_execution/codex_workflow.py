@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.5
+# Revision: 1.2.8
 # Purpose: Adapt bounded Codex production and independent Markdown verification to CME
 # Execution Model: Existing leased worker action and independent verifier contract
 # Observability: Persisted artifact location, digest, criteria and verifier evidence
@@ -16,6 +16,9 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Constrain Codex recovery to its authenticated scope and preserve late artifacts for verification
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Verify Markdown output requirements separately from execution instructions and retain Codex change-set evidence
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Check structured task instructions and preserve legacy fixed-capability scope evidence
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Bind approved multi-file step scope and verified predecessor patch chain to Codex worker and verifier
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Recover completed source patch artifacts after interrupted worker-result persistence
+# Changed: 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-OBJECTIVE-CONTEXT | Carry the accepted objective into each bounded source-change step without widening file scope
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_codex_workflow.py
 # History: Git
@@ -34,6 +37,9 @@ from collections.abc import Mapping
 from ..worker_adapter.knowledge import KnowledgeStatus
 from ..worker_adapter.verifier import VerificationResult, VerificationStatus
 from .codex_cli import CAPABILITY, CodexAssignment, CodexCLIExecutionAdapter
+from .codex_source_change import (CAPABILITY as SOURCE_CHANGE_CAPABILITY,
+    CodexSourceChangeAdapter, CodexSourceChangeAssignment, CodexSourceChangeResult,
+    CodexSourceChangeVerifier)
 
 CAPABILITY_REQUIREMENTS = {
     "capability": CAPABILITY,
@@ -339,3 +345,135 @@ class CodexMarkdownVerifier:
             criteria, evidence if raw is not None else evidence[:1], self.REVISION,
             "Codex Markdown artifact independently verified" if accepted else
             "Codex Markdown artifact failed independent verification")
+
+
+class CodexSourceChangeWorkAction:
+    """Execute only proposal-persisted, exact source paths through the patch adapter."""
+
+    def __init__(self, pipeline, adapter: CodexSourceChangeAdapter,
+                 repository_reference: str, timeout_seconds: int = 300):
+        if (not isinstance(adapter, CodexSourceChangeAdapter) or
+                not isinstance(repository_reference, str) or
+                not repository_reference.startswith("repo://") or
+                type(timeout_seconds) is not int or not 1 <= timeout_seconds <= 300):
+            raise ValueError("source-change action configuration is invalid")
+        self.pipeline = pipeline
+        self.adapter = adapter
+        self.repository_reference = repository_reference
+        self.timeout_seconds = timeout_seconds
+
+    def _assignment(self, assignment):
+        objective_id = assignment.get("objective_ref")
+        objective = self.pipeline.get_objective(objective_id)
+        step = self.pipeline.proposal_step_for_assignment(objective_id, assignment.get("id"))
+        if (not objective or objective.get("status") != "WORK_ORDER_CREATED" or
+                objective.get("assignment_id") != assignment.get("id") or not step or
+                step.get("execution_capability") != SOURCE_CHANGE_CAPABILITY or
+                not objective.get("proposal") or
+                objective.get("source_revision") is None):
+            raise CodexActionFailure("persisted_source_change_scope_required")
+        if step.get("depends_on"):
+            from ..resident_reasoning import PlanStep
+            predecessor = self.pipeline.verified_source_change_predecessor(
+                objective_id, PlanStep(step["step_id"], step["objective"],
+                    tuple(step["acceptance_criteria"]), tuple(step["depends_on"]),
+                    step["execution_capability"], tuple(step["authorized_paths"]),
+                    tuple(step["test_targets"])))
+        else:
+            predecessor = {"prior_patches": (), "authorized_paths": (), "test_targets": ()}
+        authorized_paths = tuple(dict.fromkeys(
+            (*predecessor["authorized_paths"], *step["authorized_paths"])))
+        test_targets = tuple(dict.fromkeys(
+            (*predecessor["test_targets"], *step["test_targets"])))
+        task_scope = ("Original accepted objective:\n" + objective["request"] +
+                      "\n\nCurrent authorized step:\n" + step["objective"])
+        if len(task_scope.encode("utf-8")) > 4000:
+            raise CodexActionFailure("source_change_task_scope_too_large")
+        request = CodexSourceChangeAssignment(
+            assignment_id=assignment["id"], objective_id=objective_id,
+            repository_reference=self.repository_reference,
+            repository_revision=objective["source_revision"],
+            task_scope=task_scope,
+            acceptance_criteria=tuple(step["acceptance_criteria"]),
+            authorized_paths=authorized_paths, test_targets=test_targets,
+            timeout_seconds=self.timeout_seconds,
+            prior_patches=tuple(predecessor["prior_patches"]))
+        return objective, step, request
+
+    def __call__(self, assignment, grounded):
+        if (grounded.status is not KnowledgeStatus.VERIFIED or
+                grounded.retrieval_complete is not True or
+                not grounded.source_revision or not grounded.source_sha256):
+            raise CodexActionFailure("verified_regrounding_required")
+        try:
+            _, _, request = self._assignment(assignment)
+            if (request.repository_revision != grounded.source_revision or
+                    request.repository_reference != self.repository_reference):
+                raise CodexActionFailure("source_change_repository_provenance_mismatch")
+            result = self.adapter.execute(request)
+        except CodexActionFailure:
+            raise
+        except Exception as exc:
+            raise CodexActionFailure(getattr(exc, "code", "source_change_scope_invalid"),
+                                     execution_started=False) from None
+        if result.status != "PATCH_PRODUCED":
+            raise CodexActionFailure(result.detail_code,
+                                     execution_started=result.execution_started)
+        return {"status": "SUCCEEDED", "artifact_schema": "rv.codex-cli.source-change.v1",
+            "capability": result.capability, "assignment_id": result.assignment_id,
+            "objective_id": result.objective_id,
+            "repository_revision": result.repository_revision,
+            "changed_files": list(result.changed_files),
+            "patch_path": result.patch_path, "patch_sha256": result.patch_sha256,
+            "patch_bytes": result.patch_bytes, "test_status": result.test_status,
+            "detail_code": result.detail_code,
+            "execution_started": result.execution_started}
+
+    def reconcile_retryable_no_artifact_failures(self, recovery, *, scope_ref, worker_id):
+        """Requeue only completed source-change failures with no assignment patch or result."""
+        try:
+            repository_revision = self.adapter.base.repository_revision()
+        except Exception:
+            return []
+        return recovery.reconcile_codex_failures_without_artifact(
+            repository_revision=repository_revision,
+            artifact_root=self.adapter.base.artifact_root,
+            scope_ref=scope_ref, worker_id=worker_id,
+            capability=SOURCE_CHANGE_CAPABILITY)
+
+
+class CodexSourceChangeResultVerifier:
+    """Independently replay and test the persisted scoped patch result."""
+
+    REVISION = "1.0.0"
+
+    def __init__(self, pipeline, verifier: CodexSourceChangeVerifier,
+                 action: CodexSourceChangeWorkAction):
+        self.pipeline = pipeline
+        self.verifier = verifier
+        self.action = action
+
+    def verify(self, assignment, attempt, result):
+        try:
+            _, _, request = self.action._assignment(assignment)
+            parsed = CodexSourceChangeResult(
+                status="PATCH_PRODUCED" if result.get("status") == "SUCCEEDED" else result.get("status"),
+                capability=result["capability"], assignment_id=result["assignment_id"],
+                objective_id=result["objective_id"], repository_revision=result["repository_revision"],
+                changed_files=tuple(result["changed_files"]), patch_path=result["patch_path"],
+                patch_sha256=result["patch_sha256"], patch_bytes=result["patch_bytes"],
+                test_status=result["test_status"], detail_code=result["detail_code"],
+                execution_started=result["execution_started"])
+            checked = self.verifier.verify(request, parsed)
+        except Exception:
+            checked = {"decision": "REJECTED", "reason": "source_change_verification_contract_invalid",
+                       "evidence": []}
+        accepted = checked.get("decision") == "ACCEPTED"
+        criteria = {"scoped_patch_independently_replayed": accepted,
+                    "fixed_tests_passed_in_offline_sandbox": accepted,
+                    "changed_paths_within_authorized_work_order_scope": accepted}
+        return VerificationResult(
+            VerificationStatus.ACCEPTED if accepted else VerificationStatus.REJECTED,
+            criteria, tuple(checked.get("evidence", ())), self.REVISION,
+            "scoped source patch independently accepted" if accepted else
+            "scoped source patch failed independent verification")

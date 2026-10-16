@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.7
+# Revision: 1.1.10
 # Purpose: Verify local reasoning provider contract and fail-closed response handling
 # Execution Model: Bounded HTTP contract double; no credentials, database or model required
 # Observability: Typed proposals and sanitized unavailable/schema outcomes
@@ -10,6 +10,7 @@
 # Authority: Provider cannot authorize or execute proposals
 # Contracts: src/riverview_core/local_reasoning_provider.py
 # Changed: 2026-10-11 UTC | RV-M4.2-STRUCTURED-OUTPUT-BOUNDARY | Assert exact bounded structured-response request
+# Changed: 2026-10-16 UTC | RV-GRACE-PROVIDER-PROVENANCE | Assert provider identity on streamed and ordinary chat completions
 # Changed: 2026-10-11 UTC | RV-M4.2-COMPLETE-JSON-AT-TOKEN-BOUND | Reject length-stopped response unless complete schema validates
 # Changed: 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-ISOLATION | Replace threaded socket fixture with a bounded urllib contract double
 # Changed: 2026-10-11 UTC | RV-M4.2-HTTPERROR-CLOSE-TEST | Verify sanitized HTTP failures close their response stream
@@ -27,6 +28,8 @@
 # History: Git
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Verify dependency-ordered multi-step proposal parsing and schema bounds
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Reject source-change plans with missing explicit path and test scope
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Require source-change test targets to be test files
 # =============================================================================
 """Contract tests for the replaceable local reasoning provider."""
 
@@ -139,6 +142,15 @@ class LocalReasoningProviderTests(unittest.TestCase):
         schema = self.requests[0]["response_format"]["json_schema"]["schema"]
         self.assertEqual(schema["properties"]["steps"]["maxItems"], 20)
 
+    def test_source_change_plan_requires_explicit_paths_in_model_output(self):
+        self.response_body = self._response(text=json.dumps({"summary": "Scoped source change", "steps": [{
+            "step_id": "edit", "objective": "Edit scoped files",
+            "acceptance_criteria": ["Tests pass"], "depends_on": [],
+            "execution_capability": "engineering.codex-cli-source-change.v1"}]}))
+        self.assertIsNone(self.provider.propose(self.request))
+        system_prompt = self.requests[0]["messages"][0]["content"]
+        self.assertIn("MUST include non-empty authorized_paths and test_targets", system_prompt)
+
     def test_stream_chat_emits_text_before_terminal_chunk_and_validates_provenance(self):
         chunks = [
             {"model":"fixture-model","choices":[{"delta":{"content":"first"},"finish_reason":None}]},
@@ -154,6 +166,7 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertEqual(emitted,["first"," token"])
         self.assertEqual(completion.content,"first token")
         self.assertEqual(completion.served_model,"fixture-model")
+        self.assertEqual(completion.provider_id,self.provider.provider_id)
         self.assertEqual(completion.finish_reason,"stop")
         request=self.urlopen.call_args.args[0]
         sent=json.loads(request.data)
@@ -307,6 +320,7 @@ class LocalReasoningProviderTests(unittest.TestCase):
             expected_revision=MODEL_SHA, timeout_seconds=120)
         self.assertEqual(result.content, "Hello from the bound resident.")
         self.assertEqual(result.served_model, "fixture-model")
+        self.assertEqual(result.provider_id,self.provider.provider_id)
         self.assertEqual((result.prompt_tokens, result.completion_tokens), (31, 8))
         self.assertEqual(self.requests[0]["model"], "fixture-model")
         self.assertEqual(self.requests[0]["max_tokens"], 64)

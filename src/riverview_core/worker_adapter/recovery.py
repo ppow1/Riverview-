@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/recovery.py
 # Component: WORKER-ADAPTER
-# Revision: 1.2.7
+# Revision: 1.2.8
 # Purpose: Reconcile expired worker leases without losing or blindly repeating work
 # Execution Model: Explicit PostgreSQL recovery pass at worker startup or polling
 # Observability: Recovery records and causal assignment transition events
@@ -18,6 +18,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Scope recovery to authenticated worker authority and preserve validated late Codex artifacts for verification
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Retain the fixed Codex output name and validated file-change scope when reconciling a late artifact
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Recover the established fixed deliverable scope for immutable legacy attempts without rerunning Codex
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Reconcile scoped source-change failures only when no durable patch, execution result, or verifier record exists
 # Contracts: docs/ROADMAP.md; docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -632,7 +633,8 @@ class PostgresRecoveryCoordinator:
         return recovered
 
     def reconcile_codex_failures_without_artifact(
-            self, *, repository_revision, artifact_root, scope_ref, worker_id, limit=10):
+            self, *, repository_revision, artifact_root, scope_ref, worker_id,
+            capability="engineering.codex-cli-artifact.v1", limit=10):
         """Retry completed typed Codex failures only when no durable result exists.
 
         Codex executes in a fresh network-disabled temporary clone. Its adapter
@@ -647,6 +649,8 @@ class PostgresRecoveryCoordinator:
                 not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", repository_revision) or
                 not isinstance(scope_ref, str) or not scope_ref or
                 not isinstance(worker_id, str) or not worker_id or
+                capability not in {"engineering.codex-cli-artifact.v1",
+                                   "engineering.codex-cli-source-change.v1"} or
                 type(limit) is not int or not 1 <= limit <= 100):
             raise ValueError("Codex retry evidence is invalid")
         root = Path(artifact_root)
@@ -681,8 +685,8 @@ class PostgresRecoveryCoordinator:
                             AND a.workflow_step='WORKER_RETRYABLE_NO_ARTIFACT'
                             AND i.status='failed'))
                       AND l.expires_at<=clock_timestamp()
-                      AND i.capability='engineering.codex-cli-artifact.v1'
-                      AND i.effect_class='external_uncertain'
+                      AND i.capability=%s
+                      AND i.effect_class=%s
                       AND (i.failure_class='CodexActionFailure'
                            OR i.failure_class LIKE 'CodexActionFailure:%%')
                       AND i.finished_at IS NOT NULL
@@ -694,7 +698,11 @@ class PostgresRecoveryCoordinator:
                       AND o.evidence->>'source_revision'=o.source_revision
                       AND o.evidence->>'source_sha256'=o.source_sha256
                     ORDER BY i.started_at,a.id
-                    FOR UPDATE OF a,l,i SKIP LOCKED LIMIT %s""", (scope_ref, worker_id, limit))
+                    FOR UPDATE OF a,l,i SKIP LOCKED LIMIT %s""",
+                    (scope_ref, worker_id, capability,
+                     "retry_safe" if capability ==
+                        "engineering.codex-cli-source-change.v1" else "external_uncertain",
+                     limit))
                 for candidate in cur.fetchall():
                     assignment_id = candidate["id"]
                     generation = candidate["generation"]
@@ -704,8 +712,11 @@ class PostgresRecoveryCoordinator:
                                     (assignment_id,))
                         if int(cur.fetchone()["n"]) >= self.max_retries:
                             continue
-                    artifact_name = "codex-" + hashlib.sha256(
-                        assignment_id.encode("utf-8")).hexdigest() + ".md"
+                    artifact_prefix, artifact_suffix = (
+                        ("codex-source-", ".patch") if capability ==
+                        "engineering.codex-cli-source-change.v1" else ("codex-", ".md"))
+                    artifact_name = artifact_prefix + hashlib.sha256(
+                        assignment_id.encode("utf-8")).hexdigest() + artifact_suffix
                     artifact = root / artifact_name
                     if artifact.exists() or artifact.is_symlink():
                         continue
@@ -751,6 +762,7 @@ class PostgresRecoveryCoordinator:
                         "assignment_artifact_absent": True,
                         "knowledge_source_revision": candidate["source_revision"],
                         "execution_repository_revision": repository_revision,
+                        "execution_capability": capability,
                         "intent_id": str(candidate["intent_id"]),
                     }
                     key = f"codex-no-artifact-recovery:{assignment_id}:{generation}:ready"

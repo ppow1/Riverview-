@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.44
+**Document Revision:** 1.0.45
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -85,7 +85,7 @@ flowchart LR
     g_rv_grace_operational_integration_objective_check_1e4d916a{"PLANNED — determine whether objective acceptance criteria are independently met"}
     g_rv_grace_operational_integration_replan_58351ccd["IMPLEMENTED IN SOURCE — model-reviewed same-objective continuation is durable, bounded by original criteria, revalidates Grace binding, and returns through existing CME grants, leases, and verifier; production unverified"]
     g_rv_grace_operational_integration_steward_escalation_ca57acbb[["PLANNED — request only genuine Steward decision or authority"]]
-    g_rv_grace_operational_integration_objective_complete_a6f22d23(["TEST VERIFIED — objective closes only after persisted independent ACCEPTED verification"])
+    g_rv_grace_operational_integration_objective_complete_a6f22d23(["A step or objective becomes reviewable only after persisted independent ACCEPTED verification; objective completion is separate from model-proposed same-objective continuation"])
     g_rv_grace_operational_integration_bounded_evidence_selection_eb29b3f5["IMPLEMENTED — verify the full pinned source set and deterministically select ranked complete passages within the evidence bound; retain source provenance and coverage metadata"]
     g_rv_grace_operational_integration_proposal_validation_90e4c0ca["IMPLEMENTED — persist only typed proposals after complete VERIFIED grounding"]
     g_rv_grace_operational_integration_work_order_authorization_829196dd["IMPLEMENTED — assignment.create exact grant precedes durable CME handoff"]
@@ -112,19 +112,20 @@ flowchart LR
     g_rv_grace_operational_integration_engineering_resource_request_5f8561c6[["PLANNED — persist pending resource request for HR/Helen or Steward decision; Helen is not commissioned and no allocation is presumed"]]
     g_rv_grace_operational_integration_router_backed_grace_proposal_931750ec["SOURCE IMPLEMENTED — Persistent ResidentReasoner proposals use the active router binding and require actual 80B provenance; smaller stages cannot substitute"]
     g_rv_grace_operational_integration_verified_result_chat_return_108e1033["SOURCE IMPLEMENTED — Independently accepted objective result is reviewed by bound 80B and appended once to its source conversation with durable provenance"]
-    g_rv_grace_operational_integration_verified_result_return_retry_ce159ed9["SOURCE IMPLEMENTED — Deferred verified-result review uses the bounded 512-token 80B output budget and sanitized provider-attempt diagnostics; the deterministic response identity prevents duplicate chat events after restart"]
+    g_rv_grace_operational_integration_verified_result_return_retry_ce159ed9["Candidate path reuses the durable same-objective result review; retries preserve the originating conversation and stable completion-cycle response identity"]
     g_rv_grace_operational_integration_owner_session_provisioning_8f41090c["Implemented, isolated-tested provisioning: fixed AuthorityRegistry grants and protected credentials; stage reviewed owner-session unit without enabling or starting it"]
     g_rv_grace_operational_integration_objective_step_persistence_dd2c700f["Persist proposal step, dependency list, lifecycle state, and unique assignment identity in PostgreSQL"]
     g_rv_grace_operational_integration_dependency_ready_dispatch_b967d24b{"Dispatch only the first pending step whose dependencies are independently verified; reuse current CME lease and grants"}
-    g_rv_grace_operational_integration_codex_source_change_b577dd01["Separate authorized source-change capability emits a scoped patch, inventory, digest, and fixed-test result from a pinned disposable clone"]
-    g_rv_grace_operational_integration_codex_patch_independent_verification_4d8f66d4["Independent verifier reapplies patch to a clean pinned clone, checks exact authorized changed-file set and digest, and reruns fixed tests"]
-    g_rv_grace_operational_integration_codex_source_scope_failure_ef462df9[["Reject source changes outside the assignment path allowlist or configured capability scope; no patch is applied to source checkout"]]
-    g_rv_grace_operational_integration_objective_steps_b695f9d6["ISOLATED POSTGRES TESTED — persist stable ordered objective steps and per-step assignment identities; require accepted dependency verification before dispatch"]
+    g_rv_grace_operational_integration_codex_source_change_b577dd01["CANDIDATE SOURCE IMPLEMENTATION — the existing owner-session runner can select this separate capability; every work-order path is checked against Steward-approved text and an operator path ceiling; Codex returns a patch only"]
+    g_rv_grace_operational_integration_codex_patch_independent_verification_4d8f66d4["Reapply the digest-verified cumulative patch in an independent pinned clone; compare exact changed files and rerun only fixed offline tests before accepting"]
+    g_rv_grace_operational_integration_codex_source_scope_failure_ef462df9[["Reject any path absent from the accepted Steward request/criteria or configured operator ceiling; preserve a sanitized failure and no production patch"]]
+    g_rv_grace_operational_integration_objective_steps_b695f9d6["ISOLATED POSTGRES TESTED — each source-change continuation retains the same objective, receives a new assignment identity, and is dispatched only after its predecessor is independently verified"]
     g_rv_grace_operational_integration_codex_owner_preflight_fb787eac["SOURCE IMPLEMENTED — resolve CODEX_HOME from RIVERVIEW_CODEX_HOME under private service state; require admin1-owned 0700 home and 0600 empty auth bind target, both Code Mode features, pinned companion path, AF_NETLINK for bwrap --unshare-net, and owner-session MemoryDenyWriteExecute=no; retain workspace-write, network-disabled, AppArmor confinement"]
     g_rv_grace_operational_integration_codex_owner_package_recovery_5bc0b582["BLOCKED UNTIL PACKAGE COMPLETE — preserve the objective and retry budget; install reviewed CLI package with executable Code Mode host through ordinary release procedure, never expose or copy owner credentials"]
     g_rv_grace_operational_integration_verifier_revision_revalidation_9411c472{"For a previously rejected successful attempt, revalidate only after a newer verifier revision, current exact verifier grant, same assignment/attempt, and deterministic revision idempotency key; preserve the old decision"}
     g_rv_grace_operational_integration_verifier_revision_accepted_7a0fa5d2["Corrected verifier reopens the same immutable worker result and appends a new revision decision; assignment completes only after persisted ACCEPTED evidence"]
     g_rv_grace_operational_integration_verifier_revision_retry_15b1db87["On revalidation rejection or authorization/schema failure, preserve both evidence and assignment state; do not rerun Codex or replace the objective"]
+    g_rv_grace_operational_integration_verified_result_review_decision_58c1884b{"After independently verified work, the bound 80B chooses complete, request evidence, propose a same-objective step within approved scope, or require Steward authorization; it cannot grant authority"}
   end
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_cme_progress_and_recovery_observe_428defda["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -212,6 +213,11 @@ flowchart LR
   g_rv_grace_operational_integration_verifier_revision_revalidation_9411c472 -->|verification: Exact verifier grant, newer implementation revision, same stored attempt, and fresh independent acceptance all pass| g_rv_grace_operational_integration_verifier_revision_accepted_7a0fa5d2
   g_rv_grace_operational_integration_verifier_revision_revalidation_9411c472 -->|diagnostic_branch: Grant, revision, migration, idempotency, or artifact verification fails closed; no Codex replay| g_rv_grace_operational_integration_verifier_revision_retry_15b1db87
   g_rv_grace_operational_integration_verifier_revision_accepted_7a0fa5d2 -->|Persisted accepted verifier revision permits normal completion reconciliation| g_rv_grace_operational_integration_objective_complete_a6f22d23
+  g_rv_grace_operational_integration_objective_complete_a6f22d23 -->|Only durable verifier-accepted evidence enters the bound 80B result review.| g_rv_grace_operational_integration_verified_result_review_decision_58c1884b
+  g_rv_grace_operational_integration_verified_result_review_decision_58c1884b -->|Persist the model decision and append a deterministic response to the originating conversation.| g_rv_grace_operational_integration_verified_result_chat_return_108e1033
+  g_rv_grace_operational_integration_verified_result_review_decision_58c1884b -->|ENGINEERING_STEP_PROPOSED appends a dependent step only inside the original human-approved scope; assignment.create is rechecked at dispatch.| g_rv_grace_operational_integration_objective_step_persistence_dd2c700f
+  g_rv_grace_operational_integration_verified_result_review_decision_58c1884b -->|diagnostic_branch: Provider, binding, scope, or persistence failure leaves the verified result in the durable retry outbox.| g_rv_grace_operational_integration_verified_result_return_retry_ce159ed9
+  g_rv_grace_operational_integration_verified_result_return_retry_ce159ed9 -->|recovery_route: Retry the same completion cycle idempotently after dependencies recover.| g_rv_grace_operational_integration_verified_result_review_decision_58c1884b
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

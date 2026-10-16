@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.21
+# Revision: 1.0.22
 # Purpose: Authenticate fixed engineering-test work under exact assignment grants
 # Execution Model: Request-driven local task execution with PostgreSQL durability
 # Observability: Worker identity, capability, attempt outcome, and result digest
@@ -21,6 +21,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Expose authenticated worker scope to recovery before side effects
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Permit an append-only new-revision verifier decision for a previously rejected immutable attempt
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Append verifier-revision decisions while retaining prior rejection and exact grant checks
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Pass exact registered worker capability into Grace proposal-step claim fencing
 # Contracts: docs/components/WORKER_ADAPTER.md; docs/architecture/CORE_CONTRACT.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -160,7 +161,7 @@ class PostgresWorkerAdapter:
                 scope_ref = self._authenticated_worker(cur, worker_id, credential, capability)
                 lease = self.scheduler._claim_candidate(
                     cur, worker_id, lease_seconds, scope_ref=scope_ref,
-                    assignment_id=assignment_id)
+                    assignment_id=assignment_id, required_capability=capability)
                 if lease is None:
                     return None
                 cur.execute("SELECT * FROM assignments WHERE id=%s", (lease["assignment_id"],))
