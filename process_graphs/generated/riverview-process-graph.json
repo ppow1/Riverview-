@@ -9388,25 +9388,27 @@
     },
     {
       "graph_id": "rv:steward-dashboard:status",
-      "graph_revision": "1.1.13",
+      "graph_revision": "1.1.15",
       "component_id": "STEWARD-DASHBOARD",
       "workflow_id": "status-projection.v1",
       "diagram_order": 1,
       "source_references": [
+        "deploy/riverview-status-dashboard.service",
+        "scripts/bootstrap_account_steward.py",
+        "scripts/run_status_dashboard.py",
+        "scripts/runtime_baseline.py",
+        "scripts/verify_diagnostic_snapshot_browser.py",
+        "src/riverview_core/account_auth/__init__.py",
+        "src/riverview_core/account_auth/migrations/0001_account_authentication.sql",
+        "src/riverview_core/status_dashboard/markdown.py",
         "src/riverview_core/status_dashboard/projection.py",
         "src/riverview_core/status_dashboard/server.py",
         "src/riverview_core/status_dashboard/static/app.js",
-        "tests/test_status_dashboard.py",
-        "scripts/run_status_dashboard.py",
-        "scripts/runtime_baseline.py",
-        "deploy/riverview-status-dashboard.service",
-        "src/riverview_core/status_dashboard/markdown.py",
+        "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js",
         "src/riverview_core/status_dashboard/static/workflow.js",
-        "src/riverview_core/account_auth/__init__.py",
-        "src/riverview_core/account_auth/migrations/0001_account_authentication.sql",
-        "scripts/bootstrap_account_steward.py",
         "tests/test_account_auth.py",
-        "tests/test_account_auth_http.py"
+        "tests/test_account_auth_http.py",
+        "tests/test_status_dashboard.py"
       ],
       "documentation_references": [
         "docs/components/STATUS_DASHBOARD.md",
@@ -9615,15 +9617,16 @@
         },
         {
           "id": "rv:steward-dashboard:status:export-snapshot",
-          "node_revision": "1.0.3",
+          "node_revision": "1.0.5",
           "type": "process",
           "label": "Download self-describing offline website and workflow snapshot",
           "source_references": [
+            "scripts/verify_diagnostic_snapshot_browser.py",
             "src/riverview_core/status_dashboard/projection.py",
             "src/riverview_core/status_dashboard/server.py",
             "src/riverview_core/status_dashboard/static/app.js",
-            "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js",
-            "src/riverview_core/status_dashboard/static/capabilities.json"
+            "src/riverview_core/status_dashboard/static/capabilities.json",
+            "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
           ],
           "documentation_references": [
             "docs/components/STATUS_DASHBOARD.md",
@@ -9631,8 +9634,8 @@
             "docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md"
           ],
           "verification_evidence": [
-            "evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final4/browser-acceptance.json",
-            "evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final4/archive-inspection.json",
+            "evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-actual-dashboard-final7/browser-acceptance.json",
+            "evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-actual-dashboard-final7/archive-inspection.json",
             "evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final4/production-readiness.json"
           ],
           "extension": {
@@ -9640,7 +9643,12 @@
             "workflow_definitions": "version-controlled process_graphs/*/*.json",
             "runtime_status_source": "authenticated graph API execution_position projection",
             "global_combined_workflow_visualization": "deferred parking-lot initiative",
-            "verification_boundary": "Synthetic page shell with canonical registry/graphs; actual-dashboard visual and production acceptance remain pending."
+            "verification_boundary": "Isolated Firefox used actual repository dashboard HTML/CSS/scripts and canonical graphs with synthetic read-only APIs; desktop and 720px exports complete. Production account/session acceptance remains unverified.",
+            "page_capture_limits": {
+              "maximum_css_height": 50000,
+              "detail_tile_css_height": 1800,
+              "detail_tile_overlap_css_height": 80
+            }
           }
         },
         {

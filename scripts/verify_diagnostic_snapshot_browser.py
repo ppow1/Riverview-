@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/verify_diagnostic_snapshot_browser.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.5
+# Revision: 1.1.0
 # Purpose: Verify one-click offline diagnostic ZIP in isolated Firefox with synthetic read-only APIs
 # Execution Model: Request-driven isolated fixture; owns only a temporary HTTP server and geckodriver
 # Observability: Sanitized JSON report and downloaded ZIP; no real account or production data
@@ -10,7 +10,12 @@
 # Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Verify complete workflow, page, privacy, and offline package contracts
 # Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Validate all canonical workflow JSON and SVG/PNG identity across the full source inventory.
 # Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Verify safe request-field allowlisting and unresolved-reference reporting.
-# Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Require sanitized browser navigation timing in the offline archive.
+# Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Require sanitized browser navigation timing in the offline archive
+# Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Exercise the actual repository dashboard DOM with synthetic read-only API fixtures.
+# Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Match the dashboard API contracts and isolate expected unauthenticated checks from authenticated browser diagnostics.
+# Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Require complete real-dashboard page capture and readable long-page tiles.
+# Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Allow the bounded full export time for the second-viewport comparison too.
+# Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Require the responsive narrow-viewport package to be complete as well.
 # Tests: scripts/verify_diagnostic_snapshot_browser.py
 # History: Git
 """Exercise the downloadable diagnostic snapshot without connecting to Riverview services."""
@@ -35,6 +40,7 @@ from xml.etree import ElementTree
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSET = ROOT / "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+STATIC = ROOT / "src/riverview_core/status_dashboard/static"
 
 GRAPH_A = {
     "graph_id": "rv:test:alpha", "graph_revision": "1.0.0", "component_id": "TEST",
@@ -89,7 +95,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True, help="New directory for report and downloaded fixture ZIP")
     parser.add_argument("--full-source-fixture", action="store_true", help="Use the repository capability registry and every canonical process graph")
+    parser.add_argument("--actual-dashboard-fixture", action="store_true", help="Serve the repository dashboard HTML/CSS/scripts with synthetic read-only API responses")
     args = parser.parse_args()
+    if args.actual_dashboard_fixture:
+        args.full_source_fixture = True
     source_graphs = None
     source_graph_paths = {}
     if args.full_source_fixture:
@@ -157,6 +166,8 @@ def main() -> int:
             <div class="shell"><nav class="rail">''' + "".join(nav_html) +
             '<button id="snapshot">Download Snapshot</button></nav>' + "".join(view_html) + '</div></body></html>'
         ).encode()
+    if args.actual_dashboard_fixture:
+        page = (STATIC / "index.html").read_bytes()
     else:
         page = b'''<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Snapshot fixture</title>
         <style>.shell{font:16px Arial;background:#112;color:#fff;width:900px;min-height:1600px}.rail{padding:15px}.view{padding:30px;min-height:400px;background:#223}.snapshot-banner{padding:8px}button{padding:10px}</style>
@@ -188,6 +199,13 @@ def main() -> int:
             requests.append({"path": self.path, "cookie_present": bool(self.headers.get("Cookie"))})
             if self.path == "/":
                 return self.send_body(200, page, "text/html; charset=utf-8")
+            if args.actual_dashboard_fixture and self.path.startswith("/assets/"):
+                asset_name = self.path.removeprefix("/assets/")
+                asset = STATIC / asset_name
+                if asset.parent == STATIC and asset.is_file():
+                    content_type = "text/css; charset=utf-8" if asset.suffix == ".css" else "text/javascript; charset=utf-8"
+                    return self.send_body(200, asset.read_bytes(), content_type)
+                return self.send_body(404, b'{"error":"not_found"}')
             if self.path == "/assets/diagnostic-snapshot.js":
                 return self.send_body(200, ASSET.read_bytes(), "text/javascript; charset=utf-8")
             if self.path == "/assets/workflow.js":
@@ -198,8 +216,51 @@ def main() -> int:
                 return self.send_body(200, b"ok", extra=(("Set-Cookie", "rv_account_session=synthetic-only; Path=/; SameSite=Strict"),))
             if not self.headers.get("Cookie", "").startswith("rv_account_session=synthetic-only"):
                 return self.send_body(401, b'{"error":"authentication_required"}')
+            from urllib.parse import urlsplit
+            api_path = urlsplit(self.path).path
             values = {"/api/v1/capabilities": REGISTRY, "/api/v1/snapshot": SNAPSHOT,
                       "/api/v1/snapshot/workflow-index": index}
+            if args.actual_dashboard_fixture:
+                source = {"source_commit": "a" * 40, "deployment_id": "synthetic-fixture"}
+                if api_path == "/api/v1/capabilities":
+                    return self.send_body(200, json.dumps(REGISTRY).encode())
+                if api_path == "/api/v1/snapshot":
+                    fixture_snapshot = {"projection": {"source": source, "status": "healthy",
+                        "observed_at": "2026-10-16T00:00:00Z"}}
+                    return self.send_body(200, json.dumps(fixture_snapshot).encode())
+                if api_path == "/api/v1/snapshot/workflow-index":
+                    fixture_index = {**index, "schema_version": "rv.website.workflow-index.v1",
+                        "status": "available", "inventory_count": len(GRAPHS),
+                        "expected_node_count": sum(len(graph["nodes"]) for graph in GRAPHS.values()),
+                        "expected_edge_count": sum(len(graph["edges"]) for graph in GRAPHS.values())}
+                    return self.send_body(200, json.dumps(fixture_index).encode())
+                if api_path == "/api/v1/auth/session":
+                    return self.send_body(200, b'{"status":"authenticated","identity":{"account_id":"fixture","email":"steward@example.invalid","roles":["steward"]}}')
+                if api_path == "/api/v1/status":
+                    return self.send_body(200, json.dumps({"projection_status":"healthy","freshness":"current",
+                        "observed_at":"2026-10-16T00:00:00Z","source":source,"relations":{"cme_monitor_events":False},
+                        "assignment_counts":{},"assignments_total":0,"event_cursor":0,"cme":{"status":"not_initialized"},
+                        "workers":{"status":"not_initialized"},"grace_execution":{"status":"not_initialized"}}).encode())
+                if api_path == "/api/v1/graphs":
+                    return self.send_body(200, json.dumps({"items": [{"graph_id": graph["graph_id"],
+                        "component_id": graph["component_id"], "workflow_id": graph["workflow_id"],
+                        "graph_revision": graph["graph_revision"]} for graph in GRAPHS.values()]}).encode())
+                if api_path == "/api/v1/notifications":
+                    return self.send_body(200, b'{"status":"not_initialized","dispatcher":{"status":"not_initialized"},"items":[]}')
+                if api_path == "/api/v1/resident-permissions":
+                    return self.send_body(200, b'{"profiles":[],"capabilities":[],"resources":[]}')
+                if api_path == "/api/v1/account/email-settings":
+                    return self.send_body(200, b'{"configured":false,"password_configured":false}')
+                if api_path.startswith("/api/v1/graphs/"):
+                    from urllib.parse import unquote
+                    graph_id = unquote(api_path.removeprefix("/api/v1/graphs/"))
+                    graph = GRAPHS.get(graph_id)
+                    if graph is None:
+                        return self.send_body(404, b'{"error":"not_found"}')
+                    return self.send_body(200, json.dumps({"graph": {**graph,
+                        "execution_position": {"status":"unknown"}}}).encode())
+                if api_path.startswith("/api/v1/"):
+                    return self.send_body(200, b'{"status":"not_initialized","items":[],"dispatcher":{"status":"not_initialized"}}')
             if self.path in values:
                 return self.send_body(200, json.dumps(values[self.path]).encode())
             if self.path == "/api/v1/graphs":
@@ -214,6 +275,16 @@ def main() -> int:
                     return self.send_body(404, b'{"error":"not_found"}')
                 return self.send_body(200, json.dumps({"graph": {**graph, "execution_position": {"status": "unknown"}}}).encode())
             return self.send_body(404, b'{"error":"not_found"}')
+
+        def do_POST(self):
+            requests.append({"method":"POST","path":self.path,"cookie_present":bool(self.headers.get("Cookie"))})
+            if args.actual_dashboard_fixture and self.path.startswith("/api/v1/") and self.headers.get("Cookie", "").startswith("rv_account_session=synthetic-only"):
+                return self.send_body(200, b'{"status":"fixture_only"}')
+            return self.send_body(404, b'{"error":"not_found"}')
+
+        def do_DELETE(self):
+            requests.append({"method":"DELETE","path":self.path,"cookie_present":bool(self.headers.get("Cookie"))})
+            return self.send_body(200, b'{"status":"fixture_only"}')
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), Fixture)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -257,6 +328,7 @@ def main() -> int:
         webdriver("POST",f"/session/{session}/actions",{"actions":[{"type":"pointer","id":"snapshot-mouse","parameters":{"pointerType":"mouse"},"actions":[{"type":"pointerMove","duration":0,"origin":"viewport","x":point["x"],"y":point["y"]},{"type":"pointerDown","button":0},{"type":"pointerUp","button":0}]}]})
 
     report = {"schema_version": "rv.website.snapshot-browser-verification.v1", "synthetic_fixture_only": True,
+              "dashboard_source": "repository_static_dashboard" if args.actual_dashboard_fixture else "synthetic_page_fixture",
               "production_data_accessed": False, "production_mutations": False, "api_requests": requests,
               "expected_workflows": len(GRAPHS),
               "expected_nodes": sum(len(graph.get("nodes", [])) for graph in GRAPHS.values()),
@@ -275,11 +347,6 @@ def main() -> int:
         session = webdriver("POST", "/session", {"capabilities": {"alwaysMatch": {
             "browserName": "firefox", "moz:firefoxOptions": {"args": ["-headless"], "prefs": prefs}}}})["value"]["sessionId"]
         webdriver("POST", f"/session/{session}/window/rect", {"x": 0, "y": 0, "width": 1280, "height": 900})
-        webdriver("POST", f"/session/{session}/url", {"url": f"http://127.0.0.1:{server.server_port}/"})
-        for _ in range(100):
-            if js("return !!window.RiverviewSnapshot && !!window.RiverviewSnapshotApi"):
-                break
-            time.sleep(.1)
         try:
             urllib.request.urlopen(f"http://127.0.0.1:{server.server_port}/api/v1/capabilities")
             unauthorized=200
@@ -288,6 +355,10 @@ def main() -> int:
         report["unauthenticated_registry_status"] = unauthorized
         webdriver("POST", f"/session/{session}/url", {"url": f"http://127.0.0.1:{server.server_port}/signin"})
         webdriver("POST", f"/session/{session}/url", {"url": f"http://127.0.0.1:{server.server_port}/"})
+        for _ in range(100):
+            if js("return !!window.RiverviewSnapshot && !!window.RiverviewSnapshotApi"):
+                break
+            time.sleep(.1)
         click_css(REGISTRY["pages"][next(i for i,p in enumerate(REGISTRY["pages"]) if p["id"]=="workflows")]["navigation_selector"])
         viewer_deadline=time.monotonic()+12
         while time.monotonic()<viewer_deadline and not js("return document.querySelector('#graph-canvas svg')?.style.transform.includes('scale(')"):
@@ -405,6 +476,7 @@ def main() -> int:
             report["synthetic_cookie_not_exported"] = not any(b"synthetic-only" in value for value in archive_payloads)
             report["manifest_files_valid"] = all(hashlib.sha256(bundle.read(x["path"])).hexdigest()==x["sha256"]
                                                  and len(bundle.read(x["path"]))==x["size_bytes"] for x in manifest["files"])
+            report["manifest_capture_complete"] = manifest["capture_complete"]
             captured_pages = [page["id"] for page in REGISTRY["pages"]]
             page_htmls = [bundle.read(f"website/pages/{page}.html").decode() for page in captured_pages]
             page_svg_text = [bundle.read(f"website/pages/{page}.svg").decode() for page in captured_pages]
@@ -414,6 +486,17 @@ def main() -> int:
             report["all_registered_pages_captured"] = (manifest["inventory"]["captured_pages"] == len(captured_pages)
                 and all(f"website/pages/{page}.png" in names and f"website/pages/{page}.svg" in names for page in captured_pages)
                 and all(png.startswith(b"\x89PNG\r\n\x1a\n") for png in page_pngs))
+            if "documentation" in captured_pages:
+                documentation_capture=json.loads(bundle.read("website/pages/documentation.json"))
+                documentation_tiles=documentation_capture["representations"].get("detail_tiles",[])
+                report["documentation_full_extent_tiles_complete"]=(not documentation_capture["capture_truncated"]
+                    and bool(documentation_tiles) and all(tile in names and bundle.read(tile).startswith(b"\x89PNG\r\n\x1a\n") for tile in documentation_tiles))
+            required_dashboard_assets = {"/assets/app.css", "/assets/diagnostic-snapshot.js", "/assets/app.js", "/assets/workflow.js"}
+            observed_assets = {item.get("path", "").split("?", 1)[0] for item in requests}
+            report["actual_dashboard_assets_served"] = (not args.actual_dashboard_fixture
+                or required_dashboard_assets <= observed_assets)
+            report["actual_dashboard_page_content_captured"] = (not args.actual_dashboard_fixture
+                or ("Operations overview" in page_htmls[0] and 'id="view-overview"' in page_htmls[0]))
             report["page_private_content_redacted"] = all("PRIVATE FIXTURE CONVERSATION" not in value for value in page_htmls)
             report["sensitive_form_value_redacted"] = all("SENSITIVE FIXTURE FORM VALUE" not in value for value in page_htmls + page_svg_text)
             report["page_visuals_are_full_rendered_captures"] = all("<foreignObject" in value and "data-control-id=" in value for value in page_svg_text)
@@ -476,7 +559,7 @@ def main() -> int:
         existing_downloads = {item.name for item in download_dir.glob("*.zip")}
         js("document.querySelector('#snapshot').scrollIntoView({block:'center',inline:'center'})")
         click_css("#snapshot")
-        second_deadline = time.monotonic() + 30
+        second_deadline = time.monotonic() + 180
         second_archives = []
         while time.monotonic() < second_deadline:
             second_archives = [item for item in download_dir.glob("*.zip") if item.name not in existing_downloads]
@@ -490,9 +573,14 @@ def main() -> int:
         shutil.copy2(second_archive, second_evidence)
         with zipfile.ZipFile(second_archive) as second_bundle:
             second_svg_payload = second_bundle.read(workflow_file(first_graph_id, "svg"))
+            second_manifest=json.loads(second_bundle.read("manifest.json"))
+            second_documentation=json.loads(second_bundle.read("website/pages/documentation.json"))
         report["second_capture"] = {"viewport": second_view, "package_bytes": second_archive.stat().st_size,
             "workflow_svg_matches_first_viewport": second_svg_payload == first_svg_payload,
-            "workflow_json_matches_first_viewport": zipfile.ZipFile(second_archive).read(workflow_file(first_graph_id, "json")) == workflow_a_bytes}
+            "workflow_json_matches_first_viewport": zipfile.ZipFile(second_archive).read(workflow_file(first_graph_id, "json")) == workflow_a_bytes,
+            "manifest_capture_complete": second_manifest["capture_complete"],
+            "documentation_capture_complete": not second_documentation["capture_truncated"] and second_documentation["visual_status"]=="complete",
+            "documentation_detail_tile_count": len(second_documentation["representations"].get("detail_tiles",[]))}
         report["workflow_visual_independent_of_viewport_and_scroll"] = (report["second_capture"]["viewport"]["width"] < 1280 and report["second_capture"]["viewport"]["scroll_y"] > 0 and report["second_capture"]["workflow_svg_matches_first_viewport"] and report["second_capture"]["workflow_json_matches_first_viewport"])
         report["passed"] = all([report["zip_integrity_test"], report["manifest_files_valid"],
             report["manifest_workflows"]==len(GRAPHS), report["manifest_nodes"]==expected_nodes, report["manifest_edges"]==expected_edges,
@@ -506,6 +594,12 @@ def main() -> int:
         report["package_sha256"] = hashlib.sha256(archive.read_bytes()).hexdigest()
         report["passed"] = bool(report["passed"] and report["workflow_visual_independent_of_viewport_and_scroll"])
         report["passed"] = bool(report["passed"] and report["request_metadata_captured"] and report["navigation_timing_captured"] and report["diagnostic_privacy_filter_passed"])
+        report["passed"] = bool(report["passed"] and report["actual_dashboard_assets_served"] and report["actual_dashboard_page_content_captured"])
+        if args.actual_dashboard_fixture:
+            report["passed"] = bool(report["passed"] and report.get("manifest_capture_complete")
+                and report.get("documentation_full_extent_tiles_complete")
+                and report["second_capture"].get("manifest_capture_complete")
+                and report["second_capture"].get("documentation_capture_complete"))
         report["package_file"] = f"downloads/{archive.name}"
         (args.output / "snapshot.zip.sha256").write_text(report["package_sha256"]+"  "+archive.name+"\n")
         (args.output / "browser-acceptance.json").write_text(json.dumps(report, indent=2)+"\n")

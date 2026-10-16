@@ -1,7 +1,7 @@
 {
   "schema_version": "rv.website.capabilities.v1",
   "registry_id": "rv:steward-dashboard:website-capabilities",
-  "revision": "1.1.1",
+  "revision": "1.1.2",
   "purpose": "Describe dashboard pages, controls, data sources, workflow surfaces and diagnostic export representations. A declaration is not evidence of control operation.",
   "pages": [
     {
@@ -401,6 +401,13 @@
       "selector": "#refresh-objectives",
       "action": "Refresh objective projection",
       "component": "objectives",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "conversation.history",
+      "selector": "#chat-history",
+      "action": "Browse and scroll the current conversation history",
+      "component": "Grace conversation",
       "capability_version": "1.0.0"
     },
     {
