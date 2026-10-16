@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.16
+# Revision: 1.0.17
 # Purpose: Authenticate fixed engineering-test work under exact assignment grants
 # Execution Model: Request-driven local task execution with PostgreSQL durability
 # Observability: Worker identity, capability, attempt outcome, and result digest
@@ -16,6 +16,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.4-BOUNDED-ARTIFACT-WORKER | Allow exact-grant execution for bounded file-artifact workers
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Map bounded Codex artifact work to exact assignment.execute grant
 # Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Pass an exact assignment pin through the authorized claim
+# Changed: 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-001 | Register the separate scoped Codex source-change capability under exact assignment.execute authority
 # Contracts: docs/components/WORKER_ADAPTER.md; docs/architecture/CORE_CONTRACT.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -60,6 +61,7 @@ class PostgresWorkerAdapter:
     REPOSITORY_CHECK_CAPABILITY = "engineering.repository-check.v1"
     BOUNDED_ARTIFACT_CAPABILITY = "engineering.bounded-artifact.v1"
     CODEX_CLI_CAPABILITY = "engineering.codex-cli-artifact.v1"
+    CODEX_SOURCE_CHANGE_CAPABILITY = "engineering.codex-cli-source-change.v1"
     VERIFICATION_CAPABILITY = "assignment.verify.v1"
 
     def __init__(self, dsn, *, schema="public", authority_schema=None):
@@ -123,7 +125,8 @@ class PostgresWorkerAdapter:
         elif capability in {self.SHA256_CAPABILITY, self.LOCAL_INFERENCE_CAPABILITY,
                             self.REPOSITORY_CHECK_CAPABILITY,
                             self.BOUNDED_ARTIFACT_CAPABILITY,
-                            self.CODEX_CLI_CAPABILITY}:
+                            self.CODEX_CLI_CAPABILITY,
+                            self.CODEX_SOURCE_CHANGE_CAPABILITY}:
             action = "assignment.execute"
         else:
             raise WorkerAuthorizationError("capability has no authority action mapping")

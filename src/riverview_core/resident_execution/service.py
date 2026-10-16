@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.7
+# Revision: 1.0.9
 # Purpose: Reconcile durable Grace work orders through existing CME worker contracts
 # Execution Model: Persistent scheduled poll over PostgreSQL objective state
 # Observability: Objective events, worker attempts, verification records, dashboard projection
@@ -16,6 +16,8 @@
 # Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Add a targeted operator-supervised objective execution cycle
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Select registered execution capability for worker and verification queries
 # Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Retry durable verified-result returns to the originating Grace conversation
+# Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Dispatch only dependency-ready verified steps through existing worker leases
+# Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Persist cycle-specific result receipts and resume only idempotent same-objective continuations
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -124,7 +126,7 @@ class GraceExecutionService:
         with self.pipeline.ledger.db.cursor() as cur:
             self.pipeline.ledger._set_search_path(cur)
             cur.execute("""SELECT objective_id,scope_ref FROM grace_objectives
-                WHERE status='PROPOSED' AND scope_ref=%s
+                WHERE status IN ('PROPOSED','WORK_ORDER_CREATED') AND scope_ref=%s
                   AND (%s::text IS NULL OR objective_id=%s)
                 ORDER BY created_at,objective_id LIMIT %s""",
                 (self.authority_ref, objective_id, objective_id, limit))
@@ -156,16 +158,24 @@ class GraceExecutionService:
         for row in self._proposed(limit=1 if objective_id else 25,
                                   objective_id=objective_id):
             objective_id = row["objective_id"]
+            step = self.pipeline.dispatchable_step(objective_id)
+            if not step:
+                continue
             failures = self._dispatch_failure_count(objective_id)
             if failures >= self.max_dispatch_failures:
                 continue
-            assignment_id = "assignment:grace:" + hashlib.sha256(
-                objective_id.encode("utf-8")).hexdigest()[:40]
+            base = hashlib.sha256(objective_id.encode("utf-8")).hexdigest()[:40]
+            assignment_id = "assignment:grace:" + base
+            idempotency_key = f"grace-assignment:{objective_id}"
+            if step["step_order"] > 1:
+                suffix = hashlib.sha256(step["step_id"].encode("utf-8")).hexdigest()[:16]
+                assignment_id += ":step:" + suffix
+                idempotency_key += ":step:" + step["step_id"]
             try:
                 self.pipeline.authorize_and_dispatch(
                     objective_id, assignment_id, credential=self.dispatch_credential,
                     authority_ref=self.authority_ref,
-                    idempotency_key=f"grace-assignment:{objective_id}")
+                    idempotency_key=idempotency_key, step_id=step["step_id"])
                 dispatched += 1
             except Exception as exc:
                 self._record_dispatch_failure(objective_id, type(exc).__name__, failures + 1)
@@ -264,7 +274,8 @@ class GraceExecutionService:
                         or receipt.get("status") not in {"published", "already_published"}):
                     continue
                 durable_receipt = {key: receipt.get(key) for key in
-                    ("request_id", "provider_id", "served_model", "implementation_id")}
+                    ("request_id", "provider_id", "served_model", "implementation_id",
+                     "completion_cycle")}
                 self.pipeline.record_conversation_result_published(
                     context["objective_id"], durable_receipt)
                 published += 1

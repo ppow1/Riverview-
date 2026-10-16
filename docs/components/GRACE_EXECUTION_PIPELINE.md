@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.6
+File Revision: 1.1.8
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
 Authority: Engineering contract; not evidence of production Grace commissioning
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Link persistent reconciliation and authenticated dashboard handoff
@@ -21,6 +21,8 @@ Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Bound 80B proposal inf
 Changed: 2026-10-15 UTC | RV-GRACE-AUTHORIZED-SNAPSHOT-001 | Revalidate resident authority through the restricted office-state capability
 Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Separate verified knowledge-source provenance from the pinned Codex checkout revision and recover confirmed no-launch failures
 Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Keep immutable objective evidence provenance distinct from current grounding and recover bounded durable no-launch failures
+Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Persist dependency-ordered step assignments and add an explicitly scoped source-change patch capability
+Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Record typed post-verification decisions and same-objective continuation; constrain owner-session Codex state and fail closed when its Code Mode host is absent
 -->
 # Grace Execution Pipeline — infrastructure slice
 
@@ -41,10 +43,11 @@ claims live installation or Camrui commissioning.
    A same-origin retry may call grounding again while the durable objective is `WAITING_FOR_EVIDENCE`. Verified evidence atomically advances either `RECEIVED` or `WAITING_FOR_EVIDENCE` to `GROUNDED`; the state predicate prevents a second concurrent retry from overwriting an already grounded or later-stage objective. Incomplete evidence remains pending with a new revision and event.
 3. record_proposal(objective_id, PlanProposal) accepts only the existing typed plan. It stores the unapproved plan and hash. This method is a persistence boundary, not a reasoning engine.
 4. authorize_and_dispatch(...) requires exact assignment.create, the same scope as intake, and complete verified evidence. It uses AuthorizedAssignmentIntake; assignment + creation event + objective/work-order link are one PostgreSQL transaction. The event processor remains responsible for queued-to-ready.
-5. ContinuousWorker obtains a lease, rechecks its registered engineering.bounded-artifact.v1 capability, and writes one small JSON work product into a mode-0700 workspace. The worker has no shell, command, or caller-selected path.
-6. BoundedArtifactVerifier reopens the artifact by an assignment-derived name, verifies bytes/provenance/shape independently, and the existing adapter persists verification before completion. The objective can be marked complete only from a completed assignment plus persisted ACCEPTED verification.
+5. ContinuousWorker obtains a lease and rechecks the registered capability and exact authority. The existing bounded-artifact capability writes one small assignment-derived work product. The separate source-change adapter can produce a patch for explicitly allowlisted files in a pinned disposable clone; it returns patch evidence only and never applies changes to the configured checkout or production.
+6. The verifier independently reopens the bounded artifact or reapplies a source patch in a separate clean clone, checks scope, digest and provenance, and reruns fixed tests. A dependent objective step is not dispatched until its predecessor has an independently accepted verification.
 7. For a `grace.readiness_router.v1` binding, ResidentReasoner proposals use the router's typed `propose()` method, which checks the router revision and calls only the authorized 80B provider. The 0.6B and 30B cannot substitute for an Engineering proposal. Provider, served model, digest and reasoning stage are persisted with the plan.
 8. Conversation-origin objectives with an independently accepted completion enter a PostgreSQL-backed result outbox. The persistent service rechecks Grace's current office binding and exact `resident.conversation.send` grant, asks the bound 80B to review verifier evidence, and appends one assistant response to the original conversation. A stable objective-derived response ID makes retries idempotent; the outbox is acknowledged only after the conversation event is durable. Provider or authorization failure leaves it pending for retry.
+9. The structured review may return `OBJECTIVE_COMPLETE`, `ADDITIONAL_EVIDENCE_REQUIRED`, `ENGINEERING_STEP_PROPOSED`, or `STEWARD_AUTHORIZATION_REQUIRED`. A continuation is accepted only within the original objective and accepted-criteria envelope; the current binding is revalidated before and after model reasoning. It appends a durable step and uses the ordinary CME assignment-creation authorization and lease/verification path. Model output never supplies authority.
 
 `read_reasoning_context(...)` includes the exact `repo://riverview/resident-engineering.v1`
 contract reference expected by the resident knowledge adapter. Without it, the
@@ -97,7 +100,7 @@ flowchart TD
     W --> J
 ```
 
-This source increment is not proof of the live demonstration: no production deployment or migration occurred, PostgreSQL integration tests were skipped without a test DSN, and no real Codex artifact was produced here.
+This source increment is not proof of the live demonstration: no production deployment or migration occurred and no new production Codex artifact was produced here. Multi-step persistence requires additive migration `0009_durable_objective_steps.sql`, not applied to production.
 
 Cancellation is supported only before execution for queued/ready assignments and requires exact assignment.cancel. Running work cannot be force-cancelled by this slice; CME lease/recovery behavior remains authoritative.
 
@@ -106,13 +109,16 @@ Cancellation is supported only before execution for queued/ready assignments and
 - Objective ID: objective: followed by 1–120 ASCII letters, digits, ., _, :, or -.
 - Request: UTF-8, 1–4,096 bytes. Acceptance criteria: 1–20 strings, each at most 1,000 characters.
 - Plan: the current resident_reasoning.PlanProposal and PlanStep contract.
-- Dispatch currently accepts exactly one proposed step. It rejects multi-step
-  proposals rather than silently discarding dependency/fanout information.
+- Resident proposal generation accepts 1–20 dependency-ordered steps. PostgreSQL
+  persists each step and assignment identity. CME dispatches only the first
+  pending step whose dependencies have independent verification; it uses the
+  existing worker lease, recovery, authorization and verifier path. The overall
+  objective completes only after every persisted step is verified.
 - Evidence: knowledge-provider v1 KnowledgeResult, full pinned-source verification plus deterministic ranked passage selection; max serialized evidence 8 KiB. All source refs, Git revision/hash, selection policy and term-coverage counts persist with the objective.
 - Work order: assignment ID, objective ref, exact authority scope, contract ref, workflow ID/step, and correlation ID persist in the assignment ledger.
 - Conversation origin: selected message sequence and conversation ID are attached to `objective.received`; only the authenticated linked Steward principal can submit from the chat route.
-- Worker request: CodingWorkOrder carries assignment/objective identity, pinned repository revision, bounded task scope, criteria, exact allowed operation (write_bounded_json_artifact), and a 1–90 second timeout.
-- The default bounded-artifact worker is deterministic and is not a general coding executor. The separate Codex CLI executor exists and is selected only by explicit configuration; this increment does not claim a real Codex run or commissioned resident service.
+- Worker request: each durable step maps to its own assignment, retaining the original objective and correlation ID. Existing bounded-artifact work remains constrained to its assignment-derived output. The separate source-change capability requires immutable repository revision, explicit path allowlist, exact criteria, fixed test targets and bounded runtime.
+- The source-change adapter stores a digest-verified patch and changed-file inventory only; the independent verifier replays it in an isolated clone. It does not merge, commit, or apply a patch to production. The capability is not registered or commissioned by this source increment.
 - Result: status, workspace URI/name, SHA-256, size, source revision/hash. No credential or objective authorization is inferred from a worker result.
 - Failure, unavailable provider, serialization failure, oversized context, rejected authorization, incomplete verification, and cancellation do not produce objective completion.
 
@@ -162,6 +168,21 @@ and independent verification records remain the execution path. The
 checks ownership/mode/size/digest, objective binding, both provenance
 dimensions, and literal acceptance criteria. The result path and digest are retained in the
 worker result and Grace objective completion event/projection.
+
+The separate `engineering.codex-cli-source-change.v1` adapter accepts an
+explicit exact-file allowlist and immutable base revision, creates a patch in a
+fresh disposable clone, inventories every changed path, checks the patch and
+runs only fixed assignment test targets in an offline bubblewrap sandbox. Its
+verifier applies the patch to a separate clean clone, compares the changed-file
+inventory and patch digest, and reruns those tests. It returns a verifier
+evidence record only; it never applies a patch to the configured source checkout
+or a production release. The capability is not registered by the live service
+and remains unavailable to production assignments pending exact capability
+registration and its authority grant.
+
+Grace's final Engineering review remains free text in this source revision.
+Structured model-directed continuation and durable continuation dispatch are
+not yet implemented; a model response cannot grant its own authority.
 
 The capability registry records capability, active worker, and exact authority
 scope; startup preflight plus the current Grace execution health heartbeat

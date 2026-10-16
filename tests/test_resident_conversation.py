@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.23
+# Revision: 1.0.24
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -30,6 +30,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Ensure resumed and fallback generations compact discarded partial text behind a monotonic reset marker.
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Keep repeated 80B deferrals idempotent and discard incomplete text while pending.
+# Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Supply durable completion cycle and typed model decision to result-return regression
 # Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-GUIDANCE-001 | Assert user-facing Engineering proposal guidance reaches the actual inference prompt and retain a stable context-limit boundary case.
 # =============================================================================
 """Isolated PostgreSQL and authority tests for Grace's persistent conversation path."""
@@ -339,7 +340,8 @@ class ResidentConversationTests(unittest.TestCase):
             "resident.conversation.send", "office:" + self.office_id,
             policy_ref="rv.policy:resident-conversation-result.v1")
         self.provider_a.model = "Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf"
-        self.provider_a.answer = "The verified report is ready at the recorded path."
+        self.provider_a.answer = json.dumps({"decision":"OBJECTIVE_COMPLETE",
+            "rationale":"The report is readable.","additional_evidence":[],"proposed_step":None})
         turn = self.service.send(self.steward_token, message="Create a short verified engineering report.",
             client_message_id=str(uuid4()))
         context = {"objective_id":"objective:grace-conversation:result-test",
@@ -349,6 +351,7 @@ class ResidentConversationTests(unittest.TestCase):
             "proposal":{"summary":"Create report", "steps":[]},
             "submitter_id":self.steward_id,
             "origin":{"conversation_id":turn["conversation_id"], "source_sequence":1},
+            "completion_cycle":1,
             "completion":{"decision":"ACCEPTED", "assignment_id":"assignment:grace:result-test",
                 "verifier_revision":"1.0.0", "evidence_references":["urn:test:verified"],
                 "artifact":{"artifact_path":"/var/lib/riverview-grace/artifacts/report.md",
@@ -367,6 +370,7 @@ class ResidentConversationTests(unittest.TestCase):
         self.assertEqual(len(reviews), 1)
         self.assertEqual(reviews[0]["model_id"], self.provider_a.model)
         self.assertEqual(reviews[0]["metadata"]["verification_decision"], "ACCEPTED")
+        self.assertEqual(reviews[0]["metadata"]["review_decision"], "OBJECTIVE_COMPLETE")
         self.assertEqual(reviews[0]["metadata"]["artifact"]["artifact_sha256"], "f" * 64)
         self.assertEqual([row[1] for row in self._fresh_events(turn["conversation_id"])],
             ["user_message", "assistant_message", "assistant_message"])

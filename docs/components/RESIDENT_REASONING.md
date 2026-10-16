@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.7
+File Revision: 1.0.8
 Purpose: Define resident context regrounding and bounded reasoning-provider routing
 Authority: Exact office-state grant required; provider output is a proposal, never permission
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Establish isolated resident reasoning contract
@@ -13,6 +13,7 @@ Changed: 2026-10-11 UTC | RV-M4.2-LOCAL-PROVIDER-RESULT | Record actual model ti
 Changed: 2026-10-13 UTC | RV-REASONING-ESCALATION-CONTRACT | Specify task-escalation request/result boundary and integration limit
 Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Pass canonical Grace role and authority boundaries into her assignment reasoning provider
 Changed: 2026-10-15 UTC | RV-GRACE-GROUNDING-BOUNDED-001 | Rank complete relevant passages within the evidence bound and retain full-source provenance
+Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Allow bounded 1–20 step proposals with acyclic dependencies and persist step dispatch state
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Resident regrounding and reasoning routing
@@ -63,7 +64,7 @@ introduced.
 `ReasoningProvider` contract. It sends bounded requests only to a literal
 loopback OpenAI-compatible `/v1` endpoint, pins the served model name and
 implementation SHA-256 to the bound implementation revision, and accepts only
-the exact typed, one-step proposal schema. Transport errors return sanitized
+the exact typed proposal schema (1–20 dependency-ordered steps). Transport errors return sanitized
 `UNAVAILABLE`; malformed or incomplete responses become invalid proposals.
 The adapter cannot execute work or authorize its proposal. Six isolated HTTP
 contract tests pass. A real call to the installed Qwen3-0.6B model on Camrui

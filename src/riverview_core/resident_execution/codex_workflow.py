@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.1
+# Revision: 1.2.2
 # Purpose: Adapt bounded Codex production and independent Markdown verification to CME
 # Execution Model: Existing leased worker action and independent verifier contract
 # Observability: Persisted artifact location, digest, criteria and verifier evidence
@@ -12,6 +12,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Separate evidence provenance from the Codex repository pin and retain process-start status
 # Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Validate objective evidence against its immutable provenance, independently of current grounding revision
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Classify unsuccessful isolated Codex actions as retryable only while no durable artifact exists
+# Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Resolve the current durable assignment step instead of always executing proposal step one
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_codex_workflow.py
 # History: Git
@@ -85,7 +86,20 @@ class CodexWorkAction:
                 objective.get("source_sha256") != evidence.get("source_sha256") or
                 not objective.get("proposal")):
             raise CodexActionFailure("persisted_work_order_provenance_required")
-        step = objective["proposal"]["steps"][0]
+        resolver = getattr(self.pipeline, "proposal_step_for_assignment", None)
+        if callable(resolver):
+            step = resolver(objective_id, assignment.get("id"))
+        else:
+            # The pre-0009 compatibility path is safe only for a single-step
+            # historical proposal; multi-step work requires its durable link.
+            steps = objective["proposal"].get("steps", [])
+            step = steps[0] if len(steps) == 1 else None
+        if step is None and len(objective["proposal"]["steps"]) == 1:
+            # Compatibility for historical one-step work orders without an
+            # explicit workflow_step field in older assignment projections.
+            step = objective["proposal"]["steps"][0]
+        if step is None:
+            raise CodexActionFailure("persisted_work_order_step_missing")
         try:
             repository_revision = self.adapter.repository_revision()
         except Exception as exc:

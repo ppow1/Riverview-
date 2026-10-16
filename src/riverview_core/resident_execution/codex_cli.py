@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_cli.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.1
+# Revision: 1.1.2
 # Purpose: Run a bounded Codex CLI assignment in an isolated pinned repository copy
 # Execution Model: One noninteractive sandboxed Codex invocation per durable assignment
 # Observability: Typed result and artifact digest; prompt and CLI output are not logged
@@ -14,6 +14,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-SANDBOX-READINESS-001 | Fail startup preflight when the bounded workspace sandbox is unavailable
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Use private per-command Git trust for the pinned root-owned checkout and report execution-start boundary
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Accept a committed or uncommitted artifact only when the pinned clone changed deliverable.md alone
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-OWNER-STATE-001 | Use writable service-local CODEX_HOME with a read-only bind of the existing subscription auth file; require the Code Mode host for live CLI execution
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; process_graphs/grace/operational-integration.json
 # Tests: tests/test_codex_cli_adapter.py
 # History: Git
@@ -117,6 +118,7 @@ class CodexCLIExecutionAdapter:
                  workspace_root: str | Path, artifact_root: str | Path,
                  supervised_chatgpt_session: bool = False,
                  persistent_chatgpt_owner_session: bool = False,
+                 require_code_mode_host: bool = False,
                  ):
         self.executable = Path(executable)
         self.repository_path = Path(repository_path)
@@ -126,15 +128,18 @@ class CodexCLIExecutionAdapter:
         self.artifact_root = Path(artifact_root)
         if (type(supervised_chatgpt_session) is not bool or
                 type(persistent_chatgpt_owner_session) is not bool or
+                type(require_code_mode_host) is not bool or
                 (supervised_chatgpt_session and persistent_chatgpt_owner_session)):
             raise ValueError("Codex authentication mode must be explicit")
         self.supervised_chatgpt_session = supervised_chatgpt_session
         self.persistent_chatgpt_owner_session = persistent_chatgpt_owner_session
-        owner_session = supervised_chatgpt_session or persistent_chatgpt_owner_session
-        # The existing subscription login is used only in place by its owning
-        # Unix identity. No auth material enters the worker identity or env.
+        self.require_code_mode_host = require_code_mode_host
+        # The existing subscription login is used by the owning Unix identity.
+        # Supervised mode uses its personal directory in place; persistent mode
+        # uses a writable service-local state directory and a read-only bind of
+        # only auth.json. No credential bytes are copied.
         personal_homes = (Path.home() / ".codex", Path("/home/admin1/.codex"))
-        if owner_session:
+        if supervised_chatgpt_session:
             try:
                 operator = pwd.getpwnam("admin1")
                 auth = self.codex_home / "auth.json"
@@ -146,12 +151,33 @@ class CodexCLIExecutionAdapter:
                 valid_auth_file = False
                 operator = None
             if (operator is None or os.geteuid() != operator.pw_uid or
-                    (supervised_chatgpt_session and not sys.stdin.isatty()) or
+                    not sys.stdin.isatty() or
                     self.codex_home.resolve() != (Path.home() / ".codex").resolve() or
                     not valid_auth_file):
-                if supervised_chatgpt_session:
-                    raise ValueError("supervised ChatGPT authentication requires the owning interactive user session")
-                raise ValueError("persistent ChatGPT session authentication requires the owning user and protected local login")
+                raise ValueError("supervised ChatGPT authentication requires the owning interactive user session")
+        elif persistent_chatgpt_owner_session:
+            try:
+                operator = pwd.getpwnam("admin1")
+                home_info = self.codex_home.lstat()
+                auth = self.codex_home / "auth.json"
+                auth_info = auth.lstat()
+                valid_home = (stat.S_ISDIR(home_info.st_mode) and
+                    not self.codex_home.is_symlink() and home_info.st_uid == os.geteuid() and
+                    stat.S_IMODE(home_info.st_mode) == 0o700 and
+                    self.codex_home.resolve() == self.codex_home.absolute() and
+                    all(self.codex_home.resolve() != home.resolve() and
+                        home.resolve() not in self.codex_home.resolve().parents
+                        for home in personal_homes))
+                valid_auth_file = (stat.S_ISREG(auth_info.st_mode) and
+                    auth_info.st_uid == operator.pw_uid and
+                    stat.S_IMODE(auth_info.st_mode) == 0o600 and
+                    not auth.is_symlink() and not os.access(auth, os.W_OK))
+            except (KeyError, OSError):
+                valid_home = valid_auth_file = False
+                operator = None
+            if (operator is None or os.geteuid() != operator.pw_uid or
+                    not valid_home or not valid_auth_file):
+                raise ValueError("persistent ChatGPT authentication requires service-local writable state and a read-only owner auth bind")
         elif any(self.codex_home.resolve() == home.resolve() or
                  home.resolve() in self.codex_home.resolve().parents
                  for home in personal_homes):
@@ -181,8 +207,12 @@ class CodexCLIExecutionAdapter:
             if self.supervised_chatgpt_session or self.persistent_chatgpt_owner_session:
                 info = self.codex_home.lstat()
                 if (not stat.S_ISDIR(info.st_mode) or self.codex_home.is_symlink() or
-                        info.st_uid != os.geteuid()):
+                        info.st_uid != os.geteuid() or
+                        (self.persistent_chatgpt_owner_session and stat.S_IMODE(info.st_mode) != 0o700)):
                     raise CodexAdapterError("supervised_codex_home_invalid")
+                if self.persistent_chatgpt_owner_session and os.access(
+                        self.codex_home / "auth.json", os.W_OK):
+                    raise CodexAdapterError("owner_auth_bind_must_be_read_only")
             else:
                 self._private_directory(self.codex_home)
             self._private_directory(self.workspace_root)
@@ -190,6 +220,10 @@ class CodexCLIExecutionAdapter:
             if (self.workspace_root.resolve() == self.codex_home.resolve() or
                     self.workspace_root.resolve() in self.codex_home.resolve().parents):
                 raise CodexAdapterError("workspace_overlaps_credential_home")
+            if self.require_code_mode_host:
+                host = binary.with_name("codex-code-mode-host")
+                if (not host.is_file() or host.is_symlink() or not os.access(host, os.X_OK)):
+                    raise CodexAdapterError("codex_code_mode_host_missing")
             self._verify_workspace_sandbox()
             return binary, source
         except CodexAdapterError:

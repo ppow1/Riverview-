@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.1
+# Revision: 1.1.2
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -15,6 +15,7 @@
 # Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Remove API-key auth and permit only interactive owning-user subscription mode
 # Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Use the active bound router for proposal/review and return verified outcomes to chat
 # Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Add persistent no-copy ChatGPT owner-session runtime mode
+# Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Bind same-objective continuation decisions to the existing durable objective-step pipeline
 # Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Align bounded 80B provider and resident proposal deadlines
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Run narrowly fenced legacy pre-execution recovery through existing CME at startup
 # Changed: 2026-10-16 UTC | RV-GRACE-RECOVERY-HOOK-001 | Call the current bounded Codex no-artifact recovery hook and fail with a typed configuration error if unavailable
@@ -44,7 +45,7 @@ from riverview_core.resident_execution.pipeline import ObjectiveContextReader
 from riverview_core.resident_execution.service import GraceExecutionService
 from riverview_core.resident_execution.worker import BoundedLocalCodingWorker
 from riverview_core.resident_execution.codex_cli import CAPABILITY as CODEX_CAPABILITY
-from riverview_core.resident_execution.codex_cli import CodexCLIExecutionAdapter
+from riverview_core.resident_execution.codex_cli import CodexAdapterError, CodexCLIExecutionAdapter
 from riverview_core.resident_execution.codex_workflow import CodexMarkdownVerifier, CodexWorkAction
 from riverview_core.worker_adapter import ContinuousWorker, PostgresWorkerAdapter
 from riverview_core.worker_adapter.recovery import PostgresRecoveryCoordinator
@@ -169,6 +170,9 @@ def main() -> int:
             resident_credential=resident_token, providers=providers,
             max_response_tokens=int(os.environ.get(
                 "RIVERVIEW_GRACE_RESULT_REVIEW_TOKENS", "128")))
+        conversation_service.continuation_handler = lambda context, step: pipeline.propose_continuation(
+            context["objective_id"], context["assignment_id"], step,
+            actor_id="office:" + office_id)
         adapter_mode = os.environ.get("RIVERVIEW_ENGINEERING_ADAPTER", "bounded-artifact")
         execution_capability = "engineering.bounded-artifact.v1"
         execution_action = BoundedLocalCodingWorker(pipeline, artifact_root)
@@ -188,7 +192,12 @@ def main() -> int:
                         not sys.stdin.isatty()):
                     raise WorkerServiceConfigurationError("supervised_codex_requires_admin1_tty")
                 operator_state = Path.home() / ".local" / "share" / "riverview-grace"
-                codex_home = str(Path.home() / ".codex")
+                codex_home = os.environ.get(
+                    "RIVERVIEW_CODEX_HOME", str(state_root / "codex-home"))
+                codex_home_path = Path(codex_home)
+                if (not codex_home_path.is_absolute() or
+                        not codex_home_path.resolve().is_relative_to(state_root.resolve())):
+                    raise WorkerServiceConfigurationError("codex_service_home_outside_state_directory")
                 codex_workspace = str(operator_state / "workspaces")
                 artifact_root = operator_state / "artifacts"
             persistent_owner_session = codex_auth_mode == "chatgpt-owner-session"
@@ -215,11 +224,15 @@ def main() -> int:
                 repository_reference=repository_reference, codex_home=codex_home,
                 workspace_root=codex_workspace, artifact_root=artifact_root,
                 supervised_chatgpt_session=supervised_chatgpt,
-                persistent_chatgpt_owner_session=persistent_owner_session)
+                persistent_chatgpt_owner_session=persistent_owner_session,
+                require_code_mode_host=True)
             if Path(executable).resolve().is_relative_to(Path("/home/admin1").resolve()):
                 raise WorkerServiceConfigurationError("personal_codex_executable_forbidden")
             try:
                 codex_adapter._preflight()
+            except CodexAdapterError as exc:
+                raise WorkerServiceConfigurationError(
+                    "codex_adapter_resource_preflight_failed_" + exc.code) from None
             except Exception:
                 raise WorkerServiceConfigurationError("codex_adapter_resource_preflight_failed") from None
             execution_capability = CODEX_CAPABILITY
