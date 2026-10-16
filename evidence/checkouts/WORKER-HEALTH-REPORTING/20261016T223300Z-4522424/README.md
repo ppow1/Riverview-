@@ -1,5 +1,7 @@
 # RV-WORKER-HEALTH-REPORTING-001 isolated checkout evidence
 
+**Document Revision:** 1.0.0
+
 Source baseline: integration commit `4522424e625ea1754d0b94ab0b4f89bc4646529d`.
 Environment: isolated local checkout, Firefox fixture (synthetic responses; no production mutation).
 
