@@ -1,0 +1,149 @@
+{
+  "assignment_id": "[REDACTED: production record identifier]",
+  "assignment_state": "completed",
+  "attempts": 1,
+  "attention_http_status": 200,
+  "attention_items": 10,
+  "attention_status": "available",
+  "base_url": "https://192.168.1.155",
+  "browser": "Mozilla Firefox 156.0.1",
+  "browser_errors": [],
+  "cme_status": "healthy",
+  "documentation": {
+    "code_blocks": 17,
+    "document_links": [
+      {
+        "href": "/docs/components/CME_MONITOR_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/EVENT_PROCESSOR_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/POSTGRES_LEDGER_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/RUNTIME_BASELINE_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/RUNTIME_BASELINE_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/POSTGRES_LEDGER_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/EVENT_PROCESSOR_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/CME_MONITOR_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/ASSIGNMENT_SCHEDULER_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/RUNTIME_BASELINE_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "status": 200
+      },
+      {
+        "href": "/docs/components/INSTITUTIONAL_AUTHORITY_FLOW.md",
+        "status": 200
+      }
+    ],
+    "headings": 17,
+    "raw_markdown": false,
+    "scripts": 0,
+    "tables": 2,
+    "title": "Riverview Operations Cookbook",
+    "unsafe_links": 0
+  },
+  "failed_checks": [],
+  "graph": {
+    "canonical_edges": 25,
+    "decisions": 2,
+    "edges": 25,
+    "external_edges": 0,
+    "external_jump_sources": [],
+    "jump_node_ids": [],
+    "label": "WEBSITE-ACCOUNT-AUTH \u00b7 website.account-auth.v1 \u00b7 graph 1.1.0 \u00b7 22 nodes / 25 edges",
+    "nodes": 22,
+    "position": "Live execution position: unknown \u2014 No assignment has recorded a canonical node for this graph.",
+    "syntax": "valid"
+  },
+  "independent_verifications": 1,
+  "jump_navigation": true,
+  "jump_points": 4,
+  "navigation": [
+    {
+      "navigation_call_ms": 167,
+      "view": "assignments"
+    },
+    {
+      "navigation_call_ms": 183,
+      "view": "activity"
+    },
+    {
+      "navigation_call_ms": 109,
+      "view": "overview"
+    },
+    {
+      "navigation_call_ms": 104,
+      "view": "workflows"
+    }
+  ],
+  "projection_status": "healthy",
+  "screenshots": {
+    "cookbook-view.png": 176770,
+    "workflow-view.png": 262823
+  },
+  "selected_node_id": "rv:website-account-auth:account-lifecycle:visitor-request",
+  "source_commit": "928649bd1ff695fe9a95915647a49943ffe921fe",
+  "status_workflow_followup": {
+    "evidence": "status-workflow-rendering.json",
+    "result": "PASS after explicitly waiting for target graph nodes; initial combined capture raced the asynchronous selector change"
+  },
+  "tested_production_url": "https://192.168.1.155/",
+  "tls_test_context": {
+    "browser_profile_accept_insecure_certs": true,
+    "reason": "The temporary Firefox profile did not trust Riverview Camrui LAN Root CA. This test-only browser capability did not alter Camrui policy. A separate strict system-trust curl to https://192.168.1.155/ returned HTTP 200 with tls_verify_result=0; the certificate SAN includes IP 192.168.1.155."
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "account_session_without_cookie_http": 401,
+  "assignment_count": 10,
+  "assignment_states": {
+    "blocked": 1,
+    "completed": 6,
+    "ready": 3
+  },
+  "backend_http": 200,
+  "backend_listener": "127.0.0.1:8767",
+  "browser_console_errors": [],
+  "catalog_workflows_after_grace_search": 5,
+  "catalog_workflows_before_search": 19,
+  "cme_status": "healthy",
+  "conversation_message_sent": false,
+  "dashboard_service": "active/running",
+  "dependent_services": {
+    "cme_monitor": "active",
+    "event_processor": "active",
+    "notification_dispatcher": "active",
+    "postgresql": "active"
+  },
+  "freshness": "current",
+  "grace_conversation_view_rendered": true,
+  "grace_execution_status": "healthy",
+  "grace_session_without_cookie_http": 401,
+  "horizontal_overflow": false,
+  "objective_and_assignment_ids_in_this_summary": false,
+  "objective_count": 1,
+  "objective_statuses": [
+    "COMPLETED"
+  ],
+  "positive_account_login_tested": false,
+  "production_tls_url": "https://192.168.1.155/",
+  "projection_status": "healthy",
+  "release_source_commit": "928649bd1ff695fe9a95915647a49943ffe921fe",
+  "requested_viewport_width": 390,
+  "responsive_firefox_actual_viewport_width": 500,
+  "restart_count": 0,
+  "rollback_performed": false,
+  "sse_live_roundtrip_tested": false,
+  "status_workflow_rendering": {
+    "browser_errors": [],
+    "decisions": 4,
+    "edges_canonical": 55,
+    "edges_rendered": 51,
+    "explicit_render_wait_used": true,
+    "graph_id": "rv:steward-dashboard:status",
+    "loading_state_after_wait": false,
+    "nodes": 42
+  },
+  "stream_migrations": {
+    "all_source_checksums_match_ledger": true,
+    "resident_conversation_streams_table_present": true,
+    "runtime_privileges": {
+      "INSERT": true,
+      "SELECT": true,
+      "UPDATE": true
+    },
+    "versions_0001_through_0009_present": true
+  },
+  "strict_tls_http": 200,
+  "strict_tls_verify_result": 0
+}

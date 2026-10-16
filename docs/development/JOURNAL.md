@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.144
+**Document Revision:** 1.0.145
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
@@ -31,7 +31,43 @@
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PR46-RECONCILE | Reconcile current integration head and preserve resident-knowledge changes unchanged
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PR42-INTEGRATION-RECONCILE | Reconcile website work with latest integration through PR #63 and record release gates.
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PR42-EXACT-CI | Record exact-head CI and browser verification after integration reconciliation.
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PR42-PRODUCTION-ACCEPTANCE | Record direct Camrui installation, SSH-path diagnosis, production acceptance, and remaining Steward-only checks.
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PR42-RECONCILE | Preserve PR #44 integration journal entry and record current base reconciliation
+## 2026-10-16 UTC — RV-WEBSITE-PR42-PRODUCTION-ACCEPTANCE
+
+PR #42 source `928649bd1ff695fe9a95915647a49943ffe921fe` was merged as
+`50ed988f84398bde7aa9df5bb3f163d753748fed` and installed using the documented
+versioned dashboard release procedure. This runner is `admin1-Default-string`,
+Ubuntu 24.04.3 LTS, and owns Camrui's `192.168.1.155` address. Routing and TCP
+checks showed the target is this same host. The direct SSH attempt selected the
+default `admin1` Ed25519 identity, which the local SSH service rejected; no SSH
+agent or configured host alias was available, and batch mode did not attempt a
+password. This was an identity mismatch, not a network or service failure. The
+existing `sudo -n` authorization allowed the approved release procedure to run
+locally; SSH policy and credentials were not changed.
+
+Immutable release `website-pr42-928649bd1ff695fe9a95915647a49943ffe921fe` is
+active at `/opt/riverview-status-dashboard/releases/928649bd1ff695fe9a95915647a49943ffe921fe`;
+the previous working release remains available and the dashboard-only rollback
+plan is recorded with root-owned deployment evidence. The package SHA-256 is
+`19890d22e18caa4896a6e944cf021397d11d95a54ba96a4928e86e2529b46c6b`. Dashboard
+health, TLS, read-only projections, navigation, graph rendering, catalog search,
+documentation links, objective/assignment visibility, and service continuity
+passed live browser/HTTP checks at `https://192.168.1.155/`. The public DNS name
+currently serves a separate site, so it is not the Camrui dashboard URL.
+
+The production browser reported no console errors or failed requests; graph
+selection completed with 42 nodes, 4 decisions, and 51 rendered SVG edges out of
+55 canonical edges. Search narrowed the workflow registry from 19 to 5 results.
+The requested 390px viewport was constrained to 500px by the available Firefox
+harness; no overflow occurred at 500px. Positive production account-cookie login
+remains pending Steward sign-in. End-to-end SSE/reconnect/deferred-response
+acceptance remains unverified because exercising it requires submitting a
+production conversation message; the read-only boundary was preserved. No
+objective or conversation was created or modified, no rollback was needed, and
+the process workflow map was unchanged because no process semantics changed.
+Full evidence: `evidence/checkouts/WEBSITE-PR42-PRODUCTION/20261016T172206Z-928649b/`.
+
 ## 2026-10-16 UTC — RV-GRACE-VERIFIED-GROUNDING-RESUME-001
 
 The existing objective `objective:grace-conversation:2c573041-cc5e-4b54-9f93-8163de91e52c` and assignment

@@ -1,0 +1,58 @@
+{
+  "account_session_without_account_cookie": {
+    "error": "authentication_required",
+    "status": 401
+  },
+  "base_url": "https://192.168.1.155",
+  "browser_errors": [],
+  "catalog": {
+    "filtered_workflows": 5,
+    "initial_workflows": 19,
+    "search_has_match": true,
+    "search_term": "grace"
+  },
+  "grace_conversation_session_without_account_cookie": {
+    "body": {
+      "error": "authentication_required",
+      "request_id": "eddef80a023c1db58f2ab666"
+    },
+    "status": 401
+  },
+  "grace_conversation_view": {
+    "composer": true,
+    "error": "Conversation access needs to be reconnected. Automatic retries are paused.",
+    "sendDisabled": false,
+    "state": "Grace access is not authorized or has expired. Connect with the Steward conversation credential.",
+    "title": "Grace conversation",
+    "visible": true
+  },
+  "objectives": {
+    "count": 1,
+    "http": 200,
+    "identifiers_redacted": true,
+    "status": "available",
+    "statuses": [
+      "COMPLETED"
+    ]
+  },
+  "production_mutations": {
+    "chat_message_submitted": false,
+    "objective_submitted": false,
+    "retry_requested": false
+  },
+  "requested_window": "390x844",
+  "responsive": {
+    "actual_firefox_inner_width": 500,
+    "bodyWidth": 488,
+    "docWidth": 488,
+    "horizontal_overflow": false,
+    "navButtons": 8,
+    "railWidth": 54,
+    "requested_window": "390x844",
+    "width": 500
+  },
+  "tls_test_context": {
+    "browser_profile_accept_insecure_certs": true,
+    "strict_tls_verified_separately": true
+  }
+}

@@ -1,0 +1,4 @@
+active_release=/opt/riverview-status-dashboard/releases/928649bd1ff695fe9a95915647a49943ffe921fe
+source_commit=928649bd1ff695fe9a95915647a49943ffe921fe
+integration_merge_commit=50ed988f84398bde7aa9df5bb3f163d753748fed
+deployment_id=website-pr42-928649bd1ff695fe9a95915647a49943ffe921fe

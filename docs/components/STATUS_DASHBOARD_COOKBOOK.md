@@ -1,7 +1,7 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.16
+File Revision: 1.1.17
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
@@ -25,6 +25,7 @@ Changed: 2026-10-15 UTC | RV-WEBSITE-PL003 | Document exact graph/node title loo
 Changed: 2026-10-16 UTC | RV-WEBSITE-PL029 | Explain delivery, person-seen, receipt and decision lifecycle boundaries.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PL038 | Add searchable graph registry traceability catalog and qualify references.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PL038-POST-PR45 | Link the final post-integration browser verification.
+Changed: 2026-10-16 UTC | RV-WEBSITE-PR42-PRODUCTION-ACCEPTANCE | Record the installed immutable website release, verified Camrui access route, acceptance boundaries, and rollback target.
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -284,9 +285,17 @@ redaction boundary.
 ```sh
 systemctl is-active riverview-status-dashboard.service
 systemctl show riverview-status-dashboard.service -p ActiveState -p SubState -p MainPID
-curl --fail --silent --show-error http://127.0.0.1:8766/
-ss -ltn '( sport = :8766 )'
+curl --fail --silent --show-error http://127.0.0.1:8767/
+ss -ltn '( sport = :8767 )'
 ```
+
+On current Camrui, the systemd dashboard backend binds `127.0.0.1:8767` because
+the preserved `60-lan-proxy.conf` drop-in selects that port. The LAN TLS proxy
+serves the browser at `https://192.168.1.155/` on port 443 and redirects HTTP
+port 8766 to TLS. The certificate subject alternative names include the Camrui
+LAN IP. Public DNS for `riverview.ionoge.com` resolves to a separate public
+IONOGE site; do not use that DNS name for the Camrui dashboard. Preserve the
+existing proxy and dashboard drop-ins when installing a website release.
 
 Use a browser Authorization token from the protected Steward credential for
 `/api/v1/*`; never put it in a URL, shell history, report or log. The unit's
@@ -326,7 +335,10 @@ existing PostgreSQL credential.
 3. Provision the bearer token through an owner-only file and systemd credential;
    preserve existing DB credentials and deliver them through the existing
    `LoadCredential=pgpass:/etc/riverview/pgpass` contract.
-4. Configure only `riverview-status-dashboard.service`, bound to `127.0.0.1:8766`.
+4. Preserve the effective dashboard bind and existing LAN TLS proxy. On current
+   Camrui the dashboard backend is `127.0.0.1:8767`, while Nginx provides the
+   LAN-only TLS URL; do not replace the systemd drop-ins with the unit example's
+   default port.
 5. Check the versioned release/commit, service identity, loopback listener and
    authenticated status read. Restart this unit once and repeat the check.
 6. On failure, stop only the dashboard service, restore its prior unit/link from
@@ -356,6 +368,39 @@ routes and process graphs against the candidate before switching; after restart
 verify loopback HTTP, authenticated status, service health and dependent service
 continuity. On failure restore only the prior dashboard link/unit and restart
 only `riverview-status-dashboard.service`.
+
+### PR #42 website release — 2026-10-16
+
+PR #42 was integrated by merge commit
+`50ed988f84398bde7aa9df5bb3f163d753748fed`; the verified website source
+`928649bd1ff695fe9a95915647a49943ffe921fe` is installed at
+`/opt/riverview-status-dashboard/releases/928649bd1ff695fe9a95915647a49943ffe921fe`
+with deployment ID `website-pr42-928649bd1ff695fe9a95915647a49943ffe921fe`.
+The source package SHA-256 is
+`19890d22e18caa4896a6e944cf021397d11d95a54ba96a4928e86e2529b46c6b`; its
+manifest and shell compatibility checks passed. The predecessor
+`af87c1a1b8ef4deeb8770c64da8bb4556bc85866` remains installed. Only the dashboard
+release pointer, a new release-identity drop-in, and the dashboard service were
+changed for activation; existing Codex 1 drop-ins and dependent services were
+preserved. No database migration, grant, objective, CME, model, or worker change
+was made. The existing resident-execution migrations 0001–0009 and checksums
+matched, including stream-delivery migration 0008 and its exact runtime table
+privileges.
+
+Production checks on the installed release returned HTTP 200 at the backend and
+the LAN TLS URL, with strict curl TLS verification successful. Authenticated
+status was healthy/current and CME was healthy. Live Firefox verified assignment
+detail, graph navigation/rendering, documentation links, and no console errors;
+the searchable catalog returned 19 workflows and narrowed to 5 for `grace`.
+One existing objective remained visible as COMPLETED, and the existing assignment
+projection showed 10 rows; no objective was created, retried, or changed. A
+temporary headless Firefox profile needed its test-only `acceptInsecureCerts`
+capability because it did not trust the local Riverview root CA; the OS trust
+store independently validated the production certificate. Positive account
+login, authenticated account-cookie graph access, and live SSE/reconnect/deferred
+recovery remain unverified because they require a Steward session or a
+conversation mutation. Evidence and the dashboard-only rollback plan are under
+`evidence/checkouts/WEBSITE-PR42-PRODUCTION/20261016T172206Z-928649b/`.
 
 
 ## Documentation tab and return navigation (PL-NEW-016)
