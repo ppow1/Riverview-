@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.3
+# Revision: 1.1.4
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -20,6 +20,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Run narrowly fenced legacy pre-execution recovery through existing CME at startup
 # Changed: 2026-10-16 UTC | RV-GRACE-RECOVERY-HOOK-001 | Call the current bounded Codex no-artifact recovery hook and fail with a typed configuration error if unavailable
 # Changed: 2026-10-16 UTC | RV-GRACE-OWNER-CODEX-HOME-001 | Use the explicitly configured service-local CODEX_HOME rather than deriving credentials from HOME
+# Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Authenticate recovery scope before startup Codex recovery
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_runtime_provider_wiring.py; tests/test_grace_execution.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -133,12 +134,12 @@ SERVICE_UNIT = "riverview-grace-execution.service"
 OWNER_SESSION_SERVICE_UNIT = "riverview-grace-execution-owner-session.service"
 
 
-def reconcile_codex_startup_recovery(execution_action, recovery):
+def reconcile_codex_startup_recovery(execution_action, recovery, *, scope_ref, worker_id):
     """Run the current Codex recovery hook through the persistent-service contract."""
     reconcile = getattr(execution_action, "reconcile_retryable_no_artifact_failures", None)
     if not callable(reconcile):
         raise WorkerServiceConfigurationError("codex_recovery_hook_unavailable")
-    return reconcile(recovery)
+    return reconcile(recovery, scope_ref=scope_ref, worker_id=worker_id)
 
 
 def main() -> int:
@@ -268,7 +269,14 @@ def main() -> int:
             recovery = PostgresRecoveryCoordinator(dsn, schema=schema,
                 max_retries=int(os.environ.get("RIVERVIEW_GRACE_MAX_WORKER_RECOVERIES", "3")))
             try:
-                recovered = reconcile_codex_startup_recovery(execution_action, recovery)
+                # Worker registration is established above; validate the current
+                # credential and capability before the recovery query has effects.
+                authenticated_scope = adapter.authenticated_scope(
+                    worker_id, worker_token, execution_capability)
+                if authenticated_scope != scope_ref:
+                    raise WorkerServiceConfigurationError("codex_recovery_scope_mismatch")
+                recovered = reconcile_codex_startup_recovery(
+                    execution_action, recovery, scope_ref=scope_ref, worker_id=worker_id)
             finally:
                 recovery.close()
             if recovered:

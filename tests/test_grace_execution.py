@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.16
+# Revision: 1.0.17
 # Purpose: Exercise objective-to-authorized-worker-to-independent-verification pipeline
 # Execution Model: Isolated PostgreSQL schema, committed repository fixture, deterministic proposal
 # Observability: Durable objective/assignment events, worker attempt, artifact, verifier decision
@@ -25,6 +25,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-CONTEXT-001 | Verify grounded objective context resolves resident knowledge contract
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Verify dependent step assignments wait for independent predecessor verification
 # Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Verify same-objective continuation is durable, scoped, and dispatched through CME
+# Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Scope expired recovery and verify a late Codex artifact proceeds through independent verification
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -334,6 +335,80 @@ class GraceExecutionTests(unittest.TestCase):
                          ["objective.received", "objective.grounded",
                           "work_order.proposed", "work_order.dispatched",
                           "objective.completed"])
+
+    def test_late_codex_artifact_is_preserved_for_independent_verification(self):
+        from riverview_core.resident_execution.codex_cli import CAPABILITY
+        from riverview_core.resident_execution.codex_workflow import CodexMarkdownVerifier
+        from riverview_core.worker_adapter import PostgresRecoveryCoordinator
+        from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
+
+        objective_id = "objective:late-codex:" + uuid4().hex
+        criterion = "artifact contains the exact late output"
+        self.pipeline.submit_objective(objective_id, "produce one bounded report", [criterion],
+            credential=self.credentials["steward"], scope_ref=self.scope)
+        self.pipeline.ground_objective(objective_id)
+        self.pipeline.record_proposal(objective_id, PlanProposal("Produce a bounded report", (
+            PlanStep("report", "Create a Markdown report", (criterion,)),), 0))
+        assignment_id = "assignment:late-codex:" + uuid4().hex
+        self.pipeline.authorize_and_dispatch(objective_id, assignment_id,
+            credential=self.credentials["steward"], authority_ref=self.scope,
+            idempotency_key="late-codex-dispatch:" + assignment_id)
+        self.ledger.transition(assignment_id, "ready", "event_processor_ready",
+            "late-codex-ready:" + assignment_id, actor_id="event-processor")
+        executor_id = "worker:late-codex:" + uuid4().hex
+        self.adapter.register_worker(executor_id, [CAPABILITY], self.scope,
+                                     credential=self.credentials["worker"])
+        claim = self.adapter.claim_next(executor_id, self.credentials["worker"],
+            capability=CAPABILITY, assignment_id=assignment_id, lease_seconds=30)
+        generation = claim["lease"]["generation"]
+        self.adapter.start_assignment(assignment_id, executor_id, self.credentials["worker"],
+                                      generation, capability=CAPABILITY)
+        intent_id = self.adapter.begin_execution_intent(assignment_id, executor_id,
+            self.credentials["worker"], generation, "late-codex-intent:" + assignment_id,
+            effect_class="external_uncertain", capability=CAPABILITY)
+        grounded = KnowledgeResult(KnowledgeStatus.VERIFIED,
+            source_references=("repo://docs/components/WORKER_ADAPTER.md",),
+            source_revision=self.commit, source_sha256="a" * 64,
+            retrieval_complete=True)
+        self.adapter.record_knowledge_observation(assignment_id, executor_id,
+            "reground_assignment", grounded, action=CAPABILITY)
+        self.admin.execute(f'UPDATE "{self.schema}".assignment_leases SET '
+            "acquired_at=clock_timestamp()-interval '2 minutes', "
+            "heartbeat_at=clock_timestamp()-interval '2 minutes', "
+            "expires_at=clock_timestamp()-interval '1 minute' WHERE assignment_id=%s",
+            (assignment_id,))
+        recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema)
+        try:
+            expired = recovery.reconcile_expired(scope_ref=self.scope, worker_id=executor_id)
+            self.assertEqual(expired[0]["decision"], "outcome_unknown")
+            artifact_root = self.root / "late-artifacts"
+            artifact_root.mkdir(mode=0o700)
+            name = "codex-" + hashlib.sha256(assignment_id.encode()).hexdigest() + ".md"
+            artifact = artifact_root / name
+            artifact.write_text("# Completed bounded report\n\n" + criterion + "\n",
+                                encoding="utf-8")
+            artifact.chmod(0o600)
+            recovered = recovery.reconcile_late_codex_artifacts(
+                worker_adapter=self.adapter, worker_id=executor_id,
+                credential=self.credentials["worker"], capability=CAPABILITY,
+                scope_ref=self.scope, artifact_root=artifact_root,
+                repository_revision=self.commit)
+            self.assertEqual(len(recovered), 1)
+            self.assertEqual(recovered[0]["assignment_id"], assignment_id)
+            self.assertEqual(self.ledger.get(assignment_id)["state"], "awaiting_verification")
+            self.assertEqual(self.admin.execute(f'SELECT decision FROM "{self.schema}".worker_recovery_records '
+                "WHERE assignment_id=%s", (assignment_id,)).fetchone()[0], "outcome_unknown")
+            intent = self.admin.execute(f'SELECT status,failure_class FROM "{self.schema}".worker_execution_intents '
+                "WHERE intent_id=%s", (intent_id,)).fetchone()
+            self.assertEqual(intent, ("succeeded", "ProcessInterrupted"))
+            decision = self.adapter.verify_attempt(assignment_id, recovered[0]["attempt_id"],
+                self.verifier_id, self.credentials["verifier"],
+                CodexMarkdownVerifier(artifact_root),
+                idempotency_key="late-codex-verification:" + assignment_id)
+            self.assertEqual(decision.status.value, "ACCEPTED", dict(decision.criteria))
+            self.assertEqual(self.ledger.get(assignment_id)["state"], "completed")
+        finally:
+            recovery.close()
 
     def test_multistep_dispatch_waits_for_prior_step_verification(self):
         from riverview_core.resident_execution.service import GraceExecutionService
@@ -725,7 +800,7 @@ class GraceExecutionTests(unittest.TestCase):
                         "WHERE assignment_id=%s", (assignment_id,))
         recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema, max_retries=0)
         try:
-            outcomes = recovery.reconcile_expired()
+            outcomes = recovery.reconcile_expired(scope_ref=self.scope, worker_id=self.worker_id)
         finally:
             recovery.close()
         self.assertEqual(outcomes[0]["decision"], "retry_exhausted")

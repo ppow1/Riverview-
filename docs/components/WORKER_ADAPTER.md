@@ -1,6 +1,6 @@
 # Riverview~ worker adapter contract
 
-**Document Revision:** 1.0.19
+**Document Revision:** 1.0.20
 **Component:** WORKER-ADAPTER
 **Milestone:** M2.1–M2.3
 **Status:** M3.3 scoped technical acceptance criteria PASS and ready for Steward review; no simultaneous executor-process throughput claim. Formal acceptance and full Component DoD remain open; M4.3 local-inference execution remains isolated.
@@ -16,6 +16,7 @@
 **Changed:** 2026-10-11 UTC | RV-M4.4-OBJECTIVE-WORKORDER-PIPELINE | Document bounded artifact capability as deterministic infrastructure test adapter only
 **Changed:** 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-001 | Specify separately registered Codex multi-file patch capability and exact execution grant
 **Changed:** 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-DOCS | Specify same-assignment resume after fresh grounding/preflight and remaining-retry checks
+**Changed:** 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Authenticate recovery identity/scope, heartbeat long actions, and preserve validated late Codex artifacts for independent verification
 
 ## Scope and trust boundaries
 
@@ -221,12 +222,7 @@ older code did not persist the action boundary.
 Migration `0004_failure_recovery.sql` adds durable execution-intent and recovery
 tables. Apply it explicitly to a selected schema; the adapter never applies DDL
 at startup. `ContinuousWorker.run_once()` invokes
-`PostgresRecoveryCoordinator.reconcile_expired()` before each new claim. It scans
-only expired `running` assignments, preserves persisted results for independent
-verification, and does not inspect external systems or claim that an uncertain
-action did not take effect. Uncertain work requires authoritative reconciliation
-before it can be resumed. See the [M2.3 cookbook](WORKER_ADAPTER_COOKBOOK.md)
-and [RV-M2.3-001 record](../development/M2.3-001_REVISION_RECORD.md).
+`PostgresRecoveryCoordinator.reconcile_expired(scope_ref, worker_id)` only after the current worker credential and capability have been authenticated. It scans expired leases owned by that worker inside its exact authority scope; it cannot sweep another worker's assignments. A lease heartbeat keeps bounded long-running actions leased through their result commit. Unknown outcomes remain held. A late Codex artifact is attached to the same durable attempt only when the original assignment, objective, expired lease, `ProcessInterrupted` intent, current exact grant, verified grounding, private assignment-bound artifact, and absence of prior attempts/results/verifications all match. Its original `outcome_unknown` recovery record remains unchanged, and the state advances only to `awaiting_verification`; the independent verifier remains mandatory. Any failed invariant leaves the assignment awaiting Steward review without replay. See the [M2.3 cookbook](WORKER_ADAPTER_COOKBOOK.md) and [RV-M2.3-001 record](../development/M2.3-001_REVISION_RECORD.md).
 
 ## M4.1 exact-grant integration (isolated)
 
