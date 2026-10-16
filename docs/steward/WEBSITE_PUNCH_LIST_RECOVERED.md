@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md
 Component: STEWARD-DASHBOARD / WEBSITE
-File Revision: 1.0.24
+File Revision: 1.0.25
 Purpose: Consolidate traceable website improvement observations and separate them from accepted requirements and completed work
 Authority: Backlog recovery only; no new product requirement or acceptance decision
 Changed: 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Recover and prioritize documented website observations
@@ -35,6 +35,7 @@ Changed: 2026-10-16 UTC | RV-WEBSITE-PUNCH-LIST-AUDIT | Classify all 41 captured
 Changed: 2026-10-16 UTC | RV-WEBSITE-PR45-RECONCILE | Reconcile the website branch with current integration PR #45 while preserving its retry behavior.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PL038-POST-PR45 | Record integrated browser regression and updated 459-node graph baseline.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PR46-RECONCILE | Update PR #42's integration baseline through PR #46 without editing resident-reasoning changes.
+Changed: 2026-10-16 UTC | RV-WEBSITE-PR42-INTEGRATION-RECONCILE | Reconcile through PR #63, distinguish review/deployment gates, and prepare production acceptance.
 History: Git
 -->
 # Recovered Riverview website punch list
@@ -81,7 +82,7 @@ Priority labels and wording below follow the source punch list. “Captured” m
 | PL-NEW-022 | Chat | Provide secure bounded file/image upload, drag/drop, and vision routing. | High | Captured |
 | PL-NEW-023 | Chat | Distinguish available menu actions from unavailable/future actions. | Medium | Existing menu explicitly disables unavailable/future actions; isolated Firefox verifies all seven action states; production acceptance pending |
 | PL-NEW-024 | Milestones | Distinguish dashboard M3.1 release label from roadmap, deployment, and commissioning status. | Medium | Header now calls M3.1 the dashboard milestone and overview separates roadmap/deployment/commissioning; isolated Firefox verified; production acceptance pending |
-| PL-NEW-025 | Workflows | Verify authenticated account-cookie registry loading and preserve deployed browser acceptance evidence. | High / acceptance pending | Isolated Firefox regression passes for cookie-only registry/detail requests. Production acceptance is separately **UNVERIFIED**: SSH authentication to `admin1@192.168.1.155` was denied before a service check; this is an access limitation, not evidence of service failure |
+| PL-NEW-025 | Workflows | Verify authenticated account-cookie registry loading and preserve deployed browser acceptance evidence. | High / acceptance pending | Fresh post-reconciliation isolated Firefox regression passes for cookie-only registry/detail requests; [current integration browser report](../../evidence/checkouts/WEBSITE-PR42-INTEGRATION/20261016T164500Z-account-cookie/browser-acceptance.json). Production acceptance is separately **UNVERIFIED**: SSH authentication to `admin1@192.168.1.155` was denied before a service check; this is an access limitation, not evidence of service failure |
 | PL-NEW-026 | Workflows | Document selector, canvas, node types/legend, selection, revisions, and interaction semantics. | Medium | Implemented in viewer and cookbook on this branch; integration review pending |
 | PL-NEW-027 | Workflows | Navigate cross-workflow jumps to the exact target and provide return navigation preserving context. | Medium | Implemented on this branch: exact target workflow/node focus and return to the source jump; isolated browser evidence recorded; production acceptance pending |
 | PL-NEW-028 | Notifications | Show source assignment, required action, reason, priority/deadline, and details before acknowledgment. | High | **Blocked on integration-owned notification/CME/API contract.** Current response has `assignment_id`, `event_type`, fixed generic `summary`, source/queue/delivery/acknowledgment timestamps, and optional decision request ID/status/version. Missing: explicit `required_action`; `rationale`; `priority`; optional `deadline` with an explicit absent state; and structured `actionable_details` (what evidence or step is needed). `source_event_id` identifies a source event but the API omits its authoritative detail payload. The source owner must define these fields from the CME source event/condition and applicable assignment or decision policy, expose a versioned contract through the notification API, and document field provenance. Acceptance: before enabling acknowledgment, every notice shows its source assignment (or an explicit service-level label), required action, rationale, priority, deadline value or explicit no-deadline state, and actionable details; unavailable fields stay explicitly unavailable; values link to the source event/contract; no text is inferred from event type; acknowledgment remains receipt-only and cannot resolve a decision. No website/CME/backend contract changes are made while blocked |
@@ -149,12 +150,59 @@ Disposition uses the requested categories. “Implemented but awaiting productio
 
 ### Current implementation order and readiness
 
-1. **PR #42:** reconciled through PR #46 at integration head `8f95c83af4e3a6269b25d96e1092baf8175e431c`, retaining PR #44 work-order intake and PR #45 same-source immutable-criteria retry behavior. PR #46's resident-knowledge/reasoning changes were included from integration unchanged. Keep open/draft until controlled review, exact-head CI and required approval are satisfied. It has not been merged or deployed.
+1. **PR #42:** reconciled through the current integration branch at `af87c1a1b8ef4deeb8770c64da8bb4556bc85866`, including merged PRs #44–#63. PR #44 work-order intake, PR #45 same-source retry, PR #46 bounded grounding, and later Codex 1 Engineering corrections remain inherited from integration; no functional file overlap was found after PR #46. The website branch merge is local pending exact-head CI. PR #42 remains draft/open with no submitted review or requested reviewer; approval and production deployment have not occurred.
 2. **PL-NEW-038:** searchable graph registry and declared traceability UI are implemented and isolated-browser verified. Full item remains blocked on authoritative freshness metadata and attributable semantic test-coverage outcomes; the canonical API exposes references only. Its browser report is linked in the audit table.
 3. **Independent website-scope implementations already on this branch:** PL-003/004/006/008/010/011/014/015/016/019/020/023/024/026/027/036. Isolated browser or documented audit evidence is linked in the item rows and journal. Production acceptance remains separate and pending controlled release.
 4. **Next high-priority source contracts:** PL-018 resident conversation titles/history search (conversation integration); PL-001/002/005 assignment intent and blocker records (assignment intake/Engineering); PL-007/009 worker thresholds and inventory (worker/CME integration); PL-012 event task/diagnostic linkage (event integration); PL-028/029/032 notification/decision lifecycle (notification/CME integration). The exact known gaps are recorded in the audit table. No fabricated fields or backend edits are allowed in this website track.
 5. **Other external blockers and deferred proposals:** PL-021 and PL-041 are Codex 1 Engineering-owned; PL-022 and PL-030/037 depend on integration/Ops resource contracts; PL-033/034 need governance and database-maintenance authority; PL-035 is a later milestone with OCTO data prohibited; PL-017/031/039/040 are captured later/proposal items, not accepted requirements.
 6. **Production acceptance:** PL-NEW-025's synthetic account-cookie regression and the other isolated browser runs are not live acceptance. The earlier SSH authentication denial to `admin1@192.168.1.155` happened before a service check and does not establish production health.
+
+### Production release and acceptance checklist
+
+The dashboard cookbook documents a manual immutable-release procedure in
+[`STATUS_DASHBOARD_COOKBOOK.md`](../components/STATUS_DASHBOARD_COOKBOOK.md): verify
+the committed package, install only to a new root-owned versioned release, update
+only the dashboard unit/release pointer, perform dashboard-scoped health checks,
+and restore the recorded predecessor on failure. The repository has no automatic
+production deploy workflow. This procedure is not evidence that this PR has
+Steward release approval or that a production operator is authorized for this
+release.
+
+After controlled approval and deployment, retain a redacted report tied to the
+merged source commit and deployment ID, and verify:
+
+- **Authentication:** a real account session signs in; workflow catalog index and
+  detail requests authenticate through the account cookie and do not depend on a
+  bearer token. Confirm the production account's permitted dashboard views.
+- **Conversation streaming:** use an existing authorized conversation; verify
+  incremental SSE rendering, reconnect/replay, terminal response state, and
+  deferred-response recovery. Do not create an objective as part of this check.
+- **Catalog search:** search for a known workflow and a failure/recovery node;
+  open its component documentation and provenance references. Confirm the UI does
+  not represent declared evidence paths as test passes or semantic coverage.
+- **Responsive layout/navigation:** exercise desktop layout, compact/collapsed
+  navigation, and a narrow viewport; confirm controls remain accessible, the
+  composer and final transcript message are visible, and no horizontal overflow
+  occurs.
+- **Objective intake (read-only production boundary):** inspect the existing
+  objective and its intake status without submitting, retrying, or editing it.
+  Production duplicate prevention or new-intake success must not be tested by
+  creating a production objective; exercise those mutations only in an isolated
+  PostgreSQL fixture.
+- **Integration continuity:** verify PR #40 streaming and the latest Engineering
+  projection/intake UI remain functional without changing Codex 1 execution,
+  grants, objective records, or backend contracts.
+- **Release health/recovery:** record package checksums, previous release/link and
+  unit checksum; verify authenticated status and service identity after the
+  dashboard-only release; confirm dependent services remain unchanged and the
+  documented dashboard-only rollback is available.
+
+Production acceptance remains **UNVERIFIED** until these checks are performed
+against the actual deployed release. External data contracts remain blockers as
+listed per punch-list item; website rendering does not supply unavailable
+`required_action`, `rationale`, `priority`, `deadline`, `actionable_details`,
+worker-threshold/inventory, event-diagnostic, conversation-history, or catalog
+freshness/semantic-coverage fields.
 
 ## Existing implementation evidence (not punch-list closure)
 
@@ -178,6 +226,8 @@ The website track owns dashboard presentation and navigation, primarily `status_
 - **1.0.23 — 2026-10-16:** Add the post-PR #45 isolated browser run and update the validated graph count. Predecessor preserved in `.riverview-backups/20261015T213030949991Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
 
 - **1.0.24 — 2026-10-16:** Reconcile the documented integration baseline through PR #46 while leaving its resident-knowledge implementation untouched. Predecessor preserved in `.riverview-backups/20261015T213508120442Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
+
+- **1.0.25 — 2026-10-16:** Reconcile the current integration through PR #63 and distinguish PR review, manual deployment procedure, and production acceptance. Predecessor preserved in `.riverview-backups/20261016T164347017851Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
 
 - **1.0.21 — 2026-10-16:** Record PL-038 searchable catalog implementation and full audit dispositions for PL-NEW-001–041; retain the freshness/coverage contract blocker and production-acceptance boundary. Predecessor preserved in `.riverview-backups/20261015T211442725960Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
 

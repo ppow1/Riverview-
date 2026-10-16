@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.23
+# Revision: 1.0.28
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -28,8 +28,13 @@
 # Tests: python3 -m unittest tests.test_resident_conversation
 # History: Git and .riverview-backups/manifest.jsonl
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
+# Changed: 2026-10-16 UTC | RV-GRACE-REVIEW-OBJECTIVE-PROGRESS | Supply persisted objective completion state to actual 80B result review
+# Changed: 2026-10-16 UTC | RV-GRACE-PROVIDER-PROVENANCE | Assert verified-result response stores the bound provider when model metadata omits it
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Ensure resumed and fallback generations compact discarded partial text behind a monotonic reset marker.
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Keep repeated 80B deferrals idempotent and discard incomplete text while pending.
+# Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Supply durable completion cycle and typed model decision to result-return regression
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Verify an 80B result review directs only the exact pre-proposed dependent step
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-STEP-CONTINUATION | Reconcile model-selected pending steps to the durable proposal without permitting scope edits
 # Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-GUIDANCE-001 | Assert user-facing Engineering proposal guidance reaches the actual inference prompt and retain a stable context-limit boundary case.
 # =============================================================================
 """Isolated PostgreSQL and authority tests for Grace's persistent conversation path."""
@@ -334,12 +339,121 @@ class ResidentConversationTests(unittest.TestCase):
         self.assertEqual(sum(event["event_type"]=="response_deferred"
             and event["request_id"]==request_id for event in history["events"]),1)
 
+    def test_intermediate_verified_result_requires_and_persists_grace_continuation_decision(self):
+        self.registry.grant(self.steward_token, self.resident_id,
+            "resident.conversation.send", "office:" + self.office_id,
+            policy_ref="rv.policy:resident-conversation-result.v1")
+        self.provider_a.model = "Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf"
+        turn = self.service.send(self.steward_token, message="Implement the bounded calculator objective.",
+            client_message_id=str(uuid4()))
+        paths=("src/calc.py", "src/result.py", "tests/test_calc.py")
+        first={"step_id":"add", "objective":"Implement safe integer addition",
+            "acceptance_criteria":["Addition handles integer inputs"], "depends_on":[],
+            "execution_capability":"engineering.codex-cli-source-change.v1",
+            "authorized_paths":["src/calc.py", "tests/test_calc.py"],
+            "test_targets":["tests/test_calc.py"]}
+        second={"step_id":"format", "objective":"Implement the result formatter",
+            "acceptance_criteria":["Formatting helper is tested"], "depends_on":["add"],
+            "execution_capability":"engineering.codex-cli-source-change.v1",
+            "authorized_paths":["src/result.py", "tests/test_calc.py"],
+            "test_targets":["tests/test_calc.py"]}
+        context={"objective_id":"objective:intermediate-review",
+            "assignment_id":"assignment:step-1", "request":"Change only " + ", ".join(paths),
+            "acceptance_criteria":["Addition handles integer inputs", "Formatting helper is tested"],
+            "proposal":{"summary":"Two dependent source changes", "steps":[first,second]},
+            "submitter_id":self.steward_id,
+            "origin":{"conversation_id":turn["conversation_id"], "source_sequence":1},
+            "completion_cycle":1,
+            "completion":{"decision":"ACCEPTED", "assignment_id":"assignment:step-1",
+                "verifier_revision":"1.0.0", "evidence_references":["urn:test:verified"],
+                "step_id":"add", "artifact":{"capability":"engineering.codex-cli-source-change.v1",
+                    "changed_files":["src/calc.py", "tests/test_calc.py"],
+                    "patch_sha256":"f"*64, "test_status":"passed"}}}
+        self.provider_a.answer=json.dumps({"decision":"ENGINEERING_STEP_PROPOSED",
+            "rationale":"The verified addition step passed; the formatter remains within the accepted scope.",
+            "additional_evidence":[], "proposed_step":second})
+        captured=[]
+        self.service.continuation_handler=lambda ctx, step: captured.append((ctx["assignment_id"],step))
+        result=self.service.review_verified_work_order(context)
+        self.assertEqual(result["status"],"published")
+        self.assertEqual(len(captured),1)
+        self.assertEqual(captured[0][0],"assignment:step-1")
+        self.assertEqual(captured[0][1].step_id,"format")
+        self.assertEqual(captured[0][1].depends_on,("add",))
+        history=self.service.history(self.steward_token,turn["conversation_id"])
+        review=next(event for event in history["events"] if
+            event["metadata"].get("result_kind")=="verified_engineering_review")
+        self.assertEqual(review["metadata"]["review_decision"],"ENGINEERING_STEP_PROPOSED")
+        self.assertEqual(review["metadata"]["continuation_status"],
+                         "persisted_for_existing_authorized_dispatch")
+        self.assertEqual(review["model_id"],self.provider_a.model)
+
+    def test_model_selected_durable_step_uses_canonical_scope_and_cannot_expand_it(self):
+        self.registry.grant(self.steward_token, self.resident_id,
+            "resident.conversation.send", "office:" + self.office_id,
+            policy_ref="rv.policy:resident-conversation-result.v1")
+        self.provider_a.model = "Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf"
+        turn = self.service.send(self.steward_token, message="Implement two dependent source changes.",
+            client_message_id=str(uuid4()))
+        first = {"step_id":"add", "objective":"Implement addition",
+            "acceptance_criteria":["Addition handles signed inputs"], "depends_on":[],
+            "execution_capability":"engineering.codex-cli-source-change.v1",
+            "authorized_paths":["src/calc.py", "tests/test_calc.py"],
+            "test_targets":["tests/test_calc.py"]}
+        second = {"step_id":"format", "objective":"Add the formatter",
+            "acceptance_criteria":["Formatter returns the exact requested label",
+                "Formatter is covered by tests"], "depends_on":["add"],
+            "execution_capability":"engineering.codex-cli-source-change.v1",
+            "authorized_paths":["src/result.py", "tests/test_calc.py"],
+            "test_targets":["tests/test_calc.py"]}
+        context = {"objective_id":"objective:canonical-continuation",
+            "assignment_id":"assignment:canonical-step-1",
+            "request":"Implement addition and the exact Result: label formatter; change only listed files.",
+            "acceptance_criteria":["Implement two dependent source changes."],
+            "proposal":{"summary":"Two scoped source changes", "steps":[first,second]},
+            "submitter_id":self.steward_id,
+            "origin":{"conversation_id":turn["conversation_id"], "source_sequence":1},
+            "completion_cycle":1,
+            "completion":{"decision":"ACCEPTED", "assignment_id":"assignment:canonical-step-1",
+                "step_id":"add", "verifier_revision":"1.0.0",
+                "evidence_references":["urn:test:verified"],
+                "artifact":{"capability":"engineering.codex-cli-source-change.v1",
+                    "changed_files":["src/calc.py", "tests/test_calc.py"],
+                    "patch_sha256":"e"*64, "test_status":"passed"}}}
+        # Only the model-selected durable identity is relevant. Its restatement
+        # tries to alter both task and path scope and must never reach execution.
+        self.provider_a.answer = json.dumps({"decision":"ENGINEERING_STEP_PROPOSED",
+            "rationale":"The verified first step permits its already-proposed dependent step.",
+            "additional_evidence":[], "proposed_step":{
+                "step_id":"format", "objective":"Modify unauthorized files",
+                "acceptance_criteria":["Expanded criteria"], "depends_on":[],
+                "execution_capability":"engineering.codex-cli-source-change.v1",
+                "authorized_paths":["src/unauthorized.py"],
+                "test_targets":["tests/test_calc.py"]}})
+        captured=[]
+        self.service.continuation_handler=lambda ctx, step: captured.append((ctx["assignment_id"],step))
+        result=self.service.review_verified_work_order(context)
+        self.assertEqual(result["status"],"published")
+        self.assertEqual(len(captured),1)
+        canonical=captured[0][1]
+        self.assertEqual(canonical.objective,second["objective"])
+        self.assertEqual(canonical.acceptance_criteria,tuple(second["acceptance_criteria"]))
+        self.assertEqual(canonical.authorized_paths,tuple(second["authorized_paths"]))
+        history=self.service.history(self.steward_token,turn["conversation_id"])
+        review=next(event for event in history["events"] if
+            event["metadata"].get("result_kind")=="verified_engineering_review")
+        self.assertEqual(review["metadata"]["continuation_status"],
+            "persisted_for_existing_authorized_dispatch")
+        self.assertEqual(review["metadata"]["proposed_step"]["authorized_paths"],
+            second["authorized_paths"])
+
     def test_verified_engineering_result_returns_once_to_source_conversation(self):
         self.registry.grant(self.steward_token, self.resident_id,
             "resident.conversation.send", "office:" + self.office_id,
             policy_ref="rv.policy:resident-conversation-result.v1")
         self.provider_a.model = "Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf"
-        self.provider_a.answer = "The verified report is ready at the recorded path."
+        self.provider_a.answer = json.dumps({"decision":"OBJECTIVE_COMPLETE",
+            "rationale":"The report is readable.","additional_evidence":[],"proposed_step":None})
         turn = self.service.send(self.steward_token, message="Create a short verified engineering report.",
             client_message_id=str(uuid4()))
         context = {"objective_id":"objective:grace-conversation:result-test",
@@ -349,6 +463,9 @@ class ResidentConversationTests(unittest.TestCase):
             "proposal":{"summary":"Create report", "steps":[]},
             "submitter_id":self.steward_id,
             "origin":{"conversation_id":turn["conversation_id"], "source_sequence":1},
+            "completion_cycle":1,
+            "objective_status":"COMPLETED",
+            "step_progress":[{"step_id":"report", "status":"verified"}],
             "completion":{"decision":"ACCEPTED", "assignment_id":"assignment:grace:result-test",
                 "verifier_revision":"1.0.0", "evidence_references":["urn:test:verified"],
                 "artifact":{"artifact_path":"/var/lib/riverview-grace/artifacts/report.md",
@@ -360,13 +477,19 @@ class ResidentConversationTests(unittest.TestCase):
         self.assertEqual(len(self.provider_a.calls), 2)  # one initial turn, one result review
         self.assertEqual(self.provider_a.calls[-1][0][1]["role"], "user")
         self.assertIn("The report is readable", self.provider_a.calls[-1][0][1]["content"])
+        review_payload=json.loads(self.provider_a.calls[-1][0][1]["content"])
+        self.assertEqual(review_payload["objective_status"], "COMPLETED")
+        self.assertEqual(review_payload["step_progress"],
+            [{"step_id":"report", "status":"verified"}])
         self.assertEqual(self.provider_a.calls[-1][2], self.model_a)
         history = self.service.history(self.steward_token, turn["conversation_id"])
         reviews = [event for event in history["events"] if
                    event["metadata"].get("result_kind") == "verified_engineering_review"]
         self.assertEqual(len(reviews), 1)
         self.assertEqual(reviews[0]["model_id"], self.provider_a.model)
+        self.assertEqual(reviews[0]["metadata"]["final_served_provider"], "local.inference.v1")
         self.assertEqual(reviews[0]["metadata"]["verification_decision"], "ACCEPTED")
+        self.assertEqual(reviews[0]["metadata"]["review_decision"], "OBJECTIVE_COMPLETE")
         self.assertEqual(reviews[0]["metadata"]["artifact"]["artifact_sha256"], "f" * 64)
         self.assertEqual([row[1] for row in self._fresh_events(turn["conversation_id"])],
             ["user_message", "assistant_message", "assistant_message"])

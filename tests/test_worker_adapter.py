@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.39
+# Revision: 1.2.8
 # Purpose: Verify scoped deterministic and structured worker artifacts
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
@@ -20,6 +20,16 @@
 # Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-VERIFICATION-DIAGNOSIS | Surface independent verifier criteria in the isolated regression
 # Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-VERIFICATION-DIAGNOSIS | Attach verifier criterion details to the repository artifact check
 # Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-VERIFICATION-DIAGNOSIS | Target repository-task verifier assertion for criteria output
+# Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Verify audited recovery of a reproduced legacy pre-execution failure without mislabeling uncertain work
+# Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Verify a later durable pre-launch failure requeues once within retry ceiling
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Recover a typed Codex no-artifact outcome only after lease expiry and absence of attempts, result, verifier, and artifact
+# Changed: 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-001 | Require registered source-change capability and exact assignment.execute grant at lease claim
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001 | Resume a same-objective blocked Codex assignment only after fresh evidence and no-effect checks
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-TEST-QUERY-FIX | Use an exact recovery-event idempotency key in the isolated fixture
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-REVIEW | Assert exhausted retry ceiling blocks resume and verified action preflight is recorded
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-TEST-SYNTAX-FIX | Correct SQL assertion continuation in isolated worker test
+# Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Verify exact-scope recovery and active long-action lease maintenance
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Verify append-only verifier-revision recheck and duplicate-attempt prevention
 # Contracts: docs/development/M2.3-001_REVISION_RECORD.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -127,6 +137,8 @@ class WorkerAdapterTests(unittest.TestCase):
                          migrations_dir=root / "worker_adapter/migrations")
         apply_migrations(DSN, schema=self.schema,
                          migrations_dir=root / "institutional_authority/migrations")
+        apply_migrations(DSN, schema=self.schema,
+                         migrations_dir=root / "resident_execution/migrations")
         self.ledger = PostgresLedger(DSN, schema=self.schema)
         from riverview_core.worker_adapter import PostgresWorkerAdapter
         self.worker = PostgresWorkerAdapter(DSN, schema=self.schema)
@@ -172,7 +184,9 @@ class WorkerAdapterTests(unittest.TestCase):
         actions = ["worker.register"]
         if any(cap in capabilities for cap in
                ("deterministic.sha256.v1", "local.inference.v1",
-                "engineering.repository-check.v1")):
+                "engineering.repository-check.v1",
+                "engineering.codex-cli-artifact.v1",
+                "engineering.codex-cli-source-change.v1")):
             actions.append("assignment.execute")
         if "assignment.verify.v1" in capabilities:
             actions.append("assignment.verify")
@@ -339,6 +353,20 @@ class WorkerAdapterTests(unittest.TestCase):
         scoped_claim = self.worker.claim_next(other_id, other_token, lease_seconds=30)
         self.assertEqual(scoped_claim["assignment"]["id"], other_assignment)
 
+    def test_codex_source_change_capability_is_separately_registered_and_exact_granted(self):
+        capability = self.worker.CODEX_SOURCE_CHANGE_CAPABILITY
+        assignment = self.ready_assignment(objective="objective:source-change")
+        worker_id = "source-change-worker:" + uuid4().hex
+        token = self.register_as(worker_id, [capability], self.scope)
+        claim = self.worker.claim_next(worker_id, token, capability=capability,
+                                       assignment_id=assignment, lease_seconds=60)
+        self.assertEqual(claim["assignment"]["id"], assignment)
+        self.assertEqual(claim["assignment"]["authority_ref"], self.scope)
+        with self.assertRaises(Exception):
+            self.worker.claim_next(worker_id, token,
+                capability=self.worker.CODEX_CLI_CAPABILITY,
+                assignment_id=assignment, lease_seconds=60)
+
     def test_missing_registration_grant_and_revoked_execution_grant_fail_closed(self):
         import secrets
         from riverview_core.worker_adapter import WorkerAuthorizationError
@@ -403,7 +431,7 @@ class WorkerAdapterTests(unittest.TestCase):
                            (self.assignment,))
         recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema)
         try:
-            return recovery.reconcile_expired()
+            return recovery.reconcile_expired(scope_ref=self.scope, worker_id=self.worker_id)
         finally:
             recovery.close()
 
@@ -421,6 +449,466 @@ class WorkerAdapterTests(unittest.TestCase):
             cur.execute("SELECT decision FROM worker_recovery_records WHERE assignment_id=%s",
                         (self.assignment,))
             self.assertEqual(cur.fetchone()["decision"], "retry_safe")
+
+    def test_expired_lease_reconciliation_is_limited_to_authenticated_scope(self):
+        from riverview_core.worker_adapter import ContinuousWorker
+        foreign_scope = "work-order:other-tenant"
+        foreign_assignment = self.ready_assignment(
+            scope=foreign_scope, objective="objective:foreign")
+        foreign_worker = "worker-foreign-" + uuid4().hex
+        foreign_token = self.register_as(
+            foreign_worker, ["deterministic.sha256.v1"], foreign_scope)
+        claim = self.worker.claim_next(foreign_worker, foreign_token,
+            capability="deterministic.sha256.v1", assignment_id=foreign_assignment)
+        self.assertIsNotNone(claim)
+        generation = claim["lease"]["generation"]
+        self.worker.start_assignment(foreign_assignment, foreign_worker,
+            foreign_token, generation, capability="deterministic.sha256.v1")
+        intent = self.worker.begin_execution_intent(
+            foreign_assignment, foreign_worker, foreign_token, generation,
+            "foreign-intent:" + foreign_assignment, effect_class="retry_safe",
+            capability="deterministic.sha256.v1")
+        self.admin.execute("UPDATE assignment_leases SET acquired_at=clock_timestamp()-interval '2 seconds', "
+                           "heartbeat_at=clock_timestamp()-interval '2 seconds', "
+                           "expires_at=clock_timestamp()-interval '1 second' "
+                           "WHERE assignment_id=%s", (foreign_assignment,))
+        ContinuousWorker(self.worker, self.worker_id, self.token).run_once()
+        self.assertEqual(self.ledger.get(foreign_assignment)["state"], "running")
+        self.assertEqual(self.admin.execute(
+            "SELECT status FROM worker_execution_intents WHERE intent_id=%s",
+            (intent,)).fetchone()[0], "running")
+        self.assertEqual(self.admin.execute(
+            "SELECT count(*) FROM worker_recovery_records WHERE assignment_id=%s",
+            (foreign_assignment,)).fetchone()[0], 0)
+
+    def test_long_action_heartbeats_its_lease_until_result_commit(self):
+        from riverview_core.worker_adapter import ContinuousWorker
+        assignment_id = self.ready_assignment(objective="objective:long-action")
+        def action(assignment, grounded):
+            time.sleep(1.4)
+            return {"status": "completed"}
+        worker = ContinuousWorker(self.worker, self.worker_id, self.token,
+            knowledge=self.VerifiedProvider(), lease_seconds=1, action=action,
+            action_effect_class="retry_safe", action_capability="deterministic.sha256.v1")
+        result = worker.run_once(assignment_id=assignment_id)
+        self.assertEqual(result["status"], "AWAITING_VERIFICATION")
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "awaiting_verification")
+        self.assertEqual(self.admin.execute(
+            "SELECT status FROM worker_attempts WHERE assignment_id=%s",
+            (assignment_id,)).fetchone()[0], "succeeded")
+
+    def test_confirmed_legacy_codex_preexecution_failure_requeues_once(self):
+        import tempfile
+        from riverview_core.worker_adapter import PostgresRecoveryCoordinator
+
+        objective_id = "objective:legacy-codex:" + uuid4().hex
+        assignment_id = self.ready_assignment(objective=objective_id)
+        self.admin.execute("""INSERT INTO grace_objectives
+            (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,
+             evidence,assignment_id,source_revision,source_sha256)
+            VALUES (%s,'synthetic bounded fixture',%s,'steward:test','[]'::jsonb,
+                    'WORK_ORDER_CREATED','{"status":"VERIFIED"}'::jsonb,%s,%s,%s)""",
+            (objective_id, self.scope, assignment_id, "a" * 40, "b" * 64))
+        worker_id = "worker-codex-recovery-" + uuid4().hex
+        credential = self.register_as(
+            worker_id, ["engineering.codex-cli-artifact.v1"], self.scope)
+        claim = self.worker.claim_next(worker_id, credential, assignment_id=assignment_id,
+            lease_seconds=60, capability="engineering.codex-cli-artifact.v1")
+        generation = claim["lease"]["generation"]
+        self.worker.start_assignment(assignment_id, worker_id, credential, generation,
+            capability="engineering.codex-cli-artifact.v1")
+        intent_id = self.worker.begin_execution_intent(
+            assignment_id, worker_id, credential, generation,
+            f"continuous:{assignment_id}:{generation}", effect_class="external_uncertain",
+            capability="engineering.codex-cli-artifact.v1")
+        self.worker.mark_execution_intent(intent_id, "outcome_unknown",
+                                          failure_class="CodexActionFailure")
+        self.worker.scheduler.transition_with_lease(assignment_id, "awaiting_steward",
+            "ACTION_OUTCOME_UNKNOWN", f"fixture-unknown:{assignment_id}:{generation}",
+            worker_id, generation)
+        self.admin.execute("""UPDATE assignment_leases
+            SET acquired_at=clock_timestamp()-interval '2 seconds',
+                expires_at=clock_timestamp()-interval '1 second'
+            WHERE assignment_id=%s""",
+                           (assignment_id,))
+        with tempfile.TemporaryDirectory(prefix="rv-codex-recovery-") as directory:
+            artifact_root = Path(directory) / "artifacts"
+            artifact_root.mkdir(mode=0o700)
+            recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema, max_retries=3)
+            try:
+                result = recovery.reconcile_confirmed_codex_preexecution_failures(
+                    repository_revision="c" * 40, artifact_root=artifact_root, scope_ref=self.scope, worker_id=worker_id,
+                    legacy_git_refusal_verified=True)
+                self.assertEqual(result, [{"assignment_id": assignment_id,
+                    "intent_id": str(intent_id), "lease_generation": generation,
+                    "decision": "retry_safe", "resulting_state": "ready"}])
+                self.assertEqual(recovery.reconcile_confirmed_codex_preexecution_failures(
+                    repository_revision="c" * 40, artifact_root=artifact_root, scope_ref=self.scope, worker_id=worker_id,
+                    legacy_git_refusal_verified=True), [])
+                resumed = self.worker.claim_next(worker_id, credential,
+                    assignment_id=assignment_id, lease_seconds=30,
+                    capability="engineering.codex-cli-artifact.v1")
+                self.assertEqual(resumed["assignment"]["id"], assignment_id)
+                second_generation = resumed["lease"]["generation"]
+                self.worker.start_assignment(assignment_id, worker_id, credential,
+                    second_generation, capability="engineering.codex-cli-artifact.v1")
+                second_intent = self.worker.begin_execution_intent(
+                    assignment_id, worker_id, credential, second_generation,
+                    f"continuous:{assignment_id}:{second_generation}",
+                    effect_class="external_uncertain",
+                    capability="engineering.codex-cli-artifact.v1")
+                self.worker.mark_execution_intent(second_intent, "failed",
+                                                  failure_class="CodexActionFailure")
+                self.worker.scheduler.transition_with_lease(assignment_id, "blocked",
+                    "WORKER_PRE_EXECUTION_FAILED",
+                    f"fixture-preexecution:{assignment_id}:{second_generation}",
+                    worker_id, second_generation)
+                self.admin.execute("""UPDATE assignment_leases
+                    SET acquired_at=clock_timestamp()-interval '2 seconds',
+                        expires_at=clock_timestamp()-interval '1 second'
+                    WHERE assignment_id=%s""", (assignment_id,))
+                recovered_preexecution = recovery.reconcile_confirmed_codex_preexecution_failures(
+                    repository_revision="c" * 40, artifact_root=artifact_root, scope_ref=self.scope, worker_id=worker_id,
+                    legacy_git_refusal_verified=True)
+                self.assertEqual(recovered_preexecution, [{
+                    "assignment_id": assignment_id, "intent_id": str(second_intent),
+                    "lease_generation": second_generation,
+                    "decision": "retry_safe", "resulting_state": "ready"}])
+                self.assertEqual(recovery.reconcile_confirmed_codex_preexecution_failures(
+                    repository_revision="c" * 40, artifact_root=artifact_root, scope_ref=self.scope, worker_id=worker_id,
+                    legacy_git_refusal_verified=True), [])
+                last_evidence = self.admin.execute("""SELECT payload->'recovery_evidence'
+                    FROM events WHERE assignment_id=%s ORDER BY seq DESC LIMIT 1""",
+                    (assignment_id,)).fetchone()[0]
+                self.assertEqual(last_evidence["proof"],
+                    "durable_worker_preexecution_failure_before_cli_launch")
+                self.assertEqual(last_evidence["execution_process_started"], False)
+            finally:
+                recovery.close()
+        ready = self.ledger.get(assignment_id)
+        self.assertEqual(ready["state"], "ready")
+        self.assertEqual(ready["process_graph_id"],
+                         "rv:postgres-ledger:assignment-lifecycle")
+        self.assertEqual(ready["process_node_id"],
+                         "rv:postgres-ledger:assignment-lifecycle:ready")
+        intent = self.admin.execute("SELECT status FROM worker_execution_intents WHERE intent_id=%s",
+                                    (intent_id,)).fetchone()
+        self.assertEqual(intent[0], "retry_scheduled")
+        recorded = self.admin.execute("SELECT count(*) FROM worker_recovery_records WHERE assignment_id=%s",
+                                      (assignment_id,)).fetchone()[0]
+        self.assertEqual(recorded, 2)
+        event = self.admin.execute("""SELECT payload->'recovery_evidence'
+            FROM events WHERE assignment_id=%s ORDER BY seq DESC LIMIT 1""",
+            (assignment_id,)).fetchone()[0]
+        self.assertEqual(event["execution_process_started"], False)
+        self.assertEqual(event["assignment_attempt_absent"], True)
+        self.assertEqual(event["assignment_artifact_absent"], True)
+        transition = self.admin.execute("""SELECT payload->>'process_node_id'
+            FROM events WHERE assignment_id=%s ORDER BY seq DESC LIMIT 1""",
+            (assignment_id,)).fetchone()[0]
+        self.assertEqual(transition, "rv:postgres-ledger:assignment-lifecycle:ready")
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "ready")
+
+    def test_preexecution_codex_failure_is_not_misreported_as_unknown(self):
+        from riverview_core.worker_adapter import ContinuousWorker
+        assignment_id = self.ready_assignment(objective="objective:known-preexecution")
+        class KnownPreExecutionFailure(RuntimeError):
+            execution_started = False
+        def fail_before_process(_assignment, _grounded):
+            raise KnownPreExecutionFailure("repository_preflight_failed")
+        engine = ContinuousWorker(self.worker, self.worker_id, self.token,
+            knowledge=self.VerifiedProvider(), action=fail_before_process,
+            action_effect_class="external_uncertain",
+            action_capability="deterministic.sha256.v1")
+        result = engine.run_once(assignment_id=assignment_id)
+        self.assertEqual(result["status"], "FAILED")
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "blocked")
+        intent = self.admin.execute("SELECT status FROM worker_execution_intents WHERE assignment_id=%s",
+                                    (assignment_id,)).fetchone()
+        self.assertEqual(intent[0], "failed")
+
+    def test_codex_failure_persists_sanitized_code_as_retryable_no_artifact_state(self):
+        from riverview_core.resident_execution.codex_workflow import CodexActionFailure
+        from riverview_core.worker_adapter import ContinuousWorker
+
+        assignment_id = self.ready_assignment(objective="objective:codex-sanitized-failure")
+        worker_id = "worker-codex-failure-" + uuid4().hex
+        credential = self.register_as(
+            worker_id, ["engineering.codex-cli-artifact.v1"], self.scope)
+
+        def fail_without_artifact(_assignment, _grounded):
+            raise CodexActionFailure("workspace_change_set_invalid", execution_started=True)
+
+        engine = ContinuousWorker(self.worker, worker_id, credential,
+            knowledge=self.VerifiedProvider(), action=fail_without_artifact,
+            action_effect_class="external_uncertain",
+            action_capability="engineering.codex-cli-artifact.v1")
+        result = engine.run_once(assignment_id=assignment_id)
+        self.assertEqual(result["status"], "FAILED")
+        assignment = self.ledger.get(assignment_id)
+        self.assertEqual(assignment["state"], "blocked")
+        self.assertEqual(assignment["workflow_step"], "WORKER_RETRYABLE_NO_ARTIFACT")
+        intent = self.admin.execute("""SELECT status,failure_class
+            FROM worker_execution_intents WHERE assignment_id=%s""",
+            (assignment_id,)).fetchone()
+        self.assertEqual(intent[0], "failed")
+        self.assertEqual(intent[1],
+                         "CodexActionFailure:workspace_change_set_invalid")
+        attempts = self.admin.execute(
+            "SELECT count(*) FROM worker_attempts WHERE assignment_id=%s",
+            (assignment_id,)).fetchone()[0]
+        self.assertEqual(attempts, 0)
+
+    def test_codex_failure_without_durable_artifact_requeues_once(self):
+        import tempfile
+        from riverview_core.worker_adapter import PostgresRecoveryCoordinator
+
+        objective_id = "objective:codex-no-artifact:" + uuid4().hex
+        assignment_id = self.ready_assignment(objective=objective_id)
+        source_revision, source_digest = "a" * 40, "b" * 64
+        self.admin.execute("""INSERT INTO grace_objectives
+            (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,
+             evidence,assignment_id,source_revision,source_sha256)
+            VALUES (%s,'synthetic bounded fixture',%s,'steward:test','[]'::jsonb,
+                    'WORK_ORDER_CREATED',%s::jsonb,%s,%s,%s)""",
+            (objective_id, self.scope,
+             json.dumps({"status": "VERIFIED", "source_revision": source_revision,
+                         "source_sha256": source_digest}), assignment_id,
+             source_revision, source_digest))
+        worker_id = "worker-codex-no-artifact-" + uuid4().hex
+        credential = self.register_as(
+            worker_id, ["engineering.codex-cli-artifact.v1"], self.scope)
+        claim = self.worker.claim_next(worker_id, credential,
+            assignment_id=assignment_id, lease_seconds=60,
+            capability="engineering.codex-cli-artifact.v1")
+        generation = claim["lease"]["generation"]
+        self.worker.start_assignment(assignment_id, worker_id, credential,
+            generation, capability="engineering.codex-cli-artifact.v1")
+        intent_id = self.worker.begin_execution_intent(
+            assignment_id, worker_id, credential, generation,
+            f"continuous:{assignment_id}:{generation}",
+            effect_class="external_uncertain",
+            capability="engineering.codex-cli-artifact.v1")
+        self.worker.mark_execution_intent(intent_id, "outcome_unknown",
+                                          failure_class="CodexActionFailure")
+        self.worker.scheduler.transition_with_lease(assignment_id, "awaiting_steward",
+            "ACTION_OUTCOME_UNKNOWN", f"unknown:{assignment_id}:{generation}",
+            worker_id, generation)
+        self.admin.execute("""UPDATE assignment_leases
+            SET acquired_at=clock_timestamp()-interval '2 seconds',
+                expires_at=clock_timestamp()-interval '1 second'
+            WHERE assignment_id=%s""", (assignment_id,))
+
+        with tempfile.TemporaryDirectory(prefix="rv-codex-no-artifact-") as directory:
+            artifact_root = Path(directory) / "artifacts"
+            artifact_root.mkdir(mode=0o700)
+            recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema, max_retries=3)
+            try:
+                expected = [{"assignment_id": assignment_id,
+                    "intent_id": str(intent_id), "lease_generation": generation,
+                    "decision": "retry_safe", "resulting_state": "ready"}]
+                self.assertEqual(recovery.reconcile_codex_failures_without_artifact(
+                    repository_revision="c" * 40, artifact_root=artifact_root,
+                    scope_ref=self.scope, worker_id=worker_id), expected)
+                self.assertEqual(recovery.reconcile_codex_failures_without_artifact(
+                    repository_revision="c" * 40, artifact_root=artifact_root,
+                    scope_ref=self.scope, worker_id=worker_id), [])
+                evidence = self.admin.execute("""SELECT payload->'recovery_evidence'
+                    FROM events WHERE assignment_id=%s ORDER BY seq DESC LIMIT 1""",
+                    (assignment_id,)).fetchone()[0]
+                self.assertEqual(evidence["proof"],
+                    "typed_codex_failure_without_durable_artifact")
+                self.assertTrue(evidence["assignment_attempt_absent"])
+                self.assertTrue(evidence["worker_result_absent"])
+                self.assertTrue(evidence["assignment_artifact_absent"])
+                resumed = self.worker.claim_next(worker_id, credential,
+                    assignment_id=assignment_id, lease_seconds=30,
+                    capability="engineering.codex-cli-artifact.v1")
+                self.assertEqual(resumed["assignment"]["id"], assignment_id)
+                self.assertGreater(resumed["lease"]["generation"], generation)
+            finally:
+                recovery.close()
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "ready")
+
+    def test_codex_failure_is_not_requeued_when_assignment_artifact_exists(self):
+        import hashlib
+        import tempfile
+        from riverview_core.worker_adapter import PostgresRecoveryCoordinator
+
+        objective_id = "objective:codex-artifact-exists:" + uuid4().hex
+        assignment_id = self.ready_assignment(objective=objective_id)
+        revision, digest = "a" * 40, "b" * 64
+        self.admin.execute("""INSERT INTO grace_objectives
+            (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,
+             evidence,assignment_id,source_revision,source_sha256)
+            VALUES (%s,'synthetic bounded fixture',%s,'steward:test','[]'::jsonb,
+                    'WORK_ORDER_CREATED',%s::jsonb,%s,%s,%s)""",
+            (objective_id, self.scope,
+             json.dumps({"status": "VERIFIED", "source_revision": revision,
+                         "source_sha256": digest}), assignment_id, revision, digest))
+        worker_id = "worker-codex-artifact-exists-" + uuid4().hex
+        credential = self.register_as(worker_id,
+            ["engineering.codex-cli-artifact.v1"], self.scope)
+        claim = self.worker.claim_next(worker_id, credential,
+            assignment_id=assignment_id, lease_seconds=60,
+            capability="engineering.codex-cli-artifact.v1")
+        generation = claim["lease"]["generation"]
+        self.worker.start_assignment(assignment_id, worker_id, credential,
+            generation, capability="engineering.codex-cli-artifact.v1")
+        intent_id = self.worker.begin_execution_intent(
+            assignment_id, worker_id, credential, generation,
+            f"continuous:{assignment_id}:{generation}",
+            effect_class="external_uncertain",
+            capability="engineering.codex-cli-artifact.v1")
+        self.worker.mark_execution_intent(intent_id, "outcome_unknown",
+                                          failure_class="CodexActionFailure")
+        self.worker.scheduler.transition_with_lease(assignment_id, "awaiting_steward",
+            "ACTION_OUTCOME_UNKNOWN", f"unknown:{assignment_id}:{generation}",
+            worker_id, generation)
+        self.admin.execute("""UPDATE assignment_leases
+            SET acquired_at=clock_timestamp()-interval '2 seconds',
+                expires_at=clock_timestamp()-interval '1 second'
+            WHERE assignment_id=%s""", (assignment_id,))
+        with tempfile.TemporaryDirectory(prefix="rv-codex-artifact-exists-") as directory:
+            artifact_root = Path(directory) / "artifacts"
+            artifact_root.mkdir(mode=0o700)
+            artifact_name = "codex-" + hashlib.sha256(assignment_id.encode()).hexdigest()+".md"
+            (artifact_root / artifact_name).write_text("preserve", encoding="utf-8")
+            (artifact_root / artifact_name).chmod(0o600)
+            recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema, max_retries=3)
+            try:
+                self.assertEqual(recovery.reconcile_codex_failures_without_artifact(
+                    repository_revision="c" * 40, artifact_root=artifact_root,
+                    scope_ref=self.scope, worker_id=worker_id), [])
+            finally:
+                recovery.close()
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "awaiting_steward")
+
+    def test_verified_grounding_resumes_same_waiting_codex_assignment_once(self):
+        import tempfile
+        from types import SimpleNamespace
+        from riverview_core.worker_adapter import ContinuousWorker, KnowledgeResult, KnowledgeStatus
+
+        objective_id = "objective:verified-grounding-resume:" + uuid4().hex
+        scope = "work-order:engineering"
+        assignment_id = self.ready_assignment(scope=scope, objective=objective_id)
+        source_revision, source_digest = "d" * 40, "e" * 64
+        self.admin.execute("""INSERT INTO grace_objectives
+            (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,
+             evidence,assignment_id,source_revision,source_sha256)
+            VALUES (%s,'bounded fixture',%s,'steward:test','[]'::jsonb,
+                    'WORK_ORDER_CREATED',%s::jsonb,%s,%s,%s)""",
+            (objective_id, scope,
+             json.dumps({"status": "VERIFIED", "source_revision": source_revision,
+                         "source_sha256": source_digest}), assignment_id,
+             source_revision, source_digest))
+        worker_id = "worker-grounding-resume-" + uuid4().hex
+        credential = self.register_as(worker_id,
+            ["engineering.codex-cli-artifact.v1"], scope)
+        self.ledger.transition(assignment_id, "blocked", "WAITING_FOR_EVIDENCE",
+            f"wait-grounding:{assignment_id}", actor_id="worker:test")
+        self.admin.execute("""INSERT INTO assignment_leases
+            (assignment_id,worker_id,generation,acquired_at,heartbeat_at,expires_at)
+            VALUES (%s,%s,3,clock_timestamp()-interval '2 minutes',
+                    clock_timestamp()-interval '2 minutes',clock_timestamp()-interval '1 minute')""",
+            (assignment_id, worker_id))
+        self.admin.execute("""INSERT INTO knowledge_observations
+            (assignment_id,worker_id,operation,status,source_references,
+             source_revision,source_sha256,retrieval_complete)
+            VALUES (%s,%s,'ground_assignment','UNVERIFIED','[]'::jsonb,%s,%s,false)""",
+            (assignment_id, worker_id, "c" * 40, "b" * 64))
+        for generation in (1, 2):
+            intent_id = uuid4()
+            self.admin.execute("""INSERT INTO worker_execution_intents
+                (intent_id,assignment_id,worker_id,lease_generation,capability,
+                 effect_class,idempotency_key,status,finished_at,failure_class)
+                VALUES (%s,%s,%s,%s,'engineering.codex-cli-artifact.v1',
+                        'external_uncertain',%s,'retry_scheduled',clock_timestamp(),
+                        'CodexActionFailure:codex_process_failed')""",
+                (intent_id, assignment_id, worker_id, generation,
+                 f"prior-intent:{assignment_id}:{generation}"))
+            self.admin.execute("""INSERT INTO worker_recovery_records
+                (assignment_id,lease_generation,intent_id,decision,previous_state,
+                 resulting_state,observed_expiry)
+                VALUES (%s,%s,%s,'retry_safe','blocked','ready',
+                        clock_timestamp()-interval '1 minute')""",
+                (assignment_id, generation, intent_id))
+
+        class Provider(self.VerifiedProvider):
+            def _verified(self):
+                return KnowledgeResult(KnowledgeStatus.VERIFIED, value="fresh source",
+                    source_references=("repo://docs/components/WORKER_ADAPTER.md",),
+                    source_revision="f" * 40, source_sha256="a" * 64,
+                    retrieval_complete=True)
+
+        class BoundedTestAction:
+            def __init__(self, artifact_root):
+                self.adapter = SimpleNamespace(artifact_root=artifact_root)
+            @staticmethod
+            def __call__(assignment, grounded):
+                return {"status": "bounded_test_action"}
+
+        with tempfile.TemporaryDirectory(prefix="rv-grounding-resume-") as directory:
+            root = Path(directory) / "artifacts"
+            root.mkdir(mode=0o700)
+            action = BoundedTestAction(root)
+            exhausted = ContinuousWorker(self.worker, worker_id, credential,
+                knowledge=Provider(), action=action,
+                action_effect_class="external_uncertain",
+                action_capability="engineering.codex-cli-artifact.v1",
+                recovery_max_retries=2)
+            self.assertEqual(exhausted.run_once()["status"], "IDLE")
+            self.assertEqual(self.ledger.get(assignment_id)["state"], "blocked")
+            engine = ContinuousWorker(self.worker, worker_id, credential,
+                knowledge=Provider(), action=action,
+                action_effect_class="external_uncertain",
+                action_capability="engineering.codex-cli-artifact.v1",
+                recovery_max_retries=3)
+            result = engine.run_once()
+            self.assertEqual(result["status"], "AWAITING_VERIFICATION")
+            current = self.ledger.get(assignment_id)
+            self.assertEqual(current["state"], "awaiting_verification")
+            self.assertEqual(current["objective_ref"], objective_id)
+            self.assertEqual(current["version"], 6)
+            event_key = (f"grounding-resume:{assignment_id}:" + "f" * 40 + ":" + "a" * 64)
+            evidence = self.admin.execute("""SELECT payload->'recovery_evidence'
+                FROM events WHERE assignment_id=%s AND idempotency_key=%s""",
+                (assignment_id, event_key)).fetchone()[0]
+            self.assertEqual(evidence["proof"], "fresh_verified_grounding_after_wait")
+            self.assertEqual(evidence["source_revision"], "f" * 40)
+            self.assertTrue(evidence["prior_attempts_absent"])
+            self.assertTrue(evidence["exact_worker_grant_rechecked_at_claim"])
+            observations = self.admin.execute("""SELECT status FROM knowledge_observations
+                WHERE assignment_id=%s AND operation='ground_assignment'
+                ORDER BY recorded_at,observation_id""", (assignment_id,)).fetchall()
+            self.assertEqual([row[0] for row in observations],
+                             ["UNVERIFIED", "VERIFIED", "VERIFIED"])
+            preflight_observations = self.admin.execute("""SELECT status,action
+                FROM knowledge_observations WHERE assignment_id=%s
+                  AND operation='preflight_action' ORDER BY recorded_at,observation_id""",
+                (assignment_id,)).fetchall()
+            self.assertEqual([tuple(row) for row in preflight_observations],
+                             [("VERIFIED", "engineering.codex-cli-artifact.v1"),
+                              ("VERIFIED", "engineering.codex-cli-artifact.v1")])
+            intents = self.admin.execute("SELECT count(*) FROM worker_execution_intents WHERE assignment_id=%s",
+                                         (assignment_id,)).fetchone()[0]
+            self.assertEqual(intents, 3)
+
+    def test_waiting_evidence_candidate_selection_revalidates_worker_grant(self):
+        from riverview_core.worker_adapter import WorkerAuthorizationError
+
+        assignment_id = self.ready_assignment(scope="work-order:engineering",
+                                              objective="objective:grant-recheck")
+        self.ledger.transition(assignment_id, "blocked", "WAITING_FOR_EVIDENCE",
+            f"wait-grounding:{assignment_id}", actor_id="worker:test")
+        worker_id = "worker-grounding-no-grant-" + uuid4().hex
+        credential = self.register_as(worker_id, ["engineering.codex-cli-artifact.v1"],
+                                      "work-order:engineering")
+        self.admin.execute("DELETE FROM authority_grants WHERE grant_id=%s",
+                           (f"test:assignment.execute:{worker_id}",))
+        with self.assertRaises(WorkerAuthorizationError):
+            self.worker.waiting_for_evidence(worker_id, credential,
+                capability="engineering.codex-cli-artifact.v1")
 
     def test_killed_external_action_is_not_replayed_and_unrelated_work_continues(self):
         import multiprocessing
@@ -489,7 +977,7 @@ class WorkerAdapterTests(unittest.TestCase):
                            (self.assignment,))
         recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema)
         try:
-            outcomes = recovery.reconcile_expired()
+            outcomes = recovery.reconcile_expired(scope_ref=self.scope, worker_id=self.worker_id)
         finally:
             recovery.close()
         self.assertEqual(outcomes[0]["decision"], "result_preserved")
@@ -509,7 +997,7 @@ class WorkerAdapterTests(unittest.TestCase):
         self.assertEqual(self.ledger.get(self.assignment)["state"], "completed")
         recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema)
         try:
-            self.assertEqual(recovery.reconcile_expired(), [])
+            self.assertEqual(recovery.reconcile_expired(scope_ref=self.scope, worker_id=self.worker_id), [])
         finally:
             recovery.close()
         self.assertEqual(self.ledger.get(self.assignment)["state"], "completed")
@@ -701,6 +1189,57 @@ class WorkerAdapterTests(unittest.TestCase):
             idempotency_key="verify-tampered:" + uuid4().hex)
         self.assertEqual(decision.status.value, "REJECTED")
         self.assertEqual(self.ledger.get(self.assignment)["state"], "rework_required")
+
+    def test_new_verifier_revision_appends_decision_and_completes_same_attempt(self):
+        from riverview_core.worker_adapter.adapter import WorkerAdapterError
+        from riverview_core.worker_adapter.verifier import VerificationResult, VerificationStatus
+        outcome, verifier_id, credential, _ = self._execute_to_verification()
+
+        class OldVerifier:
+            REVISION = "fixture-1.0.0"
+            def verify(self, assignment, attempt, result):
+                return VerificationResult(VerificationStatus.REJECTED,
+                    {"fixture_contract": False},
+                    (f"urn:rv:worker-attempt:{attempt['attempt_id']}",),
+                    self.REVISION, "fixture predecessor decision")
+
+        class CorrectedVerifier:
+            REVISION = "fixture-1.0.1"
+            def verify(self, assignment, attempt, result):
+                return VerificationResult(VerificationStatus.ACCEPTED,
+                    {"artifact_contract": True},
+                    (f"urn:rv:worker-attempt:{attempt['attempt_id']}",),
+                    self.REVISION, "fixture corrected contract decision")
+
+        old_key = "verify-preserved-rejection:" + str(outcome["attempt_id"])
+        old = self.worker.verify_attempt(self.assignment, outcome["attempt_id"],
+            verifier_id, credential, OldVerifier(), idempotency_key=old_key)
+        self.assertEqual(old.status, VerificationStatus.REJECTED)
+        self.assertEqual(self.ledger.get(self.assignment)["state"], "rework_required")
+        with self.assertRaises(WorkerAdapterError):
+            self.worker.verify_attempt(self.assignment, outcome["attempt_id"],
+                verifier_id, credential, CorrectedVerifier(), idempotency_key="wrong-key")
+
+        corrected_key = (f"grace-verifier-revalidation:{outcome['attempt_id']}:"
+                         "fixture-1.0.1")
+        accepted = self.worker.verify_attempt(self.assignment, outcome["attempt_id"],
+            verifier_id, credential, CorrectedVerifier(), idempotency_key=corrected_key)
+        self.assertEqual(accepted.status, VerificationStatus.ACCEPTED)
+        self.assertEqual(self.ledger.get(self.assignment)["state"], "completed")
+        with self.worker.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT verifier_revision,decision,criteria,summary
+                FROM verification_records WHERE attempt_id=%s
+                ORDER BY verifier_revision""", (outcome["attempt_id"],))
+            rows = cur.fetchall()
+            cur.execute("SELECT count(*) AS n FROM worker_attempts WHERE assignment_id=%s",
+                        (self.assignment,))
+            attempt_count = cur.fetchone()["n"]
+        self.assertEqual([(row["verifier_revision"], row["decision"]) for row in rows],
+                         [("fixture-1.0.0", "REJECTED"), ("fixture-1.0.1", "ACCEPTED")])
+        self.assertEqual(rows[0]["criteria"], {"fixture_contract": False})
+        self.assertEqual(rows[0]["summary"], "fixture predecessor decision")
+        self.assertEqual(attempt_count, 1)
 
     def test_pinned_repository_provider_drives_worker_artifact_and_independent_verification(self):
         import shutil

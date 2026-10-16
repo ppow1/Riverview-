@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/assignment_scheduler/scheduler.py
 # Component: ASSIGNMENT-SCHEDULER
-# Revision: 1.0.7
+# Revision: 1.0.13
 # Purpose: Claim ready assignments fairly and fence stale lease holders
 # Execution Model: PostgreSQL transactional request interface
 # Observability: Durable lease generations and causally linked ledger events
@@ -12,6 +12,12 @@
 # Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Allow a claim to be pinned to one assignment ID
 # Contracts: docs/development/M1.4-001_REVISION_RECORD.md
 # Changed: 2026-10-13 UTC | RV-LEDGER-GRAPH-POSITION | Persist canonical assignment lifecycle node on lease-bound transitions
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Fence Grace work-order claims to the capability persisted in the approved proposal step
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Preserve standalone scheduler operation before resident schema migration and map legacy bounded artifact worker to the Codex artifact plan capability
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Restrict the optional proposal capability filter to the currently selected schema contract
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Resolve persisted plan capability through the durable step-to-assignment link, not the mutable ledger status label
+# Changed: 2026-10-16 UTC | RV-GRACE-SCHEDULER-PROBE-COMPAT | Pass an explicit empty parameter tuple to the optional schema capability probe
+# Changed: 2026-10-16 UTC | RV-GRACE-SCHEDULER-PROBE-COMPAT | Normalize assignment query parameters to the DB-API tuple contract
 # Tests: tests/test_assignment_scheduler.py
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -56,8 +62,34 @@ class PostgresAssignmentScheduler:
 
     @staticmethod
     def _claim_candidate(cur, worker_id, lease_seconds, *, scope_ref=None,
-                         assignment_id=None):
+                         assignment_id=None, required_capability=None):
         """Claim one eligible assignment in the caller's active transaction."""
+        # The scheduler is also used by installations that have not enabled the
+        # resident-objective schema. Only add proposal-scope fencing when that
+        # existing contract is installed; an absent table cannot contain a
+        # Grace objective assignment.
+        cur.execute("SELECT to_regclass(current_schema() || '.grace_objectives') IS NOT NULL AS available", ())
+        objective_contract = bool(cur.fetchone()["available"])
+        capability_clause = ""
+        parameters = [scope_ref, scope_ref, assignment_id, assignment_id]
+        if objective_contract:
+            capability_clause = """
+                 AND (%s::text IS NULL OR a.workflow_id<>'grace.objective-work-order.v1'
+                   OR EXISTS (
+                     SELECT 1 FROM grace_objectives o
+                     JOIN grace_objective_steps assigned_step
+                       ON assigned_step.objective_id=o.objective_id
+                     JOIN LATERAL jsonb_array_elements(o.proposal->'steps') AS step(value)
+                       ON step.value->>'step_id'=assigned_step.step_id
+                     WHERE o.objective_id=a.objective_ref
+                       AND assigned_step.assignment_id=a.id
+                       AND (COALESCE(step.value->>'execution_capability',
+                               'engineering.codex-cli-artifact.v1')=%s
+                            OR (%s='engineering.bounded-artifact.v1'
+                                AND COALESCE(step.value->>'execution_capability',
+                                    'engineering.codex-cli-artifact.v1')=
+                                    'engineering.codex-cli-artifact.v1'))))"""
+            parameters.extend((required_capability, required_capability, required_capability))
         cur.execute(
             """SELECT a.id,l.generation
                FROM assignments AS a
@@ -65,10 +97,9 @@ class PostgresAssignmentScheduler:
                WHERE a.state='ready'
                  AND (l.assignment_id IS NULL OR l.expires_at<=clock_timestamp())
                  AND (%s::text IS NULL OR a.authority_ref=%s)
-                 AND (%s::text IS NULL OR a.id=%s)
+                 AND (%s::text IS NULL OR a.id=%s)""" + capability_clause + """
                ORDER BY a.updated_at,a.id
-               FOR UPDATE OF a SKIP LOCKED LIMIT 1""",
-            (scope_ref, scope_ref, assignment_id, assignment_id))
+               FOR UPDATE OF a SKIP LOCKED LIMIT 1""", tuple(parameters))
         assignment = cur.fetchone()
         if assignment is None:
             return None
@@ -89,7 +120,7 @@ class PostgresAssignmentScheduler:
         return cur.fetchone()
 
     def claim_next(self, worker_id, *, lease_seconds=30, scope_ref=None,
-                   assignment_id=None):
+                   assignment_id=None, required_capability=None):
         """Claim oldest eligible ready work, optionally within an exact authority scope."""
         self._validate_lease(worker_id, lease_seconds)
         db = self.ledger.db
@@ -98,7 +129,8 @@ class PostgresAssignmentScheduler:
                 self.ledger._set_search_path(cur)
                 return self._claim_candidate(cur, worker_id, lease_seconds,
                                              scope_ref=scope_ref,
-                                             assignment_id=assignment_id)
+                                             assignment_id=assignment_id,
+                                             required_capability=required_capability)
 
     def heartbeat(self, assignment_id, worker_id, generation, *, lease_seconds=30):
         """Extend only a currently active exact worker/generation lease.

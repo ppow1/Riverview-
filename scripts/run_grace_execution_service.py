@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.7
+# Revision: 1.1.8
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -15,8 +15,18 @@
 # Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Remove API-key auth and permit only interactive owning-user subscription mode
 # Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Use the active bound router for proposal/review and return verified outcomes to chat
 # Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Add persistent no-copy ChatGPT owner-session runtime mode
+# Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Bind same-objective continuation decisions to the existing durable objective-step pipeline
+# Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Align bounded 80B provider and resident proposal deadlines
+# Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Run narrowly fenced legacy pre-execution recovery through existing CME at startup
+# Changed: 2026-10-16 UTC | RV-GRACE-RECOVERY-HOOK-001 | Call the current bounded Codex no-artifact recovery hook and fail with a typed configuration error if unavailable
+# Changed: 2026-10-16 UTC | RV-GRACE-OWNER-CODEX-HOME-001 | Use the explicitly configured service-local CODEX_HOME rather than deriving credentials from HOME
+# Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Authenticate recovery scope before startup Codex recovery
+# Changed: 2026-10-16 UTC | RV-GRACE-RESULT-RETURN-DIAGNOSTICS-001 | Default verified-result review to the supported bounded 512-token output budget
+# Changed: 2026-10-16 UTC | RV-PR62-SOURCE-CHANGE-MODE | Route the explicit Codex source-change mode through its registered adapter branch
+# Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-REASONING-BUDGET-001 | Default persistent resident plans to a bounded 768-token completion budget
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Wire the separately scoped source-change capability through the existing leased worker and independent verifier
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
-# Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
+# Tests: tests/test_grace_runtime_provider_wiring.py; tests/test_grace_execution.py
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
 """Systemd entry point for the persistent model-independent Grace runtime."""
@@ -41,9 +51,14 @@ from riverview_core.resident_execution.pipeline import ObjectiveContextReader
 from riverview_core.resident_execution.service import GraceExecutionService
 from riverview_core.resident_execution.worker import BoundedLocalCodingWorker
 from riverview_core.resident_execution.codex_cli import CAPABILITY as CODEX_CAPABILITY
-from riverview_core.resident_execution.codex_cli import CodexCLIExecutionAdapter
-from riverview_core.resident_execution.codex_workflow import CodexMarkdownVerifier, CodexWorkAction
+from riverview_core.resident_execution.codex_cli import CodexAdapterError, CodexCLIExecutionAdapter
+from riverview_core.resident_execution.codex_workflow import (CodexMarkdownVerifier, CodexWorkAction,
+    CodexSourceChangeResultVerifier, CodexSourceChangeWorkAction)
+from riverview_core.resident_execution.codex_source_change import (
+    CAPABILITY as SOURCE_CHANGE_CAPABILITY, CodexSourceChangeAdapter,
+    CodexSourceChangeVerifier)
 from riverview_core.worker_adapter import ContinuousWorker, PostgresWorkerAdapter
+from riverview_core.worker_adapter.recovery import PostgresRecoveryCoordinator
 from riverview_core.worker_adapter.repository_knowledge import RepositoryKnowledgeProvider
 from riverview_core.worker_adapter.resident_knowledge import TaskRelevantRepositoryKnowledgeProvider
 from riverview_core.worker_adapter.service import (WorkerServiceConfigurationError,
@@ -53,6 +68,66 @@ from riverview_core.local_reasoning_provider import LocalReasoningProvider
 from riverview_core.resident_execution.model_router import GraceModelRouter
 from riverview_core.resident_execution.conversation import (
     ConversationStore, ResidentConversationService)
+
+
+def resident_reasoning_timeout(environ):
+    """Return the shared bounded proposal-provider and caller deadline."""
+    try:
+        timeout = float(environ.get("RIVERVIEW_RESIDENT_REASONING_TIMEOUT", "60"))
+    except (TypeError, ValueError):
+        raise WorkerServiceConfigurationError("resident_reasoning_timeout_invalid") from None
+    if not 1 <= timeout <= 60:
+        raise WorkerServiceConfigurationError("resident_reasoning_timeout_invalid")
+    return timeout
+
+
+def resident_result_review_tokens(environ):
+    """Return a bounded result-review output budget; structured reviews default to 512."""
+    try:
+        tokens = int(environ.get("RIVERVIEW_GRACE_RESULT_REVIEW_TOKENS", "512"))
+    except (TypeError, ValueError):
+        raise WorkerServiceConfigurationError("resident_result_review_tokens_invalid") from None
+    if not 16 <= tokens <= 512:
+        raise WorkerServiceConfigurationError("resident_result_review_tokens_invalid")
+    return tokens
+
+
+def source_change_path_allowlist(environ):
+    """Load the operator-pinned maximum path set for source-change proposals."""
+    try:
+        values = json.loads(environ.get("RIVERVIEW_CODEX_SOURCE_ALLOWED_PATHS", "[]"))
+    except (TypeError, json.JSONDecodeError):
+        raise WorkerServiceConfigurationError("source_change_allowlist_invalid") from None
+    if (not isinstance(values, list) or not 1 <= len(values) <= 128 or
+            any(not isinstance(path, str) for path in values)):
+        raise WorkerServiceConfigurationError("source_change_allowlist_invalid")
+    try:
+        from riverview_core.resident_execution.codex_source_change import _paths
+        return _paths(tuple(values), maximum=128)
+    except (TypeError, ValueError):
+        raise WorkerServiceConfigurationError("source_change_allowlist_invalid") from None
+
+
+def is_codex_adapter_mode(adapter_mode):
+    """Return whether the configured mode selects a registered Codex adapter."""
+    return adapter_mode in {"codex-cli", "codex-source-change"}
+
+
+def persistent_owner_codex_home(environ, state_root):
+    """Select only the configured Codex home contained in private service state."""
+    configured = environ.get("RIVERVIEW_CODEX_HOME")
+    if not isinstance(configured, str) or not configured:
+        configured = str(Path(state_root) / "codex-home")
+    candidate = Path(configured)
+    try:
+        root = Path(state_root).resolve(strict=True)
+        resolved = candidate.resolve(strict=False)
+    except OSError:
+        raise WorkerServiceConfigurationError("codex_service_home_outside_state_directory") from None
+    if (not candidate.is_absolute() or candidate.is_symlink() or
+            resolved == root or not resolved.is_relative_to(root)):
+        raise WorkerServiceConfigurationError("codex_service_home_outside_state_directory")
+    return str(candidate)
 
 
 def configured_resident_providers(binding, environ=None, provider_factory=None):
@@ -76,6 +151,7 @@ def configured_resident_providers(binding, environ=None, provider_factory=None):
         raise WorkerServiceConfigurationError("resident_reasoning_provider_binding_mismatch")
     if (environ.get("RIVERVIEW_GRACE_ENABLE_MODEL_ROUTER") != "1" or not allow_lan):
         raise WorkerServiceConfigurationError("resident_model_router_opt_in_required")
+    proposal_timeout = resident_reasoning_timeout(environ)
     vision_digest = environ.get("RIVERVIEW_GRACE_30B_MODEL_SHA256", "")
     reasoning_digest = environ.get("RIVERVIEW_GRACE_80B_MODEL_SHA256", "")
     # Reuse the exact endpoint/model pairs already allowlisted by LocalReasoningProvider.
@@ -88,7 +164,7 @@ def configured_resident_providers(binding, environ=None, provider_factory=None):
     vision = provider_factory(endpoint_30b, model_30b, vision_digest,
         allow_approved_private_lan=True)
     reasoning = provider_factory(endpoint_80b, model_80b, reasoning_digest,
-        allow_approved_private_lan=True)
+        timeout_seconds=proposal_timeout, allow_approved_private_lan=True)
     router = GraceModelRouter(autonomic=autonomic, vision=vision, reasoning=reasoning)
     if binding.get("implementation_revision") != router.model_sha256:
         raise WorkerServiceConfigurationError("resident_reasoning_binding_mismatch")
@@ -96,6 +172,14 @@ def configured_resident_providers(binding, environ=None, provider_factory=None):
 
 SERVICE_UNIT = "riverview-grace-execution.service"
 OWNER_SESSION_SERVICE_UNIT = "riverview-grace-execution-owner-session.service"
+
+
+def reconcile_codex_startup_recovery(execution_action, recovery, *, scope_ref, worker_id):
+    """Run the current Codex recovery hook through the persistent-service contract."""
+    reconcile = getattr(execution_action, "reconcile_retryable_no_artifact_failures", None)
+    if not callable(reconcile):
+        raise WorkerServiceConfigurationError("codex_recovery_hook_unavailable")
+    return reconcile(recovery, scope_ref=scope_ref, worker_id=worker_id)
 
 
 def main() -> int:
@@ -131,28 +215,32 @@ def main() -> int:
         intake = AuthorizedAssignmentIntake(ledger, authorizer)
         resident_knowledge = TaskRelevantRepositoryKnowledgeProvider(repo_root, commit)
         pipeline = GraceExecutionPipeline(ledger, authorizer, intake, resident_knowledge)
+        reasoning_timeout = resident_reasoning_timeout(os.environ)
         providers, reasoning_model = configured_resident_providers(office)
         resident_reasoner = ResidentReasoner(
             registry=authority_registry, office_id=office_id,
             resident_credential=resident_token, assignments=ObjectiveContextReader(pipeline),
             knowledge=resident_knowledge, providers=providers,
-            timeout_seconds=float(os.environ.get("RIVERVIEW_RESIDENT_REASONING_TIMEOUT", "5")))
+            timeout_seconds=reasoning_timeout)
         conversation_store = ConversationStore(dsn, schema=schema)
         conversation_service = ResidentConversationService(
             store=conversation_store, registry=authority_registry,
             authorizer=authorizer, office_id=office_id,
             resident_credential=resident_token, providers=providers,
-            max_response_tokens=int(os.environ.get(
-                "RIVERVIEW_GRACE_RESULT_REVIEW_TOKENS", "128")))
+            max_response_tokens=resident_result_review_tokens(os.environ))
+        conversation_service.continuation_handler = lambda context, step: pipeline.propose_continuation(
+            context["objective_id"], context["assignment_id"], step,
+            actor_id="office:" + office_id)
         adapter_mode = os.environ.get("RIVERVIEW_ENGINEERING_ADAPTER", "bounded-artifact")
         execution_capability = "engineering.bounded-artifact.v1"
         execution_action = BoundedLocalCodingWorker(pipeline, artifact_root)
         outcome_verifier = None
         if codex_auth_mode not in {"service", "supervised-chatgpt", "chatgpt-owner-session"}:
             raise WorkerServiceConfigurationError("codex_auth_mode_invalid")
-        if codex_auth_mode in {"supervised-chatgpt", "chatgpt-owner-session"} and adapter_mode != "codex-cli":
+        if (codex_auth_mode in {"supervised-chatgpt", "chatgpt-owner-session"} and
+                not is_codex_adapter_mode(adapter_mode)):
             raise WorkerServiceConfigurationError("supervised_mode_requires_codex_adapter")
-        if adapter_mode == "codex-cli":
+        if is_codex_adapter_mode(adapter_mode):
             executable = os.environ.get("RIVERVIEW_CODEX_EXECUTABLE", "")
             codex_home = os.environ.get("RIVERVIEW_CODEX_HOME", "")
             codex_workspace = os.environ.get("RIVERVIEW_CODEX_WORKSPACE_DIR", "")
@@ -163,7 +251,12 @@ def main() -> int:
                         not sys.stdin.isatty()):
                     raise WorkerServiceConfigurationError("supervised_codex_requires_admin1_tty")
                 operator_state = Path.home() / ".local" / "share" / "riverview-grace"
-                codex_home = str(Path.home() / ".codex")
+                codex_home = os.environ.get(
+                    "RIVERVIEW_CODEX_HOME", str(state_root / "codex-home"))
+                codex_home_path = Path(codex_home)
+                if (not codex_home_path.is_absolute() or
+                        not codex_home_path.resolve().is_relative_to(state_root.resolve())):
+                    raise WorkerServiceConfigurationError("codex_service_home_outside_state_directory")
                 codex_workspace = str(operator_state / "workspaces")
                 artifact_root = operator_state / "artifacts"
             persistent_owner_session = codex_auth_mode == "chatgpt-owner-session"
@@ -175,7 +268,7 @@ def main() -> int:
                 if not state_root.is_absolute() or state_root.resolve() in {
                         Path("/home/admin1").resolve(), Path("/home/admin1/.codex").resolve()}:
                     raise WorkerServiceConfigurationError("chatgpt_owner_state_path_invalid")
-                codex_home = str(Path.home() / ".codex")
+                codex_home = persistent_owner_codex_home(os.environ, state_root)
                 codex_workspace = str(state_root / "workspaces")
                 artifact_root = state_root / "artifacts"
             if not all((executable, codex_home, codex_workspace, codex_repository,
@@ -190,24 +283,66 @@ def main() -> int:
                 repository_reference=repository_reference, codex_home=codex_home,
                 workspace_root=codex_workspace, artifact_root=artifact_root,
                 supervised_chatgpt_session=supervised_chatgpt,
-                persistent_chatgpt_owner_session=persistent_owner_session)
+                persistent_chatgpt_owner_session=persistent_owner_session,
+                require_code_mode_host=True)
             if Path(executable).resolve().is_relative_to(Path("/home/admin1").resolve()):
                 raise WorkerServiceConfigurationError("personal_codex_executable_forbidden")
             try:
                 codex_adapter._preflight()
+            except CodexAdapterError as exc:
+                raise WorkerServiceConfigurationError(
+                    "codex_adapter_resource_preflight_failed_" + exc.code) from None
             except Exception:
                 raise WorkerServiceConfigurationError("codex_adapter_resource_preflight_failed") from None
-            execution_capability = CODEX_CAPABILITY
-            execution_action = CodexWorkAction(
-                pipeline, codex_adapter, repository_reference,
-                timeout_seconds=int(os.environ.get("RIVERVIEW_CODEX_TIMEOUT_SECONDS", "180")))
-            outcome_verifier = CodexMarkdownVerifier(artifact_root)
+            timeout_seconds = int(os.environ.get("RIVERVIEW_CODEX_TIMEOUT_SECONDS", "180"))
+            if adapter_mode == "codex-cli":
+                execution_capability = CODEX_CAPABILITY
+                execution_action = CodexWorkAction(
+                    pipeline, codex_adapter, repository_reference,
+                    timeout_seconds=timeout_seconds)
+                outcome_verifier = CodexMarkdownVerifier(artifact_root)
+            else:
+                allowed_paths = source_change_path_allowlist(os.environ)
+                try:
+                    source_adapter = CodexSourceChangeAdapter(
+                        base_adapter=codex_adapter, repository_reference=repository_reference,
+                        authorized_paths=allowed_paths, max_timeout_seconds=timeout_seconds)
+                    source_verifier = CodexSourceChangeVerifier(
+                        base_adapter=codex_adapter, authorized_paths=allowed_paths,
+                        max_timeout_seconds=timeout_seconds)
+                    execution_action = CodexSourceChangeWorkAction(
+                        pipeline, source_adapter, repository_reference,
+                        timeout_seconds=timeout_seconds)
+                    outcome_verifier = CodexSourceChangeResultVerifier(
+                        pipeline, source_verifier, execution_action)
+                except (TypeError, ValueError):
+                    raise WorkerServiceConfigurationError(
+                        "source_change_allowlist_invalid") from None
+                execution_capability = SOURCE_CHANGE_CAPABILITY
         elif adapter_mode != "bounded-artifact":
             raise WorkerServiceConfigurationError("engineering_adapter_not_registered")
         ensure_registered(adapter, worker_id, worker_token,
             (execution_capability,), scope_ref)
         ensure_registered(adapter, verifier_id, verifier_token,
             ("assignment.verify.v1",), scope_ref)
+        if isinstance(execution_action, (CodexWorkAction, CodexSourceChangeWorkAction)):
+            recovery = PostgresRecoveryCoordinator(dsn, schema=schema,
+                max_retries=int(os.environ.get("RIVERVIEW_GRACE_MAX_WORKER_RECOVERIES", "3")))
+            try:
+                # Worker registration is established above; validate the current
+                # credential and capability before the recovery query has effects.
+                authenticated_scope = adapter.authenticated_scope(
+                    worker_id, worker_token, execution_capability)
+                if authenticated_scope != scope_ref:
+                    raise WorkerServiceConfigurationError("codex_recovery_scope_mismatch")
+                recovered = reconcile_codex_startup_recovery(
+                    execution_action, recovery, scope_ref=scope_ref, worker_id=worker_id)
+            finally:
+                recovery.close()
+            if recovered:
+                logging.info(json.dumps({"event": "codex_preexecution_recovery_completed",
+                    "assignments": [item["assignment_id"] for item in recovered],
+                    "count": len(recovered)}, sort_keys=True))
         engine = ContinuousWorker(adapter, worker_id, worker_token,
             knowledge=RepositoryKnowledgeProvider(repo_root, commit),
             action=execution_action,
@@ -220,7 +355,7 @@ def main() -> int:
             artifact_root=artifact_root,
             max_dispatch_failures=int(os.environ.get("RIVERVIEW_GRACE_MAX_DISPATCH_FAILURES", "3")),
             resident_reasoner=resident_reasoner,
-            resident_token_budget=int(os.environ.get("RIVERVIEW_RESIDENT_REASONING_TOKENS", "256")),
+            resident_token_budget=int(os.environ.get("RIVERVIEW_RESIDENT_REASONING_TOKENS", "768")),
             verifier=outcome_verifier, execution_capability=execution_capability,
             conversation_result_publisher=conversation_service.review_verified_work_order)
         if codex_auth_mode == "supervised-chatgpt":

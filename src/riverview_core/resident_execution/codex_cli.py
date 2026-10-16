@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_cli.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.4
+# Revision: 1.1.5
 # Purpose: Run a bounded Codex CLI assignment in an isolated pinned repository copy
 # Execution Model: One noninteractive sandboxed Codex invocation per durable assignment
 # Observability: Typed result and artifact digest; prompt and CLI output are not logged
@@ -12,6 +12,14 @@
 # Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Remove API-key support and gate reuse of the owning interactive ChatGPT session
 # Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Support persistent worker use of the owning ChatGPT CLI home without credential copying
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-SANDBOX-READINESS-001 | Fail startup preflight when the bounded workspace sandbox is unavailable
+# Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Use private per-command Git trust for the pinned root-owned checkout and report execution-start boundary
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Accept a committed or uncommitted artifact only when the pinned clone changed deliverable.md alone
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Persist the checked source filename and changed-file inventory with successful artifacts
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-OWNER-STATE-001 | Use writable service-local CODEX_HOME with a read-only bind of the existing subscription auth file; require the Code Mode host for live CLI execution
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-SYSTEMD-NETLINK-001 | Probe bubblewrap network namespace setup during preflight so systemd AF_NETLINK restrictions fail before dispatch
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-ENABLE-001 | Enable the supported Codex code_mode_host feature when the persistent adapter requires its companion executable
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-ENABLE-001 | Enable code_mode and code_mode_host and expose only the pinned CLI package directory for companion discovery
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Persist source filename and exact modified-file inventory after pinned-worktree scope validation
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; process_graphs/grace/operational-integration.json
 # Tests: tests/test_codex_cli_adapter.py
 # History: Git
@@ -91,9 +99,12 @@ class CodexArtifactResult:
     artifact_name: str | None
     artifact_sha256: str | None
     artifact_bytes: int | None
-    source_revision: str
+    repository_revision: str
     detail_code: str
     verification_required: bool = True
+    execution_started: bool = False
+    source_artifact_name: str | None = None
+    changed_files: tuple[str, ...] = ()
 
 
 class CodexAdapterError(RuntimeError):
@@ -114,6 +125,7 @@ class CodexCLIExecutionAdapter:
                  workspace_root: str | Path, artifact_root: str | Path,
                  supervised_chatgpt_session: bool = False,
                  persistent_chatgpt_owner_session: bool = False,
+                 require_code_mode_host: bool = False,
                  ):
         self.executable = Path(executable)
         self.repository_path = Path(repository_path)
@@ -123,15 +135,18 @@ class CodexCLIExecutionAdapter:
         self.artifact_root = Path(artifact_root)
         if (type(supervised_chatgpt_session) is not bool or
                 type(persistent_chatgpt_owner_session) is not bool or
+                type(require_code_mode_host) is not bool or
                 (supervised_chatgpt_session and persistent_chatgpt_owner_session)):
             raise ValueError("Codex authentication mode must be explicit")
         self.supervised_chatgpt_session = supervised_chatgpt_session
         self.persistent_chatgpt_owner_session = persistent_chatgpt_owner_session
-        owner_session = supervised_chatgpt_session or persistent_chatgpt_owner_session
-        # The existing subscription login is used only in place by its owning
-        # Unix identity. No auth material enters the worker identity or env.
+        self.require_code_mode_host = require_code_mode_host
+        # The existing subscription login is used by the owning Unix identity.
+        # Supervised mode uses its personal directory in place; persistent mode
+        # uses a writable service-local state directory and a read-only bind of
+        # only auth.json. No credential bytes are copied.
         personal_homes = (Path.home() / ".codex", Path("/home/admin1/.codex"))
-        if owner_session:
+        if supervised_chatgpt_session:
             try:
                 operator = pwd.getpwnam("admin1")
                 auth = self.codex_home / "auth.json"
@@ -143,12 +158,33 @@ class CodexCLIExecutionAdapter:
                 valid_auth_file = False
                 operator = None
             if (operator is None or os.geteuid() != operator.pw_uid or
-                    (supervised_chatgpt_session and not sys.stdin.isatty()) or
+                    not sys.stdin.isatty() or
                     self.codex_home.resolve() != (Path.home() / ".codex").resolve() or
                     not valid_auth_file):
-                if supervised_chatgpt_session:
-                    raise ValueError("supervised ChatGPT authentication requires the owning interactive user session")
-                raise ValueError("persistent ChatGPT session authentication requires the owning user and protected local login")
+                raise ValueError("supervised ChatGPT authentication requires the owning interactive user session")
+        elif persistent_chatgpt_owner_session:
+            try:
+                operator = pwd.getpwnam("admin1")
+                home_info = self.codex_home.lstat()
+                auth = self.codex_home / "auth.json"
+                auth_info = auth.lstat()
+                valid_home = (stat.S_ISDIR(home_info.st_mode) and
+                    not self.codex_home.is_symlink() and home_info.st_uid == os.geteuid() and
+                    stat.S_IMODE(home_info.st_mode) == 0o700 and
+                    self.codex_home.resolve() == self.codex_home.absolute() and
+                    all(self.codex_home.resolve() != home.resolve() and
+                        home.resolve() not in self.codex_home.resolve().parents
+                        for home in personal_homes))
+                valid_auth_file = (stat.S_ISREG(auth_info.st_mode) and
+                    auth_info.st_uid == operator.pw_uid and
+                    stat.S_IMODE(auth_info.st_mode) == 0o600 and
+                    not auth.is_symlink() and not os.access(auth, os.W_OK))
+            except (KeyError, OSError):
+                valid_home = valid_auth_file = False
+                operator = None
+            if (operator is None or os.geteuid() != operator.pw_uid or
+                    not valid_home or not valid_auth_file):
+                raise ValueError("persistent ChatGPT authentication requires service-local writable state and a read-only owner auth bind")
         elif any(self.codex_home.resolve() == home.resolve() or
                  home.resolve() in self.codex_home.resolve().parents
                  for home in personal_homes):
@@ -178,8 +214,12 @@ class CodexCLIExecutionAdapter:
             if self.supervised_chatgpt_session or self.persistent_chatgpt_owner_session:
                 info = self.codex_home.lstat()
                 if (not stat.S_ISDIR(info.st_mode) or self.codex_home.is_symlink() or
-                        info.st_uid != os.geteuid()):
+                        info.st_uid != os.geteuid() or
+                        (self.persistent_chatgpt_owner_session and stat.S_IMODE(info.st_mode) != 0o700)):
                     raise CodexAdapterError("supervised_codex_home_invalid")
+                if self.persistent_chatgpt_owner_session and os.access(
+                        self.codex_home / "auth.json", os.W_OK):
+                    raise CodexAdapterError("owner_auth_bind_must_be_read_only")
             else:
                 self._private_directory(self.codex_home)
             self._private_directory(self.workspace_root)
@@ -187,6 +227,10 @@ class CodexCLIExecutionAdapter:
             if (self.workspace_root.resolve() == self.codex_home.resolve() or
                     self.workspace_root.resolve() in self.codex_home.resolve().parents):
                 raise CodexAdapterError("workspace_overlaps_credential_home")
+            if self.require_code_mode_host:
+                host = binary.with_name("codex-code-mode-host")
+                if (not host.is_file() or host.is_symlink() or not os.access(host, os.X_OK)):
+                    raise CodexAdapterError("codex_code_mode_host_missing")
             self._verify_workspace_sandbox()
             return binary, source
         except CodexAdapterError:
@@ -201,8 +245,8 @@ class CodexCLIExecutionAdapter:
         if not executable:
             raise CodexAdapterError("codex_sandbox_unavailable")
         try:
-            result = subprocess.run([executable, "--ro-bind", "/", "/", "--proc", "/proc",
-                "--dev", "/dev", "/bin/true"], stdin=subprocess.DEVNULL,
+            result = subprocess.run([executable, "--unshare-net", "--ro-bind", "/", "/",
+                "--proc", "/proc", "--dev", "/dev", "/bin/true"], stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 timeout=5, check=False, close_fds=True)
         except (OSError, subprocess.TimeoutExpired):
@@ -211,16 +255,76 @@ class CodexCLIExecutionAdapter:
             raise CodexAdapterError("codex_sandbox_unavailable")
 
     @staticmethod
-    def _git(args: Sequence[str], *, timeout=30):
-        try:
-            result = subprocess.run(["/usr/bin/git", *args], stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=timeout,
-                check=False, close_fds=True)
-        except (OSError, subprocess.TimeoutExpired):
-            raise CodexAdapterError("repository_operation_failed") from None
+    def _git(args: Sequence[str], *, timeout=30, safe_repository: Path | None = None):
+        env = os.environ.copy()
+        if safe_repository is not None:
+            # Git trusts safe.directory only from protected config. Supply a
+            # private, command-local global config for the one root-owned
+            # repository explicitly pinned by this adapter. Never change the
+            # user's or host's persistent Git configuration.
+            try:
+                trusted = safe_repository.resolve(strict=True)
+                with tempfile.TemporaryDirectory(prefix="rv-git-safe-") as temporary:
+                    config = Path(temporary) / "config"
+                    encoded = json.dumps(str(trusted))
+                    gitdir = json.dumps(str(trusted / ".git"))
+                    config.write_text(
+                        f"[safe]\n\tdirectory = {encoded}\n\tdirectory = {gitdir}\n",
+                        encoding="utf-8")
+                    config.chmod(0o600)
+                    env["GIT_CONFIG_GLOBAL"] = str(config)
+                    result = subprocess.run(["/usr/bin/git", *args],
+                        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                        stderr=subprocess.DEVNULL, timeout=timeout,
+                        check=False, close_fds=True, env=env)
+            except (OSError, subprocess.TimeoutExpired, RuntimeError, ValueError):
+                raise CodexAdapterError("repository_operation_failed") from None
+        else:
+            try:
+                result = subprocess.run(["/usr/bin/git", *args], stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=timeout,
+                    check=False, close_fds=True, env=env)
+            except (OSError, subprocess.TimeoutExpired):
+                raise CodexAdapterError("repository_operation_failed") from None
         if result.returncode:
             raise CodexAdapterError("repository_operation_failed")
         return result.stdout.decode("utf-8", "strict").strip()
+
+    def repository_revision(self) -> str:
+        """Return the immutable HEAD used for execution, separately from knowledge provenance."""
+        _, source = self._preflight()
+        return self._git(["-C", str(source), "rev-parse", "--verify", "HEAD"],
+                         safe_repository=source)
+
+    @classmethod
+    def _workspace_changed_paths(cls, repository: Path, base_revision: str) -> set[str]:
+        """Return every committed, staged, unstaged, and untracked path change."""
+        outputs = (
+            cls._git(["-C", str(repository), "diff", "--name-only",
+                      f"{base_revision}..HEAD", "--"], safe_repository=repository),
+            cls._git(["-C", str(repository), "diff", "--cached", "--name-only", "--"],
+                     safe_repository=repository),
+            cls._git(["-C", str(repository), "diff", "--name-only", "--"],
+                     safe_repository=repository),
+            cls._git(["-C", str(repository), "ls-files", "--others",
+                      "--exclude-standard"], safe_repository=repository),
+        )
+        return {line for output in outputs for line in output.splitlines() if line}
+
+    def legacy_git_ownership_refused(self) -> bool:
+        """Prove the predecessor adapter's unconfigured Git call fails before CLI launch."""
+        try:
+            _, source = self._preflight()
+            env = {key: value for key, value in os.environ.items()
+                   if not key.startswith("GIT_CONFIG_")}
+            result = subprocess.run(["/usr/bin/git", "-C", str(source),
+                "rev-parse", "--verify", "HEAD"], stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=5,
+                check=False, close_fds=True, env=env)
+            return (result.returncode != 0 and
+                    b"detected dubious ownership" in result.stderr)
+        except (OSError, subprocess.SubprocessError, CodexAdapterError):
+            return False
 
     @staticmethod
     def _schema_path(path: Path):
@@ -244,7 +348,8 @@ class CodexCLIExecutionAdapter:
             return self._result(assignment, "WAITING_FOR_RESOURCE", "repository_not_registered")
         try:
             binary, source = self._preflight()
-            source_revision = self._git(["-C", str(source), "rev-parse", "--verify", "HEAD"])
+            source_revision = self._git(["-C", str(source), "rev-parse", "--verify", "HEAD"],
+                                        safe_repository=source)
             if source_revision != assignment.repository_revision:
                 return self._result(assignment, "WAITING_FOR_EVIDENCE", "repository_revision_mismatch")
         except CodexAdapterError as exc:
@@ -261,25 +366,31 @@ class CodexCLIExecutionAdapter:
                 run_root = Path(temporary)
                 repository = run_root / "repo"
                 self._git(["clone", "--quiet", "--no-hardlinks", "--no-checkout",
-                           "--", str(source), str(repository)])
+                           "--", str(source), str(repository)], safe_repository=source)
                 self._git(["-C", str(repository), "checkout", "--quiet", "--detach",
                            assignment.repository_revision])
                 schema_path = run_root / "output.schema.json"
                 summary_path = run_root / "codex-result.json"
                 self._schema_path(schema_path)
                 prompt = self._prompt(assignment)
-                env = {"PATH": "/usr/local/bin:/usr/bin:/bin",
+                path_parts = ["/usr/local/bin", "/usr/bin", "/bin"]
+                if self.require_code_mode_host:
+                    path_parts.insert(0, str(binary.parent))
+                env = {"PATH": ":".join(path_parts),
                        "HOME": str(self.codex_home.parent if (self.supervised_chatgpt_session or
                                    self.persistent_chatgpt_owner_session)
                                    else self.codex_home),
                        "CODEX_HOME": str(self.codex_home),
                        "TMPDIR": str(run_root)}
                 argv = [str(binary), "exec", "--sandbox", "workspace-write",
-                        "--ephemeral", "--ignore-user-config",
+                        "--ephemeral", "--ignore-user-config"]
+                if self.require_code_mode_host:
+                    argv.extend(["--enable", "code_mode", "--enable", "code_mode_host"])
+                argv.extend([
                         "-c", 'approval_policy="never"',
                         "-c", "sandbox_workspace_write.network_access=false",
                         "-C", str(repository), "--output-schema", str(schema_path),
-                        "--output-last-message", str(summary_path), "-"]
+                        "--output-last-message", str(summary_path), "-"])
                 process = subprocess.Popen(argv, cwd=repository, env=env,
                     stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL, close_fds=True, start_new_session=True)
@@ -288,40 +399,51 @@ class CodexCLIExecutionAdapter:
                 except subprocess.TimeoutExpired:
                     os.killpg(process.pid, signal.SIGKILL)
                     process.communicate()
-                    return self._result(assignment, "UNAVAILABLE", "codex_timeout")
+                    return self._result(assignment, "UNAVAILABLE", "codex_timeout",
+                                        execution_started=True)
                 if process.returncode != 0:
-                    return self._result(assignment, "UNAVAILABLE", "codex_process_failed")
+                    return self._result(assignment, "UNAVAILABLE", "codex_process_failed",
+                                        execution_started=True)
                 try:
                     response = json.loads(summary_path.read_text(encoding="utf-8"))
                 except (OSError, UnicodeError, json.JSONDecodeError):
-                    return self._result(assignment, "INVALID_RESULT", "codex_result_missing")
+                    return self._result(assignment, "INVALID_RESULT", "codex_result_missing",
+                                        execution_started=True)
                 if (not isinstance(response, dict) or
                         response.get("status") != "DELIVERABLE_PRODUCED" or
                         response.get("artifact_name") != self.OUTPUT_NAME or
                         not isinstance(response.get("summary"), str) or
                         not response["summary"].strip() or len(response["summary"]) > 500):
-                    return self._result(assignment, "INVALID_RESULT", "codex_result_invalid")
-                status = self._git(["-C", str(repository), "status", "--porcelain",
-                                    "--untracked-files=all"])
-                if status != "?? deliverable.md":
-                    return self._result(assignment, "INVALID_RESULT", "workspace_change_set_invalid")
+                    return self._result(assignment, "INVALID_RESULT", "codex_result_invalid",
+                                        execution_started=True)
+                changed_paths = self._workspace_changed_paths(
+                    repository, assignment.repository_revision)
+                if changed_paths != {self.OUTPUT_NAME}:
+                    return self._result(assignment, "INVALID_RESULT", "workspace_change_set_invalid",
+                                        execution_started=True)
                 source_artifact = repository / self.OUTPUT_NAME
                 info = source_artifact.lstat()
                 if (not stat.S_ISREG(info.st_mode) or source_artifact.is_symlink() or
                         not 0 < info.st_size <= MAX_DELIVERABLE_BYTES):
-                    return self._result(assignment, "INVALID_RESULT", "deliverable_metadata_invalid")
+                    return self._result(assignment, "INVALID_RESULT", "deliverable_metadata_invalid",
+                                        execution_started=True)
                 raw = source_artifact.read_bytes()
                 if len(raw) != info.st_size:
-                    return self._result(assignment, "INVALID_RESULT", "deliverable_changed_during_read")
+                    return self._result(assignment, "INVALID_RESULT", "deliverable_changed_during_read",
+                                        execution_started=True)
                 self._write_artifact(artifact_path, raw)
                 return CodexArtifactResult("DELIVERABLE_PRODUCED", CAPABILITY,
                     assignment.assignment_id, assignment.objective_id,
                     artifact_path.name, hashlib.sha256(raw).hexdigest(), len(raw),
-                    assignment.repository_revision, "independent_verification_required")
+                    assignment.repository_revision, "independent_verification_required",
+                    execution_started=True, source_artifact_name=self.OUTPUT_NAME,
+                    changed_files=tuple(sorted(changed_paths)))
         except CodexAdapterError as exc:
-            return self._result(assignment, "UNAVAILABLE", exc.code)
+            return self._result(assignment, "UNAVAILABLE", exc.code,
+                                execution_started=locals().get("process") is not None)
         except (OSError, subprocess.SubprocessError, UnicodeError, ValueError):
-            return self._result(assignment, "UNAVAILABLE", "codex_adapter_failed")
+            return self._result(assignment, "UNAVAILABLE", "codex_adapter_failed",
+                                execution_started=locals().get("process") is not None)
 
     @staticmethod
     def _prompt(assignment: CodexAssignment):
@@ -349,7 +471,7 @@ class CodexCLIExecutionAdapter:
             raise
 
     @staticmethod
-    def _result(assignment, status, code):
+    def _result(assignment, status, code, *, execution_started=False):
         return CodexArtifactResult(status, CAPABILITY, assignment.assignment_id,
             assignment.objective_id, None, None, None,
-            assignment.repository_revision, code)
+            assignment.repository_revision, code, execution_started=execution_started)

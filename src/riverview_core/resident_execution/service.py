@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.7
+# Revision: 1.0.12
 # Purpose: Reconcile durable Grace work orders through existing CME worker contracts
 # Execution Model: Persistent scheduled poll over PostgreSQL objective state
 # Observability: Objective events, worker attempts, verification records, dashboard projection
@@ -16,6 +16,11 @@
 # Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Add a targeted operator-supervised objective execution cycle
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Select registered execution capability for worker and verification queries
 # Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Retry durable verified-result returns to the originating Grace conversation
+# Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Dispatch only dependency-ready verified steps through existing worker leases
+# Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Persist cycle-specific result receipts and resume only idempotent same-objective continuations
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Re-evaluate preserved rejected results only when the verifier implementation revision changes
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Resume append-only verifier decisions after a correction, including interrupted completion transition
+# Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-REASONING-BUDGET-001 | Raise bounded resident proposal default to fit typed dependency plans and source scopes
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -49,7 +54,7 @@ class GraceExecutionService:
     def __init__(self, pipeline, adapter, worker, *, dispatch_credential,
                  authority_ref, verifier_id, verifier_credential, artifact_root,
                  max_dispatch_failures=3, verifier=None, resident_reasoner=None,
-                 resident_token_budget=256, execution_capability=CAPABILITY,
+                 resident_token_budget=768, execution_capability=CAPABILITY,
                  conversation_result_publisher=None):
         if not 1 <= max_dispatch_failures <= 10:
             raise ValueError("dispatch failure limit must be between 1 and 10")
@@ -99,6 +104,55 @@ class GraceExecutionService:
                 "failure_type": type(exc).__name__}, sort_keys=True))
         return False
 
+    def revalidate_rejected_one(self, assignment_id=None):
+        """Append a new verifier decision after a verifier revision correction.
+
+        The original rejection and result remain immutable. Only the same
+        successful attempt may be reconsidered, and verify_attempt rechecks the
+        current exact verifier grant plus the previous decision and revision.
+        """
+        verifier_revision = getattr(self.verifier, "REVISION", None)
+        if not isinstance(verifier_revision, str) or not verifier_revision:
+            return False
+        with self.adapter.ledger.db.cursor() as cur:
+            self.adapter.ledger._set_search_path(cur)
+            cur.execute("""SELECT a.id AS assignment_id,wa.attempt_id,
+                    latest.verifier_revision
+                FROM assignments a
+                JOIN worker_attempts wa ON wa.assignment_id=a.id
+                JOIN LATERAL (
+                    SELECT decision,verifier_id,verifier_revision
+                    FROM verification_records vr WHERE vr.attempt_id=wa.attempt_id
+                    ORDER BY recorded_at DESC,verification_id DESC LIMIT 1
+                ) latest ON true
+                WHERE a.state='rework_required' AND wa.status='succeeded'
+                  AND wa.capability=%s AND latest.verifier_id=%s
+                  AND (
+                    (latest.decision='REJECTED' AND latest.verifier_revision<>%s)
+                    OR (latest.decision='ACCEPTED' AND latest.verifier_revision=%s
+                        AND EXISTS (SELECT 1 FROM verification_records previous
+                            WHERE previous.attempt_id=wa.attempt_id
+                              AND previous.verifier_id=%s AND previous.decision='REJECTED'
+                              AND previous.verifier_revision<>latest.verifier_revision))
+                  )
+                  AND (%s::text IS NULL OR a.id=%s)
+                ORDER BY a.updated_at,wa.started_at,wa.attempt_id LIMIT 10""",
+                (self.execution_capability, self.verifier_id, verifier_revision,
+                 verifier_revision, self.verifier_id, assignment_id, assignment_id))
+            candidates = cur.fetchall()
+        for candidate in candidates:
+            key = (f"grace-verifier-revalidation:{candidate['attempt_id']}:{verifier_revision}")
+            try:
+                self.adapter.verify_attempt(candidate["assignment_id"], candidate["attempt_id"],
+                    self.verifier_id, self.verifier_credential, self.verifier,
+                    idempotency_key=key)
+                return True
+            except Exception as exc:
+                LOG.warning(json.dumps({"event": "grace_verifier_revalidation_failed",
+                    "assignment_id": candidate["assignment_id"],
+                    "failure_type": type(exc).__name__}, sort_keys=True))
+        return False
+
     def _heartbeat(self, status, error_type=None):
         """Update the durable external health projection; never logs request content."""
         try:
@@ -124,7 +178,7 @@ class GraceExecutionService:
         with self.pipeline.ledger.db.cursor() as cur:
             self.pipeline.ledger._set_search_path(cur)
             cur.execute("""SELECT objective_id,scope_ref FROM grace_objectives
-                WHERE status='PROPOSED' AND scope_ref=%s
+                WHERE status IN ('PROPOSED','WORK_ORDER_CREATED') AND scope_ref=%s
                   AND (%s::text IS NULL OR objective_id=%s)
                 ORDER BY created_at,objective_id LIMIT %s""",
                 (self.authority_ref, objective_id, objective_id, limit))
@@ -156,16 +210,24 @@ class GraceExecutionService:
         for row in self._proposed(limit=1 if objective_id else 25,
                                   objective_id=objective_id):
             objective_id = row["objective_id"]
+            step = self.pipeline.dispatchable_step(objective_id)
+            if not step:
+                continue
             failures = self._dispatch_failure_count(objective_id)
             if failures >= self.max_dispatch_failures:
                 continue
-            assignment_id = "assignment:grace:" + hashlib.sha256(
-                objective_id.encode("utf-8")).hexdigest()[:40]
+            base = hashlib.sha256(objective_id.encode("utf-8")).hexdigest()[:40]
+            assignment_id = "assignment:grace:" + base
+            idempotency_key = f"grace-assignment:{objective_id}"
+            if step["step_order"] > 1:
+                suffix = hashlib.sha256(step["step_id"].encode("utf-8")).hexdigest()[:16]
+                assignment_id += ":step:" + suffix
+                idempotency_key += ":step:" + step["step_id"]
             try:
                 self.pipeline.authorize_and_dispatch(
                     objective_id, assignment_id, credential=self.dispatch_credential,
                     authority_ref=self.authority_ref,
-                    idempotency_key=f"grace-assignment:{objective_id}")
+                    idempotency_key=idempotency_key, step_id=step["step_id"])
                 dispatched += 1
             except Exception as exc:
                 self._record_dispatch_failure(objective_id, type(exc).__name__, failures + 1)
@@ -203,6 +265,8 @@ class GraceExecutionService:
                 LOG.warning(json.dumps({"event": "grace_verification_failed",
                     "assignment_id": candidate["assignment_id"], "attempt_id": attempt_id,
                     "failure_type": type(exc).__name__, "retry": failure_count + 1}, sort_keys=True))
+        if self.revalidate_rejected_one(assignment_id=assignment_id):
+            return True
         return False
 
     def _verification_failure_count(self, objective_id, attempt_id):
@@ -264,7 +328,8 @@ class GraceExecutionService:
                         or receipt.get("status") not in {"published", "already_published"}):
                     continue
                 durable_receipt = {key: receipt.get(key) for key in
-                    ("request_id", "provider_id", "served_model", "implementation_id")}
+                    ("request_id", "provider_id", "served_model", "implementation_id",
+                     "completion_cycle")}
                 self.pipeline.record_conversation_result_published(
                     context["objective_id"], durable_receipt)
                 published += 1

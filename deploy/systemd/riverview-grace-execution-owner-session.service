@@ -1,8 +1,11 @@
 # Riverview~ controlled unit
-# File Revision: 1.0.1
+# File Revision: 1.0.3
 # Task: RV-GRACE-OWNER-SESSION-EXECUTION-001
 # Purpose: Persistent bounded Grace Engineering worker using admin1's existing ChatGPT Codex login in place
 # Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Point resident credential at existing protected canonical file
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-OWNER-STATE-001 | Isolate writable Codex runtime state and read-only bind only the existing ChatGPT auth file
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-SYSTEMD-NETLINK-001 | Permit only AF_NETLINK in addition to the existing families for bubblewrap's isolated loopback setup
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-MDWE-001 | Allow the pinned Code Mode host's required executable-memory runtime while retaining bubblewrap workspace-write isolation and disabled network
 [Unit]
 Description=Riverview Grace persistent Engineering execution (ChatGPT owner session)
 After=network.target postgresql.service riverview-event-processor.service
@@ -13,7 +16,7 @@ Type=simple
 User=admin1
 Group=admin1
 WorkingDirectory=/opt/riverview-grace-execution/current
-Environment=HOME=/home/admin1
+Environment=HOME=/var/lib/riverview-grace-owner-session
 Environment=PYTHONPATH=/opt/riverview-grace-execution/current/src:/opt/riverview-grace-execution/current/scripts
 Environment="RIVERVIEW_PG_DSN=host=127.0.0.1 port=5432 dbname=riverview user=riverview_core application_name=riverview-grace-execution"
 Environment=RIVERVIEW_PG_SCHEMA=riverview_dev
@@ -21,6 +24,7 @@ Environment=RIVERVIEW_AUTHORITY_SCHEMA=riverview_authority
 Environment=RIVERVIEW_KNOWLEDGE_ROOT=/opt/riverview-grace-execution/current
 Environment=RIVERVIEW_ARTIFACT_DIR=/var/lib/riverview-grace-owner-session/artifacts
 Environment=RIVERVIEW_CODEX_STATE_DIR=/var/lib/riverview-grace-owner-session
+Environment=RIVERVIEW_CODEX_HOME=/var/lib/riverview-grace-owner-session/codex-home
 Environment=RIVERVIEW_CODEX_AUTH_MODE=chatgpt-owner-session
 Environment=RIVERVIEW_ENGINEERING_ADAPTER=codex-cli
 Environment=RIVERVIEW_CODEX_EXECUTABLE=/opt/riverview-codex/bin/codex
@@ -48,7 +52,7 @@ UMask=0077
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=tmpfs
-BindReadOnlyPaths=/home/admin1/.codex
+BindReadOnlyPaths=/home/admin1/.codex/auth.json:/var/lib/riverview-grace-owner-session/codex-home/auth.json
 PrivateTmp=yes
 PrivateDevices=yes
 ProtectKernelTunables=yes
@@ -56,8 +60,8 @@ ProtectKernelModules=yes
 ProtectControlGroups=yes
 RestrictSUIDSGID=yes
 LockPersonality=yes
-MemoryDenyWriteExecute=yes
-RestrictAddressFamilies=AF_INET AF_UNIX
+MemoryDenyWriteExecute=no
+RestrictAddressFamilies=AF_INET AF_UNIX AF_NETLINK
 CapabilityBoundingSet=
 
 [Install]

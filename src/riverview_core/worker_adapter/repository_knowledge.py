@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/repository_knowledge.py
 # Component: REPOSITORY-KNOWLEDGE-PROVIDER
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Provide bounded, commit-pinned retrieval of approved worker contracts
 # Execution Model: Synchronous in-process read-only provider
 # Observability: KnowledgeResult status, source refs, pinned commit and SHA-256
@@ -13,6 +13,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.4-RESIDENT-KNOWLEDGE-INDEX | Add a separate commit-pinned resident knowledge corpus
 # Changed: 2026-10-11 UTC | RV-M4.4-BOUNDED-ARTIFACT-WORKER | Bind the bounded artifact action to the verified worker contract
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Bind the registered Codex artifact action to worker contract v1
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Ground and preflight the registered Codex source-change capability through the existing worker contract
 # Contracts: docs/components/WORKER_ADAPTER.md; knowledge-provider v1 contract
 # Tests: tests/test_repository_knowledge.py; tests/test_worker_adapter.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -63,6 +64,7 @@ class RepositoryKnowledgeProvider:
         "engineering.repository-check.v1": WORKER_CONTRACT,
         "engineering.bounded-artifact.v1": WORKER_CONTRACT,
         "engineering.codex-cli-artifact.v1": WORKER_CONTRACT,
+        "engineering.codex-cli-source-change.v1": WORKER_CONTRACT,
         "resident.reasoning.v1": RESIDENT_CONTRACT,
     }
     MAX_SOURCE_BYTES = 256 * 1024

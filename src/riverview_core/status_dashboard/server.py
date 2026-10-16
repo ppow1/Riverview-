@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.15
+# Revision: 1.3.16
 # Purpose: Serve account-authenticated operational projections and existing bounded APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -22,6 +22,7 @@
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password sessions, approval grants and Steward email configuration routes
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Bind authenticated Steward sessions to existing exact office grants
 # Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING | Add explicit conversation-to-objective intake gate
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Preserve separately authorized per-step source paths and test targets in typed dashboard proposals
 # Changed: 2026-10-13 UTC | RV-LEDGER-GRAPH-POSITION | Read live execution position only from persisted canonical ledger identity
 # Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Reuse immutable same-origin objective criteria on authorized retries
 # Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Return a distinct safe code for conflicting objective origins
@@ -1057,11 +1058,17 @@ def make_handler():
                                 raise ValueError("invalid proposal shape")
                             steps = []
                             for step in data["steps"]:
-                                if not isinstance(step, dict) or set(step) != {
-                                        "step_id", "objective", "acceptance_criteria", "depends_on"}:
+                                required = {"step_id", "objective", "acceptance_criteria", "depends_on"}
+                                allowed = required | {"execution_capability", "authorized_paths", "test_targets"}
+                                if (not isinstance(step, dict) or not required <= set(step) or
+                                        not set(step) <= allowed):
                                     raise ValueError("invalid proposal step")
                                 steps.append(PlanStep(step["step_id"], step["objective"],
-                                    tuple(step["acceptance_criteria"]), tuple(step["depends_on"])))
+                                    tuple(step["acceptance_criteria"]), tuple(step["depends_on"]),
+                                    step.get("execution_capability",
+                                        "engineering.codex-cli-artifact.v1"),
+                                    tuple(step.get("authorized_paths", ())),
+                                    tuple(step.get("test_targets", ()))))
                             proposal = PlanProposal(data["summary"], tuple(steps), data["tokens_used"])
                             objective = pipeline.get_objective(objective_id)
                             if objective is None:

@@ -1,6 +1,6 @@
 # Riverview~ worker adapter flow
 
-**Document Revision:** 1.0.8
+**Document Revision:** 1.0.11
 **Component:** WORKER-ADAPTER
 **Canonical workflow:** `process_graphs/worker-adapter/deterministic-attempt.json`
 **Generated from:** canonical workflow JSON; do not edit the Mermaid projection by hand.
@@ -27,7 +27,7 @@ flowchart LR
     g_rv_worker_adapter_deterministic_attempt_preflight_gate_ce23b57c{"Is the requested action preflight VERIFIED?"}
     g_rv_worker_adapter_deterministic_attempt_reground_5d56433b["Refresh assignment context before action or on a recovery trigger"]
     g_rv_worker_adapter_deterministic_attempt_reground_gate_f5063204{"Is the current assignment context VERIFIED?"}
-    g_rv_worker_adapter_deterministic_attempt_evidence_wait_e57f58d4[["Persist non-verified status and wait for evidence for this assignment only"]]
+    g_rv_worker_adapter_deterministic_attempt_evidence_wait_e57f58d4[["Persist non-VERIFIED status and wait for fresh evidence for this assignment; only a same-scope Codex assignment with revalidated VERIFIED grounding and no unresolved effect may enter the bounded resume path"]]
     g_rv_worker_adapter_deterministic_attempt_action_cef7346f["Invoke the assigned, preflighted execution capability"]
     g_rv_worker_adapter_deterministic_attempt_action_failure_d12eae6a[["Record assignment-local failure and reground without stopping other polls"]]
     g_rv_worker_adapter_deterministic_attempt_learning_83260d87["Persist learning outcome and provenance without automatic promotion"]
@@ -45,6 +45,13 @@ flowchart LR
     g_rv_worker_adapter_deterministic_attempt_local_inference_call_8fb3f636["Run registered local inference capability on grounded input"]
     g_rv_worker_adapter_deterministic_attempt_local_inference_failure_d21fb2df[["Reject unavailable, oversized, malformed, or truncated inference output"]]
     g_rv_worker_adapter_deterministic_attempt_structured_artifact_6b88f0e1["Persist bounded JSON output and canonical digest under current lease"]
+    g_rv_worker_adapter_deterministic_attempt_verified_grounding_resume_5364b9b9["Re-ground and re-preflight the same blocked Codex assignment; return it to ready only when the original work order remains verified, lease is absent or expired, retry budget remains, prior typed intents are retry-safe, and no attempt, result, verification, or artifact exists; the normal claim rechecks the exact assignment.execute grant"]
+    g_rv_worker_adapter_deterministic_attempt_scope_auth_8d1da7f4["Authenticate worker identity, capability, and current exact grant before its recovery scan"]
+    g_rv_worker_adapter_deterministic_attempt_scope_denied_6fc25a95[["Reject recovery before side effects when worker authorization or scope validation fails"]]
+    g_rv_worker_adapter_deterministic_attempt_lease_heartbeat_f694af09["Maintain the exact worker lease during bounded long-running execution"]
+    g_rv_worker_adapter_deterministic_attempt_late_artifact_257af9c7["Inspect an assignment-bound late Codex artifact after an outcome-unknown recovery"]
+    g_rv_worker_adapter_deterministic_attempt_late_artifact_check_55e911c7{"Require the unchanged objective, original intent, expired lease, current exact grant, private artifact, and no prior attempt or verifier"}
+    g_rv_worker_adapter_deterministic_attempt_late_artifact_rejected_79d51714[["Keep outcome unknown when late artifact identity, provenance, ownership, or scope cannot be proven"]]
   end
   g_rv_assignment_scheduler_independent_claims_start_check_f588e935["Registered target<br/>rv:assignment-scheduler:independent-claims"]
   g_rv_outcome_verifier_independent_result_verification_intake_faa4dd99["Registered target<br/>rv:outcome-verifier:independent-result"]
@@ -98,6 +105,20 @@ flowchart LR
   g_rv_worker_adapter_deterministic_attempt_local_inference_failure_d21fb2df -->|recovery_route: fail this assignment; retry-safe recovery only| g_rv_worker_adapter_deterministic_attempt_action_failure_d12eae6a
   g_rv_worker_adapter_deterministic_attempt_local_endpoint_check_ae8f9d87 -->|complete bounded response| g_rv_worker_adapter_deterministic_attempt_structured_artifact_6b88f0e1
   g_rv_worker_adapter_deterministic_attempt_structured_artifact_6b88f0e1 -->|exact grant and current lease rechecked| g_rv_worker_adapter_deterministic_attempt_complete_check_6605f820
+  g_rv_worker_adapter_deterministic_attempt_evidence_wait_e57f58d4 -->|recovery_route: A later fresh VERIFIED grounding result permits only the same assignment to be checked against its original objective, lease, effect, artifact, and exact-scope invariants| g_rv_worker_adapter_deterministic_attempt_verified_grounding_resume_5364b9b9
+  g_rv_worker_adapter_deterministic_attempt_verified_grounding_resume_5364b9b9 -->|Atomic evidence recovery returns the existing assignment to ready; the normal authenticated claim rechecks assignment.execute before leasing| g_rv_worker_adapter_deterministic_attempt_claim_ad2357b6
+  g_rv_worker_adapter_deterministic_attempt_verified_grounding_resume_5364b9b9 -->|diagnostic_branch: Fresh grounding remains non-VERIFIED or any lease, objective, intent, attempt, verifier, artifact, or scope invariant fails; preserve blocked state| g_rv_worker_adapter_deterministic_attempt_evidence_wait_e57f58d4
+  g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4 -->|verification: Authenticate configured worker before scanning leases| g_rv_worker_adapter_deterministic_attempt_scope_auth_8d1da7f4
+  g_rv_worker_adapter_deterministic_attempt_scope_auth_8d1da7f4 -->|diagnostic_branch: Credential, capability, or grant rejected| g_rv_worker_adapter_deterministic_attempt_scope_denied_6fc25a95
+  g_rv_worker_adapter_deterministic_attempt_scope_auth_8d1da7f4 -->|recovery_route: Only this authenticated worker and authority scope| g_rv_worker_adapter_deterministic_attempt_recovery_scan_12e05359
+  g_rv_worker_adapter_deterministic_attempt_recovery_scan_12e05359 -->|diagnostic_branch: Outcome unknown with a persisted Codex intent| g_rv_worker_adapter_deterministic_attempt_late_artifact_257af9c7
+  g_rv_worker_adapter_deterministic_attempt_late_artifact_257af9c7 --> g_rv_worker_adapter_deterministic_attempt_late_artifact_check_55e911c7
+  g_rv_worker_adapter_deterministic_attempt_late_artifact_check_55e911c7 -->|recovery_route: Artifact is proven and moves only to independent verification| g_rv_worker_adapter_deterministic_attempt_recovery_preserve_f9e86f59
+  g_rv_worker_adapter_deterministic_attempt_late_artifact_check_55e911c7 -->|diagnostic_branch: Any assignment, artifact, or authorization invariant fails| g_rv_worker_adapter_deterministic_attempt_late_artifact_rejected_79d51714
+  g_rv_worker_adapter_deterministic_attempt_late_artifact_rejected_79d51714 -->|recovery_route: Retain awaiting_steward; never replay uncertain work| g_rv_worker_adapter_deterministic_attempt_recovery_unknown_673fc7f3
+  g_rv_worker_adapter_deterministic_attempt_recovery_intent_d549a47e -->|Lease maintained across action execution| g_rv_worker_adapter_deterministic_attempt_lease_heartbeat_f694af09
+  g_rv_worker_adapter_deterministic_attempt_lease_heartbeat_f694af09 -->|Action remains within the active generation| g_rv_worker_adapter_deterministic_attempt_action_cef7346f
+  g_rv_worker_adapter_deterministic_attempt_lease_heartbeat_f694af09 -->|diagnostic_branch: Lease heartbeat is fenced| g_rv_worker_adapter_deterministic_attempt_action_failure_d12eae6a
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

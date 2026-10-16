@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/continuous.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.10
+# Revision: 1.1.5
 # Purpose: Execute bounded capability work with pinned source-digest provenance
 # Execution Model: Repeatable poll cycle; durable claims and outcomes in PostgreSQL
 # Observability: Assignment state, knowledge observations, attempts, and results
@@ -13,6 +13,12 @@
 # Changed: 2026-10-11 UTC | RV-M33-GROUNDED-PROVENANCE-BOUND | Persist source digest and references instead of duplicating full grounded documents in the attempt input
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Support configured bounded lease-recovery retry limit
 # Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Add a single-assignment claim without reconciling unrelated leases
+# Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Keep proven pre-execution failures out of the unknown external-effect state
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Persist sanitized retryable Codex failures as blocked no-artifact outcomes
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001 | Reground and safely requeue the same Codex assignment after a recoverable evidence wait
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-REVIEW | Revalidate both evidence and action preflight before same-assignment recovery
+# Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Authenticate recovery scope and heartbeat leases throughout bounded actions
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Permit bounded source-change retries only through the verified deterministic patch artifact boundary
 # Contracts: docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -23,6 +29,7 @@ import json
 import logging
 import threading
 import time
+from contextlib import contextmanager
 from collections.abc import Mapping
 
 from .adapter import PostgresWorkerAdapter, WorkerAdapterError
@@ -64,6 +71,36 @@ class ContinuousWorker:
             raise ValueError("recovery_max_retries must be None or an integer from 0 to 100")
         self.recovery_max_retries = recovery_max_retries
         self._knowledge_slots = threading.BoundedSemaphore(4)
+        action_timeout = getattr(action, "timeout_seconds", 0)
+        self.action_lease_seconds = max(
+            lease_seconds,
+            int(action_timeout) + 30 if isinstance(action_timeout, (int, float)) else lease_seconds)
+
+    @contextmanager
+    def _lease_heartbeat(self, assignment_id, generation):
+        """Keep a long bounded action leased while another worker polls recovery."""
+        stopped = threading.Event()
+        failures = []
+        interval = max(0.25, min(5.0, self.action_lease_seconds / 3))
+
+        def maintain():
+            while not stopped.wait(interval):
+                try:
+                    self.adapter.scheduler.heartbeat(
+                        assignment_id, self.worker_id, generation,
+                        lease_seconds=self.action_lease_seconds)
+                except Exception as exc:
+                    failures.append(type(exc).__name__)
+                    stopped.set()
+
+        thread = threading.Thread(target=maintain, name="assignment-lease-heartbeat",
+                                  daemon=True)
+        thread.start()
+        try:
+            yield failures
+        finally:
+            stopped.set()
+            thread.join(timeout=2)
 
     @staticmethod
     def _default_action(assignment, grounded):
@@ -114,18 +151,59 @@ class ContinuousWorker:
         return {"status": "WAITING_FOR_EVIDENCE", "assignment_id": assignment["id"],
                 "operation": operation, "knowledge_status": result.status.value}
 
+    def _resume_verified_waiting_assignment(self, recovery):
+        """Requeue at most one same-scope Codex assignment after current evidence verifies."""
+        if (self.action_capability != PostgresWorkerAdapter.CODEX_CLI_CAPABILITY or
+                not callable(getattr(self.knowledge, "ground_assignment", None))):
+            return False
+        artifact_root = getattr(getattr(self.action, "adapter", None), "artifact_root", None)
+        if artifact_root is None:
+            return False
+        candidates = self.adapter.waiting_for_evidence(
+            self.worker_id, self.credential,
+            capability=self.action_capability, limit=1)
+        if not candidates:
+            return False
+        assignment = candidates[0]
+        grounded = self._provider_call("ground_assignment", assignment)
+        if (grounded.status is not KnowledgeStatus.VERIFIED or
+                grounded.retrieval_complete is not True):
+            return False
+        preflight = self._provider_call("preflight_action", assignment,
+                                        self.action_capability)
+        if (preflight.status is not KnowledgeStatus.VERIFIED or
+                preflight.retrieval_complete is not True):
+            return False
+        return recovery.resume_verified_waiting_for_evidence(
+            assignment["id"], grounded, preflight, worker_id=self.worker_id,
+            worker_scope=assignment["authority_ref"], artifact_root=artifact_root)
+
     def run_once(self, *, assignment_id=None):
         """Recover normally, or claim one explicitly selected assignment only."""
         if assignment_id is None:
+            scope_ref = self.adapter.authenticated_scope(
+                self.worker_id, self.credential, self.action_capability)
             recovery = PostgresRecoveryCoordinator(self.adapter.dsn, schema=self.adapter.schema,
                                                    max_retries=self.recovery_max_retries)
             try:
-                recovery.reconcile_expired()
+                recovery.reconcile_expired(scope_ref=scope_ref, worker_id=self.worker_id)
+                late_artifact_reconcile = getattr(
+                    self.action, "reconcile_late_artifacts", None)
+                if callable(late_artifact_reconcile):
+                    late_artifact_reconcile(
+                        recovery, worker_adapter=self.adapter, worker_id=self.worker_id,
+                        credential=self.credential, capability=self.action_capability,
+                        scope_ref=scope_ref)
+                reconcile_action = getattr(self.action, "reconcile_retryable_no_artifact_failures", None)
+                if callable(reconcile_action):
+                    reconcile_action(recovery, scope_ref=scope_ref,
+                                     worker_id=self.worker_id)
+                self._resume_verified_waiting_assignment(recovery)
             finally:
                 recovery.close()
         claim = self.adapter.claim_next(self.worker_id, self.credential,
                                         capability=self.action_capability,
-                                        lease_seconds=self.lease_seconds,
+                                        lease_seconds=self.action_lease_seconds,
                                         assignment_id=assignment_id)
         if claim is None:
             return {"status": "IDLE"}
@@ -168,7 +246,10 @@ class ContinuousWorker:
             effect_class=self.action_effect_class,
             capability=self.action_capability)
         try:
-            data = self.action(assignment, regrounded)
+            with self._lease_heartbeat(assignment["id"], lease["generation"]) as heartbeat_failures:
+                data = self.action(assignment, regrounded)
+                if heartbeat_failures:
+                    raise WorkerAdapterError("assignment lease heartbeat was lost during action")
             attempt_key = f"continuous:{assignment['id']}:{lease['generation']}"
             if isinstance(data, str) and self.action_capability == self.ACTION:
                 outcome = self.adapter.execute_sha256(
@@ -199,11 +280,41 @@ class ContinuousWorker:
                 self.worker_id, lease["generation"])
         except Exception as exc:
             # Assignment-local action failure is durable and does not escape the poll loop.
-            intent_outcome = ("outcome_unknown" if
+            # A Codex adapter failure explicitly marked before process launch has
+            # no external effect. Keep it blocked and diagnosable rather than
+            # misreporting an unknown outcome that requires Steward adjudication.
+            pre_execution_failure = (
+                self.action_effect_class == "external_uncertain" and
+                getattr(exc, "execution_started", None) is False)
+            retryable_without_artifact = (
+                self.action_effect_class in {"external_uncertain", "retry_safe"} and
+                self.action_capability in {"engineering.codex-cli-artifact.v1",
+                                           "engineering.codex-cli-source-change.v1"} and
+                type(exc).__name__ == "CodexActionFailure" and
+                getattr(exc, "retryable_without_durable_artifact", None) is True)
+            intent_outcome = ("failed" if (pre_execution_failure or retryable_without_artifact) else
+                              "outcome_unknown" if
                               self.action_effect_class == "external_uncertain" else "failed")
+            safe_code = getattr(exc, "code", None)
+            failure_marker = type(exc).__name__
+            if (retryable_without_artifact and isinstance(safe_code, str) and
+                    len(safe_code) <= 64 and safe_code.isascii() and
+                    all(char.islower() or char.isdigit() or char == "_" for char in safe_code)):
+                failure_marker += ":" + safe_code
             self.adapter.mark_execution_intent(intent_id, intent_outcome,
-                                               failure_class=type(exc).__name__)
+                                               failure_class=failure_marker)
             failure = {"failure_type": type(exc).__name__}
+            if isinstance(safe_code, str) and len(safe_code) <= 64 and safe_code.isascii():
+                failure["failure_code"] = safe_code
+            if retryable_without_artifact:
+                failure["durable_artifact_created"] = False
+            LOG.warning(json.dumps({"event": "worker_action_failed",
+                "assignment_id": assignment["id"], "failure_type": type(exc).__name__,
+                "failure_code": safe_code if isinstance(safe_code, str) and
+                    len(safe_code) <= 64 and safe_code.isascii() else None,
+                "execution_started": getattr(exc, "execution_started", None),
+                "durable_artifact_created": False if retryable_without_artifact else None},
+                sort_keys=True))
             latest = self.adapter.ledger.get(assignment["id"])
             if latest:
                 self.reground_assignment(latest, "action_failure")
@@ -214,7 +325,9 @@ class ContinuousWorker:
                 self.adapter.scheduler.transition_with_lease(
                     assignment["id"],
                     "awaiting_steward" if intent_outcome == "outcome_unknown" else "blocked",
-                    "ACTION_OUTCOME_UNKNOWN" if intent_outcome == "outcome_unknown" else "worker_action_failed",
+                    "ACTION_OUTCOME_UNKNOWN" if intent_outcome == "outcome_unknown" else
+                    "WORKER_RETRYABLE_NO_ARTIFACT" if retryable_without_artifact else
+                    "WORKER_PRE_EXECUTION_FAILED" if pre_execution_failure else "worker_action_failed",
                     f"continuous-failure:{assignment['id']}:{lease['generation']}",
                     self.worker_id, lease["generation"])
             return {"status": "FAILED", "assignment_id": assignment["id"],

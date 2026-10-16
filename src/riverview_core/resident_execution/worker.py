@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/worker.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Provide a bounded local coding-worker artifact action and independent verifier
 # Execution Model: Fixed local filesystem write through the existing ContinuousWorker
 # Observability: Artifact name, digest, objective reference, and independent decision
@@ -10,6 +10,7 @@
 # Authority: One assignment-bound JSON artifact only; no shell or caller-supplied path
 # Changed: 2026-10-11 UTC | RV-M4.4-OBJECTIVE-WORKORDER-PIPELINE | Initial bounded worker adapter
 # Changed: 2026-10-11 UTC | RV-M4.4-OBJECTIVE-WORKORDER-PIPELINE | Remove trailing whitespace from controlled file
+# Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Bind the bounded worker artifact to the assigned proposal step
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: tests/test_grace_execution.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -88,12 +89,18 @@ class BoundedLocalCodingWorker:
             raise BoundedCodingWorkerError("persisted authorized work order required")
         if objective["evidence"]["source_revision"] != grounded.source_revision:
             raise BoundedCodingWorkerError("worker evidence revision mismatch")
+        step = self.objective_store.proposal_step_for_assignment(
+            objective["objective_id"], assignment.get("id"))
+        if step is None and len(objective["proposal"]["steps"]) == 1:
+            step = objective["proposal"]["steps"][0]
+        if step is None:
+            raise BoundedCodingWorkerError("persisted assignment step is unavailable")
         work_order = CodingWorkOrder(
             assignment_id=assignment["id"], objective_id=objective["objective_id"],
             repository_reference=objective["evidence"]["source_references"][0],
             repository_revision=objective["source_revision"],
-            task_scope=objective["proposal"]["steps"][0]["objective"],
-            acceptance_criteria=tuple(objective["proposal"]["steps"][0]["acceptance_criteria"]))
+            task_scope=step["objective"],
+            acceptance_criteria=tuple(step["acceptance_criteria"]))
 
         root = self.artifact_root
         root.mkdir(mode=0o700, parents=True, exist_ok=True)

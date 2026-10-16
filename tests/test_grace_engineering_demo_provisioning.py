@@ -2,13 +2,15 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_engineering_demo_provisioning.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify fixed-scope provisioning and reversible owner-session unit staging
 # Execution Model: Isolated filesystem and mocked authority interfaces; no production mutation
 # Observability: Assert only fixed identities, actions, paths, modes, hashes and refusal codes
 # Dependencies: Python standard library; provisioning and installer modules
 # Authority: Never connects to PostgreSQL or systemd; no credentials are generated or read
 # Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Add isolated provisioning and install rollback tests
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-SYSTEMD-NETLINK-001 | Assert the owner unit grants the narrowly needed AF_NETLINK family only
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-MDWE-001 | Pin Code Mode memory policy while preserving the bwrap sandbox contract
 # Contracts: docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -27,6 +29,14 @@ from scripts import provision_grace_engineering_demo as provisioner
 
 
 class ProvisioningContractTests(unittest.TestCase):
+    def test_owner_session_unit_allows_only_required_additional_netlink_family(self):
+        unit = (Path(__file__).resolve().parents[1] /
+                "deploy/systemd/riverview-grace-execution-owner-session.service").read_text()
+        self.assertIn("RestrictAddressFamilies=AF_INET AF_UNIX AF_NETLINK", unit)
+        self.assertIn("MemoryDenyWriteExecute=no", unit)
+        self.assertIn("ProtectSystem=strict", unit)
+        self.assertNotIn("AF_PACKET", unit)
+
     def test_grant_plan_is_exact_and_separates_executor_from_verifier(self):
         self.assertEqual(provisioner.SCOPE, "work-order:engineering")
         grants = set(provisioner.GRANTS)

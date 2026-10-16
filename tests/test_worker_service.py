@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_service.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.8
+# Revision: 1.0.9
 # Purpose: Enforce service identity, package paths, credentials and unit boundaries
 # Execution Model: Local contract tests; PostgreSQL behavior is covered separately
 # Observability: Safe configuration failure codes and reviewed unit properties
@@ -16,6 +16,7 @@
 # Changed: 2026-10-11 UTC | RV-M33-CREDENTIAL-NEWLINE | Cover the protected token file's single line terminator
 # Changed: 2026-10-11 UTC | RV-M4.4-SERVICE-PATH-CONTRACT | Require Grace unit to use its own release and runner path
 # Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Verify persistent owner-session unit stays bounded and no-copy
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-OWNER-STATE-001 | Assert isolated writable Codex state and read-only single-file auth bind
 # Contracts: deploy/systemd/riverview-m33-worker.service; deploy/systemd/riverview-m33-verifier.service
 # Tests: This file
 # History: .riverview-backups/manifest.jsonl and Git
@@ -52,7 +53,10 @@ class WorkerServiceContractTests(unittest.TestCase):
         self.assertIn("RIVERVIEW_CODEX_AUTH_MODE=chatgpt-owner-session", unit)
         self.assertIn("RIVERVIEW_ENGINEERING_ADAPTER=codex-cli", unit)
         self.assertIn("ProtectHome=tmpfs", unit)
-        self.assertIn("BindReadOnlyPaths=/home/admin1/.codex", unit)
+        self.assertIn("RIVERVIEW_CODEX_HOME=/var/lib/riverview-grace-owner-session/codex-home", unit)
+        self.assertIn("HOME=/var/lib/riverview-grace-owner-session", unit)
+        self.assertIn("BindReadOnlyPaths=/home/admin1/.codex/auth.json:/var/lib/riverview-grace-owner-session/codex-home/auth.json", unit)
+        self.assertNotIn("BindReadOnlyPaths=/home/admin1/.codex\n", unit)
         self.assertIn("LoadCredential=worker-token:/etc/riverview/worker/grace-executor.credential", unit)
         self.assertIn("LoadCredential=verifier-token:/etc/riverview/worker/grace-verifier.credential", unit)
         self.assertIn("StateDirectoryMode=0700", unit)

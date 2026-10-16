@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.16
+# Revision: 1.0.22
 # Purpose: Authenticate fixed engineering-test work under exact assignment grants
 # Execution Model: Request-driven local task execution with PostgreSQL durability
 # Observability: Worker identity, capability, attempt outcome, and result digest
@@ -16,6 +16,12 @@
 # Changed: 2026-10-11 UTC | RV-M4.4-BOUNDED-ARTIFACT-WORKER | Allow exact-grant execution for bounded file-artifact workers
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Map bounded Codex artifact work to exact assignment.execute grant
 # Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Pass an exact assignment pin through the authorized claim
+# Changed: 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-001 | Register the separate scoped Codex source-change capability under exact assignment.execute authority
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001 | Select only exact-scope, expired-lease WAITING_FOR_EVIDENCE assignments after current worker authorization
+# Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Expose authenticated worker scope to recovery before side effects
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Permit an append-only new-revision verifier decision for a previously rejected immutable attempt
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Append verifier-revision decisions while retaining prior rejection and exact grant checks
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Pass exact registered worker capability into Grace proposal-step claim fencing
 # Contracts: docs/components/WORKER_ADAPTER.md; docs/architecture/CORE_CONTRACT.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -60,6 +66,7 @@ class PostgresWorkerAdapter:
     REPOSITORY_CHECK_CAPABILITY = "engineering.repository-check.v1"
     BOUNDED_ARTIFACT_CAPABILITY = "engineering.bounded-artifact.v1"
     CODEX_CLI_CAPABILITY = "engineering.codex-cli-artifact.v1"
+    CODEX_SOURCE_CHANGE_CAPABILITY = "engineering.codex-cli-source-change.v1"
     VERIFICATION_CAPABILITY = "assignment.verify.v1"
 
     def __init__(self, dsn, *, schema="public", authority_schema=None):
@@ -123,7 +130,8 @@ class PostgresWorkerAdapter:
         elif capability in {self.SHA256_CAPABILITY, self.LOCAL_INFERENCE_CAPABILITY,
                             self.REPOSITORY_CHECK_CAPABILITY,
                             self.BOUNDED_ARTIFACT_CAPABILITY,
-                            self.CODEX_CLI_CAPABILITY}:
+                            self.CODEX_CLI_CAPABILITY,
+                            self.CODEX_SOURCE_CHANGE_CAPABILITY}:
             action = "assignment.execute"
         else:
             raise WorkerAuthorizationError("capability has no authority action mapping")
@@ -134,6 +142,13 @@ class PostgresWorkerAdapter:
         scope_ref = self._authenticated_worker(cur, worker_id, credential, capability)
         if scope_ref != authority_ref:
             raise WorkerAuthorizationError("worker scope does not match assignment authority")
+
+    def authenticated_scope(self, worker_id, credential, capability):
+        """Return a worker scope only after validating its current exact grant."""
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                return self._authenticated_worker(cur, worker_id, credential, capability)
 
     def claim_next(self, worker_id, credential, *, capability=None, lease_seconds=30,
                    assignment_id=None):
@@ -146,11 +161,29 @@ class PostgresWorkerAdapter:
                 scope_ref = self._authenticated_worker(cur, worker_id, credential, capability)
                 lease = self.scheduler._claim_candidate(
                     cur, worker_id, lease_seconds, scope_ref=scope_ref,
-                    assignment_id=assignment_id)
+                    assignment_id=assignment_id, required_capability=capability)
                 if lease is None:
                     return None
                 cur.execute("SELECT * FROM assignments WHERE id=%s", (lease["assignment_id"],))
                 return {"lease": lease, "assignment": cur.fetchone()}
+
+    def waiting_for_evidence(self, worker_id, credential, *, capability, limit=1):
+        """Read bounded blocked work only after revalidating the worker's exact grant."""
+        if (capability != self.CODEX_CLI_CAPABILITY or type(limit) is not int or
+                not 1 <= limit <= 10):
+            raise ValueError("waiting evidence recovery is limited to bounded Codex claims")
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                scope_ref = self._authenticated_worker(cur, worker_id, credential, capability)
+                cur.execute("""SELECT a.* FROM assignments a
+                    LEFT JOIN assignment_leases l ON l.assignment_id=a.id
+                    WHERE a.state='blocked' AND a.workflow_step='WAITING_FOR_EVIDENCE'
+                      AND a.authority_ref=%s
+                      AND (l.assignment_id IS NULL OR l.expires_at<=clock_timestamp())
+                    ORDER BY a.updated_at,a.id FOR UPDATE OF a SKIP LOCKED LIMIT %s""",
+                    (scope_ref, limit))
+                return cur.fetchall()
 
     def start_assignment(self, assignment_id, worker_id, credential, generation,
                          *, capability=None):
@@ -391,7 +424,13 @@ class PostgresWorkerAdapter:
         """Persist independent evidence, then advance only through the decision."""
         if not idempotency_key:
             raise ValueError("verification idempotency key is required")
+        verifier_revision = getattr(verifier, "REVISION", None)
+        if not isinstance(verifier_revision, str) or not verifier_revision:
+            raise WorkerAdapterError("verifier revision is required")
+        revalidation_key = f"grace-verifier-revalidation:{attempt_id}:{verifier_revision}"
+        revalidation_requested = idempotency_key == revalidation_key
         db = self.ledger.db
+        revalidation = False
         with db.transaction():
             with db.cursor() as cur:
                 self.ledger._set_search_path(cur)
@@ -419,7 +458,20 @@ class PostgresWorkerAdapter:
                         tuple(existing["evidence_references"]),
                         existing["verifier_revision"], existing["summary"])
                 else:
-                    if assignment["state"] != "awaiting_verification":
+                    if assignment["state"] == "awaiting_verification":
+                        if revalidation_requested:
+                            raise WorkerAdapterError("revalidation key is invalid for a first decision")
+                    elif assignment["state"] == "rework_required" and revalidation_requested:
+                        cur.execute("""SELECT decision,verifier_revision FROM verification_records
+                            WHERE attempt_id=%s AND verifier_id=%s
+                            ORDER BY recorded_at DESC,verification_id DESC LIMIT 1""",
+                            (attempt_id, verifier_id))
+                        previous = cur.fetchone()
+                        if (previous is None or previous["decision"] != "REJECTED" or
+                                previous["verifier_revision"] == verifier_revision):
+                            raise WorkerAdapterError("no prior rejected decision can be revalidated")
+                        revalidation = True
+                    else:
                         raise WorkerAdapterError("assignment is not awaiting verification")
                     decision = None
                 if existing is None:
@@ -437,25 +489,30 @@ class PostgresWorkerAdapter:
                     decision = verifier.verify(dict(assignment), dict(attempt), attempt["result"])
                     if not isinstance(decision, VerificationResult):
                         raise WorkerAdapterError("verifier returned an unsupported result")
+                    if decision.verifier_revision != verifier_revision:
+                        raise WorkerAdapterError("verifier result revision does not match implementation")
+                    if revalidation and decision.verifier_revision == previous["verifier_revision"]:
+                        raise WorkerAdapterError("verifier revalidation must use a new revision")
                     cur.execute("""INSERT INTO verification_records
                         (verification_id,assignment_id,attempt_id,executor_id,verifier_id,
                          verifier_revision,decision,criteria,evidence_references,summary,
                          idempotency_key)
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                        (attempt_id, assignment_id, attempt_id, attempt["worker_id"],
+                        (uuid4(), assignment_id, attempt_id, attempt["worker_id"],
                          verifier_id, decision.verifier_revision, decision.status.value,
                          json.dumps(dict(decision.criteria), sort_keys=True),
                          json.dumps(list(decision.evidence_references)), decision.summary,
                          idempotency_key))
         if decision.status is VerificationStatus.ACCEPTED:
-            self.ledger.transition(assignment_id, "completed", "independent_verification",
+            step = "verification_rule_correction_accepted" if revalidation_requested else "independent_verification"
+            self.ledger.transition(assignment_id, "completed", step,
                                    f"verification-transition:{idempotency_key}",
                                    actor_id=f"verifier:{verifier_id}", verified=True)
-        elif decision.status is VerificationStatus.REJECTED:
+        elif decision.status is VerificationStatus.REJECTED and not revalidation_requested:
             self.ledger.transition(assignment_id, "rework_required", "verification_rejected",
                                    f"verification-transition:{idempotency_key}",
                                    actor_id=f"verifier:{verifier_id}")
-        else:
+        elif decision.status is VerificationStatus.INCONCLUSIVE and not revalidation_requested:
             self.ledger.transition(assignment_id, "blocked", "verification_inconclusive",
                                    f"verification-transition:{idempotency_key}",
                                    actor_id=f"verifier:{verifier_id}")

@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:worker-adapter:deterministic-attempt",
-  "graph_revision": "1.0.11",
+  "graph_revision": "1.0.14",
   "component_id": "WORKER-ADAPTER",
   "workflow_id": "deterministic-attempt.v1",
   "diagram_order": 7,
@@ -332,9 +332,9 @@
     },
     {
       "id": "rv:worker-adapter:deterministic-attempt:evidence-wait",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "escalation",
-      "label": "Persist non-verified status and wait for evidence for this assignment only",
+      "label": "Persist non-VERIFIED status and wait for fresh evidence for this assignment; only a same-scope Codex assignment with revalidated VERIFIED grounding and no unresolved effect may enter the bounded resume path",
       "source_references": [
         "src/riverview_core/worker_adapter/continuous.py",
         "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
@@ -624,6 +624,105 @@
         "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log",
         "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/acceptance.json"
       ]
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:verified-grounding-resume",
+      "node_revision": "1.0.1",
+      "type": "recovery",
+      "label": "Re-ground and re-preflight the same blocked Codex assignment; return it to ready only when the original work order remains verified, lease is absent or expired, retry budget remains, prior typed intents are retry-safe, and no attempt, result, verification, or artifact exists; the normal claim rechecks the exact assignment.execute grant",
+      "source_references": [
+        "src/riverview_core/worker_adapter/adapter.py",
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/worker_adapter/recovery.py",
+        "tests/test_worker_adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_worker_adapter.py"
+      ]
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:scope-auth",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Authenticate worker identity, capability, and current exact grant before its recovery scan",
+      "source_references": [
+        "src/riverview_core/worker_adapter/adapter.py",
+        "src/riverview_core/worker_adapter/continuous.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:scope-denied",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject recovery before side effects when worker authorization or scope validation fails",
+      "source_references": [
+        "src/riverview_core/worker_adapter/adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:lease-heartbeat",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Maintain the exact worker lease during bounded long-running execution",
+      "source_references": [
+        "src/riverview_core/worker_adapter/continuous.py",
+        "src/riverview_core/assignment_scheduler/scheduler.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:late-artifact",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Inspect an assignment-bound late Codex artifact after an outcome-unknown recovery",
+      "source_references": [
+        "src/riverview_core/worker_adapter/recovery.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:late-artifact-check",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Require the unchanged objective, original intent, expired lease, current exact grant, private artifact, and no prior attempt or verifier",
+      "source_references": [
+        "src/riverview_core/worker_adapter/recovery.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:late-artifact-rejected",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Keep outcome unknown when late artifact identity, provenance, ownership, or scope cannot be proven",
+      "source_references": [
+        "src/riverview_core/worker_adapter/recovery.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
     }
   ],
   "edges": [
@@ -918,6 +1017,89 @@
       "to": "rv:worker-adapter:deterministic-attempt:complete-check",
       "type": "runtime_transition",
       "label": "exact grant and current lease rechecked"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+      "to": "rv:worker-adapter:deterministic-attempt:verified-grounding-resume",
+      "type": "recovery_route",
+      "label": "A later fresh VERIFIED grounding result permits only the same assignment to be checked against its original objective, lease, effect, artifact, and exact-scope invariants"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:verified-grounding-resume",
+      "to": "rv:worker-adapter:deterministic-attempt:claim",
+      "type": "runtime_transition",
+      "label": "Atomic evidence recovery returns the existing assignment to ready; the normal authenticated claim rechecks assignment.execute before leasing"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:verified-grounding-resume",
+      "to": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+      "type": "diagnostic_branch",
+      "label": "Fresh grounding remains non-VERIFIED or any lease, objective, intent, attempt, verifier, artifact, or scope invariant fails; preserve blocked state"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+      "to": "rv:worker-adapter:deterministic-attempt:scope-auth",
+      "type": "verification",
+      "label": "Authenticate configured worker before scanning leases"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:scope-auth",
+      "to": "rv:worker-adapter:deterministic-attempt:scope-denied",
+      "type": "diagnostic_branch",
+      "label": "Credential, capability, or grant rejected"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:scope-auth",
+      "to": "rv:worker-adapter:deterministic-attempt:recovery-scan",
+      "type": "recovery_route",
+      "label": "Only this authenticated worker and authority scope"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:recovery-scan",
+      "to": "rv:worker-adapter:deterministic-attempt:late-artifact",
+      "type": "diagnostic_branch",
+      "label": "Outcome unknown with a persisted Codex intent"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:late-artifact",
+      "to": "rv:worker-adapter:deterministic-attempt:late-artifact-check",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:late-artifact-check",
+      "to": "rv:worker-adapter:deterministic-attempt:recovery-preserve",
+      "type": "recovery_route",
+      "label": "Artifact is proven and moves only to independent verification"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:late-artifact-check",
+      "to": "rv:worker-adapter:deterministic-attempt:late-artifact-rejected",
+      "type": "diagnostic_branch",
+      "label": "Any assignment, artifact, or authorization invariant fails"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:late-artifact-rejected",
+      "to": "rv:worker-adapter:deterministic-attempt:recovery-unknown",
+      "type": "recovery_route",
+      "label": "Retain awaiting_steward; never replay uncertain work"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:recovery-intent",
+      "to": "rv:worker-adapter:deterministic-attempt:lease-heartbeat",
+      "type": "runtime_transition",
+      "label": "Lease maintained across action execution"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:lease-heartbeat",
+      "to": "rv:worker-adapter:deterministic-attempt:action",
+      "type": "runtime_transition",
+      "label": "Action remains within the active generation"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:lease-heartbeat",
+      "to": "rv:worker-adapter:deterministic-attempt:action-failure",
+      "type": "diagnostic_branch",
+      "label": "Lease heartbeat is fenced"
     }
   ]
 }

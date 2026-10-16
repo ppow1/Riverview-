@@ -1,6 +1,6 @@
 # Riverview~ worker adapter contract
 
-**Document Revision:** 1.0.16
+**Document Revision:** 1.0.20
 **Component:** WORKER-ADAPTER
 **Milestone:** M2.1–M2.3
 **Status:** M3.3 scoped technical acceptance criteria PASS and ready for Steward review; no simultaneous executor-process throughput claim. Formal acceptance and full Component DoD remain open; M4.3 local-inference execution remains isolated.
@@ -14,6 +14,9 @@
 **Changed:** 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION | Record live unavailable-knowledge isolation while eligible work continues
 **Changed:** 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-STATUS | Align current scoped technical status and distinguish process concurrency claims
 **Changed:** 2026-10-11 UTC | RV-M4.4-OBJECTIVE-WORKORDER-PIPELINE | Document bounded artifact capability as deterministic infrastructure test adapter only
+**Changed:** 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-001 | Specify separately registered Codex multi-file patch capability and exact execution grant
+**Changed:** 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-DOCS | Specify same-assignment resume after fresh grounding/preflight and remaining-retry checks
+**Changed:** 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Authenticate recovery identity/scope, heartbeat long actions, and preserve validated late Codex artifacts for independent verification
 
 ## Scope and trust boundaries
 
@@ -72,6 +75,22 @@ claims continue. `run_forever()` is an in-process polling loop and accepts an
 explicit Steward shutdown callback. Unexpected worker/process loss leaves
 durable leases/attempts for expiry and reconciliation; the worker loop does not
 claim to make a process immortal.
+
+When fresh grounding becomes `VERIFIED` after a Codex assignment was blocked at
+`WAITING_FOR_EVIDENCE`, the persistent worker may requeue that same assignment
+through the evidence-recovery path. Candidate discovery authenticates the
+registered worker and exact `assignment.execute` grant in the assignment's
+scope. Recovery then requires the original `WORK_ORDER_CREATED` objective and
+verified objective evidence, an expired or absent lease, a current non-verified
+knowledge observation, fresh `VERIFIED` grounding and action preflight, a
+remaining retry budget, no worker attempt/result/verifier/artifact, and only
+typed Codex intents already recorded as `retry_safe`. It records both refreshed
+provenance results and a causal transition to the canonical ready node; the
+normal claim repeats the exact grant check before execution. An active lease,
+unknown intent, existing attempt/output, stale objective, non-verified source,
+or scope mismatch leaves the assignment blocked. This resumes the same durable
+objective; it does not create an assignment or bypass the retry/authority
+boundaries.
 
 The stable, provider-neutral contract lives in
 [`knowledge_provider_v1`](../../src/riverview_core/worker_adapter/knowledge_provider_v1/README.md).
@@ -203,12 +222,7 @@ older code did not persist the action boundary.
 Migration `0004_failure_recovery.sql` adds durable execution-intent and recovery
 tables. Apply it explicitly to a selected schema; the adapter never applies DDL
 at startup. `ContinuousWorker.run_once()` invokes
-`PostgresRecoveryCoordinator.reconcile_expired()` before each new claim. It scans
-only expired `running` assignments, preserves persisted results for independent
-verification, and does not inspect external systems or claim that an uncertain
-action did not take effect. Uncertain work requires authoritative reconciliation
-before it can be resumed. See the [M2.3 cookbook](WORKER_ADAPTER_COOKBOOK.md)
-and [RV-M2.3-001 record](../development/M2.3-001_REVISION_RECORD.md).
+`PostgresRecoveryCoordinator.reconcile_expired(scope_ref, worker_id)` only after the current worker credential and capability have been authenticated. It scans expired leases owned by that worker inside its exact authority scope; it cannot sweep another worker's assignments. A lease heartbeat keeps bounded long-running actions leased through their result commit. Unknown outcomes remain held. A late Codex artifact is attached to the same durable attempt only when the original assignment, objective, expired lease, `ProcessInterrupted` intent, current exact grant, verified grounding, private assignment-bound artifact, and absence of prior attempts/results/verifications all match. Its original `outcome_unknown` recovery record remains unchanged, and the state advances only to `awaiting_verification`; the independent verifier remains mandatory. Any failed invariant leaves the assignment awaiting Steward review without replay. See the [M2.3 cookbook](WORKER_ADAPTER_COOKBOOK.md) and [RV-M2.3-001 record](../development/M2.3-001_REVISION_RECORD.md).
 
 ## M4.1 exact-grant integration (isolated)
 
@@ -250,6 +264,19 @@ persisted completion. Exact assignment.execute and assignment.verify grants
 remain required. This adapter produces a bounded work-product record; it is not
 a general coding executor and does not establish a commissioned Grace worker
 service or M4.4 operational acceptance.
+
+`engineering.codex-cli-source-change.v1` is a separate exact capability. Its
+typed request pins the repository revision, exact authorized path list,
+acceptance criteria, fixed test targets, timeout and objective/assignment IDs.
+The worker adapter recognizes it only when that capability is explicitly
+registered and the same-scope `assignment.execute` grant is active. Its Codex
+adapter produces an inventoried, digest-checked patch from a disposable clone;
+an independent verifier replays that patch in a second clean clone and reruns
+the fixed tests. It never applies patches to the configured checkout or a
+production release. The persistent Grace service does not register or dispatch
+this capability automatically in this increment: no per-assignment authorized
+path-scope field exists in its current objective/work-order interface, so it
+remains a tested capability boundary rather than a live dispatch option.
 
 ## M4.3 local inference capability
 

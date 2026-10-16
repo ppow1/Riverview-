@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.142
+**Document Revision:** 1.0.143
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
@@ -29,7 +29,56 @@
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PL038-POST-PR45 | Record final integrated browser/test/graph verification
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PR45-REVISION-AUDIT | Record and repair predecessor evidence gaps found after integration
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PR46-RECONCILE | Reconcile current integration head and preserve resident-knowledge changes unchanged
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PR42-INTEGRATION-RECONCILE | Reconcile website work with latest integration through PR #63 and record release gates.
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PR42-RECONCILE | Preserve PR #44 integration journal entry and record current base reconciliation
+## 2026-10-16 UTC — RV-GRACE-VERIFIED-GROUNDING-RESUME-001
+
+The existing objective `objective:grace-conversation:2c573041-cc5e-4b54-9f93-8163de91e52c` and assignment
+`assignment:grace:6759a4f47a95aad779e0bd76699fed9a71098ae8` remained intact
+after the owner-session release correction. Read-only metadata showed five
+retry-safe Codex intents/recovery records, zero worker attempts/results/
+verifications, and no assignment artifact. The worker last persisted
+`ground_assignment=UNVERIFIED` and left the same assignment at
+`blocked/WAITING_FOR_EVIDENCE`.
+
+The active knowledge root is the immutable Grace execution release
+`63798c237ff8231191de5efa315ed7f11547e8bc`; its 1,093 listed package files
+passed checksum verification. The protected runtime environment still pinned
+knowledge to predecessor `4a51865201b0e578937aab4fb1cc370ab6e5fe71`, which
+made the provider reject the active package identity. The pin was updated to
+the verified active release after preserving the prior root-owned environment
+file in `/var/backups/riverview-grace-env.20261016TJnbUpN/`. A read-only provider
+call then returned VERIFIED with complete retrieval, the active release ID,
+and five references. The owner-session service stayed healthy; no dashboard,
+database, authority grant, migration, OCTO model, objective, or assignment data
+was modified.
+
+That runtime pin correction alone could not resume the durable assignment:
+`claim_next()` admits only `ready` work, while the assignment was blocked at
+`WAITING_FOR_EVIDENCE`. A bounded recovery path is therefore being integrated
+in the existing worker loop. It rechecks the registered worker and exact
+execution grant, requires fresh verified grounding and action preflight, the
+original verified work order, expired/absent lease, remaining retry budget,
+only previously reconciled typed Codex intents, and no attempt/result/
+verification/artifact before atomically transitioning that same assignment to
+the canonical ready node. The ordinary claim rechecks authority before action.
+The regression verifies retry-ceiling enforcement, same-objective completion
+to the claimed execution boundary, and revoked-grant denial.
+
+The new isolated PostgreSQL worker suite passed 25/25. The complete isolated
+PostgreSQL regression passed 436 tests with one intentional skip and no
+failures; process graph synchronization reports 19 workflows/464 nodes and
+controlled revision audit had zero findings before the final record update.
+This implementation is not yet integrated or deployed. The production
+assignment remains blocked pending the reviewed release and its ordinary
+lease/recovery path; no replacement objective, direct SQL state edit, or
+synthetic production artifact was created.
+
+**Document Revision:** 1.0.120
+**Component:** ENG-RECORDS
+**Date:** 2026-10-12 UTC
+**Changed:** 2026-10-15 UTC | RV-GRACE-AUTHORIZED-SNAPSHOT-001 | Revalidate resident reasoning through the protected office-state capability
+**Changed:** 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001 | Record exact source-pin mismatch, same-assignment evidence recovery, regression, and production boundary
 **Changed:** 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow the explicitly reviewed supervised Bash runner in exact-source packages while retaining strict checks for other scripts
 **Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
 **Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record responsive conversation interface implementation and isolated real-model browser acceptance
@@ -1969,3 +2018,130 @@ and its tests/docs were included unchanged from integration; no resident
 reasoning behavior was edited in the website worktree. The graph generator and
 controlled revision audit pass after reconciliation. A new exact-head CI run is
 required for the updated website PR head.
+## 2026-10-15 UTC — RV-GRACE-WORKORDER-RECOVERY-001
+
+The authenticated production intake for conversation
+`269535bd-8556-41f2-9d42-3b722837fbab`, source sequence 6, returned HTTP 409
+`work_order_conflict` after persisting objective
+`objective:grace-conversation:2c573041-cc5e-4b54-9f93-8163de91e52c` and its
+`objective.received` event. Metadata showed `WAITING_FOR_EVIDENCE`, zero source
+references, `retrieval_complete=false`, and repository source revision
+`64e8f14ad6d71102a864755739a1c8a61506235c`; no assignment or proposal existed.
+The active dashboard was release `665ae8100a50faa26985b0cfee8834e68bf2a847`,
+but its default knowledge root resolved through `/opt/riverview-core` to the
+older 64e8… checkout. Because that checkout did not match the dashboard's
+verified package revision, the knowledge provider correctly failed closed.
+The route then incorrectly translated the post-persistence grounding wait into
+a conflict response. No prior objective collision caused this incident.
+
+The bounded correction makes a packaged dashboard use its own immutable
+release as the default knowledge root (an explicit configured root still wins),
+returns the existing durable wait state as a receipt, and resolves retries by
+authenticated conversation/message origin so the same objective is reused.
+Exact source, criteria, scope, submitter, current authorization, and evidence
+verification remain required. A different request for the same origin fails
+closed. No production row was deleted or rewritten, no assignment was
+fabricated, and no production configuration was changed during diagnosis.
+Regression coverage verifies package-root selection, same-origin retry without
+duplicate submission, and changed-criteria conflict. Production retry and the
+subsequent CME/Codex/verifier cycle remain pending a reviewed release and the
+Steward's same-message retry through the authenticated website.
+
+## 2026-10-15 UTC — RV-GRACE-WORKORDER-RECOVERY-001
+
+The authenticated production intake for conversation
+`269535bd-8556-41f2-9d42-3b722837fbab`, source sequence 6, returned HTTP 409
+`work_order_conflict` after persisting objective
+`objective:grace-conversation:2c573041-cc5e-4b54-9f93-8163de91e52c` and its
+`objective.received` event. Metadata showed `WAITING_FOR_EVIDENCE`, zero source
+references, `retrieval_complete=false`, and repository source revision
+`64e8f14ad6d71102a864755739a1c8a61506235c`; no assignment or proposal existed.
+The active dashboard was release `665ae8100a50faa26985b0cfee8834e68bf2a847`,
+but its default knowledge root resolved through `/opt/riverview-core` to the
+older 64e8… checkout. Because that checkout did not match the dashboard's
+verified package revision, the knowledge provider correctly failed closed.
+The route then incorrectly translated the post-persistence grounding wait into
+a conflict response. No prior objective collision caused this incident.
+
+The bounded correction makes a packaged dashboard use its own immutable
+release as the default knowledge root (an explicit configured root still wins),
+returns the existing durable wait state as a receipt, and resolves retries by
+authenticated conversation/message origin so the same objective is reused.
+Exact source, criteria, scope, submitter, current authorization, and evidence
+verification remain required. A different request for the same origin fails
+closed. No production row was deleted or rewritten, no assignment was
+fabricated, and no production configuration was changed during diagnosis.
+Regression coverage verifies package-root selection, same-origin retry without
+duplicate submission, and changed-criteria conflict. Production retry and the
+subsequent CME/Codex/verifier cycle remain pending a reviewed release and the
+Steward's same-message retry through the authenticated website.
+
+
+## 2026-10-15 UTC — RV-GRACE-AUTHORIZED-SNAPSHOT-001
+
+After deployment of the 60-second proposal deadline, the existing objective
+`2c573041-cc5e-4b54-9f93-8163de91e52c` reached model inference but proposal
+persistence failed during post-inference authority revalidation. The owner
+service reported only the sanitized `RegistryUnavailable` category. A read-only
+reproduction with the production runtime role confirmed SQLSTATE 42501 when it
+selected protected office-binding tables directly; the role is intentionally
+limited to the approved `read_authorized_office_state` and
+`write_authorized_office_state` functions. No authority ACL was widened and no
+objective or conversation row was changed.
+
+The correction replaces the direct post-provider `office_snapshot` call with
+`authorize_office_state`, so the original exact office-state grant, current
+occupant, active binding and implementation revisions are rechecked through the
+existing narrow security-definer API before the proposal is persisted. A
+restricted-login PostgreSQL regression denies direct `office_bindings` reads
+while the proposal succeeds and persists through the allowed functions. Focused
+resident reasoning tests pass 15/15; full isolated-suite verification is in
+progress. The live objective remains grounded with no assignment until this
+correction is integrated and deployed.
+
+## 2026-10-16 UTC — RV-GRACE-VERIFIER-REVALIDATION-001
+
+Read-only production metadata for the existing objective and assignment showed
+one successful Codex attempt, one immutable REJECTED decision under verifier
+revision 1.0.0, and an assignment still requiring rework. The artifact digest,
+pinned source/repository provenance, assignment binding, file mode, and size
+checks passed. The acceptance check failed because task instructions were tested
+as literal artifact prose, including the citation heading and its separately
+listed file paths. The stored result predates source-file inventory fields, but
+its exact registered capability has a fixed deliverable.md output contract and
+persisted only after the pinned clone's changed-path check.
+
+The development correction adds strict structured checks for the known task
+contract, requires the exact declared citation count, and retains literal
+matching for unknown criteria. It preserves the old decision and appends a
+new verifier-revision decision only after the same exact verifier grant, same
+assignment/attempt, deterministic idempotency key, and independent artifact
+reopen checks pass. A durable accepted decision with an interrupted state
+transition is retried idempotently without rerunning Codex. A disposable
+PostgreSQL regression reproduced the rejection, revalidated the same artifact,
+and confirmed original-decision preservation and one attempt. No production
+records were modified.
+
+
+## 2026-10-16 UTC — RV-WEBSITE-PR42-INTEGRATION-RECONCILE
+
+Fetched the current integration branch after PR #46 and found it advanced through
+merged PRs #47–#63 to `af87c1a1b8ef4deeb8770c64da8bb4556bc85866`. The branch
+contains PRs #44–#46 and the later Engineering commissioning corrections. The
+website change has no functional source or test-file overlap with commits after
+PR #46; the shared records are the revision manifest, revision index, journal,
+and generated aggregate graph. Reconciled the append-only records and regenerated
+the aggregate graph without editing the integrated Engineering implementation.
+
+The combined tree passed full unittest discovery: 466 passed, 160
+PostgreSQL-dependent tests skipped because `RIVERVIEW_TEST_PG_DSN` is not
+configured. Process graph validation passed at 19 workflows / 478 nodes; the
+controlled revision audit passed with zero findings. The account-cookie Firefox fixture was rerun after the merge and passed with no
+browser errors: both registry/detail reads carried the synthetic account cookie,
+omitted Authorization, and rendered the fixture node. Report: `evidence/checkouts/WEBSITE-PR42-INTEGRATION/20261016T164500Z-account-cookie/`. The prior exact-head CI run
+on `aeaaf4b` does not cover the reconciled head; new exact-head CI is pending push.
+
+PR #42 remains draft with no submitted review or requested reviewer. Its base
+branch advanced, and GitHub reported the former head as dirty. The punch list
+records the current integration baseline and release gates. No production
+package, service, objective, or database was changed.
