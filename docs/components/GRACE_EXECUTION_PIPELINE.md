@@ -2,9 +2,14 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.11
+File Revision: 1.1.16
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
 Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Document corrected acceptance interpretation and append-only same-attempt verifier recovery
+Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Connect human-approved source scope to source-change dispatch, safe retry recovery, durable dependent steps, and model-reviewed continuation
+Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-REASONING-BUDGET-001 | Set bounded owner-session plan generation to 768 tokens after 256-token live 80B truncation
+Changed: 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-OBJECTIVE-CONTEXT | Pass original bounded objective context to each step without widening exact file scope
+Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-STEP-CONTINUATION | Resolve a model-selected existing dependent step to its durable canonical proposal before dispatch checks
+Changed: 2026-10-16 UTC | RV-GRACE-REVIEW-OBJECTIVE-PROGRESS | Give Grace's 80B review authoritative persisted objective and per-step completion state
 Authority: Engineering contract; not evidence of production Grace commissioning
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Link persistent reconciliation and authenticated dashboard handoff
 Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER-CONTRACT | Document explicit message-origin objective intake and its exact Steward grant
@@ -62,7 +67,7 @@ and regrounding must still be complete and verified before a proposal is request
 The owner-session 80B proposal HTTP call and ResidentReasoner caller share the
 explicit `RIVERVIEW_RESIDENT_REASONING_TIMEOUT` deadline, bounded to 1–60 seconds.
 The commissioned default is 60 seconds; model output remains subject to the
-existing 256-token proposal budget, typed schema, binding revalidation, and CME
+bounded 768-token proposal budget, typed schema, binding revalidation, and CME
 authorization. Chat routing retains its separate per-stage limits.
 After inference, the reasoner revalidates the active occupant, exact office-state
 grant and binding revision through the runtime-authorized office-state function.
@@ -173,23 +178,54 @@ checks ownership/mode/size/digest, objective binding, both provenance
 dimensions, and literal acceptance criteria. The result path and digest are retained in the
 worker result and Grace objective completion event/projection.
 
-The separate `engineering.codex-cli-source-change.v1` adapter accepts an
-explicit exact-file allowlist and immutable base revision, creates a patch in a
-fresh disposable clone, inventories every changed path, checks the patch and
-runs only fixed assignment test targets in an offline bubblewrap sandbox. Its
-verifier applies the patch to a separate clean clone, compares the changed-file
-inventory and patch digest, and reruns those tests. It returns a verifier
-evidence record only; it never applies a patch to the configured source checkout
-or a production release. The capability is not registered by the live service
-and remains unavailable to production assignments pending exact capability
-registration and its authority grant.
+The separate `engineering.codex-cli-source-change.v1` mode reuses the same
+owner-session Codex CLI, leased worker, capability registration, assignment
+execution grant, and verifier lifecycle. The mode is selected by the operator;
+its configured JSON `RIVERVIEW_CODEX_SOURCE_ALLOWED_PATHS` is a maximum ceiling,
+not an authority source. Every exact source/test path in a persisted source
+step must also appear in the Steward's original request or accepted criteria.
+The proposal parser and `PlanStep` contract reject malformed scopes, and the
+pipeline refuses model-proposed paths absent from that human-approved text.
+The adapter checks the per-step scope against the operator ceiling and pinned
+repository revision, creates a patch in a fresh disposable clone, inventories
+every changed path, checks patch integrity and runs only fixed assignment test
+targets in an offline bubblewrap sandbox. Its verifier applies the patch to a
+separate clean clone, compares the changed-file inventory and patch digest,
+and reruns those tests. It returns verifier evidence only; it never applies a
+patch to the configured source checkout or a production release. The active
+Camrui runtime has not been switched to this mode; release source wiring is
+not evidence of production registration or commissioning.
+
+An interrupted source action is recoverable only through the same assignment's
+deterministic owner-only patch file: the adapter reopens it without following
+symlinks, reapplies it to the immutable base in a new clone, checks the exact
+path scope, and reruns fixed tests before returning it for normal independent
+verification. If no patch exists, the existing retry coordinator may requeue
+only after the failed intent has expired and no result, attempt, verifier
+record, or patch is present. Source patches remain pending verification after
+worker recovery; recovery never marks work complete. Each Codex step receives
+the original bounded objective as task context together with its model-proposed
+step objective. This preserves concrete requirements through dispatch while
+leaving the exact Steward-approved file/test allowlist unchanged; oversized
+context fails closed.
 
 Grace's verified-result review now records a typed decision and may append a
-same-objective continuation only through the existing bounded pipeline. The
+same-objective continuation only through the existing bounded pipeline. When
+Grace selects an already-proposed dependent step, the conversation service
+resolves that step ID to the immutable persisted step definition and discards
+the model's mutable restatement; the pipeline then rechecks the durable parent
+verification, pending child, exact objective link, and grants. A genuinely new
+step must still fit the accepted criteria and path envelope. Each
+source continuation keeps the original accepted path/criteria envelope, names
+an earlier verified dependency, receives a new durable step assignment, and
+reuses the latest independently verified cumulative patch as input. The
 continuation remains subject to the original accepted scope, dependency
 verification, current binding, and existing dispatch/worker grants; a model
 response cannot grant its own authority. Source and isolated PostgreSQL
-coverage are not evidence of live multi-step commissioning.
+coverage are not evidence of live multi-step commissioning. Production use
+still requires an explicitly staged runtime configuration selecting the source
+mode and an existing exact worker-registration/execution grant for its
+registered capability; this development change does not change either.
 
 The capability registry records capability, active worker, and exact authority
 scope; startup preflight plus the current Grace execution health heartbeat
@@ -251,3 +287,10 @@ idempotency, and same-attempt revalidation. Production migration and
 revalidation remain pending deployment.
 
 The generated workflow below is a projection of process_graphs/grace/operational-integration.json. Regenerate with python3 scripts/process_graph.py generate; verify with python3 scripts/process_graph.py check.
+
+
+### Verified-step review gates dependent dispatch
+
+For a multi-step proposal, the existing Grace result-review publisher now receives each independently verified step through the durable objective-event outbox. The currently bound 80B reasons over the verified step result and the original accepted scope. A later proposal step is dispatchable only after Grace records a matching continuation decision for that exact pre-proposed step. CME then rechecks the existing `assignment.create` grant and records the continuation event before dispatch. The model cannot add file paths, acceptance criteria, capabilities, or dependencies beyond the original proposal. The final objective completion and final result review remain idempotent by completion cycle.
+
+The review context also includes the objective's authoritative status and ordered persisted step statuses. Grace must use that state to distinguish an intermediate verified step from a fully completed objective. A model cannot infer that a planned step remains pending when the ledger records it as verified; context validation rejects inconsistent `COMPLETED` state unless every persisted step is verified.

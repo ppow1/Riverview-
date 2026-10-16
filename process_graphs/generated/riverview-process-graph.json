@@ -1858,7 +1858,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.45",
+      "graph_revision": "1.0.46",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -2125,11 +2125,12 @@
         },
         {
           "id": "rv:grace:operational-integration:objective-complete",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "exit",
-          "label": "TEST VERIFIED — objective closes only after persisted independent ACCEPTED verification",
+          "label": "A step or objective becomes reviewable only after persisted independent ACCEPTED verification; objective completion is separate from model-proposed same-objective continuation",
           "source_references": [
-            "src/riverview_core/resident_execution/pipeline.py"
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/service.py"
           ],
           "documentation_references": [
             "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
@@ -2636,9 +2637,9 @@
         },
         {
           "id": "rv:grace:operational-integration:verified-result-return-retry",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "recovery",
-          "label": "SOURCE IMPLEMENTED — Deferred verified-result review uses the bounded 512-token 80B output budget and sanitized provider-attempt diagnostics; the deterministic response identity prevents duplicate chat events after restart",
+          "label": "Candidate path reuses the durable same-objective result review; retries preserve the originating conversation and stable completion-cycle response identity",
           "source_references": [
             "src/riverview_core/resident_execution/pipeline.py",
             "src/riverview_core/resident_execution/service.py",
@@ -2707,24 +2708,29 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-source-change",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
-          "label": "Separate authorized source-change capability emits a scoped patch, inventory, digest, and fixed-test result from a pinned disposable clone",
+          "label": "CANDIDATE SOURCE IMPLEMENTATION — the existing owner-session runner can select this separate capability; every work-order path is checked against Steward-approved text and an operator path ceiling; Codex returns a patch only",
           "source_references": [
-            "src/riverview_core/resident_execution/codex_source_change.py"
+            "scripts/run_grace_execution_service.py",
+            "src/riverview_core/resident_execution/codex_source_change.py",
+            "src/riverview_core/resident_execution/codex_workflow.py",
+            "src/riverview_core/resident_execution/pipeline.py"
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_PIPELINE.md"
           ],
           "verification_evidence": [
-            "tests/test_codex_source_change.py"
+            "tests/test_codex_source_change.py",
+            "tests/test_grace_execution.py",
+            "tests/test_grace_runtime_provider_wiring.py"
           ]
         },
         {
           "id": "rv:grace:operational-integration:codex-patch-independent-verification",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "verification",
-          "label": "Independent verifier reapplies patch to a clean pinned clone, checks exact authorized changed-file set and digest, and reruns fixed tests",
+          "label": "Reapply the digest-verified cumulative patch in an independent pinned clone; compare exact changed files and rerun only fixed offline tests before accepting",
           "source_references": [
             "src/riverview_core/resident_execution/codex_source_change.py"
           ],
@@ -2737,11 +2743,13 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-source-scope-failure",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "failure",
-          "label": "Reject source changes outside the assignment path allowlist or configured capability scope; no patch is applied to source checkout",
+          "label": "Reject any path absent from the accepted Steward request/criteria or configured operator ceiling; preserve a sanitized failure and no production patch",
           "source_references": [
-            "src/riverview_core/resident_execution/codex_source_change.py"
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/codex_source_change.py",
+            "src/riverview_core/resident_execution/codex_workflow.py"
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_COOKBOOK.md"
@@ -2752,13 +2760,13 @@
         },
         {
           "id": "rv:grace:operational-integration:objective-steps",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
-          "label": "ISOLATED POSTGRES TESTED — persist stable ordered objective steps and per-step assignment identities; require accepted dependency verification before dispatch",
+          "label": "ISOLATED POSTGRES TESTED — each source-change continuation retains the same objective, receives a new assignment identity, and is dispatched only after its predecessor is independently verified",
           "source_references": [
-            "src/riverview_core/resident_execution/migrations/0009_durable_objective_steps.sql",
             "src/riverview_core/resident_execution/pipeline.py",
-            "src/riverview_core/resident_execution/service.py"
+            "src/riverview_core/assignment_scheduler/scheduler.py",
+            "src/riverview_core/worker_adapter/continuous.py"
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_PIPELINE.md",
@@ -2851,6 +2859,25 @@
           ],
           "verification_evidence": [
             "tests/test_worker_adapter.py",
+            "tests/test_grace_execution.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:verified-result-review-decision",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "After independently verified work, the bound 80B chooses complete, request evidence, propose a same-objective step within approved scope, or require Steward authorization; it cannot grant authority",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py",
             "tests/test_grace_execution.py"
           ]
         }
@@ -3319,6 +3346,36 @@
           "to": "rv:grace:operational-integration:objective-complete",
           "type": "runtime_transition",
           "label": "Persisted accepted verifier revision permits normal completion reconciliation"
+        },
+        {
+          "from": "rv:grace:operational-integration:objective-complete",
+          "to": "rv:grace:operational-integration:verified-result-review-decision",
+          "type": "runtime_transition",
+          "label": "Only durable verifier-accepted evidence enters the bound 80B result review."
+        },
+        {
+          "from": "rv:grace:operational-integration:verified-result-review-decision",
+          "to": "rv:grace:operational-integration:verified-result-chat-return",
+          "type": "runtime_transition",
+          "label": "Persist the model decision and append a deterministic response to the originating conversation."
+        },
+        {
+          "from": "rv:grace:operational-integration:verified-result-review-decision",
+          "to": "rv:grace:operational-integration:objective-step-persistence",
+          "type": "runtime_transition",
+          "label": "ENGINEERING_STEP_PROPOSED appends a dependent step only inside the original human-approved scope; assignment.create is rechecked at dispatch."
+        },
+        {
+          "from": "rv:grace:operational-integration:verified-result-review-decision",
+          "to": "rv:grace:operational-integration:verified-result-return-retry",
+          "type": "diagnostic_branch",
+          "label": "Provider, binding, scope, or persistence failure leaves the verified result in the durable retry outbox."
+        },
+        {
+          "from": "rv:grace:operational-integration:verified-result-return-retry",
+          "to": "rv:grace:operational-integration:verified-result-review-decision",
+          "type": "recovery_route",
+          "label": "Retry the same completion cycle idempotently after dependencies recover."
         }
       ]
     },
@@ -11719,6 +11776,7 @@
     "rv:grace:operational-integration:verification-feedback",
     "rv:grace:operational-integration:verified-result-chat-return",
     "rv:grace:operational-integration:verified-result-return-retry",
+    "rv:grace:operational-integration:verified-result-review-decision",
     "rv:grace:operational-integration:verifier-revision-accepted",
     "rv:grace:operational-integration:verifier-revision-retry",
     "rv:grace:operational-integration:verifier-revision-revalidation",

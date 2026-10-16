@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_repository_knowledge.py
 # Component: REPOSITORY-KNOWLEDGE-PROVIDER
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Verify pinned source retrieval and fail-closed provider outcomes
 # Execution Model: Standard-library unit tests with disposable local Git repos
 # Observability: Typed KnowledgeResult status, references, commit and content hash
@@ -10,6 +10,7 @@
 # Authority: Uses only temporary test repositories; no network or database access
 # Changed: 2026-10-11 UTC | RV-M3.3-REPOSITORY-KNOWLEDGE | Initial tests
 # Changed: 2026-10-11 UTC | RV-M33-ENGINEERING-ARTIFACT | Verify repository regression action is grounded by the real provider contract
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Verify source-change execution uses the existing pinned worker contract
 # Contracts: docs/components/WORKER_ADAPTER.md
 # Tests: This file
 # History: .riverview-backups/manifest.jsonl and Git
@@ -86,6 +87,17 @@ class RepositoryKnowledgeTests(unittest.TestCase):
             KnowledgeStatus.CONTRADICTORY)
         self.assertIs(self.provider.preflight_action(
             self.assignment, "arbitrary.command").status, KnowledgeStatus.NO_MATCH)
+
+    def test_source_change_capability_uses_the_existing_worker_contract(self):
+        capability = "engineering.codex-cli-source-change.v1"
+        grounded = self.provider.ground_assignment(self.assignment)
+        preflight = self.provider.preflight_action(self.assignment, capability)
+        regrounded = self.provider.reground_assignment(self.assignment, "before_action")
+        self.assertIs(grounded.status, KnowledgeStatus.VERIFIED)
+        self.assertIs(preflight.status, KnowledgeStatus.VERIFIED)
+        self.assertIs(regrounded.status, KnowledgeStatus.VERIFIED)
+        self.assertEqual(grounded.source_revision, self.commit)
+        self.assertEqual(preflight.source_sha256, grounded.source_sha256)
 
     def test_regrounding_requires_a_trigger_and_reloads_pinned_sources(self):
         result = self.provider.reground_assignment(self.assignment, "context_restored")

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.0
+# Revision: 1.1.4
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
 # Execution Model: Request-driven orchestration over existing PostgreSQL authority and ledger
 # Observability: Append-only objective events linked to assignment and evidence provenance
@@ -18,6 +18,12 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-CONTEXT-001 | Include resident contract reference in durable reasoning context
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Persist dependency-ordered step execution and verified continuation in existing objective ledger
 # Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Store safe same-objective continuation proposals and cycle-specific result receipts
+# Previous Revision: 1.1.1
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Persist per-step execution capability and file scope in proposal provenance; resolve verified predecessor patches
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Reject model-proposed source paths unless every path is explicitly named in the original Steward request or accepted criteria
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Require Grace 80B review of each verified predecessor before dispatching dependent work
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Expose each verified objective step to the existing Grace result-review outbox
+# Changed: 2026-10-16 UTC | RV-GRACE-REVIEW-OBJECTIVE-PROGRESS | Include authoritative objective and step state in Grace's verified-result review context
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -241,6 +247,19 @@ class GraceExecutionPipeline:
                     for criterion in step.acceptance_criteria}
         if not requested.issubset(proposed):
             raise ObjectiveStateError("proposal omits one or more human acceptance criteria")
+        # A model cannot turn a general objective into filesystem authority.
+        # Every source path must have been explicitly named in the Steward's
+        # original request or accepted criteria; the adapter allowlist is only
+        # a second, operator-configured ceiling.
+        approved_source_scope = [objective["request"], *objective["acceptance_criteria"]]
+        for step in proposal.steps:
+            if (step.execution_capability == "engineering.codex-cli-source-change.v1" and
+                    any(not any(re.search(r"(?<![A-Za-z0-9._/-])" + re.escape(path) +
+                                          r"(?![A-Za-z0-9._/-])", text)
+                                    for text in approved_source_scope)
+                        for path in step.authorized_paths)):
+                raise ObjectiveStateError(
+                    "source-change path is absent from the Steward-approved objective scope")
         document = asdict(proposal)
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
@@ -266,16 +285,21 @@ class GraceExecutionPipeline:
         return self.get_objective(objective_id)
 
     def dispatchable_step(self, objective_id):
-        """Return the first pending step whose dependencies are independently verified."""
+        """Return the next pending step after verified dependencies and Grace review."""
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
             cur.execute("""SELECT step_id,step_order,step_objective,acceptance_criteria,
                     depends_on,status,assignment_id FROM grace_objective_steps
                 WHERE objective_id=%s ORDER BY step_order""", (objective_id,))
             rows = cur.fetchall()
+            cur.execute("""SELECT payload->>'step_id' AS step_id
+                FROM grace_objective_events WHERE objective_id=%s
+                  AND event_type='work_order.continuation_proposed'""", (objective_id,))
+            reviewed = {row["step_id"] for row in cur.fetchall()}
         verified = {row["step_id"] for row in rows if row["status"] == "verified"}
         for row in rows:
-            if row["status"] == "pending" and set(row["depends_on"]) <= verified:
+            if (row["status"] == "pending" and set(row["depends_on"]) <= verified and
+                    (row["step_order"] == 1 or row["step_id"] in reviewed)):
                 return row
         return None
 
@@ -283,15 +307,60 @@ class GraceExecutionPipeline:
         """Resolve proposal content through the durable objective-step assignment link."""
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
-            cur.execute("""SELECT step_id,step_objective,acceptance_criteria,depends_on
-                FROM grace_objective_steps WHERE objective_id=%s AND assignment_id=%s""",
+            cur.execute("""SELECT s.step_id,s.step_objective,s.acceptance_criteria,s.depends_on,
+                    o.proposal FROM grace_objective_steps s JOIN grace_objectives o USING(objective_id)
+                WHERE s.objective_id=%s AND s.assignment_id=%s""",
                 (objective_id, assignment_id))
             row = cur.fetchone()
         if row is None:
             return None
+        proposal = row["proposal"] if isinstance(row["proposal"], dict) else {}
+        raw_step = next((item for item in proposal.get("steps", [])
+                         if isinstance(item, dict) and item.get("step_id") == row["step_id"]), {})
         return {"step_id": row["step_id"], "objective": row["step_objective"],
                 "acceptance_criteria": row["acceptance_criteria"],
-                "depends_on": row["depends_on"]}
+                "depends_on": row["depends_on"],
+                "execution_capability": raw_step.get(
+                    "execution_capability", "engineering.codex-cli-artifact.v1"),
+                "authorized_paths": raw_step.get("authorized_paths", []),
+                "test_targets": raw_step.get("test_targets", [])}
+
+    def verified_source_change_predecessor(self, objective_id, step):
+        """Return the latest independently verified patch and scope for a linear dependent step."""
+        from ..resident_reasoning import PlanStep
+        if not isinstance(step, PlanStep) or step.execution_capability != \
+                "engineering.codex-cli-source-change.v1":
+            raise ObjectiveStateError("source-change step is required")
+        if not step.depends_on:
+            return {"prior_patches": (), "authorized_paths": (), "test_targets": ()}
+        if len(step.depends_on) != 1:
+            raise ObjectiveStateError("source-change patch chains require one verified predecessor")
+        predecessor_id = step.depends_on[0]
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT s.status,s.assignment_id,o.proposal,wr.result
+                FROM grace_objective_steps s JOIN grace_objectives o USING(objective_id)
+                JOIN assignments a ON a.id=s.assignment_id
+                JOIN worker_attempts wa ON wa.assignment_id=a.id AND wa.status='succeeded'
+                JOIN worker_results wr USING(attempt_id)
+                WHERE s.objective_id=%s AND s.step_id=%s
+                ORDER BY wa.started_at DESC LIMIT 1""", (objective_id, predecessor_id))
+            row = cur.fetchone()
+        if not row or row["status"] != "verified" or not row["assignment_id"]:
+            raise ObjectiveStateError("dependent source change requires verified predecessor")
+        result = row["result"]
+        if (not isinstance(result, dict) or result.get("capability") !=
+                "engineering.codex-cli-source-change.v1" or
+                result.get("status") != "SUCCEEDED" or
+                not isinstance(result.get("patch_path"), str) or
+                not re.fullmatch(r"[0-9a-f]{64}", str(result.get("patch_sha256", "")))):
+            raise ObjectiveStateError("verified predecessor patch provenance is incomplete")
+        proposal = row["proposal"] if isinstance(row["proposal"], dict) else {}
+        raw_step = next((item for item in proposal.get("steps", [])
+                         if isinstance(item, dict) and item.get("step_id") == predecessor_id), {})
+        return {"prior_patches": ((result["patch_path"], result["patch_sha256"]),),
+                "authorized_paths": tuple(raw_step.get("authorized_paths", ())),
+                "test_targets": tuple(raw_step.get("test_targets", ()))}
 
     def authorize_and_dispatch(self, objective_id, assignment_id, *, credential,
                                authority_ref, idempotency_key, step_id=None):
@@ -402,9 +471,11 @@ class GraceExecutionPipeline:
             artifact_row = cur.fetchone()
         artifact = artifact_row["result"] if artifact_row else None
         if isinstance(artifact, dict):
-            payload["artifact"] = {key: artifact[key] for key in
-                ("artifact_name", "artifact_path", "artifact_sha256", "artifact_bytes")
-                if key in artifact}
+            allowed_evidence = ("artifact_name", "artifact_path", "artifact_sha256",
+                "artifact_bytes", "capability", "changed_files", "patch_sha256",
+                "patch_bytes", "test_status", "repository_revision")
+            payload["artifact"] = {key: artifact[key] for key in allowed_evidence
+                                    if key in artifact}
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
@@ -510,29 +581,27 @@ class GraceExecutionPipeline:
             return cur.fetchall()
 
     def pending_conversation_results(self, *, limit=10):
-        """Return completed conversation-origin objectives not yet returned to chat."""
+        """Return verified conversation-origin steps not yet reviewed by Grace."""
         if type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError("conversation result limit must be between 1 and 100")
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
-            cur.execute("""SELECT o.objective_id,
-                    (SELECT c.payload->>'completion_cycle' FROM grace_objective_events c
-                     WHERE c.objective_id=o.objective_id AND c.event_type='objective.completed'
-                     ORDER BY c.sequence DESC LIMIT 1) AS completion_cycle
+            cur.execute("""SELECT o.objective_id,c.payload->>'completion_cycle' AS completion_cycle,
+                    c.payload,c.event_type
                 FROM grace_objectives o
+                JOIN LATERAL (SELECT e.payload,e.event_type,e.sequence
+                    FROM grace_objective_events e
+                    WHERE e.objective_id=o.objective_id
+                      AND e.event_type IN ('execution.step_verified','objective.completed')
+                      AND EXISTS (SELECT 1 FROM grace_objective_events r
+                        WHERE r.objective_id=o.objective_id AND r.event_type='objective.received'
+                          AND r.payload ? 'origin')
+                      AND NOT EXISTS (SELECT 1 FROM grace_objective_events p
+                        WHERE p.objective_id=o.objective_id
+                          AND p.event_type='conversation.result_published'
+                          AND p.payload->>'completion_cycle'=e.payload->>'completion_cycle')
+                    ORDER BY e.sequence DESC LIMIT 1) c ON true
                 WHERE o.status IN ('COMPLETED','WORK_ORDER_CREATED')
-                  AND EXISTS (SELECT 1 FROM grace_objective_events r
-                    WHERE r.objective_id=o.objective_id AND r.event_type='objective.received'
-                      AND r.payload ? 'origin')
-                  AND EXISTS (SELECT 1 FROM grace_objective_events c
-                    WHERE c.objective_id=o.objective_id AND c.event_type='objective.completed')
-                  AND NOT EXISTS (SELECT 1 FROM grace_objective_events p
-                    WHERE p.objective_id=o.objective_id
-                      AND p.event_type='conversation.result_published'
-                      AND p.payload->>'completion_cycle'=(SELECT c.payload->>'completion_cycle'
-                        FROM grace_objective_events c WHERE c.objective_id=o.objective_id
-                          AND c.event_type='objective.completed'
-                        ORDER BY c.sequence DESC LIMIT 1))
                 ORDER BY o.updated_at,o.objective_id LIMIT %s""", (limit,))
             objective_rows = cur.fetchall()
         results = []
@@ -542,19 +611,25 @@ class GraceExecutionPipeline:
             events = self.objective_events(objective_id)
             received = next((event for event in events
                 if event["event_type"] == "objective.received"), None)
-            completed = next((event for event in reversed(events)
-                if event["event_type"] == "objective.completed"), None)
             origin = ((received or {}).get("payload") or {}).get("origin")
-            completion = (completed or {}).get("payload")
+            completion = objective_row["payload"]
             if (not objective or not isinstance(origin, dict)
                     or not isinstance(completion, dict)
                     or not completion.get("assignment_id")):
                 continue
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("""SELECT step_id,status FROM grace_objective_steps
+                    WHERE objective_id=%s ORDER BY step_order""", (objective_id,))
+                step_progress = [{"step_id": row["step_id"], "status": row["status"]}
+                                 for row in cur.fetchall()]
             results.append({"objective_id": objective_id,
                 "assignment_id": completion["assignment_id"],
                 "request": objective["request"],
                 "acceptance_criteria": list(objective["acceptance_criteria"]),
                 "proposal": completion.get("proposal", objective.get("proposal")),
+                "objective_status": objective["status"],
+                "step_progress": step_progress,
                 "submitter_id": received.get("actor_id"),
                 "origin": origin,
                 "completion_cycle": int(objective_row["completion_cycle"] or 1),
@@ -578,7 +653,8 @@ class GraceExecutionPipeline:
                 if not row:
                     raise ObjectiveStateError("objective is missing before chat return")
                 cur.execute("""SELECT 1 FROM grace_objective_events
-                    WHERE objective_id=%s AND event_type='objective.completed'
+                    WHERE objective_id=%s
+                      AND event_type IN ('execution.step_verified','objective.completed')
                       AND payload->>'completion_cycle'=%s""",
                     (objective_id, receipt["completion_cycle"]))
                 if not cur.fetchone():
@@ -591,6 +667,58 @@ class GraceExecutionPipeline:
     def propose_continuation(self, objective_id, parent_assignment_id, step, *, actor_id="office:grace"):
         """Persist a model-proposed step only inside the accepted objective's exact scope."""
         from ..resident_reasoning import PlanProposal, PlanStep
+        objective = self.get_objective(objective_id)
+        # An initial multi-step proposal is still gated one verified result at a
+        # time. Grace's authenticated 80B review must explicitly confirm the
+        # already scoped dependent step before CME may dispatch it.
+        if (isinstance(step, PlanStep) and objective is not None and
+                objective["status"] == "WORK_ORDER_CREATED" and
+                objective.get("assignment_id") == parent_assignment_id):
+            proposal = objective.get("proposal") if isinstance(objective.get("proposal"), dict) else {}
+            raw = next((item for item in proposal.get("steps", [])
+                        if isinstance(item, dict) and item.get("step_id") == step.step_id), None)
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("""SELECT parent.step_id AS parent_step,parent.status AS parent_status,
+                        target.step_order,target.status AS target_status,target.step_objective,
+                        target.acceptance_criteria,target.depends_on
+                    FROM grace_objective_steps parent
+                    JOIN grace_objective_steps target ON target.objective_id=parent.objective_id
+                    WHERE parent.objective_id=%s AND parent.assignment_id=%s
+                      AND target.step_id=%s""", (objective_id, parent_assignment_id, step.step_id))
+                link = cur.fetchone()
+            exact = (raw is not None and raw.get("objective") == step.objective and
+                tuple(raw.get("acceptance_criteria", ())) == tuple(step.acceptance_criteria) and
+                tuple(raw.get("depends_on", ())) == tuple(step.depends_on) and
+                raw.get("execution_capability", "engineering.codex-cli-artifact.v1") == step.execution_capability and
+                tuple(raw.get("authorized_paths", ())) == tuple(step.authorized_paths) and
+                tuple(raw.get("test_targets", ())) == tuple(step.test_targets))
+            if (link and exact and link["parent_status"] == "verified" and
+                    link["target_status"] == "pending" and
+                    link["parent_step"] in tuple(link["depends_on"]) and
+                    step.step_id in {row.get("step_id") for row in proposal.get("steps", [])
+                                     if isinstance(row, dict)}):
+                idem = f"grace-step-continuation-review:{objective_id}:{parent_assignment_id}:{step.step_id}"
+                existing = any(event["event_type"] == "work_order.continuation_proposed" and
+                    event["idempotency_key"] == idem for event in self.objective_events(objective_id))
+                if existing:
+                    return objective
+                with self.ledger.db.transaction():
+                    with self.ledger.db.cursor() as cur:
+                        self.ledger._set_search_path(cur)
+                        cur.execute("SELECT status,assignment_id FROM grace_objectives WHERE objective_id=%s FOR UPDATE",
+                                    (objective_id,))
+                        locked = cur.fetchone()
+                        if (not locked or locked["status"] != "WORK_ORDER_CREATED" or
+                                locked["assignment_id"] != parent_assignment_id):
+                            raise ObjectiveStateError("objective changed before reviewed continuation")
+                        self._event(cur, objective_id, "work_order.continuation_proposed", idem,
+                            actor_id, {"parent_assignment_id": parent_assignment_id,
+                                "step_id": step.step_id,"step_order": link["step_order"],
+                                "acceptance_criteria": list(step.acceptance_criteria),
+                                "authorization": "original_scope_exact_grant_rechecked_at_dispatch",
+                                "review_type": "verified_predecessor_result"})
+                return self.get_objective(objective_id)
         objective = self.get_objective(objective_id)
         if (isinstance(step, PlanStep) and objective is not None and
                 objective["status"] == "WORK_ORDER_CREATED"):
@@ -620,15 +748,25 @@ class GraceExecutionPipeline:
                 not set(step.depends_on) <= prior_ids or
                 not set(step.acceptance_criteria) <= accepted):
             raise ObjectiveStateError("continuation exceeds the original accepted scope")
+        authorized_paths = {path for item in prior_steps if isinstance(item, dict)
+                            for path in item.get("authorized_paths", ())}
+        if step.execution_capability == "engineering.codex-cli-source-change.v1" and (
+                not set(step.authorized_paths) <= authorized_paths or
+                not set(step.test_targets) <= set(step.authorized_paths)):
+            raise ObjectiveStateError("continuation exceeds the originally approved file scope")
         continuation = PlanStep(step.step_id, step.objective, tuple(step.acceptance_criteria),
-                                tuple(step.depends_on))
+                                tuple(step.depends_on), step.execution_capability,
+                                tuple(step.authorized_paths), tuple(step.test_targets))
         merged = dict(objective["proposal"])
         merged["steps"] = [*prior_steps, asdict(continuation)]
         # Reuse the public typed contract to validate unique IDs and acyclic
         # earlier-step dependencies before durable state is changed.
         PlanProposal(merged["summary"], tuple(
             PlanStep(item["step_id"], item["objective"],
-                     tuple(item["acceptance_criteria"]), tuple(item.get("depends_on", ())))
+                     tuple(item["acceptance_criteria"]), tuple(item.get("depends_on", ())),
+                     item.get("execution_capability", "engineering.codex-cli-artifact.v1"),
+                     tuple(item.get("authorized_paths", ())),
+                     tuple(item.get("test_targets", ())))
             for item in merged["steps"]), 0)
         step_order = len(prior_steps) + 1
         with self.ledger.db.transaction():

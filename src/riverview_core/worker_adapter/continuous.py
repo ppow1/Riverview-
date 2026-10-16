@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/continuous.py
 # Component: WORKER-ADAPTER
-# Revision: 1.1.4
+# Revision: 1.1.5
 # Purpose: Execute bounded capability work with pinned source-digest provenance
 # Execution Model: Repeatable poll cycle; durable claims and outcomes in PostgreSQL
 # Observability: Assignment state, knowledge observations, attempts, and results
@@ -18,6 +18,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001 | Reground and safely requeue the same Codex assignment after a recoverable evidence wait
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-REVIEW | Revalidate both evidence and action preflight before same-assignment recovery
 # Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Authenticate recovery scope and heartbeat leases throughout bounded actions
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Permit bounded source-change retries only through the verified deterministic patch artifact boundary
 # Contracts: docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -286,8 +287,9 @@ class ContinuousWorker:
                 self.action_effect_class == "external_uncertain" and
                 getattr(exc, "execution_started", None) is False)
             retryable_without_artifact = (
-                self.action_effect_class == "external_uncertain" and
-                self.action_capability == "engineering.codex-cli-artifact.v1" and
+                self.action_effect_class in {"external_uncertain", "retry_safe"} and
+                self.action_capability in {"engineering.codex-cli-artifact.v1",
+                                           "engineering.codex-cli-source-change.v1"} and
                 type(exc).__name__ == "CodexActionFailure" and
                 getattr(exc, "retryable_without_durable_artifact", None) is True)
             intent_outcome = ("failed" if (pre_execution_failure or retryable_without_artifact) else

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.12
+# Revision: 1.0.15
 # Purpose: Regound institutional resident requests and route bounded plan proposals
 # Execution Model: Request-driven in-process runtime with replaceable reasoning providers
 # Observability: Office-scoped durable state stores grounding and provider outcomes
@@ -18,6 +18,10 @@
 # Changed: 2026-10-11 UTC | RV-M4.4-CONTEXT-FAILURE-CLASS | Distinguish oversize grounded input from JSON serialization failure
 # Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Persist actual served-model provenance with typed resident proposals
 # Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Permit bounded 60-second 80B proposal inference
+# Previous Revision: 1.0.13
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Carry exact authorized execution capability and source-change scope in durable plan steps
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Reject empty or malformed source-change scopes instead of truthy generator results
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Restrict source-change test targets to tests paths
 # Changed: 2026-10-15 UTC | RV-GRACE-AUTHORIZED-SNAPSHOT-001 | Revalidate office through the restricted runtime function after inference
 # Contracts: docs/components/RESIDENT_REASONING.md
 # Tests: tests/test_resident_reasoning.py
@@ -36,6 +40,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from enum import Enum
 import json
+import re
 import threading
 import time
 from typing import Any, Mapping, Protocol
@@ -61,6 +66,29 @@ class PlanStep:
     objective: str
     acceptance_criteria: tuple[str, ...]
     depends_on: tuple[str, ...] = ()
+    execution_capability: str = "engineering.codex-cli-artifact.v1"
+    authorized_paths: tuple[str, ...] = ()
+    test_targets: tuple[str, ...] = ()
+
+    def __post_init__(self):
+        if self.execution_capability not in {
+                "engineering.codex-cli-artifact.v1",
+                "engineering.codex-cli-source-change.v1"}:
+            raise ValueError("plan step execution capability is not registered")
+        if self.execution_capability == "engineering.codex-cli-source-change.v1":
+            def safe(values):
+                return (isinstance(values, tuple) and 1 <= len(values) <= 32 and
+                    len(values) == len(set(values)) and all(
+                        isinstance(path, str) and re.fullmatch(
+                            r"(?:src|tests|docs)/[A-Za-z0-9._/-]{1,240}", path) and
+                        ".." not in path.split("/") and ".git" not in path.split("/")
+                        for path in values))
+            if (not safe(self.authorized_paths) or not safe(self.test_targets) or
+                    any(not path.startswith("tests/") for path in self.test_targets) or
+                    not set(self.test_targets) <= set(self.authorized_paths)):
+                raise ValueError("source-change plan step requires bounded paths and test targets")
+        elif self.authorized_paths or self.test_targets:
+            raise ValueError("bounded artifact steps cannot carry repository file scope")
 
 
 @dataclass(frozen=True)

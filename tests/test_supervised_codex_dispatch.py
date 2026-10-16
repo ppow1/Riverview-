@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_supervised_codex_dispatch.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Verify the supervised Codex cycle remains pinned to one proposed objective
 # Execution Model: In-memory contract fixtures; no database or account credentials
 # Observability: Assertions inspect objective, assignment, verifier, and completion calls
@@ -10,6 +10,7 @@
 # Authority: No live service or institutional grant is created
 # Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Add exact-objective cycle contract checks
 # Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Assert the database claim carries the selected assignment identity
+# Changed: 2026-10-16 UTC | RV-GRACE-SCHEDULER-PROBE-COMPAT | Model the optional resident-schema probe before inspecting the claim filter
 # Contracts: src/riverview_core/resident_execution/service.py
 # Tests: python3 -m unittest tests.test_supervised_codex_dispatch -v
 # History: Git
@@ -85,22 +86,23 @@ class SupervisedCodexDispatchTests(unittest.TestCase):
 
     def test_scheduler_claim_query_carries_exact_assignment_filter(self):
         class Cursor:
-            query = ""
-            params = ()
+            calls = []
+            rows = [{"available": False}, None]
 
             def execute(self, query, params):
-                self.query, self.params = query, params
+                self.calls.append((query, params))
 
-            @staticmethod
-            def fetchone():
-                return None
+            def fetchone(self):
+                return self.rows.pop(0)
 
         cursor = Cursor()
         PostgresAssignmentScheduler._claim_candidate(cursor, "worker:test", 30,
             scope_ref="work-order:engineering", assignment_id="assignment:one")
 
-        self.assertIn("(%s::text IS NULL OR a.id=%s)", cursor.query)
-        self.assertEqual(cursor.params, ("work-order:engineering",
+        self.assertIn("to_regclass(current_schema() || '.grace_objectives')", cursor.calls[0][0])
+        self.assertEqual(cursor.calls[0][1], ())
+        self.assertIn("(%s::text IS NULL OR a.id=%s)", cursor.calls[1][0])
+        self.assertEqual(cursor.calls[1][1], ("work-order:engineering",
             "work-order:engineering", "assignment:one", "assignment:one"))
 
 

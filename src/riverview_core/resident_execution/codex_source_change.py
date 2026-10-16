@@ -2,13 +2,16 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_source_change.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.0
+# Revision: 1.0.3
 # Purpose: Execute explicitly scoped multi-file Engineering changes in a pinned disposable clone
 # Execution Model: Leased worker action followed by independent patch and test verification
 # Observability: Changed-file list, patch digest, base revision, test status and verifier evidence
 # Dependencies: Codex CLI owner session; Git; bubblewrap; pytest-compatible configured runner
 # Authority: Separate source-change capability; explicit exact file scope; never applies to production
 # Changed: 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-001 | Initial bounded multi-file source change capability
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Chain independently verified predecessor patches for dependent work-order steps
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Recover and revalidate a durable patch after interruption before worker-result persistence
+# Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Read patch artifacts with no-follow descriptor checks during independent verification
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: tests/test_codex_source_change.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -70,6 +73,7 @@ class CodexSourceChangeAssignment:
     authorized_paths: tuple[str, ...]
     test_targets: tuple[str, ...]
     timeout_seconds: int = 300
+    prior_patches: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self):
         if (not isinstance(self.assignment_id, str) or not self.assignment_id or
@@ -90,6 +94,12 @@ class CodexSourceChangeAssignment:
         _paths(self.test_targets)
         if not set(self.test_targets) <= set(self.authorized_paths):
             raise ValueError("test targets must be included in the explicit authorized path scope")
+        if (not isinstance(self.prior_patches, tuple) or len(self.prior_patches) > 1 or
+                any(not isinstance(item, tuple) or len(item) != 2 or
+                    not isinstance(item[0], str) or
+                    not re.fullmatch(r"[0-9a-f]{64}", str(item[1]))
+                    for item in self.prior_patches)):
+            raise ValueError("source-change predecessor patch chain is invalid")
 
 
 @dataclass(frozen=True)
@@ -161,7 +171,7 @@ class CodexSourceChangeAdapter:
         key = hashlib.sha256(assignment.assignment_id.encode()).hexdigest()
         patch_path = self.base.artifact_root / f"codex-source-{key}.patch"
         if patch_path.exists() or patch_path.is_symlink():
-            return self._result(assignment, "BLOCKED", "patch_already_exists")
+            return self._recover_existing_patch(assignment, patch_path)
         started = False
         try:
             with tempfile.TemporaryDirectory(prefix=f"{key[:12]}-",
@@ -171,6 +181,23 @@ class CodexSourceChangeAdapter:
                 self.base._git(["clone", "--quiet", "--no-hardlinks", "--no-checkout",
                     "--", str(source), str(repo)], safe_repository=source)
                 self.base._git(["-C", str(repo), "checkout", "--quiet", "--detach", revision])
+                for prior_path, prior_sha256 in assignment.prior_patches:
+                    prior_file = self._verified_prior_patch(prior_path, prior_sha256)
+                    check_prior = subprocess.run(["/usr/bin/git", "-C", str(repo),
+                        "apply", "--check", "--whitespace=error", str(prior_file)],
+                        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL, timeout=15, check=False, close_fds=True)
+                    if check_prior.returncode:
+                        return self._result(assignment, "WAITING_FOR_EVIDENCE",
+                                            "predecessor_patch_not_applicable")
+                    apply_prior = subprocess.run(["/usr/bin/git", "-C", str(repo),
+                        "apply", "--whitespace=error", str(prior_file)],
+                        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL, timeout=15, check=False, close_fds=True)
+                    if apply_prior.returncode or not set(
+                            self.base._workspace_changed_paths(repo, revision)) <= set(
+                                assignment.authorized_paths):
+                        return self._result(assignment, "BLOCKED", "predecessor_scope_invalid")
                 schema = root / "result.schema.json"
                 schema.write_text(json.dumps({"type": "object", "properties": {
                     "status": {"const": "PATCH_PRODUCED"},
@@ -257,6 +284,80 @@ class CodexSourceChangeAdapter:
             assignment.objective_id, assignment.repository_revision, (), None, None, None,
             "not_run", code, started)
 
+    def _verified_prior_patch(self, path_value, expected_sha256):
+        """Open an owner-only predecessor patch confined to the configured artifact root."""
+        root = self.base.artifact_root.resolve(strict=True)
+        path = Path(path_value)
+        info = path.lstat()
+        if (path.parent.resolve(strict=True) != root or path.is_symlink() or
+                not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or
+                stat.S_IMODE(info.st_mode) != 0o600 or not 0 < info.st_size <= MAX_PATCH_BYTES):
+            raise CodexAdapterError("predecessor_patch_metadata_invalid")
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        try:
+            raw = os.read(fd, MAX_PATCH_BYTES + 1)
+        finally:
+            os.close(fd)
+        if len(raw) != info.st_size or hashlib.sha256(raw).hexdigest() != expected_sha256:
+            raise CodexAdapterError("predecessor_patch_digest_mismatch")
+        return path
+
+    def _recover_existing_patch(self, assignment, patch_path):
+        """Re-adopt an interrupted same-assignment patch only after fresh replay and tests."""
+        try:
+            root = self.base.artifact_root.resolve(strict=True)
+            info = patch_path.lstat()
+            if (patch_path.parent.resolve(strict=True) != root or patch_path.is_symlink() or
+                    not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or
+                    stat.S_IMODE(info.st_mode) != 0o600 or
+                    not 0 < info.st_size <= MAX_PATCH_BYTES):
+                return self._result(assignment, "BLOCKED", "existing_patch_metadata_invalid")
+            fd = os.open(patch_path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+            try:
+                patch = os.read(fd, MAX_PATCH_BYTES + 1)
+            finally:
+                os.close(fd)
+            if len(patch) != info.st_size:
+                return self._result(assignment, "BLOCKED", "existing_patch_read_invalid")
+            binary, source = self.base._preflight()
+            del binary
+            revision = self.base._git(["-C", str(source), "rev-parse", "--verify", "HEAD"],
+                                      safe_repository=source)
+            if revision != assignment.repository_revision:
+                return self._result(assignment, "WAITING_FOR_EVIDENCE",
+                                    "repository_revision_mismatch")
+            with tempfile.TemporaryDirectory(prefix="recover-source-patch-",
+                    dir=self.base.workspace_root) as temporary:
+                root = Path(temporary)
+                repo = root / "repo"
+                self.base._git(["clone", "--quiet", "--no-hardlinks", "--no-checkout",
+                    "--", str(source), str(repo)], safe_repository=source)
+                self.base._git(["-C", str(repo), "checkout", "--quiet", "--detach", revision])
+                patch_file = root / "existing.patch"
+                patch_file.write_bytes(patch)
+                check = subprocess.run(["/usr/bin/git", "-C", str(repo), "apply", "--check",
+                    "--whitespace=error", str(patch_file)], stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15,
+                    check=False, close_fds=True)
+                if check.returncode:
+                    return self._result(assignment, "BLOCKED", "existing_patch_not_applicable")
+                apply = subprocess.run(["/usr/bin/git", "-C", str(repo), "apply",
+                    "--whitespace=error", str(patch_file)], stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15,
+                    check=False, close_fds=True)
+                changed = tuple(sorted(self.base._workspace_changed_paths(repo, revision)))
+                if (apply.returncode or not changed or
+                        not set(changed) <= set(assignment.authorized_paths)):
+                    return self._result(assignment, "BLOCKED", "existing_patch_scope_invalid")
+                if not _run_tests(repo, assignment.test_targets, assignment.timeout_seconds):
+                    return self._result(assignment, "BLOCKED", "existing_patch_tests_failed")
+            return CodexSourceChangeResult("PATCH_PRODUCED", CAPABILITY,
+                assignment.assignment_id, assignment.objective_id, revision, changed,
+                str(patch_path), hashlib.sha256(patch).hexdigest(), len(patch),
+                "passed", "recovered_existing_patch", False)
+        except (OSError, ValueError, subprocess.SubprocessError, CodexAdapterError):
+            return self._result(assignment, "BLOCKED", "existing_patch_recovery_failed")
+
 
 class CodexSourceChangeVerifier:
     """Reapply a patch to a fresh pinned clone and independently rerun its tests."""
@@ -288,7 +389,15 @@ class CodexSourceChangeVerifier:
                     not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or
                     stat.S_IMODE(info.st_mode) != 0o600 or not 0 < info.st_size <= MAX_PATCH_BYTES):
                 raise ValueError
-            patch = path.read_bytes()
+            fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+            try:
+                opened = os.fstat(fd)
+                if (not stat.S_ISREG(opened.st_mode) or opened.st_uid != os.geteuid() or
+                        stat.S_IMODE(opened.st_mode) != 0o600 or opened.st_size != info.st_size):
+                    raise ValueError
+                patch = os.read(fd, MAX_PATCH_BYTES + 1)
+            finally:
+                os.close(fd)
             if (len(patch) != result.patch_bytes or
                     hashlib.sha256(patch).hexdigest() != result.patch_sha256):
                 raise ValueError
