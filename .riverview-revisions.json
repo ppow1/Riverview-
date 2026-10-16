@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.184"
+      "revision": "1.1.185"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -95,9 +95,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.144",
-      "sha256": "732718fb26c6118ce140b8b972daab913daf8a5523ec249287b3044c8fcc3f94",
-      "size_bytes": 551898
+      "revision": "1.0.139",
+      "sha256": "76ec1fef77387aabaea47a6fa112bb218bcb7bcb51e0649d3abfd8bed33860d3",
+      "size_bytes": 564325
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -161,9 +161,9 @@
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "path": "process_graphs/resident-reasoning/runtime.json",
-      "revision": "1.0.12",
-      "sha256": "19171278b9dcd4efc4f93e66d32ac8891748a884a63ed0c24aac9b62740cfe36",
-      "size_bytes": 28784
+      "revision": "1.0.13",
+      "sha256": "0788b7e7726ad9414ce7f38f7610d69c783aeedaec3a03bdf31257c997be8f57",
+      "size_bytes": 39513
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -178,8 +178,8 @@
       "size_bytes": 3203
     },
     "process_graphs/steward-dashboard/status.json": {
-      "revision": "1.0.28",
       "path": "process_graphs/steward-dashboard/status.json",
+      "revision": "1.0.28",
       "sha256": "0060df8d73102ed4ef72ec8a7211dd00c392fa9a368ba5a1a0bef93df734747e",
       "size_bytes": 39787
     },
@@ -194,6 +194,12 @@
       "revision": "1.0.1",
       "sha256": "e2e5911aae9b98d37c139995030103ebb8f29d891ea80c398411591a455f7b80",
       "size_bytes": 18530
+    },
+    "src/riverview_core/status_dashboard/static/capabilities.json": {
+      "path": "src/riverview_core/status_dashboard/static/capabilities.json",
+      "revision": "1.0.1",
+      "sha256": "fbe0fb6d53ca6e7fd3ff72073d6dbec49f6b36fd840dbc643cfd1fbc6dcc70f2",
+      "size_bytes": 23138
     },
     "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json": {
       "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json",
@@ -218,13 +224,8 @@
       "revision": "1.0.0",
       "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
       "size_bytes": 1226
-    },
-    "src/riverview_core/status_dashboard/static/capabilities.json": {
-      "path": "src/riverview_core/status_dashboard/static/capabilities.json",
-      "revision": "1.0.1",
-      "sha256": "fbe0fb6d53ca6e7fd3ff72073d6dbec49f6b36fd840dbc643cfd1fbc6dcc70f2",
-      "size_bytes": 23138
     }
   },
-  "manifest_revision": "1.1.184"
+  "manifest_revision": "1.1.185",
+  "updated_at": null
 }

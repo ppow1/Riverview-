@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.14
+# Revision: 1.0.15
 # Purpose: Verify resident regrounding, bounded provider routing and durable resume
 # Execution Model: Isolated PostgreSQL authority registry integration tests
 # Observability: Assertions inspect persisted office state and provider outcomes
@@ -24,6 +24,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-PERSISTENT-RUNTIME-INTEGRATION | Exercise office-bound reasoning through the persistent execution service across replacement
 # Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Verify sixty-second provider deadlines remain bounded
 # Changed: 2026-10-15 UTC | RV-GRACE-AUTHORIZED-SNAPSHOT-001 | Revalidate through authorized function when direct snapshot SELECT is denied
+# Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Verify external advice is separate from verified knowledge
 # =============================================================================
 
 import hashlib
@@ -245,6 +246,44 @@ class ResidentReasoningTests(unittest.TestCase):
         self.assertEqual(second.status, ReasoningStatus.PROPOSED)
         self.assertEqual(replacement_provider.requests[0].prior_plan["summary"], "plan one")
         self.assertNotIn("credential", replacement_provider.requests[0].__dataclass_fields__)
+
+    def test_external_advisory_reaches_reasoning_separately_from_verified_knowledge(self):
+        import json
+        from riverview_core.resident_reasoning import ReasoningStatus
+
+        provider = _Provider("provider.a", summary="evaluate advice")
+        reasoner = self._runtime({"provider.a": provider})
+        advisory = {
+            "schema_version": "rv.external-reasoning.response.v1",
+            "request_id": str(uuid4()), "correlation_id": str(uuid4()),
+            "response_id": "advisory-test-1",
+            "advisory": "Consider the alternative implementation path.",
+            "evidence_references": ["test://external-evidence"],
+            "provider_id": "external.test", "provider_model": "advisory-model-v1",
+        }
+        result = reasoner.propose(self.assignments.current["id"],
+            trigger="external_reasoning_resume", token_budget=100,
+            external_advisory=advisory)
+        self.assertEqual(result.status, ReasoningStatus.PROPOSED)
+        request = provider.requests[0]
+        self.assertEqual(request.external_advisory, advisory)
+        self.assertEqual(request.verified_knowledge[0]["status"], "VERIFIED")
+        self.assertNotIn(advisory["advisory"], json.dumps(request.verified_knowledge))
+        state = self.registry.office_snapshot(self.office_id)["state"][reasoner.STATE_KEY]
+        metadata = state["outcomes"][-1]["external_advisory"]
+        self.assertEqual(metadata["request_id"], advisory["request_id"])
+        self.assertEqual(metadata["provider_model"], advisory["provider_model"])
+        self.assertEqual(state["plans"][self.assignments.current["id"]]["summary"],
+                         "evaluate advice")
+
+    def test_malformed_external_advisory_fails_before_provider_call(self):
+        provider = _Provider("provider.a")
+        reasoner = self._runtime({"provider.a": provider})
+        with self.assertRaises(ValueError):
+            reasoner.propose(self.assignments.current["id"],
+                trigger="external_reasoning_resume", token_budget=100,
+                external_advisory={"advisory": "untyped"})
+        self.assertEqual(provider.requests, [])
 
     def test_replacement_occupant_resumes_reasoning_with_new_binding_and_grant(self):
         """Office state follows the role while authority follows the occupant."""

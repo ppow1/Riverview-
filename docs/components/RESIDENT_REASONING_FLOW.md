@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_FLOW.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.7
+File Revision: 1.0.8
 Purpose: Generated focused process view for resident reasoning routing
 Authority: Graph-generated view; canonical source is JSON
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add graph-generated resident reasoning flow
@@ -44,11 +44,22 @@ flowchart LR
     g_rv_resident_reasoning_runtime_proposal_only_27f4e7fa(["Return PROPOSED; proposal is not an approved work order or executed action"])
     g_rv_resident_reasoning_runtime_budget_gate_362686a9{"Can the total budget provide at least one token to every primary/fallback attempt?"}
     g_rv_resident_reasoning_runtime_budget_insufficient_85f3e6b9[["Reject an undersized route before invoking any provider"]]
-    g_rv_resident_reasoning_runtime_task_escalation_contract_dec2e604["IMPLEMENTED CONTRACT ONLY — task escalation carries the original assignment, verified context fingerprint, exact provider target and bounded result; normal resident routing is not yet wired to invoke it"]
-    g_rv_resident_reasoning_runtime_task_escalation_authority_gate_efa7f87a{"CONTRACT ONLY — require exact resident.reasoning.escalate grant for the selected provider scope"}
-    g_rv_resident_reasoning_runtime_task_escalation_result_cd1b038d["CONTRACT ONLY — accept a structured result only when correlation, context fingerprint, schema, and token budget match"]
-    g_rv_resident_reasoning_runtime_task_escalation_failure_96662c07[["Record denied, unavailable, capacity, timeout, invalid-result, and stale-context outcomes without claiming a proposal"]]
+    g_rv_resident_reasoning_runtime_task_escalation_contract_dec2e604["IMPLEMENTED — explicit task escalation is durably admitted to PostgreSQL before a separate transport attempts delivery; no provider call blocks Grace or CME"]
+    g_rv_resident_reasoning_runtime_task_escalation_authority_gate_efa7f87a{"Require exact resident.reasoning.escalate grant for the selected provider before exchange persistence"}
+    g_rv_resident_reasoning_runtime_task_escalation_result_cd1b038d["Persist only a versioned advisory whose correlation, context fingerprint, provider identity, claim fence and response schema match"]
+    g_rv_resident_reasoning_runtime_task_escalation_failure_96662c07[["Record denied, unavailable, expired, lease, retry, malformed-response and stale-context diagnostics without approving or dispatching work"]]
     g_rv_resident_reasoning_runtime_task_escalation_recovery_d0da7090["Keep the original assignment durable; retry only after explicit regrounding and current authority/provider readiness"]
+    g_rv_resident_reasoning_runtime_exchange_outbox_7bebb762["Commit authorized request, context digest, origin and finite deadline before delivery; preserve stable idempotency and correlation IDs"]
+    g_rv_resident_reasoning_runtime_exchange_delivery_lease_6cddd7c8["Claim a bounded delivery lease and fence; acknowledge or schedule bounded retry without blocking assignment processing"]
+    g_rv_resident_reasoning_runtime_exchange_delivered_072adda5["Mark delivery acknowledged; wait for external claim without polling or holding a worker lease"]
+    g_rv_resident_reasoning_runtime_exchange_external_claim_bb5aa89e["Authenticate provider identity, claim correlated request with bounded lease and monotonic fence"]
+    g_rv_resident_reasoning_runtime_exchange_response_gate_87bf6800{"Does response schema, provider, request/correlation, active claim fence, size and deadline match?"}
+    g_rv_resident_reasoning_runtime_exchange_response_persisted_74d2abca["Commit one structured advisory, evidence references, digest and provenance idempotently"]
+    g_rv_resident_reasoning_runtime_exchange_grace_consumption_0b864d8c["Revalidate original exact grant; lease the response and return advisory separately from original reasoning context"]
+    g_rv_resident_reasoning_runtime_exchange_grace_ack_4657c0a8["Acknowledge only after Grace records the next reasoning result under stable consumption key"]
+    g_rv_resident_reasoning_runtime_exchange_expired_124bcfc4[["Expire request on finite deadline; preserve one terminal event and reject late response"]]
+    g_rv_resident_reasoning_runtime_exchange_recovery_4f7ee76d["Recover awaiting-delivery, expired claims or persisted response after restart with same correlation and fenced idempotency"]
+    g_rv_resident_reasoning_runtime_exchange_resume_6e7253b1["Return correlated advisory to existing resident reasoning; proposal, assignment, execution and verification still use their current authority paths"]
   end
   g_rv_worker_adapter_deterministic_attempt_ground_c2193741["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_institutional_authority_identity_and_grants_office_state_e5a8ca22["Registered target<br/>rv:institutional-authority:identity-and-grants"]
@@ -86,5 +97,19 @@ flowchart LR
   g_rv_resident_reasoning_runtime_task_escalation_contract_dec2e604 -->|diagnostic_branch: Denied, unavailable, saturated, timed out, malformed, or stale context| g_rv_resident_reasoning_runtime_task_escalation_failure_96662c07
   g_rv_resident_reasoning_runtime_task_escalation_failure_96662c07 -->|recovery_route: Preserve assignment and resume after authority/resource/context regrounding| g_rv_resident_reasoning_runtime_task_escalation_recovery_d0da7090
   g_rv_resident_reasoning_runtime_task_escalation_recovery_d0da7090 -->|prerequisite: Re-establish verified facts and current assignment before another proposal| g_rv_resident_reasoning_runtime_ground_fedaa2c8
+  g_rv_resident_reasoning_runtime_task_escalation_authority_gate_efa7f87a -->|exact grant and registered target passed| g_rv_resident_reasoning_runtime_exchange_outbox_7bebb762
+  g_rv_resident_reasoning_runtime_exchange_outbox_7bebb762 -->|request and objective event committed| g_rv_resident_reasoning_runtime_exchange_delivery_lease_6cddd7c8
+  g_rv_resident_reasoning_runtime_exchange_delivery_lease_6cddd7c8 -->|transport acknowledges delivery| g_rv_resident_reasoning_runtime_exchange_delivered_072adda5
+  g_rv_resident_reasoning_runtime_exchange_delivery_lease_6cddd7c8 -->|diagnostic_branch: deadline elapsed before delivery| g_rv_resident_reasoning_runtime_exchange_expired_124bcfc4
+  g_rv_resident_reasoning_runtime_exchange_delivery_lease_6cddd7c8 -->|recovery_route: delivery process restarts or lease expires| g_rv_resident_reasoning_runtime_exchange_recovery_4f7ee76d
+  g_rv_resident_reasoning_runtime_exchange_delivered_072adda5 -->|configured provider claims exact request| g_rv_resident_reasoning_runtime_exchange_external_claim_bb5aa89e
+  g_rv_resident_reasoning_runtime_exchange_external_claim_bb5aa89e -->|provider submits structured response| g_rv_resident_reasoning_runtime_exchange_response_gate_87bf6800
+  g_rv_resident_reasoning_runtime_exchange_response_gate_87bf6800 -->|verification: response identity and active fence valid| g_rv_resident_reasoning_runtime_exchange_response_persisted_74d2abca
+  g_rv_resident_reasoning_runtime_exchange_response_gate_87bf6800 -->|diagnostic_branch: invalid schema, identity, authority, fence or deadline| g_rv_resident_reasoning_runtime_task_escalation_failure_96662c07
+  g_rv_resident_reasoning_runtime_exchange_response_persisted_74d2abca -->|persisted response is available to Grace| g_rv_resident_reasoning_runtime_exchange_grace_consumption_0b864d8c
+  g_rv_resident_reasoning_runtime_exchange_response_persisted_74d2abca -->|recovery_route: process restart before Grace consumption| g_rv_resident_reasoning_runtime_exchange_recovery_4f7ee76d
+  g_rv_resident_reasoning_runtime_exchange_grace_consumption_0b864d8c -->|original exact grant revalidated; advisory remains non-authorizing| g_rv_resident_reasoning_runtime_exchange_resume_6e7253b1
+  g_rv_resident_reasoning_runtime_exchange_resume_6e7253b1 -->|verification: existing reasoning workflow durably records its continuation result| g_rv_resident_reasoning_runtime_exchange_grace_ack_4657c0a8
+  g_rv_resident_reasoning_runtime_exchange_grace_consumption_0b864d8c -->|recovery_route: consumer lease expires before durable acknowledgment| g_rv_resident_reasoning_runtime_exchange_recovery_4f7ee76d
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

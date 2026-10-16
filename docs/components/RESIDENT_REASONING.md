@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.8
+File Revision: 1.0.9
 Purpose: Define resident context regrounding and bounded reasoning-provider routing
 Authority: Exact office-state grant required; provider output is a proposal, never permission
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Establish isolated resident reasoning contract
@@ -10,6 +10,7 @@ Changed: 2026-10-11 UTC | RV-M4.2-ROUTE-MINIMUM-BUDGET | Reject fallback configu
 Changed: 2026-10-11 UTC | RV-M4.2-MARKDOWN-WHITESPACE | Normalize compact metadata formatting for clean controlled diff checks
 Changed: 2026-10-11 UTC | RV-M4.2-LOCAL-PROVIDER-INTEGRATION | Document strict loopback provider adapter and actual host timeout boundary
 Changed: 2026-10-11 UTC | RV-M4.2-LOCAL-PROVIDER-RESULT | Record actual model timeout separately from the verified mock HTTP contract
+Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Accept correlated external advisory separately from verified knowledge
 Changed: 2026-10-13 UTC | RV-REASONING-ESCALATION-CONTRACT | Specify task-escalation request/result boundary and integration limit
 Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Pass canonical Grace role and authority boundaries into her assignment reasoning provider
 Changed: 2026-10-15 UTC | RV-GRACE-GROUNDING-BOUNDED-001 | Rank complete relevant passages within the evidence bound and retain full-source provenance
@@ -93,7 +94,8 @@ class ReasoningProvider(Protocol):
 
 class ResidentReasoner:
     def propose(self, assignment_id: str, *, trigger: str,
-                token_budget: int) -> ReasoningResult: ...
+                token_budget: int,
+                external_advisory: Mapping[str, Any] | None = None) -> ReasoningResult: ...
 ```
 
 The assignment reader must return a current mapping with matching `id` and a
@@ -102,8 +104,12 @@ containing `token`, `credential`, `password`, `secret`, `dsn`, `api_key`, or
 `private_key` are rejected, and assignment plus grounding values may not exceed
 32 KiB serialized. Providers receive assignment/knowledge context, current
 office binding and implementation revisions, prior plan, trigger, request ID,
-and a divided token budget. They never receive credentials or an authority
-capability.
+and a divided token budget. A correlated external advisory, when supplied, is
+validated and passed in a separate field from verified knowledge. The local
+provider is instructed to treat it as unverified advice, not fact or authority.
+The durable reasoning outcome records exchange and provider identities plus a
+digest, not a duplicate of the advisory body. Providers never receive
+credentials or an authority capability.
 
 Grounding calls reuse the exact callable signatures
 `ground_assignment(assignment)` and
