@@ -1858,7 +1858,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.1.25",
+      "graph_revision": "1.0.44",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -2798,6 +2798,59 @@
             "docs/components/GRACE_EXECUTION_COOKBOOK.md"
           ],
           "verification_evidence": []
+        },
+        {
+          "id": "rv:grace:operational-integration:verifier-revision-revalidation",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "For a previously rejected successful attempt, revalidate only after a newer verifier revision, current exact verifier grant, same assignment/attempt, and deterministic revision idempotency key; preserve the old decision",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/resident_execution/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_worker_adapter.py",
+            "tests/test_grace_execution.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:verifier-revision-accepted",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Corrected verifier reopens the same immutable worker result and appends a new revision decision; assignment completes only after persisted ACCEPTED evidence",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/worker_adapter/migrations/0006_verifier_revision_rechecks.sql"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md"
+          ],
+          "verification_evidence": [
+            "tests/test_worker_adapter.py",
+            "tests/test_grace_execution.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:verifier-revision-retry",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "On revalidation rejection or authorization/schema failure, preserve both evidence and assignment state; do not rerun Codex or replace the objective",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/resident_execution/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_worker_adapter.py",
+            "tests/test_grace_execution.py"
+          ]
         }
       ],
       "edges": [
@@ -3240,6 +3293,30 @@
           "to": "rv:grace:operational-integration:codex-execution-recovery",
           "type": "recovery_route",
           "label": "Only the same blocked Codex assignment may resume after fresh VERIFIED grounding and action preflight, remaining retry budget, expired/absent lease, verified objective, and atomic no-effect checks; worker claim rechecks exact grants"
+        },
+        {
+          "from": "rv:grace:operational-integration:codex-artifact-verification",
+          "to": "rv:grace:operational-integration:verifier-revision-revalidation",
+          "type": "recovery_route",
+          "label": "A persisted rejection becomes eligible only after the registered verifier revision changes"
+        },
+        {
+          "from": "rv:grace:operational-integration:verifier-revision-revalidation",
+          "to": "rv:grace:operational-integration:verifier-revision-accepted",
+          "type": "verification",
+          "label": "Exact verifier grant, newer implementation revision, same stored attempt, and fresh independent acceptance all pass"
+        },
+        {
+          "from": "rv:grace:operational-integration:verifier-revision-revalidation",
+          "to": "rv:grace:operational-integration:verifier-revision-retry",
+          "type": "diagnostic_branch",
+          "label": "Grant, revision, migration, idempotency, or artifact verification fails closed; no Codex replay"
+        },
+        {
+          "from": "rv:grace:operational-integration:verifier-revision-accepted",
+          "to": "rv:grace:operational-integration:objective-complete",
+          "type": "runtime_transition",
+          "label": "Persisted accepted verifier revision permits normal completion reconciliation"
         }
       ]
     },
@@ -11640,6 +11717,9 @@
     "rv:grace:operational-integration:verification-feedback",
     "rv:grace:operational-integration:verified-result-chat-return",
     "rv:grace:operational-integration:verified-result-return-retry",
+    "rv:grace:operational-integration:verifier-revision-accepted",
+    "rv:grace:operational-integration:verifier-revision-retry",
+    "rv:grace:operational-integration:verifier-revision-revalidation",
     "rv:grace:operational-integration:waiting-and-failure",
     "rv:grace:operational-integration:work-order-authorization",
     "rv:grace:operational-integration:worker-dispatch",

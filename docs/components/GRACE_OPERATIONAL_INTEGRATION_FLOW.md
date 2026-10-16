@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.41
+**Document Revision:** 1.0.43
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -122,6 +122,9 @@ flowchart LR
     g_rv_grace_operational_integration_objective_steps_b695f9d6["ISOLATED POSTGRES TESTED — persist stable ordered objective steps and per-step assignment identities; require accepted dependency verification before dispatch"]
     g_rv_grace_operational_integration_codex_owner_preflight_fb787eac["SOURCE IMPLEMENTED — resolve CODEX_HOME from RIVERVIEW_CODEX_HOME under private service state; require admin1-owned 0700 home and 0600 empty auth bind target, both Code Mode features, pinned companion path, AF_NETLINK for bwrap --unshare-net, and owner-session MemoryDenyWriteExecute=no; retain workspace-write, network-disabled, AppArmor confinement"]
     g_rv_grace_operational_integration_codex_owner_package_recovery_5bc0b582["BLOCKED UNTIL PACKAGE COMPLETE — preserve the objective and retry budget; install reviewed CLI package with executable Code Mode host through ordinary release procedure, never expose or copy owner credentials"]
+    g_rv_grace_operational_integration_verifier_revision_revalidation_9411c472{"For a previously rejected successful attempt, revalidate only after a newer verifier revision, current exact verifier grant, same assignment/attempt, and deterministic revision idempotency key; preserve the old decision"}
+    g_rv_grace_operational_integration_verifier_revision_accepted_7a0fa5d2["Corrected verifier reopens the same immutable worker result and appends a new revision decision; assignment completes only after persisted ACCEPTED evidence"]
+    g_rv_grace_operational_integration_verifier_revision_retry_15b1db87["On revalidation rejection or authorization/schema failure, preserve both evidence and assignment state; do not rerun Codex or replace the objective"]
   end
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_cme_progress_and_recovery_observe_428defda["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -205,6 +208,10 @@ flowchart LR
   g_rv_grace_operational_integration_codex_owner_preflight_fb787eac -->|diagnostic_branch: Missing local state or Code Mode companion fails closed before spending assignment execution| g_rv_grace_operational_integration_codex_owner_package_recovery_5bc0b582
   g_rv_grace_operational_integration_codex_owner_package_recovery_5bc0b582 -->|recovery_route: Retry startup preflight after reviewed package and owner-session mount are verified| g_rv_grace_operational_integration_codex_owner_preflight_fb787eac
   g_rv_grace_operational_integration_waiting_and_failure_0a7985d4 -->|recovery_route: Only the same blocked Codex assignment may resume after fresh VERIFIED grounding and action preflight, remaining retry budget, expired/absent lease, verified objective, and atomic no-effect checks; worker claim rechecks exact grants| g_rv_grace_operational_integration_codex_execution_recovery_5c33f626
+  g_rv_grace_operational_integration_codex_artifact_verification_ab484b65 -->|recovery_route: A persisted rejection becomes eligible only after the registered verifier revision changes| g_rv_grace_operational_integration_verifier_revision_revalidation_9411c472
+  g_rv_grace_operational_integration_verifier_revision_revalidation_9411c472 -->|verification: Exact verifier grant, newer implementation revision, same stored attempt, and fresh independent acceptance all pass| g_rv_grace_operational_integration_verifier_revision_accepted_7a0fa5d2
+  g_rv_grace_operational_integration_verifier_revision_revalidation_9411c472 -->|diagnostic_branch: Grant, revision, migration, idempotency, or artifact verification fails closed; no Codex replay| g_rv_grace_operational_integration_verifier_revision_retry_15b1db87
+  g_rv_grace_operational_integration_verifier_revision_accepted_7a0fa5d2 -->|Persisted accepted verifier revision permits normal completion reconciliation| g_rv_grace_operational_integration_objective_complete_a6f22d23
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

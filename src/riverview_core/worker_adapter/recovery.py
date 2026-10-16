@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/recovery.py
 # Component: WORKER-ADAPTER
-# Revision: 1.2.5
+# Revision: 1.2.7
 # Purpose: Reconcile expired worker leases without losing or blindly repeating work
 # Execution Model: Explicit PostgreSQL recovery pass at worker startup or polling
 # Observability: Recovery records and causal assignment transition events
@@ -16,6 +16,8 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-JSON-FIX | Persist metadata-only grounding provenance in atomic recovery
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-REVIEW | Require verified action preflight and honor retry ceiling before evidence requeue
 # Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Scope recovery to authenticated worker authority and preserve validated late Codex artifacts for verification
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Retain the fixed Codex output name and validated file-change scope when reconciling a late artifact
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Recover the established fixed deliverable scope for immutable legacy attempts without rerunning Codex
 # Contracts: docs/ROADMAP.md; docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -444,6 +446,9 @@ class PostgresRecoveryCoordinator:
                         "artifact_name": artifact_name, "artifact_path": str(artifact),
                         "artifact_sha256": hashlib.sha256(raw).hexdigest(),
                         "artifact_bytes": len(raw),
+                        "source_artifact_name": "deliverable.md",
+                        "changed_files": ["deliverable.md"],
+                        "change_set_proof": "codex-cli-fixed-output-after-pinned-worktree-check",
                         "source_revision": grounding["source_revision"],
                         "source_sha256": grounding["source_sha256"],
                         "repository_revision": repository_revision,

@@ -1,0 +1,218 @@
+{
+  "files": {
+    ".riverview-revisions.json": {
+      "revision": "1.1.168"
+    },
+    "dist/knowledge-provider-v1.0.0.zip": {
+      "path": "dist/knowledge-provider-v1.0.0.zip",
+      "revision": "1.0.0",
+      "sha256": "a5f35c86cfb649eb7259829879f3375bf832c482b4ec8db67bd160f35176fce3",
+      "size_bytes": 19479
+    },
+    "docs/components/NOTIFICATION_DELIVERY_API.schema.json": {
+      "path": "docs/components/NOTIFICATION_DELIVERY_API.schema.json",
+      "revision": "1.0.0",
+      "sha256": "2e4d7446b1d64b13a76b3d0ce037465df182ca1c209b692c69cce881c5b28b7a",
+      "size_bytes": 2957
+    },
+    "docs/components/STATUS_DASHBOARD_API.schema.json": {
+      "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
+      "revision": "1.0.5",
+      "sha256": "0b97b787445ce1605fbf719c112df03fc14787448303348e4e59445651c80a16",
+      "size_bytes": 12204
+    },
+    "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json": {
+      "path": "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+      "revision": "1.0.0",
+      "sha256": "0f74190e28f0604cda6e4df8394f3cbacee0c3f7c9c7bd72bbe2de97fffd029a",
+      "size_bytes": 553
+    },
+    "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json": {
+      "path": "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json",
+      "revision": "1.0.0",
+      "sha256": "9eb7c69d0aefaf2da23b24fda7c8e5d3614f6703fbbd1816cab398d46d194313",
+      "size_bytes": 724
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/ci_results.json": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/ci_results.json",
+      "revision": "1.0.0",
+      "sha256": "104994ab8fb87720074406e662f59cb5f2353f9ef6ee87b90768e4f515b1c9fe",
+      "size_bytes": 402
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/package_verification.json": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/package_verification.json",
+      "revision": "1.0.0",
+      "sha256": "18442844fb52bda3c838b208f993a2cb0875fd5533105441d4e7d41ca43946ce",
+      "size_bytes": 878
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json",
+      "revision": "1.0.2",
+      "sha256": "6f6e3ca0fab7eefcebe1fe3b35b2b8a568878154b216c6c93d83c57edd8e8458",
+      "size_bytes": 6034
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/test_results.json": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/test_results.json",
+      "revision": "1.0.1",
+      "sha256": "6d6ef80a5252415c7113309ac64ed8d889e83ead00e89266081583926b0d04d5",
+      "size_bytes": 548
+    },
+    "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json": {
+      "path": "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json",
+      "revision": "1.0.0",
+      "sha256": "4be125b6c9cbc7c1a213effdd34fb4dd7ac586cd196f2c9b9d9e7cf1546ade03",
+      "size_bytes": 753
+    },
+    "process_graphs/account-authentication/account-lifecycle.json": {
+      "path": "process_graphs/account-authentication/account-lifecycle.json",
+      "revision": "1.1.0",
+      "sha256": "00b5fc68b2a4849c1f7f5dca52ee27306ce73ceb1676c773d45de411bf0cf7d4",
+      "size_bytes": 19068
+    },
+    "process_graphs/assignment-intake/governed-request.json": {
+      "path": "process_graphs/assignment-intake/governed-request.json",
+      "revision": "1.0.0",
+      "sha256": "a90a852c01150fdabfe714e053e55dbbef38ca3687ae863d2a3cff9bd30d4df8",
+      "size_bytes": 8451
+    },
+    "process_graphs/assignment-scheduler/independent-claims.json": {
+      "path": "process_graphs/assignment-scheduler/independent-claims.json",
+      "revision": "1.0.4",
+      "sha256": "9f587540e540e056653239c0faf60e98108cc4c0d5d71546ae1e1a5d34e41144",
+      "size_bytes": 9993
+    },
+    "process_graphs/cme/progress-and-recovery.json": {
+      "path": "process_graphs/cme/progress-and-recovery.json",
+      "revision": "1.0.4",
+      "sha256": "14b3228cf25187960373551620cd4779bebe50bf70dbfe3c70ba32baf3bf87d2",
+      "size_bytes": 17159
+    },
+    "process_graphs/event-processor/assignment-progression.json": {
+      "path": "process_graphs/event-processor/assignment-progression.json",
+      "revision": "1.0.4",
+      "sha256": "aeeae994795fefdecabfcc6defb1b845450231ef073463547c4406c5ed734aa5",
+      "size_bytes": 13511
+    },
+    "process_graphs/generated/riverview-process-graph.json": {
+      "path": "process_graphs/generated/riverview-process-graph.json",
+      "revision": "1.0.131",
+      "sha256": "c6bfea6eeeacc81287fb6f4e90923389553723488fa9f90fc456939f0232ccf3",
+      "size_bytes": 518161
+    },
+    "process_graphs/grace/operational-integration.json": {
+      "path": "process_graphs/grace/operational-integration.json",
+      "revision": "1.0.43",
+      "sha256": "51af978182a4ff5a795b8f1d3eaceef71d23aa1ba2c70c8cb982fd5a9789484a",
+      "size_bytes": 60600
+    },
+    "process_graphs/institutional-authority/identity-and-grants.json": {
+      "path": "process_graphs/institutional-authority/identity-and-grants.json",
+      "revision": "1.0.13",
+      "sha256": "d025a392627a819b0f1957a070effbd56f32c3f9efb65811eae5c1eae194cf25",
+      "size_bytes": 42764
+    },
+    "process_graphs/institutional-authority/resident-permission-profiles.json": {
+      "path": "process_graphs/institutional-authority/resident-permission-profiles.json",
+      "revision": "1.0.2",
+      "sha256": "f0b34294aa3dd65666dea5c45e0a3a0f971c55c733d50cf66c72a96b5763bd2b",
+      "size_bytes": 19488
+    },
+    "process_graphs/knowledge-provider/repository-contracts.json": {
+      "path": "process_graphs/knowledge-provider/repository-contracts.json",
+      "revision": "1.0.3",
+      "sha256": "33a20a32e75197886d2b8e8ab3c4a4ccdd8bc1a82f12360a29be146954bf1cd4",
+      "size_bytes": 11764
+    },
+    "process_graphs/notification-delivery/visual-attention.json": {
+      "path": "process_graphs/notification-delivery/visual-attention.json",
+      "revision": "1.0.0",
+      "sha256": "dfe1f15fb91fd7450abfda77ce1976a64ed1d7d3a391011ae24e8f432f352bc7",
+      "size_bytes": 8560
+    },
+    "process_graphs/outcome-verifier/independent-result.json": {
+      "path": "process_graphs/outcome-verifier/independent-result.json",
+      "revision": "1.0.1",
+      "sha256": "bf19b95dab879205cc03e3042bda57ad363d98fc8946fe570fca771ded8ceeeb",
+      "size_bytes": 8028
+    },
+    "process_graphs/postgres-ledger/assignment-lifecycle.json": {
+      "path": "process_graphs/postgres-ledger/assignment-lifecycle.json",
+      "revision": "1.0.2",
+      "sha256": "3e8847f43f6b3f57e32cdce7bf0d3e91f771523cfe1ec5eaf88bce19120b8bd4",
+      "size_bytes": 10595
+    },
+    "process_graphs/postgres-ledger/migration.json": {
+      "path": "process_graphs/postgres-ledger/migration.json",
+      "revision": "1.0.2",
+      "sha256": "ccb1105762de4f518981114d5d0e6156a5ea4641c1c4097f431a606a92645db3",
+      "size_bytes": 13810
+    },
+    "process_graphs/resident-conversation/browser-chat.json": {
+      "path": "process_graphs/resident-conversation/browser-chat.json",
+      "revision": "1.0.19",
+      "sha256": "13d5f5d952a57aefc941ff9372fced054357bfaaee7e339a49fab612d3062b5b",
+      "size_bytes": 51229
+    },
+    "process_graphs/resident-reasoning/runtime.json": {
+      "path": "process_graphs/resident-reasoning/runtime.json",
+      "revision": "1.0.12",
+      "sha256": "19171278b9dcd4efc4f93e66d32ac8891748a884a63ed0c24aac9b62740cfe36",
+      "size_bytes": 28784
+    },
+    "process_graphs/runtime-baseline/runtime-baseline.json": {
+      "path": "process_graphs/runtime-baseline/runtime-baseline.json",
+      "revision": "1.0.1",
+      "sha256": "29385a4a5958e7ba21248cd9b5ccdef4c990cb0b2a59ad36e7ca0f2f6522547c",
+      "size_bytes": 14418
+    },
+    "process_graphs/schema/riverview-process-graph.schema.json": {
+      "path": "process_graphs/schema/riverview-process-graph.schema.json",
+      "revision": "1.0.1",
+      "sha256": "0c03d29216d6d3cb08e58ab7bff12b545211f78fbdffb0767118553b52025da7",
+      "size_bytes": 3203
+    },
+    "process_graphs/steward-dashboard/status.json": {
+      "path": "process_graphs/steward-dashboard/status.json",
+      "revision": "1.0.11",
+      "sha256": "9d1e725300a2704a7d23accbaf8e54cd0b3290240ee1226efc932bbb53655fd9",
+      "size_bytes": 33631
+    },
+    "process_graphs/worker-adapter/deterministic-attempt.json": {
+      "path": "process_graphs/worker-adapter/deterministic-attempt.json",
+      "revision": "1.0.16",
+      "sha256": "2de78352344260a63024549536dfa6b3714073455e2f5e07db87461ee0f6ee5d",
+      "size_bytes": 43754
+    },
+    "process_graphs/worker-adapter/supervised-services.json": {
+      "path": "process_graphs/worker-adapter/supervised-services.json",
+      "revision": "1.0.1",
+      "sha256": "e2e5911aae9b98d37c139995030103ebb8f29d891ea80c398411591a455f7b80",
+      "size_bytes": 18530
+    },
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json": {
+      "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json",
+      "revision": "1.0.0",
+      "sha256": "6a5cb8ebb1aa4c996e88c9d4ebfa12a39eea9d58adcf64c780a46cb338596028",
+      "size_bytes": 665
+    },
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/manifest.json": {
+      "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/manifest.json",
+      "revision": "1.0.2",
+      "sha256": "452ad26382b66e4666689117be51df86942461b7e0d9e6814358c137cfc93cba",
+      "size_bytes": 1561
+    },
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/outcome.schema.json": {
+      "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/outcome.schema.json",
+      "revision": "1.0.0",
+      "sha256": "c31e979b148bd840e065636f93698a05c72796d47fce870cb578a58a272439f8",
+      "size_bytes": 332
+    },
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/schema.json": {
+      "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/schema.json",
+      "revision": "1.0.0",
+      "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
+      "size_bytes": 1226
+    }
+  },
+  "manifest_revision": "1.1.168"
+}

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.4
+# Revision: 1.2.5
 # Purpose: Verify bounded subscription-authenticated Codex adapter contracts
 # Execution Model: Isolated temporary Git repository and synthetic executable
 # Observability: Assertions inspect sanitized adapter status and artifact metadata
@@ -20,6 +20,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-SYSTEMD-NETLINK-001 | Require the readiness probe to exercise bubblewrap network namespace setup
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-ENABLE-001 | Require persistent Code Mode feature activation in the Codex CLI invocation
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-MDWE-001 | Require both Code Mode features and pinned package-path discovery for the companion host
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Cover exact work-order criteria, legacy scope proof, missing citation/phrase, and one-file metadata
 # Contracts: src/riverview_core/resident_execution/codex_cli.py
 # Tests: python3 -m unittest tests.test_codex_cli_adapter -v
 # History: Git
@@ -118,6 +119,8 @@ class CodexCLIAdapterTests(unittest.TestCase):
                          "# Verified fixture\n\nThe deliverable exists.\n")
         self.assertEqual(result.artifact_bytes, path.stat().st_size)
         self.assertEqual(len(result.artifact_sha256), 64)
+        self.assertEqual(result.source_artifact_name, "deliverable.md")
+        self.assertEqual(result.changed_files, ("deliverable.md",))
         self.assertEqual(list(self.workspace.iterdir()), [])
 
     def test_committed_deliverable_is_accepted_when_it_is_the_only_changed_path(self):
@@ -317,6 +320,54 @@ class CodexCLIAdapterTests(unittest.TestCase):
             assignment, {"status": "succeeded", "capability": CAPABILITY,
                        "attempt_id": "attempt:fixture"}, result)
         self.assertEqual(verification.status.value, "REJECTED")
+
+    def test_verifier_accepts_original_multiline_task_contract_structurally(self):
+        criteria = [
+            "# Grace Engineering Work Path",
+            "Create `deliverable.md` in the isolated, pinned Riverview worktree.",
+            "Document the source-implemented path through the Steward website, Grace, Engineering/CME, Codex CLI, independent verification, and the return of results to the original conversation.",
+            "Cite these four files:",
+            "- `src/riverview_core/status_dashboard/server.py`",
+            "- `src/riverview_core/resident_execution/service.py`",
+            "- `src/riverview_core/resident_execution/codex_cli.py`",
+            "- `src/riverview_core/resident_execution/codex_workflow.py`",
+            "Include the exact phrase: `source implementation is not production commissioning`",
+            "Only modify `deliverable.md`. Distinguish source implementation from verified production behavior.",
+        ]
+        body = """# Grace Engineering Work Path
+
+The Steward website sends a request to Grace, who coordinates Engineering/CME.
+Codex CLI executes the assignment, independent verification inspects it, and
+Grace returns the result to the original conversation.
+
+Source references:
+- src/riverview_core/status_dashboard/server.py
+- src/riverview_core/resident_execution/service.py
+- src/riverview_core/resident_execution/codex_cli.py
+- src/riverview_core/resident_execution/codex_workflow.py
+
+source implementation is not production commissioning. This document distinguishes
+source behavior from production behavior, which was not independently verified.
+"""
+        metadata = {"source_artifact_name": "deliverable.md",
+                    "changed_files": ["deliverable.md"],
+                    "capability": CAPABILITY,
+                    "artifact_schema": "rv.codex-cli.deliverable.v2"}
+        self.assertTrue(CodexMarkdownVerifier._criteria_satisfied(criteria, body, metadata))
+        self.assertFalse(CodexMarkdownVerifier._criteria_satisfied(
+            criteria, body.replace("src/riverview_core/resident_execution/codex_workflow.py\n", ""),
+            metadata))
+        self.assertFalse(CodexMarkdownVerifier._criteria_satisfied(
+            criteria, body.replace("source implementation is not production commissioning",
+                                    "phrase omitted"), metadata))
+        self.assertFalse(CodexMarkdownVerifier._criteria_satisfied(
+            criteria, body, {**metadata, "changed_files": ["deliverable.md", "README.md"]}))
+        legacy_metadata = {key: value for key, value in metadata.items()
+                           if key not in {"source_artifact_name", "changed_files"}}
+        self.assertTrue(CodexMarkdownVerifier._criteria_satisfied(
+            criteria, body, legacy_metadata))
+        self.assertFalse(CodexMarkdownVerifier._criteria_satisfied(
+            criteria, body, {**legacy_metadata, "capability": "other.capability"}))
 
     def test_codex_child_does_not_receive_an_api_key(self):
         script = self.codex.read_text(encoding="utf-8")

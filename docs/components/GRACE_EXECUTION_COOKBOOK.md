@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.8
+File Revision: 1.1.9
 Purpose: Diagnose and safely resume the persistent Grace execution service
 Authority: Read-only diagnosis first; exact grants required for every mutation
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Add service operations and recovery procedures
@@ -25,6 +25,7 @@ Changed: 2026-10-16 UTC | RV-GRACE-CODEX-SYSTEMD-NETLINK-001 | Diagnose bwrap NE
 Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-ENABLE-001 | Enable Codex code_mode_host explicitly when subscription-authenticated owner-session execution requires real file operations
 Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-MDWE-001 | Diagnose Code Mode host SIGTRAP under MDWE and document owner-unit-scoped remediation with retained sandbox controls
 Changed: 2026-10-16 UTC | RV-GRACE-OWNER-CODEX-HOME-001 | Diagnose owner-session startup when HOME differs from explicit CODEX_HOME and require a private bind target
+Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Diagnose preserved verifier rejection, revision recheck, and interruption-safe completion
 -->
 # Grace Execution Service — Troubleshooting and Recovery
 
@@ -67,6 +68,7 @@ Expected: `ActiveState=active`, `SubState=running`, a recent `last_heartbeat_at`
 | Multi-step objective has no dispatchable assignment | Inspect durable step order, dependency identities, prior assignment links, and independent verifier decisions. Do not infer readiness from the objective's latest assignment pointer alone. | Only a step whose earlier dependencies are all independently verified can dispatch. Restore normal CME polling and lease recovery; do not manually create an assignment or mark a step verified. | Verify one stable assignment per step and that retries/restarts do not create duplicate step identities. A failed step remains recoverable or blocked according to its durable retry state. |
 | Grace review proposes a continuation after a verified step | Inspect the typed review outcome, objective/cycle IDs, original acceptance envelope, current binding revision, and continuation persistence receipt. Do not interpret model rationale as authority. | Accept only a bounded proposed step inside the original objective and criteria. The ordinary existing assignment.create grant is rechecked by CME; a broader action becomes a Steward-authorization outcome. | Confirm next step uses the same objective and conversation, a distinct stable step/assignment ID, and the cycle-keyed idempotent result outbox. |
 | Existing objective is rejected during Codex work-order provenance checks after a release update | Compare the objective row's immutable `source_revision` and `source_sha256` with the same fields in its verified evidence; compare current grounding metadata separately. Do not compare the objective source pin to the current worker-contract release. | Correct the provenance comparison in the Codex action. The objective's original evidence stays unchanged; current contract grounding may legitimately come from a later integrated release. | If a no-launch intent is durably marked failed and the assignment is blocked at `WORKER_PRE_EXECUTION_FAILED`, let the bounded startup recovery run only after its lease expires and it proves no attempt, verifier record, or artifact exists. Normal exact-grant claim validation still applies. |
+| `grace_verifier_revalidation_failed` or a rejected Codex artifact after a verifier correction | Read only assignment state, attempt identity/status, verifier revisions and decisions, migration checksum, and exact verifier-grant status. Confirm the release's registered verifier revision. Do not read conversation content or rewrite the original verification row. | If migration `0006_verifier_revision_rechecks` is missing, first take and verify the standard protected backup, then apply only that checksum-pinned worker-adapter migration. The persistent service reopens the same immutable worker result under the newer verifier revision; it never reruns Codex. An accepted row whose state transition was interrupted is completed idempotently on a later cycle using the same revision key. | Expect the original REJECTED row unchanged, at most one additional row for this attempt/revision, the exact current verifier grant revalidated, and assignment completion only after ACCEPTED evidence. If either revision is equal, grant is revoked, migration checksum differs, artifact check fails, or state/attempt identity differs, leave the assignment pending/rework-required and retain sanitized diagnostics. |
 
 ## One-objective supervised Codex run
 

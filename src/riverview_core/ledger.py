@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/ledger.py
 # Component: CORE-LEDGER
-# Revision: 1.0.1
+# Revision: 1.0.3
 # Purpose: SQLite development assignment and event ledger
 # Execution Model: Request-driven library
 # Observability: SQLite records and event queries
 # Dependencies: Python 3; sqlite3
 # Authority: Development prototype; not production authority
 # Changed: 2026-10-09 UTC | ENG-REV-004 | Initial controlled header migration
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Allow the verifier-corrected verified path to complete the development ledger
 # Contracts: docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md
 # Tests: tests/test_ledger.py
 # History: Git commit 6810e00374f50a81820be5f4e7714b329965ea66 and staged predecessor manifest
@@ -29,7 +30,7 @@ TRANSITIONS = {
     "ready": {"running", "blocked", "cancelled"},
     "running": {"awaiting_verification", "blocked", "awaiting_steward"},
     "awaiting_verification": {"completed", "rework_required", "blocked"},
-    "rework_required": {"ready", "blocked", "cancelled"},
+    "rework_required": {"ready", "blocked", "cancelled", "completed"},
     "blocked": {"ready", "cancelled", "awaiting_steward"},
     "awaiting_steward": {"ready", "cancelled", "awaiting_verification"},
     "completed": set(),

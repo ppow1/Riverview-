@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_cli.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.3
+# Revision: 1.1.5
 # Purpose: Run a bounded Codex CLI assignment in an isolated pinned repository copy
 # Execution Model: One noninteractive sandboxed Codex invocation per durable assignment
 # Observability: Typed result and artifact digest; prompt and CLI output are not logged
@@ -14,10 +14,12 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-SANDBOX-READINESS-001 | Fail startup preflight when the bounded workspace sandbox is unavailable
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Use private per-command Git trust for the pinned root-owned checkout and report execution-start boundary
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Accept a committed or uncommitted artifact only when the pinned clone changed deliverable.md alone
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Persist the checked source filename and changed-file inventory with successful artifacts
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-OWNER-STATE-001 | Use writable service-local CODEX_HOME with a read-only bind of the existing subscription auth file; require the Code Mode host for live CLI execution
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-SYSTEMD-NETLINK-001 | Probe bubblewrap network namespace setup during preflight so systemd AF_NETLINK restrictions fail before dispatch
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-ENABLE-001 | Enable the supported Codex code_mode_host feature when the persistent adapter requires its companion executable
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-ENABLE-001 | Enable code_mode and code_mode_host and expose only the pinned CLI package directory for companion discovery
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Persist source filename and exact modified-file inventory after pinned-worktree scope validation
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; process_graphs/grace/operational-integration.json
 # Tests: tests/test_codex_cli_adapter.py
 # History: Git
@@ -101,6 +103,8 @@ class CodexArtifactResult:
     detail_code: str
     verification_required: bool = True
     execution_started: bool = False
+    source_artifact_name: str | None = None
+    changed_files: tuple[str, ...] = ()
 
 
 class CodexAdapterError(RuntimeError):
@@ -432,7 +436,8 @@ class CodexCLIExecutionAdapter:
                     assignment.assignment_id, assignment.objective_id,
                     artifact_path.name, hashlib.sha256(raw).hexdigest(), len(raw),
                     assignment.repository_revision, "independent_verification_required",
-                    execution_started=True)
+                    execution_started=True, source_artifact_name=self.OUTPUT_NAME,
+                    changed_files=tuple(sorted(changed_paths)))
         except CodexAdapterError as exc:
             return self._result(assignment, "UNAVAILABLE", exc.code,
                                 execution_started=locals().get("process") is not None)
