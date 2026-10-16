@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.4
+# Revision: 1.1.5
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -21,6 +21,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-RECOVERY-HOOK-001 | Call the current bounded Codex no-artifact recovery hook and fail with a typed configuration error if unavailable
 # Changed: 2026-10-16 UTC | RV-GRACE-OWNER-CODEX-HOME-001 | Use the explicitly configured service-local CODEX_HOME rather than deriving credentials from HOME
 # Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Authenticate recovery scope before startup Codex recovery
+# Changed: 2026-10-16 UTC | RV-GRACE-RESULT-RETURN-DIAGNOSTICS-001 | Default verified-result review to the supported bounded 512-token output budget
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_runtime_provider_wiring.py; tests/test_grace_execution.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -71,6 +72,17 @@ def resident_reasoning_timeout(environ):
     if not 1 <= timeout <= 60:
         raise WorkerServiceConfigurationError("resident_reasoning_timeout_invalid")
     return timeout
+
+
+def resident_result_review_tokens(environ):
+    """Return a bounded result-review output budget; structured reviews default to 512."""
+    try:
+        tokens = int(environ.get("RIVERVIEW_GRACE_RESULT_REVIEW_TOKENS", "512"))
+    except (TypeError, ValueError):
+        raise WorkerServiceConfigurationError("resident_result_review_tokens_invalid") from None
+    if not 16 <= tokens <= 512:
+        raise WorkerServiceConfigurationError("resident_result_review_tokens_invalid")
+    return tokens
 
 
 def persistent_owner_codex_home(environ, state_root):
@@ -187,8 +199,7 @@ def main() -> int:
             store=conversation_store, registry=authority_registry,
             authorizer=authorizer, office_id=office_id,
             resident_credential=resident_token, providers=providers,
-            max_response_tokens=int(os.environ.get(
-                "RIVERVIEW_GRACE_RESULT_REVIEW_TOKENS", "128")))
+            max_response_tokens=resident_result_review_tokens(os.environ))
         conversation_service.continuation_handler = lambda context, step: pipeline.propose_continuation(
             context["objective_id"], context["assignment_id"], step,
             actor_id="office:" + office_id)

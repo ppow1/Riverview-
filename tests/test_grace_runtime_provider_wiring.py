@@ -1,7 +1,7 @@
 # Riverview~ controlled test
 # File: tests/test_grace_runtime_provider_wiring.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Verify persistent Grace reasoning follows the authorized office binding
 # Execution Model: Deterministic provider factory; no database or inference service
 # Observability: Assert provider identities and router model digest
@@ -10,13 +10,14 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-RECOVERY-HOOK-001 | Verify persistent-service startup invokes the current bounded Codex recovery hook
 # Changed: 2026-10-16 UTC | RV-GRACE-OWNER-CODEX-HOME-001 | Reproduce service HOME versus configured CODEX_HOME and fail closed on path escape
 # Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Require authenticated-scope context for startup recovery
+# Changed: 2026-10-16 UTC | RV-GRACE-RESULT-RETURN-DIAGNOSTICS-001 | Require default 512-token review budget and reject invalid overrides
 """Tests for the persistent executor's model-provider wiring."""
 
 import unittest
 
 from scripts.run_grace_execution_service import (
     configured_resident_providers, persistent_owner_codex_home,
-    reconcile_codex_startup_recovery,
+    reconcile_codex_startup_recovery, resident_result_review_tokens,
 )
 from riverview_core.local_reasoning_provider import LocalReasoningProvider
 from riverview_core.resident_execution.model_router import GraceModelRouter
@@ -50,6 +51,17 @@ def make_router(environ):
 
 
 class GraceRuntimeProviderWiringTests(unittest.TestCase):
+    def test_result_review_budget_defaults_to_512_and_rejects_out_of_bounds(self):
+        self.assertEqual(resident_result_review_tokens({}), 512)
+        self.assertEqual(resident_result_review_tokens({
+            "RIVERVIEW_GRACE_RESULT_REVIEW_TOKENS": "256"}), 256)
+        for invalid in ("15", "513", "invalid"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(WorkerServiceConfigurationError,
+                        "resident_result_review_tokens_invalid"):
+                    resident_result_review_tokens({
+                        "RIVERVIEW_GRACE_RESULT_REVIEW_TOKENS": invalid})
+
     def test_owner_session_uses_explicit_service_codex_home_not_home_dot_codex(self):
         from pathlib import Path
         from tempfile import TemporaryDirectory
