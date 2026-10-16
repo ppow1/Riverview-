@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.2
+# Revision: 1.1.3
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -19,6 +19,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Align bounded 80B provider and resident proposal deadlines
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Run narrowly fenced legacy pre-execution recovery through existing CME at startup
 # Changed: 2026-10-16 UTC | RV-GRACE-RECOVERY-HOOK-001 | Call the current bounded Codex no-artifact recovery hook and fail with a typed configuration error if unavailable
+# Changed: 2026-10-16 UTC | RV-GRACE-OWNER-CODEX-HOME-001 | Use the explicitly configured service-local CODEX_HOME rather than deriving credentials from HOME
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_runtime_provider_wiring.py; tests/test_grace_execution.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -69,6 +70,23 @@ def resident_reasoning_timeout(environ):
     if not 1 <= timeout <= 60:
         raise WorkerServiceConfigurationError("resident_reasoning_timeout_invalid")
     return timeout
+
+
+def persistent_owner_codex_home(environ, state_root):
+    """Select only the configured Codex home contained in private service state."""
+    configured = environ.get("RIVERVIEW_CODEX_HOME")
+    if not isinstance(configured, str) or not configured:
+        configured = str(Path(state_root) / "codex-home")
+    candidate = Path(configured)
+    try:
+        root = Path(state_root).resolve(strict=True)
+        resolved = candidate.resolve(strict=False)
+    except OSError:
+        raise WorkerServiceConfigurationError("codex_service_home_outside_state_directory") from None
+    if (not candidate.is_absolute() or candidate.is_symlink() or
+            resolved == root or not resolved.is_relative_to(root)):
+        raise WorkerServiceConfigurationError("codex_service_home_outside_state_directory")
+    return str(candidate)
 
 
 def configured_resident_providers(binding, environ=None, provider_factory=None):
@@ -209,7 +227,7 @@ def main() -> int:
                 if not state_root.is_absolute() or state_root.resolve() in {
                         Path("/home/admin1").resolve(), Path("/home/admin1/.codex").resolve()}:
                     raise WorkerServiceConfigurationError("chatgpt_owner_state_path_invalid")
-                codex_home = str(Path.home() / ".codex")
+                codex_home = persistent_owner_codex_home(os.environ, state_root)
                 codex_workspace = str(state_root / "workspaces")
                 artifact_root = state_root / "artifacts"
             if not all((executable, codex_home, codex_workspace, codex_repository,

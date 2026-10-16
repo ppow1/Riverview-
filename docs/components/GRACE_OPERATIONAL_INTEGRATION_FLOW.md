@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.38
+**Document Revision:** 1.0.39
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -120,7 +120,7 @@ flowchart LR
     g_rv_grace_operational_integration_codex_patch_independent_verification_4d8f66d4["Independent verifier reapplies patch to a clean pinned clone, checks exact authorized changed-file set and digest, and reruns fixed tests"]
     g_rv_grace_operational_integration_codex_source_scope_failure_ef462df9[["Reject source changes outside the assignment path allowlist or configured capability scope; no patch is applied to source checkout"]]
     g_rv_grace_operational_integration_objective_steps_b695f9d6["ISOLATED POSTGRES TESTED — persist stable ordered objective steps and per-step assignment identities; require accepted dependency verification before dispatch"]
-    g_rv_grace_operational_integration_codex_owner_preflight_fb787eac["SOURCE IMPLEMENTED — require writable service-local CODEX_HOME, read-only owner auth.json, both Code Mode features, the pinned companion path, AF_NETLINK for bwrap --unshare-net, and owner-session MemoryDenyWriteExecute=no; keep workspace-write, network-disabled, AppArmor-confined execution"]
+    g_rv_grace_operational_integration_codex_owner_preflight_fb787eac["SOURCE IMPLEMENTED — resolve CODEX_HOME from RIVERVIEW_CODEX_HOME under private service state; require admin1-owned 0700 home and 0600 empty auth bind target, both Code Mode features, pinned companion path, AF_NETLINK for bwrap --unshare-net, and owner-session MemoryDenyWriteExecute=no; retain workspace-write, network-disabled, AppArmor confinement"]
     g_rv_grace_operational_integration_codex_owner_package_recovery_5bc0b582["BLOCKED UNTIL PACKAGE COMPLETE — preserve the objective and retry budget; install reviewed CLI package with executable Code Mode host through ordinary release procedure, never expose or copy owner credentials"]
   end
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]

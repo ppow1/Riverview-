@@ -1,19 +1,21 @@
 # Riverview~ controlled test
 # File: tests/test_grace_runtime_provider_wiring.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Verify persistent Grace reasoning follows the authorized office binding
 # Execution Model: Deterministic provider factory; no database or inference service
 # Observability: Assert provider identities and router model digest
 # Authority: This test does not provision grants or change bindings
 # Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Verify the 80B proposal client uses the shared bounded timeout
 # Changed: 2026-10-16 UTC | RV-GRACE-RECOVERY-HOOK-001 | Verify persistent-service startup invokes the current bounded Codex recovery hook
+# Changed: 2026-10-16 UTC | RV-GRACE-OWNER-CODEX-HOME-001 | Reproduce service HOME versus configured CODEX_HOME and fail closed on path escape
 """Tests for the persistent executor's model-provider wiring."""
 
 import unittest
 
 from scripts.run_grace_execution_service import (
-    configured_resident_providers, reconcile_codex_startup_recovery,
+    configured_resident_providers, persistent_owner_codex_home,
+    reconcile_codex_startup_recovery,
 )
 from riverview_core.local_reasoning_provider import LocalReasoningProvider
 from riverview_core.resident_execution.model_router import GraceModelRouter
@@ -47,6 +49,31 @@ def make_router(environ):
 
 
 class GraceRuntimeProviderWiringTests(unittest.TestCase):
+    def test_owner_session_uses_explicit_service_codex_home_not_home_dot_codex(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as temporary:
+            state = Path(temporary) / "state"
+            codex_home = state / "codex-home"
+            codex_home.mkdir(parents=True)
+            configured = persistent_owner_codex_home({
+                "HOME": str(state),
+                "RIVERVIEW_CODEX_HOME": str(codex_home),
+            }, state)
+            self.assertEqual(configured, str(codex_home))
+            self.assertNotEqual(configured, str(state / ".codex"))
+
+    def test_owner_session_rejects_codex_home_outside_service_state(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as temporary:
+            state = Path(temporary) / "state"
+            state.mkdir()
+            outside = Path(temporary) / "personal-codex"
+            with self.assertRaisesRegex(WorkerServiceConfigurationError,
+                                        "codex_service_home_outside_state_directory"):
+                persistent_owner_codex_home({"RIVERVIEW_CODEX_HOME": str(outside)}, state)
+
     def test_startup_recovery_uses_current_retryable_codex_hook(self):
         recovery = object()
 
