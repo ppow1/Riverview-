@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-reasoning:runtime",
-  "graph_revision": "1.2.1",
+  "graph_revision": "1.2.3",
   "component_id": "RESIDENT-REASONING",
   "workflow_id": "resident.reasoning.v1",
   "diagram_order": 13,
@@ -18,7 +18,11 @@
     "tests/test_grace_runtime_provider_wiring.py",
     "src/riverview_core/resident_execution/external_reasoning.py",
     "src/riverview_core/resident_execution/migrations/0011_external_reasoning_exchange.sql",
-    "tests/test_external_reasoning_exchange.py"
+    "tests/test_external_reasoning_exchange.py",
+    "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+    "scripts/run_external_reasoning_mcp.py",
+    "deploy/systemd/riverview-external-reasoning-mcp.service",
+    "deploy/external-reasoning-mcp.env.example"
   ],
   "documentation_references": [
     "docs/components/RESIDENT_REASONING.md",
@@ -31,7 +35,9 @@
   "verification_evidence": [
     "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md",
     "evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1340Z-fce3c30/result-summary.json",
-    "evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T220001Z-b318a2f/checkout.md"
+    "evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T220001Z-b318a2f/checkout.md",
+    "tests/test_external_reasoning_mcp.py",
+    "tests/test_external_reasoning_exchange.py"
   ],
   "nodes": [
     {
@@ -591,27 +597,31 @@
     },
     {
       "id": "rv:resident-reasoning:runtime:exchange-transport-readiness",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "decision",
-      "label": "PLANNED — Is a current-version authenticated MCP adapter registered, publicly reachable, and linked to the durable exchange?",
+      "label": "IMPLEMENTED IN SOURCE — Is the authenticated MCP adapter internally configured and tested? Public issuer, route and external-client access remain uncommissioned.",
       "source_references": [
-        "src/riverview_core/resident_execution/external_reasoning.py"
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "scripts/run_external_reasoning_mcp.py"
       ],
       "documentation_references": [
         "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
         "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
       ],
       "verification_evidence": [
-        "evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T220001Z-b318a2f/checkout.md"
+        "evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T220001Z-b318a2f/checkout.md",
+        "tests/test_external_reasoning_mcp.py",
+        "tests/test_external_reasoning_exchange.py"
       ]
     },
     {
       "id": "rv:resident-reasoning:runtime:exchange-transport-blocked",
       "node_revision": "1.0.0",
       "type": "failure",
-      "label": "PLANNED — Preserve awaiting_delivery and report transport/authentication unavailable; never fall through to historical Comms5",
+      "label": "Preserve awaiting_delivery while production migration, issuer, public route or external-client verification remains incomplete; never fall through to historical Comms5.",
       "source_references": [
-        "src/riverview_core/resident_execution/external_reasoning.py"
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "scripts/run_external_reasoning_mcp.py"
       ],
       "documentation_references": [
         "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
@@ -658,14 +668,16 @@
       "type": "process",
       "label": "Authenticate provider identity, claim correlated request with bounded lease and monotonic fence",
       "source_references": [
-        "src/riverview_core/resident_execution/external_reasoning.py"
+        "src/riverview_core/resident_execution/external_reasoning.py",
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py"
       ],
       "documentation_references": [
         "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
         "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
       ],
       "verification_evidence": [
-        "tests/test_external_reasoning_exchange.py"
+        "tests/test_external_reasoning_exchange.py",
+        "tests/test_external_reasoning_mcp.py"
       ]
     },
     {
@@ -674,14 +686,16 @@
       "type": "decision",
       "label": "Does response schema, provider, request/correlation, active claim fence, size and deadline match?",
       "source_references": [
-        "src/riverview_core/resident_execution/external_reasoning.py"
+        "src/riverview_core/resident_execution/external_reasoning.py",
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py"
       ],
       "documentation_references": [
         "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
         "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
       ],
       "verification_evidence": [
-        "tests/test_external_reasoning_exchange.py"
+        "tests/test_external_reasoning_exchange.py",
+        "tests/test_external_reasoning_mcp.py"
       ]
     },
     {
@@ -777,6 +791,114 @@
         "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
       ],
       "verification_evidence": [
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-mcp-auth",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Resolve finite-lived bearer credential to one configured provider principal and exchange scope on every HTTP request",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "scripts/run_external_reasoning_mcp.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_mcp.py",
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-mcp-auth-denied",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject missing, unknown, expired or out-of-scope bearer without revealing whether a provider exists",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "scripts/run_external_reasoning_mcp.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_mcp.py",
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-mcp-initialize",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Negotiate supported MCP protocol version over sessionless Streamable HTTP JSON-RPC POST",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "scripts/run_external_reasoning_mcp.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_mcp.py",
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-mcp-tools",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Discover the fixed provider-scoped list, claim, submit-advisory and status tool schemas",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "scripts/run_external_reasoning_mcp.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_mcp.py",
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-mcp-pull",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Provider pulls bounded eligible request context; transport delivery lease and acknowledgement are durable",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "scripts/run_external_reasoning_mcp.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_mcp.py",
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-mcp-status",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Expose provider-owned body-free state, digest, provenance and sanitized diagnostic projection",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "scripts/run_external_reasoning_mcp.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_mcp.py",
         "tests/test_external_reasoning_exchange.py"
       ]
     }
@@ -1076,6 +1198,66 @@
       "to": "rv:resident-reasoning:runtime:exchange-recovery",
       "type": "recovery_route",
       "label": "consumer lease expires before durable acknowledgment"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-transport-readiness",
+      "to": "rv:resident-reasoning:runtime:exchange-mcp-auth",
+      "type": "prerequisite",
+      "label": "loopback MCP adapter is configured"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-mcp-auth",
+      "to": "rv:resident-reasoning:runtime:exchange-mcp-initialize",
+      "type": "prerequisite",
+      "label": "valid bearer maps to registered provider principal and scope"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-mcp-auth",
+      "to": "rv:resident-reasoning:runtime:exchange-mcp-auth-denied",
+      "type": "diagnostic_branch",
+      "label": "credential missing, expired, unmapped or scope denied"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-mcp-auth-denied",
+      "to": "rv:resident-reasoning:runtime:exchange-transport-blocked",
+      "type": "recovery_route",
+      "label": "preserve exchange state; retry only after credential correction"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-mcp-initialize",
+      "to": "rv:resident-reasoning:runtime:exchange-mcp-tools",
+      "type": "runtime_transition",
+      "label": "MCP protocol initialization succeeds"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-mcp-tools",
+      "to": "rv:resident-reasoning:runtime:exchange-mcp-pull",
+      "type": "runtime_transition",
+      "label": "client discovers and calls provider request retrieval"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-mcp-pull",
+      "to": "rv:resident-reasoning:runtime:exchange-delivery-lease",
+      "type": "runtime_transition",
+      "label": "selected provider receives bounded request through existing delivery lease"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-external-claim",
+      "to": "rv:resident-reasoning:runtime:exchange-response-gate",
+      "type": "runtime_transition",
+      "label": "MCP submit tool supplies structured advisory and claim fence"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-response-persisted",
+      "to": "rv:resident-reasoning:runtime:exchange-mcp-status",
+      "type": "runtime_transition",
+      "label": "provider may inspect body-free persisted outcome"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-mcp-status",
+      "to": "rv:resident-reasoning:runtime:exchange-grace-consumption",
+      "type": "runtime_transition",
+      "label": "status is observational; Grace consumes only through its existing authorized workflow"
     }
   ]
 }

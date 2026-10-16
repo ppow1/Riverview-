@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_FLOW.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.9
+File Revision: 1.0.11
 Purpose: Generated focused process view for resident reasoning routing
 Authority: Graph-generated view; canonical source is JSON
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add graph-generated resident reasoning flow
@@ -50,8 +50,8 @@ flowchart LR
     g_rv_resident_reasoning_runtime_task_escalation_failure_96662c07[["Record denied, unavailable, expired, lease, retry, malformed-response and stale-context diagnostics without approving or dispatching work"]]
     g_rv_resident_reasoning_runtime_task_escalation_recovery_d0da7090["Keep the original assignment durable; retry only after explicit regrounding and current authority/provider readiness"]
     g_rv_resident_reasoning_runtime_exchange_outbox_7bebb762["Commit authorized request, context digest, origin and finite deadline before delivery; preserve stable idempotency and correlation IDs"]
-    g_rv_resident_reasoning_runtime_exchange_transport_readiness_c71cc220{"PLANNED — Is a current-version authenticated MCP adapter registered, publicly reachable, and linked to the durable exchange?"}
-    g_rv_resident_reasoning_runtime_exchange_transport_blocked_482fc90e[["PLANNED — Preserve awaiting_delivery and report transport/authentication unavailable; never fall through to historical Comms5"]]
+    g_rv_resident_reasoning_runtime_exchange_transport_readiness_c71cc220{"IMPLEMENTED IN SOURCE — Is the authenticated MCP adapter internally configured and tested? Public issuer, route and external-client access remain uncommissioned."}
+    g_rv_resident_reasoning_runtime_exchange_transport_blocked_482fc90e[["Preserve awaiting_delivery while production migration, issuer, public route or external-client verification remains incomplete; never fall through to historical Comms5."]]
     g_rv_resident_reasoning_runtime_exchange_delivery_lease_6cddd7c8["Claim a bounded delivery lease and fence; acknowledge or schedule bounded retry without blocking assignment processing"]
     g_rv_resident_reasoning_runtime_exchange_delivered_072adda5["Mark delivery acknowledged; wait for external claim without polling or holding a worker lease"]
     g_rv_resident_reasoning_runtime_exchange_external_claim_bb5aa89e["Authenticate provider identity, claim correlated request with bounded lease and monotonic fence"]
@@ -62,6 +62,12 @@ flowchart LR
     g_rv_resident_reasoning_runtime_exchange_expired_124bcfc4[["Expire request on finite deadline; preserve one terminal event and reject late response"]]
     g_rv_resident_reasoning_runtime_exchange_recovery_4f7ee76d["Recover awaiting-delivery, expired claims or persisted response after restart with same correlation and fenced idempotency"]
     g_rv_resident_reasoning_runtime_exchange_resume_6e7253b1["Return correlated advisory to existing resident reasoning; proposal, assignment, execution and verification still use their current authority paths"]
+    g_rv_resident_reasoning_runtime_exchange_mcp_auth_89ac0223{"Resolve finite-lived bearer credential to one configured provider principal and exchange scope on every HTTP request"}
+    g_rv_resident_reasoning_runtime_exchange_mcp_auth_denied_eac5aa1a[["Reject missing, unknown, expired or out-of-scope bearer without revealing whether a provider exists"]]
+    g_rv_resident_reasoning_runtime_exchange_mcp_initialize_602c72d5["Negotiate supported MCP protocol version over sessionless Streamable HTTP JSON-RPC POST"]
+    g_rv_resident_reasoning_runtime_exchange_mcp_tools_856213a4["Discover the fixed provider-scoped list, claim, submit-advisory and status tool schemas"]
+    g_rv_resident_reasoning_runtime_exchange_mcp_pull_9d19168a["Provider pulls bounded eligible request context; transport delivery lease and acknowledgement are durable"]
+    g_rv_resident_reasoning_runtime_exchange_mcp_status_6c99e3ba["Expose provider-owned body-free state, digest, provenance and sanitized diagnostic projection"]
   end
   g_rv_worker_adapter_deterministic_attempt_ground_c2193741["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_institutional_authority_identity_and_grants_office_state_e5a8ca22["Registered target<br/>rv:institutional-authority:identity-and-grants"]
@@ -116,5 +122,15 @@ flowchart LR
   g_rv_resident_reasoning_runtime_exchange_grace_consumption_0b864d8c -->|original exact grant revalidated; advisory remains non-authorizing| g_rv_resident_reasoning_runtime_exchange_resume_6e7253b1
   g_rv_resident_reasoning_runtime_exchange_resume_6e7253b1 -->|verification: existing reasoning workflow durably records its continuation result| g_rv_resident_reasoning_runtime_exchange_grace_ack_4657c0a8
   g_rv_resident_reasoning_runtime_exchange_grace_consumption_0b864d8c -->|recovery_route: consumer lease expires before durable acknowledgment| g_rv_resident_reasoning_runtime_exchange_recovery_4f7ee76d
+  g_rv_resident_reasoning_runtime_exchange_transport_readiness_c71cc220 -->|prerequisite: loopback MCP adapter is configured| g_rv_resident_reasoning_runtime_exchange_mcp_auth_89ac0223
+  g_rv_resident_reasoning_runtime_exchange_mcp_auth_89ac0223 -->|prerequisite: valid bearer maps to registered provider principal and scope| g_rv_resident_reasoning_runtime_exchange_mcp_initialize_602c72d5
+  g_rv_resident_reasoning_runtime_exchange_mcp_auth_89ac0223 -->|diagnostic_branch: credential missing, expired, unmapped or scope denied| g_rv_resident_reasoning_runtime_exchange_mcp_auth_denied_eac5aa1a
+  g_rv_resident_reasoning_runtime_exchange_mcp_auth_denied_eac5aa1a -->|recovery_route: preserve exchange state; retry only after credential correction| g_rv_resident_reasoning_runtime_exchange_transport_blocked_482fc90e
+  g_rv_resident_reasoning_runtime_exchange_mcp_initialize_602c72d5 -->|MCP protocol initialization succeeds| g_rv_resident_reasoning_runtime_exchange_mcp_tools_856213a4
+  g_rv_resident_reasoning_runtime_exchange_mcp_tools_856213a4 -->|client discovers and calls provider request retrieval| g_rv_resident_reasoning_runtime_exchange_mcp_pull_9d19168a
+  g_rv_resident_reasoning_runtime_exchange_mcp_pull_9d19168a -->|selected provider receives bounded request through existing delivery lease| g_rv_resident_reasoning_runtime_exchange_delivery_lease_6cddd7c8
+  g_rv_resident_reasoning_runtime_exchange_external_claim_bb5aa89e -->|MCP submit tool supplies structured advisory and claim fence| g_rv_resident_reasoning_runtime_exchange_response_gate_87bf6800
+  g_rv_resident_reasoning_runtime_exchange_response_persisted_74d2abca -->|provider may inspect body-free persisted outcome| g_rv_resident_reasoning_runtime_exchange_mcp_status_6c99e3ba
+  g_rv_resident_reasoning_runtime_exchange_mcp_status_6c99e3ba -->|status is observational; Grace consumes only through its existing authorized workflow| g_rv_resident_reasoning_runtime_exchange_grace_consumption_0b864d8c
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

@@ -2,21 +2,25 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.1
+File Revision: 1.0.4
 Purpose: Define the durable transport-neutral external reasoning exchange contract
 Authority: Existing resident.reasoning.escalate exact grant; advisory-only result
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial phase-one contract
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Connect typed advice to existing ResidentReasoner input
+Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Specify authenticated MCP Streamable HTTP operations and commissioning boundary
+Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Record operator-provisioned identity map and Streamable HTTP media-type requirement
+Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Specify exact POST media-type negotiation and sessionless GET behavior
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Durable external reasoning exchange
 
 ## Scope and authority
 
-This phase adds a PostgreSQL-backed exchange envelope around
-`ReasoningEscalationRouter`. It does not install an MCP endpoint, browser
-automation, provider API, scheduler, or worker dispatcher. Grace's objective,
-proposal, assignment, CME, and verification records remain authoritative.
+The first phase added a PostgreSQL-backed exchange envelope around
+`ReasoningEscalationRouter`; this increment adds a development MCP transport
+adapter over that envelope. It does not configure a public route, ChatGPT,
+browser automation, provider inference API, scheduler, or worker dispatcher.
+Grace's objective, proposal, assignment, CME, and verification records remain authoritative.
 An external response is typed **advice** only. It cannot approve a proposal,
 create an assignment, invoke a tool, or mark work verified.
 
@@ -77,13 +81,71 @@ attempt counts, provenance, and sanitized error code. It does not include
 request or response bodies. `events()` returns the append-only exchange
 transition history for a correlated request.
 
-## Typed interface for a future MCP adapter
+## Authenticated MCP Streamable HTTP adapter
+
+`external_reasoning_mcp.py` exposes the existing exchange through the stable
+Streamable HTTP handshake/tool protocol (2025-03-26, 2025-06-18, and
+2025-11-25). The default listener is loopback-only on port 11827; TLS and
+public routing remain the responsibility of a separately reviewed reverse
+proxy deployment. The server is sessionless because all request/claim/result
+state is already durable in PostgreSQL. It returns JSON responses for POST,
+uses HTTP 202 for protocol notifications, and returns 405 for GET `/mcp` since
+server-initiated SSE is not used by this request/response exchange.
+MCP clients POST UTF-8 JSON-RPC and advertise both `application/json` and
+`text/event-stream`; this implementation responds with one JSON object and no
+SSE body. Its GET endpoint is authenticated and returns 405 because it does
+not provide server-initiated SSE.
+
+The resource publishes RFC 9728 protected-resource metadata at
+`/.well-known/oauth-protected-resource/mcp`. The configured authorization
+server's exact grant and issuance path must be provisioned separately. The
+adapter accepts operator-preloaded opaque bearer mappings; it does not
+implement an OAuth authorization server or validate JWT issuer/audience
+claims. A protected systemd credential stores only each token's SHA-256 digest,
+fixed provider ID, exact provider
+principal, bounded scopes, and UTC expiry. The adapter maps a supplied bearer
+token to that identity on every HTTP request using a constant-time digest
+comparison. The identity and provider cannot be supplied in tool arguments.
+Token mappings are finite-lived and revoked by updating the protected mapping
+and restarting the adapter. No token or authorization header is logged. The
+credential map schema is `rv.external-reasoning.provider-auth.v1`; entries
+contain exactly `token_sha256`, `provider_id`, `principal_id`, `scopes`, and
+`expires_at`. Only token digests belong in this file.
+
+The bounded tool set is:
+
+| Tool | Purpose and constraints |
+|---|---|
+| `reasoning_exchange_list_requests` | Pull at most ten requests selected for this provider. It advances `awaiting_delivery` through the existing short delivery lease and returns the immutable context only to the matching provider; retries can rediscover delivered/claimed requests. Confidential requests require the additional confidential scope. |
+| `reasoning_exchange_claim_request` | Claim one exact request/correlation pair with a finite lease and fence; an idempotent same-principal retry returns the active claim. |
+| `reasoning_exchange_submit_response` | Submit the existing response schema under the active claim token/fence and idempotency key. The exchange applies its 16 KiB bound and validation. |
+| `reasoning_exchange_status` | Return provider-owned state, timestamps, attempts, response digest/provenance and sanitized diagnostics, without response body. |
+
+Grace-only consume/acknowledge and Engineering/work-order functions are not
+registered as MCP tools. External reasoning remains advisory and cannot approve
+or execute work. Tool errors are bounded diagnostic codes; payloads, bearer
+tokens, and raw exception text are excluded from logs. The HTTP server caps
+request bodies at 64 KiB, returned context at 32 KiB, concurrent handlers at
+16, and the listen queue at 32. Host and Origin allowlists guard proxy/DNS
+rebinding boundaries.
+
+`run_external_reasoning_mcp.py` builds the adapter using the current
+`DurableExternalReasoningExchange`, `PostgresLedger`, and provider registrations
+derived from the token mapping. It does not apply migrations or create exchange
+records. Migration `0011_external_reasoning_exchange.sql` must be installed
+through the normal controlled procedure before commissioning this service.
+The example systemd unit binds only loopback. No Caddy route, public endpoint,
+authorization server, provider token, or ChatGPT connection is commissioned by
+this source change.
+
+## Typed interface for the exchange
 
 The phase-one service exposes these transport-neutral methods:
 
-- `eligible_requests(provider_id, principal_id, limit)` — bounded outbox
-  metadata/payload; provider principal is checked against the registered
-  provider identity (a future adapter may bind a distinct trusted principal).
+- `eligible_requests(provider_id, principal_id, limit)` — bounded outbox and
+  still-pending provider requests; provider principal is checked against the
+  registered provider identity. Delivered/claimed requests remain visible to
+  that provider for recovery after a lost HTTP response.
 - `begin_delivery(...)`, `mark_delivered(...)`, and `fail_delivery(...)` —
   internal leased outbox operations; no network call is made by this module.
 - `claim(request_id, correlation_id, provider_id, principal_id, lease_seconds)`.
@@ -116,6 +178,9 @@ The exchange operation itself invokes no provider or Engineering execution API.
 The typed consumer seam resumes `ResidentReasoner.propose` with the correlated
 advisory, then records the reasoning outcome through existing resident/objective
 state before acknowledging consumption.
+The development MCP adapter handles only external retrieval/claim/advisory
+response and body-free status; migration, issuer provisioning, public routing,
+and ChatGPT setup remain separate commissioning gates.
 
 ## Migration and rollback
 

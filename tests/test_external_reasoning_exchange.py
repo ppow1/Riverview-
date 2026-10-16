@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_exchange.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.3
+# Revision: 1.0.5
 # Purpose: Verify durable external advisory exchange, leases, recovery and idempotency
 # Execution Model: Isolated PostgreSQL integration plus deterministic simulated provider
 # Observability: State, correlation, event, digest and sanitized diagnostic assertions
@@ -11,12 +11,19 @@
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial acceptance coverage
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Provision isolated runtime role for migration ACL regression
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Exercise actual ResidentReasoner on the consumed advisory
+# Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Exercise provider-scoped MCP operations against isolated PostgreSQL
+# Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Run the durable tool round-trip through an independent Streamable HTTP client
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
 """PostgreSQL acceptance tests for the transport-neutral exchange contract."""
 
 import os
+import hashlib
+import http.client
+import json
+import socket
+import threading
 import unittest
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -27,6 +34,9 @@ from riverview_core.reasoning_escalation import EscalationRequest, ReasoningEsca
 from riverview_core.resident_execution.external_reasoning import (
     DurableExternalReasoningExchange, ExchangeConflict, ExchangeExpired,
     ExchangeUnauthorized,
+)
+from riverview_core.resident_execution.external_reasoning_mcp import (
+    ExternalReasoningMCPAdapter, ProviderTokenMap, create_server,
 )
 from riverview_core.resident_reasoning import ReasoningRequest
 
@@ -438,6 +448,94 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
             self.exchange.eligible_requests(PROVIDER, principal_id="other-provider")
         eligible = self.exchange.eligible_requests(PROVIDER, principal_id=PROVIDER)
         self.assertEqual([str(item["request_id"]) for item in eligible], [receipt.request_id])
+
+    def test_mcp_provider_scoped_round_trip_uses_durable_exchange(self):
+        from riverview_core.resident_execution.external_reasoning_mcp import ExternalProviderRegistration
+        from riverview_core.resident_execution.external_reasoning_mcp import exchange_runtime_readiness
+
+        self.assertEqual(exchange_runtime_readiness(self.ledger),
+                         {"status": "healthy", "error_code": None})
+
+        token = "isolated-postgres-mcp-provider-token-000000000001"
+        token_map = ProviderTokenMap.from_document({
+            "schema_version": ProviderTokenMap.SCHEMA,
+            "tokens": [{"token_sha256": hashlib.sha256(token.encode()).hexdigest(),
+                "provider_id": PROVIDER, "principal_id": PROVIDER,
+                "scopes": ["reasoning:exchange"],
+                "expires_at": "2099-01-01T00:00:00Z"}]})
+        provider = ExternalProviderRegistration(PROVIDER, PROVIDER)
+        mcp_exchange = DurableExternalReasoningExchange(self.ledger,
+            ReasoningEscalationRouter({PROVIDER: provider}), actor_id=RESIDENT,
+            clock=lambda: self.clock_value)
+        adapter = ExternalReasoningMCPAdapter(mcp_exchange, token_map)
+        receipt = self._submit(idem="mcp-round-trip")
+        probe = socket.socket()
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+        probe.close()
+        server = create_server(adapter, host="127.0.0.1", port=port,
+            resource_url="https://mcp.example.test/mcp",
+            authorization_server_url="https://identity.example.test/")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+
+        def rpc(method, request_id, params=None):
+            connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            body = json.dumps({"jsonrpc": "2.0", "id": request_id,
+                "method": method, "params": params or {}})
+            headers = {"Host": "127.0.0.1", "Authorization": "Bearer " + token,
+                "Content-Type": "application/json",
+                "Accept": "application/json, text/event-stream",
+                "MCP-Protocol-Version": "2025-11-25", "Mcp-Method": method}
+            if method == "tools/call":
+                headers["Mcp-Name"] = params["name"]
+            connection.request("POST", "/mcp", body=body, headers=headers)
+            response = connection.getresponse()
+            raw, status = response.read(), response.status
+            connection.close()
+            self.assertEqual(status, 200)
+            return json.loads(raw)
+
+        try:
+            initialized = rpc("initialize", "init", {
+                "protocolVersion": "2025-11-25", "capabilities": {},
+                "clientInfo": {"name": "postgres-exchange-independent-client", "version": "1.0"}})
+            self.assertEqual(initialized["result"]["protocolVersion"], "2025-11-25")
+            tools = rpc("tools/list", "tools", {})["result"]["tools"]
+            self.assertEqual(len(tools), 4)
+
+            def tool(name, request_id, arguments):
+                result = rpc("tools/call", request_id, {"name": name,
+                    "arguments": arguments})["result"]
+                self.assertFalse(result["isError"])
+                return json.loads(result["content"][0]["text"])
+
+            listed = tool("reasoning_exchange_list_requests", "list", {"limit": 2})
+            self.assertEqual(listed["count"], 1)
+            self.assertEqual(listed["requests"][0]["request_id"], receipt.request_id)
+            self.assertNotIn("delivery_token", listed["requests"][0])
+            self.assertEqual(mcp_exchange.status(receipt.request_id,
+                receipt.correlation_id)["delivery_state"], "awaiting_external_claim")
+
+            claim = tool("reasoning_exchange_claim_request", "claim", {
+                "request_id": receipt.request_id, "correlation_id": receipt.correlation_id})
+            self.assertEqual(claim["fence"], 1)
+            response = self._response(receipt, advisory="Bounded MCP synthetic advisory")
+            submitted = tool("reasoning_exchange_submit_response", "submit", {
+                "request_id": receipt.request_id, "correlation_id": receipt.correlation_id,
+                "claim_token": claim["claim_token"], "fence": claim["fence"],
+                "idempotency_key": "mcp-response-1", "response": response})
+            self.assertEqual(submitted["state"], "response_received")
+            status = tool("reasoning_exchange_status", "status", {
+                "request_id": receipt.request_id, "correlation_id": receipt.correlation_id})
+            self.assertEqual(status["delivery_state"], "response_received")
+            self.assertEqual(status["response_sha256"], submitted["response_sha256"])
+            self.assertNotIn("response_payload", status)
+            self.assertNotIn("reasoning_exchange_consume", {x["name"] for x in tools})
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
 
 
 if __name__ == "__main__":

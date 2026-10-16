@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Persist and resume authorized external reasoning exchanges
 # Execution Model: Request-driven PostgreSQL outbox, bounded leases, no polling loop
 # Observability: Correlated state and sanitized append-only transition diagnostics
 # Dependencies: Psycopg 3; PostgresLedger; ReasoningEscalationRouter
 # Authority: Exact resident.reasoning.escalate grant; returned advice cannot authorize work
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial durable exchange contract
+# Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Permit scoped pull/recovery of delivered provider requests
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # Tests: tests/test_external_reasoning_exchange.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -297,14 +298,25 @@ class DurableExternalReasoningExchange:
                                      "request_deadline_elapsed")
                 cur.execute("""SELECT request_id,correlation_id,objective_id,conversation_id,
                     message_sequence,proposal_id,proposal_revision,request_schema,response_schema,
-                    provider_id,classification,context_sha256,request_payload,requested_at,deadline_at
+                    provider_id,classification,context_sha256,request_payload,requested_at,deadline_at,
+                    delivery_state
                 FROM external_reasoning_exchanges
-                WHERE delivery_state='awaiting_delivery' AND provider_id=%s
-                  AND deadline_at>%s AND next_delivery_at<=%s
-                  AND (delivery_lease_until IS NULL OR delivery_lease_until<=%s)
+                WHERE provider_id=%s AND deadline_at>%s AND (
+                    (delivery_state='awaiting_delivery' AND next_delivery_at<=%s
+                     AND (delivery_lease_until IS NULL OR delivery_lease_until<=%s))
+                    OR delivery_state IN ('awaiting_external_claim','awaiting_response'))
                 ORDER BY requested_at,request_id LIMIT %s""",
                 (provider_id, now, now, now, limit))
                 return [dict(row) for row in cur.fetchall()]
+
+    def provider_status(self, request_id: str, correlation_id: str, *,
+                        provider_id: str, principal_id: str) -> dict[str, Any]:
+        """Return body-free status only to the authenticated owning provider."""
+        self._require_provider_principal(provider_id, principal_id)
+        status = self.status(request_id, correlation_id)
+        if status["provider_id"] != provider_id:
+            raise ExchangeNotFound("exchange identity not found")
+        return status
 
     def begin_delivery(self, request_id: str, provider_id: str, *, owner_id: str,
                        lease_seconds=30) -> ExchangeClaim | None:
@@ -573,7 +585,8 @@ class DurableExternalReasoningExchange:
                 "correlation_id": str(row["correlation_id"]),
                 "objective_id": row["objective_id"], "delivery_state": row["delivery_state"],
                 "diagnostic_state": self.STATES[row["delivery_state"]],
-                "provider_id": row["provider_id"], "context_sha256": row["context_sha256"],
+                "provider_id": row["provider_id"], "classification": row["classification"],
+                "context_sha256": row["context_sha256"],
                 "requested_at": row["requested_at"].isoformat(),
                 "deadline_at": row["deadline_at"].isoformat(),
                 "delivery_attempts": row["delivery_attempts"],

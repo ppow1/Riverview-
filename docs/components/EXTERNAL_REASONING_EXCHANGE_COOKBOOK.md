@@ -2,23 +2,38 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.2
+File Revision: 1.0.5
 Purpose: Diagnose durable external reasoning exchange transitions safely
 Authority: Read-only diagnostics first; no production migration or transport operation
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial troubleshooting guide
+Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Add adapter checks, authentication handling, and external-client test boundaries
+Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Correct adapter status guidance and token-map commissioning boundary
+Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Document required Accept negotiation and rejection behavior
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # External reasoning exchange troubleshooting
 
-## MCP transport readiness boundary (2026-10-16)
+## MCP transport readiness and diagnostics (2026-10-16)
 
-The PR #69 exchange library is transport-neutral. It does not itself create an
-HTTP listener, MCP tools, authentication mapping, browser wake, or external
-provider connection. Before enabling delivery, require a current-version MCP
-adapter that binds the authenticated transport principal to the configured
-provider identity and exposes only provider-scoped request retrieval, claim,
-response submission, and status. Keep Grace-only consumption and delivery
+The durable exchange remains transport-neutral. Its development adapter
+implements a listener and tools, but does not implement an authorization
+server, issue tokens, perform browser wake, or connect an external provider.
+The bearer-to-provider map is operator-provisioned and must be tied to a
+separately reviewed issuer grant. Keep Grace-only consumption and delivery
 lease operations private to the Riverview runtime.
+
+The current development adapter is available through authenticated Streamable
+HTTP at `/mcp` when run locally. Its reference unit listens only at
+`127.0.0.1:11827`; `GET /healthz` checks exchange relations and the required
+narrow runtime ACL, while protected-resource metadata publishes the configured
+issuer and scope list. Authenticated `GET /mcp` returns 405 by design because
+server-initiated SSE is not implemented. POST clients must advertise both
+`application/json` and `text/event-stream`; this server returns one JSON
+object and does not open an SSE stream. A successful loopback MCP
+handshake is not evidence of a public route or internet reachability.
+POST rejects a missing/unacceptable media-type pair with HTTP 406 and a
+non-JSON request body type with HTTP 415; rejected requests are closed without
+logging or parsing the body.
 
 For a future **ChatGPT web** connection, use the supported plugin/hosted MCP
 connection flow at the final HTTPS `/mcp` route and its supported user OAuth
@@ -42,6 +57,25 @@ That record confirms the current production limitation: no MCP/doorbell service
 is installed and migration 0011 is absent. Do not expose unauthenticated MCP or
 claim external acceptance until an independent network client completes MCP
 initialization, tool discovery, and a correlated request/response round trip.
+
+The independent development client test is
+`tests/test_external_reasoning_mcp.py`; the PostgreSQL-backed adapter round-trip
+is `ExternalReasoningExchangePostgresTests.test_mcp_provider_scoped_round_trip_uses_durable_exchange`.
+The tests use synthetic provider tokens and synthetic advisory data only. They
+do not prove an internet route, authorization-server issuance, ChatGPT client
+compatibility, migration 0011 production installation, Grace outbound request
+delivery, or production Grace consumption.
+
+| Signal | First read-only check | Safe response |
+|---|---|---|
+| HTTP 401 / `WWW-Authenticate` | Confirm the configured resource metadata URL and credential-map expiry without printing token material | Obtain a valid issuer token and confirm its digest-to-provider entry; never copy the bearer into logs or evidence |
+| HTTP 403 `host_not_allowed` / `origin_not_allowed` | Compare the request Host/Origin with the reviewed allowlists | Correct only the exact reverse-proxy host/origin values; do not use wildcard hosts |
+| `provider_not_registered` at startup | Compare credential-map provider/principal pairs with provider registrations derived at startup | Preserve requests and correct the reviewed identity mapping; do not accept provider IDs from tool arguments |
+| `awaiting_delivery` remains | Inspect bounded status and event codes; test adapter health and current DB migration outside the public endpoint | Keep the exchange durable; retry the pull operation after adapter readiness returns |
+| `awaiting_external_claim` / `awaiting_response` | Use `reasoning_exchange_list_requests` then reclaim with the same authenticated principal | Reuse the current request and correlation IDs; fencing and response idempotency reject stale/duplicate actions |
+| HTTP 413 or `tool_arguments_invalid` | Check the documented 64 KiB HTTP, 32 KiB context and 16 KiB response bounds | Reduce only the submitted advisory/context within the existing schema; do not raise limits blindly |
+| HTTP 406 / `not_acceptable` | Check that `Accept` lists both `application/json` and `text/event-stream` with nonzero quality values | Correct the client media-type negotiation; keep the server response JSON-only |
+| `GET /mcp` returns 405 | This is expected; Streamable HTTP sends JSON-RPC requests by POST | Use POST with JSON content and Accept headers; SSE is intentionally not implemented |
 
 Use only an isolated PostgreSQL test schema during this development phase. The
 exchange stores bounded reasoning context, so do not print request/response
