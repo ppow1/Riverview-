@@ -1,9 +1,10 @@
 # Riverview~ controlled test
 # File: tests/test_grace_conversation_result.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Verify 80B result review is authorized, bounded and idempotently linked to chat
 # Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Cover typed completion decisions and same-scope continuation handoff
+# Changed: 2026-10-16 UTC | RV-GRACE-RESULT-RETURN-DIAGNOSTICS-001 | Verify deferred result-review diagnostics are bounded and content-free
 # Execution Model: Deterministic in-memory adapters; no database or inference endpoint
 # Observability: Assert source identity, provider provenance and single durable response
 # Authority: Fakes exact-grant decisions; live authority remains PostgreSQL enforced
@@ -15,6 +16,7 @@ from types import SimpleNamespace
 from riverview_core.resident_execution.conversation import ResidentConversationService
 from riverview_core.resident_execution.conversation import ConversationUnavailable
 from riverview_core.resident_execution.model_router import GraceModelRouter
+from riverview_core.resident_execution.model_router import ReasoningDeferred
 from riverview_core.resident_execution.service import GraceExecutionService
 
 
@@ -57,12 +59,15 @@ class FakeRouter:
     def __init__(self):
         self.calls = []
         self.on_complete = None
+        self.failure = None
 
     def supports_capability(self, capability):
         return capability == "grace.reasoning.80b"
 
     def complete_chat(self, messages, *, max_tokens, expected_revision, required_capability):
         self.calls.append((messages, max_tokens, expected_revision, required_capability))
+        if self.failure is not None:
+            raise self.failure
         if self.on_complete is not None:
             self.on_complete()
         return SimpleNamespace(content=getattr(self, "content", json_complete()),
@@ -131,6 +136,30 @@ class GraceConversationResultTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.service.review_verified_work_order(context)
         self.assertEqual(self.router.calls, [])
+        self.assertEqual(self.store.responses, {})
+
+    def test_deferred_result_review_logs_only_sanitized_provider_attempt_metadata(self):
+        self.router.failure = ReasoningDeferred("UNAVAILABLE", attempts=({
+            "selected_provider": "local.inference.v1",
+            "selected_model": "Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf",
+            "reasoning_stage": "reasoning", "outcome": "failed",
+            "error_code": "response_incomplete", "finish_reason": "length",
+            "completion_tokens": 128, "completion_token_limit": 128,
+            "prompt": "PRIVATE-PROMPT", "response": "PRIVATE-COMPLETION",
+            "credential": "PRIVATE-CREDENTIAL"},))
+        with self.assertLogs("riverview_core.resident_execution.conversation",
+                             level="WARNING") as captured:
+            with self.assertRaises(ReasoningDeferred):
+                self.service.review_verified_work_order(valid_context())
+        diagnostic = "\n".join(captured.output)
+        self.assertIn('"event": "grace_result_review_deferred"', diagnostic)
+        self.assertIn('"readiness_state": "UNAVAILABLE"', diagnostic)
+        self.assertIn('"error_code": "response_incomplete"', diagnostic)
+        self.assertIn('"finish_reason": "length"', diagnostic)
+        self.assertIn('"completion_tokens": 128', diagnostic)
+        self.assertNotIn("PRIVATE-PROMPT", diagnostic)
+        self.assertNotIn("PRIVATE-COMPLETION", diagnostic)
+        self.assertNotIn("PRIVATE-CREDENTIAL", diagnostic)
         self.assertEqual(self.store.responses, {})
 
     def test_smaller_direct_model_cannot_review_substantive_result(self):

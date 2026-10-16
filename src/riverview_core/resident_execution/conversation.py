@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.2.4
+# Revision: 1.2.5
 # Purpose: Persist and serve office-bound, authorized Grace conversations
 # Execution Model: Authenticated request-driven completion with durable event history
 # Observability: Redacted response status and append-only PostgreSQL conversation events
@@ -24,6 +24,7 @@
 # Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Raise bounded turn budget to 512 tokens and retain safe truncation diagnostics
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Stream durable responses and clarify proposal versus governed execution
 # Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Parse typed verified-result decisions and persist authorized same-objective continuation proposals
+# Changed: 2026-10-16 UTC | RV-GRACE-RESULT-RETURN-DIAGNOSTICS-001 | Log sanitized 80B attempt details when verified-result review is deferred
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
 # Tests: tests/test_resident_conversation.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -76,7 +77,8 @@ _SAFE_RESPONSE_CODES = frozenset({"model_provider_unavailable","model_binding_mi
     "service_restarted","reasoning_model_not_ready"})
 
 
-def _log_deferred_attempt(request_id, required_capability, exc):
+def _log_deferred_attempt(request_id, required_capability, exc, *,
+                          event="grace_deferred_resume_attempt"):
     """Write retry diagnostics without conversation text or raw provider errors."""
     attempts = []
     for attempt in getattr(exc, "attempts", ()):
@@ -91,7 +93,7 @@ def _log_deferred_attempt(request_id, required_capability, exc):
         attempts.append(safe)
     code = getattr(exc, "code", None)
     safe_code = code if code in _SAFE_DIAGNOSTIC_CODES else None
-    _LOG.warning("%s", json.dumps({"event": "grace_deferred_resume_attempt",
+    _LOG.warning("%s", json.dumps({"event": event,
         "request_id": str(request_id), "required_capability": required_capability,
         "failure_type": type(exc).__name__, "error_code": safe_code,
         "readiness_state": (exc.args[0] if type(exc).__name__ == "ReasoningDeferred"
@@ -1194,7 +1196,15 @@ class ResidentConversationService:
                   "expected_revision": binding.get("implementation_revision")}
         if router_capability:
             kwargs["required_capability"] = router_capability
-        model_completion = provider.complete_chat(messages, **kwargs)
+        try:
+            model_completion = provider.complete_chat(messages, **kwargs)
+        except Exception as exc:
+            from .model_router import ReasoningDeferred
+            if isinstance(exc, ReasoningDeferred):
+                _log_deferred_attempt(str(request_id),
+                    router_capability or "grace.reasoning.80b", exc,
+                    event="grace_result_review_deferred")
+            raise
         raw_body = getattr(model_completion, "content", None)
         served_model = getattr(model_completion, "served_model", None)
         if (not isinstance(raw_body, str) or not raw_body.strip()
