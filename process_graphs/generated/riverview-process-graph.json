@@ -1858,7 +1858,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.1.19",
+      "graph_revision": "1.1.22",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -2764,9 +2764,9 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-owner-preflight",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.3",
           "type": "verification",
-          "label": "SOURCE IMPLEMENTED — require service-local writable CODEX_HOME, read-only bind of owner auth.json, and installed codex-code-mode-host before persistent CLI dispatch; production package currently lacks companion host",
+          "label": "SOURCE IMPLEMENTED — require writable service-local CODEX_HOME, read-only owner auth.json, both Code Mode features, the pinned companion path, AF_NETLINK for bwrap --unshare-net, and owner-session MemoryDenyWriteExecute=no; keep workspace-write, network-disabled, AppArmor-confined execution",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "scripts/run_grace_execution_service.py",

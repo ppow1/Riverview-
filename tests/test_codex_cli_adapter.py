@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.2
+# Revision: 1.2.4
 # Purpose: Verify bounded subscription-authenticated Codex adapter contracts
 # Execution Model: Isolated temporary Git repository and synthetic executable
 # Observability: Assertions inspect sanitized adapter status and artifact metadata
@@ -17,6 +17,9 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Verify older objective evidence remains valid under current grounding provenance
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Verify a single committed deliverable is accepted and all other workspace paths are rejected
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-OWNER-STATE-001 | Verify service-local writable Codex state, read-only auth bind, and missing Code Mode host rejection
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-SYSTEMD-NETLINK-001 | Require the readiness probe to exercise bubblewrap network namespace setup
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-ENABLE-001 | Require persistent Code Mode feature activation in the Codex CLI invocation
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-MDWE-001 | Require both Code Mode features and pinned package-path discovery for the companion host
 # Contracts: src/riverview_core/resident_execution/codex_cli.py
 # Tests: python3 -m unittest tests.test_codex_cli_adapter -v
 # History: Git
@@ -212,6 +215,29 @@ class CodexCLIAdapterTests(unittest.TestCase):
         self.assertFalse(list(self.artifacts.iterdir()))
         self.assertFalse(list(self.workspace.iterdir()))
 
+    def test_workspace_sandbox_probe_exercises_network_namespace_setup(self):
+        self.sandbox_patch.stop()
+        completed = subprocess.CompletedProcess(["bwrap"], 0)
+        with patch("riverview_core.resident_execution.codex_cli.shutil.which",
+                   return_value="/usr/bin/bwrap"), \
+             patch("riverview_core.resident_execution.codex_cli.subprocess.run",
+                   return_value=completed) as run:
+            CodexCLIExecutionAdapter._verify_workspace_sandbox()
+        command = run.call_args.args[0]
+        self.assertIn("--unshare-net", command)
+        self.assertEqual(command[-1], "/bin/true")
+        self.assertEqual(run.call_args.kwargs["timeout"], 5)
+
+    def test_network_namespace_sandbox_failure_is_reported_as_unavailable(self):
+        self.sandbox_patch.stop()
+        failed = subprocess.CompletedProcess(["bwrap"], 1)
+        with patch("riverview_core.resident_execution.codex_cli.shutil.which",
+                   return_value="/usr/bin/bwrap"), \
+             patch("riverview_core.resident_execution.codex_cli.subprocess.run",
+                   return_value=failed):
+            with self.assertRaisesRegex(CodexAdapterError, "codex_sandbox_unavailable"):
+                CodexCLIExecutionAdapter._verify_workspace_sandbox()
+
     def test_cli_failure_is_sanitized_and_creates_no_artifact(self):
         self.codex.write_text(self.codex.read_text().replace("args=sys.argv[1:]", "args=sys.argv[1:] + ['--fail']"),
                               encoding="utf-8")
@@ -361,6 +387,25 @@ class CodexCLIAdapterTests(unittest.TestCase):
         self.assertEqual(result.status, "UNAVAILABLE")
         self.assertEqual(result.detail_code, "codex_code_mode_host_missing")
         self.assertFalse(result.execution_started)
+
+    def test_required_code_mode_host_feature_is_enabled_for_codex_invocation(self):
+        helper = self.codex.with_name("codex-code-mode-host")
+        helper.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        helper.chmod(0o700)
+        script = self.codex.read_text(encoding="utf-8")
+        script = script.replace("args=sys.argv[1:]", "import os\n"
+            f"if os.environ['PATH'].split(':')[0] != {str(self.codex.parent)!r}: raise SystemExit(6)\n"
+            "args=sys.argv[1:]")
+        script = script.replace("if any(value not in args for value in required): raise SystemExit(8)",
+            "if '--enable' not in args or 'code_mode' not in args or 'code_mode_host' not in args: raise SystemExit(7)\n"
+            "if any(value not in args for value in required): raise SystemExit(8)")
+        self.codex.write_text(script, encoding="utf-8")
+        result = CodexCLIExecutionAdapter(executable=str(self.codex),
+            repository_path=self.repo, repository_reference="repo://example/test",
+            codex_home=self.codex_home, workspace_root=self.workspace,
+            artifact_root=self.artifacts, require_code_mode_host=True).execute(self.assignment())
+        self.assertEqual(result.status, "DELIVERABLE_PRODUCED")
+        self.assertTrue(result.execution_started)
 
     def test_persistent_owner_session_rejects_copy_or_weak_auth_file(self):
         owner_home = self.root / "admin1"
