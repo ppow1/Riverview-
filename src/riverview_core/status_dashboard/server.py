@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.16
+# Revision: 1.3.17
 # Purpose: Serve account-authenticated operational projections and existing bounded APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -84,6 +84,8 @@ _CONVERSATION_STREAM = re.compile(
     r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/responses/([0-9a-fA-F-]{36})/stream$")
 _CONVERSATION_WORK_ORDER = re.compile(
     r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/work-orders$")
+_PROPOSAL_COLLECTION = "/api/v1/institutional-proposals"
+_PROPOSAL_ITEM = re.compile(r"^/api/v1/institutional-proposals/(proposal:[0-9a-f-]{36})$")
 
 
 class WorkOrderOriginConflict(Exception):
@@ -213,7 +215,7 @@ class _BoundedHTTPServer(HTTPServer):
 
     def __init__(self, address, handler, *, token, projection, notification_service,
                  objective_pipeline, conversation_service, account_auth_service,
-                 permission_store, static_dir):
+                 permission_store, static_dir, proposal_registry):
         self._token = token
         self._projection = projection
         self._notification_service = notification_service
@@ -221,6 +223,7 @@ class _BoundedHTTPServer(HTTPServer):
         self._conversation_service = conversation_service
         self._account_auth_service = account_auth_service
         self._permission_store = permission_store
+        self._proposal_registry = proposal_registry
         self._static_dir = Path(static_dir)
         self._slots = threading.BoundedSemaphore(_MAX_THREADS)
         super().__init__(address, handler)
@@ -517,6 +520,12 @@ def make_handler():
                                         and self.command == "POST")
             conversation_work_order = (_CONVERSATION_WORK_ORDER.fullmatch(parsed.path)
                                        if self.command == "POST" else None)
+            proposal_create = (parsed.path == _PROPOSAL_COLLECTION and self.command == "POST")
+            proposal_search = (parsed.path == _PROPOSAL_COLLECTION and self.command in {"GET", "HEAD"})
+            proposal_item = (_PROPOSAL_ITEM.fullmatch(parsed.path)
+                             if self.command in {"GET", "HEAD"} else None)
+            proposal_revision = (_PROPOSAL_ITEM.fullmatch(parsed.path)
+                                 if self.command == "PUT" else None)
             conversation_session = (parsed.path == _CONVERSATION_SESSION
                                      and self.command in {"POST", "DELETE"})
             if not self._host_ok():
@@ -525,7 +534,8 @@ def make_handler():
             if (self.command not in {"GET", "HEAD"} and not notification_write
                     and not objective_submit and not objective_proposal and not objective_cancel
                     and not conversation_send and not conversation_stream_send and not conversation_session and not public_auth
-                    and not conversation_work_order
+                    and not conversation_work_order and not proposal_create
+                    and not proposal_revision
                     and not auth_logout and not account_decision and not account_user
                     and not permission_profile and not permission_transition
                     and not account_email_save and not account_email_test):
@@ -980,6 +990,126 @@ def make_handler():
                             self._error(409, "work_order_conflict", request_id)
                         else:
                             self._error(503, "work_order_intake_unavailable", request_id)
+                elif proposal_create or proposal_search or proposal_item or proposal_revision:
+                    identity = getattr(self, "_account_identity", None)
+                    if (not getattr(self, "_account_cookie_authenticated", False)
+                            or not identity or "steward" not in identity.get("roles", ())
+                            or not identity.get("authority_principal_id")):
+                        self._error(403, "steward_account_session_required", request_id)
+                        return
+                    registry = self.server._proposal_registry
+                    if registry is None:
+                        self._error(503, "institutional_proposal_registry_unavailable", request_id)
+                        return
+                    if proposal_search:
+                        try:
+                            result = registry.search(query.get("q", [""])[0],
+                                status=query.get("status", [None])[0],
+                                tag=query.get("tag", [None])[0],
+                                limit=_bounded_limit(query.get("limit", [25])[0]))
+                            self._json(200, result, request_id)
+                        except Exception as exc:
+                            from riverview_core.resident_execution.proposals import ProposalValidationError
+                            if isinstance(exc, ProposalValidationError):
+                                self._error(400, "invalid_proposal_search", request_id)
+                            else:
+                                self._error(503, "institutional_proposal_registry_unavailable", request_id)
+                        return
+                    if proposal_item:
+                        try:
+                            self._json(200, registry.get(unquote(proposal_item.group(1))), request_id)
+                        except Exception as exc:
+                            from riverview_core.resident_execution.proposals import ProposalNotFound
+                            if isinstance(exc, ProposalNotFound):
+                                self._error(404, "proposal_not_found", request_id)
+                            else:
+                                self._error(503, "institutional_proposal_registry_unavailable", request_id)
+                        return
+                    if proposal_revision:
+                        try:
+                            data = self._json_body(_MAX_CHAT_BODY)
+                            if (set(data) != {"expected_revision", "content"}
+                                    or type(data["expected_revision"]) is not int
+                                    or data["expected_revision"] < 1):
+                                raise ValueError("invalid proposal revision request")
+                            revised = registry.revise(unquote(proposal_revision.group(1)),
+                                data["expected_revision"], data["content"],
+                                actor_id=identity["authority_principal_id"])
+                            self._json(200, revised, request_id)
+                        except Exception as exc:
+                            from riverview_core.resident_execution.proposals import (
+                                ProposalConflict, ProposalNotFound, ProposalValidationError)
+                            if isinstance(exc, ProposalNotFound):
+                                self._error(404, "proposal_not_found", request_id)
+                            elif isinstance(exc, ProposalConflict):
+                                self._error(409, "proposal_revision_conflict", request_id)
+                            elif isinstance(exc, (ValueError, TypeError, ProposalValidationError)):
+                                self._error(400, "invalid_proposal_revision", request_id)
+                            else:
+                                self._error(503, "institutional_proposal_registry_unavailable", request_id)
+                        return
+                    service = self.server._conversation_service
+                    if service is None:
+                        self._error(503, "resident_conversation_unavailable", request_id)
+                        return
+                    try:
+                        data = self._json_body(_MAX_CHAT_BODY)
+                        if (set(data) - {"conversation_id", "source_sequences", "instruction", "idempotency_key"}
+                                or not {"conversation_id", "source_sequences", "idempotency_key"} <= set(data)
+                                or not isinstance(data["conversation_id"], str)
+                                or not re.fullmatch(r"[0-9a-fA-F-]{36}", data["conversation_id"])
+                                or not isinstance(data["source_sequences"], list)
+                                or not isinstance(data["idempotency_key"], str)):
+                            raise ValueError("invalid proposal draft request")
+                        principal_id = identity["authority_principal_id"]
+                        existing = registry.get_by_idempotency_key(
+                            data["idempotency_key"], created_by=principal_id)
+                        expected_sources = sorted(data["source_sequences"])
+                        if existing is not None:
+                            provenance = existing["revision"]["provenance"]
+                            refs = existing["revision"]["source_references"]
+                            if (provenance.get("source_conversation_id") != data["conversation_id"]
+                                    or provenance.get("source_sequences") != expected_sources
+                                    or not refs):
+                                self._error(409, "proposal_idempotency_conflict", request_id)
+                            else:
+                                self._json(200, {"status": "draft_saved", **existing}, request_id)
+                            return
+                        from riverview_core.institutional_authority.grants import InstitutionalPrincipal
+                        draft = service.draft_institutional_proposal(
+                            InstitutionalPrincipal(principal_id), data["conversation_id"],
+                            data["source_sequences"],
+                            instruction=data.get("instruction", "Formalize the selected discussion"))
+                        if draft["status"] == "clarification_required":
+                            self._json(200, draft, request_id)
+                            return
+                        provenance = {**draft["reasoning"],
+                            "source_conversation_id": data["conversation_id"],
+                            "source_sequences": expected_sources,
+                            "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+                        saved = registry.create_draft(draft["content"],
+                            created_by=principal_id, origin_kind="grace_conversation",
+                            source_references=draft["source_references"], provenance=provenance,
+                            idempotency_key=data["idempotency_key"])
+                        self._json(201, {"status": "draft_saved", **saved}, request_id)
+                    except Exception as exc:
+                        from riverview_core.resident_execution.conversation import (
+                            ConversationDenied, ConversationNotFound, ConversationUnavailable)
+                        from riverview_core.resident_execution.proposals import (
+                            ProposalConflict, ProposalError, ProposalValidationError)
+                        if isinstance(exc, ConversationDenied):
+                            self._error(403, "resident_conversation_not_authorized", request_id)
+                        elif isinstance(exc, ConversationNotFound):
+                            self._error(404, "resident_conversation_not_found", request_id)
+                        elif isinstance(exc, ProposalConflict):
+                            self._error(409, "proposal_idempotency_conflict", request_id)
+                        elif isinstance(exc, (ValueError, TypeError, ProposalValidationError)):
+                            self._error(400, "invalid_proposal_draft_request", request_id)
+                        elif isinstance(exc, (ConversationUnavailable, ProposalError)):
+                            self._error(503, "proposal_drafting_unavailable", request_id)
+                        else:
+                            self._error(503, "institutional_proposal_registry_unavailable", request_id)
+                    return
                 elif objective_submit:
                     pipeline = self.server._objective_pipeline
                     if pipeline is None:
@@ -1361,7 +1491,7 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                  projection: DashboardProjection, static_dir: str | Path | None = None,
                  notification_service=None, objective_pipeline=None,
                  conversation_service=None, account_auth_service=None,
-                 permission_store=None):
+                 permission_store=None, proposal_registry=None):
         if host not in {"127.0.0.1", "::1"}:
             raise ValueError("dashboard bind host must be a loopback IP literal")
         if not isinstance(port, int) or not 8700 <= port <= 8799:
@@ -1375,7 +1505,7 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                          conversation_service=conversation_service,
                          account_auth_service=account_auth_service,
                          permission_store=permission_store,
-                         static_dir=static_dir)
+                         static_dir=static_dir, proposal_registry=proposal_registry)
 
 
 def _release_commit() -> str:
@@ -1502,7 +1632,17 @@ def main():
     conversation_service = None
     conversation_store = None
     authority_registry = None
+    proposal_registry = None
     schema = os.environ.get("RIVERVIEW_DATABASE_SCHEMA", "riverview_dev")
+    try:
+        with psycopg.connect(dsn, connect_timeout=2) as proposal_probe, proposal_probe.cursor() as cur:
+            cur.execute("SELECT to_regclass(%s) IS NOT NULL", (f"{schema}.institutional_proposals",))
+            if cur.fetchone()[0]:
+                from riverview_core.resident_execution.proposals import ProposalRegistry
+                proposal_registry = ProposalRegistry(dsn, schema=schema)
+    except Exception as exc:
+        print(json.dumps({"event": "institutional_proposal_registry_unavailable",
+                          "error_type": type(exc).__name__}), flush=True)
     try:
         with psycopg.connect(dsn, connect_timeout=2) as probe, probe.cursor() as cur:
             cur.execute("SELECT to_regclass(%s) IS NOT NULL AS present",
@@ -1602,7 +1742,8 @@ def main():
                                  objective_pipeline=objective_pipeline,
                                  conversation_service=conversation_service,
                                  account_auth_service=account_auth_service,
-                                 permission_store=permission_store)
+                                 permission_store=permission_store,
+                                 proposal_registry=proposal_registry)
     print(json.dumps({"event": "dashboard_started", "host": host, "port": port,
                       "source_commit": projection.source_commit,
                       "deployment_id": projection.deployment_id}), flush=True)

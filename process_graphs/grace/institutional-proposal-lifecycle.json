@@ -1,0 +1,43 @@
+{
+  "graph_id": "rv:grace:institutional-proposal-lifecycle",
+  "graph_revision": "1.0.0",
+  "component_id": "INSTITUTIONAL-PROPOSALS",
+  "workflow_id": "institutional-proposal.v1",
+  "diagram_order": 1,
+  "source_references": [
+    "src/riverview_core/resident_execution/proposals.py",
+    "src/riverview_core/resident_execution/conversation.py",
+    "src/riverview_core/resident_execution/migrations/0010_institutional_proposal_registry.sql",
+    "src/riverview_core/status_dashboard/server.py"
+  ],
+  "documentation_references": [
+    "docs/components/INSTITUTIONAL_PROPOSALS.md",
+    "docs/components/INSTITUTIONAL_PROPOSALS_FLOW.md"
+  ],
+  "verification_evidence": [
+    "tests/test_institutional_proposals.py",
+    "tests/test_resident_conversation.py"
+  ],
+  "nodes": [
+    {"id":"rv:grace:institutional-proposal-lifecycle:steward-source","node_revision":"1.0.0","type":"entry","label":"Authenticated Steward selects persisted conversation messages for proposal formalization","source_references":["src/riverview_core/status_dashboard/server.py","src/riverview_core/resident_execution/conversation.py"],"documentation_references":["docs/components/INSTITUTIONAL_PROPOSALS.md"],"verification_evidence":["tests/test_resident_conversation.py"]},
+    {"id":"rv:grace:institutional-proposal-lifecycle:authorize-and-bind","node_revision":"1.0.0","type":"verification","label":"Recheck Steward account role, conversation read/send grants, owner, source messages, and current model binding","source_references":["src/riverview_core/status_dashboard/server.py","src/riverview_core/resident_execution/conversation.py"],"documentation_references":["docs/components/INSTITUTIONAL_PROPOSALS.md"],"verification_evidence":["tests/test_resident_conversation.py"]},
+    {"id":"rv:grace:institutional-proposal-lifecycle:reason-or-clarify","node_revision":"1.0.0","type":"decision","label":"Bound 80B returns typed proposal content or a material clarification; missing execution grants do not block planning","source_references":["src/riverview_core/resident_execution/conversation.py"],"documentation_references":["docs/components/INSTITUTIONAL_PROPOSALS.md"],"verification_evidence":["tests/test_resident_conversation.py"]},
+    {"id":"rv:grace:institutional-proposal-lifecycle:persist-draft","node_revision":"1.0.0","type":"process","label":"Persist idempotent DRAFT proposal revision, source provenance, model provenance, privacy, retention, and tags","source_references":["src/riverview_core/resident_execution/proposals.py","src/riverview_core/resident_execution/migrations/0010_institutional_proposal_registry.sql","src/riverview_core/status_dashboard/server.py"],"documentation_references":["docs/components/INSTITUTIONAL_PROPOSALS.md"],"verification_evidence":["tests/test_institutional_proposals.py"]},
+    {"id":"rv:grace:institutional-proposal-lifecycle:search-revise-review","node_revision":"1.0.0","type":"process","label":"Steward searches, retrieves, revises under compare-and-swap, and records reviews against exact revisions","source_references":["src/riverview_core/resident_execution/proposals.py","src/riverview_core/status_dashboard/server.py"],"documentation_references":["docs/components/INSTITUTIONAL_PROPOSALS.md"],"verification_evidence":["tests/test_institutional_proposals.py"]},
+    {"id":"rv:grace:institutional-proposal-lifecycle:steward-decision","node_revision":"1.0.0","type":"decision","label":"Steward may decide an exact current revision for a stated purpose; proposal approval alone does not dispatch work","source_references":["src/riverview_core/resident_execution/proposals.py"],"documentation_references":["docs/components/INSTITUTIONAL_PROPOSALS.md"],"verification_evidence":["tests/test_institutional_proposals.py"]},
+    {"id":"rv:grace:institutional-proposal-lifecycle:provider-failure","node_revision":"1.0.0","type":"failure","label":"Provider unavailable, non-80B, incomplete, provisional, malformed, or binding changed: do not persist an executable proposal","source_references":["src/riverview_core/resident_execution/conversation.py"],"documentation_references":["docs/components/INSTITUTIONAL_PROPOSALS.md"],"verification_evidence":["tests/test_resident_conversation.py"]},
+    {"id":"rv:grace:institutional-proposal-lifecycle:idempotent-recovery","node_revision":"1.0.0","type":"recovery","label":"Retry returns the same saved draft only for matching principal, conversation, and selected source sequence set","source_references":["src/riverview_core/resident_execution/proposals.py","src/riverview_core/status_dashboard/server.py"],"documentation_references":["docs/components/INSTITUTIONAL_PROPOSALS.md"],"verification_evidence":["tests/test_institutional_proposals.py"]},
+    {"id":"rv:grace:institutional-proposal-lifecycle:proposal-ready","node_revision":"1.0.0","type":"exit","label":"Draft is searchable and reviewable; separate authorized proposal-to-work-order transaction remains a later integration","source_references":["src/riverview_core/resident_execution/proposals.py"],"documentation_references":["docs/components/INSTITUTIONAL_PROPOSALS.md"],"verification_evidence":["tests/test_institutional_proposals.py"]}
+  ],
+  "edges": [
+    {"from":"rv:grace:institutional-proposal-lifecycle:steward-source","to":"rv:grace:institutional-proposal-lifecycle:authorize-and-bind","type":"runtime_transition"},
+    {"from":"rv:grace:institutional-proposal-lifecycle:authorize-and-bind","to":"rv:grace:institutional-proposal-lifecycle:reason-or-clarify","type":"runtime_transition"},
+    {"from":"rv:grace:institutional-proposal-lifecycle:reason-or-clarify","to":"rv:grace:institutional-proposal-lifecycle:persist-draft","type":"runtime_transition","label":"typed proposal"},
+    {"from":"rv:grace:institutional-proposal-lifecycle:persist-draft","to":"rv:grace:institutional-proposal-lifecycle:search-revise-review","type":"runtime_transition"},
+    {"from":"rv:grace:institutional-proposal-lifecycle:search-revise-review","to":"rv:grace:institutional-proposal-lifecycle:steward-decision","type":"runtime_transition"},
+    {"from":"rv:grace:institutional-proposal-lifecycle:reason-or-clarify","to":"rv:grace:institutional-proposal-lifecycle:provider-failure","type":"diagnostic_branch","label":"required capability or response contract fails"},
+    {"from":"rv:grace:institutional-proposal-lifecycle:provider-failure","to":"rv:grace:institutional-proposal-lifecycle:idempotent-recovery","type":"recovery_route"},
+    {"from":"rv:grace:institutional-proposal-lifecycle:idempotent-recovery","to":"rv:grace:institutional-proposal-lifecycle:reason-or-clarify","type":"runtime_transition","label":"retry same request only"},
+    {"from":"rv:grace:institutional-proposal-lifecycle:steward-decision","to":"rv:grace:institutional-proposal-lifecycle:proposal-ready","type":"runtime_transition","label":"decision belongs to exact revision and purpose"}
+  ]
+}
