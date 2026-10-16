@@ -11731,6 +11731,162 @@
       ]
     },
     {
+      "graph_id": "rv:worker-adapter:registration-retirement",
+      "graph_revision": "1.0.0",
+      "component_id": "WORKER-ADAPTER",
+      "workflow_id": "registration-retirement.v1",
+      "diagram_order": 9,
+      "source_references": [
+        "scripts/retire_revoked_m33_worker_registrations.py",
+        "src/riverview_core/worker_adapter/retirement.py",
+        "src/riverview_core/institutional_authority/migrations/0009_worker_registration_retirement_event.sql",
+        "src/riverview_core/institutional_authority/registry.py",
+        "tests/test_worker_registration_retirement.py"
+      ],
+      "documentation_references": [
+        "docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": [],
+      "nodes": [
+        {
+          "id": "rv:worker-adapter:registration-retirement:entry",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Steward-authorized operator requests retirement of the exact revoked M33 run",
+          "source_references": [
+            "scripts/retire_revoked_m33_worker_registrations.py"
+          ],
+          "documentation_references": [
+            "docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:registration-retirement:run-state",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Verify exact root-owned state record is revoked and identifies the two fixed worker IDs",
+          "source_references": [
+            "scripts/retire_revoked_m33_worker_registrations.py"
+          ],
+          "documentation_references": [
+            "docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:registration-retirement:stopped-services",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Verify intake, executor, and verifier are stopped with no process IDs",
+          "source_references": [
+            "src/riverview_core/worker_adapter/retirement.py"
+          ],
+          "documentation_references": [
+            "docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:registration-retirement:transaction-gates",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Require active Steward grant, existing database UPDATE privilege, revoked worker authority, exact inventory, and no lease or executable assignment",
+          "source_references": [
+            "src/riverview_core/worker_adapter/retirement.py",
+            "src/riverview_core/institutional_authority/registry.py"
+          ],
+          "documentation_references": [
+            "docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:registration-retirement:retire-and-audit",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Atomically mark only two M33 registrations inactive and append Steward authority events",
+          "source_references": [
+            "src/riverview_core/worker_adapter/retirement.py",
+            "src/riverview_core/institutional_authority/migrations/0009_worker_registration_retirement_event.sql"
+          ],
+          "documentation_references": [
+            "docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:registration-retirement:postflight",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Verify exactly three Grace registrations remain active and historical work is unchanged",
+          "source_references": [
+            "src/riverview_core/worker_adapter/retirement.py",
+            "tests/test_worker_registration_retirement.py"
+          ],
+          "documentation_references": [
+            "docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:registration-retirement:abort",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Abort without changes on any failed precondition or postcondition",
+          "source_references": [
+            "src/riverview_core/worker_adapter/retirement.py"
+          ],
+          "documentation_references": [
+            "docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md"
+          ],
+          "verification_evidence": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:worker-adapter:registration-retirement:entry",
+          "to": "rv:worker-adapter:registration-retirement:run-state",
+          "type": "prerequisite"
+        },
+        {
+          "from": "rv:worker-adapter:registration-retirement:run-state",
+          "to": "rv:worker-adapter:registration-retirement:stopped-services",
+          "type": "prerequisite"
+        },
+        {
+          "from": "rv:worker-adapter:registration-retirement:stopped-services",
+          "to": "rv:worker-adapter:registration-retirement:transaction-gates",
+          "type": "prerequisite"
+        },
+        {
+          "from": "rv:worker-adapter:registration-retirement:transaction-gates",
+          "to": "rv:worker-adapter:registration-retirement:retire-and-audit",
+          "type": "diagnostic_branch",
+          "label": "all fixed preconditions verified"
+        },
+        {
+          "from": "rv:worker-adapter:registration-retirement:transaction-gates",
+          "to": "rv:worker-adapter:registration-retirement:abort",
+          "type": "diagnostic_branch",
+          "label": "authorization, scope, revocation, lease, assignment, or inventory check fails"
+        },
+        {
+          "from": "rv:worker-adapter:registration-retirement:retire-and-audit",
+          "to": "rv:worker-adapter:registration-retirement:postflight",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:worker-adapter:registration-retirement:postflight",
+          "to": "rv:worker-adapter:registration-retirement:abort",
+          "type": "recovery_route",
+          "label": "transaction rolls back if exact three-Grace postcondition fails"
+        }
+      ]
+    },
+    {
       "graph_id": "rv:worker-adapter:supervised-services",
       "graph_revision": "1.0.1",
       "component_id": "WORKER-ADAPTER",
@@ -12691,6 +12847,13 @@
     "rv:worker-adapter:deterministic-attempt:structured-artifact",
     "rv:worker-adapter:deterministic-attempt:verification-jump",
     "rv:worker-adapter:deterministic-attempt:verified-grounding-resume",
+    "rv:worker-adapter:registration-retirement:abort",
+    "rv:worker-adapter:registration-retirement:entry",
+    "rv:worker-adapter:registration-retirement:postflight",
+    "rv:worker-adapter:registration-retirement:retire-and-audit",
+    "rv:worker-adapter:registration-retirement:run-state",
+    "rv:worker-adapter:registration-retirement:stopped-services",
+    "rv:worker-adapter:registration-retirement:transaction-gates",
     "rv:worker-adapter:supervised-services:artifact-check",
     "rv:worker-adapter:supervised-services:artifact-file",
     "rv:worker-adapter:supervised-services:artifact-rejected",

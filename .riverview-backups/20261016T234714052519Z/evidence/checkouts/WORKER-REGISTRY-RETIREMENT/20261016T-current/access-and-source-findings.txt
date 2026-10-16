@@ -1,0 +1,20 @@
+Task: RV-WORKER-REGISTRY-RETIREMENT-001
+Captured: 2026-10-16 America/New_York
+Repository HEAD: 97b5951ceecd5359c059994a671c20773892c4cc
+
+Read-only SSH attempt (no key contents or identities printed):
+ssh -o BatchMode=yes -o ConnectTimeout=5 admin1@192.168.1.155 'hostname; date -Is; sudo -n -u postgres psql ...'
+Result: admin1@192.168.1.155: Permission denied (publickey,password).
+
+Source findings:
+- status_dashboard/projection.py classifies per-worker health from max(assignment_leases.heartbeat_at); absent is unknown, old is stale, future is unverified.
+- The summary counts stale/unknown only among worker_registry.active rows.
+- The worker adapter inserts registrations and rejects inactive rows for authentication; no worker retirement/deactivation lifecycle method was found.
+- The M33 helper's documented --revoke postcondition revokes scoped grants/credentials and removes protected run credential/config files; it leaves worker_registry rows and assignment rows unchanged.
+- Direct worker_registry.active updates occur in test fixtures, not a supported operational path.
+
+Production evidence availability:
+The latest preserved M33 state is in ../../M33-DECOMMISSION/20261016T231925Z-e92ec515/.
+It is historical evidence from the controlled M33 revocation, not a current five-worker inventory.
+No production SQL was run in this task because SSH authentication failed.
+No production service or database was modified.

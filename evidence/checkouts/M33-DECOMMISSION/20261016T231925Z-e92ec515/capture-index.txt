@@ -1,0 +1,4 @@
+protected_state_backup=/var/lib/riverview-m33-worker/m33-commissioning.pre-decommission-20261016T231925Z-e92ec515.json
+protected_state_backup_sha256=b6867d74417333b55b855d6b34a717c2bf7a0b7e93fdca27e521a98e056da1b6
+run_id=e92ec51590b34cd3b04d05c000f3eab4
+scope_ref=work-order:m33-live-e92ec51590b34cd3

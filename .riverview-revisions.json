@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.184"
+      "revision": "1.1.187"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -95,9 +95,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.144",
-      "sha256": "732718fb26c6118ce140b8b972daab913daf8a5523ec249287b3044c8fcc3f94",
-      "size_bytes": 551898
+      "revision": "1.0.146",
+      "sha256": "7675e25b1cb41c57f364f40b6f8cbf6b2833e2f7f906a0b96f3f00a28404c16a",
+      "size_bytes": 559046
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -224,7 +224,13 @@
       "revision": "1.0.1",
       "sha256": "fbe0fb6d53ca6e7fd3ff72073d6dbec49f6b36fd840dbc643cfd1fbc6dcc70f2",
       "size_bytes": 23138
+    },
+    "process_graphs/worker-adapter/registration-retirement.json": {
+      "path": "process_graphs/worker-adapter/registration-retirement.json",
+      "revision": "1.0.1",
+      "sha256": "547c13dc8f97b313c6fe151d1280f1c541d45d4aec334a06c4bc71f1024f94e6",
+      "size_bytes": 5661
     }
   },
-  "manifest_revision": "1.1.184"
+  "manifest_revision": "1.1.187"
 }

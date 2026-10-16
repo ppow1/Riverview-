@@ -1,8 +1,10 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.152
+**Document Revision:** 1.0.154
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
+**Changed:** 2026-10-16 UTC | RV-M33-DECOMMISSION-001 | Record exact-run M33 decommission and preserve production acceptance evidence
+**Changed:** 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Record guarded M33 registration retirement source and production execution boundary
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record offline diagnostic snapshot source, verification evidence and production boundary
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record PR #65 integration reconciliation, full-inventory browser fixture package results, proposal readiness, and Windows CA findings
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record final exact-graph-set ZIP integrity and synthetic page-shell versus live-dashboard acceptance boundary
@@ -2248,3 +2250,39 @@ passed 37/37; 8 PostgreSQL-dependent tests were skipped. Evidence:
 `evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-actual-dashboard-final9/`.
 The API/session values and release identifiers are synthetic; Camrui was not
 accessed and production account/session acceptance remains unverified.
+
+## 2026-10-16 UTC — RV-M33-DECOMMISSION-001 — expired commissioning decommission
+
+With explicit Steward authorization, stopped only the assignment intake, M33
+executor, and M33 verifier, then ran the deployed M33 revocation helper for
+commissioning run `e92ec51590b34cd3b04d05c000f3eab4`. The helper revoked its five
+exact grants and all worker credentials for the run, removed the four expected
+protected credential/config files, and retained the state record as `revoked`.
+Four completed and one `WAITING_FOR_EVIDENCE` assignment remained unchanged; no
+ready, running, or awaiting-verification assignment existed. The services
+remain stopped. PostgreSQL read-only verification, Grace, CME, event processor,
+notification dispatcher, dashboard, and unrelated Grace workers remained
+operational. No timestamps, schemas, assignments, Grace authority, or unrelated
+credentials were changed. Pre/post metadata, unit/dependency checks, assignment
+comparison, and redacted helper outcome are recorded in
+`evidence/checkouts/M33-DECOMMISSION/20261016T231925Z-e92ec515/`; the exact
+predecessor state JSON is protected under `/var/lib/riverview-m33-worker/`.
+The M33 run was a finite test commissioning, not standing production authority.
+The existing helper does not support another run after revocation; future
+activation requires separate reviewed commissioning work and authorization.
+
+## 2026-10-16 UTC — RV-WORKER-REGISTRY-RETIRE-001 — fixed M33 registration retirement
+
+The Steward supplied a live seven-row inventory: five active registrations
+(three Grace, two revoked-run M33) and two inactive historical M31 rows. Added a
+fixed root-local retirement operation that requires the exact revoked M33 state,
+active Steward `identity.manage` authority, all three M33 units stopped, no
+effective M33 worker authority/credentials, no active lease or executable M33
+assignment, and the expected exact inventory. Its database transaction changes
+only the two M33 `active` flags and appends two authority events; it verifies the
+three Grace IDs are the only active rows afterward. Authority migration 0009
+adds only the event type. Regression tests, troubleshooting procedure, and a
+canonical process graph were added. The Linux session still has no usable
+Windows SSH bridge and direct SSH remains denied, so the migration and helper
+were not run on production; live registry count remains unverified after this
+source change. Predecessors are recorded in `.riverview-backups/manifest.jsonl`.

@@ -1,3 +1,7 @@
+Riverview~ Controlled Evidence
+File: evidence/checkouts/WORKER-REGISTRY-RETIREMENT/20261016T-current/access-and-source-findings.txt
+File Revision: 1.0.0
+Task: RV-WORKER-REGISTRY-RETIREMENT-001
 Task: RV-WORKER-REGISTRY-RETIREMENT-001
 Captured: 2026-10-16 America/New_York
 Repository HEAD: 97b5951ceecd5359c059994a671c20773892c4cc

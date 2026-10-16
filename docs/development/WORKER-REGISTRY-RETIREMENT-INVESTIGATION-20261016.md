@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/development/WORKER-REGISTRY-RETIREMENT-INVESTIGATION-20261016.md
 Component: WORKER-ADAPTER / STEWARD-DASHBOARD
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Record bounded investigation of five dashboard worker registrations and retirement lifecycle
 Authority: Read-only production investigation; no registry or service changes
 Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIREMENT-001 | Record source findings, prior preserved inventory, access blocker, and safe next action
+Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Supersede the lifecycle gap with the reviewed exact-run operation; production remains unmodified
 History: Git and evidence/checkouts/WORKER-REGISTRY-RETIREMENT/20261016T-current/
 -->
 # Worker registry retirement investigation
@@ -45,6 +46,10 @@ The prior M33 evidence confirms its three required services remained stopped aft
 ## Required next safe action
 
 An authorized operator must restore the already-approved read-only SSH access path for `admin1@192.168.1.155` (without weakening host policy or exposing a private key), then capture the current worker rows, bounded lease/assignment/verification associations, safe principal/grant metadata, and exact systemd process state. Before retiring either M33 registration, the integration owner must identify an existing audited lifecycle operation that marks only those exact rows inactive while preserving assignments, attempts, results, and audit history. If none exists, a separately reviewed lifecycle contract and implementation is required; do not substitute ad hoc SQL. Recheck the three Grace workers independently and retain them unless their owner establishes a different disposition.
+
+### Superseding implementation update — RV-WORKER-REGISTRY-RETIRE-001
+
+The preceding paragraph records the finding as of the first investigation commit. This follow-up implements the missing fixed-scope operation in `scripts/retire_revoked_m33_worker_registrations.py` and `src/riverview_core/worker_adapter/retirement.py`, with an append-only audit event enabled by authority migration 0009. Its checks and operator procedure are documented in `docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md`. The current Linux environment still cannot reach the authorized Windows SSH path; the new code has not been run against production, and no production retirement is claimed.
 
 ## Source and evidence references
 

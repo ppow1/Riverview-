@@ -1,0 +1,31 @@
+BEGIN
+        principal_id        | status 
+----------------------------+--------
+ resident:grace             | active
+ verifier:grace-engineering | active
+ worker:grace-engineering   | active
+(3 rows)
+
+        principal_id        | expires_at | revoked_at 
+----------------------------+------------+------------
+ resident:grace             |            | 
+ verifier:grace-engineering |            | 
+ worker:grace-engineering   |            | 
+(3 rows)
+
+        principal_id        |           action           |       scope_ref        | valid_until | revoked_at 
+----------------------------+----------------------------+------------------------+-------------+------------
+ resident:grace             | office.state.write         | office:office:grace    |             | 
+ resident:grace             | resident.conversation.send | office:office:grace    |             | 
+ verifier:grace-engineering | assignment.verify          | work-order:engineering |             | 
+ verifier:grace-engineering | worker.register            | work-order:engineering |             | 
+ worker:grace-engineering   | assignment.execute         | work-order:engineering |             | 
+ worker:grace-engineering   | worker.register            | work-order:engineering |             | 
+(6 rows)
+
+ read_only_database_check 
+--------------------------
+                        1
+(1 row)
+
+COMMIT

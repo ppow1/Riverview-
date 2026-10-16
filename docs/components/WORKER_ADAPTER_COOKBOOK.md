@@ -2,9 +2,9 @@
 Riverview~ Controlled Document
 File: docs/components/WORKER_ADAPTER_COOKBOOK.md
 Component: WORKER-ADAPTER
-File Revision: 1.0.13
-Purpose: Diagnose isolated worker identity, attempt, verification and recovery records safely
-Authority: Read-only diagnosis; credential delivery and worker enrollment are trusted control-plane operations
+File Revision: 1.0.14
+Purpose: Diagnose worker identity, attempt, verification, recovery and exact M33 retirement safely
+Authority: Read-only diagnosis; registration retirement only through the fixed Steward-authorized M33 operation
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Add redacted worker and verification record queries with failure interpretation
 Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Add bounded model execution and diagnosis steps
 Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Document the real isolated concurrent model acceptance and harness
@@ -14,15 +14,28 @@ Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION | Link the live NO_MATCH and
 Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-LINK-CLARIFICATION | Present checkout evidence as a non-linked path in dashboard-served documentation
 Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-REVISION-CORRECTION | Add the missed controlled file revision increment for the preceding same-task content edits
 Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-DOCS | Require fresh action preflight and remaining retry budget for grounded resume
+Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Link the guarded M33 worker-registration retirement lifecycle and failure handling
 Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-LINK-CLARIFICATION | Present checkout evidence as a non-linked path in dashboard-served documentation
 History: Git and revision backup manifest
 -->
 # Riverview~ worker adapter cookbook
 
-**Document Revision:** 1.0.9
+**Document Revision:** 1.0.10
 **Component:** WORKER-ADAPTER
 **Task:** RV-M2.1-001
 **Status:** IN PROGRESS — disposable PostgreSQL only
+
+## Retire the revoked M33 commissioning registrations
+
+Do not directly update or delete `worker_registry` rows. For the one revoked M33
+run `e92ec51590b34cd3b04d05c000f3eab4`, use the fixed root-local operation in
+[`M33 worker registration retirement`](../development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md).
+It requires an active Steward `identity.manage` institution grant, a revoked
+run state record, all three M33 units stopped, revoked worker grants and
+credentials, and no live M33 lease or executable assignment. The transaction
+preserves all historical rows and appends two authority events. Any mismatch
+fails closed. Production execution is separate from source implementation and
+requires migration 0009 plus captured operator pre/postflight evidence.
 
 ## Isolated verification
 
