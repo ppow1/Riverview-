@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.7
+**Document Revision:** 1.0.9
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -50,6 +50,10 @@ flowchart LR
     g_rv_steward_dashboard_status_account_login_2b9c8452["Visitor opens account sign-in and access request"]
     g_rv_steward_dashboard_status_account_management_4dab15f2["Steward opens account approval and management"]
     g_rv_steward_dashboard_status_workflow_session_transport_d4da7bde["Fetch canonical graph index and definition with either the recovery bearer or active same-origin account session"]
+    g_rv_steward_dashboard_status_select_cross_workflow_jump_34868639{"Steward selects a registered cross-workflow destination?"}
+    g_rv_steward_dashboard_status_navigate_to_jump_target_3b9bb3fe["Load destination workflow and focus the exact target node"]
+    g_rv_steward_dashboard_status_jump_target_unavailable_a040d015[["Show target unavailable and retain the source return path"]]
+    g_rv_steward_dashboard_status_return_to_source_jump_c0627ef6["Return to the source workflow and focus its originating jump node"]
   end
   g_rv_postgres_ledger_assignment_lifecycle_intake_c1d0abf1["Registered target<br/>rv:postgres-ledger:assignment-lifecycle"]
   g_rv_cme_progress_and_recovery_monitor_start_3c5b8496["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -103,6 +107,13 @@ flowchart LR
   g_rv_steward_dashboard_status_browse_process_graphs_5ccf18cc -->|Open the workflow viewer| g_rv_steward_dashboard_status_workflow_session_transport_d4da7bde
   g_rv_steward_dashboard_status_workflow_session_transport_d4da7bde -->|Authenticated same-origin graph request| g_rv_steward_dashboard_status_read_canonical_graph_322bcdca
   g_rv_steward_dashboard_status_workflow_session_transport_d4da7bde -->|diagnostic_branch: Expired or absent account session; return authorization denial| g_rv_steward_dashboard_status_deny_request_776de47b
+  g_rv_steward_dashboard_status_render_process_graph_d97ae980 -->|Steward selects a jump destination| g_rv_steward_dashboard_status_select_cross_workflow_jump_34868639
+  g_rv_steward_dashboard_status_select_cross_workflow_jump_34868639 -->|Registered target selected| g_rv_steward_dashboard_status_navigate_to_jump_target_3b9bb3fe
+  g_rv_steward_dashboard_status_navigate_to_jump_target_3b9bb3fe -->|diagnostic_branch: Destination graph or exact node unavailable| g_rv_steward_dashboard_status_jump_target_unavailable_a040d015
+  g_rv_steward_dashboard_status_navigate_to_jump_target_3b9bb3fe -->|Return to source requested| g_rv_steward_dashboard_status_return_to_source_jump_c0627ef6
+  g_rv_steward_dashboard_status_jump_target_unavailable_a040d015 -->|recovery_route: Use the preserved return control| g_rv_steward_dashboard_status_return_to_source_jump_c0627ef6
+  g_rv_steward_dashboard_status_return_to_source_jump_c0627ef6 -->|Source graph and jump node restored| g_rv_steward_dashboard_status_render_process_graph_d97ae980
+  g_rv_steward_dashboard_status_select_cross_workflow_jump_34868639 -->|No jump selected; continue viewing this workflow| g_rv_steward_dashboard_status_render_process_graph_d97ae980
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

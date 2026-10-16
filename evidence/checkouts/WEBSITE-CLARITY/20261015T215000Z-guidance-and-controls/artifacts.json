@@ -1,0 +1,23 @@
+{
+  "artifacts": {
+    "activity-pagination.png": {
+      "path": "activity-pagination.png",
+      "revision": "1.0.0",
+      "sha256": "b86d248f3f0e780d42884c160cda112a9ef5263bb717acde1bb0c380cf1ee289",
+      "size_bytes": 239419
+    },
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "c473ac656a3fa7fb8585f63458bb6a946c16fd50d927871372958a560816d496",
+      "size_bytes": 10454
+    },
+    "worker-inventory.png": {
+      "path": "worker-inventory.png",
+      "revision": "1.0.0",
+      "sha256": "b8be405c1ac37db402bf9a33eb5d1089e68c95a3917654412dc469a85811ee1d",
+      "size_bytes": 134336
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

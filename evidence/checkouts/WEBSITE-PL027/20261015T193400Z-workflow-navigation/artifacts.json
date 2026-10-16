@@ -1,0 +1,35 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "browser-report.json": {
+      "path": "browser-report.json",
+      "revision": "1.0.0",
+      "sha256": "aec4997ebedfc14d414bb3ed1d99aa31c9687a19776cd8cf083489c459062120",
+      "size_bytes": 1100
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "ae6f4c871d8329a49b3f5b9d5d5cdb611c1157685f3ee2dfa3da1782277d9240",
+      "size_bytes": 1634
+    },
+    "geckodriver.log": {
+      "path": "geckodriver.log",
+      "revision": "1.0.0",
+      "sha256": "8c5dde2bc851476acd65347da09109dc1d60e89ff4c563296ceef48f2f072235",
+      "size_bytes": 747
+    },
+    "workflow-return.png": {
+      "path": "workflow-return.png",
+      "revision": "1.0.0",
+      "sha256": "8fa4cf3c6105d8fabb86d4971867dd905b3412e46c1b1941100926813a98e9ae",
+      "size_bytes": 238561
+    },
+    "workflow-target.png": {
+      "path": "workflow-target.png",
+      "revision": "1.0.0",
+      "sha256": "c4e4b7e25f035d2124c3423a167dbba1d06ba25a960bd70091995493a018f1a3",
+      "size_bytes": 288099
+    }
+  }
+}

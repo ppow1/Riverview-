@@ -1,0 +1,41 @@
+{
+  "artifacts": {
+    "activity-pagination.png": {
+      "path": "activity-pagination.png",
+      "revision": "1.0.0",
+      "sha256": "31ddbf465837a2925ef36dd5c11bf6b9863a90c80f1277f2fcb6f0945f58cdcc",
+      "size_bytes": 237612
+    },
+    "attempts.md": {
+      "path": "attempts.md",
+      "revision": "1.0.0",
+      "sha256": "84f7337ebf7248af64ebaa53d09b1082b5a08b85bb190f6289d7c7715083a02f",
+      "size_bytes": 59
+    },
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "133af1f1c9c6bc87e1f3d3ee0f0201e7331cf9b7f6c896af1280599c54e89d63",
+      "size_bytes": 6646
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "0dd11ea702e2ca55a660e715d9f66059fa74e759437bed34f0f5347d9039b949",
+      "size_bytes": 391
+    },
+    "validation.json": {
+      "path": "validation.json",
+      "revision": "1.0.0",
+      "sha256": "01a90cec1e6eb0e4d7b00221175fdb881f9713d606fbdfbc04abcdac51f70895",
+      "size_bytes": 438
+    },
+    "worker-inventory.png": {
+      "path": "worker-inventory.png",
+      "revision": "1.0.0",
+      "sha256": "290e7f450352bb344f7761f072c8829ffb613f0d1e648421035f2ca90667533f",
+      "size_bytes": 133208
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

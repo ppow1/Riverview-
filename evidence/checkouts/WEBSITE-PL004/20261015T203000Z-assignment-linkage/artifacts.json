@@ -1,0 +1,23 @@
+{
+  "artifacts": {
+    "assignment-linkage.png": {
+      "path": "assignment-linkage.png",
+      "revision": "1.0.0",
+      "sha256": "2686106ff87b9abfe4183249bba14524eba389bf34999eadbc2389eb10fd1ffe",
+      "size_bytes": 192655
+    },
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "e5b69fc96b3cb395fa7e792108765f19ab882ebcceab4b2377219579c251947d",
+      "size_bytes": 2955
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "a90898f5bb8d946914be4dfb51e626b261a767395b08b691cd4fad613d8a779b",
+      "size_bytes": 1236
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

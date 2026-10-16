@@ -1,0 +1,11 @@
+.......................ssssssss.............                             [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_status_dashboard.py:598: RIVERVIEW_TEST_PG_DSN not configured
+SKIPPED [1] tests/test_status_dashboard.py:784: RIVERVIEW_TEST_PG_DSN not configured
+SKIPPED [1] tests/test_status_dashboard.py:769: RIVERVIEW_TEST_PG_DSN not configured
+SKIPPED [1] tests/test_status_dashboard.py:746: RIVERVIEW_TEST_PG_DSN not configured
+SKIPPED [1] tests/test_status_dashboard.py:684: RIVERVIEW_TEST_PG_DSN not configured
+SKIPPED [1] tests/test_status_dashboard.py:624: RIVERVIEW_TEST_PG_DSN not configured
+SKIPPED [1] tests/test_status_dashboard.py:676: RIVERVIEW_TEST_PG_DSN not configured
+SKIPPED [1] tests/test_status_dashboard.py:636: RIVERVIEW_TEST_PG_DSN not configured
+36 passed, 8 skipped in 12.03s

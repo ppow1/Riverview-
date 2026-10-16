@@ -1,5 +1,37 @@
 # Riverview~ development journal
 
+**Document Revision:** 1.0.144
+**Component:** ENG-RECORDS
+**Date:** 2026-10-12 UTC
+**Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Recover website punch list and implement cross-workflow destination focus/return
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL027 | Record final workflow map revision, controlled-source repair, and verification outcome
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Clarify PR #40 documentation overlap and website ownership boundaries
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL025 | Add cookie-only Firefox workflow regression and record production SSH denial
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL026 | Clarify workflow viewer interaction and legend semantics
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL025 | Record final styled Firefox evidence and focused suite results
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL013 | Record exact-match code-to-workflow/cookbook coverage audit
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL028 | Record missing notification summary fields as cross-scope blocker
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL004 | Record graph linkage implementation, browser evidence, revision audit and PR #42 reconciliation
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL006/008/011 | Record overview guidance, worker inventory, activity paging, evidence and integration-owned blockers
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL025 | Record clean controlled-revision and evidence-manifest checks
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL025 | Record PR #42 update and exact-head CI result
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL012 | Record Activity provenance UI and event-source limitations
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL014 | Record projection status guidance, browser verification and source semantics
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL016 | Verify documentation tab reuse and return without duplicate dashboard windows
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL010/015/020/023/024 | Record readiness, control, menu and milestone usability verification
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL019 | Record narrow-screen conversation overflow defect, correction, and evidence
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL036 | Record accessible persistent navigation collapse and browser evidence
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PL003 | Record exact canonical task-title lookup and assignment-contract gaps
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PL029 | Clarify notification delivery/receipt and record seen/decision API blockers
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PL038 | Record searchable catalog behavior, isolated browser evidence, and freshness/coverage source boundary
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PR45-RECONCILE | Preserve merged same-source work-order retry behavior while reconciling website changes
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PL038-POST-PR45 | Record final integrated browser/test/graph verification
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PR45-REVISION-AUDIT | Record and repair predecessor evidence gaps found after integration
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PR46-RECONCILE | Reconcile current integration head and preserve resident-knowledge changes unchanged
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PR42-INTEGRATION-RECONCILE | Reconcile website work with latest integration through PR #63 and record release gates.
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PR42-EXACT-CI | Record exact-head CI and browser verification after integration reconciliation.
+**Changed:** 2026-10-15 UTC | RV-WEBSITE-PR42-RECONCILE | Preserve PR #44 integration journal entry and record current base reconciliation
 ## 2026-10-16 UTC — RV-GRACE-VERIFIED-GROUNDING-RESUME-001
 
 The existing objective `objective:grace-conversation:2c573041-cc5e-4b54-9f93-8163de91e52c` and assignment
@@ -1640,7 +1672,353 @@ still needs PR/CI and a new immutable candidate archive before a later
 commissioning attempt. The real authenticated 80B browser acceptance remains
 open.
 
+## 2026-10-15 UTC — RV-WEBSITE-PUNCH-LIST-001
 
+**Classification:** website backlog recovery and workflow navigation enhancement.
+**Owner:** STEWARD-DASHBOARD / website presentation.
+**Branch:** `codex/website-improvements`.
+**Integration baseline:** `codex/grace-conversation-ui-refinement` at PR #41 merge `218cb58491bcb939466a1eebb51bd666fd97005`; PR #40's durable SSE and deferred-response recovery are included. The website branch contains the two later Steward punch-list documentation commits replayed onto this integration point. PR #40 touched the shared dashboard `server.py`, `static/app.js`, dashboard tests/docs, and Grace runtime. This change avoids the shared behavior-code and test files; its only same-file documentation overlaps are additive workflow-navigation paragraphs in the dashboard contract and cookbook. Stream behavior and stream-specific documentation remain intact.
+
+**Production baseline:** NOT VERIFIED from this environment. The punch list's last reported dashboard release is `3639f680` (captured 2026-10-13); it is historical reporting, not a current live check. The authorized read-only SSH check failed because this environment could not resolve `camrui`. No production service or database was contacted or changed.
+
+Recovered PL-NEW-001 through PL-NEW-041 into `docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`. Original IDs, source priorities, later observations, and the distinction between captured observations, roadmap requirements, existing implementations, and proposals are retained. PL-NEW-027 was selected as an independent, explicit website usability improvement. PL-NEW-041 remains P1 as captured and is queued after the Grace commissioning repair; the current 128 KiB snapshot cap and the larger canonical workflow export are recorded as design constraints, not as a new requirement.
+
+The workflow viewer now follows the exact registered `jump_target_id`, focuses the destination node and its accessible detail, and exposes a return control that restores the originating graph and jump node. A failed target request retains the return control. The canonical dashboard graph advanced to revision 1.1.3; generated aggregate and focused flow views were synchronized, including the normal no-jump-selected path. The captured source punch list received a controlled file revision header after its original bytes were backed up; no captured item text was changed. The dashboard contract/cookbook and this journal were updated. No SSE, deferred-resume, Grace, engineering-execution, authorization, CME, schema, or deployment code was changed.
+
+**Verification:** `PYTHONPATH=.:src pytest -q tests/test_status_dashboard.py tests/test_process_graph.py` — 32 passed, 8 skipped. The skips are database-dependent cases; this work did not connect to production PostgreSQL. `python3 scripts/process_graph.py check` — PASS, 19 workflows / 458 nodes. An isolated Firefox/geckodriver loopback fixture loaded all 19 canonical graphs and passed exact target focus/detail plus return-to-source focus/detail; report and screenshots: `evidence/checkouts/WEBSITE-PL027/20261015T193400Z-workflow-navigation/`. The first browser fixture attempt lacked its local test token and timed out before loading the graph list; the setup error and correction are retained in the adjacent evidence directory. Production account-cookie transport and live browser acceptance remain NOT VERIFIED.
+
+**Next:** review the complete diff and evidence manifests, commit to the assigned branch, and prepare a draft PR against `codex/grace-conversation-ui-refinement`. PL-NEW-025 account-cookie browser regression is the next website verification item; PL-NEW-041 remains sequenced after the independently owned Grace commissioning repair.
+
+## 2026-10-15 UTC — RV-WEBSITE-PL025 / RV-WEBSITE-PL026
+
+**Classification:** account-cookie browser verification and workflow-viewer usability documentation.
+**Owner:** STEWARD-DASHBOARD / website presentation.
+**Branch:** `codex/website-improvements`, resumed from `2578626` on PR #42.
+**Baseline:** production/integration worktree base is `codex/grace-conversation-ui-refinement` at PR #41 merge `218cb58491bcb939466a1eebb51bd666fd97005`; PR #42 was open as a draft and its prior CI run passed. PR #40 stream behavior remains in the baseline.
+
+PL-NEW-025's acceptance calls for investigating the actual account-cookie path and establishing deployed browser acceptance evidence for the prior “Loading canonical registry” failure. The existing workflow client already uses `credentials:"same-origin"` and makes bearer authorization conditional on a recovery token. Added `scripts/verify_workflow_account_cookie_browser.py`, which runs the checked-out workflow client and stylesheet in Firefox against a loopback fixture that issues a synthetic HttpOnly account cookie and requires it for both registry and graph-detail reads. The browser sent no bearer authorization, rendered the expected graph node and details, and reported no browser errors. Final report and screenshot: `evidence/checkouts/WEBSITE-PL025/20261015T-account-cookie-browser-final/`. Earlier failed harness attempts are retained in sibling evidence directories and explained in the checkout note.
+
+The requested read-only SSH check using `admin1@192.168.1.155` reached the host-key prompt but failed authentication with `Permission denied (publickey,password)`. No production service, database, or account was contacted. Therefore isolated cookie transport is verified, while deployed account-cookie acceptance and the current live production release remain unverified. No browser or service was pointed at production.
+
+PL-NEW-026's requested distinctions are now explained beside the viewer controls and in the dashboard cookbook: the workflow selector switches graphs, mouse or keyboard selection opens node identity/revision/references, graph and node revisions are separately labeled, and legend chips are static visual keys. The existing canonical dashboard flow already describes same-origin account-session workflow transport, so its runtime graph needed no semantic change. The recovery backlog now records PL-025's remaining deployed-evidence blocker, PL-026's branch implementation, and PL-013's coverage audit as the next independent item.
+
+**Verification:** isolated Firefox account-cookie test PASS (`scripts/verify_workflow_account_cookie_browser.py`); browser error list empty; index and detail requests both included the synthetic account cookie and omitted Authorization. `PYTHONPATH=.:src pytest -q -rs tests/test_status_dashboard.py tests/test_process_graph.py` — 32 passed, 8 skipped because `RIVERVIEW_TEST_PG_DSN` is unset. `python3 scripts/process_graph.py check` — PASS, 19 workflows / 458 nodes. Python compile and focused `git diff --check` passed. Controlled revision audit — PASS, zero issues; final browser evidence manifest — PASS, three checksummed artifacts. The browser test verifies transport/rendering against a fixture; it does not substitute for live account authentication or deployment acceptance. PR #42 was updated; exact-head CI run `38797619074` on `b46bf33` passed the full suite, graph checks and controlled revision checks. PL-013 audit is recorded below.
+
+## 2026-10-15 UTC — RV-WEBSITE-PL014
+
+**Classification:** dashboard refresh, freshness, and projection-state guidance.
+**Owner:** STEWARD-DASHBOARD / website presentation.
+
+The overview now states that status reads bypass browser cache and that the
+displayed timestamp comes from the API's `observed_at`. It defines healthy
+as a successful required ledger read, not initialized as reachable PostgreSQL
+with required ledger tables absent, and unavailable as inability to confirm
+current state. It also clarifies that event/detail refreshes are separate
+bounded requests and an optional relation's `not_initialized` value is a
+domain state. The troubleshooting cookbook records the same behavior against
+the implemented fetch and projection code.
+
+The isolated browser fixture and focused tests validate the visible guidance.
+No API route, state transition, or workflow node changed, so the canonical
+dashboard graph remains accurate. No cache policy, server, or status contract
+was changed. Focused browser assertions passed with the adjacent PL-NEW-012
+regression; the broader dashboard/process-graph suite passed 37 tests with 8
+PostgreSQL-dependent skips because `RIVERVIEW_TEST_PG_DSN` is unset. The
+canonical graph check passed (19 workflows / 458 nodes), and the controlled
+revision audit reported zero findings. Evidence and checksums are stored in
+`evidence/checkouts/WEBSITE-PL014/20261015T204600Z-projection-guidance/`.
+
+## 2026-10-15 UTC — RV-WEBSITE-PL012
+
+**Classification:** Activity event presentation and source-boundary audit.
+**Owner:** STEWARD-DASHBOARD / website presentation.
+
+The canonical event projection already carries event type, recorded time,
+sequence and event IDs, nullable assignment ID, actor ID, correlation and
+causation IDs, and payload schema. Activity cards previously omitted actor
+and payload schema and presented identifiers with terse labels. They now show
+the available provenance, humanized event type, explicit root-event state,
+assignment link when available, and a dashboard troubleshooting link. Cards
+state that payload bodies and event-specific diagnostic references are absent.
+The assignment ID is the only task reference exposed; no separate task ID is
+available. No missing field is inferred from event type.
+
+The fixture browser and focused test verify provenance rendering and the
+payload/diagnostic boundary. Existing dashboard process graph already covers
+event paging and links its failure branches to the troubleshooting cookbook;
+no new route, state transition or graph node was introduced, so no graph file
+changed. PL-NEW-012 is implemented for available projection fields and remains
+partial pending an integration-owned event detail/diagnostic source contract.
+No server, event schema, authorization, CME, or streaming behavior changed.
+
+## 2026-10-15 UTC — RV-WEBSITE-PL013
+
+**Classification:** bounded dashboard diagnostic coverage audit.
+**Owner:** STEWARD-DASHBOARD / website diagnostics.
+**Evidence:** [`PL-NEW-013 diagnostic coverage audit`](PL-NEW-013-DIAGNOSTIC-COVERAGE_AUDIT.md).
+
+Read-only inspection found 59 distinct literal HTTP error identifiers in the dashboard handler and one dynamic `exc.code` path. Exact-match analysis found five identifiers in the dashboard contract/cookbook and none in the canonical dashboard workflow JSON. Broad failure/recovery nodes and area-level cookbook procedures exist; the audit makes no claim that each unmatched string lacks semantic guidance. No dedicated dashboard diagnostic catalog or route was found. PL-NEW-013's audit deliverable is complete with the traceability limits and evidence recorded. Building a complete searchable catalog remains a separate PL-NEW-038 captured proposal and requires a governed mapping source.
+
+No canonical workflow map change was needed: its broad failure and recovery branches already point to the relevant dashboard troubleshooting material. No server, authorization, CME, production, or schema code changed.
+
+## 2026-10-15 UTC — RV-WEBSITE-PL028 preflight
+
+Read-only inspection of `NotificationService.list_notifications`, its dashboard projection route, and the notification renderer found assignment ID, event type, a fixed generic summary, source/queued timestamps, delivery status, and optional decision request ID/status. The projection does not expose priority, rationale, actionable details, or an explicit required-action field. PL-NEW-028 requires these details before receipt acknowledgment. The website cannot provide truthful values from its current payload. Adding the missing source fields requires a notification service/CME/API contract change outside this assignment's backend/CME boundary. The item is recorded as blocked pending an integration-owned contract; no changes were made to notification, backend, CME, authority, or shared streaming behavior.
+
+## 2026-10-15 UTC — RV-WEBSITE-PL004/006/008/011 / PR #42 reconciliation
+
+**Classification:** assignment-detail linkage, overview guidance, worker inventory usability, activity pagination, and controlled branch reconciliation.
+**Owner:** STEWARD-DASHBOARD / website presentation and navigation.
+**Branch / PR:** `codex/website-improvements` / draft PR #42, base `codex/grace-conversation-ui-refinement`.
+**Integration baseline:** PR #43 merge `665ae8100a50faa26985b0cfee8834e68bf2a847`, which includes Codex 1's Grace Engineering proposal-guidance change. The PR #42 head that previously passed CI was `d4d7ba57b249dd477f811ae3c155f139c37c06a7`; it had become conflicting after PR #43. Rebased the website worktree onto the new base. Source changes did not conflict with PR #43. The only rebase conflict was the append-only `.riverview-backups/manifest.jsonl`; both integration and website records were retained. No PR #43 source file was modified. PR #42 remains draft/open pending push and exact-head controlled CI; it is not merged or deployed.
+
+PL-NEW-004 audit confirmed the assignment projection already returns nullable persisted `process_graph_id` and `process_node_id`, but the detail renderer omitted them and printed the diagnostic path as unlinked text. Detail now shows both IDs, explicit not-recorded states, a restricted `/docs/components/<name>.md` link, and the boundary that these references do not establish current execution position. A synthetic Firefox run verified populated and null-linked records, safe diagnostic routing, cookie-only requests, and no browser errors. Evidence: `evidence/checkouts/WEBSITE-PL004/20261015T203000Z-assignment-linkage/`.
+
+PL-NEW-008 uses only the existing worker fields. The overview now counts records in loaded pages, distinguishes active/inactive/unknown registration from healthy/stale/unknown/unverified heartbeat status, marks inactive registrations as such, and reports whether more cursor pages remain. The 390px Firefox fixture had no worker-row overflow. PL-NEW-006 added overview text for the event sequence cursor, projection/freshness, independent CME/worker heartbeats, and Grace execution versus chat availability. No runtime configuration value was inferred.
+
+PL-NEW-011 adds explicit older and newer Activity controls using existing exclusive `before_seq` and `after_seq` cursors. Older events prepend, newer events append, and overlapping event IDs are deduplicated. The isolated browser sequence 2–3 → older 1–3 → newer 1–4 remained ordered with no duplicates. Existing canonical dashboard nodes already describe bounded event paging and worker listing; no new API path, state transition, or workflow node was needed. PR #40 streaming and deferred-response code was not changed.
+
+PL-NEW-028 is blocked pending an integration-owned notification/CME/API contract. The current notice payload has `assignment_id`, `event_type`, a static generic `summary`, timestamps, delivery/acknowledgment state, and optional decision request ID/status/version. It lacks `required_action`, `rationale`, `priority`, optional `deadline` with an explicit absent state, and structured `actionable_details`. `source_event_id` identifies the CME event, but its authoritative details are not exposed by the notification API. The integration owner must source condition rationale/details from the CME event and action/priority/deadline from applicable assignment or decision policy, define a versioned API shape and provenance, then satisfy the acceptance criteria recorded in `docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`. The website does not synthesize notification content or modify CME/backend contracts.
+
+PL-NEW-007 is separately blocked because `RIVERVIEW_STALE_AFTER_SECONDS` has a 30-second code default but `/api/v1/status` does not return the effective runtime value, and CME has a separate freshness setting. PL-NEW-009 is blocked because the worker projection omits capabilities, host, task identity/context, execution detail, and failure history. Exact source requirements and acceptance are in the recovered punch list. PL-NEW-025's isolated account-cookie evidence remains preserved; production acceptance is **UNVERIFIED** because SSH authentication to the requested host failed before a service check. This is not evidence of production service failure.
+
+**Verification:** `PYTHONPATH=.:src pytest -q -rs tests/test_status_dashboard.py tests/test_process_graph.py` — 36 passed, 8 PostgreSQL-dependent skips (`RIVERVIEW_TEST_PG_DSN` is unset). `python3 scripts/process_graph.py check` — PASS, 19 workflows / 458 nodes. `git diff --check` — PASS. The staged controlled revision audit passes with zero findings. Isolated Firefox reports and screenshots: `evidence/checkouts/WEBSITE-PL004/20261015T203000Z-assignment-linkage/` and `evidence/checkouts/WEBSITE-PL-UI-REGRESSIONS/20261015T203000Z-overview-workers-activity/`. No production service, database, schema, grant, CME, worker, OCTO1/OCTO2 configuration, or deployment was touched.
+
+**Next:** push the rebased website branch with lease protection, refresh PR #42's scope/evidence, and confirm exact-head checks before marking it ready for controlled integration review. Do not merge or deploy in this website task. Next independent punch-list audit: PL-NEW-012 event meaning and diagnostic evidence, using only available projection fields.
+
+## 2026-10-15 UTC — RV-GRACE-WORKORDER-RECOVERY-001 (integration journal)
+
+Preserved the integration journal entry from PR #44: its work-order recovery
+changes bind packaged knowledge to the matching release by default, preserve
+durable wait receipts, and use authenticated conversation/message origin for
+idempotent retries. The entry records that production retry and subsequent
+CME/Codex/verifier work remain pending controlled review. This website branch
+does not implement, alter, or commission that behavior.
+
+## 2026-10-15 UTC — RV-WEBSITE-PR42-RECONCILE
+
+The integration base advanced from PR #43 merge
+`665ae8100a50faa26985b0cfee8834e68bf2a847` to PR #44 merge
+`29d196f879d0a3a1dad5f782b305d9d52a0baadd` while PR #42 exact-head CI was
+running. The website branch now merges the current base and retains Codex 1's
+Grace work-order recovery source, graph, generated graph, component docs, and
+test coverage. Shared revision, journal, and dashboard-test records were
+resolved additively. No Grace execution behavior was changed in this
+reconciliation.
+
+
+## 2026-10-15 UTC — RV-WEBSITE-PL016
+
+**Classification:** documentation and back-navigation behavior.
+**Owner:** STEWARD-DASHBOARD / website navigation.
+
+Dashboard documentation links now target a reusable named documentation
+browsing context. The rendered documentation header returns to the named
+dashboard context. Same-origin links omit `rel=noreferrer` because its implicit
+`noopener` would force new browsing contexts and defeat name reuse. No route,
+API, authority, event stream, or server behavior changed. The existing dashboard
+process graph's render-documentation node now records this test evidence; its
+node revision was incremented, and generated graph views were synchronized.
+
+The focused test passed (`1 passed`). The isolated Firefox fixture passed all
+checks, including documentation tab reuse, return to the original dashboard,
+second document reuse, cookie-only API requests, no bearer header and no browser
+errors. Evidence is in
+`evidence/checkouts/WEBSITE-PL016/20261015T212500Z-documentation-navigation/`.
+An earlier run exposed the implicit-`noopener` defect; its failed report is
+preserved in the adjacent `20261015T211500Z-documentation-navigation/`
+directory. Production acceptance remains pending controlled integration and
+deployment. No production service, database, schema, grant, CME, worker, OCTO
+configuration, or deployment was touched.
+
+
+## 2026-10-15 UTC — RV-WEBSITE-PL010/015/020/023/024
+
+**Classification:** Grace execution readiness, objective commissioning, chat
+controls, menu availability, and dashboard milestone semantics.
+**Owner:** STEWARD-DASHBOARD / website presentation.
+
+The overview and Objectives view now state that conversation access and durable
+execution have separate readiness. An uninitialized objective source directs the
+Steward to verify the selected database/schema and reviewed resident-execution
+migrations; Refresh is read-only and does not commission CME or workers. The
+conversation view explains Disconnect (session ends, persisted history remains),
+Refresh history, Enter/Shift+Enter, and Insert line break. Existing future or
+unavailable menu choices remain disabled and are explicitly labeled. The header
+identifies M3.1 as the dashboard milestone and separates roadmap, deployed
+release, and commissioning status.
+
+Focused tests passed 2/2. Isolated Firefox account-cookie browser verification
+passed 25/25 checks with no browser errors, including a synthetic objective
+`not_initialized` response, all menu states, and mobile layout. The canonical
+process graph already represents these existing view and refresh paths; no state
+transition or route changed. No PR #40 streaming code, backend, authorization,
+CME, database, service, or production configuration changed. Production
+acceptance remains pending. Evidence will be checksummed under
+`evidence/checkouts/WEBSITE-CLARITY/20261015T215000Z-guidance-and-controls/`.
+
+
+## 2026-10-15 UTC — RV-WEBSITE-PL019
+
+**Classification:** conversation transcript and composer visibility.
+**Owner:** STEWARD-DASHBOARD / website presentation.
+
+A synthetic 40-message Firefox run exposed an overlay: the sticky composer
+covered the lower portion of the separately scrollable transcript. The same run
+found document-wide horizontal overflow from the narrow top bar's account
+controls. The composer now follows the transcript in document flow, and the
+narrow top bar stacks and wraps. The transcript remains vertically scrollable
+and auto-scrolls to the newest message. No conversation API, SSE delivery,
+deferred-response handling, or persistence behavior changed.
+
+Focused layout test passed 1/1. The corrected browser run passed all checks,
+including final-message visibility, composer below transcript, and no horizontal
+overflow. Firefox clamped the requested 390px window to a 500px CSS viewport,
+so narrower physical-device verification is not claimed. Initial failed and
+corrected reports are preserved under `evidence/checkouts/WEBSITE-PL019/`.
+No production service or deployment was touched.
+
+
+## 2026-10-15 UTC — RV-WEBSITE-PL036
+
+**Classification:** dashboard navigation rail usability.
+**Owner:** STEWARD-DASHBOARD / website navigation.
+
+Added an accessible expand/collapse control with an explicit `aria-expanded`
+state, durable browser preference, named navigation controls, and responsive
+compact default for screens at or below 920 CSS pixels when no preference exists.
+The compact rail retains a health indicator with a current accessible label and
+the bounded diagnostic snapshot control. No route, state transition, or API
+changed; the existing dashboard shell node now references the passing browser
+evidence.
+
+The focused test passed 1/1 and the isolated Firefox fixture passed all 29
+checks with no browser errors, including both rail states, health/snapshot
+affordances, and a narrow viewport. Evidence:
+`evidence/checkouts/WEBSITE-PL036/20261015T231000Z-collapsible-navigation/`.
+Production acceptance remains unverified.
+
+
+## 2026-10-15 UTC — RV-WEBSITE-PL003
+
+**Classification:** assignment title presentation and source-contract audit.
+**Owner:** STEWARD-DASHBOARD / website presentation; assignment payload ownership
+remains with integration/Engineering intake.
+
+Assignment rows and details now display the canonical workflow-node label only
+when the existing authenticated graph API returns an exact match for the
+persisted process graph and node IDs. Stable assignment, graph and node IDs
+remain visible. Missing or unregistered references display an explicit
+unavailable state; `workflow_step` is not repurposed as a title. The same
+canonical assignment page behavior supplies Current Work title/state content.
+
+The integration-owned assignment projection does not include purpose, original
+request, expected deliverable, result, acceptance criteria, evidence records, or
+blocked reason/missing evidence/owner/unblock action. Those source fields and
+acceptance criteria are recorded as blockers for PL-NEW-001/002/005. No
+Engineering intake, backend, CME, or authorization changes were made.
+
+The focused test passed 1/1. Isolated Firefox passed the title lookup, stable ID,
+missing-reference, account-cookie and no-browser-error checks; evidence is
+`evidence/checkouts/WEBSITE-PL003/20261015T233000Z-canonical-task-title/`.
+The process graph's bounded assignment-page node now links this verification.
+Production acceptance remains pending.
+
+
+## 2026-10-16 UTC — RV-WEBSITE-PL029
+
+**Classification:** notification lifecycle semantics and source-contract audit.
+**Owner:** STEWARD-DASHBOARD / website presentation; notification/decision API
+ownership remains with integration.
+
+Notification cards now show dashboard rendering confirmation, person-seen as
+not reported, receipt acknowledgment state, and linked decision request status
+as separate concepts. The interface states that acknowledgment cannot resolve
+a decision. A source event labelled `attention_resolved` is presented as a
+condition event and not as a decision outcome.
+
+The current integration contract contains no `seen_at` or `seen_by` field and
+no decision-resolution operation/outcome contract for approved/denied/resolved
+with actor/time/provenance. PL-NEW-029 is therefore partially addressed and
+blocked on that external contract. No notification service, CME, decision API,
+or backend changes were made. The focused test passed 1/1; isolated Firefox
+passed all browser checks with no errors. Evidence:
+`evidence/checkouts/WEBSITE-PL029/20261016T001000Z-notification-state-clarity/`.
+
+
+## 2026-10-16 UTC — RV-WEBSITE-PL038
+
+**Classification:** searchable workflow and documentation traceability catalog.
+**Owner:** STEWARD-DASHBOARD / website presentation and client-side search.
+
+Added an on-demand catalog view fed by the existing authenticated canonical
+graph index/detail APIs. It lists each returned workflow's component and graph
+revision, typed process/failure/recovery nodes, allowlisted component-doc links,
+source references, and declared verification references. Search narrows matching
+workflow entries and their nodes/references. Activity and Workflows diagnostic
+shortcuts now open this catalog. No backend, API, authorization, CME, or graph
+contract was changed. PR #40 conversation streaming and deferred-response
+recovery code was not changed.
+
+The browser fixture passed all checks in Firefox 156.0.1, including workflow
+index/detail loading with the synthetic account cookie and no Authorization
+header, a search resolving to the matching recovery node, documentation-tab
+reuse, and no browser errors. The focused dashboard test file passed 33 tests;
+8 PostgreSQL tests were skipped because `RIVERVIEW_TEST_PG_DSN` is unset.
+Process graph validation passed at 19 workflows / 458 nodes. Evidence,
+including retained failed attempts, is under
+`evidence/checkouts/WEBSITE-PL038/`; the passing report is
+`20261016T020000Z-searchable-workflow-catalog/browser-acceptance.json`.
+
+The catalog exposes only metadata already declared by the graph registry. A
+documented source freshness value and semantic test-coverage result are not
+present in that contract, so the UI links to freshness guidance and states that
+evidence paths do not establish a pass or prove coverage. This qualifies the
+catalog rather than inventing either value. Production acceptance remains
+unverified; this branch has not been deployed.
+
+Final local verification passed: dashboard plus process-graph tests 46 passed,
+8 PostgreSQL-dependent skips; graph check 19 workflows / 458 nodes; controlled
+revision audit against integration commit `29d196f` passed with zero findings;
+`git diff --check` passed. PR #42's previous exact-head CI failed only because
+the retained PL-016 failed browser attempt lacked `artifacts.json`; that
+timestamped evidence directory now has a checksum manifest without changing or
+deleting its artifacts. The integration branch advanced with merged PR #45
+after the PR #44 baseline; this website branch is being reconciled before the
+next exact-head CI run.
+
+
+## 2026-10-16 UTC — RV-WEBSITE-PR45-RECONCILE
+
+Fetched the integration branch and found merged PR #45 at
+`ef73c6d6410cd30e00ebda6d68ee76e5a35a10f6`, after the previously recorded PR
+#44 baseline. Merged that integration head into `codex/website-improvements`.
+Resolved shared dashboard JavaScript, HTML, test, and revision-manifest
+conflicts by retaining the website improvements and PR #45's same-source
+work-order retry behavior. The regression test for immutable criteria reuse,
+authority recheck, and origin conflict is retained. Codex 1's server and
+resident-execution changes were brought in from the integration branch without
+being edited in the website worktree. Canonical graph generation now reports
+19 workflows / 459 nodes. Post-merge dashboard and process-graph tests passed
+47 tests with 8 PostgreSQL-dependent skips; the Firefox account-cookie regression
+passed all 35 checks with zero browser errors. Revision audit against PR #45 and
+source diff checks passed. The first revision audit identified missing exact
+predecessors for the revision manifest, generated graph, shared client script,
+and dashboard tests. Restored those exact PR #45 integration-head bytes long
+enough to capture verified backups, then reran the audit with zero findings.
+
+
+## 2026-10-16 UTC — RV-WEBSITE-PR46-RECONCILE
+
+Before controlled PR #42 review, fetched the integration branch again and found
+merged PR #46 at `8f95c83af4e3a6269b25d96e1092baf8175e431c`. Its changes add
+bounded repository grounding in `resident_knowledge.py` and update related
+reasoning/Engineering documents, tests, and process graph. Merged this current
+integration head into the website branch. The resident-knowledge implementation
+and its tests/docs were included unchanged from integration; no resident
+reasoning behavior was edited in the website worktree. The graph generator and
+controlled revision audit pass after reconciliation. A new exact-head CI run is
+required for the updated website PR head.
 ## 2026-10-15 UTC — RV-GRACE-WORKORDER-RECOVERY-001
 
 The authenticated production intake for conversation
@@ -1744,3 +2122,43 @@ transition is retried idempotently without rerunning Codex. A disposable
 PostgreSQL regression reproduced the rejection, revalidated the same artifact,
 and confirmed original-decision preservation and one attempt. No production
 records were modified.
+
+
+## 2026-10-16 UTC — RV-WEBSITE-PR42-INTEGRATION-RECONCILE
+
+Fetched the current integration branch after PR #46 and found it advanced through
+merged PRs #47–#63 to `af87c1a1b8ef4deeb8770c64da8bb4556bc85866`. The branch
+contains PRs #44–#46 and the later Engineering commissioning corrections. The
+website change has no functional source or test-file overlap with commits after
+PR #46; the shared records are the revision manifest, revision index, journal,
+and generated aggregate graph. Reconciled the append-only records and regenerated
+the aggregate graph without editing the integrated Engineering implementation.
+
+The combined tree passed full unittest discovery: 466 passed, 160
+PostgreSQL-dependent tests skipped because `RIVERVIEW_TEST_PG_DSN` is not
+configured. Process graph validation passed at 19 workflows / 478 nodes; the
+controlled revision audit passed with zero findings. The account-cookie Firefox fixture was rerun after the merge and passed with no
+browser errors: both registry/detail reads carried the synthetic account cookie,
+omitted Authorization, and rendered the fixture node. Report: `evidence/checkouts/WEBSITE-PR42-INTEGRATION/20261016T164500Z-account-cookie/`. Exact-head controlled CI run `38934516118` passed on merge commit
+`7ba28efa8591ffd91fbb55f62c1024457f427936`: 466 tests passed, 2 skipped;
+process graph and controlled revision checks passed. The independent Firefox
+account-cookie report is checksummed under
+`evidence/checkouts/WEBSITE-PR42-INTEGRATION/20261016T164500Z-account-cookie/`.
+A following documentation-only commit requires its own exact-head CI run.
+
+PR #42 remains draft with no submitted review or requested reviewer. Its base
+branch advanced, and GitHub reported the former head as dirty. The punch list
+records the current integration baseline and release gates. No production
+package, service, objective, or database was changed.
+
+
+## 2026-10-16 UTC — RV-WEBSITE-PR42-EXACT-CI
+
+The current integration merge `7ba28efa8591ffd91fbb55f62c1024457f427936`
+passed exact-head controlled CI run `38934516118` (466 tests, 2 skipped; graph
+19 workflows / 478 nodes; revision audit PASS). Isolated Firefox account-cookie
+verification passed against the reconciled website source with no browser errors;
+registry and detail requests carried the synthetic account cookie without an
+Authorization header. This is fixture evidence, not production acceptance. A
+documentation-only follow-up is being committed separately, so its new commit
+needs its own exact-head CI. PR #42 remains draft and unapproved.

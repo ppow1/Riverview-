@@ -9173,7 +9173,7 @@
     },
     {
       "graph_id": "rv:steward-dashboard:status",
-      "graph_revision": "1.1.1",
+      "graph_revision": "1.1.10",
       "component_id": "STEWARD-DASHBOARD",
       "workflow_id": "status-projection.v1",
       "diagram_order": 1,
@@ -9332,7 +9332,7 @@
         },
         {
           "id": "rv:steward-dashboard:status:render-cached",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.3",
           "type": "process",
           "label": "Render shell and current local view",
           "source_references": [
@@ -9341,7 +9341,13 @@
           "documentation_references": [
             "docs/components/STATUS_DASHBOARD.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "tests/test_status_dashboard.py",
+            "evidence/checkouts/WEBSITE-CLARITY/20261015T215000Z-guidance-and-controls/browser-acceptance.json",
+            "evidence/checkouts/WEBSITE-PL019/20261015T224500Z-conversation-layout/browser-acceptance.json",
+            "evidence/checkouts/WEBSITE-PL036/20261015T231000Z-collapsible-navigation/browser-acceptance.json",
+            "evidence/checkouts/WEBSITE-PL029/20261016T001000Z-notification-state-clarity/browser-acceptance.json"
+          ]
         },
         {
           "id": "rv:steward-dashboard:status:navigate",
@@ -9360,7 +9366,7 @@
         },
         {
           "id": "rv:steward-dashboard:status:page-events",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
           "label": "Fetch bounded event and assignment pages",
           "source_references": [
@@ -9370,7 +9376,10 @@
           "documentation_references": [
             "docs/components/STATUS_DASHBOARD.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "tests/test_status_dashboard.py",
+            "evidence/checkouts/WEBSITE-PL003/20261015T233000Z-canonical-task-title/browser-acceptance.json"
+          ]
         },
         {
           "id": "rv:steward-dashboard:status:inspect-detail",
@@ -9598,19 +9607,28 @@
         },
         {
           "id": "rv:steward-dashboard:status:render-documentation",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.3",
           "type": "process",
           "label": "Render allowlisted cookbooks as safe readable HTML",
           "source_references": [
             "src/riverview_core/status_dashboard/server.py",
-            "src/riverview_core/status_dashboard/markdown.py"
+            "src/riverview_core/status_dashboard/markdown.py",
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/status_dashboard/static/index.html",
+            "src/riverview_core/status_dashboard/static/app.css",
+            "tests/test_status_dashboard.py",
+            "scripts/verify_worker_inventory_browser.py"
           ],
           "documentation_references": [
             "docs/components/STATUS_DASHBOARD.md",
-            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+            "docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md"
           ],
           "verification_evidence": [
-            "tests/test_status_dashboard.py"
+            "tests/test_status_dashboard.py",
+            "evidence/checkouts/WEBSITE-PL016/20261015T212500Z-documentation-navigation/browser-acceptance.json",
+            "evidence/checkouts/WEBSITE-PL038/20261016T020000Z-searchable-workflow-catalog/browser-acceptance.json",
+            "evidence/checkouts/WEBSITE-PL038/20261016T023000Z-post-PR45-regression/browser-acceptance.json"
           ]
         },
         {
@@ -9813,6 +9831,58 @@
           "verification_evidence": [
             "tests/test_status_dashboard.py"
           ]
+        },
+        {
+          "id": "rv:steward-dashboard:status:select-cross-workflow-jump",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Steward selects a registered cross-workflow destination?",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/workflow.js"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:status:navigate-to-jump-target",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Load destination workflow and focus the exact target node",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/workflow.js"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:status:jump-target-unavailable",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Show target unavailable and retain the source return path",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/workflow.js"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:status:return-to-source-jump",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Return to the source workflow and focus its originating jump node",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/workflow.js"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md"
+          ],
+          "verification_evidence": []
         }
       ],
       "edges": [
@@ -10087,6 +10157,48 @@
           "to": "rv:steward-dashboard:status:deny-request",
           "type": "diagnostic_branch",
           "label": "Expired or absent account session; return authorization denial"
+        },
+        {
+          "from": "rv:steward-dashboard:status:render-process-graph",
+          "to": "rv:steward-dashboard:status:select-cross-workflow-jump",
+          "type": "runtime_transition",
+          "label": "Steward selects a jump destination"
+        },
+        {
+          "from": "rv:steward-dashboard:status:select-cross-workflow-jump",
+          "to": "rv:steward-dashboard:status:navigate-to-jump-target",
+          "type": "runtime_transition",
+          "label": "Registered target selected"
+        },
+        {
+          "from": "rv:steward-dashboard:status:navigate-to-jump-target",
+          "to": "rv:steward-dashboard:status:jump-target-unavailable",
+          "type": "diagnostic_branch",
+          "label": "Destination graph or exact node unavailable"
+        },
+        {
+          "from": "rv:steward-dashboard:status:navigate-to-jump-target",
+          "to": "rv:steward-dashboard:status:return-to-source-jump",
+          "type": "runtime_transition",
+          "label": "Return to source requested"
+        },
+        {
+          "from": "rv:steward-dashboard:status:jump-target-unavailable",
+          "to": "rv:steward-dashboard:status:return-to-source-jump",
+          "type": "recovery_route",
+          "label": "Use the preserved return control"
+        },
+        {
+          "from": "rv:steward-dashboard:status:return-to-source-jump",
+          "to": "rv:steward-dashboard:status:render-process-graph",
+          "type": "runtime_transition",
+          "label": "Source graph and jump node restored"
+        },
+        {
+          "from": "rv:steward-dashboard:status:select-cross-workflow-jump",
+          "to": "rv:steward-dashboard:status:render-process-graph",
+          "type": "runtime_transition",
+          "label": "No jump selected; continue viewing this workflow"
         }
       ]
     },
@@ -12050,10 +12162,12 @@
     "rv:steward-dashboard:status:inspect-detail",
     "rv:steward-dashboard:status:jump-cme",
     "rv:steward-dashboard:status:jump-ledger",
+    "rv:steward-dashboard:status:jump-target-unavailable",
     "rv:steward-dashboard:status:list-workers",
     "rv:steward-dashboard:status:live-position-check",
     "rv:steward-dashboard:status:live-position-unknown",
     "rv:steward-dashboard:status:navigate",
+    "rv:steward-dashboard:status:navigate-to-jump-target",
     "rv:steward-dashboard:status:page-events",
     "rv:steward-dashboard:status:prepare-passfile",
     "rv:steward-dashboard:status:privacy-filter",
@@ -12064,6 +12178,8 @@
     "rv:steward-dashboard:status:render-cached",
     "rv:steward-dashboard:status:render-documentation",
     "rv:steward-dashboard:status:render-process-graph",
+    "rv:steward-dashboard:status:return-to-source-jump",
+    "rv:steward-dashboard:status:select-cross-workflow-jump",
     "rv:steward-dashboard:status:service-start",
     "rv:steward-dashboard:status:source-available",
     "rv:steward-dashboard:status:source-failure",

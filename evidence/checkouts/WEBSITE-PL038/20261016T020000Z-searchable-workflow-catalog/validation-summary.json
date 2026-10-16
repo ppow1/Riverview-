@@ -1,0 +1,29 @@
+{
+  "browser": {
+    "account_cookie_only": true,
+    "browser_errors": 0,
+    "checks_failed": 0,
+    "checks_passed": 35,
+    "firefox": "Mozilla Firefox 156.0.1",
+    "protected_requests": 23,
+    "result": "PASS"
+  },
+  "process_graph": {
+    "nodes": 458,
+    "result": "PASS",
+    "workflows": 19
+  },
+  "production_acceptance": "UNVERIFIED",
+  "revision": "1.0.0",
+  "revision_audit": {
+    "baseline": "29d196f879d0a3a1dad5f782b305d9d52a0baadd",
+    "findings": 0,
+    "result": "PASS"
+  },
+  "tests": {
+    "command": "PYTHONPATH=.:src pytest -q -rs tests/test_status_dashboard.py tests/test_process_graph.py",
+    "passed": 46,
+    "skip_reason": "RIVERVIEW_TEST_PG_DSN is unset",
+    "skipped": 8
+  }
+}

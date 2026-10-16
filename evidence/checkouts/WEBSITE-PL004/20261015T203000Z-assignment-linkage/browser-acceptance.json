@@ -1,0 +1,66 @@
+{
+  "api_requests": [
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/auth/session"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/status"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/assignments?limit=25"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/events?limit=25"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/objectives?limit=25"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/status"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/assignments/fixture-linked"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/assignments/fixture-unlinked"
+    }
+  ],
+  "browser": "Mozilla Firefox 156.0.1",
+  "browser_errors": [],
+  "checks": {
+    "graph_and_node_ids_rendered": true,
+    "missing_identity_is_explicit": true,
+    "no_bearer_authorization": true,
+    "no_browser_errors": true,
+    "requests_use_account_cookie": true,
+    "safe_documentation_link": true,
+    "unsafe_diagnostic_not_linked": true
+  },
+  "failed_checks": [],
+  "first_assignment": {
+    "href": "/docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+    "text": "ASSIGNMENT DETAIL \u00b7 READ ONLY\nfixture-linked ACTIVE\nWorkflow\nrv:test:assignment / inspect\nOwner\nfixture\nCorrelation\nfixture-correlation\nVersion\n3\nObserved update\n10/14/2026, 8:00:00 PM\nCanonical graph ID\nrv:test:assignment\nCanonical node ID\nrv:test:assignment:inspect\nDiagnostic reference\ndocs/components/STATUS_DASHBOARD_COOKBOOK.md\n\nGraph and node IDs are persisted assignment references. Missing IDs are not inferred as a live workflow position.\n\nIndependent verification\nNo verification record was returned.\nWorker attempts\nNo attempt rows returned.\nRecent lifecycle events\nNo institution events in this page."
+  },
+  "mode": "isolated_synthetic_account_cookie_fixture",
+  "screenshot_bytes": 192655,
+  "unlinked_assignment": {
+    "text": "ASSIGNMENT DETAIL \u00b7 READ ONLY\nfixture-unlinked BLOCKED\nWorkflow\nrv:test:assignment / unknown\nOwner\nfixture\nCorrelation\nfixture-correlation-2\nVersion\n1\nObserved update\ntime unavailable\nCanonical graph ID\nNo graph ID recorded\nCanonical node ID\nNo process node ID recorded\nDiagnostic reference\njavascript:alert(1)\n\nGraph and node IDs are persisted assignment references. Missing IDs are not inferred as a live workflow position.\n\nIndependent verification\nNo verification record was returned.\nWorker attempts\nNo attempt rows returned.\nRecent lifecycle events\nNo institution events in this page.",
+    "unsafeLinks": 0
+  }
+}

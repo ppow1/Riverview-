@@ -1,0 +1,134 @@
+{
+  "activity_paging": {
+    "newerHidden": false,
+    "olderHidden": true,
+    "sequences": [
+      "seq 1",
+      "seq 2",
+      "seq 3",
+      "seq 4"
+    ]
+  },
+  "api_requests": [
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/auth/session"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/status"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/assignments?limit=25"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/events?limit=25"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/objectives?limit=25"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/status"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/workers?limit=25"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/assignments/fixture-linked"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/assignments/fixture-unlinked"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/workers?limit=25&after=worker-cursor"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/events?before_seq=2&limit=25"
+    },
+    {
+      "authorization_present": false,
+      "cookie_authenticated": true,
+      "path": "/api/v1/events?after_seq=3&limit=25"
+    }
+  ],
+  "browser": "Mozilla Firefox 156.0.1",
+  "browser_errors": [],
+  "checks": {
+    "activity_page_controls_match_cursors": true,
+    "graph_and_node_ids_rendered": true,
+    "heartbeat_states_distinct": true,
+    "inactive_registration_visible": true,
+    "loaded_inventory_counts_reconcile": true,
+    "missing_identity_is_explicit": true,
+    "mobile_worker_row_fits": true,
+    "newer_event_page_appended_without_duplicates": true,
+    "no_bearer_authorization": true,
+    "no_browser_errors": true,
+    "older_event_page_prepended": true,
+    "overview_health_guidance_present": true,
+    "pagination_boundary_is_truthful": true,
+    "requests_use_account_cookie": true,
+    "safe_documentation_link": true,
+    "unsafe_diagnostic_not_linked": true
+  },
+  "failed_checks": [],
+  "first_assignment": {
+    "href": "/docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+    "text": "ASSIGNMENT DETAIL \u00b7 READ ONLY\nfixture-linked ACTIVE\nWorkflow\nrv:test:assignment / inspect\nOwner\nfixture\nCorrelation\nfixture-correlation\nVersion\n3\nObserved update\n10/14/2026, 8:00:00 PM\nCanonical graph ID\nrv:test:assignment\nCanonical node ID\nrv:test:assignment:inspect\nDiagnostic reference\ndocs/components/STATUS_DASHBOARD_COOKBOOK.md\n\nGraph and node IDs are persisted assignment references. Missing IDs are not inferred as a live workflow position.\n\nIndependent verification\nNo verification record was returned.\nWorker attempts\nNo attempt rows returned.\nRecent lifecycle events\nNo institution events in this page."
+  },
+  "first_worker_page": {
+    "pagerHidden": false,
+    "rows": "worker-active\nRegistered \u00b7 active\nHEARTBEAT HEALTHY\n1 active leases \u00b7 heartbeat 10/14/2026, 8:00:00 PM\nworker-inactive\nRegistered \u00b7 inactive\nREGISTRY INACTIVE\n0 active leases \u00b7 heartbeat time unavailable\nworker-stale\nRegistered \u00b7 active\nHEARTBEAT STALE\n0 active leases \u00b7 heartbeat 10/13/2026, 8:00:00 PM",
+    "summary": "Loaded pages: 3 registered \u00b7 2 active \u00b7 1 inactive \u00b7 0 registration unknown \u00b7 heartbeat 1 healthy / 1 stale / 0 unknown or unverified \u00b7 more records available"
+  },
+  "initial_event_page": {
+    "newerHidden": false,
+    "olderHidden": false,
+    "rows": [
+      "seq 2",
+      "seq 3"
+    ]
+  },
+  "mobile_worker_row": {
+    "grid": "183.5px 183.5px",
+    "overflow": false
+  },
+  "mode": "isolated_synthetic_account_cookie_fixture",
+  "older_event_page": [
+    "seq 1",
+    "seq 2",
+    "seq 3"
+  ],
+  "overview_guidance": "Event cursor is the last observed institution event sequence, not an event count. Projection health and freshness describe the read-only ledger response; CME and worker health use separate heartbeat signals. Grace execution status describes its execution registry and is separate from chat availability.",
+  "screenshot_bytes": 133569,
+  "unlinked_assignment": {
+    "text": "ASSIGNMENT DETAIL \u00b7 READ ONLY\nfixture-unlinked BLOCKED\nWorkflow\nrv:test:assignment / unknown\nOwner\nfixture\nCorrelation\nfixture-correlation-2\nVersion\n1\nObserved update\ntime unavailable\nCanonical graph ID\nNo graph ID recorded\nCanonical node ID\nNo process node ID recorded\nDiagnostic reference\njavascript:alert(1)\n\nGraph and node IDs are persisted assignment references. Missing IDs are not inferred as a live workflow position.\n\nIndependent verification\nNo verification record was returned.\nWorker attempts\nNo attempt rows returned.\nRecent lifecycle events\nNo institution events in this page.",
+    "unsafeLinks": 0
+  },
+  "worker_inventory": {
+    "pageNote": "4 observed in loaded pages \u00b7 page limit 25",
+    "pagerHidden": true,
+    "rows": "worker-active\nRegistered \u00b7 active\nHEARTBEAT HEALTHY\n1 active leases \u00b7 heartbeat 10/14/2026, 8:00:00 PM\nworker-inactive\nRegistered \u00b7 inactive\nREGISTRY INACTIVE\n0 active leases \u00b7 heartbeat time unavailable\nworker-stale\nRegistered \u00b7 active\nHEARTBEAT STALE\n0 active leases \u00b7 heartbeat 10/13/2026, 8:00:00 PM\nworker-unknown\nRegistration state unknown\nHEARTBEAT UNKNOWN\n0 active leases \u00b7 heartbeat time unavailable",
+    "summary": "Loaded pages: 4 registered \u00b7 2 active \u00b7 1 inactive \u00b7 1 registration unknown \u00b7 heartbeat 1 healthy / 1 stale / 1 unknown or unverified \u00b7 all records observed"
+  }
+}

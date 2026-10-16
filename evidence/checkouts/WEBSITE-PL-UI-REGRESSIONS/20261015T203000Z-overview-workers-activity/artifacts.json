@@ -1,0 +1,67 @@
+{
+  "artifacts": {
+    "activity-pagination.png": {
+      "path": "activity-pagination.png",
+      "revision": "1.0.0",
+      "sha256": "d1ad9cdeade9576c46763570bfc011c18c24fbbd9e98085157e087066f64c77e",
+      "size_bytes": 184956
+    },
+    "attempts.md": {
+      "path": "attempts.md",
+      "revision": "1.0.0",
+      "sha256": "d67846e4296198cc51f134eed83bb8b672c6043f5d80cc02df86def52eb39090",
+      "size_bytes": 1281
+    },
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "58f6c2e92fb50bdb0027ac56587bc8f95557dfffb282a0dd87587cd196cc2732",
+      "size_bytes": 6100
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "188709f923d5723083e7a0ece177086e205a62ab58594dfe9ee4ffd445749684",
+      "size_bytes": 1830
+    },
+    "diff-check.txt": {
+      "path": "diff-check.txt",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "focused-tests.txt": {
+      "path": "focused-tests.txt",
+      "revision": "1.0.0",
+      "sha256": "1f03daf91071e03ce56a9009bd7b97698bdc91b987afac5cdb2e530a6e1c51d5",
+      "size_bytes": 872
+    },
+    "graph-validation.json": {
+      "path": "graph-validation.json",
+      "revision": "1.0.0",
+      "sha256": "c8fe4ecbd6090563b73cd1b980d59e216e7add35e3a66f0bb7291628a174fb00",
+      "size_bytes": 55
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "4e98d1283cab8456a153a74115c182fd173bfb29b79b5eeffc1a124086b3e3f2",
+      "size_bytes": 297
+    },
+    "worker-inventory.png": {
+      "path": "worker-inventory.png",
+      "revision": "1.0.0",
+      "sha256": "3144a805b5d522410ce9e334dc0148d5c41947a27a594a9e019a537feecf4cc4",
+      "size_bytes": 133569
+    }
+  },
+  "manifest_revision": "1.0.3",
+  "tested_source_files": {
+    "scripts/verify_assignment_graph_linkage_browser.py": "355dfbacbd9423db09a49e69b49e0ea7c0682c124eb1b788397f93e8c3a6c567",
+    "scripts/verify_worker_inventory_browser.py": "827e02e1b9fc0217f15fe809baf54f849bcfad0036b445458d48a7d331d2ebb4",
+    "src/riverview_core/status_dashboard/static/app.css": "d298a7719ab1a30955218e7df6a5c775c043ee8e2051902476566b547f59c1b5",
+    "src/riverview_core/status_dashboard/static/app.js": "ff1af38d8bbebeb76bacb471f871e0ed8e97bca749477143c6cc2361e2910b63",
+    "src/riverview_core/status_dashboard/static/index.html": "5b10fa144fd44714b83d3c830b1b5744364d293ceca0e5778a3eebd0f9c46032",
+    "tests/test_status_dashboard.py": "bd433381f891abb9fc49e828198ab53a2a9eb2e44d15cd6680142cb025ad2555"
+  }
+}
