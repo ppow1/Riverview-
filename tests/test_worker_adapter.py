@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.1.0
+# Revision: 1.2.0
 # Purpose: Verify scoped deterministic and structured worker artifacts
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
@@ -21,6 +21,7 @@
 # Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-VERIFICATION-DIAGNOSIS | Attach verifier criterion details to the repository artifact check
 # Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-VERIFICATION-DIAGNOSIS | Target repository-task verifier assertion for criteria output
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Verify audited recovery of a reproduced legacy pre-execution failure without mislabeling uncertain work
+# Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Verify a later durable pre-launch failure requeues once within retry ceiling
 # Contracts: docs/development/M2.3-001_REVISION_RECORD.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -463,7 +464,7 @@ class WorkerAdapterTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="rv-codex-recovery-") as directory:
             artifact_root = Path(directory) / "artifacts"
             artifact_root.mkdir(mode=0o700)
-            recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema)
+            recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema, max_retries=3)
             try:
                 result = recovery.reconcile_confirmed_codex_preexecution_failures(
                     repository_revision="c" * 40, artifact_root=artifact_root,
@@ -474,6 +475,44 @@ class WorkerAdapterTests(unittest.TestCase):
                 self.assertEqual(recovery.reconcile_confirmed_codex_preexecution_failures(
                     repository_revision="c" * 40, artifact_root=artifact_root,
                     legacy_git_refusal_verified=True), [])
+                resumed = self.worker.claim_next(worker_id, credential,
+                    assignment_id=assignment_id, lease_seconds=30,
+                    capability="engineering.codex-cli-artifact.v1")
+                self.assertEqual(resumed["assignment"]["id"], assignment_id)
+                second_generation = resumed["lease"]["generation"]
+                self.worker.start_assignment(assignment_id, worker_id, credential,
+                    second_generation, capability="engineering.codex-cli-artifact.v1")
+                second_intent = self.worker.begin_execution_intent(
+                    assignment_id, worker_id, credential, second_generation,
+                    f"continuous:{assignment_id}:{second_generation}",
+                    effect_class="external_uncertain",
+                    capability="engineering.codex-cli-artifact.v1")
+                self.worker.mark_execution_intent(second_intent, "failed",
+                                                  failure_class="CodexActionFailure")
+                self.worker.scheduler.transition_with_lease(assignment_id, "blocked",
+                    "WORKER_PRE_EXECUTION_FAILED",
+                    f"fixture-preexecution:{assignment_id}:{second_generation}",
+                    worker_id, second_generation)
+                self.admin.execute("""UPDATE assignment_leases
+                    SET acquired_at=clock_timestamp()-interval '2 seconds',
+                        expires_at=clock_timestamp()-interval '1 second'
+                    WHERE assignment_id=%s""", (assignment_id,))
+                recovered_preexecution = recovery.reconcile_confirmed_codex_preexecution_failures(
+                    repository_revision="c" * 40, artifact_root=artifact_root,
+                    legacy_git_refusal_verified=True)
+                self.assertEqual(recovered_preexecution, [{
+                    "assignment_id": assignment_id, "intent_id": str(second_intent),
+                    "lease_generation": second_generation,
+                    "decision": "retry_safe", "resulting_state": "ready"}])
+                self.assertEqual(recovery.reconcile_confirmed_codex_preexecution_failures(
+                    repository_revision="c" * 40, artifact_root=artifact_root,
+                    legacy_git_refusal_verified=True), [])
+                last_evidence = self.admin.execute("""SELECT payload->'recovery_evidence'
+                    FROM events WHERE assignment_id=%s ORDER BY seq DESC LIMIT 1""",
+                    (assignment_id,)).fetchone()[0]
+                self.assertEqual(last_evidence["proof"],
+                    "durable_worker_preexecution_failure_before_cli_launch")
+                self.assertEqual(last_evidence["execution_process_started"], False)
             finally:
                 recovery.close()
         ready = self.ledger.get(assignment_id)
@@ -487,7 +526,7 @@ class WorkerAdapterTests(unittest.TestCase):
         self.assertEqual(intent[0], "retry_scheduled")
         recorded = self.admin.execute("SELECT count(*) FROM worker_recovery_records WHERE assignment_id=%s",
                                       (assignment_id,)).fetchone()[0]
-        self.assertEqual(recorded, 1)
+        self.assertEqual(recorded, 2)
         event = self.admin.execute("""SELECT payload->'recovery_evidence'
             FROM events WHERE assignment_id=%s ORDER BY seq DESC LIMIT 1""",
             (assignment_id,)).fetchone()[0]
@@ -498,11 +537,7 @@ class WorkerAdapterTests(unittest.TestCase):
             FROM events WHERE assignment_id=%s ORDER BY seq DESC LIMIT 1""",
             (assignment_id,)).fetchone()[0]
         self.assertEqual(transition, "rv:postgres-ledger:assignment-lifecycle:ready")
-        resumed = self.worker.claim_next(worker_id, credential,
-            assignment_id=assignment_id, lease_seconds=30,
-            capability="engineering.codex-cli-artifact.v1")
-        self.assertEqual(resumed["assignment"]["id"], assignment_id)
-        self.assertGreater(resumed["lease"]["generation"], generation)
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "ready")
 
     def test_preexecution_codex_failure_is_not_misreported_as_unknown(self):
         from riverview_core.worker_adapter import ContinuousWorker

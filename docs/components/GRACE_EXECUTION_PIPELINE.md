@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.5
+File Revision: 1.1.6
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
 Authority: Engineering contract; not evidence of production Grace commissioning
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Link persistent reconciliation and authenticated dashboard handoff
@@ -20,6 +20,7 @@ Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-CONTEXT-001 | Include the exact res
 Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Bound 80B proposal inference to a shared 60-second request deadline
 Changed: 2026-10-15 UTC | RV-GRACE-AUTHORIZED-SNAPSHOT-001 | Revalidate resident authority through the restricted office-state capability
 Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Separate verified knowledge-source provenance from the pinned Codex checkout revision and recover confirmed no-launch failures
+Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Keep immutable objective evidence provenance distinct from current grounding and recover bounded durable no-launch failures
 -->
 # Grace Execution Pipeline — infrastructure slice
 
@@ -184,11 +185,16 @@ verify adapter contracts but are not evidence of a live artifact.
 
 Pre-execution failures explicitly distinguish whether the Codex process
 started. A failure proven to precede process launch is persisted as failed and
-blocked, not `ACTION_OUTCOME_UNKNOWN`. Startup recovery requeues a legacy
-root-owned Git refusal only when the assignment also has an expired lease,
-verified persisted objective provenance, a mismatched legacy source/repository
-pin, no worker attempt or verifier record, and no assignment-bound artifact.
-Normal claim-time authorization still revalidates the exact `assignment.execute`
-grant before any retried action.
+blocked, not `ACTION_OUTCOME_UNKNOWN`. Objective source revision and digest are
+validated against that objective's immutable verified evidence; the current
+worker-contract grounding revision and digest are a separate provenance pair
+and may be newer after a release upgrade. Startup recovery may resume either a
+legacy outcome-unknown intent after reproducing the root-owned Git refusal or a
+durable `WORKER_PRE_EXECUTION_FAILED` intent when all checks prove no effect:
+expired lease, verified objective, source/repository pin distinction, no worker
+attempt, no verifier record, no assignment-bound artifact, and remaining
+configured retry budget. The recovery event records the proof and graph node.
+Normal claim-time authorization still revalidates the exact
+`assignment.execute` grant before any retried action.
 
 The generated workflow below is a projection of process_graphs/grace/operational-integration.json. Regenerate with python3 scripts/process_graph.py generate; verify with python3 scripts/process_graph.py check.

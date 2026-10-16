@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.0
+# Revision: 1.2.0
 # Purpose: Adapt bounded Codex production and independent Markdown verification to CME
 # Execution Model: Existing leased worker action and independent verifier contract
 # Observability: Persisted artifact location, digest, criteria and verifier evidence
@@ -10,6 +10,7 @@
 # Authority: Requires registered engineering.codex-cli-artifact.v1 worker and assignment.execute
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Initial persistent worker/verifier adapters
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Separate evidence provenance from the Codex repository pin and retain process-start status
+# Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Validate objective evidence against its immutable provenance, independently of current grounding revision
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_codex_workflow.py
 # History: Git
@@ -23,6 +24,7 @@ import os
 from pathlib import Path
 import re
 import stat
+from collections.abc import Mapping
 
 from ..worker_adapter.knowledge import KnowledgeStatus
 from ..worker_adapter.verifier import VerificationResult, VerificationStatus
@@ -67,10 +69,13 @@ class CodexWorkAction:
             raise CodexActionFailure("verified_regrounding_required")
         objective_id = assignment.get("objective_ref")
         objective = self.pipeline.get_objective(objective_id)
+        evidence = objective.get("evidence") if isinstance(objective, Mapping) else None
         if (not objective or objective["status"] != "WORK_ORDER_CREATED" or
                 objective["assignment_id"] != assignment.get("id") or
-                objective["source_revision"] != grounded.source_revision or
-                objective["evidence"].get("status") != KnowledgeStatus.VERIFIED.value or
+                not isinstance(evidence, Mapping) or
+                evidence.get("status") != KnowledgeStatus.VERIFIED.value or
+                objective.get("source_revision") != evidence.get("source_revision") or
+                objective.get("source_sha256") != evidence.get("source_sha256") or
                 not objective.get("proposal")):
             raise CodexActionFailure("persisted_work_order_provenance_required")
         step = objective["proposal"]["steps"][0]

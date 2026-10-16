@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.0
+File Revision: 1.1.1
 Purpose: Diagnose and safely resume the persistent Grace execution service
 Authority: Read-only diagnosis first; exact grants required for every mutation
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Add service operations and recovery procedures
@@ -16,6 +16,7 @@ Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RECOVERY-001 | Diagnose durable obj
 Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Reuse recorded criteria on same-origin retry and distinguish source identity conflicts
 Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-REGROUND-001 | Diagnose and resume verified evidence retries from WAITING_FOR_EVIDENCE
 Changed: 2026-10-15 UTC | RV-GRACE-GROUNDING-BOUNDED-001 | Diagnose evidence overflow from broad queries and describe ranked bounded retrieval
+Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Diagnose immutable objective versus current grounding revision mismatch and bounded no-launch recovery
 -->
 # Grace Execution Service — Troubleshooting and Recovery
 
@@ -49,6 +50,7 @@ Expected: `ActiveState=active`, `SubState=running`, a recent `last_heartbeat_at`
 | Dashboard says Grace unavailable/stale | Check `/api/v1/status`, dashboard journal, migration presence and heartbeat age. | Restore dashboard/database connectivity; do not infer health from systemd active state alone. | Confirm the service instance, fresh heartbeat, objective detail, artifact digest and verification decision. |
 | Process restart during work | Inspect the latest lease generation, execution intent, attempt/result and recovery record. | Start the supervised service; it reads PostgreSQL and CME reconciles expired leases. Do not replay a completion manually. | A preserved result proceeds to verification; a safe action may be requeued; uncertain effects stay blocked for Steward. |
 | Codex capability reports unavailable before assignment | Check sanitized `codex_sandbox_unavailable`; run the bwrap probe and inspect the loaded per-executable AppArmor policy without changing the global namespace restriction. | Keep the objective durable and un-dispatched. Do not select a danger-full-access mode. The authorized `/usr/bin/bwrap` profile trial passed; direct `unshare` remains restricted by design. | Repeat `bwrap --ro-bind / / --proc /proc --dev /dev /bin/true` from the owner-session context. If it fails, preserve the request and follow the sandbox rollback record in the commissioning guide. |
+| Existing objective is rejected during Codex work-order provenance checks after a release update | Compare the objective row's immutable `source_revision` and `source_sha256` with the same fields in its verified evidence; compare current grounding metadata separately. Do not compare the objective source pin to the current worker-contract release. | Correct the provenance comparison in the Codex action. The objective's original evidence stays unchanged; current contract grounding may legitimately come from a later integrated release. | If a no-launch intent is durably marked failed and the assignment is blocked at `WORKER_PRE_EXECUTION_FAILED`, let the bounded startup recovery run only after its lease expires and it proves no attempt, verifier record, or artifact exists. Normal exact-grant claim validation still applies. |
 
 ## One-objective supervised Codex run
 

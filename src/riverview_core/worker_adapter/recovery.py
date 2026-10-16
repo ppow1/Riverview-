@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/recovery.py
 # Component: WORKER-ADAPTER
-# Revision: 1.1.0
+# Revision: 1.2.0
 # Purpose: Reconcile expired worker leases without losing or blindly repeating work
 # Execution Model: Explicit PostgreSQL recovery pass at worker startup or polling
 # Observability: Recovery records and causal assignment transition events
@@ -10,6 +10,7 @@
 # Authority: Recovery only; unknown external outcomes wait for Steward decision
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Enforce optional persistent retry ceilings
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Reconcile only legacy Git ownership failures proven to precede Codex launch and all durable effects
+# Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Resume bounded, durable no-launch failures after correcting provenance validation
 # Contracts: docs/ROADMAP.md; docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -153,14 +154,16 @@ class PostgresRecoveryCoordinator:
     def reconcile_confirmed_codex_preexecution_failures(
             self, *, repository_revision, artifact_root, legacy_git_refusal_verified,
             limit=10):
-        """Requeue only legacy Codex failures proven to precede all durable effects.
+        """Requeue only Codex failures proven to precede all durable effects.
 
         The caller must have reproduced Git's protected-configuration ownership
         refusal for the configured root-owned repository. Within one transaction
-        this method also requires an awaiting-steward action failure, a mismatched
-        legacy source/repository pin, a very short execution-intent duration, an
-        expired lease, verified objective provenance, no attempts or verification,
-        and no assignment-bound artifact. Normal claim-time exact grants remain
+        this method requires either the predecessor outcome-unknown record or a
+        worker-recorded failure before process launch, a mismatched immutable
+        objective/repository provenance pair, a very short execution-intent
+        duration, an expired lease, verified objective provenance, no attempts or
+        verification, and no assignment-bound artifact. Recovery is bounded by
+        the configured retry ceiling. Normal claim-time exact grants remain
         mandatory before any resumed action can execute.
         """
         if (legacy_git_refusal_verified is not True or
@@ -193,12 +196,15 @@ class PostgresRecoveryCoordinator:
                         AND i.lease_generation=l.generation
                     JOIN grace_objectives o ON o.assignment_id=a.id
                         AND o.objective_id=a.objective_ref
-                    WHERE a.state='awaiting_steward'
-                      AND a.workflow_step='ACTION_OUTCOME_UNKNOWN'
+                    WHERE ((a.state='awaiting_steward'
+                            AND a.workflow_step='ACTION_OUTCOME_UNKNOWN'
+                            AND i.status='outcome_unknown')
+                        OR (a.state='blocked'
+                            AND a.workflow_step='WORKER_PRE_EXECUTION_FAILED'
+                            AND i.status='failed'))
                       AND l.expires_at<=clock_timestamp()
                       AND i.capability='engineering.codex-cli-artifact.v1'
                       AND i.effect_class='external_uncertain'
-                      AND i.status='outcome_unknown'
                       AND i.failure_class='CodexActionFailure'
                       AND i.finished_at-i.started_at<=interval '2 seconds'
                       AND o.status='WORK_ORDER_CREATED'
@@ -213,6 +219,12 @@ class PostgresRecoveryCoordinator:
                 for candidate in candidates:
                     assignment_id = candidate["id"]
                     generation = candidate["generation"]
+                    if self.max_retries is not None:
+                        cur.execute("SELECT count(*) AS n FROM worker_recovery_records "
+                                    "WHERE assignment_id=%s AND decision='retry_safe'",
+                                    (assignment_id,))
+                        if int(cur.fetchone()["n"]) >= self.max_retries:
+                            continue
                     artifact_name = "codex-" + hashlib.sha256(
                         assignment_id.encode("utf-8")).hexdigest() + ".md"
                     artifact = root / artifact_name
@@ -234,18 +246,21 @@ class PostgresRecoveryCoordinator:
                     cur.execute("""INSERT INTO worker_recovery_records
                         (assignment_id,lease_generation,intent_id,attempt_id,decision,
                          previous_state,resulting_state,observed_expiry)
-                        VALUES (%s,%s,%s,NULL,'retry_safe','awaiting_steward','ready',%s)""",
+                        VALUES (%s,%s,%s,NULL,'retry_safe',%s,'ready',%s)""",
                         (assignment_id, generation, candidate["intent_id"],
-                         candidate["expires_at"]))
+                         candidate["state"], candidate["expires_at"]))
                     cur.execute("""UPDATE worker_execution_intents
                         SET status='retry_scheduled',finished_at=clock_timestamp()
                         WHERE intent_id=%s AND assignment_id=%s
-                          AND lease_generation=%s AND status='outcome_unknown'""",
-                        (candidate["intent_id"], assignment_id, generation))
+                          AND lease_generation=%s AND status=%s""",
+                        (candidate["intent_id"], assignment_id, generation,
+                         candidate["intent_status"]))
                     if cur.rowcount != 1:
                         raise RuntimeError("Codex recovery intent changed during reconciliation")
                     evidence = {
-                        "proof": "legacy_git_safe_directory_refusal_before_cli_launch",
+                        "proof": ("legacy_git_safe_directory_refusal_before_cli_launch"
+                                  if candidate["intent_status"] == "outcome_unknown" else
+                                  "durable_worker_preexecution_failure_before_cli_launch"),
                         "legacy_failure_class": candidate["failure_class"],
                         "execution_process_started": False,
                         "assignment_attempt_absent": True,
