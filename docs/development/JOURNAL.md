@@ -1,9 +1,10 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.153
+**Document Revision:** 1.0.154
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record offline diagnostic snapshot source, verification evidence and production boundary
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PR67-SNAPSHOT-CSP-FIX | Record controlled f957 release, verified migration and live service, partial diagnostic export, and isolated CSP correction evidence
 **Changed:** 2026-10-16 UTC | RV-PROPOSAL-AUTHORING-GUIDANCE | Link the AI startup hints to a concise proposal authoring playbook
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record PR #65 integration reconciliation, full-inventory browser fixture package results, proposal readiness, and Windows CA findings
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record final exact-graph-set ZIP integrity and synthetic page-shell versus live-dashboard acceptance boundary
@@ -2250,6 +2251,35 @@ passed 37/37; 8 PostgreSQL-dependent tests were skipped. Evidence:
 The API/session values and release identifiers are synthetic; Camrui was not
 accessed and production account/session acceptance remains unverified.
 
+
+## 2026-10-16 UTC — RV-WEBSITE-PR67-SNAPSHOT-CSP-FIX
+
+Installed the Steward-authorized f957 integration release after validating and
+restoring the protected database backup into a disposable database. Applied
+checksum-matched migration 0010 and verified its production ledger row, five
+registry tables, scoped grants, zero proposal rows, unchanged existing
+assignments/objectives, and service continuity. The immutable release is active;
+the PR #42 release and rollback evidence remain intact. Strict HTTPS and the
+authenticated read-only dashboard projection are healthy. Live Firefox verified
+the existing completed objective/assignment projections, attention, CME,
+workflow rendering/navigation, and documentation links without browser errors.
+Steward account-cookie APIs, proposal reads, SSE/reconnect, and mutating objective
+intake were not tested without a legitimate existing account/conversation
+session.
+
+The production one-button snapshot generated a CRC-valid ZIP with all canonical
+workflow JSON, SVGs, node/edge identities, and cross-workflow links, but its
+manifest correctly reported incomplete page and PNG capture. Evidence isolated
+the PNG failure to the page CSP (`img-src 'self' data:`) rejecting the collector's
+Blob URL; a captured restricted-page outcome also lacked its expected omissions
+array. PL-NEW-043 records these corrections. The collector now uses the already
+allowed data image scheme and normalizes inaccessible page outcomes. The actual
+dashboard browser harness was updated to run under the production CSP; Firefox
+verified all 10 pages, 55 controls, 20 workflows (494 nodes / 656 edges), valid
+page/workflow PNGs, complete manifest hashes, viewport-independent workflow
+visuals, and zero browser errors. This isolated API-fixture pass does not claim
+the code correction is deployed. Sanitized release and regression evidence is
+under `evidence/checkouts/WEBSITE-PR67-SNAPSHOT-CSP/20261016T211638Z/`.
 
 ## 2026-10-16 UTC — RV-PROPOSAL-AUTHORING-GUIDANCE
 

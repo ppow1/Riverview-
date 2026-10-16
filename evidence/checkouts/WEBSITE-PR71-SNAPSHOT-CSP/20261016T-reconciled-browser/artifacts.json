@@ -1,0 +1,30 @@
+{
+  "artifacts": {
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "86f5902a085f91088b5f5e42ce3e24ac166b6b2e27130d88a2272dfbcf92caae",
+      "size_bytes": 25272
+    },
+    "riverview-diagnostic-2026-10-16T21-55-13.747Z.zip.sha256": {
+      "path": "riverview-diagnostic-2026-10-16T21-55-13.747Z.zip.sha256",
+      "revision": "1.0.0",
+      "sha256": "05f93420c1d283e5acb3221a31b04acad1b0accf55f1ea3487af67000b7912fc",
+      "size_bytes": 116
+    },
+    "snapshot.zip.sha256": {
+      "path": "snapshot.zip.sha256",
+      "revision": "1.0.0",
+      "sha256": "05f93420c1d283e5acb3221a31b04acad1b0accf55f1ea3487af67000b7912fc",
+      "size_bytes": 116
+    },
+    "viewport-2.zip.sha256": {
+      "path": "viewport-2.zip.sha256",
+      "revision": "1.0.0",
+      "sha256": "54a7fbbd0d0baf92bf1d21ea8e03a9158951116d7a8f7c20fb359a11b39337ee",
+      "size_bytes": 81
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "schema_version": "rv.evidence.artifacts.v1"
+}

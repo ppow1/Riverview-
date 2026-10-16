@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/verify_diagnostic_snapshot_browser.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.1.0
+# Revision: 1.1.1
 # Purpose: Verify one-click offline diagnostic ZIP in isolated Firefox with synthetic read-only APIs
 # Execution Model: Request-driven isolated fixture; owns only a temporary HTTP server and geckodriver
 # Observability: Sanitized JSON report and downloaded ZIP; no real account or production data
@@ -12,6 +12,7 @@
 # Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Verify safe request-field allowlisting and unresolved-reference reporting.
 # Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Require sanitized browser navigation timing in the offline archive
 # Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Exercise the actual repository dashboard DOM with synthetic read-only API fixtures.
+# Changed: 2026-10-16 UTC | RV-WEBSITE-PR67-SNAPSHOT-CSP-FIX | Exercise the actual-dashboard fixture under the production image-source CSP.
 # Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Match the dashboard API contracts and isolate expected unauthenticated checks from authenticated browser diagnostics.
 # Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Require complete real-dashboard page capture and readable long-page tiles.
 # Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Allow the bounded full export time for the second-viewport comparison too.
@@ -190,6 +191,11 @@ def main() -> int:
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
+            if args.actual_dashboard_fixture:
+                self.send_header("Content-Security-Policy",
+                                 "default-src 'none'; script-src 'self'; style-src 'self'; "
+                                 "connect-src 'self'; img-src 'self' data:; base-uri 'none'; "
+                                 "form-action 'self'; frame-ancestors 'none'")
             for key, value in extra:
                 self.send_header(key, value)
             self.end_headers()

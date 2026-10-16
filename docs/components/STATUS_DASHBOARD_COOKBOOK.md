@@ -1,7 +1,7 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.25
+File Revision: 1.1.26
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
@@ -33,6 +33,7 @@ Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Document privacy-filtered do
 Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Distinguish synthetic full-inventory fixture verification from actual-dashboard acceptance
 Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record read-only Camrui release, proposal registry, and strict TLS status evidence
 Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Link final exact-source browser export and offline integrity report
+Changed: 2026-10-16 UTC | RV-WEBSITE-PR67-SNAPSHOT-CSP-FIX | Record f957 production installation, migration evidence, partial live acceptance and the CSP rasterization correction.
 Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record real-dashboard DOM verification and complete responsive long-page tile captures
 History: Git and revision/backup manifest
 -->
@@ -172,6 +173,14 @@ and [`archive inspection`](../../evidence/checkouts/WEBSITE-SNAPSHOT-041/2026101
 These fixture-only API and session responses are not evidence of authenticated
 production acceptance or a deployed PR #67 release. The Camrui readiness facts are
 in `evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final4/production-readiness.json`.
+
+If a deployed snapshot manifest reports `Invalid image request` for every PNG,
+check the dashboard's `img-src` Content Security Policy before changing the
+policy. The collector should rasterize SVG through the already allowed `data:`
+image scheme; do not add a broad image source to bypass a renderer mismatch.
+Registered pages unavailable to the current session must be reported with their
+access status and omission reason, not converted into generic JavaScript capture
+failures. PL-NEW-043 tracks this production acceptance correction.
 
 To inspect an export offline, unzip it and open `website/pages/<page-id>.html` in
 a browser. These pages contain no live dashboard scripts or API links; workflow
@@ -546,6 +555,138 @@ login, authenticated account-cookie graph access, and live SSE/reconnect/deferre
 recovery remain unverified because they require a Steward session or a
 conversation mutation. Evidence and the dashboard-only rollback plan are under
 `evidence/checkouts/WEBSITE-PR42-PRODUCTION/20261016T172206Z-928649b/`.
+
+
+### Integrated PR #67 website release — 2026-10-16
+
+The Steward-authorized release installed integration commit
+`f957bddb5eda39d4fbd5860ee29f7c32831553b7` at
+`/opt/riverview-status-dashboard/releases/f957bddb5eda39d4fbd5860ee29f7c32831553b7`.
+The active deployment ID is
+`website-integrated-f957bddb5eda39d4fbd5860ee29f7c32831553b7`; the immutable
+package SHA-256 is
+`626e0c7e60a28461534d38d1061d488a9e26cebc764872164cdfb4b1cc9243cd`.
+The previous PR #42 release remains at
+`/opt/riverview-status-dashboard/releases/928649bd1ff695fe9a95915647a49943ffe921fe`
+and the `current` link and dashboard identity drop-in are recorded in the
+root-only rollback evidence at
+`/var/backups/riverview-status-dashboard/website-pr67-f957bdd/`.
+
+Before migration, the protected custom database dump
+`/var/lib/postgresql/backups/riverview/website-pr67-20261016T205244Z/riverview.dump`
+was checksummed and listed successfully. It restored into a disposable database;
+the source and restored assignment, event, objective, and conversation-event
+counts matched. Migration `0010_institutional_proposal_registry.sql` matched
+SHA-256
+`3909705a38ec19f31be99088fa7fbfc8dfe9e9c6d28a55095f978d4bf10d4e18` and was
+applied through the committed runner. The production ledger now records that
+checksum; all five registry tables and their scoped grants were verified. The
+proposal table currently has zero records; pre-existing objectives and execution
+records were unchanged. Migration rollback means keeping the additive tables and
+disabling the owning API, not dropping them.
+
+The exact integration source passed controlled CI run `38961577839`, 66 focused
+dashboard/runtime tests (8 PostgreSQL-dependent skips), process graph validation
+(20 graphs / 494 nodes / 656 edges), and the controlled revision audit. The
+dashboard service is active on the immutable release; PostgreSQL, Grace execution
+owner, CME monitor, event processor, assignment intake, M33 worker and verifier
+were active after activation. Strict HTTPS returned HTTP 200 with the host OS
+trusting the installed Riverview certificate. Firefox on the host could not
+validate the LAN CA in its isolated Snap profile, so the browser regression used
+the same live service over loopback HTTP without a TLS bypass.
+
+Live Firefox verified the authenticated read-only dashboard projection, the
+existing completed assignment and its recorded attempt/verifications, the
+existing completed objective, ten attention rows, CME status, workflow graph
+rendering/navigation, and 19 documentation links, with zero browser errors.
+The one live diagnostic ZIP downloaded successfully and passed CRC inspection.
+Its workflow index contains 20 entries with all 494 node and 656 edge records,
+20 JSON definitions, 20 SVGs, 26 resolved cross-workflow references, and zero
+unresolved references. However, its manifest correctly says
+`capture_complete: false`: the browser session could access only 8 of 10 pages,
+and no page or workflow PNGs were produced. The original page outcomes exposed a
+collector error when a restricted navigation returned without an `omissions`
+array; the SVG-to-PNG renderer attempted a Blob URL that the strict dashboard
+CSP blocks. PL-NEW-043 tracks the correction. A focused synthetic-API browser
+regression now runs the actual dashboard assets under the production CSP and
+passes all 10 page PNGs, all workflow PNGs, workflow/node/edge identity, and
+cross-viewport checks; this is not yet production acceptance of that correction.
+Evidence: [`sanitized production acceptance`](../../evidence/checkouts/WEBSITE-PR67-SNAPSHOT-CSP/20261016T211638Z/production-acceptance-summary.json)
+and [`isolated CSP browser report`](../../evidence/checkouts/WEBSITE-PR67-SNAPSHOT-CSP/20261016T211638Z/isolated-browser-acceptance.json).
+
+The proposal registry migration is present, but positive proposal API access is
+not verified: the available dashboard bearer token correctly received 403 on
+the authenticated proposal search route. No proposal, objective or conversation
+was created or changed. Steward account-cookie authentication, proposal reads,
+Grace conversation cookie/session handling, SSE/reconnect/deferred recovery and
+mutating objective intake remain unverified. The current healthy f957 release
+has not been rolled back. The source correction must pass controlled review and
+release checks before the diagnostic snapshot is called complete in production.
+
+
+### Integrated PR #67 website release — 2026-10-16
+
+The Steward-authorized release installed integration commit
+`f957bddb5eda39d4fbd5860ee29f7c32831553b7` at
+`/opt/riverview-status-dashboard/releases/f957bddb5eda39d4fbd5860ee29f7c32831553b7`.
+The active deployment ID is
+`website-integrated-f957bddb5eda39d4fbd5860ee29f7c32831553b7`; the immutable
+package SHA-256 is
+`626e0c7e60a28461534d38d1061d488a9e26cebc764872164cdfb4b1cc9243cd`.
+The previous PR #42 release remains at
+`/opt/riverview-status-dashboard/releases/928649bd1ff695fe9a95915647a49943ffe921fe`
+and the `current` link and dashboard identity drop-in are recorded in the
+root-only rollback evidence at
+`/var/backups/riverview-status-dashboard/website-pr67-f957bdd/`.
+
+Before migration, the protected custom database dump
+`/var/lib/postgresql/backups/riverview/website-pr67-20261016T205244Z/riverview.dump`
+was checksummed and listed successfully. It restored into a disposable database;
+the source and restored assignment, event, objective, and conversation-event
+counts matched. Migration `0010_institutional_proposal_registry.sql` matched
+SHA-256
+`3909705a38ec19f31be99088fa7fbfc8dfe9e9c6d28a55095f978d4bf10d4e18` and was
+applied through the committed runner. The production ledger now records that
+checksum; all five registry tables and their scoped grants were verified. The
+proposal table currently has zero records; pre-existing objectives and execution
+records were unchanged. Migration rollback means keeping the additive tables and
+disabling the owning API, not dropping them.
+
+The exact integration source passed controlled CI run `38961577839`, 66 focused
+dashboard/runtime tests (8 PostgreSQL-dependent skips), process graph validation
+(20 graphs / 494 nodes / 656 edges), and the controlled revision audit. The
+dashboard service is active on the immutable release; PostgreSQL, Grace execution
+owner, CME monitor, event processor, assignment intake, M33 worker and verifier
+were active after activation. Strict HTTPS returned HTTP 200 with the host OS
+trusting the installed Riverview certificate. Firefox on the host could not
+validate the LAN CA in its isolated Snap profile, so the browser regression used
+the same live service over loopback HTTP without a TLS bypass.
+
+Live Firefox verified the authenticated read-only dashboard projection, the
+existing completed assignment and its recorded attempt/verifications, the
+existing completed objective, ten attention rows, CME status, workflow graph
+rendering/navigation, and 19 documentation links, with zero browser errors.
+The one live diagnostic ZIP downloaded successfully and passed CRC inspection.
+Its workflow index contains 20 entries with all 494 node and 656 edge records,
+20 JSON definitions, 20 SVGs, 26 resolved cross-workflow references, and zero
+unresolved references. However, its manifest correctly says
+`capture_complete: false`: the browser session could access only 8 of 10 pages,
+and no page or workflow PNGs were produced. The original page outcomes exposed a
+collector error when a restricted navigation returned without an `omissions`
+array; the SVG-to-PNG renderer attempted a Blob URL that the strict dashboard
+CSP blocks. PL-NEW-043 tracks the correction. A focused synthetic-API browser
+regression now runs the actual dashboard assets under the production CSP and
+passes all 10 page PNGs, all workflow PNGs, workflow/node/edge identity, and
+cross-viewport checks; this is not yet production acceptance of that correction.
+
+The proposal registry migration is present, but positive proposal API access is
+not verified: the available dashboard bearer token correctly received 403 on
+the authenticated proposal search route. No proposal, objective or conversation
+was created or changed. Steward account-cookie authentication, proposal reads,
+Grace conversation cookie/session handling, SSE/reconnect/deferred recovery and
+mutating objective intake remain unverified. The current healthy f957 release
+has not been rolled back. The source correction must pass controlled review and
+release checks before the diagnostic snapshot is called complete in production.
 
 
 ## Documentation tab and return navigation (PL-NEW-016)
