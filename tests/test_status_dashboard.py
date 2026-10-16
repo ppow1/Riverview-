@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.49
+# Revision: 1.0.50
+# Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Assert UI distinguishes lease heartbeat status from worker process liveness.
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -110,6 +111,14 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn('target="rv-dashboard-documentation"', app)
         self.assertIn('target="rv-dashboard-documentation"', html)
         self.assertIn('target="rv-dashboard-main"', rendered)
+
+    def test_worker_inventory_labels_lease_activity_without_claiming_process_liveness(self):
+        app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
+        html = (ROOT / "src/riverview_core/status_dashboard/static/index.html").read_text(encoding="utf-8")
+        self.assertIn("lease heartbeat", app)
+        self.assertIn("process liveness not reported", app)
+        self.assertIn("an idle worker may have no lease heartbeat", html)
+        self.assertIn("Process state is not reported by this view", html)
 
     def test_grace_execution_and_chat_readiness_are_distinct_and_explained(self):
         html = (ROOT / "src/riverview_core/status_dashboard/static/index.html").read_text(encoding="utf-8")
@@ -239,10 +248,13 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn('w.active === true ? "Registered · active"', app)
         self.assertIn('w.active === false ? "Registered · inactive"', app)
         self.assertIn('const health = w.status === "inactive" ? "Registry inactive"', app)
-        self.assertIn("registered · ${counts.active} active · ${counts.inactive} inactive", app)
+        self.assertIn("registered · ${counts.active} active in registry · ${counts.inactive} inactive", app)
+        self.assertIn("lease heartbeat", app)
+        self.assertIn("process liveness not reported", app)
         self.assertIn("counts.heartbeat.healthy", app)
         self.assertIn("more records available", app)
         self.assertIn('id="worker-inventory-summary"', html)
+        self.assertIn("an idle worker may have no lease heartbeat", html)
         self.assertIn("Counts cover loaded 25-record pages", html)
         self.assertIn(".worker-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)", css)
 

@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.6
+File Revision: 1.1.7
 Purpose: Specify operational projections and exact-grant Grace objective and conversation interfaces
 Authority: Reads require dashboard authentication; objective and resident conversation operations require exact institutional grants
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
+Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Clarify lease-health semantics and unobserved worker process state
 Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-CURRENT-DOCS-RELEASE | Define accurate code/deployment provenance for composite docs release
 Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-PROVENANCE-SECTION-ORDER | Place deployment provenance separately from the API route contract
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Add governed objective intake and result projections
@@ -123,7 +124,7 @@ code commit and assign a new, unique `RIVERVIEW_DEPLOYMENT_ID`. Do not report a
 docs/graph commit as the dashboard code revision or reuse an existing release
 directory for changed bytes.
 
-The status response schema identifier is `rv.dashboard.status.v1`; it includes Grace execution heartbeat and freshness when the runtime migration is installed. The summary counts healthy, stale, unknown and future-dated unverified active workers. `GET /api/v1/workers` pages individual identities; each status uses the latest recorded assignment-lease heartbeat. No heartbeat is unknown, not healthy. The overview shows worker IDs, health and lease counts. List/detail
+The status response schema identifier is `rv.dashboard.status.v1`; it includes Grace execution heartbeat and freshness when the runtime migration is installed. The worker summary counts active registry rows with recent, stale, absent, or future-dated assignment-lease heartbeats. `GET /api/v1/workers` pages individual identities; each status uses the latest recorded assignment-lease heartbeat. These fields describe lease activity only; they do not establish whether a worker process is running, idle, disconnected, blocked, or failed. A worker polling while idle may have no assignment lease and therefore an unknown lease heartbeat. Process liveness is unavailable from this projection. The overview labels lease health and lease counts explicitly. List/detail
 responses carry `status`, bounded `items`, and pagination state. Database
 unavailability returns a status projection whose `projection_status` is
 `unavailable`; HTTP query failures return 503. A reachable PostgreSQL instance

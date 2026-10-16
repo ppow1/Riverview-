@@ -1,6 +1,7 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
 // Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record bounded same-origin request and SSE response metadata without bodies or auth headers.
-// Revision: 1.4.18
+// Revision: 1.4.19
+// Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Label assignment-lease freshness separately from worker process liveness.
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
 // Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Use linked Steward account session for exact-grant Grace connection
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password login, grant decisions and email configuration UI
@@ -118,7 +119,7 @@
       ["Assignments", String(s.assignments_total ?? "—"), assignments],
       ["Event cursor", s.event_cursor ?? "—", "Institution events only"],
       ["CME monitor", human(s.cme?.status), s.cme?.heartbeat_age_seconds == null ? "Heartbeat not observed" : `${s.cme.heartbeat_age_seconds}s since heartbeat`],
-      ["Workers", human(s.workers?.status), `${s.workers?.healthy_workers ?? 0} healthy · ${s.workers?.stale_workers ?? 0} stale · ${s.workers?.unknown_workers ?? 0} unknown`],
+      ["Worker lease heartbeat", human(s.workers?.status), `${s.workers?.healthy_workers ?? 0} recent · ${s.workers?.stale_workers ?? 0} stale · ${s.workers?.unknown_workers ?? 0} unknown`],
       ["Grace execution", human(s.grace_execution?.status), s.grace_execution?.heartbeat_age_seconds == null ? "No heartbeat observed" : `${s.grace_execution.heartbeat_age_seconds}s since heartbeat · ${s.grace_execution.cycles_completed} cycles`]
     ].map(([label,value,sub]) => `<article class="metric"><div class="metric-label">${esc(label)}</div><div class="metric-value ${stateClass(value)}">${esc(value)}</div><div class="metric-sub">${esc(sub)}</div></article>`).join("");
     const cme = s.cme || {};
@@ -203,11 +204,11 @@
       if (Object.hasOwn(counts.heartbeat, worker.status)) counts.heartbeat[worker.status] += 1;
     });
     $("worker-inventory-summary").textContent = state.workers.length ?
-      `Loaded pages: ${state.workers.length} registered · ${counts.active} active · ${counts.inactive} inactive · ${counts.registration_unknown} registration unknown · heartbeat ${counts.heartbeat.healthy} healthy / ${counts.heartbeat.stale} stale / ${counts.heartbeat.unknown + counts.heartbeat.unverified} unknown or unverified${state.workerCursor ? " · more records available" : " · all records observed"}` : "No worker records observed.";
+      `Loaded pages: ${state.workers.length} registered · ${counts.active} active in registry · ${counts.inactive} inactive · ${counts.registration_unknown} registration unknown · lease heartbeat ${counts.heartbeat.healthy} recent / ${counts.heartbeat.stale} stale / ${counts.heartbeat.unknown + counts.heartbeat.unverified} unknown or future-dated${state.workerCursor ? " · more records available" : " · all records observed"}` : "No worker records observed.";
     host.innerHTML = state.workers.length ? state.workers.map((w) => {
       const registration = w.active === true ? "Registered · active" : w.active === false ? "Registered · inactive" : "Registration state unknown";
-      const health = w.status === "inactive" ? "Registry inactive" : `Heartbeat ${human(w.status)}`;
-      return `<div class="row worker-row"><div><span class="row-main">${esc(w.worker_id)}</span><div class="row-meta">${registration}</div></div><span class="status-text ${stateClass(w.status)}">${esc(health)}</span><span class="row-meta worker-heartbeat">${esc(w.active_leases)} active leases · heartbeat ${esc(when(w.last_heartbeat_at))}</span></div>`;
+      const health = w.status === "inactive" ? "Registry inactive" : `Lease ${human(w.status)}`;
+      return `<div class="row worker-row"><div><span class="row-main">${esc(w.worker_id)}</span><div class="row-meta">${registration}</div></div><span class="status-text ${stateClass(w.status)}">${esc(health)}</span><span class="row-meta worker-heartbeat">${esc(w.active_leases)} active leases · last lease heartbeat ${esc(when(w.last_heartbeat_at))} · process liveness not reported</span></div>`;
     }).join("") : noData("No worker identities are present in the loaded page.");
     $("worker-page-note").textContent = state.workers.length ? `${state.workers.length} observed in loaded pages · page limit 25` : "";
     $("more-workers").hidden = !state.workerCursor;

@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/verify_worker_inventory_browser.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.17
+# Revision: 1.0.18
 # Purpose: Verify worker registration, heartbeat states and pagination in Firefox
 # Execution Model: Isolated loopback fixture; owns only its HTTP and geckodriver processes
 # Observability: Redacted JSON report and screenshot; synthetic account and assignment data
@@ -16,6 +16,7 @@
 # Changed: 2026-10-15 UTC | RV-WEBSITE-PL003 | Verify assignment titles resolve only from exact canonical graph/node identity
 # Changed: 2026-10-15 UTC | RV-WEBSITE-PL029 | Verify notification rendering, receipt and decision status remain distinct
 # Changed: 2026-10-16 UTC | RV-WEBSITE-PL038 | Verify searchable canonical workflow, provenance, documentation and evidence catalog
+# Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Verify lease-heartbeat labels do not claim worker process liveness.
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: scripts/verify_worker_inventory_browser.py
 # History: Git
@@ -401,8 +402,9 @@ def main():
             "canonical_assignment_title_is_paired_with_stable_ids": "Inspect delivery readiness" in assignment_list_title["title"] and assignment_list_title["id"] == "fixture-linked" and "Inspect delivery readiness" in first["text"] and "rv:test:assignment:inspect" in first["text"],
             "unsafe_diagnostic_not_linked": second["unsafeLinks"] == 0,
             "inactive_registration_visible": "Registered · inactive" in inventory["rows"],
-            "heartbeat_states_distinct": all(value in inventory["rows"].lower() for value in ["heartbeat healthy", "heartbeat stale", "heartbeat unknown"]),
-            "loaded_inventory_counts_reconcile": "4 registered · 2 active · 1 inactive · 1 registration unknown" in inventory["summary"],
+            "lease_heartbeat_states_distinct": all(value in inventory["rows"].lower() for value in ["lease healthy", "lease stale", "lease unknown"]),
+            "process_liveness_not_inferred": inventory["rows"].lower().count("process liveness not reported") == 4,
+            "loaded_inventory_counts_reconcile": "4 registered · 2 active in registry · 1 inactive · 1 registration unknown" in inventory["summary"],
             "pagination_boundary_is_truthful": "more records available" in first_page["summary"] and inventory["pagerHidden"],
             "mobile_worker_row_fits": not mobile["overflow"],
             "overview_health_guidance_present": all(term in guidance for term in ["last observed institution event sequence", "separate heartbeat signals", "separate from chat availability", "browser cache bypass", "source observation time", "required ledger query succeeded", "current state could not be confirmed"]),
@@ -421,7 +423,7 @@ def main():
             "chat_transcript_scrolls_and_last_message_is_visible": chat_layout_mobile["messages"] == 40 and chat_layout_mobile["scrollHeight"] > chat_layout_mobile["clientHeight"] and chat_layout_mobile["scrollTop"] >= chat_layout_mobile["scrollHeight"] - chat_layout_mobile["clientHeight"] - 2 and "fixture response 20" in chat_layout_mobile["lastMessage"] and chat_layout_mobile["lastBottom"] <= chat_layout_mobile["boxBottom"] + 1,
             "mobile_chat_composer_is_visible_without_horizontal_overflow": chat_layout_mobile["composerBottom"] <= chat_layout_mobile["viewportHeight"] + 1 and chat_layout_mobile["documentWidth"] <= chat_layout_mobile["viewportWidth"] and chat_layout_mobile["composerTop"] >= chat_layout_mobile["boxBottom"] - 1,
             "rail_collapses_with_explicit_accessible_state": rail_initial["expanded"] == "true" and rail_initial["names"] and rail_compact["expanded"] == "false" and rail_compact["label"] == "Expand navigation" and rail_compact["navLabelsHidden"],
-            "compact_rail_retains_accessible_health_and_snapshot": rail_compact["health"] == "Source health: healthy" and rail_compact["healthVisible"] and rail_compact["snapshotVisible"] and rail_compact["snapshotLabel"] == "Download bounded diagnostic snapshot",
+            "compact_rail_retains_accessible_health_and_snapshot": rail_compact["health"] == "Source health: healthy" and rail_compact["healthVisible"] and rail_compact["snapshotVisible"] and rail_compact["snapshotLabel"] == "Download comprehensive offline diagnostic snapshot",
             "rail_expands_with_visible_labels": rail_expanded["expanded"] == "true" and rail_expanded["label"] == "Collapse navigation" and rail_expanded["navLabelsVisible"],
             "notification_render_receipt_and_person_seen_are_separate": "Dashboard rendering: confirmed" in notification_lifecycle and "Person seen: not reported by this source" in notification_lifecycle and "Receipt acknowledgment: not recorded" in notification_lifecycle and "Acknowledge receipt" in notification_lifecycle,
             "notification_decision_status_is_separate_from_receipt": "Decision request: fixture-decision-pending · status pending" in notification_lifecycle and "A receipt cannot resolve this request" in notification_lifecycle and "Receipt acknowledgment: recorded" in notification_lifecycle and "attention resolved" in notification_lifecycle and "Decision request: none linked" in notification_lifecycle,
