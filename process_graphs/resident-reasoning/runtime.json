@@ -39,7 +39,8 @@
     "evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T220001Z-b318a2f/checkout.md",
     "tests/test_external_reasoning_mcp.py",
     "tests/test_external_reasoning_exchange.py",
-    "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/checkout.md"
+    "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/checkout.md",
+    "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T230300Z-1359019/checkout.md"
   ],
   "nodes": [
     {
@@ -615,7 +616,8 @@
         "evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T220001Z-b318a2f/checkout.md",
         "tests/test_external_reasoning_mcp.py",
         "tests/test_external_reasoning_exchange.py",
-        "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/checkout.md"
+        "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/checkout.md",
+        "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T230300Z-1359019/checkout.md"
       ]
     },
     {

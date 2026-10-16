@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.191"
+      "revision": "1.1.193"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -20,6 +20,18 @@
       "revision": "1.0.5",
       "sha256": "0b97b787445ce1605fbf719c112df03fc14787448303348e4e59445651c80a16",
       "size_bytes": 12204
+    },
+    "docs/development/JOURNAL.md": {
+      "path": "docs/development/JOURNAL.md",
+      "revision": "1.0.157",
+      "sha256": "c5e197073eaa51f0b15dd9facb46a28e86adcf11442e3e425156adc9db21d48c",
+      "size_bytes": 197293
+    },
+    "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md": {
+      "path": "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md",
+      "revision": "1.0.2",
+      "sha256": "fe9a7aaf2d14e0309a6e221ff751c92bbccf4bb7ba584c12b691f7e6bd2712cf",
+      "size_bytes": 5000
     },
     "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json": {
       "path": "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
@@ -101,9 +113,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.145",
-      "sha256": "d7f4b65c5c3ae3ce4a73a23feb254a2f57e91bc2bf1e37d8530830a3abcd146e",
-      "size_bytes": 576141
+      "revision": "1.0.146",
+      "sha256": "e4e5ec6a18e6b8cd61d2ef2b5b0d937cdecb33805142955054b10ccad2bc7846",
+      "size_bytes": 576321
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -167,9 +179,9 @@
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "path": "process_graphs/resident-reasoning/runtime.json",
-      "revision": "1.0.18",
-      "sha256": "489a7632b483981e30e12a9e2c717f20e21c9cc959ecb9d91c8a4376a8a8f57b",
-      "size_bytes": 49878
+      "revision": "1.0.19",
+      "sha256": "afaf9e5d2bab536d91900f9970dda3f62451d684eb224db0faceb2674b6d22ce",
+      "size_bytes": 50050
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -232,6 +244,6 @@
       "size_bytes": 1226
     }
   },
-  "manifest_revision": "1.1.191",
+  "manifest_revision": "1.1.193",
   "updated_at": null
 }

@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.156
+**Document Revision:** 1.0.157
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Investigate stale/unknown worker projection and distinguish lease activity from process liveness.
@@ -2347,3 +2347,8 @@ workflow graph was unchanged because this fix did not alter workflow semantics.
 ### RV-WORKER-HEALTH-REPORTING-001 — Worker health investigation
 
 Production `/api/v1/workers` and status observations on 2026-10-16 reported five active registry entries: two with stale latest lease heartbeats and three without a lease heartbeat, all with zero active leases. Available assignment data contained historical successful attempts for two entries, no attempts for three, three old ready assignments, and one blocked assignment. This does not establish the current process state of any worker. The status source is explicitly `assignment_leases`; continuous workers poll while idle and only heartbeat a lease while holding work. SSH read-only access to `admin1@192.168.1.155` failed public-key/password authentication, so systemd unit state, journals, and the processor's durable consumer cursor could not be inspected. The event cursor is the newest committed institution event and is not a consumer cursor. The projection was not proven incorrect as a lease-health projection; its overview presentation could imply process health. Corrected dashboard labels/docs and added regression coverage without introducing a new heartbeat subsystem. Production process-state diagnosis and normal-cookie browser acceptance remain blocked on authorized access.
+
+
+## 2026-10-16 UTC — RV-EXTERNAL-MCP-ADAPTER-001 integrated verification
+
+PR #69 was reconciled against the latest integration base `5221da72286aea73bed2fb1ac9aa043a120df2bd` at merge commit `1359019ed377b791ac5b4004a6ca09d735e6797a`. The append-only backup manifest and revision inventory conflicts were resolved by preserving records from both branches. The integrated repository suite passed **501 tests, 0 failures, 0 skips** against a disposable PostgreSQL 16.15 cluster on port 55494 (416.430 seconds). Canonical process graph check passed at 20 graphs / 513 nodes; controlled revision audit passed with zero issues; changed Python compilation and `git diff --check` passed. Independent loopback MCP client and durable PostgreSQL exchange tests passed. Evidence is recorded at `evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T230300Z-1359019/`. PR #69 remains open and unmerged; no production migration, deployment, public route, or ChatGPT configuration occurred. External-network reachability is unverified. Predecessor journal: `.riverview-backups/20261016T230217899962Z/docs/development/JOURNAL.md`.

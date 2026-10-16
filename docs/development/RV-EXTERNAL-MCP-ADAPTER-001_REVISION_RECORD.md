@@ -2,16 +2,21 @@
 Riverview Controlled Document
 File: docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.1
+File Revision: 1.0.2
 Purpose: Record authenticated external reasoning MCP adapter implementation and verification
 Authority: Provider-scoped advisory exchange only; no production migration or deployment
 Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Implement and independently exercise the MCP adapter
 Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Remove trailing-space Markdown hardbreaks
+Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Integrate latest base and rerun full verification
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # RV-EXTERNAL-MCP-ADAPTER-001 — MCP adapter implementation
 
-**Implementation source commit:** `7611210aeb04db0292d03964b6c4b2cb7f473589`
+Revision history: 1.0.2 — 2026-10-16, integrated latest base and reran the full test suite; predecessor `.riverview-backups/20261016T230217737407Z/docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md`.
+
+**Adapter implementation commit:** `7611210aeb04db0292d03964b6c4b2cb7f473589`
+
+**Latest integrated merge commit:** `1359019ed377b791ac5b4004a6ca09d735e6797a` (base `5221da72286aea73bed2fb1ac9aa043a120df2bd`)
 
 **Branch:** `codex/durable-external-reasoning-exchange`
 
@@ -37,13 +42,12 @@ only exchange tables and required narrow ACLs.
 
 ## Integration reconciliation
 
-Before integrating, the current PR base was fetched and its source state
-verified. PR #69 had one integration conflict in the append-only predecessor
-backup manifest. The feature branch was merged with the current integration
-branch and the conflict was resolved by preserving the valid record union.
-Commit `c37c8e17aeaddb29c285fd1c7714a12c56726a89` records that merge. No Git
-history was rewritten. PR #69 remains open; this assignment did not authorize
-merging it.
+The PR base advanced twice during implementation. The first integration is
+`c37c8e17aeaddb29c285fd1c7714a12c56726a89`; the latest fetched base
+`5221da72286aea73bed2fb1ac9aa043a120df2bd` was integrated at
+`1359019ed377b791ac5b4004a6ca09d735e6797a`. Conflicts in the append-only backup
+manifest and revision inventory were resolved by preserving valid records from
+both sides. No history was rewritten. PR #69 remains open and unmerged.
 
 ## Verification
 
@@ -55,7 +59,8 @@ actual list/claim/submit/status tools over HTTP and asserted durable state,
 response digest, and body-free status.
 
 - Focused reasoning/exchange regression suite: **35 passed, 0 failed, 0 skipped**.
-- Full repository unittest discovery: **500 passed, 0 failed, 0 skipped**.
+- Full repository suite before the final base advance: **500 passed, 0 failed, 0 skipped**.
+- Latest integrated tree: **501 passed, 0 failed, 0 skipped** (416.430 seconds).
 - Python compilation: passed for changed implementation, launcher, and tests.
 - Canonical process graphs: **20 graphs / 513 nodes; PASS**.
 - Controlled predecessor revision audit: **PASS, zero issues**.
@@ -63,14 +68,15 @@ response digest, and body-free status.
 
 Test logs, checksums, the exact revision baseline, graph/revision outputs, and
 limitations are recorded in
-[`isolated adapter evidence`](../../evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/checkout.md).
+[Initial adapter evidence](../../evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/checkout.md) and [latest integrated verification](../../evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T230300Z-1359019/checkout.md).
 
 ## Production and external status
 
 Nothing was deployed to Camrui; migration 0011 was not applied; no public Caddy
-route or ChatGPT configuration was changed. The token map is operator-
-provisioned and the adapter does not implement OAuth token issuance or
-introspection/JWT issuer-audience validation. The HTTP tests connect to a
+route or ChatGPT configuration was changed. The latest integration commit is
+source-only and PR #69 still awaits normal review/check completion. The token
+map is operator-provisioned. This adapter does not implement OAuth token
+issuance or introspection/JWT issuer-audience validation. The HTTP tests connect to a
 loopback listener and do not establish public-internet reachability or external
 ChatGPT interoperability.
 
