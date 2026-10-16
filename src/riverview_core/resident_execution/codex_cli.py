@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_cli.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.2
+# Revision: 1.1.3
 # Purpose: Run a bounded Codex CLI assignment in an isolated pinned repository copy
 # Execution Model: One noninteractive sandboxed Codex invocation per durable assignment
 # Observability: Typed result and artifact digest; prompt and CLI output are not logged
@@ -15,6 +15,9 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Use private per-command Git trust for the pinned root-owned checkout and report execution-start boundary
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Accept a committed or uncommitted artifact only when the pinned clone changed deliverable.md alone
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-OWNER-STATE-001 | Use writable service-local CODEX_HOME with a read-only bind of the existing subscription auth file; require the Code Mode host for live CLI execution
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-SYSTEMD-NETLINK-001 | Probe bubblewrap network namespace setup during preflight so systemd AF_NETLINK restrictions fail before dispatch
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-ENABLE-001 | Enable the supported Codex code_mode_host feature when the persistent adapter requires its companion executable
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-ENABLE-001 | Enable code_mode and code_mode_host and expose only the pinned CLI package directory for companion discovery
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; process_graphs/grace/operational-integration.json
 # Tests: tests/test_codex_cli_adapter.py
 # History: Git
@@ -238,8 +241,8 @@ class CodexCLIExecutionAdapter:
         if not executable:
             raise CodexAdapterError("codex_sandbox_unavailable")
         try:
-            result = subprocess.run([executable, "--ro-bind", "/", "/", "--proc", "/proc",
-                "--dev", "/dev", "/bin/true"], stdin=subprocess.DEVNULL,
+            result = subprocess.run([executable, "--unshare-net", "--ro-bind", "/", "/",
+                "--proc", "/proc", "--dev", "/dev", "/bin/true"], stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 timeout=5, check=False, close_fds=True)
         except (OSError, subprocess.TimeoutExpired):
@@ -366,18 +369,24 @@ class CodexCLIExecutionAdapter:
                 summary_path = run_root / "codex-result.json"
                 self._schema_path(schema_path)
                 prompt = self._prompt(assignment)
-                env = {"PATH": "/usr/local/bin:/usr/bin:/bin",
+                path_parts = ["/usr/local/bin", "/usr/bin", "/bin"]
+                if self.require_code_mode_host:
+                    path_parts.insert(0, str(binary.parent))
+                env = {"PATH": ":".join(path_parts),
                        "HOME": str(self.codex_home.parent if (self.supervised_chatgpt_session or
                                    self.persistent_chatgpt_owner_session)
                                    else self.codex_home),
                        "CODEX_HOME": str(self.codex_home),
                        "TMPDIR": str(run_root)}
                 argv = [str(binary), "exec", "--sandbox", "workspace-write",
-                        "--ephemeral", "--ignore-user-config",
+                        "--ephemeral", "--ignore-user-config"]
+                if self.require_code_mode_host:
+                    argv.extend(["--enable", "code_mode", "--enable", "code_mode_host"])
+                argv.extend([
                         "-c", 'approval_policy="never"',
                         "-c", "sandbox_workspace_write.network_access=false",
                         "-C", str(repository), "--output-schema", str(schema_path),
-                        "--output-last-message", str(summary_path), "-"]
+                        "--output-last-message", str(summary_path), "-"])
                 process = subprocess.Popen(argv, cwd=repository, env=env,
                     stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL, close_fds=True, start_new_session=True)

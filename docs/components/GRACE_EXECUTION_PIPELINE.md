@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.8
+File Revision: 1.1.10
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
 Authority: Engineering contract; not evidence of production Grace commissioning
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Link persistent reconciliation and authenticated dashboard handoff
@@ -23,6 +23,9 @@ Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Separate ve
 Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Keep immutable objective evidence provenance distinct from current grounding and recover bounded durable no-launch failures
 Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Persist dependency-ordered step assignments and add an explicitly scoped source-change patch capability
 Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Record typed post-verification decisions and same-objective continuation; constrain owner-session Codex state and fail closed when its Code Mode host is absent
+Changed: 2026-10-16 UTC | RV-GRACE-CODEX-SYSTEMD-NETLINK-001 | Permit AF_NETLINK for bubblewrap isolated loopback setup and test that exact namespace during preflight
+Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-ENABLE-001 | Explicitly enable code_mode_host when the persistent CLI adapter requires that companion
+Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-MDWE-001 | Keep the Code Mode filesystem and network sandbox while allowing its required executable-memory runtime in the owner service
 -->
 # Grace Execution Pipeline — infrastructure slice
 

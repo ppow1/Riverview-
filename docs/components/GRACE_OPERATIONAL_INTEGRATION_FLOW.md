@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.34
+**Document Revision:** 1.0.38
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -120,7 +120,7 @@ flowchart LR
     g_rv_grace_operational_integration_codex_patch_independent_verification_4d8f66d4["Independent verifier reapplies patch to a clean pinned clone, checks exact authorized changed-file set and digest, and reruns fixed tests"]
     g_rv_grace_operational_integration_codex_source_scope_failure_ef462df9[["Reject source changes outside the assignment path allowlist or configured capability scope; no patch is applied to source checkout"]]
     g_rv_grace_operational_integration_objective_steps_b695f9d6["ISOLATED POSTGRES TESTED — persist stable ordered objective steps and per-step assignment identities; require accepted dependency verification before dispatch"]
-    g_rv_grace_operational_integration_codex_owner_preflight_fb787eac["SOURCE IMPLEMENTED — require service-local writable CODEX_HOME, read-only bind of owner auth.json, and installed codex-code-mode-host before persistent CLI dispatch; production package currently lacks companion host"]
+    g_rv_grace_operational_integration_codex_owner_preflight_fb787eac["SOURCE IMPLEMENTED — require writable service-local CODEX_HOME, read-only owner auth.json, both Code Mode features, the pinned companion path, AF_NETLINK for bwrap --unshare-net, and owner-session MemoryDenyWriteExecute=no; keep workspace-write, network-disabled, AppArmor-confined execution"]
     g_rv_grace_operational_integration_codex_owner_package_recovery_5bc0b582["BLOCKED UNTIL PACKAGE COMPLETE — preserve the objective and retry budget; install reviewed CLI package with executable Code Mode host through ordinary release procedure, never expose or copy owner credentials"]
   end
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
