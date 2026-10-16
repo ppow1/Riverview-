@@ -1,0 +1,30 @@
+{
+  "artifacts": {
+    "package-verification.json": {
+      "path": "package-verification.json",
+      "revision": "1.0.0",
+      "sha256": "e6ffaf301dce8c407e6f1a5a0834448ed7791e21a0cee2cfe88746c0db0cb20c",
+      "size_bytes": 2139
+    },
+    "production-browser-acceptance.json": {
+      "path": "production-browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "d5c993d579798afece2b7536da6064c6181de09f475ad441244d825cd4654340",
+      "size_bytes": 6947
+    },
+    "release-manifest.json": {
+      "path": "release-manifest.json",
+      "revision": "1.0.0",
+      "sha256": "2d1613385d58a697208d6abc919303ab263e132421b8cebe87a259a94e68569c",
+      "size_bytes": 1145
+    },
+    "snapshot-archive.sha256": {
+      "path": "snapshot-archive.sha256",
+      "revision": "1.0.0",
+      "sha256": "ec92718eb87ea965bed677bb72dcc23368b72f8555c7e7f2a4e6c3390e4b004d",
+      "size_bytes": 116
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "schema_version": "rv.evidence.artifacts.v1"
+}
