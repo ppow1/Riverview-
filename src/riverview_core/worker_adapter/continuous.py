@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/continuous.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.10
+# Revision: 1.1.0
 # Purpose: Execute bounded capability work with pinned source-digest provenance
 # Execution Model: Repeatable poll cycle; durable claims and outcomes in PostgreSQL
 # Observability: Assignment state, knowledge observations, attempts, and results
@@ -13,6 +13,7 @@
 # Changed: 2026-10-11 UTC | RV-M33-GROUNDED-PROVENANCE-BOUND | Persist source digest and references instead of duplicating full grounded documents in the attempt input
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Support configured bounded lease-recovery retry limit
 # Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Add a single-assignment claim without reconciling unrelated leases
+# Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Keep proven pre-execution failures out of the unknown external-effect state
 # Contracts: docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -199,7 +200,14 @@ class ContinuousWorker:
                 self.worker_id, lease["generation"])
         except Exception as exc:
             # Assignment-local action failure is durable and does not escape the poll loop.
-            intent_outcome = ("outcome_unknown" if
+            # A Codex adapter failure explicitly marked before process launch has
+            # no external effect. Keep it blocked and diagnosable rather than
+            # misreporting an unknown outcome that requires Steward adjudication.
+            pre_execution_failure = (
+                self.action_effect_class == "external_uncertain" and
+                getattr(exc, "execution_started", None) is False)
+            intent_outcome = ("failed" if pre_execution_failure else
+                              "outcome_unknown" if
                               self.action_effect_class == "external_uncertain" else "failed")
             self.adapter.mark_execution_intent(intent_id, intent_outcome,
                                                failure_class=type(exc).__name__)
@@ -214,7 +222,8 @@ class ContinuousWorker:
                 self.adapter.scheduler.transition_with_lease(
                     assignment["id"],
                     "awaiting_steward" if intent_outcome == "outcome_unknown" else "blocked",
-                    "ACTION_OUTCOME_UNKNOWN" if intent_outcome == "outcome_unknown" else "worker_action_failed",
+                    "ACTION_OUTCOME_UNKNOWN" if intent_outcome == "outcome_unknown" else
+                    "WORKER_PRE_EXECUTION_FAILED" if pre_execution_failure else "worker_action_failed",
                     f"continuous-failure:{assignment['id']}:{lease['generation']}",
                     self.worker_id, lease["generation"])
             return {"status": "FAILED", "assignment_id": assignment["id"],

@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.29
+**Document Revision:** 1.0.30
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -105,10 +105,10 @@ flowchart LR
     g_rv_grace_operational_integration_codex_capability_check_d39b996a{"SOURCE INTEGRATED — exact Codex artifact capability is registered through the existing worker registry; deployment remains blocked on service identity and grants"}
     g_rv_grace_operational_integration_codex_resource_check_71ed8b3b{"Sandbox readiness PASS on Camrui: reviewed per-executable bwrap AppArmor profile and bounded authenticated Codex artifact test; source release and owner-session service still not commissioned"}
     g_rv_grace_operational_integration_codex_authority_gate_738aae11{"Authorized fixed exact-scope standing grants provisioned through AuthorityRegistry; runtime exact worker.register and assignment.execute checks remain mandatory"}
-    g_rv_grace_operational_integration_codex_cli_run_ade47dcf["INTEGRATED SOURCE, HOST BLOCKED — after exact-grant intake the persistent owner-session uses the existing ChatGPT login in place, assignment lease, network-disabled workspace, fixed deliverable path and fail-closed sandbox preflight"]
+    g_rv_grace_operational_integration_codex_cli_run_ade47dcf["IMPLEMENTED — exact-grant intake, persistent owner-session, network-disabled workspace, fixed artifact and fail-closed sandbox; source evidence and pinned execution repository revisions are distinct; root-owned checkout trust is private and command-scoped"]
     g_rv_grace_operational_integration_codex_artifact_verification_ab484b65["INTEGRATED SOURCE — separate verifier reopens the assignment-bound Markdown artifact and checks mode, size, digest, provenance and literal acceptance criteria"]
-    g_rv_grace_operational_integration_codex_execution_failed_f49befea[["Codex auth/session, exact-scope authorization, sandbox preflight, timeout, output bounds, or workspace integrity failed; objective remains durable and non-complete"]]
-    g_rv_grace_operational_integration_codex_execution_recovery_5c33f626["SOURCE PATH — retain objective and assignment through lease recovery; sandbox denial requires an approved sandbox-capable executor, while expired ChatGPT login requires owner reauthentication; no unsafe fallback"]
+    g_rv_grace_operational_integration_codex_execution_failed_f49befea[["Codex auth/session, exact-scope authorization, sandbox, Git ownership, timeout, output bounds, or workspace integrity failed; pre-launch failures are distinct from unknown external outcomes; work remains durable and non-complete"]]
+    g_rv_grace_operational_integration_codex_execution_recovery_5c33f626["Persisted CME recovery fences retries; a narrowly proven legacy Git safe-directory refusal may requeue only when the process did not launch, the lease expired, no attempt or verifier record exists, and the assignment artifact is absent; normal claim revalidates exact grants"]
     g_rv_grace_operational_integration_engineering_resource_request_5f8561c6[["PLANNED — persist pending resource request for HR/Helen or Steward decision; Helen is not commissioned and no allocation is presumed"]]
     g_rv_grace_operational_integration_router_backed_grace_proposal_931750ec["SOURCE IMPLEMENTED — Persistent ResidentReasoner proposals use the active router binding and require actual 80B provenance; smaller stages cannot substitute"]
     g_rv_grace_operational_integration_verified_result_chat_return_108e1033["SOURCE IMPLEMENTED — Independently accepted objective result is reviewed by bound 80B and appended once to its source conversation with durable provenance"]
@@ -173,8 +173,8 @@ flowchart LR
   g_rv_grace_operational_integration_codex_authority_gate_738aae11 -->|prerequisite: Exact worker registration and assignment execution grants required| g_rv_grace_operational_integration_codex_cli_run_ade47dcf
   g_rv_grace_operational_integration_codex_authority_gate_738aae11 -->|diagnostic_branch: Missing, denied, or unavailable exact grant; never infer approval| g_rv_grace_operational_integration_codex_execution_failed_f49befea
   g_rv_grace_operational_integration_codex_cli_run_ade47dcf -->|prerequisite: Produced artifact is untrusted until separately verified| g_rv_grace_operational_integration_codex_artifact_verification_ab484b65
-  g_rv_grace_operational_integration_codex_cli_run_ade47dcf -->|diagnostic_branch: Provider failure, timeout, unexpected file change, or output bound violation| g_rv_grace_operational_integration_codex_execution_failed_f49befea
-  g_rv_grace_operational_integration_codex_execution_failed_f49befea -->|recovery_route: Preserve durable work; use fenced scheduler recovery and record evidence| g_rv_grace_operational_integration_codex_execution_recovery_5c33f626
+  g_rv_grace_operational_integration_codex_cli_run_ade47dcf -->|diagnostic_branch: Git safe-directory refusal or repository pin mismatch before CLI launch; provider failure, timeout, output-bound violation, or unexpected workspace change| g_rv_grace_operational_integration_codex_execution_failed_f49befea
+  g_rv_grace_operational_integration_codex_execution_failed_f49befea -->|recovery_route: Proven pre-execution no-effect uses one durable retry-safe recovery record; uncertain post-launch outcomes remain held for Steward decision| g_rv_grace_operational_integration_codex_execution_recovery_5c33f626
   g_rv_grace_operational_integration_codex_execution_recovery_5c33f626 -->|prerequisite: Reground dynamic resource and credential readiness before retry| g_rv_grace_operational_integration_codex_resource_check_71ed8b3b
   g_rv_grace_operational_integration_codex_artifact_verification_ab484b65 -->|prerequisite: Only an independent acceptance decision may feed objective completion| g_rv_grace_operational_integration_evidence_review_600fe7b4
   g_rv_grace_operational_integration_reason_decompose_d48619ca -->|prerequisite: Persistent grounded objective reasoning is routed through the exact authorized 80B binding| g_rv_grace_operational_integration_router_backed_grace_proposal_931750ec
@@ -185,6 +185,7 @@ flowchart LR
   g_rv_grace_operational_integration_codex_resource_check_71ed8b3b -->|prerequisite: Sandbox and subscription CLI readiness pass before owner-session staging| g_rv_grace_operational_integration_owner_session_provisioning_8f41090c
   g_rv_grace_operational_integration_owner_session_provisioning_8f41090c -->|prerequisite: Fixed standing grants and protected credentials are provisioned; no unit activation occurs here| g_rv_grace_operational_integration_codex_authority_gate_738aae11
   g_rv_grace_operational_integration_owner_session_provisioning_8f41090c -->|diagnostic_branch: Principal, grant, credential metadata, immutable source, or unit validation conflict; fail closed| g_rv_grace_operational_integration_codex_execution_failed_f49befea
+  g_rv_grace_operational_integration_codex_execution_recovery_5c33f626 -->|recovery_route: Requeue only after proof and durable idempotent recovery; executor claim rechecks exact assignment.execute authorization| g_rv_grace_operational_integration_codex_cli_run_ade47dcf
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

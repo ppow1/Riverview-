@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.0
+# Revision: 1.1.0
 # Purpose: Adapt bounded Codex production and independent Markdown verification to CME
 # Execution Model: Existing leased worker action and independent verifier contract
 # Observability: Persisted artifact location, digest, criteria and verifier evidence
 # Dependencies: Codex CLI adapter; PostgreSQL objective/attempt/verification records
 # Authority: Requires registered engineering.codex-cli-artifact.v1 worker and assignment.execute
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Initial persistent worker/verifier adapters
+# Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Separate evidence provenance from the Codex repository pin and retain process-start status
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_codex_workflow.py
 # History: Git
@@ -37,7 +38,11 @@ CAPABILITY_REQUIREMENTS = {
 
 
 class CodexActionFailure(RuntimeError):
-    """Sanitized action failure retained by the ordinary worker event path."""
+    """Sanitized action failure with an explicit external-effect boundary."""
+
+    def __init__(self, code, *, execution_started=False):
+        self.execution_started = bool(execution_started)
+        super().__init__(code)
 
 
 class CodexWorkAction:
@@ -69,29 +74,51 @@ class CodexWorkAction:
                 not objective.get("proposal")):
             raise CodexActionFailure("persisted_work_order_provenance_required")
         step = objective["proposal"]["steps"][0]
+        try:
+            repository_revision = self.adapter.repository_revision()
+        except Exception as exc:
+            code = getattr(exc, "code", "repository_preflight_failed")
+            raise CodexActionFailure(code) from None
         request = CodexAssignment(
             assignment_id=assignment["id"], objective_id=objective_id,
             repository_reference=self.repository_reference,
-            repository_revision=objective["source_revision"],
+            # Knowledge-source provenance and the code revision used to execute
+            # the assignment are separate immutable facts.
+            repository_revision=repository_revision,
             task_scope=step["objective"],
             acceptance_criteria=tuple(step["acceptance_criteria"]),
             timeout_seconds=self.timeout_seconds)
         result = self.adapter.execute(request)
         if result.status != "DELIVERABLE_PRODUCED" or not result.artifact_name:
-            raise CodexActionFailure(result.detail_code)
+            raise CodexActionFailure(result.detail_code,
+                                     execution_started=result.execution_started)
         artifact_path = self.adapter.artifact_root / result.artifact_name
         return {
-            "status": "SUCCEEDED", "artifact_schema": "rv.codex-cli.deliverable.v1",
+            "status": "SUCCEEDED", "artifact_schema": "rv.codex-cli.deliverable.v2",
             "capability": CAPABILITY, "assignment_id": assignment["id"],
             "objective_id": objective_id, "artifact_name": result.artifact_name,
             "artifact_path": str(artifact_path),
             "artifact_sha256": result.artifact_sha256,
             "artifact_bytes": result.artifact_bytes,
-            "source_revision": result.source_revision,
-            "source_sha256": objective["source_sha256"],
+            "source_revision": grounded.source_revision,
+            "source_sha256": grounded.source_sha256,
+            "repository_revision": result.repository_revision,
             "acceptance_criteria": list(request.acceptance_criteria),
             "detail_code": result.detail_code,
         }
+
+    def reconcile_legacy_preexecution_failures(self, recovery):
+        """Use existing CME recovery only when the predecessor Git refusal is reproduced."""
+        if not self.adapter.legacy_git_ownership_refused():
+            return []
+        try:
+            repository_revision = self.adapter.repository_revision()
+        except Exception:
+            return []
+        return recovery.reconcile_confirmed_codex_preexecution_failures(
+            repository_revision=repository_revision,
+            artifact_root=self.adapter.artifact_root,
+            legacy_git_refusal_verified=True)
 
 
 class CodexMarkdownVerifier:
@@ -113,13 +140,14 @@ class CodexMarkdownVerifier:
             "executor_capability_matches": attempt.get("capability") == CAPABILITY,
             "result_is_codex_deliverable": isinstance(result, dict) and
                 result.get("status") == "SUCCEEDED" and
-                result.get("artifact_schema") == "rv.codex-cli.deliverable.v1",
+                result.get("artifact_schema") == "rv.codex-cli.deliverable.v2",
             "artifact_path_is_assignment_bound": False,
             "artifact_owner_mode_and_size_valid": False,
             "artifact_digest_matches": False,
             "markdown_deliverable_matches_objective": False,
             "acceptance_criteria_are_present": False,
             "source_provenance_is_pinned": False,
+            "repository_provenance_is_pinned": False,
         }
         raw = None
         expected_name = "codex-" + hashlib.sha256(
@@ -168,6 +196,10 @@ class CodexMarkdownVerifier:
                              str(result.get("source_sha256", ""))))
         except (OSError, UnicodeError, ValueError):
             pass
+        criteria["repository_provenance_is_pinned"] = bool(
+            isinstance(result, dict) and
+            re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}",
+                         str(result.get("repository_revision", ""))))
         accepted = all(criteria.values())
         return VerificationResult(
             VerificationStatus.ACCEPTED if accepted else VerificationStatus.REJECTED,

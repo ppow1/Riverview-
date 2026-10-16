@@ -2471,9 +2471,9 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-cli-run",
-          "node_revision": "1.0.5",
+          "node_revision": "1.0.6",
           "type": "process",
-          "label": "INTEGRATED SOURCE, HOST BLOCKED — after exact-grant intake the persistent owner-session uses the existing ChatGPT login in place, assignment lease, network-disabled workspace, fixed deliverable path and fail-closed sandbox preflight",
+          "label": "IMPLEMENTED — exact-grant intake, persistent owner-session, network-disabled workspace, fixed artifact and fail-closed sandbox; source evidence and pinned execution repository revisions are distinct; root-owned checkout trust is private and command-scoped",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "src/riverview_core/resident_execution/codex_workflow.py",
@@ -2519,9 +2519,9 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-execution-failed",
-          "node_revision": "1.0.2",
+          "node_revision": "1.0.3",
           "type": "failure",
-          "label": "Codex auth/session, exact-scope authorization, sandbox preflight, timeout, output bounds, or workspace integrity failed; objective remains durable and non-complete",
+          "label": "Codex auth/session, exact-scope authorization, sandbox, Git ownership, timeout, output bounds, or workspace integrity failed; pre-launch failures are distinct from unknown external outcomes; work remains durable and non-complete",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "src/riverview_core/resident_execution/codex_workflow.py",
@@ -2540,14 +2540,17 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-execution-recovery",
-          "node_revision": "1.0.2",
+          "node_revision": "1.0.3",
           "type": "recovery",
-          "label": "SOURCE PATH — retain objective and assignment through lease recovery; sandbox denial requires an approved sandbox-capable executor, while expired ChatGPT login requires owner reauthentication; no unsafe fallback",
+          "label": "Persisted CME recovery fences retries; a narrowly proven legacy Git safe-directory refusal may requeue only when the process did not launch, the lease expired, no attempt or verifier record exists, and the assignment artifact is absent; normal claim revalidates exact grants",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "src/riverview_core/resident_execution/codex_workflow.py",
             "deploy/systemd/riverview-grace-execution-owner-session.service",
-            "tests/test_codex_cli_adapter.py"
+            "tests/test_codex_cli_adapter.py",
+            "src/riverview_core/worker_adapter/recovery.py",
+            "scripts/run_grace_execution_service.py",
+            "tests/test_worker_adapter.py"
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_PIPELINE.md",
@@ -2950,13 +2953,13 @@
           "from": "rv:grace:operational-integration:codex-cli-run",
           "to": "rv:grace:operational-integration:codex-execution-failed",
           "type": "diagnostic_branch",
-          "label": "Provider failure, timeout, unexpected file change, or output bound violation"
+          "label": "Git safe-directory refusal or repository pin mismatch before CLI launch; provider failure, timeout, output-bound violation, or unexpected workspace change"
         },
         {
           "from": "rv:grace:operational-integration:codex-execution-failed",
           "to": "rv:grace:operational-integration:codex-execution-recovery",
           "type": "recovery_route",
-          "label": "Preserve durable work; use fenced scheduler recovery and record evidence"
+          "label": "Proven pre-execution no-effect uses one durable retry-safe recovery record; uncertain post-launch outcomes remain held for Steward decision"
         },
         {
           "from": "rv:grace:operational-integration:codex-execution-recovery",
@@ -3017,6 +3020,12 @@
           "to": "rv:grace:operational-integration:codex-execution-failed",
           "type": "diagnostic_branch",
           "label": "Principal, grant, credential metadata, immutable source, or unit validation conflict; fail closed"
+        },
+        {
+          "from": "rv:grace:operational-integration:codex-execution-recovery",
+          "to": "rv:grace:operational-integration:codex-cli-run",
+          "type": "recovery_route",
+          "label": "Requeue only after proof and durable idempotent recovery; executor claim rechecks exact assignment.execute authorization"
         }
       ]
     },
