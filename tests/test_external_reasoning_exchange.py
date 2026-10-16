@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_exchange.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Verify durable external advisory exchange, leases, recovery and idempotency
 # Execution Model: Isolated PostgreSQL integration plus deterministic simulated provider
 # Observability: State, correlation, event, digest and sanitized diagnostic assertions
 # Dependencies: Private RIVERVIEW_TEST_PG_DSN; PostgreSQL 16; unittest
 # Authority: Creates/drops only one unique rvtest_* schema; no production access
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial acceptance coverage
+# Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Provision isolated runtime role for migration ACL regression
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -54,6 +55,15 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         self.schema = "rvtest_" + uuid4().hex
         self.admin = psycopg.connect(DSN, autocommit=True)
         self.admin.execute(sql.SQL("CREATE SCHEMA {} ").format(sql.Identifier(self.schema)))
+        role_exists = self.admin.execute(
+            "SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='riverview_core')"
+        ).fetchone()[0]
+        self.created_runtime_role = not role_exists
+        if self.created_runtime_role:
+            # The CI PostgreSQL service uses a disposable superuser. Creating
+            # this exact NOLOGIN role lets the migration's production ACL
+            # branch run instead of silently skipping its runtime grants.
+            self.admin.execute("CREATE ROLE riverview_core NOLOGIN")
         apply_migrations(DSN, schema=self.schema)
         core = ROOT / "src/riverview_core"
         for component in ("assignment_scheduler", "worker_adapter", "cme",
@@ -98,6 +108,8 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         if getattr(self, "admin", None) and not self.admin.closed:
             self.admin.execute(self.sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
                 self.sql.Identifier(self.schema)))
+            if getattr(self, "created_runtime_role", False):
+                self.admin.execute("DROP ROLE IF EXISTS riverview_core")
             self.admin.close()
 
     def _submit(self, *, idem=None, deadline=None, authorize=None):
