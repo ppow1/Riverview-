@@ -1,8 +1,12 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.145
+**Document Revision:** 1.0.151
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record offline diagnostic snapshot source, verification evidence and production boundary
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record PR #65 integration reconciliation, full-inventory browser fixture package results, proposal readiness, and Windows CA findings
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record final exact-graph-set ZIP integrity and synthetic page-shell versus live-dashboard acceptance boundary
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Correct final archive byte count from independently inspected ZIP
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Recover website punch list and implement cross-workflow destination focus/return
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL027 | Record final workflow map revision, controlled-source repair, and verification outcome
@@ -67,6 +71,34 @@ production conversation message; the read-only boundary was preserved. No
 objective or conversation was created or modified, no rollback was needed, and
 the process workflow map was unchanged because no process semantics changed.
 Full evidence: `evidence/checkouts/WEBSITE-PR42-PRODUCTION/20261016T172206Z-928649b/`.
+
+## 2026-10-16 UTC — RV-WEBSITE-SNAPSHOT-041
+
+PR #64's exact tested head `a8626602f1c5bb237b362256a28a8b6d27a04cc4` passed controlled-checkout CI and was merged as `8fed8d4b78d9a1d7bb8dc451a6e292d6049831b8`; the website was not redeployed for this documentation-only integration. Positive authenticated-cookie production acceptance and live production SSE/reconnect/deferred-response acceptance remain explicitly unverified. No production conversation, objective, or database record was created or changed.
+
+The website source now has an authenticated versioned capability registry and dynamically inventories version-controlled `process_graphs/*/*.json`. That is the canonical graph source; PostgreSQL contributes only the dashboard's existing read-only execution-position projection. The one-button ZIP includes the current authorized operational snapshot, per-page sanitized offline HTML and visual maps with control IDs, bounded request/interaction/error history, original graph JSON, separate runtime status, workflow index/cross-workflow jump references, full graph SVG/PNG and detail tiles. No global combined graph or proposed automated QA system was added. Package and privacy omissions are represented in the manifest; live user permissions remain enforced.
+
+The synthetic Firefox run downloaded a 214,159-byte ZIP containing 2 workflows, 3 nodes and 2 edges; the archive and each listed hash passed, both page and workflow PNGs decoded, all canonical node/edge references reconciled, the cross-workflow jump remained resolvable, page controls correlated to stable IDs, and synthetic conversation/form values and cookie material were excluded. It is a fixture-only pass, not production acceptance. Current source inventory reconciles to 19 workflows, 478 nodes, and 637 edges; inventory is discovered dynamically, not enforced as a constant. Evidence: the current full-inventory sanitized browser report is linked below; this earlier two-graph smoke fixture is preserved in the working evidence directory.
+
+### Final diagnostic export verification and acceptance boundary
+
+A rerun against the current source completed in isolated Firefox at `evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final5/`. The downloaded ZIP is 32,092,323 bytes (SHA-256 `abb117743a0f1e0876c51d10d3acd94292ed31a608613ae75a869914dd5c47e3`); independent Python ZIP inspection found 126 files, passed CRC and manifest file hashes, and reconciled 20/20 workflow JSON/SVG/PNG exports, 487 nodes, 646 edges, and zero unresolved references. The manifest reports 10/10 page records and visual representations, 54 registry controls, 20 observed controls, no omissions, and complete capture. The inventory and definitions are from this repository's canonical registry and version-controlled process graph files.
+
+The browser run's page shell is synthetic. It exercises the actual snapshot JavaScript and workflow viewer JavaScript against the real capability registry and full graph inventory, but it does not load the dashboard's production `index.html`, `app.js`, or production CSS. Therefore it demonstrates the downloadable export contract and viewer interactions in an isolated browser, not visual fidelity of actual dashboard pages. The ZIP's `source_commit` and `deployment_id` are synthetic fixture identifiers. Actual-dashboard browser capture, authenticated-cookie behavior, and production acceptance remain unverified; the production website has not been changed. The 32 MB fixture ZIP remains preserved locally for independent offline inspection; only its checksum, browser report, and archive-inspection summary are committed as review evidence.
+
+The current focused dashboard tests pass (37 passed, 8 skipped); process graph validation and graph check pass at 20 workflows/487 nodes. Production proposal registry readiness remains unchanged: Camrui is on PR #42 release/source `928649bd1ff695fe9a95915647a49943ffe921fe`, latest applied migration is `0006_verifier_revision_rechecks`, migration `0010` and both registry tables/routes are absent, and there are no proposal registry records. This is read-only evidence; Codex 1 owns activation. Camrui's TLS chain is valid locally for the LAN IP and the Riverview private root CA; missing root trust in Windows remains the likely, unconfirmed client cause because Windows was not inspected. The strict CurrentUser root import procedure and expected fingerprint are in the status dashboard cookbook.
+
+### PR #65 source reconciliation and full-inventory website snapshot
+
+The website branch was reconciled with the latest integration head `6c33969684e5fa84c35b2456262f187c004c4b0c` (PR #65). The merge preserved its proposal lifecycle API, migration source, and workflow without editing their contracts. The current canonical graph inventory is 20 workflows, 487 nodes and 646 edges; generated process maps and the status dashboard workflow map were refreshed and graph validation passed.
+
+The earlier full-inventory synthetic-shell run discovered the same 10 page declarations, 54 registered controls, 20 workflows, 487 nodes and 646 edges, with all per-workflow JSON/SVG/PNG exports and cross-viewport graph identity checks passing. Its historical package is separate from the final rerun recorded above; its source/deployment values were synthetic, not production provenance. The current final report and archive-inspection evidence are at `evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final5/`. A separate read-only Camrui production-readiness report is at `evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final4/production-readiness.json`; no production mutation was performed.
+
+Focused dashboard/proposal/conversation pytest selection: 37 passed and 43 skipped because PostgreSQL integration is not configured in this checkout. Process graph validation passed at 20 workflows/487 nodes; controlled revision audit and exact-head GitHub CI remain release gates for the new PR. No website deployment or production mutation occurred.
+
+Read-only Camrui check: active release is `website-pr42-928649bd1ff695fe9a95915647a49943ffe921fe` from source `928649bd1ff695fe9a95915647a49943ffe921fe`; service is active and strict HTTPS returns 200. Database `riverview`, schema `riverview_dev`, has latest migration row by `applied_at` `0006_verifier_revision_rechecks`; `0009_durable_objective_steps` exists, `0010_institutional_proposal_registry` and its tables do not. The installed release has no institutional proposal create/search/revision routes and no institutional registry records. One legacy objective has a non-null proposal field; it is not a registry row. PR #65 routes and migration source are merged but not activated. No migration/restart/deploy/write was performed.
+
+Camrui's HTTPS certificate validates locally through the installed Riverview root. Leaf SAN includes `192.168.1.155`, so no server name mismatch is evident. Root CA SHA-256 is `D7823E13473A2F1F86A50781071CA7D6E08CA0B8D960C327739C85BA14DDC32D`. Windows itself was not inspected; missing root trust is the likely cause of the reported PowerShell exception, not a confirmed Windows-side finding. The cookbook records strict transfer, fingerprint validation, and CurrentUser Trusted Root import commands; TLS bypass is not recommended.
 
 ## 2026-10-16 UTC — RV-GRACE-VERIFIED-GROUNDING-RESUME-001
 

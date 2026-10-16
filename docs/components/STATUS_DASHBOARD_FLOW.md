@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.9
+**Document Revision:** 1.0.10
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -24,7 +24,7 @@ flowchart LR
     g_rv_steward_dashboard_status_navigate_9ce45297["Switch tabs without inference or full reconstruction"]
     g_rv_steward_dashboard_status_page_events_3087075e["Fetch bounded event and assignment pages"]
     g_rv_steward_dashboard_status_inspect_detail_fa591a4b["Lazy-load assignment attempts and verifier evidence"]
-    g_rv_steward_dashboard_status_export_snapshot_5d8d925e["Export bounded redacted diagnostic snapshot"]
+    g_rv_steward_dashboard_status_export_snapshot_5d8d925e["Download self-describing offline website and workflow snapshot"]
     g_rv_steward_dashboard_status_database_failure_fa21a93b[["Database request failed or exceeded timeout"]]
     g_rv_steward_dashboard_status_reconnect_71d9d56c["Retry read after service or database recovery"]
     g_rv_steward_dashboard_status_jump_ledger_c6cfb39d["Authoritative assignment and event ledger"]

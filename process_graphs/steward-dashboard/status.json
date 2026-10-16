@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:steward-dashboard:status",
-  "graph_revision": "1.1.10",
+  "graph_revision": "1.1.13",
   "component_id": "STEWARD-DASHBOARD",
   "workflow_id": "status-projection.v1",
   "diagram_order": 1,
@@ -227,21 +227,33 @@
     },
     {
       "id": "rv:steward-dashboard:status:export-snapshot",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.3",
       "type": "process",
-      "label": "Export bounded redacted diagnostic snapshot",
+      "label": "Download self-describing offline website and workflow snapshot",
       "source_references": [
         "src/riverview_core/status_dashboard/projection.py",
-        "src/riverview_core/status_dashboard/static/app.js"
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js",
+        "src/riverview_core/status_dashboard/static/capabilities.json"
       ],
       "documentation_references": [
         "docs/components/STATUS_DASHBOARD.md",
-        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+        "docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md"
       ],
       "verification_evidence": [
-        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/browser-observation.json",
-        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/live-dashboard.json"
-      ]
+        "evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final4/browser-acceptance.json",
+        "evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final4/archive-inspection.json",
+        "evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final4/production-readiness.json"
+      ],
+      "extension": {
+        "snapshot_schema": "rv.website.diagnostic-snapshot.v1",
+        "workflow_definitions": "version-controlled process_graphs/*/*.json",
+        "runtime_status_source": "authenticated graph API execution_position projection",
+        "global_combined_workflow_visualization": "deferred parking-lot initiative",
+        "verification_boundary": "Synthetic page shell with canonical registry/graphs; actual-dashboard visual and production acceptance remain pending."
+      }
     },
     {
       "id": "rv:steward-dashboard:status:database-failure",

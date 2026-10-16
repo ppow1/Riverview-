@@ -1,7 +1,7 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.17
+File Revision: 1.1.24
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
@@ -26,6 +26,13 @@ Changed: 2026-10-16 UTC | RV-WEBSITE-PL029 | Explain delivery, person-seen, rece
 Changed: 2026-10-16 UTC | RV-WEBSITE-PL038 | Add searchable graph registry traceability catalog and qualify references.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PL038-POST-PR45 | Link the final post-integration browser verification.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PR42-PRODUCTION-ACCEPTANCE | Record the installed immutable website release, verified Camrui access route, acceptance boundaries, and rollback target.
+Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Document capability-registered offline snapshot contents, authority and troubleshooting
+Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Document Windows local-CA trust diagnosis and workflow viewer controls
+Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record PR #65 source reconciliation and full-inventory ZIP verification
+Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Document privacy-filtered document navigation timing in browser diagnostics
+Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Distinguish synthetic full-inventory fixture verification from actual-dashboard acceptance
+Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record read-only Camrui release, proposal registry, and strict TLS status evidence
+Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Link final exact-source browser export and offline integrity report
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -99,6 +106,141 @@ It uses a synthetic account-cookie fixture and the checked-out `workflow.js`; it
 does not establish acceptance against a deployed account or release. For live
 acceptance, run the deployed dashboard browser check after account-session access
 is available and retain its redacted report and screenshots.
+
+## Download Snapshot and offline diagnostics (PL-NEW-041)
+
+**Download Snapshot** creates one ZIP in the current browser session. It uses the
+versioned authenticated capability registry at `GET /api/v1/capabilities`, the
+existing read-only `GET /api/v1/snapshot` projection, and the current workflow
+registry exposed by `GET /api/v1/snapshot/workflow-index` plus authenticated
+`GET /api/v1/graphs/<graph_id>` reads. The workflow definitions are the checked-in
+`process_graphs/*/*.json` files; PostgreSQL contributes only the already exposed
+runtime execution-position projection, not canonical graph definitions. No
+workflow registry or operational source is inferred by the browser exporter.
+
+The ZIP schema is `rv.website.diagnostic-snapshot.v1`. It contains the live
+capability registry, per-page inventories, sanitized offline HTML with dashboard
+CSS, full-content SVG/PNG visual maps, bounded recent browser diagnostics, the
+existing redacted operational snapshot, and one original canonical graph JSON,
+runtime-status JSON, full-extent SVG, and PNG per workflow. Large graph PNGs have
+overlapping detail tiles. `workflow-index.json` includes counts, source paths,
+file references, available runtime state, and outbound/incoming jump references.
+The graph JSON is copied from the authenticated API with its transient status
+projection kept separately; node and edge IDs and all represented fields stay
+unchanged. Page visual maps annotate controls with their registry IDs and each
+page JSON records the view, control states, dimensions, and visual outcomes.
+
+Only pages reachable through the current user's existing navigation are
+captured. An unavailable page/control, incomplete image, graph/API failure, or
+oversized page is identified in the manifest. The capability registry describes
+features; it does not assert that actions work. Coverage reports controls as
+rendered, available, disabled, unavailable, or not observed, and lists rendered
+controls with no registry entry. Current account permissions are respected.
+
+The bounded interaction history stores at most 120 interactions, 200 API request
+summaries, and 50 browser errors in tab session storage. Request summaries contain
+method, sanitized endpoint, response status, elapsed time, safe correlation ID,
+and interaction ID where available. The exporter never records headers, request
+or response bodies, cookies, passwords, form contents, or conversation text.
+The archive also includes up to five document-navigation timing summaries with
+DNS, connection/TLS, request/response, DOM/load duration and transfer-size values;
+raw URLs and document names are excluded.
+Page HTML and visuals redact account rows and conversation/request content; form
+values and selected values are cleared. Offline HTML is inert: scripts, form
+actions, and link destinations are removed, and non-data external media is omitted
+and reported. The package is limited to 96 MiB and any history, external-media, or
+page-extent omission is stated in the manifest. If a required graph
+or visual cannot be exported within that bound, the error is reported instead
+of claiming a complete workflow capture.
+
+The registry is a versioned static JSON contract served through the authenticated
+capability API; each page and control declares a capability version. The collector
+iterates that registry and the authenticated canonical workflow index rather than
+maintaining its own page or graph list. An isolated Firefox full-inventory run
+against the PR #65-reconciled checkout used the actual snapshot/workflow scripts,
+capability registry and canonical graph files with a synthetic page shell. It
+discovered 10 page declarations and 54 registered controls and exported every
+currently registered workflow (20 workflows, 487 nodes, 646 edges). This verifies
+the export pipeline and graph completeness, not production dashboard page fidelity.
+Those counts describe this verification snapshot, not expected constants. The
+synthetic page fixture also contained nine deliberately unregistered controls;
+they were reported by the coverage file. The full-inventory fixture uses synthetic source/deployment identifiers and is
+not evidence of production provenance. A live authorized export will record the
+actual release and the pages accessible to that current user. Actual-dashboard
+browser capture and production snapshot acceptance remain unverified. Read-only Camrui release, database,
+proposal-route, and certificate facts are captured in `evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final4/production-readiness.json`.
+
+To inspect an export offline, unzip it and open `website/pages/<page-id>.html` in
+a browser. These pages contain no live dashboard scripts or API links; workflow
+JSON and images are independently readable from the ZIP. A global combined
+workflow visualization is a future parking-lot initiative and is deliberately
+not included. The separate workflow-viewer fit-to-screen/pan/zoom improvement is
+tracked as PL-NEW-042 and does not affect full-graph export.
+
+The workflow viewer toolbar provides **Fit**, **Zoom out**, **Zoom in**,
+**Reset**, and **Full screen** controls. Fit is reapplied when the graph or
+canvas size changes; pointer drag pans the graph and the mouse wheel zooms.
+Reset restores the initial unit-scale view. These controls change only the
+browser presentation and do not alter workflow definitions.
+
+This read-only export does not verify a production account-cookie login or
+production SSE/reconnect/deferred-response delivery. Those acceptance results
+remain unverified until safely tested with an existing authorized session and
+conversation; do not create a production conversation or objective to verify the
+snapshot.
+
+### Windows HTTPS trust
+
+Camrui presents a leaf certificate for `CN=riverview.ionoge.com`, issued by
+`Riverview Camrui LAN Root CA`. Its SAN includes both `DNS:riverview.ionoge.com`
+and `IP:192.168.1.155`, and strict TLS validation succeeds on Camrui when the
+local root is trusted. The observed evidence does not indicate a server-chain
+or IP-name mismatch. Windows was not inspected directly; the reported PowerShell
+inner exception is consistent with the Windows client not trusting this private
+LAN root. The expected root is
+`/usr/local/share/ca-certificates/riverview-camrui-lan.crt`, SHA-256
+`D7823E13473A2F1F86A50781071CA7D6E08CA0B8D960C327739C85BA14DDC32D`.
+
+Transfer the CA certificate through an already authenticated channel (for
+example, strict-host-key SSH/SCP after verifying Camrui's SSH host key from a
+trusted source). Do not bootstrap trust by downloading it over the failing
+HTTPS connection. Once Camrui's SSH host key is already verified in the Windows
+user's `known_hosts`, PowerShell 7 can copy the public CA certificate with:
+
+```powershell
+$certPath = Join-Path $env:TEMP 'riverview-camrui-lan.crt'
+scp -o StrictHostKeyChecking=yes admin1@192.168.1.155:/usr/local/share/ca-certificates/riverview-camrui-lan.crt $certPath
+```
+
+Inspect the local file before importing:
+
+```powershell
+$certPath = Join-Path $env:TEMP 'riverview-camrui-lan.crt'
+$cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certPath)
+$sha256 = [Convert]::ToHexString($cert.GetCertHash([System.Security.Cryptography.HashAlgorithmName]::SHA256))
+$basicConstraints = $cert.Extensions | Where-Object {
+    $_ -is [System.Security.Cryptography.X509Certificates.X509BasicConstraintsExtension]
+} | Select-Object -First 1
+if ($cert.Subject -ne $cert.Issuer -or
+    $null -eq $basicConstraints -or -not $basicConstraints.CertificateAuthority -or
+    $sha256 -ne 'D7823E13473A2F1F86A50781071CA7D6E08CA0B8D960C327739C85BA14DDC32D' -or
+    $cert.NotBefore -gt [DateTime]::UtcNow -or $cert.NotAfter -le [DateTime]::UtcNow) {
+    throw 'The Riverview CA certificate identity, constraints, fingerprint, or validity did not match.'
+}
+$store = [System.Security.Cryptography.X509Certificates.X509Store]::new(
+    [System.Security.Cryptography.X509Certificates.StoreName]::Root,
+    [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser)
+$store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+$store.Add($cert)
+$store.Close()
+Invoke-WebRequest -Uri 'https://192.168.1.155/'
+```
+
+This imports only the verified local root into the current user's Trusted Root
+store; it does not disable validation or install the server leaf certificate.
+The browser/PowerShell request must still use `https://192.168.1.155/` (or the
+SAN-covered hostname resolving to Camrui). A Windows-side exception remains
+unconfirmed until the Steward runs the strict request there.
 
 ### Assignment graph and diagnostic references
 
@@ -324,7 +466,7 @@ existing PostgreSQL credential.
 | Detect initialization | relation and migration inventory | `not_initialized` | status `relations` and source schema | Correct service configuration or separately authorized migration; restart is not a migration. |
 | Project lifecycle/events | bounded page, institution privacy filter, event cursor | empty/not found or page source error | assignment ID, event sequence and correlation ID | Inspect ledger contract; use next keyset/sequence cursor; no full history rebuild. |
 | Render/update | local tab switch and localized view update | browser-local sanitized error entry | snapshot browser error ring and request ID | Refresh affected panel only; slow/unavailable DB must not hold navigation. |
-| Export snapshot | bounded JSON file and explicit redaction metadata | snapshot bound exceeded or API failure | browser-local recent error code and captured timestamp | retry after page refresh; export includes no credentials or event payload. |
+| Download Snapshot | one bounded ZIP with page inventories/visuals, workflow JSON/SVG/PNG/status, and safe browser diagnostics | unavailable page/graph, incomplete visual, package bound, or download failure | ZIP manifest omissions, per-page/per-workflow outcomes, and browser-local safe error class | verify the current account can access the page; retry after the projection/API issue is understood. Do not treat missing output as a complete capture; no cookies, credentials, form values, or conversation bodies are exported. |
 | Restart/reconnect | same release/port; current state re-read from PostgreSQL | systemd failed/inactive or authentication lost | `systemctl status` and `journalctl -u ... -n 50 --no-pager` | restart only the dashboard unit; reauthenticate; CME and assignments continue independently. |
 
 ## Deployment and rollback

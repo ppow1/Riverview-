@@ -1,5 +1,6 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.4.15
+// Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record bounded same-origin request and SSE response metadata without bodies or auth headers.
+// Revision: 1.4.18
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
 // Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Use linked Steward account session for exact-grant Grace connection
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Add password login, grant decisions and email configuration UI
@@ -16,6 +17,7 @@
 // Changed: 2026-10-15 UTC | RV-WEBSITE-PL029 | Separate confirmed dashboard rendering, person-seen absence, receipt and decision status.
 // Changed: 2026-10-16 UTC | RV-WEBSITE-PL038 | Build a searchable client-side registry of workflows and declared traceability references.
 // Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Explain immutable criteria reuse on same-origin retries.
+// Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Capture bounded UI request diagnostics and connect the comprehensive offline ZIP collector.
 (() => {
   "use strict";
   window.name = "rv-dashboard-main";
@@ -42,6 +44,7 @@
   const esc = (value) => String(value ?? "—").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   const human = (value) => String(value || "unknown").replaceAll("_", " ").replaceAll(".", " · ");
   const api = async (path, timeout = 2600, method = "GET", options = {}) => {
+    const requestStarted=performance.now();let requestStatus=0,requestId=null;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
@@ -57,15 +60,20 @@
       const response = await fetch(path, {method, headers,
         body: options.body === undefined ? undefined : JSON.stringify(options.body),
         cache: "no-store", credentials: "same-origin", signal: controller.signal});
+      requestStatus=response.status;requestId=response.headers.get("X-Request-ID");
+      window.RiverviewDiagnostics?.recordRequest({method,path,status:requestStatus,duration_ms:Math.round(performance.now()-requestStarted),request_id:requestId});
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) { const error = new Error(payload.error || `http_${response.status}`); error.payload = payload; throw error; }
       return payload;
     } catch (error) {
       state.recentErrors.push({at: new Date().toISOString(), code: String(error.message || "request_failed").slice(0, 48), route: path.split("?")[0]});
       state.recentErrors = state.recentErrors.slice(-20);
+      if(!requestStatus)window.RiverviewDiagnostics?.recordRequest({method,path,status:0,duration_ms:Math.round(performance.now()-requestStarted),failure_code:String(error.message||"request_failed").replace(/[^a-z0-9_.-]/gi,"_").slice(0,64)});
+      window.RiverviewDiagnostics?.recordError(String(error.message||"request_failed"),path);
       throw error;
     } finally { clearTimeout(timer); }
   };
+  window.RiverviewSnapshotApi=api;
   const toast = (text) => { $("toast").textContent = text; $("toast").classList.add("show"); setTimeout(() => $("toast").classList.remove("show"), 2300); };
   const when = (value) => { if (!value) return "time unavailable"; const d = new Date(value); return Number.isNaN(d.valueOf()) ? "time unavailable" : d.toLocaleString(); };
   const stateClass = (v) => `status-${String(v || "unknown").toLowerCase().replace(/[^a-z0-9_-]/g, "_")}`;
@@ -573,8 +581,10 @@
         try {
           const headers={Accept:"text/event-stream"};
           if(state.token)headers.Authorization=`Bearer ${state.token}`;
+          const streamStarted=performance.now();
           const response=await fetch(`/api/v1/resident/conversations/${encodeURIComponent(conversationId)}/responses/${encodeURIComponent(requestId)}/stream?after=${cursor}`,
             {method:"GET",credentials:"same-origin",headers,cache:"no-store"});
+          window.RiverviewDiagnostics?.recordRequest({method:"GET",path:`/api/v1/resident/conversations/${encodeURIComponent(conversationId)}/responses/${encodeURIComponent(requestId)}/stream`,status:response.status,duration_ms:Math.round(performance.now()-streamStarted),request_id:response.headers.get("X-Request-ID"),transport:"sse"});
           if(response.status===404)return; // Legacy turns without stream records use history polling.
           if(response.status===401||response.status===403){showChatAuthorization("Grace conversation access was revoked or expired.");return;}
           if(!response.ok||!response.body)throw new Error(`stream_http_${response.status}`);
@@ -877,17 +887,7 @@
     dialog.addEventListener("click",(event)=>{if(event.target===dialog)dialog.close();});
     dialog.addEventListener("close",()=>{if(state.chatDialogReturnFocus?.isConnected)state.chatDialogReturnFocus.focus();else {const trigger=document.querySelector("[data-chat-option='details']");if(trigger)trigger.focus();}state.chatDialogReturnFocus=null;});
   });
-  $("snapshot").addEventListener("click", async () => {
-    try {
-      const bundle = await api("/api/v1/snapshot");
-      bundle.browser = {captured_at:new Date().toISOString(), navigation_samples:state.navSamples.slice(-100),
-        recent_ui_errors:state.recentErrors.slice(-20), active_view:location.hash.slice(1) || "overview"};
-      const text = JSON.stringify(bundle,null,2);
-      if (text.length > 128 * 1024) throw new Error("snapshot_bound_exceeded");
-      const url=URL.createObjectURL(new Blob([text],{type:"application/json"})); const a=document.createElement("a");
-      a.href=url;a.download=`riverview-status-${new Date().toISOString().replaceAll(":","-")}.json`;a.click();URL.revokeObjectURL(url);toast("Redacted bounded snapshot downloaded.");
-    } catch(error) { recordUiError(error.message,"/api/v1/snapshot");toast(`Snapshot unavailable: ${error.message}`); }
-  });
+  $("snapshot").setAttribute("aria-label","Download comprehensive offline diagnostic snapshot");
   const approvalLink=location.hash.match(/^#account-approval\?enrollment_id=([0-9a-fA-F-]{36})$/);
   if(approvalLink) state.pendingEnrollmentId=approvalLink[1];
   const authLink = location.hash.match(/^#account-verify\?(.*)$/);

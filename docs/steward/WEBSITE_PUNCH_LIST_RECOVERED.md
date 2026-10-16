@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md
 Component: STEWARD-DASHBOARD / WEBSITE
-File Revision: 1.0.28
+File Revision: 1.0.33
 Purpose: Consolidate traceable website improvement observations and separate them from accepted requirements and completed work
 Authority: Backlog recovery only; no new product requirement or acceptance decision
 Changed: 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Recover and prioritize documented website observations
@@ -37,19 +37,23 @@ Changed: 2026-10-16 UTC | RV-WEBSITE-PL038-POST-PR45 | Record integrated browser
 Changed: 2026-10-16 UTC | RV-WEBSITE-PR46-RECONCILE | Update PR #42's integration baseline through PR #46 without editing resident-reasoning changes.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PR42-INTEGRATION-RECONCILE | Reconcile through PR #63, distinguish review/deployment gates, and prepare production acceptance.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PR42-EXACT-CI | Record exact-head CI/browser evidence and current draft review gate.
+Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record the authenticated self-describing snapshot implementation, workflow exports, evidence and production boundary.
+Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Reconcile documentation baseline to PR #64 and record final cross-viewport browser evidence.
+Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record PR #65 baseline, proposal-registry readiness, and TLS trust diagnosis.
+Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Clarify synthetic full-inventory browser fixture scope and actual-dashboard acceptance gap.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PR42-PRODUCTION-ACCEPTANCE | Record feature-level production acceptance and correct stale release checklist language.
 History: Git
 -->
 # Recovered Riverview website punch list
 
 **Captured source:** [`Riverview_Steward_Punch_List_2026-10-13.md`](Riverview_Steward_Punch_List_2026-10-13.md), including its 2026-10-13 review addenda.  
-**Baseline:** integration branch `codex/grace-conversation-ui-refinement` at PR #46 merge `8f95c83af4e3a6269b25d96e1092baf8175e431c` (which includes PR #45 merge `ef73c6d6410cd30e00ebda6d68ee76e5a35a10f6` and PR #44 merge `29d196f879d0a3a1dad5f782b305d9d52a0baadd`); website work branch `codex/website-improvements`.
+**Baseline:** integration branch `codex/grace-conversation-ui-refinement` through PR #65 merge `6c33969` (including PRs #44–#46 and #62/#63); website work branch `codex/website-improvements`.
 **Purpose:** consolidate the recorded website observations without promoting them to accepted requirements. The original PL-NEW identifiers and stated priorities are retained.
 
 ## Requirement and implementation boundaries
 
 - The active roadmap requirement for M3.1 is the read-only status projection, truthful status/freshness, safe diagnostic rendering, canonical workflow visualization, and navigable decisions. See [`ROADMAP.md`](../ROADMAP.md) and [`M3.1-001_REVISION_RECORD.md`](../development/M3.1-001_REVISION_RECORD.md). Scoped M3.1 technical acceptance is recorded; the full component DoD remains open.
-- PL-NEW-001 through PL-NEW-041 are captured observations and desired outcomes from the Steward punch list. The source says they are not implementation orders; PL-NEW-041 also has an explicit acceptance specification. A listed item is not treated as an accepted roadmap requirement unless another governing record says so.
+- PL-NEW-001 through PL-NEW-041 are captured observations and desired outcomes from the Steward punch list. The source says they are not implementation orders; PL-NEW-041 also has an explicit acceptance specification. The later assignment commissions PL-NEW-041 and adds PL-NEW-042 as a distinct follow-up; this does not turn the other captured rows into new roadmap requirements.
 - One review addendum calls the previously failing workflow-rendering observation “PL-NEW-024,” while the source ID table assigns PL-NEW-024 to milestone labeling and PL-NEW-025 to workflow loading. This recovery maps the observation by subject to PL-NEW-025 and preserves PL-NEW-024's table-defined milestone scope.
 - Existing implementations are listed separately below. Their existence does not close a punch-list item unless the recorded outcome and acceptance evidence match it.
 - PR #40 implements durable SSE conversation streaming and deferred-response recovery. It is part of this branch's integration baseline and is compatibility-sensitive; this website work does not rebuild it.
@@ -100,9 +104,10 @@ Priority labels and wording below follow the source punch list. “Captured” m
 | PL-NEW-038 | Documentation | Replace fixed diagnostic links with searchable indexed catalog of per-component troubleshooting, workflows, failure/recovery, provenance, freshness and test coverage. | High | **Partial website implementation; full acceptance blocked on authoritative freshness/coverage sources.** Searchable workflow, typed node, component-document, provenance, and declared test/evidence references are implemented and isolated-browser verified. Existing registry references do not provide freshness policy/value or semantic test-coverage outcomes. Required source: integration-owned versioned graph/evidence metadata or an authoritative linked coverage record with provenance. Acceptance: searchable, component-linked freshness guidance and attributable test coverage/outcomes; declared paths alone remain traceability, not a pass/coverage claim. Post-PR #45 regression evidence: [`PL-038 report`](../../evidence/checkouts/WEBSITE-PL038/20261016T023000Z-post-PR45-regression/browser-acceptance.json). Production acceptance of the implemented UI is also pending |
 | PL-NEW-039 | Automated QA | Evaluate seeded role-based audit precedent and add authenticated browser route/interaction tests as a distinct stage. | High / proposal | Captured proposal; CueMastery source findings are historical evidence only |
 | PL-NEW-040 | Automated QA | Define test-account lifecycle, safe permissions, scheduled/post-deploy runs, outcome states, regression detection, and historical reports. | High / proposal | Captured proposal |
-| PL-NEW-041 | Dashboard snapshots / Workflows | Include every website workflow's status and website-faithful visual, structured definitions, cross-references, and all required dashboard sections in a recoverable snapshot. | P1 — after active Grace 80B commissioning repair | Captured; detailed acceptance specification remains in the source record |
+| PL-NEW-041 | Implemented; isolated export contract verified; real-dashboard and production acceptance pending | One authenticated Download Snapshot builds a versioned offline ZIP from the dynamic capability registry, the existing sanitized read-only operational snapshot, and version-controlled canonical graph definitions. It includes per-page HTML/SVG/PNG/JSON, control coverage, bounded sanitized browser diagnostics, graph JSON/status, full-extent graph SVG/PNG/detail tiles, workflow index and cross-workflow references. The full-inventory Firefox harness uses the actual capability registry and graph files but a synthetic page shell; it verifies archive/export behavior, not pixel fidelity of the actual dashboard DOM. Evidence: `evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final5/`. Production acceptance is not claimed. |
+| PL-NEW-042 | Implemented; isolated viewer behavior verified; production acceptance pending | Resize-aware initial fit, zoom, pan, reset, and fullscreen are implemented in the existing viewer and verified in Firefox using the actual `workflow.js` with a graph fixture. The full-inventory harness page shell is synthetic; production acceptance awaits a controlled release and real-dashboard browser review. |
 
-### Full punch-list audit (41 IDs)
+### Full punch-list audit (41 recovered source IDs plus PL-NEW-042)
 
 Disposition uses the requested categories. “Implemented but awaiting production acceptance” means the branch implementation passed its isolated checks; it is not a claim of release acceptance. A blocked row may still have a useful partial website presentation. Captured proposals and later milestones remain visible in the source list, but are not promoted to implementation requirements.
 
@@ -148,7 +153,8 @@ Disposition uses the requested categories. “Implemented but awaiting productio
 | PL-NEW-038 | Blocked by documented external dependency | Searchable workflow/documentation/provenance/evidence-reference UI is partially implemented and Firefox verified: [`PL-038 report`](../../evidence/checkouts/WEBSITE-PL038/20261016T020000Z-searchable-workflow-catalog/browser-acceptance.json). Full acceptance requires authoritative per-component freshness and attributable semantic test-coverage data; current graph API declares only references. |
 | PL-NEW-039 | Superseded or no longer applicable | The source marks seeded role/persona evaluation and scheduled audit as a proposal, not an accepted deployment requirement. Authenticated route/interaction testing exists separately (PL-025 and this checkout); no role lifecycle or schedule is created by this punch item. |
 | PL-NEW-040 | Superseded or no longer applicable | The source marks test-account lifecycle, permissions, schedules, regression and history as a proposal. It has no accepted operating owner/design; route fixtures remain ephemeral synthetic accounts. |
-| PL-NEW-041 | Blocked by documented external dependency | Explicit P1 prerequisite is completion of the active Grace 80B commissioning repair owned by Codex 1; snapshot acceptance also needs a bounded format for complete graph/workflow status and website-faithful visuals. Do not alter active Engineering execution. |
+| PL-NEW-041 | Implemented; isolated export contract verified; real-dashboard and production acceptance pending | One authenticated Download Snapshot builds a versioned offline ZIP from the dynamic capability registry, the existing sanitized read-only operational snapshot, and version-controlled canonical graph definitions. It includes per-page HTML/SVG/PNG/JSON, control coverage, bounded sanitized browser diagnostics, graph JSON/status, full-extent graph SVG/PNG/detail tiles, workflow index and cross-workflow references. The full-inventory Firefox harness uses the actual capability registry and graph files but a synthetic page shell; it verifies archive/export behavior, not pixel fidelity of the actual dashboard DOM. Evidence: `evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final5/`. Production acceptance is not claimed. |
+| PL-NEW-042 | Implemented but awaiting production acceptance | Resize-aware initial fit, zoom, pan, reset, and fullscreen are verified in the same isolated full-source Firefox run; these controls change only browser presentation. |
 
 ### Current implementation order and readiness
 
@@ -158,6 +164,24 @@ Disposition uses the requested categories. “Implemented but awaiting productio
 4. **Next high-priority source contracts:** PL-018 resident conversation titles/history search (conversation integration); PL-001/002/005 assignment intent and blocker records (assignment intake/Engineering); PL-007/009 worker thresholds and inventory (worker/CME integration); PL-012 event task/diagnostic linkage (event integration); PL-028/029/032 notification/decision lifecycle (notification/CME integration). The exact known gaps are recorded in the audit table. No fabricated fields or backend edits are allowed in this website track.
 5. **Other external blockers and deferred proposals:** PL-021 and PL-041 are Codex 1 Engineering-owned; PL-022 and PL-030/037 depend on integration/Ops resource contracts; PL-033/034 need governance and database-maintenance authority; PL-035 is a later milestone with OCTO data prohibited; PL-017/031/039/040 are captured later/proposal items, not accepted requirements.
 6. **Production acceptance:** PR #42 is deployed. Camrui is this session's Ubuntu 24.04.3 runner, so the authorized release procedure ran locally with existing `sudo -n`; the earlier SSH rejection was a same-host key-auth mismatch, not a service failure. The actual LAN URL is `https://192.168.1.155/`; public DNS `riverview.ionoge.com` resolves to a separate site. Live health, navigation, graph rendering, catalog search, docs, assignment/objective visibility, and browser console checks passed. Positive account-cookie login and live conversation streaming/recovery remain unverified pending a Steward account session and safe existing-conversation acceptance.
+
+**Snapshot exclusions and parking lot:** Do not build a global combined workflow visualization or the proposed PL-NEW-039/040 automated QA system under PL-NEW-041. Preserve the individual graph JSON/SVG/PNG/status files and cross-workflow relationship index for a future global-visualization initiative.
+
+### Read-only PR #65 proposal-registry readiness
+
+Camrui currently serves website release `website-pr42-928649bd1ff695fe9a95915647a49943ffe921fe` from source commit `928649bd1ff695fe9a95915647a49943ffe921fe`; the dashboard service is active and `https://192.168.1.155/` returns HTTP 200 with strict CA validation. PostgreSQL is database `riverview`, schema `riverview_dev`. Its newest migration row by `applied_at` is `0006_verifier_revision_rechecks` (2026-10-16 09:00:38 -04:00); `0009_durable_objective_steps` is present, while `0010_institutional_proposal_registry` is absent. Neither `institutional_proposals` nor `institutional_proposal_revisions` exists in any production schema. The installed PR #42 backend has no `/api/v1/institutional-proposals` create/search/revision routes. There are no institutional registry records; one legacy objective row has a non-null `proposal` field and is not a registry proposal. No migration, production proposal write, service restart, or deployment was performed. Codex 1 owns activation and source-contract coordination. Read-only inspection details: [`production-readiness.json`](../../evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final4/production-readiness.json).
+
+PR #65's merged API source defines proposal create (`POST /api/v1/institutional-proposals`), search (`GET`/`HEAD` collection), detail (`GET`/`HEAD` item), and revision (`PUT` item) routes, but those code routes and migration are not installed/active on Camrui. For PL-NEW-028, the missing authoritative notification contract fields remain `required_action`, `rationale`, `priority`, `deadline` (including a defined no-deadline state), and structured `actionable_details`, sourced from the integration-owned authoritative event/assignment/decision policy. Website work must not invent or persist these values.
+
+### Windows HTTPS trust finding
+
+Camrui's leaf certificate chain validates locally. The leaf is issued by
+`Riverview Camrui LAN Root CA`, and its SAN covers `192.168.1.155`; the likely
+Windows-side difference is that the Windows trust store lacks this private
+root, but the Windows host was not inspected, so that cause remains a diagnosis
+to verify. The root's SHA-256 fingerprint and safe CurrentUser Root import
+procedure are documented in the dashboard cookbook. Never disable TLS
+validation or install the leaf as a trust anchor.
 
 ### Production release and acceptance checklist
 
@@ -246,6 +270,10 @@ freshness/semantic-coverage fields.
 The website track owns dashboard presentation and navigation, primarily `status_dashboard/static/workflow.js`, `app.css`, `index.html`, and dashboard tests/docs. PR #40 also touched `status_dashboard/server.py`, `status_dashboard/static/app.js`, `tests/test_status_dashboard.py`, and dashboard component documentation for stream compatibility. This change avoids its shared behavior-code and test files; the only same-file overlaps are additive paragraphs in `STATUS_DASHBOARD.md` and `STATUS_DASHBOARD_COOKBOOK.md` describing workflow navigation. Stream documentation and behavior were left intact. Grace conversation runtime, model routing, migrations, Grace verification, Engineering execution, CME, authority, and deployment configuration remain outside this change. No production service or database was changed.
 
 ## Revision history
+
+- **1.0.30 — 2026-10-16:** Reconcile to PR #65; record full-source snapshot/viewer verification, read-only proposal readiness, and Windows local-CA diagnosis. Predecessor retained in `.riverview-backups/20261016T183709880470Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
+
+- **1.0.29 — 2026-10-16:** Record PL-NEW-041 offline diagnostic ZIP implementation and isolated evidence; add PL-NEW-042 workflow-viewer fit/pan/zoom follow-up and global-workflow visualization parking lot. Predecessor preserved in `.riverview-backups/20261016T180006556096Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
 
 - **1.0.28 — 2026-10-16:** Record feature-level production acceptance and correct stale release checklist language after PR #42 installation on Camrui. Predecessor preserved in `.riverview-backups/20261016T172402152476Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md` (revision 1.0.26).
 
