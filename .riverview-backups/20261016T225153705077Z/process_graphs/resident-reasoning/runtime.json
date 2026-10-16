@@ -1,0 +1,1265 @@
+{
+  "graph_id": "rv:resident-reasoning:runtime",
+  "graph_revision": "1.2.4",
+  "component_id": "RESIDENT-REASONING",
+  "workflow_id": "resident.reasoning.v1",
+  "diagram_order": 13,
+  "source_references": [
+    "src/riverview_core/institutional_authority/registry.py",
+    "src/riverview_core/local_reasoning_provider.py",
+    "src/riverview_core/reasoning_escalation.py",
+    "src/riverview_core/resident_execution/grace_role_context.py",
+    "src/riverview_core/resident_reasoning.py",
+    "scripts/run_grace_execution_service.py",
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
+    "tests/test_local_reasoning_provider.py",
+    "tests/test_reasoning_escalation.py",
+    "tests/test_resident_reasoning.py",
+    "tests/test_grace_runtime_provider_wiring.py",
+    "src/riverview_core/resident_execution/external_reasoning.py",
+    "src/riverview_core/resident_execution/migrations/0011_external_reasoning_exchange.sql",
+    "tests/test_external_reasoning_exchange.py",
+    "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+    "scripts/run_external_reasoning_mcp.py",
+    "deploy/systemd/riverview-external-reasoning-mcp.service",
+    "deploy/external-reasoning-mcp.env.example"
+  ],
+  "documentation_references": [
+    "docs/components/RESIDENT_REASONING.md",
+    "docs/components/RESIDENT_REASONING_COOKBOOK.md",
+    "docs/development/M4.2-001_REVISION_RECORD.md",
+    "docs/components/RESIDENT_REASONING_FLOW.md",
+    "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+    "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+  ],
+  "verification_evidence": [
+    "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md",
+    "evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1340Z-fce3c30/result-summary.json",
+    "evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T220001Z-b318a2f/checkout.md",
+    "tests/test_external_reasoning_mcp.py",
+    "tests/test_external_reasoning_exchange.py",
+    "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/checkout.md"
+  ],
+  "nodes": [
+    {
+      "id": "rv:resident-reasoning:runtime:request",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Resident reasoning request for one authoritative assignment",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:authorize-state",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Require exact active office.state.write grant before reading assignment context",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:authority-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Is the exact resident office-state grant active?",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:authority-denied",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Return AUTHORITY_DENIED without reading context or invoking provider",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:load-context",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Read current office binding and assignment revision; attach the resident-engineering contract reference; reject credential fields and oversized inputs",
+      "source_references": [
+        "src/riverview_core/resident_execution/pipeline.py",
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_EXECUTION_PIPELINE.md",
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:ground",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Ground the current assignment through knowledge-provider v1",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:reground",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Reground at the request trigger and retain source revision/hash",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:grounding-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Are grounding and regrounding both VERIFIED and complete?",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:evidence-wait",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Persist non-verified status and return WAITING_FOR_EVIDENCE",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:knowledge-contract-jump",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "Use the existing assignment knowledge provider contract",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ],
+      "jump_target_id": "rv:worker-adapter:deterministic-attempt:ground"
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:binding-jump",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "Read the durable office binding and state revision",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ],
+      "jump_target_id": "rv:institutional-authority:identity-and-grants:office-state"
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:select-provider",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Choose the provider matching the active office implementation provider_ref",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:route-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Is the primary provider and every configured fallback exact, registered and bounded?",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:route-unavailable",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Persist route failure and return UNAVAILABLE without inferred fallback",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:provider-call",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Call the bound provider under a shared explicitly bounded deadline of at most 60 seconds and divided token budget",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py",
+        "src/riverview_core/local_reasoning_provider.py",
+        "scripts/run_grace_execution_service.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md",
+        "docs/components/GRACE_EXECUTION_PIPELINE.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md",
+        "evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1340Z-fce3c30/result-summary.json"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:grace-role-context",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "For office:grace only, add the shared Director of Operations role and authority boundaries to the assignment proposal prompt",
+      "source_references": [
+        "src/riverview_core/local_reasoning_provider.py",
+        "src/riverview_core/resident_execution/grace_role_context.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/architecture/GRACE_DIRECTOR_OF_OPERATIONS_RECONCILIATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_local_reasoning_provider.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:fallback-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Did the call time out or fail before returning a plan?",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:fallback",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Try the next explicitly configured provider only; no implicit provider selection",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:proposal-gate",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Validate typed plan schema, ordered dependencies, and attempt token budget",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:proposal-invalid",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject malformed or over-budget output; do not persist a proposal",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:freshness-gate",
+      "node_revision": "1.0.1",
+      "type": "decision",
+      "label": "Did authorized office-state revalidation and assignment revision checks remain current?",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py",
+        "src/riverview_core/institutional_authority/registry.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md",
+        "docs/components/GRACE_EXECUTION_PIPELINE.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:stale-context",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Discard stale result and require a new authoritative grounding cycle",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:persist-plan",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Persist source references, statuses, request metadata and plan via office-state CAS",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:persistence-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Did exact-grant state write succeed against the expected revision?",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:state-conflict",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Return AUTHORITY_DENIED, STATE_CONFLICT or UNAVAILABLE; never report success",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:proposal-only",
+      "node_revision": "1.0.0",
+      "type": "exit",
+      "label": "Return PROPOSED; proposal is not an approved work order or executed action",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:budget-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Can the total budget provide at least one token to every primary/fallback attempt?",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:budget-insufficient",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject an undersized route before invoking any provider",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:task-escalation-contract",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "IMPLEMENTED — explicit task escalation is durably admitted to PostgreSQL before a separate transport attempts delivery; no provider call blocks Grace or CME",
+      "source_references": [
+        "src/riverview_core/reasoning_escalation.py",
+        "tests/test_reasoning_escalation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md"
+      ],
+      "verification_evidence": [
+        "tests/test_reasoning_escalation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:task-escalation-authority-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Require exact resident.reasoning.escalate grant for the selected provider before exchange persistence",
+      "source_references": [
+        "src/riverview_core/reasoning_escalation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_reasoning_escalation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:task-escalation-result",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Persist only a versioned advisory whose correlation, context fingerprint, provider identity, claim fence and response schema match",
+      "source_references": [
+        "src/riverview_core/reasoning_escalation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_reasoning_escalation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:task-escalation-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Record denied, unavailable, expired, lease, retry, malformed-response and stale-context diagnostics without approving or dispatching work",
+      "source_references": [
+        "src/riverview_core/reasoning_escalation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_reasoning_escalation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:task-escalation-recovery",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Keep the original assignment durable; retry only after explicit regrounding and current authority/provider readiness",
+      "source_references": [
+        "src/riverview_core/reasoning_escalation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_reasoning_escalation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-outbox",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Commit authorized request, context digest, origin and finite deadline before delivery; preserve stable idempotency and correlation IDs",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-transport-readiness",
+      "node_revision": "1.0.2",
+      "type": "decision",
+      "label": "IMPLEMENTED IN SOURCE — Is the authenticated MCP adapter internally configured and tested? Public issuer, route and external-client access remain uncommissioned.",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "scripts/run_external_reasoning_mcp.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T220001Z-b318a2f/checkout.md",
+        "tests/test_external_reasoning_mcp.py",
+        "tests/test_external_reasoning_exchange.py",
+        "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-transport-blocked",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Preserve awaiting_delivery while production migration, issuer, public route or external-client verification remains incomplete; never fall through to historical Comms5.",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "scripts/run_external_reasoning_mcp.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T220001Z-b318a2f/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-delivery-lease",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Claim a bounded delivery lease and fence; acknowledge or schedule bounded retry without blocking assignment processing",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-delivered",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Mark delivery acknowledged; wait for external claim without polling or holding a worker lease",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-external-claim",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Authenticate provider identity, claim correlated request with bounded lease and monotonic fence",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning.py",
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_exchange.py",
+        "tests/test_external_reasoning_mcp.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-response-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Does response schema, provider, request/correlation, active claim fence, size and deadline match?",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning.py",
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_exchange.py",
+        "tests/test_external_reasoning_mcp.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-response-persisted",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Commit one structured advisory, evidence references, digest and provenance idempotently",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-grace-consumption",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Revalidate original exact grant; lease the response and return advisory separately from original reasoning context",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-grace-ack",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Acknowledge only after Grace records the next reasoning result under stable consumption key",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-expired",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Expire request on finite deadline; preserve one terminal event and reject late response",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-recovery",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Recover awaiting-delivery, expired claims or persisted response after restart with same correlation and fenced idempotency",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-resume",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Return correlated advisory to existing resident reasoning; proposal, assignment, execution and verification still use their current authority paths",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-mcp-auth",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Resolve finite-lived bearer credential to one configured provider principal and exchange scope on every HTTP request",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "scripts/run_external_reasoning_mcp.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_mcp.py",
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-mcp-auth-denied",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject missing, unknown, expired or out-of-scope bearer without revealing whether a provider exists",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "scripts/run_external_reasoning_mcp.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_mcp.py",
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-mcp-initialize",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Negotiate supported MCP protocol version over sessionless Streamable HTTP JSON-RPC POST",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "scripts/run_external_reasoning_mcp.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_mcp.py",
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-mcp-tools",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Discover the fixed provider-scoped list, claim, submit-advisory and status tool schemas",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "scripts/run_external_reasoning_mcp.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_mcp.py",
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-mcp-pull",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Provider pulls bounded eligible request context; transport delivery lease and acknowledgement are durable",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "scripts/run_external_reasoning_mcp.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_mcp.py",
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-mcp-status",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Expose provider-owned body-free state, digest, provenance and sanitized diagnostic projection",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "scripts/run_external_reasoning_mcp.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_mcp.py",
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:resident-reasoning:runtime:request",
+      "to": "rv:resident-reasoning:runtime:authorize-state",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:authorize-state",
+      "to": "rv:resident-reasoning:runtime:authority-gate",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:authority-gate",
+      "to": "rv:resident-reasoning:runtime:load-context",
+      "type": "runtime_transition",
+      "label": "exact grant active"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:authority-gate",
+      "to": "rv:resident-reasoning:runtime:authority-denied",
+      "type": "diagnostic_branch",
+      "label": "missing or revoked grant"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:load-context",
+      "to": "rv:resident-reasoning:runtime:knowledge-contract-jump",
+      "type": "documentation"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:knowledge-contract-jump",
+      "to": "rv:worker-adapter:deterministic-attempt:ground",
+      "type": "jump"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:ground",
+      "to": "rv:resident-reasoning:runtime:reground",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:reground",
+      "to": "rv:resident-reasoning:runtime:grounding-gate",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:grounding-gate",
+      "to": "rv:resident-reasoning:runtime:select-provider",
+      "type": "runtime_transition",
+      "label": "both VERIFIED and complete"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:grounding-gate",
+      "to": "rv:resident-reasoning:runtime:evidence-wait",
+      "type": "diagnostic_branch",
+      "label": "otherwise"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:select-provider",
+      "to": "rv:resident-reasoning:runtime:binding-jump",
+      "type": "documentation"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:binding-jump",
+      "to": "rv:institutional-authority:identity-and-grants:office-state",
+      "type": "jump"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:route-gate",
+      "to": "rv:resident-reasoning:runtime:route-unavailable",
+      "type": "diagnostic_branch",
+      "label": "unknown or invalid route"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:provider-call",
+      "to": "rv:resident-reasoning:runtime:fallback-gate",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:fallback-gate",
+      "to": "rv:resident-reasoning:runtime:proposal-gate",
+      "type": "runtime_transition",
+      "label": "provider returned"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:fallback-gate",
+      "to": "rv:resident-reasoning:runtime:fallback",
+      "type": "recovery_route",
+      "label": "timeout/failure with configured next provider"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:fallback",
+      "to": "rv:resident-reasoning:runtime:provider-call",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:proposal-gate",
+      "to": "rv:resident-reasoning:runtime:freshness-gate",
+      "type": "runtime_transition",
+      "label": "schema and budget pass"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:proposal-gate",
+      "to": "rv:resident-reasoning:runtime:proposal-invalid",
+      "type": "diagnostic_branch",
+      "label": "invalid schema or token budget"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:freshness-gate",
+      "to": "rv:resident-reasoning:runtime:persist-plan",
+      "type": "runtime_transition",
+      "label": "binding and assignment revisions unchanged"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:freshness-gate",
+      "to": "rv:resident-reasoning:runtime:stale-context",
+      "type": "diagnostic_branch",
+      "label": "revision changed"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:persist-plan",
+      "to": "rv:resident-reasoning:runtime:persistence-gate",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:persistence-gate",
+      "to": "rv:resident-reasoning:runtime:proposal-only",
+      "type": "runtime_transition",
+      "label": "durable write committed"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:persistence-gate",
+      "to": "rv:resident-reasoning:runtime:state-conflict",
+      "type": "diagnostic_branch",
+      "label": "denial/conflict/unavailable/size limit"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:route-gate",
+      "to": "rv:resident-reasoning:runtime:budget-gate",
+      "type": "runtime_transition",
+      "label": "route is exact, registered and bounded"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:budget-gate",
+      "to": "rv:resident-reasoning:runtime:grace-role-context",
+      "type": "runtime_transition",
+      "label": "Budget fits; apply office-specific canonical context before provider call"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:grace-role-context",
+      "to": "rv:resident-reasoning:runtime:provider-call",
+      "type": "runtime_transition",
+      "label": "Role context is bounded and supplies no permissions"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:budget-gate",
+      "to": "rv:resident-reasoning:runtime:budget-insufficient",
+      "type": "diagnostic_branch",
+      "label": "total token budget is smaller than route length"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:select-provider",
+      "to": "rv:resident-reasoning:runtime:task-escalation-contract",
+      "type": "prerequisite",
+      "label": "Optional explicit task-escalation contract; distinct from provider failure fallback"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:task-escalation-contract",
+      "to": "rv:resident-reasoning:runtime:task-escalation-authority-gate",
+      "type": "prerequisite",
+      "label": "Task escalation is a distinct authorized route, not failure fallback"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:task-escalation-authority-gate",
+      "to": "rv:resident-reasoning:runtime:task-escalation-result",
+      "type": "prerequisite",
+      "label": "Only exact-grant authorized provider results may be considered"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:task-escalation-contract",
+      "to": "rv:resident-reasoning:runtime:task-escalation-failure",
+      "type": "diagnostic_branch",
+      "label": "Denied, unavailable, saturated, timed out, malformed, or stale context"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:task-escalation-failure",
+      "to": "rv:resident-reasoning:runtime:task-escalation-recovery",
+      "type": "recovery_route",
+      "label": "Preserve assignment and resume after authority/resource/context regrounding"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:task-escalation-recovery",
+      "to": "rv:resident-reasoning:runtime:ground",
+      "type": "prerequisite",
+      "label": "Re-establish verified facts and current assignment before another proposal"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:task-escalation-authority-gate",
+      "to": "rv:resident-reasoning:runtime:exchange-outbox",
+      "type": "runtime_transition",
+      "label": "exact grant and registered target passed"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-outbox",
+      "to": "rv:resident-reasoning:runtime:exchange-transport-readiness",
+      "type": "runtime_transition",
+      "label": "request and objective event committed"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-transport-readiness",
+      "to": "rv:resident-reasoning:runtime:exchange-delivery-lease",
+      "type": "runtime_transition",
+      "label": "authenticated current adapter is registered and externally verified"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-transport-readiness",
+      "to": "rv:resident-reasoning:runtime:exchange-transport-blocked",
+      "type": "diagnostic_branch",
+      "label": "adapter absent, authentication fails, or external route is unverified"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-transport-blocked",
+      "to": "rv:resident-reasoning:runtime:exchange-recovery",
+      "type": "recovery_route",
+      "label": "retain durable request; resume only after current transport preflight passes"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-delivery-lease",
+      "to": "rv:resident-reasoning:runtime:exchange-delivered",
+      "type": "runtime_transition",
+      "label": "transport acknowledges delivery"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-delivery-lease",
+      "to": "rv:resident-reasoning:runtime:exchange-expired",
+      "type": "diagnostic_branch",
+      "label": "deadline elapsed before delivery"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-delivery-lease",
+      "to": "rv:resident-reasoning:runtime:exchange-recovery",
+      "type": "recovery_route",
+      "label": "delivery process restarts or lease expires"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-delivered",
+      "to": "rv:resident-reasoning:runtime:exchange-external-claim",
+      "type": "runtime_transition",
+      "label": "configured provider claims exact request"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-external-claim",
+      "to": "rv:resident-reasoning:runtime:exchange-response-gate",
+      "type": "runtime_transition",
+      "label": "provider submits structured response"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-response-gate",
+      "to": "rv:resident-reasoning:runtime:exchange-response-persisted",
+      "type": "verification",
+      "label": "response identity and active fence valid"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-response-gate",
+      "to": "rv:resident-reasoning:runtime:task-escalation-failure",
+      "type": "diagnostic_branch",
+      "label": "invalid schema, identity, authority, fence or deadline"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-response-persisted",
+      "to": "rv:resident-reasoning:runtime:exchange-grace-consumption",
+      "type": "runtime_transition",
+      "label": "persisted response is available to Grace"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-response-persisted",
+      "to": "rv:resident-reasoning:runtime:exchange-recovery",
+      "type": "recovery_route",
+      "label": "process restart before Grace consumption"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-grace-consumption",
+      "to": "rv:resident-reasoning:runtime:exchange-resume",
+      "type": "runtime_transition",
+      "label": "original exact grant revalidated; advisory remains non-authorizing"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-resume",
+      "to": "rv:resident-reasoning:runtime:exchange-grace-ack",
+      "type": "verification",
+      "label": "existing reasoning workflow durably records its continuation result"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-grace-consumption",
+      "to": "rv:resident-reasoning:runtime:exchange-recovery",
+      "type": "recovery_route",
+      "label": "consumer lease expires before durable acknowledgment"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-transport-readiness",
+      "to": "rv:resident-reasoning:runtime:exchange-mcp-auth",
+      "type": "prerequisite",
+      "label": "loopback MCP adapter is configured"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-mcp-auth",
+      "to": "rv:resident-reasoning:runtime:exchange-mcp-initialize",
+      "type": "prerequisite",
+      "label": "valid bearer maps to registered provider principal and scope"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-mcp-auth",
+      "to": "rv:resident-reasoning:runtime:exchange-mcp-auth-denied",
+      "type": "diagnostic_branch",
+      "label": "credential missing, expired, unmapped or scope denied"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-mcp-auth-denied",
+      "to": "rv:resident-reasoning:runtime:exchange-transport-blocked",
+      "type": "recovery_route",
+      "label": "preserve exchange state; retry only after credential correction"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-mcp-initialize",
+      "to": "rv:resident-reasoning:runtime:exchange-mcp-tools",
+      "type": "runtime_transition",
+      "label": "MCP protocol initialization succeeds"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-mcp-tools",
+      "to": "rv:resident-reasoning:runtime:exchange-mcp-pull",
+      "type": "runtime_transition",
+      "label": "client discovers and calls provider request retrieval"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-mcp-pull",
+      "to": "rv:resident-reasoning:runtime:exchange-delivery-lease",
+      "type": "runtime_transition",
+      "label": "selected provider receives bounded request through existing delivery lease"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-external-claim",
+      "to": "rv:resident-reasoning:runtime:exchange-response-gate",
+      "type": "runtime_transition",
+      "label": "MCP submit tool supplies structured advisory and claim fence"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-response-persisted",
+      "to": "rv:resident-reasoning:runtime:exchange-mcp-status",
+      "type": "runtime_transition",
+      "label": "provider may inspect body-free persisted outcome"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-mcp-status",
+      "to": "rv:resident-reasoning:runtime:exchange-grace-consumption",
+      "type": "runtime_transition",
+      "label": "status is observational; Grace consumes only through its existing authorized workflow"
+    }
+  ]
+}

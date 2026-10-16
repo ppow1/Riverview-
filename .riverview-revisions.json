@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.188"
+      "revision": "1.1.191"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -57,6 +57,12 @@
       "sha256": "6d6ef80a5252415c7113309ac64ed8d889e83ead00e89266081583926b0d04d5",
       "size_bytes": 548
     },
+    "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/revision-baseline.json": {
+      "path": "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/revision-baseline.json",
+      "revision": "1.0.0",
+      "sha256": "6ee6fa5d98e0827820b6c36c532cd5b0245a55e6353d99424278b23de3d605a7",
+      "size_bytes": 277250
+    },
     "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json": {
       "path": "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json",
       "revision": "1.0.0",
@@ -95,9 +101,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.142",
-      "sha256": "9210593375091749fa77d682579650d7a279fff409d802e950e2da10ab8f6ec5",
-      "size_bytes": 575776
+      "revision": "1.0.144",
+      "sha256": "9954490320009a27e79499fa4041376a263fcfc956f435c3a6f45a3821257173",
+      "size_bytes": 576110
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -161,9 +167,9 @@
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "path": "process_graphs/resident-reasoning/runtime.json",
-      "revision": "1.0.16",
-      "sha256": "30fdf2a609a9350cd0f4492f63dd9764773ff6fc056e043434ab21a621f150a6",
-      "size_bytes": 49560
+      "revision": "1.0.18",
+      "sha256": "489a7632b483981e30e12a9e2c717f20e21c9cc959ecb9d91c8a4376a8a8f57b",
+      "size_bytes": 49878
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -226,6 +232,6 @@
       "size_bytes": 1226
     }
   },
-  "manifest_revision": "1.1.188",
+  "manifest_revision": "1.1.190",
   "updated_at": null
 }

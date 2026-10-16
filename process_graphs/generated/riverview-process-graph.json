@@ -8233,7 +8233,7 @@
     },
     {
       "graph_id": "rv:resident-reasoning:runtime",
-      "graph_revision": "1.2.3",
+      "graph_revision": "1.2.5",
       "component_id": "RESIDENT-REASONING",
       "workflow_id": "resident.reasoning.v1",
       "diagram_order": 13,
@@ -8263,14 +8263,16 @@
         "docs/development/M4.2-001_REVISION_RECORD.md",
         "docs/components/RESIDENT_REASONING_FLOW.md",
         "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
-        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md",
+        "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md"
       ],
       "verification_evidence": [
         "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md",
         "evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1340Z-fce3c30/result-summary.json",
         "evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T220001Z-b318a2f/checkout.md",
         "tests/test_external_reasoning_mcp.py",
-        "tests/test_external_reasoning_exchange.py"
+        "tests/test_external_reasoning_exchange.py",
+        "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/checkout.md"
       ],
       "nodes": [
         {
@@ -8822,7 +8824,8 @@
           ],
           "documentation_references": [
             "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
-            "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+            "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md",
+            "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md"
           ],
           "verification_evidence": [
             "tests/test_external_reasoning_exchange.py"
@@ -8830,7 +8833,7 @@
         },
         {
           "id": "rv:resident-reasoning:runtime:exchange-transport-readiness",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "decision",
           "label": "IMPLEMENTED IN SOURCE — Is the authenticated MCP adapter internally configured and tested? Public issuer, route and external-client access remain uncommissioned.",
           "source_references": [
@@ -8844,7 +8847,8 @@
           "verification_evidence": [
             "evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T220001Z-b318a2f/checkout.md",
             "tests/test_external_reasoning_mcp.py",
-            "tests/test_external_reasoning_exchange.py"
+            "tests/test_external_reasoning_exchange.py",
+            "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/checkout.md"
           ]
         },
         {
