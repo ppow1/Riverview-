@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.11
+**Document Revision:** 1.0.12
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -32,7 +32,7 @@ flowchart LR
     g_rv_steward_dashboard_status_service_start_ebd3f698(["systemd starts the dashboard service"])
     g_rv_steward_dashboard_status_prepare_passfile_2eebe68e["Validate systemd pgpass and copy to private runtime storage"]
     g_rv_steward_dashboard_status_credential_failure_69b3e373[["Reject unsafe or unavailable runtime credential"]]
-    g_rv_steward_dashboard_status_list_workers_fe34c745["Page individual worker lease health and active work counts"]
+    g_rv_steward_dashboard_status_list_workers_fe34c745["Page worker lease-heartbeat freshness and active leases; process liveness is not reported"]
     g_rv_steward_dashboard_status_workers_unavailable_789b26c9[["Report missing worker relations or unreadable health as not initialized or unavailable"]]
     g_rv_steward_dashboard_status_attention_relation_check_427bbb7d{"Is the optional CME attention relation initialized?"}
     g_rv_steward_dashboard_status_attention_uninitialized_00c22bed["Render not_initialized domain state and defer attention polling"]

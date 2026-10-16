@@ -1,8 +1,9 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.155
+**Document Revision:** 1.0.156
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
+**Changed:** 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Investigate stale/unknown worker projection and distinguish lease activity from process liveness.
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record offline diagnostic snapshot source, verification evidence and production boundary
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PR67-SNAPSHOT-CSP-FIX | Record controlled f957 release, verified migration and live service, partial diagnostic export, and isolated CSP correction evidence
 **Changed:** 2026-10-16 UTC | RV-PROPOSAL-AUTHORING-GUIDANCE | Link the AI startup hints to a concise proposal authoring playbook
@@ -2342,3 +2343,7 @@ proposal or other production mutation was made. Account-cookie login and product
 SSE/reconnect acceptance remain unverified. No rollback was needed. Evidence:
 `evidence/checkouts/WEBSITE-PR71-PRODUCTION/20261016T220708Z-50e1e44/`. The canonical
 workflow graph was unchanged because this fix did not alter workflow semantics.
+
+### RV-WORKER-HEALTH-REPORTING-001 — Worker health investigation
+
+Production `/api/v1/workers` and status observations on 2026-10-16 reported five active registry entries: two with stale latest lease heartbeats and three without a lease heartbeat, all with zero active leases. Available assignment data contained historical successful attempts for two entries, no attempts for three, three old ready assignments, and one blocked assignment. This does not establish the current process state of any worker. The status source is explicitly `assignment_leases`; continuous workers poll while idle and only heartbeat a lease while holding work. SSH read-only access to `admin1@192.168.1.155` failed public-key/password authentication, so systemd unit state, journals, and the processor's durable consumer cursor could not be inspected. The event cursor is the newest committed institution event and is not a consumer cursor. The projection was not proven incorrect as a lease-health projection; its overview presentation could imply process health. Corrected dashboard labels/docs and added regression coverage without introducing a new heartbeat subsystem. Production process-state diagnosis and normal-cookie browser acceptance remain blocked on authorized access.
