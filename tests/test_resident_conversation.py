@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.28
+# Revision: 1.0.31
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -36,6 +36,8 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Verify an 80B result review directs only the exact pre-proposed dependent step
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-STEP-CONTINUATION | Reconcile model-selected pending steps to the durable proposal without permitting scope edits
 # Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-GUIDANCE-001 | Assert user-facing Engineering proposal guidance reaches the actual inference prompt and retain a stable context-limit boundary case.
+# Changed: 2026-10-16 UTC | RV-INSTITUTIONAL-PROPOSAL-LIFECYCLE-001 | Exercise 80B proposal drafting without objective, assignment, repository-write, or CME authority.
+# Changed: 2026-10-16 UTC | RV-INSTITUTIONAL-PROPOSAL-LIFECYCLE-001 | Verify authenticated proposal draft/search API and idempotent replay without objective creation; retain safe HTTP failure code in assertion.
 # =============================================================================
 """Isolated PostgreSQL and authority tests for Grace's persistent conversation path."""
 
@@ -212,6 +214,127 @@ class ResidentConversationTests(unittest.TestCase):
         self._assert_connection_idle()
         self.assertEqual(self.service.response_status(self.steward_token,
             result["conversation_id"], result["request_id"])["status"], "completed")
+
+    def test_conversation_can_be_formalized_as_unapproved_proposal_without_execution_grants(self):
+        first = self.service.send(self.steward_token,
+            message="I need a bounded report describing the documented solar resources and unknowns.",
+            client_message_id=str(uuid4()))
+        self.provider_a.model = "Qwen3-Next-80B-A3B-Instruct-Q4_K_M"
+        self.provider_a.answer = json.dumps({"decision": "PROPOSAL", "clarification": None,
+            "proposal": {"title": "Solar resources report",
+                "summary": "A concise report of verified solar resource records and unknowns.",
+                "objective": "Create a source-grounded Markdown report.",
+                "scope": "Document only; do not procure or deploy equipment.",
+                "proposed_approach": "Retrieve approved records, cite sources, and label unknowns.",
+                "constraints": ["Do not invent equipment ownership or operational status."],
+                "acceptance_criteria": ["Cite each source.", "List unknowns explicitly."],
+                "tags": ["Solar Energy", "Engineering"]}})
+        result = self.service.draft_institutional_proposal(self.steward_token,
+            first["conversation_id"], [1])
+        self.assertEqual(result["status"], "draft_ready")
+        self.assertEqual(result["reasoning"]["served_model"], self.provider_a.model)
+        self.assertEqual(result["source_references"][0]["sequences"], [1])
+        self.assertIn("Missing assignment, repository-write grant, workflow registration, or CME task is not a reason", self.provider_a.calls[-1][0][0]["content"])
+        # Fixture grants only resident.conversation.read/send; no objective.submit,
+        # assignment.create, repository-write, or CME registration is present.
+        with self.admin.cursor() as cur:
+            cur.execute(__import__("psycopg").sql.SQL(
+                "SELECT count(*) FROM {}.grace_objectives").format(
+                    __import__("psycopg").sql.Identifier(self.schema)))
+            self.assertEqual(cur.fetchone()[0], 0)
+
+    def test_proposal_drafting_refuses_fallback_reasoning_provider(self):
+        first = self.service.send(self.steward_token, message="Prepare a design report.",
+                                   client_message_id=str(uuid4()))
+        calls_before = len(self.provider_a.calls)
+        from riverview_core.resident_execution.conversation import ConversationUnavailable
+        with self.assertRaises(ConversationUnavailable):
+            self.service.draft_institutional_proposal(self.steward_token,
+                first["conversation_id"], [1])
+        self.assertEqual(len(self.provider_a.calls), calls_before)
+
+    def test_authenticated_proposal_api_saves_searches_and_replays_without_execution_intake(self):
+        from riverview_core.status_dashboard.server import DashboardHTTPServer
+        from riverview_core.resident_execution.proposals import ProposalRegistry
+        class Projection:
+            pass
+        class AccountSessions:
+            def authenticate(_self, verifier, *, csrf_token=None, state_changing=False):
+                if verifier == "A" * 43 and (not state_changing or csrf_token == "C" * 43):
+                    return {"account_id":"account-test", "roles":("steward",),
+                        "authority_principal_id":self.steward_id}
+                from riverview_core.account_auth import AuthDenied
+                raise AuthDenied()
+            def require_role(_self, identity, *roles):
+                if not set(identity.get("roles", ())) & set(roles):
+                    from riverview_core.account_auth import AuthDenied
+                    raise AuthDenied()
+        conversation = self.service.send(self.steward_token,
+            message="Create a bounded source-grounded solar resource report.",
+            client_message_id=str(uuid4()))
+        self.provider_a.model = "Qwen3-Next-80B-A3B-Instruct-Q4_K_M"
+        self.provider_a.answer = json.dumps({"decision":"PROPOSAL", "clarification":None,
+            "proposal":{"title":"Solar resource report", "summary":"Report verified solar sources and unknowns.",
+                "objective":"Create a concise Markdown report.", "scope":"Documentation only.",
+                "proposed_approach":"Use verified local institutional documents and cite each source.",
+                "constraints":["Do not invent addresses or operational status."],
+                "acceptance_criteria":["Cite sources.","List unknowns."],"tags":["Solar","Engineering"]}})
+        registry = ProposalRegistry(DSN, schema=self.schema)
+        token = "D" * 43
+        account_cookie = "rv_account_session=" + "A" * 43
+        with tempfile.TemporaryDirectory() as temp:
+            token_path = Path(temp) / "dashboard-token"
+            token_path.write_text(token, encoding="ascii")
+            token_path.chmod(0o600)
+            server = DashboardHTTPServer("127.0.0.1", 8798, token_path, Projection(),
+                ROOT / "src/riverview_core/status_dashboard/static",
+                conversation_service=self.service, account_auth_service=AccountSessions(),
+                proposal_registry=registry)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            def request(method, path, body=None, *, cookie=None, csrf=None, dashboard=None):
+                headers = {}
+                if cookie: headers["Cookie"] = cookie
+                if csrf: headers["X-Riverview-CSRF"] = csrf
+                if dashboard: headers["Authorization"] = "Bearer " + dashboard
+                if body is not None: headers["Content-Type"] = "application/json"
+                connection = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+                connection.request(method, path, body=json.dumps(body) if body is not None else None,
+                                   headers=headers)
+                response = connection.getresponse()
+                result = response.status, response.read()
+                connection.close()
+                return result
+            payload = {"conversation_id":conversation["conversation_id"], "source_sequences":[1],
+                       "idempotency_key":"proposal-test:" + str(uuid4())}
+            try:
+                initial_status, initial_body = request("POST", "/api/v1/institutional-proposals", payload,
+                    cookie=account_cookie, csrf="C" * 43)
+                self.assertEqual(initial_status, 201, initial_body.decode())
+                calls = len(self.provider_a.calls)
+                status, saved = request("POST", "/api/v1/institutional-proposals", payload,
+                    cookie=account_cookie, csrf="C" * 43)
+                self.assertEqual(status, 200)
+                decoded = json.loads(saved)
+                self.assertEqual(decoded["status"], "draft_saved")
+                self.assertEqual(decoded["proposal"]["lifecycle_status"], "DRAFT")
+                self.assertEqual(len(self.provider_a.calls), calls)
+                search_status, search = request("GET", "/api/v1/institutional-proposals?q=solar",
+                    cookie=account_cookie)
+                self.assertEqual(search_status, 200)
+                self.assertEqual(len(json.loads(search)["items"]), 1)
+                self.assertEqual(request("POST", "/api/v1/institutional-proposals", payload,
+                    dashboard=token, csrf="C" * 43)[0], 403)
+                with self.admin.cursor() as cur:
+                    cur.execute(__import__("psycopg").sql.SQL(
+                        "SELECT count(*) FROM {}.grace_objectives").format(
+                            __import__("psycopg").sql.Identifier(self.schema)))
+                    self.assertEqual(cur.fetchone()[0], 0)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=3)
+                registry.close()
 
     def test_stream_is_durable_incremental_and_reconnects_without_replaying_consumed_chunks(self):
         provider=_StreamingChatProvider("cpu-test-a",self.model_a)
