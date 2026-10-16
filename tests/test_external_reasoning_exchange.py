@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_exchange.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Verify durable external advisory exchange, leases, recovery and idempotency
 # Execution Model: Isolated PostgreSQL integration plus deterministic simulated provider
 # Observability: State, correlation, event, digest and sanitized diagnostic assertions
@@ -10,6 +10,7 @@
 # Authority: Creates/drops only one unique rvtest_* schema; no production access
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial acceptance coverage
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Provision isolated runtime role for migration ACL regression
+# Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Exercise actual ResidentReasoner on the consumed advisory
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -43,6 +44,60 @@ class _SimulatedExternalProvider:
     def propose(self, request):
         self.calls += 1
         raise AssertionError("durable admission must not synchronously invoke provider")
+
+
+class _ReasoningState:
+    def __init__(self):
+        self.revision = 1
+        self.state = {}
+
+    def authorize_office_state(self, credential, office_id):
+        return {"occupant_id": "occupant:grace-test", "provider_ref": "reasoner:test",
+            "implementation_revision": "c" * 64, "binding_revision": 3,
+            "state_revision": self.revision, "state": dict(self.state)}
+
+    def set_office_state(self, credential, office_id, state, *, expected_revision):
+        if expected_revision != self.revision:
+            return "STATE_CONFLICT"
+        self.state = dict(state)
+        self.revision += 1
+        return self.revision
+
+
+class _ResumeAssignments:
+    def read(self, assignment_id):
+        return {"id": assignment_id, "revision": "2", "state": "grounded",
+            "objective": "evaluate the external advisory",
+            "acceptance_criteria": ["persist an unapproved reasoning proposal"]}
+
+
+class _ResumeKnowledge:
+    @staticmethod
+    def _verified():
+        from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
+        return KnowledgeResult(KnowledgeStatus.VERIFIED, {"institutional_fact": "fixture"},
+            ("repo://test/verified-institutional-context",), "1.0.0", "d" * 64, True)
+
+    def ground_assignment(self, assignment):
+        return self._verified()
+
+    def reground_assignment(self, assignment, trigger):
+        return self._verified()
+
+
+class _GraceReasoningProvider:
+    provider_id = "reasoner:test"
+
+    def __init__(self):
+        self.requests = []
+
+    def propose(self, request):
+        from riverview_core.resident_reasoning import PlanProposal, PlanStep
+        self.requests.append(request)
+        return PlanProposal("evaluate advisory", (PlanStep("review", "Review advice",
+            ("record a proposal only",)),), 5, provider_id=self.provider_id,
+            served_model="fixture-reasoner", model_revision="c" * 64,
+            reasoning_stage="reasoning")
 
 
 @unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")
@@ -97,6 +152,8 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         self.authorized = lambda principal, action, scope: (
             principal == RESIDENT and action == ReasoningEscalationRouter.ACTION
             and scope == "provider:" + PROVIDER)
+        self.reasoning_state = _ReasoningState()
+        self.grace_provider = _GraceReasoningProvider()
 
     def _service(self, clock=None):
         return DurableExternalReasoningExchange(self.ledger, self.router,
@@ -145,14 +202,38 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
             "provider_id": PROVIDER, "provider_model": "simulated-reasoning-v1"}
 
     def _existing_reasoning_resume(self, consumption):
-        """Persist the advisory evaluation in the existing objective event ledger."""
+        """Run existing reasoning, then persist its result under the stable consume key."""
+        existing = self.admin.execute(self.sql.SQL("""SELECT 1 FROM {}.grace_objective_events
+            WHERE idempotency_key=%s""").format(self.sql.Identifier(self.schema)),
+            (f"{consumption.consumption_key}:reasoned",)).fetchone()
+        if existing:
+            return False, f"{consumption.consumption_key}:reasoned"
+        from riverview_core.resident_reasoning import ReasoningStatus, ResidentReasoner
+
+        reasoner = ResidentReasoner(registry=self.reasoning_state, office_id=RESIDENT,
+            resident_credential="fixture-resident-credential", assignments=_ResumeAssignments(),
+            knowledge=_ResumeKnowledge(), providers={"reasoner:test": self.grace_provider},
+            timeout_seconds=1)
+        result = reasoner.propose(consumption.original_request.assignment_id,
+            trigger="external_reasoning_resume", token_budget=64,
+            external_advisory=consumption.advisory)
+        if result.status is not ReasoningStatus.PROPOSED or result.proposal is None:
+            raise AssertionError(f"Grace reasoning returned {result.status.value}:{result.detail_code}")
+        request = self.grace_provider.requests[-1]
+        self.assertEqual(request.assignment_id, consumption.original_request.assignment_id)
+        self.assertEqual(request.external_advisory, consumption.advisory)
+        self.assertNotIn(consumption.advisory["advisory"], str(request.verified_knowledge))
         event_key = f"{consumption.consumption_key}:reasoned"
         payload = {"exchange_request_id": consumption.request_id,
             "correlation_id": consumption.correlation_id,
             "advisory_sha256": __import__("hashlib").sha256(
                 __import__("json").dumps(consumption.advisory, sort_keys=True,
                     separators=(",", ":")).encode()).hexdigest(),
-            "decision": "advisory_received_for_reasoning"}
+            "decision": "advisory_evaluated_as_unapproved_proposal",
+            "reasoning_request_id": result.request_id,
+            "reasoning_status": result.status.value,
+            "reasoning_provider_id": result.provider_id,
+            "proposal_summary": result.proposal.summary}
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
