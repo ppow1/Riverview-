@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/proposals.py
 # Component: INSTITUTIONAL-PROPOSALS
-# Revision: 1.0.0
+# Revision: 1.1.0
 # Purpose: Persist searchable, revisioned institutional proposals and review evidence
 # Execution Model: Request-driven PostgreSQL repository
 # Observability: Append-only proposal events with revision, actor and provenance references
 # Dependencies: PostgreSQL 16; Psycopg 3; resident conversation provider contract
 # Authority: Proposal records never authorize work; callers enforce Steward and resident grants
 # Changed: 2026-10-16 UTC | RV-INSTITUTIONAL-PROPOSAL-LIFECYCLE-001 | Initial durable proposal registry
+# Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Add revision-bound Steward decisions, idempotent intake provenance, and execution evidence linkage
 # Contracts: docs/components/INSTITUTIONAL_PROPOSALS.md
 # Tests: tests/test_institutional_proposals.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -44,11 +45,11 @@ _LIFECYCLE = {
 _TRANSITIONS = {
     "DRAFT": {"READY_FOR_REVIEW", "ARCHIVED"},
     "READY_FOR_REVIEW": {"UNDER_REVIEW", "CHANGES_REQUIRED", "READY_FOR_STEWARD_DECISION", "ARCHIVED"},
-    "UNDER_REVIEW": {"CHANGES_REQUIRED", "READY_FOR_STEWARD_DECISION", "DEFERRED", "ARCHIVED"},
+    "UNDER_REVIEW": {"CHANGES_REQUIRED", "READY_FOR_STEWARD_DECISION", "ARCHIVED"},
     "CHANGES_REQUIRED": {"DRAFT", "READY_FOR_REVIEW", "ARCHIVED"},
-    "READY_FOR_STEWARD_DECISION": {"APPROVED", "DEFERRED", "REJECTED", "CHANGES_REQUIRED", "ARCHIVED"},
+    "READY_FOR_STEWARD_DECISION": {"ARCHIVED"},
     "APPROVED": {"SUPERSEDED", "ARCHIVED"},
-    "DEFERRED": {"READY_FOR_REVIEW", "ARCHIVED"},
+    "DEFERRED": {"ARCHIVED"},
     "REJECTED": {"ARCHIVED"},
     "SUPERSEDED": {"ARCHIVED"},
     "ARCHIVED": set(),
@@ -283,16 +284,196 @@ class ProposalRegistry:
                 WHERE proposal_id=%s AND revision=%s ORDER BY created_at,review_id""",
                 (proposal_id, revision))
             reviews = cur.fetchall()
-            cur.execute("""SELECT event_type,actor_id,payload,occurred_at FROM institutional_proposal_events
+            cur.execute("""SELECT event_id,revision,event_type,idempotency_key,actor_id,payload,occurred_at
+                FROM institutional_proposal_events
                 WHERE proposal_id=%s ORDER BY occurred_at,event_id""", (proposal_id,))
             events = cur.fetchall()
-        for row in (proposal, rev, *reviews, *events):
+            cur.execute("""SELECT proposal_id,proposal_revision,objective_id,assignment_id,
+                    approved_purpose,linked_by,authority_reference,linked_at
+                FROM institutional_proposal_work_orders WHERE proposal_id=%s AND proposal_revision=%s
+                ORDER BY linked_at,assignment_id""", (proposal_id, revision))
+            work_order_links = cur.fetchall()
+        revision_content = {key: rev[key] for key in (
+            "title", "summary", "objective", "scope", "proposed_approach",
+            "constraints", "acceptance_criteria", "tags")}
+        rev["content_sha256"] = self._digest(revision_content)
+        for row in (proposal, rev, *reviews, *events, *work_order_links):
             for key, value in tuple(row.items()):
                 if isinstance(value, datetime):
                     row[key] = value.isoformat()
                 elif key.endswith("_id") and value is not None and not isinstance(value, str):
                     row[key] = str(value)
-        return {"proposal": proposal, "revision": rev, "reviews": reviews, "events": events}
+        return {"proposal": proposal, "revision": rev, "reviews": reviews,
+                "events": events, "work_order_links": work_order_links}
+
+    def steward_decision(self, proposal_id, expected_revision, *, decision, actor_id,
+                         authority_reference, reason, idempotency_key,
+                         expected_content_sha256, approved_purpose=None,
+                         accepted_conditions=()):
+        """Record an authenticated Steward decision for one exact current revision.
+
+        The caller must establish the Steward account/session. This repository method
+        enforces lifecycle, digest, and idempotency invariants but is not an auth boundary.
+        """
+        actor_id = _text(actor_id, "Steward principal", 256)
+        authority_reference = _text(authority_reference, "authority reference", 256)
+        reason = _text(reason, "decision reason", 1000)
+        idempotency_key = _text(idempotency_key, "decision idempotency key", 240)
+        if decision not in {"APPROVE", "REQUEST_CHANGES", "DEFER", "REJECT"}:
+            raise ProposalValidationError("invalid Steward decision")
+        if type(expected_revision) is not int or expected_revision < 1:
+            raise ProposalValidationError("invalid proposal revision")
+        if not isinstance(expected_content_sha256, str) or not re.fullmatch(
+                r"[0-9a-f]{64}", expected_content_sha256):
+            raise ProposalValidationError("proposal content digest is required")
+        approved_purpose = (_text(approved_purpose, "approved purpose", 1000)
+                            if decision == "APPROVE" else None)
+        accepted_conditions = _string_list(accepted_conditions, "accepted review conditions", 24, 1000)
+        target = {"APPROVE": "APPROVED", "REQUEST_CHANGES": "CHANGES_REQUIRED",
+                  "DEFER": "DEFERRED", "REJECT": "REJECTED"}[decision]
+        decision_from = {
+            "APPROVE": {"READY_FOR_STEWARD_DECISION"},
+            "REQUEST_CHANGES": {"DRAFT", "READY_FOR_REVIEW", "UNDER_REVIEW",
+                                "READY_FOR_STEWARD_DECISION"},
+            "DEFER": {"DRAFT", "READY_FOR_REVIEW", "UNDER_REVIEW",
+                      "READY_FOR_STEWARD_DECISION"},
+            "REJECT": {"DRAFT", "READY_FOR_REVIEW", "UNDER_REVIEW",
+                       "READY_FOR_STEWARD_DECISION"},
+        }[decision]
+        request_digest = self._digest({"proposal_id": proposal_id, "revision": expected_revision,
+            "decision": decision, "actor_id": actor_id, "authority_reference": authority_reference,
+            "reason": reason, "approved_purpose": approved_purpose,
+            "accepted_conditions": accepted_conditions,
+            "content_sha256": expected_content_sha256})
+        try:
+            with self.db.transaction(), self.db.cursor() as cur:
+                self._path(cur)
+                cur.execute("""SELECT event_type,revision,actor_id,payload FROM institutional_proposal_events
+                    WHERE idempotency_key=%s""", (idempotency_key,))
+                prior = cur.fetchone()
+                if prior:
+                    payload = prior["payload"]
+                    if (prior["event_type"] != "proposal.steward_decision" or
+                            prior["revision"] != expected_revision or prior["actor_id"] != actor_id or
+                            payload.get("request_sha256") != request_digest):
+                        raise ProposalConflict("decision idempotency key is bound to a different decision")
+                    return self.get(proposal_id, revision=expected_revision)
+                cur.execute("""SELECT p.current_revision,p.lifecycle_status AS proposal_status,
+                        p.retention_until,r.lifecycle_status AS revision_status,
+                        r.title,r.summary,r.objective,r.scope,r.proposed_approach,
+                        r.constraints,r.acceptance_criteria,r.tags
+                    FROM institutional_proposals p JOIN institutional_proposal_revisions r
+                      ON r.proposal_id=p.proposal_id AND r.revision=%s
+                    WHERE p.proposal_id=%s FOR UPDATE OF p,r""",
+                    (expected_revision, proposal_id))
+                row = cur.fetchone()
+                if row is None:
+                    raise ProposalNotFound("proposal revision not found")
+                if row["current_revision"] != expected_revision:
+                    raise ProposalConflict("proposal revision is stale")
+                if row["retention_until"] is not None and row["retention_until"] <= datetime.now(timezone.utc):
+                    raise ProposalConflict("proposal retention period has expired")
+                digest = self._digest({key: row[key] for key in (
+                    "title", "summary", "objective", "scope", "proposed_approach",
+                    "constraints", "acceptance_criteria", "tags")})
+                if digest != expected_content_sha256:
+                    raise ProposalConflict("proposal content changed since Steward review")
+                old = row["proposal_status"]
+                if old not in decision_from:
+                    raise ProposalConflict("proposal is not eligible for this Steward decision")
+                cur.execute("""SELECT review_outcome,conditions FROM institutional_proposal_reviews
+                    WHERE proposal_id=%s AND revision=%s""", (proposal_id, expected_revision))
+                for review in cur.fetchall():
+                    if review["review_outcome"] in {"BLOCKED", "CHANGES_REQUIRED", "INSUFFICIENT_EVIDENCE"}:
+                        raise ProposalConflict("proposal has an unresolved blocking review")
+                    required = review["conditions"] if isinstance(review["conditions"], list) else []
+                    if (review["review_outcome"] == "APPROVED_WITH_CONDITIONS" and
+                            not set(required) <= set(accepted_conditions)):
+                        raise ProposalConflict("Steward decision must explicitly accept all review conditions")
+                cur.execute("UPDATE institutional_proposal_revisions SET lifecycle_status=%s "
+                            "WHERE proposal_id=%s AND revision=%s",
+                            (target, proposal_id, expected_revision))
+                cur.execute("UPDATE institutional_proposals SET lifecycle_status=%s,updated_at=clock_timestamp() "
+                            "WHERE proposal_id=%s AND current_revision=%s",
+                            (target, proposal_id, expected_revision))
+                payload = {"from": old, "to": target, "decision": decision,
+                    "reason": reason, "authority_reference": authority_reference,
+                    "request_sha256": request_digest, "content_sha256": digest,
+                    "approved_purpose": approved_purpose,
+                    "accepted_conditions": accepted_conditions}
+                self._event(cur, proposal_id, expected_revision, "proposal.steward_decision",
+                    idempotency_key, actor_id, payload)
+            return self.get(proposal_id, revision=expected_revision)
+        except psycopg.Error as exc:
+            if "UniqueViolation" in type(exc).__name__:
+                raise ProposalConflict("Steward decision was concurrently recorded") from None
+            raise ProposalError(type(exc).__name__) from None
+
+    def reserve_work_order_intake(self, proposal_id, revision, objective_id, *, actor_id,
+                                  authority_reference):
+        """Persist the stable correlation before creating the existing objective."""
+        actor_id = _text(actor_id, "Steward principal", 256)
+        authority_reference = _text(authority_reference, "authority reference", 256)
+        if not isinstance(objective_id, str) or not re.fullmatch(
+                r"objective:proposal:[0-9a-f-]{36}:r[1-9][0-9]{0,5}", objective_id):
+            raise ProposalValidationError("invalid proposal objective identity")
+        key = f"proposal-work-order-request:{proposal_id}:{revision}"
+        try:
+            with self.db.transaction(), self.db.cursor() as cur:
+                self._path(cur)
+                cur.execute("""SELECT p.current_revision,p.lifecycle_status AS proposal_status,
+                        p.retention_until,r.lifecycle_status AS revision_status,
+                        r.title,r.summary,r.objective,r.scope,r.proposed_approach,
+                        r.constraints,r.acceptance_criteria,r.tags
+                    FROM institutional_proposals p JOIN institutional_proposal_revisions r
+                      ON r.proposal_id=p.proposal_id AND r.revision=%s
+                    WHERE p.proposal_id=%s FOR UPDATE OF p,r""", (revision, proposal_id))
+                row = cur.fetchone()
+                if row is None:
+                    raise ProposalNotFound("proposal revision not found")
+                if (row["current_revision"] != revision or row["proposal_status"] != "APPROVED"
+                        or row["revision_status"] != "APPROVED"):
+                    raise ProposalConflict("only the current Steward-approved revision can be promoted")
+                if row["retention_until"] is not None and row["retention_until"] <= datetime.now(timezone.utc):
+                    raise ProposalConflict("proposal retention period has expired")
+                digest = self._digest({key: row[key] for key in (
+                    "title", "summary", "objective", "scope", "proposed_approach",
+                    "constraints", "acceptance_criteria", "tags")})
+                cur.execute("""SELECT event_type,actor_id,payload FROM institutional_proposal_events
+                    WHERE idempotency_key=%s""", (key,))
+                existing = cur.fetchone()
+                if existing:
+                    payload = existing["payload"]
+                    if (existing["event_type"] != "proposal.work_order_requested" or
+                            existing["actor_id"] != actor_id or
+                            payload.get("objective_id") != objective_id or
+                            payload.get("content_sha256") != digest or
+                            payload.get("authority_reference") != authority_reference):
+                        raise ProposalConflict("proposal revision already has a different work-order request")
+                    return {"event_type": existing["event_type"], "payload": payload,
+                            "idempotency_key": key, "created": False}
+                cur.execute("""SELECT idempotency_key,payload FROM institutional_proposal_events
+                    WHERE proposal_id=%s AND revision=%s AND event_type='proposal.steward_decision'
+                      AND payload->>'to'='APPROVED' ORDER BY occurred_at DESC LIMIT 1""",
+                    (proposal_id, revision))
+                approval = cur.fetchone()
+                if not approval or approval["payload"].get("content_sha256") != digest:
+                    raise ProposalConflict("current proposal revision has no matching Steward approval")
+                payload = {"objective_id": objective_id, "content_sha256": digest,
+                    "approved_purpose": approval["payload"].get("approved_purpose"),
+                    "approval_event_key": approval["idempotency_key"],
+                    "authority_reference": authority_reference}
+                cur.execute("""SELECT source_references FROM institutional_proposal_revisions
+                    WHERE proposal_id=%s AND revision=%s""", (proposal_id, revision))
+                payload["source_references"] = cur.fetchone()["source_references"]
+                self._event(cur, proposal_id, revision, "proposal.work_order_requested", key,
+                    actor_id, payload)
+            return {"event_type": "proposal.work_order_requested", "payload": payload,
+                    "idempotency_key": key, "created": True}
+        except psycopg.Error as exc:
+            if "UniqueViolation" in type(exc).__name__:
+                raise ProposalConflict("work-order promotion was concurrently recorded") from None
+            raise ProposalError(type(exc).__name__) from None
 
     def get_by_idempotency_key(self, idempotency_key, *, created_by=None):
         """Return a prior creation receipt without regenerating model output."""
@@ -498,6 +679,21 @@ class ProposalRegistry:
                     raise ProposalNotFound("proposal revision not found")
                 if row["lifecycle_status"] != "APPROVED":
                     raise ProposalConflict("only a specifically approved proposal revision can link to work")
+                cur.execute("""SELECT 1 FROM institutional_proposal_events WHERE proposal_id=%s
+                    AND revision=%s AND event_type='proposal.work_order_requested'
+                    AND payload->>'objective_id'=%s""", (proposal_id, revision, objective_id))
+                if cur.fetchone() is None:
+                    raise ProposalConflict("objective is not correlated to this approved proposal revision")
+                cur.execute("""SELECT approved_purpose,linked_by,authority_reference
+                    FROM institutional_proposal_work_orders WHERE proposal_id=%s
+                    AND proposal_revision=%s AND objective_id=%s AND assignment_id=%s""",
+                    (proposal_id, revision, objective_id, assignment_id))
+                prior = cur.fetchone()
+                if prior:
+                    if (prior["approved_purpose"], prior["linked_by"], prior["authority_reference"]) != (
+                            approved_purpose, actor_id, authority_reference):
+                        raise ProposalConflict("work-order link retry differs from its original provenance")
+                    return self.get(proposal_id, revision=revision)
                 cur.execute("""INSERT INTO institutional_proposal_work_orders
                     (proposal_id,proposal_revision,objective_id,assignment_id,approved_purpose,
                      linked_by,authority_reference) VALUES (%s,%s,%s,%s,%s,%s,%s)""",
@@ -512,4 +708,44 @@ class ProposalRegistry:
         except psycopg.Error as exc:
             if "UniqueViolation" in type(exc).__name__:
                 raise ProposalConflict("proposal work-order link already exists") from None
+            raise ProposalError(type(exc).__name__) from None
+
+    def record_execution_update(self, proposal_id, revision, *, objective_id, assignment_id,
+                                status, evidence, idempotency_key):
+        """Append sanitized objective, assignment, artifact, and verifier state."""
+        status = _text(status, "execution status", 80)
+        idempotency_key = _text(idempotency_key, "execution event key", 240)
+        if not isinstance(evidence, dict) or len(self._json(evidence).encode("utf-8")) > 4096:
+            raise ProposalValidationError("execution evidence is invalid")
+        allowed = {"objective_status", "assignment_status", "artifact_path", "artifact_sha256",
+                   "verification_decision", "verifier_id", "verifier_revision",
+                   "verification_evidence_references", "recorded_at"}
+        if set(evidence) - allowed:
+            raise ProposalValidationError("execution evidence contains unsupported fields")
+        self.get(proposal_id, revision=revision)
+        payload = {"objective_id": objective_id, "assignment_id": assignment_id,
+                   "status": status, "evidence": evidence}
+        try:
+            with self.db.transaction(), self.db.cursor() as cur:
+                self._path(cur)
+                cur.execute("""SELECT 1 FROM institutional_proposal_events
+                    WHERE proposal_id=%s AND revision=%s
+                      AND event_type='proposal.work_order_requested'
+                      AND payload->>'objective_id'=%s""",
+                    (proposal_id, revision, objective_id))
+                if cur.fetchone() is None:
+                    raise ProposalConflict("execution update is not correlated to this proposal revision")
+                cur.execute("""INSERT INTO institutional_proposal_events
+                    (proposal_id,revision,event_type,idempotency_key,actor_id,payload)
+                    VALUES (%s,%s,'proposal.execution_updated',%s,'service:grace-execution',%s::jsonb)
+                    ON CONFLICT (idempotency_key) DO NOTHING RETURNING event_id""",
+                    (proposal_id, revision, idempotency_key, self._json(payload)))
+                if cur.fetchone() is None:
+                    cur.execute("SELECT payload FROM institutional_proposal_events WHERE idempotency_key=%s",
+                                (idempotency_key,))
+                    prior = cur.fetchone()
+                    if not prior or prior["payload"] != payload:
+                        raise ProposalConflict("execution event key is bound to different evidence")
+            return self.get(proposal_id, revision=revision)
+        except psycopg.Error as exc:
             raise ProposalError(type(exc).__name__) from None

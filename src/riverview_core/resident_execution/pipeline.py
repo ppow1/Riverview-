@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.4
+# Revision: 1.1.5
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
 # Execution Model: Request-driven orchestration over existing PostgreSQL authority and ledger
 # Observability: Append-only objective events linked to assignment and evidence provenance
@@ -24,6 +24,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Require Grace 80B review of each verified predecessor before dispatching dependent work
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Expose each verified objective step to the existing Grace result-review outbox
 # Changed: 2026-10-16 UTC | RV-GRACE-REVIEW-OBJECTIVE-PROGRESS | Include authoritative objective and step state in Grace's verified-result review context
+# Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Persist immutable proposal revision, approval, source and exact-grant correlation on objective intake
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -113,7 +114,8 @@ class GraceExecutionPipeline:
             raise
 
     def submit_objective(self, objective_id, request, acceptance_criteria, *,
-                         scope_ref, credential=None, principal=None, origin=None):
+                         scope_ref, credential=None, principal=None, origin=None,
+                         proposal_reference=None):
         if (not isinstance(objective_id, str) or not re.fullmatch(r"objective:[A-Za-z0-9._:-]{1,120}", objective_id)
                 or not isinstance(request, str) or not request.strip()
                 or len(request.encode("utf-8")) > self.MAX_OBJECTIVE_BYTES
@@ -131,6 +133,26 @@ class GraceExecutionPipeline:
                     or type(origin["source_sequence"]) is not int
                     or origin["source_sequence"] < 1):
                 raise ValueError("conversation origin is invalid")
+        if proposal_reference is not None:
+            if (not isinstance(proposal_reference, dict) or set(proposal_reference) != {
+                    "proposal_id", "revision", "content_sha256", "approval_event_key",
+                    "source_references", "privacy_classification", "retention_policy",
+                    "approved_purpose", "objective_submit_grant_id"}
+                    or not isinstance(proposal_reference["proposal_id"], str)
+                    or type(proposal_reference["revision"]) is not int
+                    or not re.fullmatch(r"[0-9a-f]{64}", proposal_reference["content_sha256"])
+                    or not isinstance(proposal_reference["approval_event_key"], str)
+                    or not isinstance(proposal_reference["source_references"], list)
+                    or proposal_reference["privacy_classification"] not in {
+                        "institutional", "confidential", "restricted", "local_only"}
+                    or proposal_reference["retention_policy"] not in {
+                        "standard", "minimum_required", "ephemeral"}
+                    or not isinstance(proposal_reference["approved_purpose"], str)
+                    or not proposal_reference["approved_purpose"].strip()
+                    or not isinstance(proposal_reference["objective_submit_grant_id"], str)
+                    or not proposal_reference["objective_submit_grant_id"]
+                    or len(_json(proposal_reference).encode("utf-8")) > 8192):
+                raise ValueError("proposal correlation is invalid")
         db = self.ledger.db
         try:
             with db.transaction():
@@ -151,6 +173,8 @@ class GraceExecutionPipeline:
                     self._event(cur, objective_id, "objective.received",
                                 f"grace-objective-received:{objective_id}", actor["principal_id"],
                                 {"acceptance_criteria": list(acceptance_criteria),
+                                 **({"proposal_reference": proposal_reference}
+                                    if proposal_reference is not None else {}),
                                  **({"origin": origin} if origin is not None else {})})
         except Exception as exc:
             if type(exc).__name__ in {"GrantDenied", "GrantCheckUnavailable"}:
@@ -538,6 +562,16 @@ class GraceExecutionPipeline:
             cur.execute("SELECT * FROM grace_objectives WHERE objective_id=%s", (objective_id,))
             row = cur.fetchone()
         return dict(row) if row else None
+
+    def objective_proposal_reference(self, objective_id):
+        """Read proposal provenance from the immutable objective.received event."""
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT payload->'proposal_reference' AS proposal_reference
+                FROM grace_objective_events WHERE objective_id=%s
+                  AND event_type='objective.received'""", (objective_id,))
+            row = cur.fetchone()
+        return row["proposal_reference"] if row else None
 
     def grounded_objectives(self, *, scope_ref, limit=25, objective_id=None):
         """Return a bounded, stable queue of objectives ready for resident reasoning."""
