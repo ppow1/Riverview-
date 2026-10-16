@@ -273,6 +273,18 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
                 if not set(identity.get("roles", ())) & set(roles):
                     raise AuthDenied()
 
+        class ConversationStore:
+            db = self.ledger.db
+            def _path(_self, cur):
+                self.ledger._set_search_path(cur)
+
+        class ConversationService:
+            store = ConversationStore()
+            def history(_self, authority, conversation_id):
+                if authority.principal_id != "steward:authorized":
+                    raise PermissionError("Steward conversation access required")
+                return {"conversation_id": conversation_id}
+
         with tempfile.TemporaryDirectory() as temp:
             token_path = Path(temp) / "dashboard-token"
             token_path.write_text("T" * 43, encoding="ascii")
@@ -292,8 +304,8 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
                 self.fail("no free dashboard test port in the reserved range")
             server = DashboardHTTPServer("127.0.0.1", port, token_path, Projection(),
                 ROOT / "src/riverview_core/status_dashboard/static",
-                objective_pipeline=self.pipeline, account_auth_service=AccountSessions(),
-                proposal_registry=self.registry)
+                objective_pipeline=self.pipeline, conversation_service=ConversationService(),
+                account_auth_service=AccountSessions(), proposal_registry=self.registry)
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
 
@@ -330,6 +342,23 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
                 first_result, second_result = json.loads(first), json.loads(second)
                 self.assertEqual(first_result["objective_id"], second_result["objective_id"])
                 self.assertTrue(second_result["reused"])
+                conversation_id = uuid4()
+                self.admin.execute(self.sql.SQL("""INSERT INTO {}.resident_conversations
+                    (conversation_id,office_id,owner_principal_id) VALUES (%s,'office:grace',%s)""").format(
+                        self.sql.Identifier(self.schema)), (conversation_id, "steward:authorized"))
+                command = (f"Grace, create Engineering work order from proposal {proposal_id} revision 1.")
+                self.admin.execute(self.sql.SQL("""INSERT INTO {}.resident_conversation_events
+                    (conversation_id,sequence,request_id,client_message_id,event_type,actor_kind,actor_id,body)
+                    VALUES (%s,1,%s,%s,'user_message','principal',%s,%s)""").format(
+                        self.sql.Identifier(self.schema)), (conversation_id, uuid4(), uuid4(),
+                            "steward:authorized", command))
+                command_status, command_body = request("POST",
+                    "/api/v1/institutional-proposals/conversational-command",
+                    {"conversation_id": str(conversation_id), "source_sequence": 1}, csrf="C" * 43)
+                self.assertEqual(command_status, 202, command_body.decode())
+                command_result = json.loads(command_body)["result"]
+                self.assertEqual(command_result["objective_id"], first_result["objective_id"])
+                self.assertTrue(command_result["reused"])
                 from riverview_core.resident_reasoning import PlanProposal, PlanStep
                 from riverview_core.resident_execution.worker import BoundedLocalCodingWorker
                 from riverview_core.resident_execution.verifier import BoundedArtifactVerifier
