@@ -1,0 +1,69 @@
+{
+  "schema_version": "rv.website.snapshot-archive-inspection.v1",
+  "archive_sha256": "8f5c2ae2d4fe8de83b16117990810df7159b91e8154400f0138d0b9cf1d86050",
+  "archive_bytes": 48608834,
+  "archive_crc_test": "passed",
+  "file_count": 138,
+  "capture_complete": true,
+  "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "deployment_id": "synthetic-fixture",
+  "capture_timestamp": "2026-10-16T19:42:33.373Z",
+  "pages": 10,
+  "page_visuals": 10,
+  "registered_controls": 55,
+  "observed_registered_controls": 37,
+  "uncovered_rendered_controls": 0,
+  "workflows": 20,
+  "nodes": 494,
+  "edges": 656,
+  "workflow_visuals": 20,
+  "cross_workflow_relationships": 26,
+  "unresolved_references": 0,
+  "documentation_capture": {
+    "full_height_css_px": 20067,
+    "detail_tile_count": 12,
+    "detail_tiles": [
+      "website/pages/documentation/details/tile-001.png",
+      "website/pages/documentation/details/tile-002.png",
+      "website/pages/documentation/details/tile-003.png",
+      "website/pages/documentation/details/tile-004.png",
+      "website/pages/documentation/details/tile-005.png",
+      "website/pages/documentation/details/tile-006.png",
+      "website/pages/documentation/details/tile-007.png",
+      "website/pages/documentation/details/tile-008.png",
+      "website/pages/documentation/details/tile-009.png",
+      "website/pages/documentation/details/tile-010.png",
+      "website/pages/documentation/details/tile-011.png",
+      "website/pages/documentation/details/tile-012.png"
+    ]
+  },
+  "sample_paths": [
+    "manifest.json",
+    "website/capabilities.json",
+    "website/pages/documentation.html",
+    "website/pages/documentation.svg",
+    "website/pages/documentation.png",
+    "diagnostics/browser-history.json",
+    "diagnostics/control-coverage.json",
+    "workflows/workflow-index.json"
+  ],
+  "privacy_findings": {
+    "archive_excludes_fixture_cookie": true,
+    "diagnostic_allowlist_passed": true,
+    "authentication_material": "not present",
+    "production_data_accessed": false,
+    "production_mutations": false
+  },
+  "second_viewport": {
+    "viewport": {
+      "width": 720,
+      "scroll_y": 1455
+    },
+    "package_bytes": 50255960,
+    "workflow_svg_matches_first_viewport": true,
+    "workflow_json_matches_first_viewport": true,
+    "manifest_capture_complete": true,
+    "documentation_capture_complete": true,
+    "documentation_detail_tile_count": 25
+  }
+}

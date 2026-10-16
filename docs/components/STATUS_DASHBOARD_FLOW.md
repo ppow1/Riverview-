@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.10
+**Document Revision:** 1.0.11
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -122,3 +122,10 @@ read-only transaction, filters private records, and exposes paged projections.
 Unavailable sources remain visible as unavailable. UI navigation renders from
 the current browser cache and does not wait for a provider or database request.
 See the [troubleshooting cookbook](STATUS_DASHBOARD_COOKBOOK.md).
+
+The explicit snapshot branch captures each authorized registered page and
+control, including long-page visuals split into readable overlapping tiles. It
+exports each canonical workflow JSON and viewport-independent visual with the
+cross-workflow index. Isolated Firefox verification used the actual dashboard
+DOM and scripts with synthetic read-only APIs; production account acceptance
+remains unverified. See the dashboard cookbook and PL-NEW-041 evidence.

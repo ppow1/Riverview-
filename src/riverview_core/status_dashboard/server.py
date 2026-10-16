@@ -40,6 +40,7 @@
 # History: Git and revision/backup manifest
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
 # Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RECOVERY-001 | Ground against the active immutable release and make conversation intake recoverable/idempotent.
+# Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Add authenticated revision decisions, explicit conversational commands, and existing-pipeline promotion API
 # =============================================================================
 """Loopback-only Steward dashboard with read projections and receipt-only writes."""
 
@@ -87,6 +88,9 @@ _CONVERSATION_WORK_ORDER = re.compile(
     r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/work-orders$")
 _PROPOSAL_COLLECTION = "/api/v1/institutional-proposals"
 _PROPOSAL_ITEM = re.compile(r"^/api/v1/institutional-proposals/(proposal:[0-9a-f-]{36})$")
+_PROPOSAL_DECISION = re.compile(r"^/api/v1/institutional-proposals/(proposal:[0-9a-f-]{36})/decision$")
+_PROPOSAL_WORK_ORDERS = re.compile(r"^/api/v1/institutional-proposals/(proposal:[0-9a-f-]{36})/work-orders$")
+_PROPOSAL_COMMAND = "/api/v1/institutional-proposals/conversational-command"
 
 
 class WorkOrderOriginConflict(Exception):
@@ -225,6 +229,10 @@ class _BoundedHTTPServer(HTTPServer):
         self._account_auth_service = account_auth_service
         self._permission_store = permission_store
         self._proposal_registry = proposal_registry
+        self._proposal_lifecycle = None
+        if proposal_registry is not None and objective_pipeline is not None:
+            from riverview_core.resident_execution.proposal_lifecycle import ProposalLifecycle
+            self._proposal_lifecycle = ProposalLifecycle(proposal_registry, objective_pipeline)
         self._static_dir = Path(static_dir)
         self._slots = threading.BoundedSemaphore(_MAX_THREADS)
         super().__init__(address, handler)
@@ -527,6 +535,11 @@ def make_handler():
                              if self.command in {"GET", "HEAD"} else None)
             proposal_revision = (_PROPOSAL_ITEM.fullmatch(parsed.path)
                                  if self.command == "PUT" else None)
+            proposal_decision = (_PROPOSAL_DECISION.fullmatch(parsed.path)
+                                 if self.command == "POST" else None)
+            proposal_work_orders = (_PROPOSAL_WORK_ORDERS.fullmatch(parsed.path)
+                                    if self.command == "POST" else None)
+            proposal_command = (parsed.path == _PROPOSAL_COMMAND and self.command == "POST")
             conversation_session = (parsed.path == _CONVERSATION_SESSION
                                      and self.command in {"POST", "DELETE"})
             if not self._host_ok():
@@ -536,7 +549,8 @@ def make_handler():
                     and not objective_submit and not objective_proposal and not objective_cancel
                     and not conversation_send and not conversation_stream_send and not conversation_session and not public_auth
                     and not conversation_work_order and not proposal_create
-                    and not proposal_revision
+                    and not proposal_revision and not proposal_decision
+                    and not proposal_work_orders and not proposal_command
                     and not auth_logout and not account_decision and not account_user
                     and not permission_profile and not permission_transition
                     and not account_email_save and not account_email_test):
@@ -991,7 +1005,8 @@ def make_handler():
                             self._error(409, "work_order_conflict", request_id)
                         else:
                             self._error(503, "work_order_intake_unavailable", request_id)
-                elif proposal_create or proposal_search or proposal_item or proposal_revision:
+                elif (proposal_create or proposal_search or proposal_item or proposal_revision
+                      or proposal_decision or proposal_work_orders or proposal_command):
                     identity = getattr(self, "_account_identity", None)
                     if (not getattr(self, "_account_cookie_authenticated", False)
                             or not identity or "steward" not in identity.get("roles", ())
@@ -1001,6 +1016,106 @@ def make_handler():
                     registry = self.server._proposal_registry
                     if registry is None:
                         self._error(503, "institutional_proposal_registry_unavailable", request_id)
+                        return
+                    lifecycle = self.server._proposal_lifecycle
+                    if proposal_decision or proposal_work_orders or proposal_command:
+                        if lifecycle is None:
+                            self._error(503, "proposal_work_order_lifecycle_unavailable", request_id)
+                            return
+                        try:
+                            principal_id = identity["authority_principal_id"]
+                            data = self._json_body(_MAX_CHAT_BODY)
+                            if proposal_decision:
+                                allowed = {"revision", "decision", "reason", "idempotency_key",
+                                           "content_sha256", "approved_purpose", "accepted_conditions"}
+                                if (set(data) - allowed or not {"revision", "decision", "reason",
+                                        "idempotency_key", "content_sha256"} <= set(data)
+                                        or type(data["revision"]) is not int
+                                        or not isinstance(data["idempotency_key"], str)):
+                                    raise ValueError("invalid proposal decision request")
+                                if ((data["decision"] == "APPROVE") !=
+                                        (isinstance(data.get("approved_purpose"), str)
+                                         and bool(data["approved_purpose"].strip()))):
+                                    raise ValueError("approval requires a purpose; other decisions do not take one")
+                                result = lifecycle.decide(unquote(proposal_decision.group(1)),
+                                    data["revision"], decision=data["decision"], actor_id=principal_id,
+                                    reason=data["reason"], idempotency_key=data["idempotency_key"],
+                                    content_sha256=data["content_sha256"],
+                                    approved_purpose=data.get("approved_purpose"),
+                                    accepted_conditions=data.get("accepted_conditions", []),
+                                    authority_reference=(f"account-auth-session:{identity['account_id']}:steward"))
+                                self._json(200, result, request_id)
+                            elif proposal_work_orders:
+                                if set(data) != {"revision"} or type(data["revision"]) is not int:
+                                    raise ValueError("invalid proposal promotion request")
+                                result = lifecycle.promote(unquote(proposal_work_orders.group(1)),
+                                    data["revision"], actor_id=principal_id)
+                                self._json(202, result, request_id)
+                            else:
+                                if set(data) != {"conversation_id", "source_sequence"}:
+                                    raise ValueError("invalid proposal conversational command request")
+                                conversation_id = data["conversation_id"]
+                                sequence = data["source_sequence"]
+                                if (not isinstance(conversation_id, str)
+                                        or not re.fullmatch(r"[0-9a-fA-F-]{36}", conversation_id)
+                                        or type(sequence) is not int or sequence < 1):
+                                    raise ValueError("invalid conversational command source")
+                                service = self.server._conversation_service
+                                if service is None:
+                                    self._error(503, "resident_conversation_unavailable", request_id)
+                                    return
+                                service.history(self._conversation_authority(), conversation_id)
+                                with service.store.db.cursor() as cur:
+                                    service.store._path(cur)
+                                    cur.execute("""SELECT body,actor_kind,actor_id FROM resident_conversation_events
+                                        WHERE conversation_id=%s AND sequence=%s AND event_type='user_message'""",
+                                        (conversation_id, sequence))
+                                    source = cur.fetchone()
+                                if (source is None or source["actor_kind"] != "principal"
+                                        or source["actor_id"] != principal_id):
+                                    self._error(404, "conversation_message_not_found", request_id)
+                                    return
+                                from riverview_core.resident_execution.proposal_lifecycle import parse_steward_command
+                                parsed_command = parse_steward_command(source["body"])
+                                if parsed_command and parsed_command["action"] == "decision":
+                                    pid = parsed_command["proposal_id"]
+                                    revision = parsed_command["revision"]
+                                    idem = f"conversation-proposal-decision:{conversation_id}:{sequence}"
+                                    current_content = registry.get(pid, revision=revision)["revision"]
+                                    result = lifecycle.decide(pid, revision,
+                                        decision=parsed_command["decision"],
+                                        actor_id=principal_id,
+                                        reason=(parsed_command["reason"] +
+                                            f"; source {conversation_id}:{sequence}"),
+                                        idempotency_key=idem,
+                                        content_sha256=current_content["content_sha256"],
+                                        approved_purpose=parsed_command.get("approved_purpose"),
+                                        authority_reference=(f"account-auth-session:{identity['account_id']}:steward"))
+                                    self._json(200, {"status": "proposal_decision_recorded", "result": result}, request_id)
+                                elif parsed_command and parsed_command["action"] == "promote":
+                                    result = lifecycle.promote(parsed_command["proposal_id"],
+                                        parsed_command["revision"], actor_id=principal_id)
+                                    self._json(202, {"status": "work_order_intake", "result": result}, request_id)
+                                else:
+                                    self._json(200, {"status": "no_authorization_action",
+                                        "message": "Use an explicit proposal ID, revision, and purpose; conversational agreement is not authorization."}, request_id)
+                        except Exception as exc:
+                            from riverview_core.resident_execution.proposals import (
+                                ProposalConflict, ProposalNotFound, ProposalValidationError)
+                            from riverview_core.resident_execution.pipeline import (
+                                ObjectiveNotAuthorized, ObjectiveStateError)
+                            if isinstance(exc, PermissionError):
+                                self._error(403, "steward_authority_required", request_id)
+                            elif isinstance(exc, ProposalNotFound):
+                                self._error(404, "proposal_not_found", request_id)
+                            elif isinstance(exc, (ProposalConflict, ObjectiveStateError)):
+                                self._error(409, "proposal_lifecycle_conflict", request_id)
+                            elif isinstance(exc, ObjectiveNotAuthorized):
+                                self._error(403, "objective_submission_not_authorized", request_id)
+                            elif isinstance(exc, (ValueError, TypeError, ProposalValidationError)):
+                                self._error(400, "invalid_proposal_lifecycle_request", request_id)
+                            else:
+                                self._error(503, "proposal_lifecycle_unavailable", request_id)
                         return
                     if proposal_search:
                         try:
@@ -1018,11 +1133,26 @@ def make_handler():
                         return
                     if proposal_item:
                         try:
-                            self._json(200, registry.get(unquote(proposal_item.group(1))), request_id)
+                            proposal_id = unquote(proposal_item.group(1))
+                            revision_values = query.get("revision", [])
+                            if len(revision_values) > 1:
+                                raise ValueError("proposal revision query is ambiguous")
+                            revision = None
+                            if revision_values:
+                                if not re.fullmatch(r"[1-9][0-9]{0,5}", revision_values[0]):
+                                    raise ValueError("invalid proposal revision")
+                                revision = int(revision_values[0])
+                            result = registry.get(proposal_id, revision=revision)
+                            if lifecycle is not None:
+                                result = lifecycle.status(proposal_id,
+                                    result["revision"]["revision"])
+                            self._json(200, result, request_id)
                         except Exception as exc:
                             from riverview_core.resident_execution.proposals import ProposalNotFound
                             if isinstance(exc, ProposalNotFound):
                                 self._error(404, "proposal_not_found", request_id)
+                            elif isinstance(exc, (ValueError, TypeError)):
+                                self._error(400, "invalid_proposal_revision_query", request_id)
                             else:
                                 self._error(503, "institutional_proposal_registry_unavailable", request_id)
                         return

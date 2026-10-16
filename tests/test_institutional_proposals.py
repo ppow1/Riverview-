@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_institutional_proposals.py
 # Component: INSTITUTIONAL-PROPOSALS
-# Revision: 1.0.0
+# Revision: 1.1.0
 # Purpose: Verify durable proposal records, search, revisions, reviews, and idempotency
 # Execution Model: Disposable PostgreSQL schema integration
 # Observability: Assertions use synthetic proposal content only
 # Dependencies: PostgreSQL 16; Psycopg 3; RIVERVIEW_TEST_PG_DSN
 # Authority: Creates and drops only a unique rvtest schema
 # Changed: 2026-10-16 UTC | RV-INSTITUTIONAL-PROPOSAL-LIFECYCLE-001 | Initial proposal registry coverage
+# Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Require dedicated Steward decision API for exact revision approval
 # Contracts: docs/components/INSTITUTIONAL_PROPOSALS.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -130,8 +131,15 @@ class InstitutionalProposalPostgresTests(unittest.TestCase):
                                  reason="Draft completed")
         self.registry.transition(proposal_id, 1, "READY_FOR_STEWARD_DECISION", actor_id=self.actor,
                                  reason="Required review disposition recorded")
-        approved = self.registry.transition(proposal_id, 1, "APPROVED", actor_id=self.actor,
-            reason="Steward approved only the feasibility brief", approved_purpose="feasibility brief",
+        with self.assertRaises(ProposalConflict):
+            self.registry.transition(proposal_id, 1, "APPROVED", actor_id=self.actor,
+                reason="Generic transitions cannot approve work", approved_purpose="prototype",
+                authority_reference="authority:generic-transition-test")
+        approved = self.registry.steward_decision(proposal_id, 1, decision="APPROVE",
+            actor_id=self.actor, reason="Steward approved only the feasibility brief",
+            idempotency_key="decision:test:proposal:1",
+            expected_content_sha256=self.registry.get(proposal_id, revision=1)["revision"]["content_sha256"],
+            approved_purpose="feasibility brief",
             authority_reference="authority:steward-decision:test")
         self.assertEqual(approved["proposal"]["lifecycle_status"], "APPROVED")
         self.assertEqual(approved["events"][-1]["payload"]["approved_purpose"], "feasibility brief")

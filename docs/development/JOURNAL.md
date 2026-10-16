@@ -1,12 +1,13 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.151
+**Document Revision:** 1.0.152
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record offline diagnostic snapshot source, verification evidence and production boundary
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record PR #65 integration reconciliation, full-inventory browser fixture package results, proposal readiness, and Windows CA findings
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record final exact-graph-set ZIP integrity and synthetic page-shell versus live-dashboard acceptance boundary
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Correct final archive byte count from independently inspected ZIP
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Verify actual dashboard DOM and complete desktop/mobile snapshot package exports
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Recover website punch list and implement cross-workflow destination focus/return
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PL027 | Record final workflow map revision, controlled-source repair, and verification outcome
@@ -2230,3 +2231,20 @@ registry and detail requests carried the synthetic account cookie without an
 Authorization header. This is fixture evidence, not production acceptance. A
 documentation-only follow-up is being committed separately, so its new commit
 needs its own exact-head CI. PR #42 remains draft and unapproved.
+
+
+## 2026-10-16 UTC — RV-WEBSITE-SNAPSHOT-041 actual-dashboard snapshot verification
+
+The isolated Firefox harness now serves the repository's actual dashboard HTML,
+CSS, and application scripts with synthetic, read-only API and account-session
+fixtures. The completed desktop and 720-pixel browser runs each produced a
+complete CRC-valid ZIP under the 96 MiB bound. They captured all 10 registered
+pages, 55 controls with zero uncovered rendered controls, and the 20 canonical workflows (494 nodes, 656 edges, 26
+cross-workflow references) without browser errors. The documentation page was
+captured to its full 20,067-pixel desktop and 42,192-pixel narrow extents using
+12 and 25 readable detail tiles respectively. Workflow JSON and SVG remained
+byte-identical across viewport and scroll changes. Focused dashboard tests
+passed 37/37; 8 PostgreSQL-dependent tests were skipped. Evidence:
+`evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-actual-dashboard-final9/`.
+The API/session values and release identifiers are synthetic; Camrui was not
+accessed and production account/session acceptance remains unverified.

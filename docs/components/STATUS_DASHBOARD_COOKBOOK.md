@@ -1,7 +1,7 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.24
+File Revision: 1.1.25
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
@@ -33,6 +33,7 @@ Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Document privacy-filtered do
 Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Distinguish synthetic full-inventory fixture verification from actual-dashboard acceptance
 Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record read-only Camrui release, proposal registry, and strict TLS status evidence
 Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Link final exact-source browser export and offline integrity report
+Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record real-dashboard DOM verification and complete responsive long-page tile captures
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -149,26 +150,28 @@ Page HTML and visuals redact account rows and conversation/request content; form
 values and selected values are cleared. Offline HTML is inert: scripts, form
 actions, and link destinations are removed, and non-data external media is omitted
 and reported. The package is limited to 96 MiB and any history, external-media, or
-page-extent omission is stated in the manifest. If a required graph
+page-extent omission is stated in the manifest. Full page captures are bounded
+to 50,000 CSS pixels; taller content is explicitly marked incomplete. Pages
+taller than 1,800 CSS pixels include overlapping readable PNG detail tiles
+under `website/pages/<page-id>/details/`; the page JSON links each tile. If a required graph
 or visual cannot be exported within that bound, the error is reported instead
 of claiming a complete workflow capture.
 
 The registry is a versioned static JSON contract served through the authenticated
 capability API; each page and control declares a capability version. The collector
 iterates that registry and the authenticated canonical workflow index rather than
-maintaining its own page or graph list. An isolated Firefox full-inventory run
-against the PR #65-reconciled checkout used the actual snapshot/workflow scripts,
-capability registry and canonical graph files with a synthetic page shell. It
-discovered 10 page declarations and 54 registered controls and exported every
-currently registered workflow (20 workflows, 487 nodes, 646 edges). This verifies
-the export pipeline and graph completeness, not production dashboard page fidelity.
-Those counts describe this verification snapshot, not expected constants. The
-synthetic page fixture also contained nine deliberately unregistered controls;
-they were reported by the coverage file. The full-inventory fixture uses synthetic source/deployment identifiers and is
-not evidence of production provenance. A live authorized export will record the
-actual release and the pages accessible to that current user. Actual-dashboard
-browser capture and production snapshot acceptance remain unverified. Read-only Camrui release, database,
-proposal-route, and certificate facts are captured in `evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final4/production-readiness.json`.
+maintaining its own page or graph list. An isolated Firefox run used the repository's
+actual dashboard HTML, CSS, application scripts, capability registry, and canonical
+graph files with synthetic read-only API/session responses. It captured all 10
+registered pages, 55 controls with zero uncovered rendered controls, and every
+workflow (20 workflows, 494 nodes, 656 edges, 26 cross-workflow references). The 20,067-pixel desktop documentation view
+has 12 readable tiles; at 720 pixels, the full 42,192-pixel view has 25 tiles. Both
+ZIPs are complete and the workflow JSON/SVG are byte-identical across viewports.
+Evidence: [`actual-dashboard browser report`](../../evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-actual-dashboard-final9/browser-acceptance.json)
+and [`archive inspection`](../../evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-actual-dashboard-final9/archive-inspection.json).
+These fixture-only API and session responses are not evidence of authenticated
+production acceptance or a deployed PR #67 release. The Camrui readiness facts are
+in `evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final4/production-readiness.json`.
 
 To inspect an export offline, unzip it and open `website/pages/<page-id>.html` in
 a browser. These pages contain no live dashboard scripts or API links; workflow
