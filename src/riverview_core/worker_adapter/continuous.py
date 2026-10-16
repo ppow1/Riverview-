@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/continuous.py
 # Component: WORKER-ADAPTER
-# Revision: 1.1.1
+# Revision: 1.1.3
 # Purpose: Execute bounded capability work with pinned source-digest provenance
 # Execution Model: Repeatable poll cycle; durable claims and outcomes in PostgreSQL
 # Observability: Assignment state, knowledge observations, attempts, and results
@@ -15,6 +15,8 @@
 # Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Add a single-assignment claim without reconciling unrelated leases
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Keep proven pre-execution failures out of the unknown external-effect state
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Persist sanitized retryable Codex failures as blocked no-artifact outcomes
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001 | Reground and safely requeue the same Codex assignment after a recoverable evidence wait
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-REVIEW | Revalidate both evidence and action preflight before same-assignment recovery
 # Contracts: docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -116,6 +118,33 @@ class ContinuousWorker:
         return {"status": "WAITING_FOR_EVIDENCE", "assignment_id": assignment["id"],
                 "operation": operation, "knowledge_status": result.status.value}
 
+    def _resume_verified_waiting_assignment(self, recovery):
+        """Requeue at most one same-scope Codex assignment after current evidence verifies."""
+        if (self.action_capability != PostgresWorkerAdapter.CODEX_CLI_CAPABILITY or
+                not callable(getattr(self.knowledge, "ground_assignment", None))):
+            return False
+        artifact_root = getattr(getattr(self.action, "adapter", None), "artifact_root", None)
+        if artifact_root is None:
+            return False
+        candidates = self.adapter.waiting_for_evidence(
+            self.worker_id, self.credential,
+            capability=self.action_capability, limit=1)
+        if not candidates:
+            return False
+        assignment = candidates[0]
+        grounded = self._provider_call("ground_assignment", assignment)
+        if (grounded.status is not KnowledgeStatus.VERIFIED or
+                grounded.retrieval_complete is not True):
+            return False
+        preflight = self._provider_call("preflight_action", assignment,
+                                        self.action_capability)
+        if (preflight.status is not KnowledgeStatus.VERIFIED or
+                preflight.retrieval_complete is not True):
+            return False
+        return recovery.resume_verified_waiting_for_evidence(
+            assignment["id"], grounded, preflight, worker_id=self.worker_id,
+            worker_scope=assignment["authority_ref"], artifact_root=artifact_root)
+
     def run_once(self, *, assignment_id=None):
         """Recover normally, or claim one explicitly selected assignment only."""
         if assignment_id is None:
@@ -126,6 +155,7 @@ class ContinuousWorker:
                 reconcile_action = getattr(self.action, "reconcile_retryable_no_artifact_failures", None)
                 if callable(reconcile_action):
                     reconcile_action(recovery)
+                self._resume_verified_waiting_assignment(recovery)
             finally:
                 recovery.close()
         claim = self.adapter.claim_next(self.worker_id, self.credential,

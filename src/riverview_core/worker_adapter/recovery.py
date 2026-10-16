@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/recovery.py
 # Component: WORKER-ADAPTER
-# Revision: 1.2.1
+# Revision: 1.2.4
 # Purpose: Reconcile expired worker leases without losing or blindly repeating work
 # Execution Model: Explicit PostgreSQL recovery pass at worker startup or polling
 # Observability: Recovery records and causal assignment transition events
@@ -12,6 +12,9 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Reconcile only legacy Git ownership failures proven to precede Codex launch and all durable effects
 # Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Resume bounded, durable no-launch failures after correcting provenance validation
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Requeue only typed Codex failures with expired leases and no attempt, verifier result, or durable artifact
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001 | Requeue the same assignment after fresh verified grounding and fail-closed no-effect checks
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-JSON-FIX | Persist metadata-only grounding provenance in atomic recovery
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-REVIEW | Require verified action preflight and honor retry ceiling before evidence requeue
 # Contracts: docs/ROADMAP.md; docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -19,12 +22,14 @@
 """Recover expired leases and narrowly proven no-durable-artifact Codex failures."""
 
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
 
 from ..ledger import TRANSITIONS
 from ..postgres_ledger import PostgresLedger, assignment_process_position
+from .knowledge import KnowledgeResult, KnowledgeStatus
 
 
 class PostgresRecoveryCoordinator:
@@ -39,6 +44,141 @@ class PostgresRecoveryCoordinator:
 
     def close(self):
         self.ledger.close()
+
+    def resume_verified_waiting_for_evidence(self, assignment_id, result, preflight_result, *,
+                                              worker_id, worker_scope, artifact_root):
+        """Return one safely blocked Codex assignment to ready after fresh grounding.
+
+        This is an idempotent recovery transition, not an execution authorization.
+        The worker grant is checked by the caller while selecting the candidate and
+        is checked again by the ordinary lease claim immediately before execution.
+        No prior worker attempt, verifier record, artifact, running/unknown intent,
+        or unreconciled Codex execution intent may be replayed.
+        """
+        if (not isinstance(assignment_id, str) or not assignment_id or
+                not isinstance(worker_id, str) or not worker_id or
+                worker_scope != "work-order:engineering" or
+                not isinstance(result, KnowledgeResult) or
+                not isinstance(preflight_result, KnowledgeResult) or
+                any(item.status is not KnowledgeStatus.VERIFIED or
+                    item.retrieval_complete is not True or
+                    not isinstance(item.source_revision, str) or
+                    not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", item.source_revision) or
+                    not isinstance(item.source_sha256, str) or
+                    not re.fullmatch(r"[0-9a-f]{64}", item.source_sha256) or
+                    not isinstance(item.source_references, tuple) or
+                    not 1 <= len(item.source_references) <= 100 or
+                    any(not isinstance(ref, str) or not ref.startswith("repo://") or
+                        len(ref) > 240 for ref in item.source_references)
+                    for item in (result, preflight_result))):
+            raise ValueError("fresh verified grounding and action preflight are required")
+        root = Path(artifact_root)
+        try:
+            info = root.lstat()
+            safe_root = (root.is_absolute() and root.is_dir() and not root.is_symlink() and
+                         info.st_uid == os.geteuid() and (info.st_mode & 0o777) == 0o700 and
+                         root.resolve() == root.absolute())
+        except OSError:
+            safe_root = False
+        if not safe_root:
+            raise ValueError("Codex artifact root is not a private owned directory")
+        artifact_name = "codex-" + hashlib.sha256(assignment_id.encode("utf-8")).hexdigest() + ".md"
+        artifact = root / artifact_name
+
+        resumed = False
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("SELECT * FROM assignments WHERE id=%s FOR UPDATE",
+                            (assignment_id,))
+                assignment = cur.fetchone()
+                if (assignment is None or assignment["state"] != "blocked" or
+                        assignment["workflow_step"] != "WAITING_FOR_EVIDENCE" or
+                        assignment["authority_ref"] != worker_scope):
+                    return False
+                cur.execute("""SELECT generation,expires_at FROM assignment_leases
+                    WHERE assignment_id=%s FOR UPDATE""", (assignment_id,))
+                lease = cur.fetchone()
+                cur.execute("SELECT clock_timestamp() AS now")
+                if lease is not None and lease["expires_at"] > cur.fetchone()["now"]:
+                    return False
+                if self.max_retries is not None:
+                    cur.execute("""SELECT count(*) AS n FROM worker_recovery_records
+                        WHERE assignment_id=%s AND decision='retry_safe'""", (assignment_id,))
+                    if int(cur.fetchone()["n"]) >= self.max_retries:
+                        return False
+                cur.execute("""SELECT operation,status FROM knowledge_observations
+                    WHERE assignment_id=%s ORDER BY recorded_at DESC,observation_id DESC LIMIT 1""",
+                    (assignment_id,))
+                prior_observation = cur.fetchone()
+                if (prior_observation is None or
+                        prior_observation["operation"] not in
+                            {"ground_assignment", "reground_assignment", "preflight_action"} or
+                        prior_observation["status"] == KnowledgeStatus.VERIFIED.value):
+                    return False
+                cur.execute("SELECT count(*) AS n FROM worker_attempts WHERE assignment_id=%s",
+                            (assignment_id,))
+                if int(cur.fetchone()["n"]) != 0:
+                    return False
+                cur.execute("SELECT count(*) AS n FROM verification_records WHERE assignment_id=%s",
+                            (assignment_id,))
+                if int(cur.fetchone()["n"]) != 0:
+                    return False
+                if artifact.exists() or artifact.is_symlink():
+                    return False
+                cur.execute("""SELECT count(*) AS n FROM worker_execution_intents i
+                    WHERE i.assignment_id=%s AND
+                      (i.capability<>'engineering.codex-cli-artifact.v1' OR
+                       i.effect_class<>'external_uncertain' OR
+                       i.status NOT IN ('failed','retry_scheduled') OR
+                       i.failure_class IS NULL OR
+                       i.failure_class NOT LIKE 'CodexActionFailure%%' OR
+                       NOT EXISTS (SELECT 1 FROM worker_recovery_records r
+                           WHERE r.assignment_id=i.assignment_id
+                             AND r.lease_generation=i.lease_generation
+                             AND r.decision='retry_safe'))""", (assignment_id,))
+                if int(cur.fetchone()["n"]) != 0:
+                    return False
+                cur.execute("""SELECT 1 FROM grace_objectives o
+                    WHERE o.objective_id=%s AND o.assignment_id=%s
+                      AND o.scope_ref=%s AND o.status='WORK_ORDER_CREATED'
+                      AND o.evidence->>'status'='VERIFIED'""",
+                    (assignment["objective_ref"], assignment_id, worker_scope))
+                if cur.fetchone() is None:
+                    return False
+
+                cur.execute("""INSERT INTO knowledge_observations
+                    (assignment_id,worker_id,operation,status,action,source_references,
+                     source_revision,source_sha256,retrieval_complete)
+                    VALUES (%s,%s,'ground_assignment','VERIFIED',NULL,%s,%s,%s,true),
+                           (%s,%s,'preflight_action','VERIFIED',%s,%s,%s,%s,true)""",
+                    (assignment_id, worker_id, json.dumps(list(result.source_references)),
+                     result.source_revision, result.source_sha256,
+                     assignment_id, worker_id, "engineering.codex-cli-artifact.v1",
+                     json.dumps(list(preflight_result.source_references)),
+                     preflight_result.source_revision, preflight_result.source_sha256))
+                evidence = {
+                    "proof": "fresh_verified_grounding_after_wait",
+                    "knowledge_observation_status": "VERIFIED",
+                    "retrieval_complete": True,
+                    "source_revision": result.source_revision,
+                    "source_sha256": result.source_sha256,
+                    "source_references": list(result.source_references),
+                    "preflight_source_revision": preflight_result.source_revision,
+                    "preflight_source_sha256": preflight_result.source_sha256,
+                    "preflight_source_references": list(preflight_result.source_references),
+                    "preflight_capability": "engineering.codex-cli-artifact.v1",
+                    "retry_limit_respected": True,
+                    "prior_attempts_absent": True,
+                    "assignment_artifact_absent": True,
+                    "intent_outcomes_reconciled": True,
+                    "exact_worker_grant_rechecked_at_claim": True,
+                }
+                self._transition_locked(cur, assignment, "ready",
+                    "EVIDENCE_REVALIDATED", f"grounding-resume:{assignment_id}:"
+                    f"{result.source_revision}:{result.source_sha256}", evidence=evidence)
+                resumed = True
+        return resumed
 
     def _transition_locked(self, cur, assignment, to_state, step, key, *, evidence=None):
         from_state = assignment["state"]

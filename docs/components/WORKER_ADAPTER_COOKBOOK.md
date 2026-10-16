@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/WORKER_ADAPTER_COOKBOOK.md
 Component: WORKER-ADAPTER
-File Revision: 1.0.11
+File Revision: 1.0.13
 Purpose: Diagnose isolated worker identity, attempt, verification and recovery records safely
 Authority: Read-only diagnosis; credential delivery and worker enrollment are trusted control-plane operations
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Add redacted worker and verification record queries with failure interpretation
@@ -13,6 +13,7 @@ Changed: 2026-10-11 UTC | RV-M3.3-LIVE-COMMISSIONING | Link confirmed Camrui dep
 Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION | Link the live NO_MATCH and scheduler-continuation evidence
 Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-LINK-CLARIFICATION | Present checkout evidence as a non-linked path in dashboard-served documentation
 Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-REVISION-CORRECTION | Add the missed controlled file revision increment for the preceding same-task content edits
+Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-DOCS | Require fresh action preflight and remaining retry budget for grounded resume
 Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-LINK-CLARIFICATION | Present checkout evidence as a non-linked path in dashboard-served documentation
 History: Git and revision backup manifest
 -->
@@ -108,6 +109,33 @@ rewound. Review recovery records and external evidence before moving
 `awaiting_steward` work forward. The PostgreSQL integration tests kill a real
 worker subprocess after an isolated test effect commits; they do not constitute
 service deployment or live operational commissioning.
+
+### Evidence restored after `WAITING_FOR_EVIDENCE`
+
+The persistent Codex worker can resume the same assignment after fresh source
+grounding becomes `VERIFIED`; it does not create a new objective or assignment.
+Candidate selection authenticates the worker's current exact grant and scope.
+The atomic recovery event is written only when the assignment is still blocked
+at `WAITING_FOR_EVIDENCE`, its lease is absent or expired, objective evidence
+remains verified, grounding and action preflight are freshly `VERIFIED`, and no
+attempt, result, verifier record, assignment artifact, running/unknown intent,
+or unreconciled Codex intent exists. Prior Codex intents must each have typed
+failure provenance and a `retry_safe` recovery record. The configured retry
+ceiling applies. The event retains both source revisions, digests, references,
+and canonical ready-node identity. The normal claim checks the grant again
+before execution.
+
+Read-only diagnosis for one known assignment (replace only the literal
+assignment ID with an already authorized ID): inspect `assignments.state`,
+`workflow_step`, `process_graph_id`, `process_node_id`; the latest
+`knowledge_observations` status/revision/digest; lease expiry; execution-intent
+statuses/failure classes; recovery decisions; attempts/results/verifications;
+and the assignment-bound artifact's metadata. Do not select objective request,
+conversation, prompt, or artifact contents for this metadata check. If the
+latest fresh grounding is not `VERIFIED`, any intent is unknown, a result or
+artifact exists, the lease is active, or authority is denied, leave the item
+blocked and follow its existing evidence/escalation route. Never change the
+assignment row by direct SQL.
 
 ## Worker registration and persisted execution diagnosis
 

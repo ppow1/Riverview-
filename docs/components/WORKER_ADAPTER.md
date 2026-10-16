@@ -1,6 +1,6 @@
 # Riverview~ worker adapter contract
 
-**Document Revision:** 1.0.17
+**Document Revision:** 1.0.19
 **Component:** WORKER-ADAPTER
 **Milestone:** M2.1–M2.3
 **Status:** M3.3 scoped technical acceptance criteria PASS and ready for Steward review; no simultaneous executor-process throughput claim. Formal acceptance and full Component DoD remain open; M4.3 local-inference execution remains isolated.
@@ -15,6 +15,7 @@
 **Changed:** 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-STATUS | Align current scoped technical status and distinguish process concurrency claims
 **Changed:** 2026-10-11 UTC | RV-M4.4-OBJECTIVE-WORKORDER-PIPELINE | Document bounded artifact capability as deterministic infrastructure test adapter only
 **Changed:** 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-001 | Specify separately registered Codex multi-file patch capability and exact execution grant
+**Changed:** 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-DOCS | Specify same-assignment resume after fresh grounding/preflight and remaining-retry checks
 
 ## Scope and trust boundaries
 
@@ -73,6 +74,22 @@ claims continue. `run_forever()` is an in-process polling loop and accepts an
 explicit Steward shutdown callback. Unexpected worker/process loss leaves
 durable leases/attempts for expiry and reconciliation; the worker loop does not
 claim to make a process immortal.
+
+When fresh grounding becomes `VERIFIED` after a Codex assignment was blocked at
+`WAITING_FOR_EVIDENCE`, the persistent worker may requeue that same assignment
+through the evidence-recovery path. Candidate discovery authenticates the
+registered worker and exact `assignment.execute` grant in the assignment's
+scope. Recovery then requires the original `WORK_ORDER_CREATED` objective and
+verified objective evidence, an expired or absent lease, a current non-verified
+knowledge observation, fresh `VERIFIED` grounding and action preflight, a
+remaining retry budget, no worker attempt/result/verifier/artifact, and only
+typed Codex intents already recorded as `retry_safe`. It records both refreshed
+provenance results and a causal transition to the canonical ready node; the
+normal claim repeats the exact grant check before execution. An active lease,
+unknown intent, existing attempt/output, stale objective, non-verified source,
+or scope mismatch leaves the assignment blocked. This resumes the same durable
+objective; it does not create an assignment or bypass the retry/authority
+boundaries.
 
 The stable, provider-neutral contract lives in
 [`knowledge_provider_v1`](../../src/riverview_core/worker_adapter/knowledge_provider_v1/README.md).

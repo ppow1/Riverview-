@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.39
+**Document Revision:** 1.0.41
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -108,7 +108,7 @@ flowchart LR
     g_rv_grace_operational_integration_codex_cli_run_ade47dcf["INTEGRATED LEGACY ARTIFACT CAPABILITY — only deliverable.md may change; a separate exact-scope source-change capability produces a pinned patch and never applies it to production"]
     g_rv_grace_operational_integration_codex_artifact_verification_ab484b65["INTEGRATED SOURCE — separate verifier reopens the assignment-bound Markdown artifact and checks mode, size, digest, provenance and literal acceptance criteria"]
     g_rv_grace_operational_integration_codex_execution_failed_f49befea[["Sanitized Codex failures retain bounded error codes; a typed CodexActionFailure without a durable assignment artifact is retryable after lease expiry, while generic or artifact-bearing unknown outcomes remain blocked"]]
-    g_rv_grace_operational_integration_codex_execution_recovery_5c33f626["Persisted CME recovery requeues a typed Codex failure only after lease expiry, verified objective provenance, remaining retry budget, and independent absence of attempts, results, verifier records and assignment artifact; exact worker grants are revalidated at claim"]
+    g_rv_grace_operational_integration_codex_execution_recovery_5c33f626["Persisted CME recovery requeues typed Codex no-artifact failures only after lease expiry, verified objective provenance, remaining retry budget, and no attempt/result/verifier/artifact; a same-assignment WAITING_FOR_EVIDENCE recovery requires fresh VERIFIED grounding and action preflight, eligible typed intents, absent effects, and an atomic transition; claim rechecks exact grants"]
     g_rv_grace_operational_integration_engineering_resource_request_5f8561c6[["PLANNED — persist pending resource request for HR/Helen or Steward decision; Helen is not commissioned and no allocation is presumed"]]
     g_rv_grace_operational_integration_router_backed_grace_proposal_931750ec["SOURCE IMPLEMENTED — Persistent ResidentReasoner proposals use the active router binding and require actual 80B provenance; smaller stages cannot substitute"]
     g_rv_grace_operational_integration_verified_result_chat_return_108e1033["SOURCE IMPLEMENTED — Independently accepted objective result is reviewed by bound 80B and appended once to its source conversation with durable provenance"]
@@ -204,6 +204,7 @@ flowchart LR
   g_rv_grace_operational_integration_objective_steps_b695f9d6 -->|Dispatch only after dependencies have accepted independent verification| g_rv_grace_operational_integration_codex_cli_run_ade47dcf
   g_rv_grace_operational_integration_codex_owner_preflight_fb787eac -->|diagnostic_branch: Missing local state or Code Mode companion fails closed before spending assignment execution| g_rv_grace_operational_integration_codex_owner_package_recovery_5bc0b582
   g_rv_grace_operational_integration_codex_owner_package_recovery_5bc0b582 -->|recovery_route: Retry startup preflight after reviewed package and owner-session mount are verified| g_rv_grace_operational_integration_codex_owner_preflight_fb787eac
+  g_rv_grace_operational_integration_waiting_and_failure_0a7985d4 -->|recovery_route: Only the same blocked Codex assignment may resume after fresh VERIFIED grounding and action preflight, remaining retry budget, expired/absent lease, verified objective, and atomic no-effect checks; worker claim rechecks exact grants| g_rv_grace_operational_integration_codex_execution_recovery_5c33f626
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

@@ -1858,7 +1858,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.1.23",
+      "graph_revision": "1.1.25",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -2555,9 +2555,9 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-execution-recovery",
-          "node_revision": "1.0.5",
+          "node_revision": "1.0.7",
           "type": "recovery",
-          "label": "Persisted CME recovery requeues a typed Codex failure only after lease expiry, verified objective provenance, remaining retry budget, and independent absence of attempts, results, verifier records and assignment artifact; exact worker grants are revalidated at claim",
+          "label": "Persisted CME recovery requeues typed Codex no-artifact failures only after lease expiry, verified objective provenance, remaining retry budget, and no attempt/result/verifier/artifact; a same-assignment WAITING_FOR_EVIDENCE recovery requires fresh VERIFIED grounding and action preflight, eligible typed intents, absent effects, and an atomic transition; claim rechecks exact grants",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "src/riverview_core/resident_execution/codex_workflow.py",
@@ -2565,12 +2565,16 @@
             "tests/test_codex_cli_adapter.py",
             "src/riverview_core/worker_adapter/recovery.py",
             "scripts/run_grace_execution_service.py",
-            "tests/test_worker_adapter.py"
+            "tests/test_worker_adapter.py",
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/worker_adapter/continuous.py"
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_PIPELINE.md",
             "docs/components/GRACE_EXECUTION_COOKBOOK.md",
-            "docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md"
+            "docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md",
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md"
           ],
           "verification_evidence": [
             "tests/test_codex_cli_adapter.py",
@@ -3230,6 +3234,12 @@
           "to": "rv:grace:operational-integration:codex-owner-preflight",
           "type": "recovery_route",
           "label": "Retry startup preflight after reviewed package and owner-session mount are verified"
+        },
+        {
+          "from": "rv:grace:operational-integration:waiting-and-failure",
+          "to": "rv:grace:operational-integration:codex-execution-recovery",
+          "type": "recovery_route",
+          "label": "Only the same blocked Codex assignment may resume after fresh VERIFIED grounding and action preflight, remaining retry budget, expired/absent lease, verified objective, and atomic no-effect checks; worker claim rechecks exact grants"
         }
       ]
     },
@@ -9946,7 +9956,7 @@
     },
     {
       "graph_id": "rv:worker-adapter:deterministic-attempt",
-      "graph_revision": "1.0.11",
+      "graph_revision": "1.0.13",
       "component_id": "WORKER-ADAPTER",
       "workflow_id": "deterministic-attempt.v1",
       "diagram_order": 7,
@@ -10278,9 +10288,9 @@
         },
         {
           "id": "rv:worker-adapter:deterministic-attempt:evidence-wait",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "escalation",
-          "label": "Persist non-verified status and wait for evidence for this assignment only",
+          "label": "Persist non-VERIFIED status and wait for fresh evidence for this assignment; only a same-scope Codex assignment with revalidated VERIFIED grounding and no unresolved effect may enter the bounded resume path",
           "source_references": [
             "src/riverview_core/worker_adapter/continuous.py",
             "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
@@ -10569,6 +10579,25 @@
             "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/acceptance.json",
             "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log",
             "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:deterministic-attempt:verified-grounding-resume",
+          "node_revision": "1.0.1",
+          "type": "recovery",
+          "label": "Re-ground and re-preflight the same blocked Codex assignment; return it to ready only when the original work order remains verified, lease is absent or expired, retry budget remains, prior typed intents are retry-safe, and no attempt, result, verification, or artifact exists; the normal claim rechecks the exact assignment.execute grant",
+          "source_references": [
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/worker_adapter/recovery.py",
+            "tests/test_worker_adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/WORKER_ADAPTER.md",
+            "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_worker_adapter.py"
           ]
         }
       ],
@@ -10864,6 +10893,24 @@
           "to": "rv:worker-adapter:deterministic-attempt:complete-check",
           "type": "runtime_transition",
           "label": "exact grant and current lease rechecked"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+          "to": "rv:worker-adapter:deterministic-attempt:verified-grounding-resume",
+          "type": "recovery_route",
+          "label": "A later fresh VERIFIED grounding result permits only the same assignment to be checked against its original objective, lease, effect, artifact, and exact-scope invariants"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:verified-grounding-resume",
+          "to": "rv:worker-adapter:deterministic-attempt:claim",
+          "type": "runtime_transition",
+          "label": "Atomic evidence recovery returns the existing assignment to ready; the normal authenticated claim rechecks assignment.execute before leasing"
+        },
+        {
+          "from": "rv:worker-adapter:deterministic-attempt:verified-grounding-resume",
+          "to": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+          "type": "diagnostic_branch",
+          "label": "Fresh grounding remains non-VERIFIED or any lease, objective, intent, attempt, verifier, artifact, or scope invariant fails; preserve blocked state"
         }
       ]
     },
@@ -11797,6 +11844,7 @@
     "rv:worker-adapter:deterministic-attempt:steward-shutdown",
     "rv:worker-adapter:deterministic-attempt:structured-artifact",
     "rv:worker-adapter:deterministic-attempt:verification-jump",
+    "rv:worker-adapter:deterministic-attempt:verified-grounding-resume",
     "rv:worker-adapter:supervised-services:artifact-check",
     "rv:worker-adapter:supervised-services:artifact-file",
     "rv:worker-adapter:supervised-services:artifact-rejected",

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.17
+# Revision: 1.0.18
 # Purpose: Authenticate fixed engineering-test work under exact assignment grants
 # Execution Model: Request-driven local task execution with PostgreSQL durability
 # Observability: Worker identity, capability, attempt outcome, and result digest
@@ -17,6 +17,7 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Map bounded Codex artifact work to exact assignment.execute grant
 # Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Pass an exact assignment pin through the authorized claim
 # Changed: 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-001 | Register the separate scoped Codex source-change capability under exact assignment.execute authority
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001 | Select only exact-scope, expired-lease WAITING_FOR_EVIDENCE assignments after current worker authorization
 # Contracts: docs/components/WORKER_ADAPTER.md; docs/architecture/CORE_CONTRACT.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -154,6 +155,24 @@ class PostgresWorkerAdapter:
                     return None
                 cur.execute("SELECT * FROM assignments WHERE id=%s", (lease["assignment_id"],))
                 return {"lease": lease, "assignment": cur.fetchone()}
+
+    def waiting_for_evidence(self, worker_id, credential, *, capability, limit=1):
+        """Read bounded blocked work only after revalidating the worker's exact grant."""
+        if (capability != self.CODEX_CLI_CAPABILITY or type(limit) is not int or
+                not 1 <= limit <= 10):
+            raise ValueError("waiting evidence recovery is limited to bounded Codex claims")
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                scope_ref = self._authenticated_worker(cur, worker_id, credential, capability)
+                cur.execute("""SELECT a.* FROM assignments a
+                    LEFT JOIN assignment_leases l ON l.assignment_id=a.id
+                    WHERE a.state='blocked' AND a.workflow_step='WAITING_FOR_EVIDENCE'
+                      AND a.authority_ref=%s
+                      AND (l.assignment_id IS NULL OR l.expires_at<=clock_timestamp())
+                    ORDER BY a.updated_at,a.id FOR UPDATE OF a SKIP LOCKED LIMIT %s""",
+                    (scope_ref, limit))
+                return cur.fetchall()
 
     def start_assignment(self, assignment_id, worker_id, credential, generation,
                          *, capability=None):

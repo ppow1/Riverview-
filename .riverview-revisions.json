@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.165"
+      "revision": "1.1.167"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -95,15 +95,15 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.128",
-      "sha256": "b0fea90d741e21918e679bcd98309a059a04ffdcfa92c9e629edee3ada3009c0",
-      "size_bytes": 508263
+      "revision": "1.0.130",
+      "sha256": "9f1303c1a7d69069d39fdb5550a3cd9ec2a4676ad9389cf52c442c2ef47b70be",
+      "size_bytes": 511506
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
-      "revision": "1.0.41",
-      "sha256": "0212f7da8240d0aa580a5a8e834ce9a5f02c6201c9fc430f59e1af9f2942d831",
-      "size_bytes": 59936
+      "revision": "1.0.43",
+      "sha256": "51af978182a4ff5a795b8f1d3eaceef71d23aa1ba2c70c8cb982fd5a9789484a",
+      "size_bytes": 60600
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
@@ -179,9 +179,9 @@
     },
     "process_graphs/worker-adapter/deterministic-attempt.json": {
       "path": "process_graphs/worker-adapter/deterministic-attempt.json",
-      "revision": "1.0.13",
-      "sha256": "5e029cba24141ac68c689774b6ca18024edb5ddc7af9253dbe07d7f4b8f3d296",
-      "size_bytes": 35845
+      "revision": "1.0.15",
+      "sha256": "7515d63ffe32a331cbeaa0eec57f3098b17af72027106b08d9708fd75cce2eeb",
+      "size_bytes": 38058
     },
     "process_graphs/worker-adapter/supervised-services.json": {
       "path": "process_graphs/worker-adapter/supervised-services.json",
@@ -214,5 +214,5 @@
       "size_bytes": 1226
     }
   },
-  "manifest_revision": "1.1.165"
+  "manifest_revision": "1.1.167"
 }
