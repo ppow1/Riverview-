@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.2.1
+# Revision: 1.2.2
 # Purpose: Verify scoped deterministic and structured worker artifacts
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
@@ -23,6 +23,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Verify audited recovery of a reproduced legacy pre-execution failure without mislabeling uncertain work
 # Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Verify a later durable pre-launch failure requeues once within retry ceiling
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Recover a typed Codex no-artifact outcome only after lease expiry and absence of attempts, result, verifier, and artifact
+# Changed: 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-001 | Require registered source-change capability and exact assignment.execute grant at lease claim
 # Contracts: docs/development/M2.3-001_REVISION_RECORD.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -178,7 +179,8 @@ class WorkerAdapterTests(unittest.TestCase):
         if any(cap in capabilities for cap in
                ("deterministic.sha256.v1", "local.inference.v1",
                 "engineering.repository-check.v1",
-                "engineering.codex-cli-artifact.v1")):
+                "engineering.codex-cli-artifact.v1",
+                "engineering.codex-cli-source-change.v1")):
             actions.append("assignment.execute")
         if "assignment.verify.v1" in capabilities:
             actions.append("assignment.verify")
@@ -344,6 +346,20 @@ class WorkerAdapterTests(unittest.TestCase):
                                actor_id="event-processor")
         scoped_claim = self.worker.claim_next(other_id, other_token, lease_seconds=30)
         self.assertEqual(scoped_claim["assignment"]["id"], other_assignment)
+
+    def test_codex_source_change_capability_is_separately_registered_and_exact_granted(self):
+        capability = self.worker.CODEX_SOURCE_CHANGE_CAPABILITY
+        assignment = self.ready_assignment(objective="objective:source-change")
+        worker_id = "source-change-worker:" + uuid4().hex
+        token = self.register_as(worker_id, [capability], self.scope)
+        claim = self.worker.claim_next(worker_id, token, capability=capability,
+                                       assignment_id=assignment, lease_seconds=60)
+        self.assertEqual(claim["assignment"]["id"], assignment)
+        self.assertEqual(claim["assignment"]["authority_ref"], self.scope)
+        with self.assertRaises(Exception):
+            self.worker.claim_next(worker_id, token,
+                capability=self.worker.CODEX_CLI_CAPABILITY,
+                assignment_id=assignment, lease_seconds=60)
 
     def test_missing_registration_grant_and_revoked_execution_grant_fail_closed(self):
         import secrets

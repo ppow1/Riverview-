@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.14
+# Revision: 1.0.16
 # Purpose: Exercise objective-to-authorized-worker-to-independent-verification pipeline
 # Execution Model: Isolated PostgreSQL schema, committed repository fixture, deterministic proposal
 # Observability: Durable objective/assignment events, worker attempt, artifact, verifier decision
@@ -23,6 +23,8 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-FAIR-FIX | Advance queued work through the event processor before fairness assertion
 # Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-REGROUND-001 | Verify successful evidence retry advances a waiting objective exactly once
 # Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-CONTEXT-001 | Verify grounded objective context resolves resident knowledge contract
+# Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Verify dependent step assignments wait for independent predecessor verification
+# Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Verify same-objective continuation is durable, scoped, and dispatched through CME
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -332,6 +334,92 @@ class GraceExecutionTests(unittest.TestCase):
                          ["objective.received", "objective.grounded",
                           "work_order.proposed", "work_order.dispatched",
                           "objective.completed"])
+
+    def test_multistep_dispatch_waits_for_prior_step_verification(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+        objective_id = "objective:dependent-steps"
+        self.pipeline.submit_objective(objective_id, "create two verified work products",
+            ["first step artifact is accepted", "second step artifact is accepted"],
+            credential=self.credentials["steward"], scope_ref=self.scope,
+            origin={"conversation_id": str(uuid4()), "source_sequence": 1})
+        self.pipeline.ground_objective(objective_id)
+        self.pipeline.record_proposal(objective_id, PlanProposal(
+            "Create dependent work products", (
+                PlanStep("prepare", "Prepare the first bounded work product",
+                         ("first step artifact is accepted",)),
+                PlanStep("followup", "Prepare the dependent bounded work product",
+                         ("second step artifact is accepted",), depends_on=("prepare",))), 0))
+        worker = ContinuousWorker(self.adapter, self.worker_id, self.credentials["worker"],
+            knowledge=RepositoryKnowledgeProvider(self.repo, self.commit),
+            action=BoundedLocalCodingWorker(self.pipeline, self.root / "step-artifacts"),
+            action_effect_class="retry_safe", action_capability="engineering.bounded-artifact.v1")
+        service = GraceExecutionService(self.pipeline, self.adapter, worker,
+            dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
+            verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
+            artifact_root=self.root / "step-artifacts")
+
+        self.assertEqual(service.dispatch_proposed(objective_id), 1)
+        first = self.pipeline.get_objective(objective_id)["assignment_id"]
+        self.assertIsNone(self.pipeline.dispatchable_step(objective_id))
+        self.ledger.transition(first, "ready", "event_processor_ready", "ready:" + first,
+                               actor_id="event-processor")
+        result = worker.run_once(assignment_id=first)
+        self.assertEqual(result["status"], "AWAITING_VERIFICATION")
+        verification = service.verify_one(first)
+        self.assertTrue(verification)
+        self.assertEqual(self.pipeline.record_verified_completion(objective_id, first)["status"],
+                         "WORK_ORDER_CREATED")
+
+        self.assertEqual(service.dispatch_proposed(objective_id), 1)
+        second = self.pipeline.get_objective(objective_id)["assignment_id"]
+        self.assertNotEqual(first, second)
+        assignment = self.ledger.get(second)
+        self.assertEqual(assignment["workflow_step"], "followup")
+        self.ledger.transition(second, "ready", "event_processor_ready", "ready:" + second,
+                               actor_id="event-processor")
+        result = worker.run_once(assignment_id=second)
+        self.assertEqual(result["status"], "AWAITING_VERIFICATION")
+        self.assertTrue(service.verify_one(second))
+        self.assertEqual(self.pipeline.record_verified_completion(objective_id, second)["status"],
+                         "COMPLETED")
+        pending = self.pipeline.pending_conversation_results()
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["completion_cycle"], 2)
+        self.pipeline.record_conversation_result_published(objective_id, {
+            "request_id": str(uuid4()), "provider_id": "provider:test",
+            "served_model": "model:test", "implementation_id": "implementation:test",
+            "completion_cycle": "2"})
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT step_id,status,assignment_id FROM grace_objective_steps
+                WHERE objective_id=%s ORDER BY step_order""", (objective_id,))
+            rows = cur.fetchall()
+        self.assertEqual([row["step_id"] for row in rows], ["prepare", "followup"])
+        self.assertEqual([row["status"] for row in rows], ["verified", "verified"])
+        self.assertNotEqual(rows[0]["assignment_id"], rows[1]["assignment_id"])
+
+        continued = self.pipeline.propose_continuation(objective_id, second,
+            PlanStep("supplemental", "Supplement the accepted evidence",
+                     ("first step artifact is accepted",), depends_on=("followup",)))
+        self.assertEqual(continued["objective_id"], objective_id)
+        self.assertEqual(continued["status"], "WORK_ORDER_CREATED")
+        self.assertEqual(service.dispatch_proposed(objective_id), 1)
+        third = self.pipeline.get_objective(objective_id)["assignment_id"]
+        self.assertNotEqual(third, second)
+        self.assertEqual(self.ledger.get(third)["objective_ref"], objective_id)
+        self.ledger.transition(third, "ready", "event_processor_ready", "ready:" + third,
+                               actor_id="event-processor")
+        result = worker.run_once(assignment_id=third)
+        self.assertEqual(result["status"], "AWAITING_VERIFICATION")
+        self.assertTrue(service.verify_one(third))
+        self.assertEqual(self.pipeline.record_verified_completion(objective_id, third)["status"],
+                         "COMPLETED")
+        pending = self.pipeline.pending_conversation_results()
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["completion_cycle"], 3)
+        completions = [event for event in self.pipeline.objective_events(objective_id)
+                       if event["event_type"] == "objective.completed"]
+        self.assertEqual([event["payload"]["completion_cycle"] for event in completions], [2, 3])
 
     def test_missing_or_oversized_evidence_fails_closed(self):
         from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus

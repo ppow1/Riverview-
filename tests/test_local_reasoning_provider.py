@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.6
+# Revision: 1.1.7
 # Purpose: Verify local reasoning provider contract and fail-closed response handling
 # Execution Model: Bounded HTTP contract double; no credentials, database or model required
 # Observability: Typed proposals and sanitized unavailable/schema outcomes
@@ -26,6 +26,7 @@
 # Tests: This file
 # History: Git
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
+# Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Verify dependency-ordered multi-step proposal parsing and schema bounds
 # =============================================================================
 """Contract tests for the replaceable local reasoning provider."""
 
@@ -124,6 +125,19 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertIn("Director of Operations", sent["messages"][0]["content"])
         self.assertIn("Alfred", sent["messages"][0]["content"])
         self.assertIn("grants no permission", sent["messages"][0]["content"])
+
+    def test_bounded_multi_step_proposal_preserves_dependency_order(self):
+        self.response_body = self._response(text=json.dumps({"summary": "Inspect then verify", "steps": [
+            {"step_id": "inspect", "objective": "Inspect the source", "acceptance_criteria": [
+                "Record source identity"], "depends_on": []},
+            {"step_id": "verify", "objective": "Verify the change", "acceptance_criteria": [
+                "Record test evidence"], "depends_on": ["inspect"]},
+        ]}))
+        proposal = self.provider.propose(self.request)
+        self.assertEqual([step.step_id for step in proposal.steps], ["inspect", "verify"])
+        self.assertEqual(proposal.steps[1].depends_on, ("inspect",))
+        schema = self.requests[0]["response_format"]["json_schema"]["schema"]
+        self.assertEqual(schema["properties"]["steps"]["maxItems"], 20)
 
     def test_stream_chat_emits_text_before_terminal_chunk_and_validates_provenance(self):
         chunks = [
