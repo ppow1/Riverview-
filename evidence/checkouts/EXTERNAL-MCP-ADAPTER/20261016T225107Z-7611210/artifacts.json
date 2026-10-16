@@ -1,0 +1,56 @@
+{
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "6b09a11758e981f67373eeda343de06215f13f6fc580e942a69d0eb405bfdec3",
+      "size_bytes": 6374
+    },
+    "diff-check.log": {
+      "path": "diff-check.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "focused-tests.log": {
+      "path": "focused-tests.log",
+      "revision": "1.0.0",
+      "sha256": "2f9183a857f79196164ebeee5f9361f6acca7c82aaf737fee112227b30b89c93",
+      "size_bytes": 7035
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "f3b46e5fb74b3fdbe4e9b0ca832331fbb449b5d9a3504441ffe8633ac3895eb2",
+      "size_bytes": 92908
+    },
+    "graph-check.json": {
+      "path": "graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "9a34478b8c7b936eef5b8bcd4e303558045e4301a8ce6234e448787ffaca8352",
+      "size_bytes": 55
+    },
+    "pycompile.log": {
+      "path": "pycompile.log",
+      "revision": "1.0.0",
+      "sha256": "80353a579cb453135861212a8cdbc350d00ab12ef1bce1d33efc9763c2309519",
+      "size_bytes": 23
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "revision-baseline.json": {
+      "path": "revision-baseline.json",
+      "revision": "1.0.0",
+      "sha256": "6ee6fa5d98e0827820b6c36c532cd5b0245a55e6353d99424278b23de3d605a7",
+      "size_bytes": 277250
+    }
+  },
+  "component_id": "RESIDENT-REASONING",
+  "manifest_revision": "1.0.0",
+  "source_commit": "7611210aeb04db0292d03964b6c4b2cb7f473589",
+  "task_id": "RV-EXTERNAL-MCP-ADAPTER-001"
+}

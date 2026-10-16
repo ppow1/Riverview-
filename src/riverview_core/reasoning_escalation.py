@@ -2,15 +2,16 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/reasoning_escalation.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.2
+# Revision: 1.1.0
 # Purpose: Define bounded, authority-checked task escalation without execution authority
-# Execution Model: One provider call over an immutable, correlated ReasoningRequest
+# Execution Model: Bounded provider call or authorized durable-exchange admission
 # Observability: Typed decision, provider, budget, timeout and context fingerprint
 # Dependencies: Existing ResidentReasoner provider contract; standard library
 # Authority: Exact resident.reasoning.escalate grant; proposal only, never dispatch
 # Changed: 2026-10-13 UTC | RV-REASONING-ESCALATION-CONTRACT | Add additive escalation request/result contract
 # Changed: 2026-10-13 UTC | RV-REASONING-ESCALATION-CONTEXT-SNAPSHOT | Recheck correlation and deep-copy provider context before invocation
 # Changed: 2026-10-13 UTC | RV-REASONING-ESCALATION-AUTHORITY-STATUS | Distinguish denied grants from unavailable authority checks
+# Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Expose nonblocking exact-grant admission for durable exchange adapter
 # Contracts: docs/components/RESIDENT_REASONING.md
 # Tests: tests/test_reasoning_escalation.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -39,6 +40,7 @@ from .institutional_authority import GrantCheckUnavailable, GrantDenied
 
 class EscalationStatus(str, Enum):
     PROPOSED = "PROPOSED"
+    AUTHORIZED_FOR_EXCHANGE = "AUTHORIZED_FOR_EXCHANGE"
     DENIED = "DENIED"
     AUTHORITY_UNAVAILABLE = "AUTHORITY_UNAVAILABLE"
     UNAVAILABLE = "UNAVAILABLE"
@@ -121,39 +123,11 @@ class ReasoningEscalationRouter:
 
     def execute(self, envelope: EscalationRequest, original: ReasoningRequest, *,
                 principal_id: str, authorize):
-        if (not isinstance(envelope, EscalationRequest) or
-                not isinstance(original, ReasoningRequest) or
-                not callable(authorize) or not principal_id or
-                envelope.original_request_id != original.request_id or
-                envelope.office_id != original.office_id or
-                envelope.assignment_id != original.assignment_id or
-                envelope.assignment_revision != original.assignment_revision or
-                envelope.binding_revision != original.binding_revision or
-                envelope.implementation_revision != original.implementation_revision or
-                envelope.schema_version != "rv.resident.escalation-request.v1"):
-            raise ValueError("escalation correlation does not match the original request")
-        try:
-            if context_fingerprint(original) != envelope.context_sha256:
-                return self._result(envelope, EscalationStatus.STALE_CONTEXT,
-                                    "original_context_changed")
-        except ValueError:
-            return self._result(envelope, EscalationStatus.STALE_CONTEXT,
-                                "original_context_unavailable")
-        provider = self.providers.get(envelope.target_provider_id)
-        if provider is None or getattr(provider, "provider_id", None) != envelope.target_provider_id:
-            return self._result(envelope, EscalationStatus.UNAVAILABLE, "provider_not_registered")
-        try:
-            if authorize(principal_id, self.ACTION,
-                         "provider:" + envelope.target_provider_id) is not True:
-                return self._result(envelope, EscalationStatus.DENIED, "exact_grant_required")
-        except GrantDenied:
-            return self._result(envelope, EscalationStatus.DENIED, "exact_grant_required")
-        except GrantCheckUnavailable:
-            return self._result(envelope, EscalationStatus.AUTHORITY_UNAVAILABLE,
-                                "authority_check_unavailable")
-        except Exception:
-            return self._result(envelope, EscalationStatus.AUTHORITY_UNAVAILABLE,
-                                "authority_check_failed")
+        admission = self.authorize_for_durable_exchange(
+            envelope, original, principal_id=principal_id, authorize=authorize)
+        if admission.status is not EscalationStatus.AUTHORIZED_FOR_EXCHANGE:
+            return admission
+        provider = self.providers[envelope.target_provider_id]
         if not self._slots.acquire(blocking=False):
             return self._result(envelope, EscalationStatus.UNAVAILABLE, "capacity_unavailable")
         done = threading.Event()
@@ -192,6 +166,51 @@ class ReasoningEscalationRouter:
                                 "original_context_changed")
         return self._result(envelope, EscalationStatus.PROPOSED,
                             "structured_proposal_returned", proposal)
+
+    def authorize_for_durable_exchange(self, envelope: EscalationRequest,
+                                       original: ReasoningRequest, *,
+                                       principal_id: str, authorize):
+        """Validate the existing escalation boundary without invoking a provider.
+
+        A durable exchange adapter calls this before persisting its outbox row.
+        The returned authorization status conveys no proposal, approval, or
+        execution authority; remote delivery remains a separate later action.
+        """
+        if (not isinstance(envelope, EscalationRequest) or
+                not isinstance(original, ReasoningRequest) or
+                not callable(authorize) or not principal_id or
+                envelope.original_request_id != original.request_id or
+                envelope.office_id != original.office_id or
+                envelope.assignment_id != original.assignment_id or
+                envelope.assignment_revision != original.assignment_revision or
+                envelope.binding_revision != original.binding_revision or
+                envelope.implementation_revision != original.implementation_revision or
+                envelope.schema_version != "rv.resident.escalation-request.v1"):
+            raise ValueError("escalation correlation does not match the original request")
+        try:
+            if context_fingerprint(original) != envelope.context_sha256:
+                return self._result(envelope, EscalationStatus.STALE_CONTEXT,
+                                    "original_context_changed")
+        except ValueError:
+            return self._result(envelope, EscalationStatus.STALE_CONTEXT,
+                                "original_context_unavailable")
+        provider = self.providers.get(envelope.target_provider_id)
+        if provider is None or getattr(provider, "provider_id", None) != envelope.target_provider_id:
+            return self._result(envelope, EscalationStatus.UNAVAILABLE, "provider_not_registered")
+        try:
+            if authorize(principal_id, self.ACTION,
+                         "provider:" + envelope.target_provider_id) is not True:
+                return self._result(envelope, EscalationStatus.DENIED, "exact_grant_required")
+        except GrantDenied:
+            return self._result(envelope, EscalationStatus.DENIED, "exact_grant_required")
+        except GrantCheckUnavailable:
+            return self._result(envelope, EscalationStatus.AUTHORITY_UNAVAILABLE,
+                                "authority_check_unavailable")
+        except Exception:
+            return self._result(envelope, EscalationStatus.AUTHORITY_UNAVAILABLE,
+                                "authority_check_failed")
+        return self._result(envelope, EscalationStatus.AUTHORIZED_FOR_EXCHANGE,
+                            "exact_grant_validated_no_provider_invoked")
 
     @staticmethod
     def _result(envelope, status, detail, proposal=None):

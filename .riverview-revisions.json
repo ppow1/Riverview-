@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.185"
+      "revision": "1.1.193"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -20,6 +20,18 @@
       "revision": "1.0.5",
       "sha256": "0b97b787445ce1605fbf719c112df03fc14787448303348e4e59445651c80a16",
       "size_bytes": 12204
+    },
+    "docs/development/JOURNAL.md": {
+      "path": "docs/development/JOURNAL.md",
+      "revision": "1.0.157",
+      "sha256": "c5e197073eaa51f0b15dd9facb46a28e86adcf11442e3e425156adc9db21d48c",
+      "size_bytes": 197293
+    },
+    "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md": {
+      "path": "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md",
+      "revision": "1.0.2",
+      "sha256": "fe9a7aaf2d14e0309a6e221ff751c92bbccf4bb7ba584c12b691f7e6bd2712cf",
+      "size_bytes": 5000
     },
     "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json": {
       "path": "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
@@ -56,6 +68,12 @@
       "revision": "1.0.1",
       "sha256": "6d6ef80a5252415c7113309ac64ed8d889e83ead00e89266081583926b0d04d5",
       "size_bytes": 548
+    },
+    "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/revision-baseline.json": {
+      "path": "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/revision-baseline.json",
+      "revision": "1.0.0",
+      "sha256": "6ee6fa5d98e0827820b6c36c532cd5b0245a55e6353d99424278b23de3d605a7",
+      "size_bytes": 277250
     },
     "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json": {
       "path": "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json",
@@ -95,9 +113,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.145",
-      "sha256": "29db1bc868277b8204bf63d0613b75ee69c313c5b5bc601ba42dfae54957b77a",
-      "size_bytes": 551929
+      "revision": "1.0.146",
+      "sha256": "e4e5ec6a18e6b8cd61d2ef2b5b0d937cdecb33805142955054b10ccad2bc7846",
+      "size_bytes": 576321
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -161,9 +179,9 @@
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "path": "process_graphs/resident-reasoning/runtime.json",
-      "revision": "1.0.12",
-      "sha256": "19171278b9dcd4efc4f93e66d32ac8891748a884a63ed0c24aac9b62740cfe36",
-      "size_bytes": 28784
+      "revision": "1.0.19",
+      "sha256": "afaf9e5d2bab536d91900f9970dda3f62451d684eb224db0faceb2674b6d22ce",
+      "size_bytes": 50050
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -178,8 +196,8 @@
       "size_bytes": 3203
     },
     "process_graphs/steward-dashboard/status.json": {
-      "revision": "1.0.29",
       "path": "process_graphs/steward-dashboard/status.json",
+      "revision": "1.0.29",
       "sha256": "c853fb5b41c79ab2c6b8352741e6d0681dfa0f9071b3954768dc08e5127ff6ec",
       "size_bytes": 39818
     },
@@ -194,6 +212,12 @@
       "revision": "1.0.1",
       "sha256": "e2e5911aae9b98d37c139995030103ebb8f29d891ea80c398411591a455f7b80",
       "size_bytes": 18530
+    },
+    "src/riverview_core/status_dashboard/static/capabilities.json": {
+      "path": "src/riverview_core/status_dashboard/static/capabilities.json",
+      "revision": "1.0.1",
+      "sha256": "fbe0fb6d53ca6e7fd3ff72073d6dbec49f6b36fd840dbc643cfd1fbc6dcc70f2",
+      "size_bytes": 23138
     },
     "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json": {
       "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json",
@@ -218,13 +242,8 @@
       "revision": "1.0.0",
       "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
       "size_bytes": 1226
-    },
-    "src/riverview_core/status_dashboard/static/capabilities.json": {
-      "path": "src/riverview_core/status_dashboard/static/capabilities.json",
-      "revision": "1.0.1",
-      "sha256": "fbe0fb6d53ca6e7fd3ff72073d6dbec49f6b36fd840dbc643cfd1fbc6dcc70f2",
-      "size_bytes": 23138
     }
   },
-  "manifest_revision": "1.1.185"
+  "manifest_revision": "1.1.193",
+  "updated_at": null
 }
