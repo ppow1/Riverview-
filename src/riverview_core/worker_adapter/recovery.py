@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/recovery.py
 # Component: WORKER-ADAPTER
-# Revision: 1.2.0
+# Revision: 1.2.1
 # Purpose: Reconcile expired worker leases without losing or blindly repeating work
 # Execution Model: Explicit PostgreSQL recovery pass at worker startup or polling
 # Observability: Recovery records and causal assignment transition events
@@ -11,11 +11,12 @@
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Enforce optional persistent retry ceilings
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Reconcile only legacy Git ownership failures proven to precede Codex launch and all durable effects
 # Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Resume bounded, durable no-launch failures after correcting provenance validation
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Requeue only typed Codex failures with expired leases and no attempt, verifier result, or durable artifact
 # Contracts: docs/ROADMAP.md; docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
-"""Recover expired or specifically proven no-effect assignment failures."""
+"""Recover expired leases and narrowly proven no-durable-artifact Codex failures."""
 
 import hashlib
 import os
@@ -205,7 +206,8 @@ class PostgresRecoveryCoordinator:
                       AND l.expires_at<=clock_timestamp()
                       AND i.capability='engineering.codex-cli-artifact.v1'
                       AND i.effect_class='external_uncertain'
-                      AND i.failure_class='CodexActionFailure'
+                      AND (i.failure_class='CodexActionFailure'
+                           OR i.failure_class LIKE 'CodexActionFailure:%%')
                       AND i.finished_at-i.started_at<=interval '2 seconds'
                       AND o.status='WORK_ORDER_CREATED'
                       AND o.assignment_id=a.id
@@ -274,6 +276,135 @@ class PostgresRecoveryCoordinator:
                     self._transition_locked(cur, candidate, "ready",
                         "RECOVERY_CONFIRMED_PREEXECUTION_NO_EFFECT", key,
                         evidence=evidence)
+                    recovered.append({"assignment_id": assignment_id,
+                        "intent_id": str(candidate["intent_id"]),
+                        "lease_generation": generation, "decision": "retry_safe",
+                        "resulting_state": "ready"})
+        return recovered
+
+    def reconcile_codex_failures_without_artifact(
+            self, *, repository_revision, artifact_root, limit=10):
+        """Retry completed typed Codex failures only when no durable result exists.
+
+        Codex executes in a fresh network-disabled temporary clone. Its adapter
+        copies a file into the assignment artifact store only on
+        DELIVERABLE_PRODUCED. A CodexActionFailure therefore has no durable
+        artifact effect; before retry this method independently checks the
+        assignment-bound artifact path, attempts, results and verifications,
+        plus the expired lease and configured retry ceiling. Claim-time exact
+        worker grants are still revalidated by the normal adapter.
+        """
+        if (not isinstance(repository_revision, str) or
+                not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", repository_revision) or
+                type(limit) is not int or not 1 <= limit <= 100):
+            raise ValueError("Codex retry evidence is invalid")
+        root = Path(artifact_root)
+        try:
+            info = root.lstat()
+            safe_root = (root.is_absolute() and root.is_dir() and not root.is_symlink() and
+                         info.st_uid == os.geteuid() and (info.st_mode & 0o777) == 0o700 and
+                         root.resolve() == root.absolute())
+        except OSError:
+            safe_root = False
+        if not safe_root:
+            raise ValueError("Codex artifact root is not a private owned directory")
+
+        recovered = []
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("""SELECT a.id,a.state,a.workflow_step,a.authority_ref,
+                        a.correlation_id,a.objective_ref,l.generation,l.expires_at,
+                        i.intent_id,i.capability,i.effect_class,i.status AS intent_status,
+                        i.failure_class,o.source_revision,o.source_sha256,o.evidence
+                    FROM assignments a
+                    JOIN assignment_leases l ON l.assignment_id=a.id
+                    JOIN worker_execution_intents i ON i.assignment_id=a.id
+                        AND i.lease_generation=l.generation
+                    JOIN grace_objectives o ON o.assignment_id=a.id
+                        AND o.objective_id=a.objective_ref
+                    WHERE ((a.state='awaiting_steward'
+                            AND a.workflow_step='ACTION_OUTCOME_UNKNOWN'
+                            AND i.status='outcome_unknown')
+                        OR (a.state='blocked'
+                            AND a.workflow_step='WORKER_RETRYABLE_NO_ARTIFACT'
+                            AND i.status='failed'))
+                      AND l.expires_at<=clock_timestamp()
+                      AND i.capability='engineering.codex-cli-artifact.v1'
+                      AND i.effect_class='external_uncertain'
+                      AND (i.failure_class='CodexActionFailure'
+                           OR i.failure_class LIKE 'CodexActionFailure:%%')
+                      AND i.finished_at IS NOT NULL
+                      AND o.status='WORK_ORDER_CREATED'
+                      AND o.assignment_id=a.id
+                      AND o.evidence->>'status'='VERIFIED'
+                      AND o.source_revision IS NOT NULL
+                      AND o.source_sha256 IS NOT NULL
+                      AND o.evidence->>'source_revision'=o.source_revision
+                      AND o.evidence->>'source_sha256'=o.source_sha256
+                    ORDER BY i.started_at,a.id
+                    FOR UPDATE OF a,l,i SKIP LOCKED LIMIT %s""", (limit,))
+                for candidate in cur.fetchall():
+                    assignment_id = candidate["id"]
+                    generation = candidate["generation"]
+                    if self.max_retries is not None:
+                        cur.execute("SELECT count(*) AS n FROM worker_recovery_records "
+                                    "WHERE assignment_id=%s AND decision='retry_safe'",
+                                    (assignment_id,))
+                        if int(cur.fetchone()["n"]) >= self.max_retries:
+                            continue
+                    artifact_name = "codex-" + hashlib.sha256(
+                        assignment_id.encode("utf-8")).hexdigest() + ".md"
+                    artifact = root / artifact_name
+                    if artifact.exists() or artifact.is_symlink():
+                        continue
+                    cur.execute("SELECT count(*) AS n FROM worker_attempts WHERE assignment_id=%s",
+                                (assignment_id,))
+                    if int(cur.fetchone()["n"]) != 0:
+                        continue
+                    cur.execute("SELECT count(*) AS n FROM worker_results r "
+                                "JOIN worker_attempts a USING(attempt_id) "
+                                "WHERE a.assignment_id=%s", (assignment_id,))
+                    if int(cur.fetchone()["n"]) != 0:
+                        continue
+                    cur.execute("SELECT count(*) AS n FROM verification_records WHERE assignment_id=%s",
+                                (assignment_id,))
+                    if int(cur.fetchone()["n"]) != 0:
+                        continue
+                    cur.execute("SELECT 1 FROM worker_recovery_records "
+                                "WHERE assignment_id=%s AND lease_generation=%s",
+                                (assignment_id, generation))
+                    if cur.fetchone() is not None:
+                        continue
+
+                    cur.execute("""INSERT INTO worker_recovery_records
+                        (assignment_id,lease_generation,intent_id,attempt_id,decision,
+                         previous_state,resulting_state,observed_expiry)
+                        VALUES (%s,%s,%s,NULL,'retry_safe',%s,'ready',%s)""",
+                        (assignment_id, generation, candidate["intent_id"],
+                         candidate["state"], candidate["expires_at"]))
+                    cur.execute("""UPDATE worker_execution_intents
+                        SET status='retry_scheduled',finished_at=clock_timestamp()
+                        WHERE intent_id=%s AND assignment_id=%s AND lease_generation=%s
+                          AND status=%s""",
+                        (candidate["intent_id"], assignment_id, generation,
+                         candidate["intent_status"]))
+                    if cur.rowcount != 1:
+                        raise RuntimeError("Codex retry intent changed during reconciliation")
+                    evidence = {
+                        "proof": "typed_codex_failure_without_durable_artifact",
+                        "execution_intent_finished": True,
+                        "assignment_attempt_absent": True,
+                        "worker_result_absent": True,
+                        "verification_absent": True,
+                        "assignment_artifact_absent": True,
+                        "knowledge_source_revision": candidate["source_revision"],
+                        "execution_repository_revision": repository_revision,
+                        "intent_id": str(candidate["intent_id"]),
+                    }
+                    key = f"codex-no-artifact-recovery:{assignment_id}:{generation}:ready"
+                    self._transition_locked(cur, candidate, "ready",
+                        "CODEX_FAILURE_NO_DURABLE_ARTIFACT", key, evidence=evidence)
                     recovered.append({"assignment_id": assignment_id,
                         "intent_id": str(candidate["intent_id"]),
                         "lease_generation": generation, "decision": "retry_safe",
