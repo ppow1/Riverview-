@@ -1858,7 +1858,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.1.15",
+      "graph_revision": "1.1.16",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -2519,9 +2519,9 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-execution-failed",
-          "node_revision": "1.0.3",
+          "node_revision": "1.0.4",
           "type": "failure",
-          "label": "Codex auth/session, exact-scope authorization, sandbox, Git ownership, timeout, output bounds, or workspace integrity failed; pre-launch failures are distinct from unknown external outcomes; work remains durable and non-complete",
+          "label": "Codex auth/session, exact-scope authorization, sandbox, Git ownership, immutable objective provenance, timeout, output bounds, or workspace integrity failed; proven no-launch failures are distinct from unknown external outcomes; work remains durable and non-complete",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "src/riverview_core/resident_execution/codex_workflow.py",
@@ -2540,9 +2540,9 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-execution-recovery",
-          "node_revision": "1.0.3",
+          "node_revision": "1.0.4",
           "type": "recovery",
-          "label": "Persisted CME recovery fences retries; a narrowly proven legacy Git safe-directory refusal may requeue only when the process did not launch, the lease expired, no attempt or verifier record exists, and the assignment artifact is absent; normal claim revalidates exact grants",
+          "label": "Persisted CME recovery fences retries; a proven legacy Git refusal or durable WORKER_PRE_EXECUTION_FAILED intent may requeue only when Codex did not launch, the lease expired, objective provenance is verified, retry budget remains, and no attempt, verifier record, or assignment artifact exists; normal claim revalidates exact grants",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "src/riverview_core/resident_execution/codex_workflow.py",

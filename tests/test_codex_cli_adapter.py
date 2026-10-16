@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.0
+# Revision: 1.2.0
 # Purpose: Verify bounded subscription-authenticated Codex adapter contracts
 # Execution Model: Isolated temporary Git repository and synthetic executable
 # Observability: Assertions inspect sanitized adapter status and artifact metadata
@@ -14,6 +14,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Verify persistent owner-session mode without TTY or credential copy
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-SANDBOX-READINESS-001 | Verify workspace sandbox failure blocks before dispatch
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Verify scoped Git trust, separate source/repository pins, and explicit process-start provenance
+# Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Verify older objective evidence remains valid under current grounding provenance
 # Contracts: src/riverview_core/resident_execution/codex_cli.py
 # Tests: python3 -m unittest tests.test_codex_cli_adapter -v
 # History: Git
@@ -190,12 +191,15 @@ class CodexCLIAdapterTests(unittest.TestCase):
 
     def test_persistent_action_and_separate_verifier_accept_real_file_contract(self):
         knowledge_revision = "a" * 40
+        objective_revision = "c" * 40
+        objective_digest = "d" * 64
         class Pipeline:
             def get_objective(self, _objective_id):
                 return {"objective_id": "objective:test-1", "status": "WORK_ORDER_CREATED",
-                    "assignment_id": "assignment:test-1", "source_revision": knowledge_revision,
-                    "source_sha256": "a" * 64,
-                    "evidence": {"status": "VERIFIED"},
+                    "assignment_id": "assignment:test-1", "source_revision": objective_revision,
+                    "source_sha256": objective_digest,
+                    "evidence": {"status": "VERIFIED", "source_revision": objective_revision,
+                                 "source_sha256": objective_digest},
                     "proposal": {"steps": [{"objective": "Create bounded Markdown.",
                         "acceptance_criteria": ["The deliverable exists."]}]}}
         adapter = self.adapter()
@@ -221,7 +225,8 @@ class CodexCLIAdapterTests(unittest.TestCase):
             def get_objective(self, _objective_id):
                 return {"objective_id": "objective:test-1", "status": "WORK_ORDER_CREATED",
                     "assignment_id": "assignment:test-1", "source_revision": revision,
-                    "source_sha256": "a" * 64, "evidence": {"status": "VERIFIED"},
+                    "source_sha256": "a" * 64, "evidence": {"status": "VERIFIED",
+                        "source_revision": revision, "source_sha256": "a" * 64},
                     "proposal": {"steps": [{"objective": "Create bounded Markdown.",
                         "acceptance_criteria": ["The deliverable exists."]}]}}
         revision = self.revision

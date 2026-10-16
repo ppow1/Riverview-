@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.30
+**Document Revision:** 1.0.31
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -107,8 +107,8 @@ flowchart LR
     g_rv_grace_operational_integration_codex_authority_gate_738aae11{"Authorized fixed exact-scope standing grants provisioned through AuthorityRegistry; runtime exact worker.register and assignment.execute checks remain mandatory"}
     g_rv_grace_operational_integration_codex_cli_run_ade47dcf["IMPLEMENTED — exact-grant intake, persistent owner-session, network-disabled workspace, fixed artifact and fail-closed sandbox; source evidence and pinned execution repository revisions are distinct; root-owned checkout trust is private and command-scoped"]
     g_rv_grace_operational_integration_codex_artifact_verification_ab484b65["INTEGRATED SOURCE — separate verifier reopens the assignment-bound Markdown artifact and checks mode, size, digest, provenance and literal acceptance criteria"]
-    g_rv_grace_operational_integration_codex_execution_failed_f49befea[["Codex auth/session, exact-scope authorization, sandbox, Git ownership, timeout, output bounds, or workspace integrity failed; pre-launch failures are distinct from unknown external outcomes; work remains durable and non-complete"]]
-    g_rv_grace_operational_integration_codex_execution_recovery_5c33f626["Persisted CME recovery fences retries; a narrowly proven legacy Git safe-directory refusal may requeue only when the process did not launch, the lease expired, no attempt or verifier record exists, and the assignment artifact is absent; normal claim revalidates exact grants"]
+    g_rv_grace_operational_integration_codex_execution_failed_f49befea[["Codex auth/session, exact-scope authorization, sandbox, Git ownership, immutable objective provenance, timeout, output bounds, or workspace integrity failed; proven no-launch failures are distinct from unknown external outcomes; work remains durable and non-complete"]]
+    g_rv_grace_operational_integration_codex_execution_recovery_5c33f626["Persisted CME recovery fences retries; a proven legacy Git refusal or durable WORKER_PRE_EXECUTION_FAILED intent may requeue only when Codex did not launch, the lease expired, objective provenance is verified, retry budget remains, and no attempt, verifier record, or assignment artifact exists; normal claim revalidates exact grants"]
     g_rv_grace_operational_integration_engineering_resource_request_5f8561c6[["PLANNED — persist pending resource request for HR/Helen or Steward decision; Helen is not commissioned and no allocation is presumed"]]
     g_rv_grace_operational_integration_router_backed_grace_proposal_931750ec["SOURCE IMPLEMENTED — Persistent ResidentReasoner proposals use the active router binding and require actual 80B provenance; smaller stages cannot substitute"]
     g_rv_grace_operational_integration_verified_result_chat_return_108e1033["SOURCE IMPLEMENTED — Independently accepted objective result is reviewed by bound 80B and appended once to its source conversation with durable provenance"]
