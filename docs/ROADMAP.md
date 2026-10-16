@@ -1,6 +1,6 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.59
+**Document Revision:** 1.1.60
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-11
 **Component:** RV-ROADMAP  
@@ -32,6 +32,7 @@
 **Changed:** 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Restore Director of Operations as Grace's canonical office and clarify coordinated model implementations
 **Changed:** 2026-10-14 UTC | RV-GRACE-DOPS-TOOLBOX-001 | Record bounded projection-backed Grace operational context and retain uncommissioned authority, vision, and execution gates
 **Changed:** 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Record resident profile registry and source-only 80B proposal/result-return integration; retain commissioning gates
+**Changed:** 2026-10-16 UTC | RV-INSTITUTIONAL-PROPOSAL-LIFECYCLE-001 | Add development-only persistent proposal registry and authenticated backend formalization/search contract; retain frontend and proposal-to-work-order integration gates
 **Changed:** 2026-10-11 UTC | RV-M4.1-CROSS-INTEGRATION-CI | Record passing exact-head CI for commit 89752f7
 **Changed:** 2026-10-11 UTC | RV-M4.1-PERSISTENT-RESIDENT-RUNTIME | Integrate ResidentReasoner with office authority and durable state in the persistent Grace service; isolated evidence only
 **Purpose:** Define the ordered implementation path and what the command **“go” or “next”** means.  
@@ -42,6 +43,26 @@
 Build a **persistent, event-driven, Linux-native autonomous institution** whose assignments progress without chat turns; work is durable, concurrent, independently verified, observable, and recoverable. Camrui is the current development control-plane host; OctoMiner and other compute providers are replaceable execution resources.
 
 **First vertical-slice proof:** An authorized assignment executes unattended; two assignments progress independently; an interruption is recovered without blindly duplicating external effects; results are independently verified; true state and diagnostics appear on a dashboard; and an attention condition produces a tracked notification. These are *acceptance criteria*, not claims of existing behavior.
+
+## Institutional proposal lifecycle — development increment
+
+The development branch adds an additive PostgreSQL proposal registry, immutable
+content revisions, full-text/tag search, revision-bound resident review records,
+privacy/retention metadata, and Steward-authenticated backend draft/search/retrieve
+interfaces. A selected Grace conversation can be formalized through the currently
+bound 80B path without `objective.submit`, repository-write permission, an existing
+assignment, or CME registration. The result is an unapproved `DRAFT`; it cannot
+create or dispatch work. This is source-level implementation and isolated test
+evidence only. The schema is not applied in production and the website has not yet
+integrated these endpoints. See `docs/components/INSTITUTIONAL_PROPOSALS.md` and
+`docs/components/INSTITUTIONAL_PROPOSALS_FLOW.md`.
+
+The next dependent increments must add the website controls with Codex 2, then
+connect a revision-specific Steward decision to the existing `objective.submit`
+and assignment pipeline; conversational work-order commands must converge on that
+same operation. Provider/resource overrides, commissioned specialist reviews,
+and external proposal intake remain deferred. No production grant, record, or
+service was changed by the development increment.
 
 ## “Next” protocol
 
