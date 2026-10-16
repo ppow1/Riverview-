@@ -2,12 +2,13 @@
 Riverview Controlled Evidence
 File: evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T234651Z-stage-a-b-auth/checkout.md
 Component: EXTERNAL-REASONING-MCP-TRANSPORT
-File Revision: 1.0.0
+File Revision: 1.0.1
 Task: RV-EXTERNAL-MCP-LOCAL-COMMISSIONING-AUTH-DISCOVERY
 Purpose: Record bounded read-only local commissioning and authentication discovery
 Authority: No identity, grant, token, service, public route, or DNS change made
 Date: 2026-10-16T23:46:51Z
-History: New evidence artifact; no predecessor
+History: Git + .riverview-backups/manifest.jsonl
+Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-LOCAL-COMMISSIONING-AUTH-DISCOVERY | Add OAuth tool-metadata incompatibility and exact PR CI result; predecessor preserved in .riverview-backups/20261016T235151734006Z/...
 -->
 
 # External MCP local commissioning and authentication discovery
@@ -73,6 +74,8 @@ Current DNS for `riverview-comms.ionoge.com` resolves to `64.227.21.54`. Anonymo
 
 Current OpenAI MCP documentation requires OAuth 2.1 for authenticated custom MCP use, with protected-resource and authorization-server metadata, authorization-code + PKCE/S256, resource/audience binding, expiry/scope enforcement, and per-request token validation. ChatGPT cannot present customer-defined API-key headers or use machine-to-machine client-credentials flows. The custom MCP setup's “static credentials” are static OAuth-client configuration, not the adapter's fixed resource bearer token. Therefore the historical Caddy static-bearer arrangement and the new digest-map adapter are **not compatible as-is** with the intended authenticated ChatGPT connector. See [OpenAI MCP authentication](https://developers.openai.com/plugins/build/auth) and [ChatGPT custom MCP setup](https://developers.openai.com/api/docs/guides/custom-mcp-server).
 
+The source inspection finds two further adapter changes for an OAuth connection: (1) `tools/list` definitions do not currently include the per-tool OAuth `securitySchemes` described by OpenAI, and tool errors do not return the documented MCP OAuth challenge metadata; (2) the request handler authenticates against the static digest map, which checks a locally configured token expiry and scope but does not validate JWT signature/JWKS, OAuth `iss`, `aud`/resource, or token `exp`/`nbf` claims. The adapter's `authorization_server_url` is only advertised as metadata; it does not implement or validate that issuer. These are source-verified integration gaps, not runtime failures, because the service is inactive.
+
 ## OAuth choices (not provisioned)
 
 | Choice | Fit / cost indication | Complexity and security obligations |
@@ -95,4 +98,4 @@ No provider was selected or installed. **Recommended discovery path:** if the St
 
 ## PR and change status
 
-This record is evidence-only; no source, database, grant, credential, service, route, or production data changed. PR #74 remains open and mergeable at the inspected head before this record was added: `6fcf4431ada773a05a7803559cf74036e9900cde`, base `codex/grace-conversation-ui-refinement`. The existing controlled-checkout CI run `38982385837` passed at that head. A follow-up CI run is required if this evidence record is committed.
+This record is evidence-only; no source, database, grant, credential, service, route, or production data changed. The pre-record PR #74 head was `6fcf4431ada773a05a7803559cf74036e9900cde`; the evidence record was committed as `0af51b05748369eec109941877ed7d2977e80b6a` on `codex/camrui-mcp-commissioning-record-20261016`. PR #74 remains open and mergeable into `codex/grace-conversation-ui-refinement`. Exact-head CI run `38983358534` passed: **501 tests, 2 skipped; 20 process graphs / 513 nodes; controlled revision audit passed with zero issues**. The audit update in this revision is a documentation clarification and requires a fresh CI run before the PR can be treated as fully checked.
