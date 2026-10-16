@@ -3,11 +3,12 @@
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
 # Revision: 1.3.18
-# Purpose: Serve account-authenticated operational projections and existing bounded APIs
+# Purpose: Serve account-authenticated operational, proposal, capability and snapshot APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
 # Dependencies: Python 3.10+; standard library; status_dashboard.projection
 # Authority: Dashboard credential protects views; objective API also requires exact objective.submit grant
+# Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Add capability registry and canonical workflow inventory APIs while preserving PR #65 proposal routes
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-ERROR-SEMANTICS | Preserve conflict/dependency failure distinction
 # Changed: 2026-10-11 UTC | RV-M3.2-001 | Enforce the notification-specific maximum page size
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Add exact-grant resident conversation API and restart reconciliation
@@ -562,7 +563,7 @@ def make_handler():
                 except OSError:
                     self._error(503, "ui_unavailable", request_id)
                 return
-            if parsed.path in {"/assets/app.js", "/assets/app.css", "/assets/workflow.js", "/assets/resident-permissions.js"}:
+            if parsed.path in {"/assets/app.js", "/assets/app.css", "/assets/workflow.js", "/assets/resident-permissions.js", "/assets/diagnostic-snapshot.js"}:
                 name = parsed.path.rsplit("/", 1)[-1]
                 kind = "text/javascript" if name.endswith(".js") else "text/css"
                 try:
@@ -1482,6 +1483,45 @@ def make_handler():
                     self._json(200, result, request_id)
                 elif parsed.path == "/api/v1/snapshot":
                     self._json(200, self.server._projection.snapshot(), request_id)
+                elif parsed.path == "/api/v1/capabilities":
+                    capability_path = self.server._static_dir / "capabilities.json"
+                    if capability_path.is_symlink() or not capability_path.is_file():
+                        self._error(503, "capability_registry_unavailable", request_id)
+                        return
+                    try:
+                        registry = json.loads(capability_path.read_text(encoding="utf-8"))
+                        self._json(200, registry, request_id)
+                    except (OSError, UnicodeError, json.JSONDecodeError):
+                        self._error(503, "capability_registry_unavailable", request_id)
+                elif parsed.path == "/api/v1/snapshot/workflow-index":
+                    root = Path(__file__).resolve().parents[3] / "process_graphs"
+                    items, errors = [], []
+                    for graph_path in sorted(root.glob("*/*.json")):
+                        if graph_path.parent.name in {"generated", "schema"}:
+                            continue
+                        relative = graph_path.relative_to(root.parent).as_posix()
+                        if graph_path.is_symlink() or not graph_path.is_file():
+                            errors.append({"source_file": relative, "code": "canonical_file_not_regular"})
+                            continue
+                        try:
+                            graph = json.loads(graph_path.read_text(encoding="utf-8"))
+                        except (OSError, UnicodeError, json.JSONDecodeError):
+                            errors.append({"source_file": relative, "code": "canonical_file_unreadable"})
+                            continue
+                        if not isinstance(graph, dict) or not isinstance(graph.get("graph_id"), str):
+                            errors.append({"source_file": relative, "code": "canonical_definition_invalid"})
+                            continue
+                        items.append({"graph_id": graph["graph_id"],
+                                      "component_id": graph.get("component_id"),
+                                      "workflow_id": graph.get("workflow_id"),
+                                      "graph_revision": graph.get("graph_revision"),
+                                      "source_file": relative,
+                                      "node_count": len(graph.get("nodes", [])),
+                                      "edge_count": len(graph.get("edges", []))})
+                    self._json(200, {"schema_version": "rv.website.workflow-index.v1",
+                                     "status": "available" if not errors else "partial",
+                                     "inventory_count": len(items), "items": items,
+                                     "errors": errors}, request_id)
                 elif parsed.path == "/api/v1/graphs":
                     root = Path(__file__).resolve().parents[3] / "process_graphs"
                     items = []

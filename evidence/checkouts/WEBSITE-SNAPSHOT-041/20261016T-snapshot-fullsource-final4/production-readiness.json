@@ -1,0 +1,62 @@
+{
+  "evidence_revision": "1.0.0",
+  "inspection_mode": "read-only; no service restart, migration, deployment, objective or proposal write",
+  "host": {
+    "hostname": "admin1-Default-string",
+    "os": "Ubuntu 24.04.3 (reported host configuration)",
+    "address": "192.168.1.155"
+  },
+  "dashboard": {
+    "url": "https://192.168.1.155/",
+    "http_status": 200,
+    "tls_verification": "passed with installed Riverview LAN root CA",
+    "service": "active",
+    "active_release_path": "/opt/riverview-status-dashboard/releases/928649bd1ff695fe9a95915647a49943ffe921fe",
+    "release_id": "website-pr42-928649bd1ff695fe9a95915647a49943ffe921fe",
+    "source_commit": "928649bd1ff695fe9a95915647a49943ffe921fe"
+  },
+  "proposal_registry": {
+    "database": "riverview",
+    "schema": "riverview_dev",
+    "migration_ledger": "schema_migrations",
+    "latest_by_applied_at": {
+      "version": "0006_verifier_revision_rechecks",
+      "applied_at": "2026-10-16T09:00:38.441108-04:00"
+    },
+    "migration_0009_present_with_earlier_applied_at": true,
+    "migration_0010_institutional_proposal_registry_present": false,
+    "tables": {
+      "institutional_proposals": false,
+      "institutional_proposal_revisions": false
+    },
+    "all_schema_table_search_results": [],
+    "production_registry_records": 0,
+    "record_count_basis": "Both registry tables are absent in all schemas; no registry records can exist. One legacy objective proposal field is not an institutional registry record.",
+    "expected_api_routes_from_merged_PR65_source": [
+      "POST /api/v1/institutional-proposals",
+      "GET/HEAD /api/v1/institutional-proposals",
+      "GET/HEAD /api/v1/institutional-proposals/{proposal_id}",
+      "PUT /api/v1/institutional-proposals/{proposal_id}"
+    ],
+    "routes_in_installed_PR42_backend": false,
+    "activation_owner": "Codex 1 / integration; do not activate from website workstream"
+  },
+  "tls": {
+    "leaf_subject": "CN=riverview.ionoge.com",
+    "leaf_issuer": "CN=Riverview Camrui LAN Root CA",
+    "leaf_san": [
+      "DNS:riverview.ionoge.com",
+      "IP:192.168.1.155"
+    ],
+    "root_subject": "CN=Riverview Camrui LAN Root CA",
+    "root_self_issued": true,
+    "root_basic_constraints": "CA:TRUE, pathlen:0",
+    "root_sha256": "D7823E13473A2F1F86A50781071CA7D6E08CA0B8D960C327739C85BA14DDC32D",
+    "openssl_verify_return_code": 0,
+    "server_chain_or_SAN_failure_observed": false,
+    "windows_trust_store_inspected": false,
+    "diagnosis": "Missing Riverview private root in the Windows trust store is the likely client-side cause; not confirmed until strict PowerShell validation is run on Windows."
+  },
+  "production_mutations": false,
+  "production_data_written": false
+}

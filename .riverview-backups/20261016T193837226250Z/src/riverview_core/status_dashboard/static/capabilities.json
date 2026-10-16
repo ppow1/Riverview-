@@ -1,0 +1,675 @@
+{
+  "schema_version": "rv.website.capabilities.v1",
+  "registry_id": "rv:steward-dashboard:website-capabilities",
+  "revision": "1.1.1",
+  "purpose": "Describe dashboard pages, controls, data sources, workflow surfaces and diagnostic export representations. A declaration is not evidence of control operation.",
+  "pages": [
+    {
+      "id": "overview",
+      "title": "Operations overview",
+      "selector": "#view-overview",
+      "navigation_selector": "[data-view='overview']",
+      "components": [
+        "status summary",
+        "assignments",
+        "CME attention",
+        "worker inventory",
+        "recent events"
+      ],
+      "data_sources": [
+        "GET /api/v1/status",
+        "GET /api/v1/assignments",
+        "GET /api/v1/events",
+        "GET /api/v1/workers"
+      ],
+      "representations": [
+        "sanitized offline HTML",
+        "full-content SVG layout capture with stable control IDs",
+        "full-page sanitized rendered SVG and PNG capture with correlated stable control IDs"
+      ],
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "assignments",
+      "title": "Assignments",
+      "selector": "#view-assignments",
+      "navigation_selector": "[data-view='assignments']",
+      "components": [
+        "assignment list",
+        "assignment detail",
+        "attempts",
+        "verification",
+        "events"
+      ],
+      "data_sources": [
+        "GET /api/v1/assignments",
+        "GET /api/v1/assignments/{id}"
+      ],
+      "representations": [
+        "sanitized offline HTML",
+        "full-content SVG layout capture with stable control IDs",
+        "full-page sanitized rendered SVG and PNG capture with correlated stable control IDs"
+      ],
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "objectives",
+      "title": "Grace objectives",
+      "selector": "#view-objectives",
+      "navigation_selector": "[data-view='objectives']",
+      "components": [
+        "objective lifecycle",
+        "objective intake guidance"
+      ],
+      "data_sources": [
+        "GET /api/v1/objectives"
+      ],
+      "representations": [
+        "sanitized offline HTML",
+        "full-content SVG layout capture with stable control IDs",
+        "full-page sanitized rendered SVG and PNG capture with correlated stable control IDs"
+      ],
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "grace-chat",
+      "title": "Talk with Grace",
+      "selector": "#view-grace-chat",
+      "navigation_selector": "[data-view='grace-chat']",
+      "components": [
+        "conversation authentication",
+        "conversation history",
+        "stream status",
+        "message composer"
+      ],
+      "data_sources": [
+        "GET /api/v1/resident/conversations",
+        "GET /api/v1/resident/conversations/{id}"
+      ],
+      "representations": [
+        "sanitized offline HTML",
+        "full-content SVG layout capture with stable control IDs",
+        "full-page sanitized rendered SVG and PNG capture with correlated stable control IDs"
+      ],
+      "privacy": "Conversation and request bodies are excluded from exported page captures and diagnostics.",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "activity",
+      "title": "Activity",
+      "selector": "#view-activity",
+      "navigation_selector": "[data-view='activity']",
+      "components": [
+        "event page",
+        "sequence navigation",
+        "diagnostic links"
+      ],
+      "data_sources": [
+        "GET /api/v1/events"
+      ],
+      "representations": [
+        "sanitized offline HTML",
+        "full-content SVG layout capture with stable control IDs",
+        "full-page sanitized rendered SVG and PNG capture with correlated stable control IDs"
+      ],
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "workflows",
+      "title": "Workflows",
+      "selector": "#view-workflows",
+      "navigation_selector": "[data-view='workflows']",
+      "components": [
+        "workflow selector",
+        "SVG graph canvas",
+        "node details",
+        "cross-workflow jump points"
+      ],
+      "data_sources": [
+        "GET /api/v1/graphs",
+        "GET /api/v1/graphs/{graph_id}"
+      ],
+      "representations": [
+        "sanitized offline HTML",
+        "full-content SVG layout capture with stable control IDs",
+        "full-page sanitized rendered SVG and PNG capture with correlated stable control IDs"
+      ],
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "notifications",
+      "title": "Notifications",
+      "selector": "#view-notifications",
+      "navigation_selector": "[data-view='notifications']",
+      "components": [
+        "notification list",
+        "receipt state",
+        "source links"
+      ],
+      "data_sources": [
+        "GET /api/v1/notifications"
+      ],
+      "representations": [
+        "sanitized offline HTML",
+        "full-content SVG layout capture with stable control IDs",
+        "full-page sanitized rendered SVG and PNG capture with correlated stable control IDs"
+      ],
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "documentation",
+      "title": "Documentation and diagnostics",
+      "selector": "#view-documentation",
+      "navigation_selector": "[data-view='documentation']",
+      "components": [
+        "searchable workflow registry",
+        "provenance references",
+        "documentation links"
+      ],
+      "data_sources": [
+        "GET /api/v1/graphs"
+      ],
+      "representations": [
+        "sanitized offline HTML",
+        "full-content SVG layout capture with stable control IDs",
+        "full-page sanitized rendered SVG and PNG capture with correlated stable control IDs"
+      ],
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "account",
+      "title": "Account access administration",
+      "selector": "#view-account",
+      "navigation_selector": "#account-nav",
+      "authorization": "Steward account role",
+      "components": [
+        "enrollments",
+        "account/session inventory",
+        "email configuration"
+      ],
+      "data_sources": [
+        "GET /api/v1/account/enrollments",
+        "GET /api/v1/account/users",
+        "GET /api/v1/account/email-settings"
+      ],
+      "representations": [
+        "sanitized offline HTML",
+        "full-content SVG layout capture with stable control IDs",
+        "full-page sanitized rendered SVG and PNG capture with correlated stable control IDs"
+      ],
+      "privacy": "Account rows, email values and all form values are redacted from exported page captures.",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "resident-permissions",
+      "title": "Resident permissions",
+      "selector": "#view-resident-permissions",
+      "navigation_selector": "#resident-permissions-nav",
+      "authorization": "Steward account role and existing server-side authorization",
+      "components": [
+        "resident permission profiles",
+        "profile state and transitions"
+      ],
+      "data_sources": [
+        "GET /api/v1/resident-permissions"
+      ],
+      "representations": [
+        "sanitized offline HTML",
+        "full-content SVG layout capture with stable control IDs",
+        "full-page sanitized rendered SVG and PNG capture with correlated stable control IDs"
+      ],
+      "capability_version": "1.0.0"
+    }
+  ],
+  "controls": [
+    {
+      "id": "navigation.overview",
+      "selector": "[data-view='overview']",
+      "action": "Navigate to overview",
+      "component": "primary navigation",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "navigation.assignments",
+      "selector": "[data-view='assignments']",
+      "action": "Navigate to assignments",
+      "component": "primary navigation",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "navigation.objectives",
+      "selector": "[data-view='objectives']",
+      "action": "Navigate to objectives",
+      "component": "primary navigation",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "navigation.grace-chat",
+      "selector": "[data-view='grace-chat']",
+      "action": "Navigate to Grace conversation",
+      "component": "primary navigation",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "navigation.activity",
+      "selector": "[data-view='activity']",
+      "action": "Navigate to activity",
+      "component": "primary navigation",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "navigation.workflows",
+      "selector": "[data-view='workflows']",
+      "action": "Navigate to workflows",
+      "component": "primary navigation",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "navigation.notifications",
+      "selector": "[data-view='notifications']",
+      "action": "Navigate to notifications",
+      "component": "primary navigation",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "navigation.documentation",
+      "selector": "[data-view='documentation']",
+      "action": "Navigate to documentation",
+      "component": "primary navigation",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "navigation.account",
+      "selector": "#account-nav",
+      "action": "Navigate to account administration",
+      "component": "primary navigation",
+      "authorization": "Steward account role",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "navigation.resident-permissions",
+      "selector": "#resident-permissions-nav",
+      "action": "Navigate to resident permissions",
+      "component": "primary navigation",
+      "authorization": "Steward account role",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "navigation.shortcut",
+      "selector": "[data-go]",
+      "action": "Navigate using in-view shortcut",
+      "component": "in-view navigation",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "navigation.documentation-link",
+      "selector": "a[href^='/docs/']",
+      "action": "Open registered component documentation",
+      "component": "documentation navigation",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "navigation.brand",
+      "selector": "a.brand",
+      "action": "Return to overview",
+      "component": "primary navigation",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "navigation.rail-toggle",
+      "selector": "#rail-toggle",
+      "action": "Collapse or expand navigation rail",
+      "component": "primary navigation",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "navigation.sign-out",
+      "selector": "#sign-out",
+      "action": "End the current website account session",
+      "component": "account authentication",
+      "authorization": "Current account session",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "authentication.recovery",
+      "selector": "#auth-open",
+      "action": "Open protected legacy recovery connection",
+      "component": "account authentication",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "snapshot.download",
+      "selector": "#snapshot",
+      "action": "Build and download this bounded offline diagnostic ZIP",
+      "component": "diagnostic snapshot",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "dashboard.refresh",
+      "selector": "#refresh",
+      "action": "Refresh read-only dashboard projections",
+      "component": "overview",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "assignments.open",
+      "selector": "[data-assignment]",
+      "action": "Open assignment detail",
+      "component": "assignments",
+      "data_sources": [
+        "GET /api/v1/assignments/{id}"
+      ],
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "assignments.next-page",
+      "selector": "#more-assignments",
+      "action": "Load next assignment page",
+      "component": "assignments",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "workers.next-page",
+      "selector": "#more-workers",
+      "action": "Load next worker page",
+      "component": "overview",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "events.open-assignment",
+      "selector": ".event-card [data-assignment]",
+      "action": "Open assignment referenced by an event",
+      "component": "activity",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "events.older",
+      "selector": "#more-events",
+      "action": "Load older event page",
+      "component": "activity",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "events.newer",
+      "selector": "#newer-events",
+      "action": "Load newer event page",
+      "component": "activity",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "objectives.refresh",
+      "selector": "#refresh-objectives",
+      "action": "Refresh objective projection",
+      "component": "objectives",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "conversation.connect",
+      "selector": "#chat-connect",
+      "action": "Connect to authorized conversation history",
+      "component": "Grace conversation",
+      "authorization": "Existing conversation authority",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "conversation.new",
+      "selector": "#chat-new",
+      "action": "Start a new conversation",
+      "component": "Grace conversation",
+      "mutating": true,
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "conversation.refresh",
+      "selector": "#chat-refresh",
+      "action": "Refresh current conversation history",
+      "component": "Grace conversation",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "conversation.disconnect",
+      "selector": "#chat-disconnect",
+      "action": "Disconnect this browser conversation session",
+      "component": "Grace conversation",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "conversation.send",
+      "selector": "#chat-send",
+      "action": "Send message to Grace",
+      "component": "Grace conversation",
+      "mutating": true,
+      "authorization": "Existing conversation authority",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "conversation.newline",
+      "selector": "#chat-newline",
+      "action": "Insert a newline in message composer",
+      "component": "Grace conversation",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "conversation.option",
+      "selector": "[data-chat-option]",
+      "action": "Run the selected conversation detail or copy option",
+      "component": "Grace conversation",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "conversation.message-option",
+      "selector": "[data-message-details],[data-message-copy],[data-message-id-copy],[data-message-work-order]",
+      "action": "Open message details, copy, or start authorized work-order form",
+      "component": "Grace conversation",
+      "mutating": true,
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "work-orders.submit",
+      "selector": "#work-order-submit",
+      "action": "Submit an Engineering objective from a selected message",
+      "component": "Engineering intake",
+      "mutating": true,
+      "authorization": "Existing exact objective.submit grant",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "graph.select",
+      "selector": "#graph-select",
+      "action": "Select a registered workflow",
+      "component": "workflow viewer",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "graph.fit",
+      "selector": "#graph-fit",
+      "action": "Fit the whole registered workflow inside the viewer",
+      "component": "workflow viewer",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "graph.zoom.out",
+      "selector": "#graph-zoom-out",
+      "action": "Zoom out from the workflow diagram",
+      "component": "workflow viewer",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "graph.zoom.in",
+      "selector": "#graph-zoom-in",
+      "action": "Zoom in to inspect workflow details",
+      "component": "workflow viewer",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "graph.reset",
+      "selector": "#graph-reset",
+      "action": "Reset workflow zoom and pan",
+      "component": "workflow viewer",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "graph.fullscreen",
+      "selector": "#graph-fullscreen",
+      "action": "Toggle fullscreen workflow viewing",
+      "component": "workflow viewer",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "graph.node.select",
+      "selector": "#graph-canvas [role='button']",
+      "action": "Inspect a canonical workflow node",
+      "component": "workflow viewer",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "graph.jump",
+      "selector": "#graph-jumps button",
+      "action": "Open a registered cross-workflow destination or return",
+      "component": "workflow viewer",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "notifications.refresh",
+      "selector": "#refresh-notifications",
+      "action": "Refresh notification projection",
+      "component": "notifications",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "notifications.receipt",
+      "selector": "[data-acknowledge],[data-delivered]",
+      "action": "Record delivery or receipt state",
+      "component": "notifications",
+      "mutating": true,
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "catalog.search",
+      "selector": "#documentation-search",
+      "action": "Filter the registered workflow and provenance catalog",
+      "component": "documentation catalog",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "accounts.refresh-enrollments",
+      "selector": "#refresh-enrollments",
+      "action": "Read pending account enrollments",
+      "component": "account administration",
+      "authorization": "Steward account role",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "accounts.refresh-users",
+      "selector": "#refresh-accounts",
+      "action": "Read account and session inventory",
+      "component": "account administration",
+      "authorization": "Steward account role",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "accounts.refresh-email",
+      "selector": "#refresh-email-settings",
+      "action": "Read email delivery configuration",
+      "component": "account administration",
+      "authorization": "Steward account role",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "accounts.enrollment-decision",
+      "selector": "[data-enroll]",
+      "action": "Approve or deny a verified account enrollment",
+      "component": "account administration",
+      "authorization": "Steward account role",
+      "mutating": true,
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "accounts.account-action",
+      "selector": "[data-account]",
+      "action": "Change account status, role, grant or sessions",
+      "component": "account administration",
+      "authorization": "Steward account role",
+      "mutating": true,
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "accounts.test-email",
+      "selector": "#test-email-settings",
+      "action": "Send configured test email",
+      "component": "account administration",
+      "mutating": true,
+      "authorization": "Steward account role",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "permissions.control",
+      "selector": "#view-resident-permissions button,#view-resident-permissions select",
+      "action": "Inspect or change resident permission profile",
+      "component": "resident permissions",
+      "authorization": "Existing server-side authorization",
+      "mutating": true,
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "dialog.close",
+      "selector": "[data-close-dialog]",
+      "action": "Close the current detail dialog",
+      "component": "dialogs",
+      "capability_version": "1.0.0"
+    },
+    {
+      "id": "form.control",
+      "selector": "form button,input,textarea,select,summary",
+      "action": "Use the associated page form or disclosure control",
+      "component": "registered website form",
+      "capability_version": "1.0.0"
+    }
+  ],
+  "workflow_surfaces": {
+    "registry_source": "GET /api/v1/snapshot/workflow-index",
+    "definition_source": "GET /api/v1/graphs/{graph_id}",
+    "authoritative_repository_path": "process_graphs/*/*.json",
+    "storage_classification": "Version-controlled canonical graph JSON; the ledger stores execution references/state, not graph definitions.",
+    "representations": [
+      "original canonical JSON per workflow",
+      "separate runtime-status JSON per workflow",
+      "workflow-index.json with cross-workflow jump references",
+      "full-extent SVG per workflow",
+      "PNG overview per workflow",
+      "overlapping PNG detail tiles where needed"
+    ]
+  },
+  "diagnostic_retention": {
+    "interactions": 120,
+    "requests": 200,
+    "errors": 50,
+    "request_bodies": "never collected",
+    "authentication_material": "never collected",
+    "truncation": "Count and report entries dropped at the bounded retention limit.",
+    "package_max_uncompressed_bytes": 100663296
+  },
+  "future_testing_consumer": {
+    "supported": true,
+    "contract": "Stable registry/page/control IDs and declared actions/data sources are available; this release does not implement automated interaction tests."
+  },
+  "control_state_vocabulary": [
+    "registered",
+    "rendered",
+    "available",
+    "disabled",
+    "unavailable",
+    "not_observed",
+    "uncovered_rendered"
+  ],
+  "capture_contract": {
+    "pages": "Discover from this registry at capture time; visit only pages reachable by current authenticated user permissions.",
+    "controls": "Compare registered selectors with controls observed on each captured page. Declarations do not prove action behavior.",
+    "page_visuals": "Capture each accessible registered view as sanitized offline HTML and a full-page rendered SVG with correlated stable control outlines, rasterized to PNG. Expand scrollable content when feasible; report bound, omitted media, inaccessible views and rasterization failures.",
+    "workflow_visuals": "Export from each authenticated canonical graph response independent of page viewport, zoom, and scroll position.",
+    "workflow_status": "Export the graph API execution_position projection separately from unchanged canonical graph JSON.",
+    "offline_review": "Unzip and inspect page HTML, page/control JSON, graph JSON, workflow index, SVG and PNG without network access.",
+    "capability_versions": "Registry revision versions the full capability set; each page and control has an independently reviewable capability_version."
+  },
+  "authorization_model": "Page navigation and data exports use the current authenticated user session and existing server-side authorization. A registry declaration does not grant access."
+}

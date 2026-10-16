@@ -1,0 +1,49 @@
+{
+  "evidence_revision": "1.0.0",
+  "verification_kind": "isolated synthetic browser fixture; canonical registry and graph files from this source checkout",
+  "production_data_accessed": false,
+  "production_mutations": false,
+  "package": {
+    "path": "downloads/viewport-2.zip",
+    "size_bytes": 32092323,
+    "sha256": "abb117743a0f1e0876c51d10d3acd94292ed31a608613ae75a869914dd5c47e3",
+    "zip_crc_test": null,
+    "file_count": 126
+  },
+  "manifest": {
+    "capture_complete": true,
+    "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "deployment_id": "synthetic-fixture",
+    "expected": {
+      "pages": 10,
+      "controls": 54,
+      "workflows": 20,
+      "nodes": 487,
+      "edges": 646
+    },
+    "exported": {
+      "pages": 10,
+      "page_visuals": 10,
+      "controls": 54,
+      "observed_controls": 20,
+      "workflows": 20,
+      "workflow_visuals": 20,
+      "nodes": 487,
+      "edges": 646
+    },
+    "omissions": 0
+  },
+  "workflow_index": {
+    "inventory": 20,
+    "exported": 20,
+    "nodes": 487,
+    "edges": 646,
+    "unresolved_references": 0,
+    "workflow_json_svg_png_present": 20
+  },
+  "limitations": [
+    "Browser page shell is synthetic; screenshot/export flow was not run against the live production release.",
+    "source_commit and deployment_id in ZIP are synthetic fixture values, not deployment provenance.",
+    "Authenticated account-cookie production capture remains unverified."
+  ]
+}

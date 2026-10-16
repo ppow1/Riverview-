@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.9
+**Document Revision:** 1.0.11
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -24,7 +24,7 @@ flowchart LR
     g_rv_steward_dashboard_status_navigate_9ce45297["Switch tabs without inference or full reconstruction"]
     g_rv_steward_dashboard_status_page_events_3087075e["Fetch bounded event and assignment pages"]
     g_rv_steward_dashboard_status_inspect_detail_fa591a4b["Lazy-load assignment attempts and verifier evidence"]
-    g_rv_steward_dashboard_status_export_snapshot_5d8d925e["Export bounded redacted diagnostic snapshot"]
+    g_rv_steward_dashboard_status_export_snapshot_5d8d925e["Download self-describing offline website and workflow snapshot"]
     g_rv_steward_dashboard_status_database_failure_fa21a93b[["Database request failed or exceeded timeout"]]
     g_rv_steward_dashboard_status_reconnect_71d9d56c["Retry read after service or database recovery"]
     g_rv_steward_dashboard_status_jump_ledger_c6cfb39d["Authoritative assignment and event ledger"]
@@ -122,3 +122,10 @@ read-only transaction, filters private records, and exposes paged projections.
 Unavailable sources remain visible as unavailable. UI navigation renders from
 the current browser cache and does not wait for a provider or database request.
 See the [troubleshooting cookbook](STATUS_DASHBOARD_COOKBOOK.md).
+
+The explicit snapshot branch captures each authorized registered page and
+control, including long-page visuals split into readable overlapping tiles. It
+exports each canonical workflow JSON and viewport-independent visual with the
+cross-workflow index. Isolated Firefox verification used the actual dashboard
+DOM and scripts with synthetic read-only APIs; production account acceptance
+remains unverified. See the dashboard cookbook and PL-NEW-041 evidence.

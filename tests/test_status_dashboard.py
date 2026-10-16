@@ -2,12 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.44
+# Revision: 1.0.49
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL for integration class
 # Authority: Creates/drops only unique rvtest_* schemas; never accesses shared Riverview data
+# Changed: 2026-10-16 UTC | RV-WEBSITE-PL-NEW-042 | Verify registered workflow fit/zoom/pan/reset/fullscreen controls.
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Verify safe component links remain functional in the consolidated guide
 # Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ROUTE | Exercise updated authority diagnostics through the dashboard documentation route
 # Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Enforce browser-managed persistent grant cookie and denial retry suppression UI contract
@@ -37,6 +38,7 @@
 # Changed: 2026-10-15 UTC | RV-WEBSITE-PL003 | Resolve assignment task labels from exact persisted graph/node IDs.
 # Changed: 2026-10-15 UTC | RV-WEBSITE-PL029 | Separate notification rendering, receipt, person-seen and decision states.
 # Changed: 2026-10-16 UTC | RV-WEBSITE-PL038 | Verify searchable canonical traceability catalog and evidence qualification.
+# Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Verify authenticated dynamic capability/workflow inventories, complete source metadata and snapshot affordance.
 # =============================================================================
 """Security, API, privacy and PostgreSQL integration tests for M3.1."""
 
@@ -139,12 +141,25 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         css = (ROOT / "src/riverview_core/status_dashboard/static/app.css").read_text(encoding="utf-8")
         self.assertIn('id="rail-toggle"', html)
         self.assertIn('aria-controls="primary-navigation"', html)
-        self.assertIn('aria-label="Download bounded diagnostic snapshot"', html)
+        self.assertIn('aria-label="Download comprehensive offline diagnostic snapshot"', html)
         self.assertIn('role="img" aria-label="Source health: connecting"', html)
         self.assertIn('rv.dashboard.rail-collapsed', app)
         self.assertIn('setAttribute("aria-expanded"', app)
         self.assertIn(".shell.rail-collapsed .nav-label", css)
         self.assertIn(".shell.rail-collapsed .rail-foot .quiet-button{display:inline-flex", css)
+
+    def test_workflow_viewer_exposes_registered_fit_zoom_pan_reset_and_fullscreen_controls(self):
+        html = (ROOT / "src/riverview_core/status_dashboard/static/index.html").read_text(encoding="utf-8")
+        script = (ROOT / "src/riverview_core/status_dashboard/static/workflow.js").read_text(encoding="utf-8")
+        css = (ROOT / "src/riverview_core/status_dashboard/static/app.css").read_text(encoding="utf-8")
+        registry = json.loads((ROOT / "src/riverview_core/status_dashboard/static/capabilities.json").read_text(encoding="utf-8"))
+        expected = {"graph.fit", "graph.zoom.in", "graph.zoom.out", "graph.reset", "graph.fullscreen"}
+        for control_id in ("graph-fit", "graph-zoom-in", "graph-zoom-out", "graph-reset", "graph-fullscreen"):
+            self.assertIn(f'id="{control_id}"', html)
+        self.assertTrue(expected <= {control["id"] for control in registry["controls"]})
+        for behavior in ("fitWorkflow", "zoomAt", "requestFullscreen", "pointerdown", "pointermove", "wheel"):
+            self.assertIn(behavior, script)
+        self.assertIn("graph-canvas:fullscreen", css)
 
     def test_assignment_titles_use_exact_registered_node_labels_and_keep_ids(self):
         app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
@@ -724,6 +739,45 @@ class DashboardHTTPTests(unittest.TestCase):
                          "rv:postgres-ledger:assignment-lifecycle:running")
         status, _, body = self.request("GET", "/api/v1/graphs/rv%3Anot-registered%3Anone", token=self.token)
         self.assertEqual(status, 404)
+
+    def test_capability_registry_and_snapshot_workflow_inventory_require_dashboard_auth(self):
+        for path in ("/api/v1/capabilities", "/api/v1/snapshot/workflow-index"):
+            status, _, _ = self.request("GET", path)
+            self.assertEqual(status, 401, path)
+            status, _, body = self.request("GET", path, token=self.token)
+            self.assertEqual(status, 200, path)
+            payload = json.loads(body)
+            if path.endswith("capabilities"):
+                self.assertEqual(payload["schema_version"], "rv.website.capabilities.v1")
+                self.assertEqual(len({x["id"] for x in payload["pages"]}), len(payload["pages"]))
+                self.assertEqual(len({x["id"] for x in payload["controls"]}), len(payload["controls"]))
+                self.assertTrue(all(isinstance(x.get("capability_version"), str) for x in payload["pages"]+payload["controls"]))
+                self.assertTrue(all(isinstance(rep, str) for page in payload["pages"] for rep in page["representations"]))
+                self.assertTrue(all(len(page["representations"]) == len(set(page["representations"])) for page in payload["pages"]))
+                self.assertTrue(all(page["selector"] and page["navigation_selector"] and page["components"] and page["data_sources"] for page in payload["pages"]))
+                self.assertIn("/api/v1/snapshot/workflow-index", payload["workflow_surfaces"]["registry_source"])
+            else:
+                self.assertEqual(payload["schema_version"], "rv.website.workflow-index.v1")
+                self.assertEqual(payload["status"], "available")
+                canonical = [graph for path in (Path(__file__).resolve().parents[1] / "process_graphs").glob("*/*.json") if path.parent.name not in {"generated", "schema"} for graph in [json.loads(path.read_text(encoding="utf-8"))] if isinstance(graph, dict) and isinstance(graph.get("graph_id"), str)]
+                self.assertEqual(payload["inventory_count"], len(canonical))
+                self.assertEqual({item["graph_id"] for item in payload["items"]}, {item["graph_id"] for item in canonical})
+                self.assertEqual(sum(item["node_count"] for item in payload["items"]), sum(len(item.get("nodes", [])) for item in canonical))
+                self.assertEqual(sum(item["edge_count"] for item in payload["items"]), sum(len(item.get("edges", [])) for item in canonical))
+                self.assertTrue(all(item["source_file"].startswith("process_graphs/") for item in payload["items"]))
+                self.assertTrue(all(item["edge_count"] >= 0 for item in payload["items"]))
+
+    def test_diagnostic_snapshot_asset_declares_privacy_and_full_graph_export_contract(self):
+        status, _, _ = self.request("GET", "/assets/diagnostic-snapshot.js")
+        self.assertEqual(status, 200)
+        status, _, body = self.request("GET", "/assets/diagnostic-snapshot.js", token=self.token)
+        self.assertEqual(status, 200)
+        script = body.decode("utf-8")
+        for contract in ("workflow-index.json", "data-node-id", "data-edge-from", "image.decode",
+                         "foreignObject", "XMLSerializer", "private conversation content", "account details", "authorization_headers",
+                         "uncovered_rendered_controls", "detail_tiles", "const safeRequest", "safeCode", "getEntriesByType(\"navigation\")", "unresolved_references"):
+            self.assertIn(contract, script)
+        self.assertIn('id="snapshot"', self.request("GET", "/", token=self.token)[2].decode("utf-8"))
 
     def test_assignment_intake_cookbook_renders_without_broken_evidence_link(self):
         status, headers, body = self.request(

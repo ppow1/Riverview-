@@ -1,5 +1,7 @@
 <!-- Riverview~ controlled asset; component STEWARD-DASHBOARD. -->
-<!-- Revision: 1.1.17 -->
+<!-- Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Expose capability-registry-driven downloadable offline diagnostic ZIP. -->
+<!-- Revision: 1.1.19 -->
+<!-- Changed: 2026-10-16 UTC | RV-WEBSITE-PL-NEW-042 | Add fit, reset, zoom, pan and fullscreen workflow viewer controls. -->
 <!-- Changed: 2026-10-16 UTC | RV-WEBSITE-PL038 | Add searchable workflow/documentation provenance catalog view. -->
 <!-- Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Explain original-criteria reuse on a same-source retry -->
 <!-- Changed: 2026-10-15 UTC | RV-WEBSITE-PL036 | Add accessible collapsible navigation with persistent compact health and snapshot controls. -->
@@ -37,7 +39,7 @@
         <button class="nav-item" id="account-nav" data-view="account" aria-label="Account access" title="Account access" hidden><span class="nav-mark" aria-hidden="true">♙</span><span class="nav-label">Account access</span></button>
         <button class="nav-item" id="resident-permissions-nav" data-view="resident-permissions" aria-label="Resident permissions" title="Resident permissions" hidden><span class="nav-mark" aria-hidden="true">⚿</span><span class="nav-label">Resident permissions</span></button>
       </nav>
-      <div class="rail-foot"><span class="pulse-dot" id="pulse-dot" role="img" aria-label="Source health: connecting"></span><span id="rail-health">Connecting</span><button id="snapshot" class="quiet-button" aria-label="Download bounded diagnostic snapshot" title="Download bounded diagnostic snapshot"><span class="snapshot-label">Snapshot</span><span aria-hidden="true"> ↓</span></button></div>
+      <div class="rail-foot"><span class="pulse-dot" id="pulse-dot" role="img" aria-label="Source health: connecting"></span><span id="rail-health">Connecting</span><button id="snapshot" class="quiet-button" aria-label="Download comprehensive offline diagnostic snapshot" title="Download comprehensive offline diagnostic snapshot"><span class="snapshot-label">Download Snapshot</span><span aria-hidden="true"> ↓</span></button></div>
     </aside>
     <main>
       <header class="topbar"><div><div class="eyebrow">STEWARD CONSOLE <span>/</span> DASHBOARD MILESTONE M3.1</div><h1 id="page-title">Operations overview</h1></div><div class="top-right"><div class="freshness" id="freshness">Awaiting source</div><span id="account-label" class="muted"></span><button id="sign-out" class="secondary" hidden>Sign out</button><button id="refresh" class="icon-button" aria-label="Refresh projections" title="Refresh">↻</button><button id="auth-open" class="icon-button" aria-label="Legacy recovery connection" title="Legacy recovery">⌑</button></div></header>
@@ -82,6 +84,14 @@
           <div class="section-intro"><div><div class="eyebrow">CANONICAL PROCESS GRAPH</div><h2>Workflows</h2></div><div class="note">Read-only view generated from the versioned graph registry. No activity is inferred.</div></div>
           <div class="panel"><div class="panel-head"><div><h3>Registered workflows</h3><span class="muted" id="graph-revision">Loading canonical registry…</span></div><label class="graph-select-label" for="graph-select">Workflow <select id="graph-select" class="secondary"><option value="">Loading…</option></select></label></div>
             <div id="graph-execution-position" class="graph-position">Live execution position: unknown until the ledger records a process graph node identity.</div>
+            <div class="graph-toolbar" role="group" aria-label="Workflow diagram controls">
+              <button id="graph-fit" class="secondary" type="button" disabled>Fit diagram</button>
+              <button id="graph-zoom-out" class="secondary" type="button" disabled aria-label="Zoom out">−</button>
+              <button id="graph-zoom-in" class="secondary" type="button" disabled aria-label="Zoom in">+</button>
+              <button id="graph-reset" class="secondary" type="button" disabled>Reset view</button>
+              <button id="graph-fullscreen" class="secondary" type="button" disabled aria-pressed="false">Full screen</button>
+              <span class="graph-view-hint">Drag to pan · use the wheel or zoom buttons to change scale.</span>
+            </div>
             <div id="graph-canvas" class="graph-canvas" role="img" aria-label="Canonical process workflow diagram"><p class="muted">Select a workflow to view its nodes and transitions.</p></div>
             <div class="graph-legend"><span class="graph-chip process">Process</span><span class="graph-chip decision">Decision</span><span class="graph-chip failure">Failure / escalation</span><span class="graph-chip recovery">Recovery / verification</span></div>
             <p class="note">Use the Workflow selector to switch registered graphs. In the canvas, select a node with a click or keyboard Enter/Space to inspect its stable ID, node revision and references. The graph revision above describes the loaded graph; the revision on each node appears in its detail. The legend is a visual key only; its labels are not controls.</p>
@@ -112,6 +122,7 @@
   <dialog id="chat-details-dialog" class="chat-dialog" aria-labelledby="chat-details-title"><div class="dialog-head"><h2 id="chat-details-title">Conversation details</h2><button type="button" class="secondary" data-close-dialog>Close</button></div><div id="chat-details-content" class="chat-details-content"></div></dialog>
   <dialog id="message-details-dialog" class="chat-dialog" aria-labelledby="message-details-title"><div class="dialog-head"><h2 id="message-details-title">Message details</h2><button type="button" class="secondary" data-close-dialog>Close</button></div><div id="message-details-content" class="chat-details-content"></div></dialog>
   <dialog id="work-order-dialog" class="chat-dialog" aria-labelledby="work-order-title"><div class="dialog-head"><h2 id="work-order-title">Create Engineering objective</h2><button type="button" class="secondary" data-close-dialog>Close</button></div><p>The selected persisted message will be the objective request. Submission requires the exact Steward grant. It does not approve execution. Existing source retries retain the original acceptance criteria; leave this field blank to resume that recorded objective. A new source requires criteria.</p><div class="panel"><strong>Selected Grace conversation message</strong><div id="work-order-source" class="message-detail-copy"></div></div><form id="work-order-form"><label for="work-order-criteria">Acceptance criteria (one per line)</label><textarea id="work-order-criteria" rows="5" maxlength="8192"></textarea><div id="work-order-error" class="inline-error" role="status" aria-live="polite"></div><div class="composer-actions"><button id="work-order-submit" class="primary" type="submit">Submit objective</button></div></form></dialog>
+  <script src="/assets/diagnostic-snapshot.js" defer></script>
   <script src="/assets/resident-permissions.js" defer></script>
   <script src="/assets/app.js" defer></script>
   <script src="/assets/workflow.js" defer></script>

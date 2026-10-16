@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.174"
+      "revision": "1.1.184"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -95,9 +95,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.137",
-      "sha256": "c5072ce5725a2c286832ce53b4c3aeb81491251c3c5bd25e6f6c1a34c7a62eea",
-      "size_bytes": 550405
+      "revision": "1.0.144",
+      "sha256": "732718fb26c6118ce140b8b972daab913daf8a5523ec249287b3044c8fcc3f94",
+      "size_bytes": 551898
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -178,10 +178,10 @@
       "size_bytes": 3203
     },
     "process_graphs/steward-dashboard/status.json": {
+      "revision": "1.0.28",
       "path": "process_graphs/steward-dashboard/status.json",
-      "revision": "1.0.21",
-      "sha256": "b12dd05cd574d9227f7ca742f9d62dbb53d26148d999326531661acf696f2c49",
-      "size_bytes": 38374
+      "sha256": "0060df8d73102ed4ef72ec8a7211dd00c392fa9a368ba5a1a0bef93df734747e",
+      "size_bytes": 39787
     },
     "process_graphs/worker-adapter/deterministic-attempt.json": {
       "path": "process_graphs/worker-adapter/deterministic-attempt.json",
@@ -218,7 +218,13 @@
       "revision": "1.0.0",
       "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
       "size_bytes": 1226
+    },
+    "src/riverview_core/status_dashboard/static/capabilities.json": {
+      "path": "src/riverview_core/status_dashboard/static/capabilities.json",
+      "revision": "1.0.1",
+      "sha256": "fbe0fb6d53ca6e7fd3ff72073d6dbec49f6b36fd840dbc643cfd1fbc6dcc70f2",
+      "size_bytes": 23138
     }
   },
-  "manifest_revision": "1.1.174"
+  "manifest_revision": "1.1.184"
 }

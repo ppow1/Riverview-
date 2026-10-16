@@ -1,0 +1,23 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "size_bytes": 25103,
+      "sha256": "2d058c8ca160012a1bdc178444b2503477ab61048db354bb7371235a5ddc6e5d",
+      "revision": "1.0.0"
+    },
+    "archive-inspection.json": {
+      "path": "archive-inspection.json",
+      "size_bytes": 2423,
+      "sha256": "288c51b735f291fee0eda36d30b9d2e40d3ebed791ea96a759ccfb1275081465",
+      "revision": "1.0.0"
+    },
+    "snapshot.zip.sha256": {
+      "path": "snapshot.zip.sha256",
+      "size_bytes": 116,
+      "sha256": "6c02d90c83d48587c320b376f3df5430c21effdbf4a29d98cf0bc36765ea94a4",
+      "revision": "1.0.0"
+    }
+  }
+}
