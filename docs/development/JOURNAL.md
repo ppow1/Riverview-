@@ -1,11 +1,13 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.154
+**Document Revision:** 1.0.156
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
+**Changed:** 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Investigate stale/unknown worker projection and distinguish lease activity from process liveness.
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record offline diagnostic snapshot source, verification evidence and production boundary
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PR67-SNAPSHOT-CSP-FIX | Record controlled f957 release, verified migration and live service, partial diagnostic export, and isolated CSP correction evidence
 **Changed:** 2026-10-16 UTC | RV-PROPOSAL-AUTHORING-GUIDANCE | Link the AI startup hints to a concise proposal authoring playbook
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PR71-PRODUCTION-ACCEPTANCE | Record PR #71 reconciliation, exact CI, immutable Camrui release, strict-TLS snapshot acceptance, and access-limited verification
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record PR #65 integration reconciliation, full-inventory browser fixture package results, proposal readiness, and Windows CA findings
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record final exact-graph-set ZIP integrity and synthetic page-shell versus live-dashboard acceptance boundary
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Correct final archive byte count from independently inspected ZIP
@@ -2293,3 +2295,55 @@ The predecessor copies for `AI_HINTS.md` and this journal are recorded in
 `.riverview-backups/manifest.jsonl`. Documentation checks, `git diff --check`,
 and the controlled revision audit against the f957 integration inventory passed.
 This is a separate documentation PR and is not included in the Camrui release.
+
+## 2026-10-16 UTC — RV-WEBSITE-PR71-PRODUCTION-ACCEPTANCE
+
+PR #71’s former `DIRTY/CONFLICTING` state was traced to append-only conflicts in
+`.riverview-backups/manifest.jsonl` and `docs/development/JOURNAL.md` after PR #70.
+The branch was reconciled against PR #70’s merged target, retaining both backup
+records, both journal entries, AI_HINTS and the proposal-authoring playbook. The
+predecessor journal bytes were preserved and checksum-registered. The merged PR
+#71 head was `fd09129bbadd44738ac38fde837e37164f243964`; exact-head controlled CI
+run `38972694228` passed (484 tests, 2 skipped; 20 graphs / 494 nodes; revision
+audit zero issues). The reviewed change was confined to CSP-safe `data:` SVG
+rasterization, explicit unavailable-page outcomes, and the production-CSP fixture.
+PR #71 merged as `50e1e44b498927e5df67e5c08aec3cda8267dd72`; PR #69 remains open
+and was not part of the package.
+
+Package `c60f7fca6325ed2a746c8a611cb0b9b5fc4afb64508401166c2770ab4f106a53` passed
+`verify_camrui_package.py` and was installed immutably at
+`/opt/riverview-status-dashboard/releases/50e1e44b498927e5df67e5c08aec3cda8267dd72`.
+The previous f957 release remains the rollback target at
+`/opt/riverview-status-dashboard/releases/f957bddb5eda39d4fbd5860ee29f7c32831553b7`;
+root-only release/prestate evidence is at
+`/var/backups/riverview-status-dashboard/website-pr71-20261016T220335Z/`. Only the
+dashboard release link, release-identity drop-in and dashboard service changed.
+No migration, database record, grant, or other service was changed. All 21
+production migration entries matched integrated migration sources; 0010 was
+already applied. Read-only counts remained one objective, ten assignments and
+zero proposals. The dashboard and all checked units were active with zero
+dashboard restarts. Grace and CME projections were healthy; the worker projection
+remained stale both before and after while worker units were active.
+
+Strict HTTPS passed both curl (200, verification result 0) and headless Firefox.
+Firefox’s temporary profile imported only the verified local Riverview CA;
+`acceptInsecureCerts=false`. Using the existing protected dashboard recovery
+token, the browser navigated all eight visible dashboard views and downloaded a
+57,940,967-byte CRC-valid ZIP (SHA-256
+`5e908c300943ad4daeff5021633531ece87b6435991852c6e377abd6f4d90c12`). Manifest
+hashes passed; all 20 canonical workflow JSON/SVG/PNG exports matched node/edge
+identity (494 / 656), with 26 cross-workflow references and zero unresolved
+references. All 28 page PNGs had valid signatures. The manifest correctly states
+8/10 pages and `capture_complete=false`: Account and Resident Permissions are
+hidden from this recovery-token session. The ZIP did not contain the token; 37
+recorded API calls were GET and there were no JavaScript errors. Two initial 401s
+were unauthenticated pre-login probes; the account-cookie-only conversations GET
+returned 403. No session-creation POST, SSE request, objective, conversation,
+proposal or other production mutation was made. Account-cookie login and production
+SSE/reconnect acceptance remain unverified. No rollback was needed. Evidence:
+`evidence/checkouts/WEBSITE-PR71-PRODUCTION/20261016T220708Z-50e1e44/`. The canonical
+workflow graph was unchanged because this fix did not alter workflow semantics.
+
+### RV-WORKER-HEALTH-REPORTING-001 — Worker health investigation
+
+Production `/api/v1/workers` and status observations on 2026-10-16 reported five active registry entries: two with stale latest lease heartbeats and three without a lease heartbeat, all with zero active leases. Available assignment data contained historical successful attempts for two entries, no attempts for three, three old ready assignments, and one blocked assignment. This does not establish the current process state of any worker. The status source is explicitly `assignment_leases`; continuous workers poll while idle and only heartbeat a lease while holding work. SSH read-only access to `admin1@192.168.1.155` failed public-key/password authentication, so systemd unit state, journals, and the processor's durable consumer cursor could not be inspected. The event cursor is the newest committed institution event and is not a consumer cursor. The projection was not proven incorrect as a lease-health projection; its overview presentation could imply process health. Corrected dashboard labels/docs and added regression coverage without introducing a new heartbeat subsystem. Production process-state diagnosis and normal-cookie browser acceptance remain blocked on authorized access.

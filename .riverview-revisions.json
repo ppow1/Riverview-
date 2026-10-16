@@ -101,9 +101,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.144",
-      "sha256": "9954490320009a27e79499fa4041376a263fcfc956f435c3a6f45a3821257173",
-      "size_bytes": 576110
+      "revision": "1.0.145",
+      "sha256": "d7f4b65c5c3ae3ce4a73a23feb254a2f57e91bc2bf1e37d8530830a3abcd146e",
+      "size_bytes": 576141
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -185,9 +185,9 @@
     },
     "process_graphs/steward-dashboard/status.json": {
       "path": "process_graphs/steward-dashboard/status.json",
-      "revision": "1.0.28",
-      "sha256": "0060df8d73102ed4ef72ec8a7211dd00c392fa9a368ba5a1a0bef93df734747e",
-      "size_bytes": 39787
+      "revision": "1.0.29",
+      "sha256": "c853fb5b41c79ab2c6b8352741e6d0681dfa0f9071b3954768dc08e5127ff6ec",
+      "size_bytes": 39818
     },
     "process_graphs/worker-adapter/deterministic-attempt.json": {
       "path": "process_graphs/worker-adapter/deterministic-attempt.json",
@@ -232,6 +232,6 @@
       "size_bytes": 1226
     }
   },
-  "manifest_revision": "1.1.190",
+  "manifest_revision": "1.1.191",
   "updated_at": null
 }

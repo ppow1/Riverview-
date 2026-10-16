@@ -1,0 +1,234 @@
+{
+  "accept_insecure_certs": false,
+  "account_cookie_acceptance": "unverified; browser used the authorized dashboard bearer login, not a Steward account cookie",
+  "all_workflow_json_svg_png_present": true,
+  "archive_contains_auth_token": false,
+  "authenticated_dashboard_connected": true,
+  "authenticated_method": "existing protected dashboard bearer token entered through the website recovery login",
+  "browser_error_classes": [
+    "ui_error",
+    "ui_error",
+    "ui_error"
+  ],
+  "browser_error_count": 3,
+  "canonical_graph_mismatches": [],
+  "cme_status": "healthy",
+  "cross_workflow_relationship_count": 26,
+  "dashboard_service": "active, running, NRestarts=0",
+  "database_read_only_counts": {
+    "assignments": 10,
+    "objectives": 1,
+    "proposals": 0
+  },
+  "deployment_id": "website-pr71-50e1e44b498927e5df67e5c08aec3cda8267dd72",
+  "existing_services": {
+    "postgresql@16-main": "active",
+    "riverview-assignment-intake": "active",
+    "riverview-cme-monitor": "active",
+    "riverview-event-processor": "active",
+    "riverview-grace-cpu-inference": "active",
+    "riverview-grace-execution-owner-session": "active",
+    "riverview-m33-verifier": "active",
+    "riverview-m33-worker": "active"
+  },
+  "expected": {
+    "controls": 55,
+    "edges": 656,
+    "nodes": 494,
+    "pages": 10,
+    "workflows": 20
+  },
+  "exported": {
+    "controls": 55,
+    "edges": 656,
+    "nodes": 494,
+    "observed_controls": 35,
+    "page_visuals": 8,
+    "pages": 8,
+    "workflow_visuals": 20,
+    "workflows": 20
+  },
+  "grace_conversation_access": "view rendered; read-only conversations endpoint returned 403 without an account session; no POST or conversation creation occurred",
+  "grace_execution_status": "healthy",
+  "integration_merge_commit": "50e1e44b498927e5df67e5c08aec3cda8267dd72",
+  "interaction_count": 10,
+  "inventory": {
+    "captured_pages": 8,
+    "edges": 656,
+    "nodes": 494,
+    "observed_registered_controls": 35,
+    "registered_controls": 55,
+    "registered_pages": 10,
+    "uncovered_rendered_controls": 0,
+    "workflow_inventory": 20,
+    "workflows": 20,
+    "workflows_exported": 20
+  },
+  "manifest_capture_complete": false,
+  "manifest_deployment_id": "website-pr71-50e1e44b498927e5df67e5c08aec3cda8267dd72",
+  "manifest_hashes_valid": true,
+  "manifest_schema": "rv.website.diagnostic-snapshot.v1",
+  "manifest_source_commit": "50e1e44b498927e5df67e5c08aec3cda8267dd72",
+  "migration_0010_checksum": "3909705a38ec19f31be99088fa7fbfc8dfe9e9c6d28a55095f978d4bf10d4e18",
+  "migration_source_checksum_audit": {
+    "checksum_mismatch": [],
+    "ledger_rows": 21,
+    "missing_source": []
+  },
+  "navigation": [
+    {
+      "active": true,
+      "view": "overview"
+    },
+    {
+      "active": true,
+      "view": "assignments"
+    },
+    {
+      "active": true,
+      "view": "objectives"
+    },
+    {
+      "active": true,
+      "view": "grace-chat"
+    },
+    {
+      "active": true,
+      "view": "activity"
+    },
+    {
+      "active": true,
+      "view": "workflows"
+    },
+    {
+      "active": true,
+      "view": "notifications"
+    },
+    {
+      "active": true,
+      "view": "documentation"
+    }
+  ],
+  "navigation_timing_present": true,
+  "no_browser_js_errors": true,
+  "page_capture_statuses": [
+    {
+      "omission": null,
+      "page_id": "overview",
+      "status": "captured",
+      "visual_status": "complete"
+    },
+    {
+      "omission": null,
+      "page_id": "assignments",
+      "status": "captured",
+      "visual_status": "complete"
+    },
+    {
+      "omission": null,
+      "page_id": "objectives",
+      "status": "captured",
+      "visual_status": "complete"
+    },
+    {
+      "omission": null,
+      "page_id": "grace-chat",
+      "status": "captured",
+      "visual_status": "complete"
+    },
+    {
+      "omission": null,
+      "page_id": "activity",
+      "status": "captured",
+      "visual_status": "complete"
+    },
+    {
+      "omission": null,
+      "page_id": "workflows",
+      "status": "captured",
+      "visual_status": "complete"
+    },
+    {
+      "omission": null,
+      "page_id": "notifications",
+      "status": "captured",
+      "visual_status": "complete"
+    },
+    {
+      "omission": null,
+      "page_id": "documentation",
+      "status": "captured",
+      "visual_status": "complete"
+    },
+    {
+      "omission": "registered navigation control is not available to this session",
+      "page_id": "account",
+      "status": "inaccessible_by_current_permissions",
+      "visual_status": null
+    },
+    {
+      "omission": "registered navigation control is not available to this session",
+      "page_id": "resident-permissions",
+      "status": "inaccessible_by_current_permissions",
+      "visual_status": null
+    }
+  ],
+  "page_png_count": 28,
+  "page_png_signatures_valid": true,
+  "page_title": "Riverview \u2014 Operations",
+  "passed": true,
+  "pr71_ci_run": "38972694228",
+  "pr71_head": "fd09129bbadd44738ac38fde837e37164f243964",
+  "pr71_merge_commit": "50e1e44b498927e5df67e5c08aec3cda8267dd72",
+  "previous_release": "/opt/riverview-status-dashboard/releases/f957bddb5eda39d4fbd5860ee29f7c32831553b7",
+  "production_mutations": false,
+  "projection_status": "healthy",
+  "release_directory": "/opt/riverview-status-dashboard/releases/50e1e44b498927e5df67e5c08aec3cda8267dd72",
+  "release_source_commit": "50e1e44b498927e5df67e5c08aec3cda8267dd72",
+  "request_summary": [
+    {
+      "duration_ms": 280,
+      "method": "GET",
+      "path": "/api/v1/capabilities",
+      "status": 401
+    },
+    {
+      "duration_ms": 316,
+      "method": "GET",
+      "path": "/api/v1/auth/session",
+      "status": 401
+    },
+    {
+      "duration_ms": 72,
+      "method": "GET",
+      "path": "/api/v1/resident/conversations",
+      "status": 403
+    }
+  ],
+  "rollback_evidence_path": "/var/backups/riverview-status-dashboard/website-pr71-20261016T220335Z",
+  "rollback_performed": false,
+  "snapshot_bytes": 57940967,
+  "snapshot_file_name": "riverview-diagnostic-2026-10-16T22-07-08.191Z.zip",
+  "snapshot_sha256": "5e908c300943ad4daeff5021633531ece87b6435991852c6e377abd6f4d90c12",
+  "source_commit": "50e1e44b498927e5df67e5c08aec3cda8267dd72",
+  "source_release_migrations_changed": 0,
+  "status_source_commit": "50e1e44b498927e5df67e5c08aec3cda8267dd72",
+  "timestamp_utc": "2026-10-16T22:07:08.191Z",
+  "tls_browser_url": "https://192.168.1.155/",
+  "unresolved_reference_count": 0,
+  "url": "https://192.168.1.155/",
+  "worker_projection_note": "stale before and after release while worker service units remained active; not changed by this dashboard release",
+  "worker_projection_status": "stale",
+  "workflow_index_counts": {
+    "edge_count": 656,
+    "expected_edge_count": 656,
+    "expected_node_count": 494,
+    "exported_count": 20,
+    "inventory_count": 20,
+    "node_count": 494,
+    "unresolved_reference_count": 0
+  },
+  "workflow_png_errors": [],
+  "workflow_svg_missing_node_ids": [],
+  "zip_crc_valid": true
+}

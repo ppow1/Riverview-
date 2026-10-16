@@ -1,7 +1,7 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.26
+File Revision: 1.1.27
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
@@ -33,6 +33,7 @@ Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Document privacy-filtered do
 Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Distinguish synthetic full-inventory fixture verification from actual-dashboard acceptance
 Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record read-only Camrui release, proposal registry, and strict TLS status evidence
 Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Link final exact-source browser export and offline integrity report
+Changed: 2026-10-16 UTC | RV-WEBSITE-PR71-PRODUCTION-ACCEPTANCE | Record immutable Camrui release, strict-TLS snapshot verification, permission-bounded completeness, and rollback evidence
 Changed: 2026-10-16 UTC | RV-WEBSITE-PR67-SNAPSHOT-CSP-FIX | Record f957 production installation, migration evidence, partial live acceptance and the CSP rasterization correction.
 Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record real-dashboard DOM verification and complete responsive long-page tile captures
 History: Git and revision/backup manifest
@@ -200,6 +201,46 @@ production SSE/reconnect/deferred-response delivery. Those acceptance results
 remain unverified until safely tested with an existing authorized session and
 conversation; do not create a production conversation or objective to verify the
 snapshot.
+
+### PR #71 production release and snapshot acceptance
+
+PR #71 head `fd09129bbadd44738ac38fde837e37164f243964` passed exact-head
+controlled CI run `38972694228` (484 tests, 2 skipped; 20 graphs / 494 nodes;
+revision audit with zero issues) and merged as
+`50e1e44b498927e5df67e5c08aec3cda8267dd72`. The immutable release is installed at
+`/opt/riverview-status-dashboard/releases/50e1e44b498927e5df67e5c08aec3cda8267dd72`
+with deployment ID `website-pr71-50e1e44b498927e5df67e5c08aec3cda8267dd72`.
+Package SHA-256 is `c60f7fca6325ed2a746c8a611cb0b9b5fc4afb64508401166c2770ab4f106a53`.
+The previous f957 release remains the rollback target at
+`/opt/riverview-status-dashboard/releases/f957bddb5eda39d4fbd5860ee29f7c32831553b7`;
+root-only prestate, package and rollback evidence is under
+`/var/backups/riverview-status-dashboard/website-pr71-20261016T220335Z/`.
+
+A real Firefox session at `https://192.168.1.155/` used the protected dashboard
+recovery token. Its temporary profile trusted only the verified Riverview LAN
+root CA and kept `acceptInsecureCerts=false`. The browser downloaded a
+57,940,967-byte ZIP (SHA-256
+`5e908c300943ad4daeff5021633531ece87b6435991852c6e377abd6f4d90c12`); CRC and
+manifest file hashes passed. Every workflow JSON/SVG/PNG matched canonical source
+IDs: 20 workflows, 494 nodes, 656 edges, 26 cross-workflow links, no unresolved
+references. All 28 page PNGs were valid. The manifest correctly reports 8/10
+pages and `capture_complete=false`: Account and Resident Permissions are hidden
+to this recovery-token session. No access was bypassed; the archive contained no
+token and the browser made only GET requests. Evidence:
+[`PR #71 production acceptance`](../../evidence/checkouts/WEBSITE-PR71-PRODUCTION/20261016T220708Z-50e1e44/production-browser-acceptance.json),
+[`release manifest`](../../evidence/checkouts/WEBSITE-PR71-PRODUCTION/20261016T220708Z-50e1e44/release-manifest.json).
+
+Two initial unauthenticated 401 probes preceded login; the account-cookie-only
+resident conversations GET returned 403. There were no JavaScript errors. No
+session-creation POST, SSE test, objective, conversation, proposal, or other
+production mutation was made. Account-cookie login and production SSE/reconnect
+remain unverified. The dashboard unit is active with zero restarts; PostgreSQL,
+Grace execution owner, CME, assignment intake, event processor, M33 worker and
+verifier, and Grace inference units remained active. Grace/CME projections were
+healthy; the worker projection was `stale` both before and after release. Read-only
+counts remained one objective, ten assignments and zero proposals. All 21
+migration ledger rows matched source checksums, including already-applied 0010;
+this website release applied no DDL. No rollback was needed.
 
 ### Windows HTTPS trust
 

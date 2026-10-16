@@ -1,0 +1,41 @@
+{
+  "artifacts": {
+    "README.md": {
+      "path": "README.md",
+      "revision": "1.0.0",
+      "sha256": "2147319e0bea2ce8df933f92f4c456a66b77161593ae2bea63193936ed9c4608",
+      "size_bytes": 1358
+    },
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "4257e05928e24b54009719b4722663551d24e951237d897cf747c07f354a1821",
+      "size_bytes": 16241
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "57c8235441835cfca2880a840bce7a955d98b32e075e105c9846111691973932",
+      "size_bytes": 55
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "rv-worker-health-status-tests.log": {
+      "path": "rv-worker-health-status-tests.log",
+      "revision": "1.0.0",
+      "sha256": "4b929d8b719373ead3f4730fdf51f0956f7f42ad16264f9b92dc84068a1de0b9",
+      "size_bytes": 9705
+    },
+    "worker-inventory.png": {
+      "path": "worker-inventory.png",
+      "revision": "1.0.0",
+      "sha256": "b4654ec2eb98e41319314230edd7f1b0579e4a4bb1e09e47ae78892c16dd8138",
+      "size_bytes": 137911
+    }
+  },
+  "manifest_revision": "1.0.0"
+}
