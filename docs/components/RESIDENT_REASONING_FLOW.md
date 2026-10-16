@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_FLOW.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.8
+File Revision: 1.0.9
 Purpose: Generated focused process view for resident reasoning routing
 Authority: Graph-generated view; canonical source is JSON
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add graph-generated resident reasoning flow
@@ -50,6 +50,8 @@ flowchart LR
     g_rv_resident_reasoning_runtime_task_escalation_failure_96662c07[["Record denied, unavailable, expired, lease, retry, malformed-response and stale-context diagnostics without approving or dispatching work"]]
     g_rv_resident_reasoning_runtime_task_escalation_recovery_d0da7090["Keep the original assignment durable; retry only after explicit regrounding and current authority/provider readiness"]
     g_rv_resident_reasoning_runtime_exchange_outbox_7bebb762["Commit authorized request, context digest, origin and finite deadline before delivery; preserve stable idempotency and correlation IDs"]
+    g_rv_resident_reasoning_runtime_exchange_transport_readiness_c71cc220{"PLANNED — Is a current-version authenticated MCP adapter registered, publicly reachable, and linked to the durable exchange?"}
+    g_rv_resident_reasoning_runtime_exchange_transport_blocked_482fc90e[["PLANNED — Preserve awaiting_delivery and report transport/authentication unavailable; never fall through to historical Comms5"]]
     g_rv_resident_reasoning_runtime_exchange_delivery_lease_6cddd7c8["Claim a bounded delivery lease and fence; acknowledge or schedule bounded retry without blocking assignment processing"]
     g_rv_resident_reasoning_runtime_exchange_delivered_072adda5["Mark delivery acknowledged; wait for external claim without polling or holding a worker lease"]
     g_rv_resident_reasoning_runtime_exchange_external_claim_bb5aa89e["Authenticate provider identity, claim correlated request with bounded lease and monotonic fence"]
@@ -98,7 +100,10 @@ flowchart LR
   g_rv_resident_reasoning_runtime_task_escalation_failure_96662c07 -->|recovery_route: Preserve assignment and resume after authority/resource/context regrounding| g_rv_resident_reasoning_runtime_task_escalation_recovery_d0da7090
   g_rv_resident_reasoning_runtime_task_escalation_recovery_d0da7090 -->|prerequisite: Re-establish verified facts and current assignment before another proposal| g_rv_resident_reasoning_runtime_ground_fedaa2c8
   g_rv_resident_reasoning_runtime_task_escalation_authority_gate_efa7f87a -->|exact grant and registered target passed| g_rv_resident_reasoning_runtime_exchange_outbox_7bebb762
-  g_rv_resident_reasoning_runtime_exchange_outbox_7bebb762 -->|request and objective event committed| g_rv_resident_reasoning_runtime_exchange_delivery_lease_6cddd7c8
+  g_rv_resident_reasoning_runtime_exchange_outbox_7bebb762 -->|request and objective event committed| g_rv_resident_reasoning_runtime_exchange_transport_readiness_c71cc220
+  g_rv_resident_reasoning_runtime_exchange_transport_readiness_c71cc220 -->|authenticated current adapter is registered and externally verified| g_rv_resident_reasoning_runtime_exchange_delivery_lease_6cddd7c8
+  g_rv_resident_reasoning_runtime_exchange_transport_readiness_c71cc220 -->|diagnostic_branch: adapter absent, authentication fails, or external route is unverified| g_rv_resident_reasoning_runtime_exchange_transport_blocked_482fc90e
+  g_rv_resident_reasoning_runtime_exchange_transport_blocked_482fc90e -->|recovery_route: retain durable request; resume only after current transport preflight passes| g_rv_resident_reasoning_runtime_exchange_recovery_4f7ee76d
   g_rv_resident_reasoning_runtime_exchange_delivery_lease_6cddd7c8 -->|transport acknowledges delivery| g_rv_resident_reasoning_runtime_exchange_delivered_072adda5
   g_rv_resident_reasoning_runtime_exchange_delivery_lease_6cddd7c8 -->|diagnostic_branch: deadline elapsed before delivery| g_rv_resident_reasoning_runtime_exchange_expired_124bcfc4
   g_rv_resident_reasoning_runtime_exchange_delivery_lease_6cddd7c8 -->|recovery_route: delivery process restarts or lease expires| g_rv_resident_reasoning_runtime_exchange_recovery_4f7ee76d

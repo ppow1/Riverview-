@@ -1,0 +1,20 @@
+{
+  "manifest_revision": "1.0.0",
+  "component_id": "RESIDENT-REASONING",
+  "task_id": "RV-EXTERNAL-MCP-CONNECTION-001",
+  "source_commit": "b318a2fc76a2d17dd01e752b3ecfc41042dc8564",
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "cc6d8dbe9a8534ab5bb71e7a7161679c368aebbaba1b0473142992ca8140da5a",
+      "size_bytes": 9229
+    },
+    "tests.log": {
+      "path": "tests.log",
+      "revision": "1.0.0",
+      "sha256": "61b2c582e1c6c57f7b1207ebef9ff3a13162fa514e087e228840db7002ecde8f",
+      "size_bytes": 6084
+    }
+  }
+}

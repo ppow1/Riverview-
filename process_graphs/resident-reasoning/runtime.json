@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-reasoning:runtime",
-  "graph_revision": "1.2.0",
+  "graph_revision": "1.2.1",
   "component_id": "RESIDENT-REASONING",
   "workflow_id": "resident.reasoning.v1",
   "diagram_order": 13,
@@ -30,7 +30,8 @@
   ],
   "verification_evidence": [
     "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md",
-    "evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1340Z-fce3c30/result-summary.json"
+    "evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1340Z-fce3c30/result-summary.json",
+    "evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T220001Z-b318a2f/checkout.md"
   ],
   "nodes": [
     {
@@ -589,6 +590,37 @@
       ]
     },
     {
+      "id": "rv:resident-reasoning:runtime:exchange-transport-readiness",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "PLANNED — Is a current-version authenticated MCP adapter registered, publicly reachable, and linked to the durable exchange?",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T220001Z-b318a2f/checkout.md"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:exchange-transport-blocked",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "PLANNED — Preserve awaiting_delivery and report transport/authentication unavailable; never fall through to historical Comms5",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T220001Z-b318a2f/checkout.md"
+      ]
+    },
+    {
       "id": "rv:resident-reasoning:runtime:exchange-delivery-lease",
       "node_revision": "1.0.0",
       "type": "process",
@@ -951,9 +983,27 @@
     },
     {
       "from": "rv:resident-reasoning:runtime:exchange-outbox",
-      "to": "rv:resident-reasoning:runtime:exchange-delivery-lease",
+      "to": "rv:resident-reasoning:runtime:exchange-transport-readiness",
       "type": "runtime_transition",
       "label": "request and objective event committed"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-transport-readiness",
+      "to": "rv:resident-reasoning:runtime:exchange-delivery-lease",
+      "type": "runtime_transition",
+      "label": "authenticated current adapter is registered and externally verified"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-transport-readiness",
+      "to": "rv:resident-reasoning:runtime:exchange-transport-blocked",
+      "type": "diagnostic_branch",
+      "label": "adapter absent, authentication fails, or external route is unverified"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-transport-blocked",
+      "to": "rv:resident-reasoning:runtime:exchange-recovery",
+      "type": "recovery_route",
+      "label": "retain durable request; resume only after current transport preflight passes"
     },
     {
       "from": "rv:resident-reasoning:runtime:exchange-delivery-lease",

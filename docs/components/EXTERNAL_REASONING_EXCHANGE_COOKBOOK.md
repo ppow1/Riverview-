@@ -2,13 +2,46 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.0
+File Revision: 1.0.2
 Purpose: Diagnose durable external reasoning exchange transitions safely
 Authority: Read-only diagnostics first; no production migration or transport operation
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial troubleshooting guide
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # External reasoning exchange troubleshooting
+
+## MCP transport readiness boundary (2026-10-16)
+
+The PR #69 exchange library is transport-neutral. It does not itself create an
+HTTP listener, MCP tools, authentication mapping, browser wake, or external
+provider connection. Before enabling delivery, require a current-version MCP
+adapter that binds the authenticated transport principal to the configured
+provider identity and exposes only provider-scoped request retrieval, claim,
+response submission, and status. Keep Grace-only consumption and delivery
+lease operations private to the Riverview runtime.
+
+For a future **ChatGPT web** connection, use the supported plugin/hosted MCP
+connection flow at the final HTTPS `/mcp` route and its supported user OAuth
+setup. Current OpenAI MCP authentication guidance describes OAuth protected-
+resource/authorization metadata and the authorization-code + PKCE flow for
+user-authenticated connectors. Do not assume the legacy Caddy-held static
+bearer is a ChatGPT web connector credential. The separate Codex-host MCP
+configuration supports bearer tokens, but that does not make its local config
+or static bearer available to ChatGPT web. See
+<https://developers.openai.com/plugins/build/auth> and
+<https://developers.openai.com/plugins/build/app-quickstart>. Reconfirm the
+platform requirements at commissioning time.
+
+Do not configure an external client against the historical Comms5 route merely
+because its DNS name responds. The legacy route uses a separate predecessor
+tool/schema and its public `401` only proves that the HTTPS authentication
+boundary was reached. It does not prove that current exchange tools are served.
+The 2026-10-16 preflight is recorded in
+`evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T220001Z-b318a2f/checkout.md`.
+That record confirms the current production limitation: no MCP/doorbell service
+is installed and migration 0011 is absent. Do not expose unauthenticated MCP or
+claim external acceptance until an independent network client completes MCP
+initialization, tool discovery, and a correlated request/response round trip.
 
 Use only an isolated PostgreSQL test schema during this development phase. The
 exchange stores bounded reasoning context, so do not print request/response
