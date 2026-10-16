@@ -1,17 +1,20 @@
 # Riverview~ controlled test
 # File: tests/test_grace_runtime_provider_wiring.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Verify persistent Grace reasoning follows the authorized office binding
 # Execution Model: Deterministic provider factory; no database or inference service
 # Observability: Assert provider identities and router model digest
 # Authority: This test does not provision grants or change bindings
 # Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Verify the 80B proposal client uses the shared bounded timeout
+# Changed: 2026-10-16 UTC | RV-GRACE-RECOVERY-HOOK-001 | Verify persistent-service startup invokes the current bounded Codex recovery hook
 """Tests for the persistent executor's model-provider wiring."""
 
 import unittest
 
-from scripts.run_grace_execution_service import configured_resident_providers
+from scripts.run_grace_execution_service import (
+    configured_resident_providers, reconcile_codex_startup_recovery,
+)
 from riverview_core.local_reasoning_provider import LocalReasoningProvider
 from riverview_core.resident_execution.model_router import GraceModelRouter
 from riverview_core.worker_adapter.service import WorkerServiceConfigurationError
@@ -44,6 +47,27 @@ def make_router(environ):
 
 
 class GraceRuntimeProviderWiringTests(unittest.TestCase):
+    def test_startup_recovery_uses_current_retryable_codex_hook(self):
+        recovery = object()
+
+        class Action:
+            def __init__(self):
+                self.received = None
+
+            def reconcile_retryable_no_artifact_failures(self, supplied):
+                self.received = supplied
+                return [{"decision": "retry_safe"}]
+
+        action = Action()
+        self.assertEqual(reconcile_codex_startup_recovery(action, recovery),
+                         [{"decision": "retry_safe"}])
+        self.assertIs(action.received, recovery)
+
+    def test_startup_recovery_fails_closed_when_hook_is_missing(self):
+        with self.assertRaisesRegex(WorkerServiceConfigurationError,
+                                    "codex_recovery_hook_unavailable"):
+            reconcile_codex_startup_recovery(object(), object())
+
     def setUp(self):
         self.env = {
             "RIVERVIEW_REASONING_ENDPOINT": "http://127.0.0.1:18796/v1",

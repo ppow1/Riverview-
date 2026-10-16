@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.0
+# Revision: 1.1.1
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -17,8 +17,9 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Add persistent no-copy ChatGPT owner-session runtime mode
 # Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Align bounded 80B provider and resident proposal deadlines
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Run narrowly fenced legacy pre-execution recovery through existing CME at startup
+# Changed: 2026-10-16 UTC | RV-GRACE-RECOVERY-HOOK-001 | Call the current bounded Codex no-artifact recovery hook and fail with a typed configuration error if unavailable
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
-# Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
+# Tests: tests/test_grace_runtime_provider_wiring.py; tests/test_grace_execution.py
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
 """Systemd entry point for the persistent model-independent Grace runtime."""
@@ -111,6 +112,14 @@ def configured_resident_providers(binding, environ=None, provider_factory=None):
 
 SERVICE_UNIT = "riverview-grace-execution.service"
 OWNER_SESSION_SERVICE_UNIT = "riverview-grace-execution-owner-session.service"
+
+
+def reconcile_codex_startup_recovery(execution_action, recovery):
+    """Run the current Codex recovery hook through the persistent-service contract."""
+    reconcile = getattr(execution_action, "reconcile_retryable_no_artifact_failures", None)
+    if not callable(reconcile):
+        raise WorkerServiceConfigurationError("codex_recovery_hook_unavailable")
+    return reconcile(recovery)
 
 
 def main() -> int:
@@ -228,7 +237,7 @@ def main() -> int:
             recovery = PostgresRecoveryCoordinator(dsn, schema=schema,
                 max_retries=int(os.environ.get("RIVERVIEW_GRACE_MAX_WORKER_RECOVERIES", "3")))
             try:
-                recovered = execution_action.reconcile_legacy_preexecution_failures(recovery)
+                recovered = reconcile_codex_startup_recovery(execution_action, recovery)
             finally:
                 recovery.close()
             if recovered:
