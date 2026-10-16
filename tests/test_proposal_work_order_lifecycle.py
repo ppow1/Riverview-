@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_proposal_work_order_lifecycle.py
 # Component: INSTITUTIONAL-PROPOSALS
-# Revision: 1.0.0
+# Revision: 1.1.0
 # Purpose: Verify revision approval and promotion into the existing objective pipeline
 # Execution Model: Pure command parser tests and disposable PostgreSQL integration
 # Observability: Proposal/objective events and correlation IDs are asserted
 # Dependencies: RIVERVIEW_TEST_PG_DSN; PostgreSQL 16; Psycopg 3
 # Authority: Unique disposable schema only; no production grants or records
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Initial lifecycle bridge coverage
+# Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Compose authenticated API approval/intake with real disposable worker execution, independent verification, and proposal result linkage
 # =============================================================================
 """Proposal approval and work-order bridge tests; PostgreSQL is disposable."""
 
@@ -329,12 +330,48 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
                 first_result, second_result = json.loads(first), json.loads(second)
                 self.assertEqual(first_result["objective_id"], second_result["objective_id"])
                 self.assertTrue(second_result["reused"])
+                from riverview_core.resident_reasoning import PlanProposal, PlanStep
+                from riverview_core.resident_execution.worker import BoundedLocalCodingWorker
+                from riverview_core.resident_execution.verifier import BoundedArtifactVerifier
+                from riverview_core.worker_adapter import ContinuousWorker
+                objective = self.pipeline.get_objective(first_result["objective_id"])
+                plan = PlanProposal("Authenticated proposal execution", (PlanStep(
+                    "report", "Write and verify the approved bounded artifact",
+                    tuple(objective["acceptance_criteria"])),), 0)
+                self.pipeline.record_proposal(first_result["objective_id"], plan)
+                assignment_id = "assignment:" + uuid4().hex
+                self.pipeline.authorize_and_dispatch(first_result["objective_id"], assignment_id,
+                    credential=self.tokens["steward:authorized"], authority_ref=self.scope,
+                    idempotency_key="proposal-http-dispatch:" + assignment_id, step_id="report")
+                self.ledger.transition(assignment_id, "ready", "event_processor_ready",
+                    "proposal-http-ready:" + assignment_id, actor_id="event-processor")
+                worker = ContinuousWorker(self.adapter, self.worker_id,
+                    self.tokens["worker:lifecycle-test"], knowledge=self.knowledge,
+                    action=BoundedLocalCodingWorker(self.pipeline, self.artifact_root),
+                    action_effect_class="retry_safe", action_capability="engineering.bounded-artifact.v1")
+                outcome = worker.run_once(assignment_id=assignment_id)
+                self.assertEqual(outcome["status"], "AWAITING_VERIFICATION")
+                decision = self.adapter.verify_attempt(assignment_id, outcome["attempt_id"],
+                    self.verifier_id, self.tokens["verifier:lifecycle-test"],
+                    BoundedArtifactVerifier(self.artifact_root),
+                    idempotency_key="proposal-http-verify:" + assignment_id)
+                self.assertEqual(decision.status.value, "ACCEPTED")
+                self.pipeline.record_verified_completion(first_result["objective_id"], assignment_id)
+                self.assertEqual(self.lifecycle.reconcile_links(), 1)
+                self.assertEqual(self.lifecycle.reconcile_links(), 1)
                 detail_status, detail = request("GET",
                     f"/api/v1/institutional-proposals/{proposal_id}?revision=1")
                 self.assertEqual(detail_status, 200)
                 detail_result = json.loads(detail)
                 self.assertEqual(detail_result["proposal"]["revision"]["revision"], 1)
                 self.assertEqual(detail_result["work_orders"][0]["objective_id"], first_result["objective_id"])
+                self.assertEqual(detail_result["work_orders"][0]["objective_status"], "COMPLETED")
+                linked = detail_result["proposal"]["work_order_links"][0]
+                self.assertEqual(linked["assignment_id"], assignment_id)
+                execution_events = [event for event in detail_result["proposal"]["events"]
+                    if event["event_type"] == "proposal.execution_updated"]
+                self.assertEqual(execution_events[-1]["payload"]["status"], "completed")
+                self.assertEqual(execution_events[-1]["payload"]["evidence"]["verification_decision"], "ACCEPTED")
                 self.assertEqual(request("GET",
                     f"/api/v1/institutional-proposals/{proposal_id}?revision=0")[0], 400)
             finally:
