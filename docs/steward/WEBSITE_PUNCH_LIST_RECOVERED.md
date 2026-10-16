@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md
 Component: STEWARD-DASHBOARD / WEBSITE
-File Revision: 1.0.34
+File Revision: 1.0.35
 Purpose: Consolidate traceable website improvement observations and separate them from accepted requirements and completed work
 Authority: Backlog recovery only; no new product requirement or acceptance decision
 Changed: 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Recover and prioritize documented website observations
@@ -42,18 +42,19 @@ Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Reconcile documentation base
 Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record PR #65 baseline, proposal-registry readiness, and TLS trust diagnosis.
 Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record actual-dashboard DOM verification and full responsive page-tile evidence.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PR42-PRODUCTION-ACCEPTANCE | Record feature-level production acceptance and correct stale release checklist language.
+Changed: 2026-10-16 UTC | RV-WEBSITE-PR67-SNAPSHOT-CSP-FIX | Record controlled f957 release, partial live snapshot acceptance, and the follow-up visual-export defect.
 History: Git
 -->
 # Recovered Riverview website punch list
 
 **Captured source:** [`Riverview_Steward_Punch_List_2026-10-13.md`](Riverview_Steward_Punch_List_2026-10-13.md), including its 2026-10-13 review addenda.  
-**Baseline:** integration branch `codex/grace-conversation-ui-refinement` through PR #65 merge `6c33969` (including PRs #44–#46 and #62/#63); website work branch `codex/website-improvements`.
+**Baseline:** integration branch `codex/grace-conversation-ui-refinement` through PR #67 merge `f957bddb5eda39d4fbd5860ee29f7c32831553b7` (including PRs #44–#46, #62/#63 and #67); website work branch `codex/website-improvements`.
 **Purpose:** consolidate the recorded website observations without promoting them to accepted requirements. The original PL-NEW identifiers and stated priorities are retained.
 
 ## Requirement and implementation boundaries
 
 - The active roadmap requirement for M3.1 is the read-only status projection, truthful status/freshness, safe diagnostic rendering, canonical workflow visualization, and navigable decisions. See [`ROADMAP.md`](../ROADMAP.md) and [`M3.1-001_REVISION_RECORD.md`](../development/M3.1-001_REVISION_RECORD.md). Scoped M3.1 technical acceptance is recorded; the full component DoD remains open.
-- PL-NEW-001 through PL-NEW-041 are captured observations and desired outcomes from the Steward punch list. The source says they are not implementation orders; PL-NEW-041 also has an explicit acceptance specification. The later assignment commissions PL-NEW-041 and adds PL-NEW-042 as a distinct follow-up; this does not turn the other captured rows into new roadmap requirements.
+- PL-NEW-001 through PL-NEW-041 are captured observations and desired outcomes from the Steward punch list. The source says they are not implementation orders; PL-NEW-041 also has an explicit acceptance specification. Later assignments commissioned PL-NEW-041 and added PL-NEW-042 as the viewer follow-up. Live acceptance then exposed the PL-NEW-043 snapshot rendering/reporting correction. These additions do not turn the other captured rows into new roadmap requirements.
 - One review addendum calls the previously failing workflow-rendering observation “PL-NEW-024,” while the source ID table assigns PL-NEW-024 to milestone labeling and PL-NEW-025 to workflow loading. This recovery maps the observation by subject to PL-NEW-025 and preserves PL-NEW-024's table-defined milestone scope.
 - Existing implementations are listed separately below. Their existence does not close a punch-list item unless the recorded outcome and acceptance evidence match it.
 - PR #40 implements durable SSE conversation streaming and deferred-response recovery. It is part of this branch's integration baseline and is compatibility-sensitive; this website work does not rebuild it.
@@ -104,10 +105,11 @@ Priority labels and wording below follow the source punch list. “Captured” m
 | PL-NEW-038 | Documentation | Replace fixed diagnostic links with searchable indexed catalog of per-component troubleshooting, workflows, failure/recovery, provenance, freshness and test coverage. | High | **Partial website implementation; full acceptance blocked on authoritative freshness/coverage sources.** Searchable workflow, typed node, component-document, provenance, and declared test/evidence references are implemented and isolated-browser verified. Existing registry references do not provide freshness policy/value or semantic test-coverage outcomes. Required source: integration-owned versioned graph/evidence metadata or an authoritative linked coverage record with provenance. Acceptance: searchable, component-linked freshness guidance and attributable test coverage/outcomes; declared paths alone remain traceability, not a pass/coverage claim. Post-PR #45 regression evidence: [`PL-038 report`](../../evidence/checkouts/WEBSITE-PL038/20261016T023000Z-post-PR45-regression/browser-acceptance.json). Production acceptance of the implemented UI is also pending |
 | PL-NEW-039 | Automated QA | Evaluate seeded role-based audit precedent and add authenticated browser route/interaction tests as a distinct stage. | High / proposal | Captured proposal; CueMastery source findings are historical evidence only |
 | PL-NEW-040 | Automated QA | Define test-account lifecycle, safe permissions, scheduled/post-deploy runs, outcome states, regression detection, and historical reports. | High / proposal | Captured proposal |
-| PL-NEW-041 | Implemented; actual-dashboard isolated verification passed; production acceptance pending | One authenticated Download Snapshot builds a versioned offline ZIP from the capability registry, read-only dashboard projection, and canonical graph files. Actual repository HTML/CSS/scripts were browser-tested with synthetic read-only APIs: all 10 pages, 55 controls with zero uncovered rendered controls, 20 workflows / 494 nodes / 656 edges, 26 cross-workflow references; desktop and 720px ZIPs are complete and workflow JSON/SVG are viewport invariant. The 20,067px documentation page has 12 readable tiles at desktop width; its 42,192px narrow layout has 25 tiles. Evidence: [`browser report`](../../evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-actual-dashboard-final9/browser-acceptance.json), [`archive inspection`](../../evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-actual-dashboard-final9/archive-inspection.json). API/session responses are synthetic; production acceptance is not claimed. |
+| PL-NEW-041 | Implemented; deployed on f957; production acceptance partial, with visual export defect tracked by PL-NEW-043 | One authenticated Download Snapshot builds a versioned offline ZIP from the capability registry, read-only dashboard projection, and canonical graph files. The production Firefox capture downloaded a CRC-valid 3,404,616-byte archive with all 20 workflow JSON definitions (494 nodes / 656 edges), 20 SVGs, 26 cross-workflow relationships, and zero unresolved references. It captured 8 of 10 pages; two page navigations were unavailable to the test session and were incorrectly reported as failed due to an omissions-shape bug. No PNG rendered because the live CSP disallows the exporter's Blob URL image source. `capture_complete` was correctly false. The follow-up fix and production-CSP isolated regression are in review; production still runs the pre-fix release. Account-cookie capture remains unverified. |
 | PL-NEW-042 | Implemented; actual-dashboard viewer behavior isolated-verified; production acceptance pending | The actual repository dashboard and workflow JavaScript were tested in Firefox with synthetic API data: fit, zoom, pan, reset, fullscreen, and selector/navigation behavior passed. Production acceptance awaits a controlled release and authenticated browser review. |
+| PL-NEW-043 | Actionable; follow-up PR in review; not deployed | Make workflow/page PNG rasterization work under the dashboard's CSP without broadening policy, and preserve the explicit status/reason when a registered page is unavailable to the current user. Acceptance: production CSP fixture exports page and workflow PNGs with canonical identities intact; inaccessible pages are explicitly represented and do not become generic capture failures; complete and incomplete runs have truthful manifest state. |
 
-### Full punch-list audit (41 recovered source IDs plus PL-NEW-042)
+### Full punch-list audit (41 recovered source IDs plus PL-NEW-042 and PL-NEW-043 follow-ups)
 
 Disposition uses the requested categories. “Implemented but awaiting production acceptance” means the branch implementation passed its isolated checks; it is not a claim of release acceptance. A blocked row may still have a useful partial website presentation. Captured proposals and later milestones remain visible in the source list, but are not promoted to implementation requirements.
 
@@ -270,6 +272,8 @@ freshness/semantic-coverage fields.
 The website track owns dashboard presentation and navigation, primarily `status_dashboard/static/workflow.js`, `app.css`, `index.html`, and dashboard tests/docs. PR #40 also touched `status_dashboard/server.py`, `status_dashboard/static/app.js`, `tests/test_status_dashboard.py`, and dashboard component documentation for stream compatibility. This change avoids its shared behavior-code and test files; the only same-file overlaps are additive paragraphs in `STATUS_DASHBOARD.md` and `STATUS_DASHBOARD_COOKBOOK.md` describing workflow navigation. Stream documentation and behavior were left intact. Grace conversation runtime, model routing, migrations, Grace verification, Engineering execution, CME, authority, and deployment configuration remain outside this change. No production service or database was changed.
 
 ## Revision history
+
+- **1.0.35 — 2026-10-16:** Record the f957 production release, partial snapshot acceptance, and PL-NEW-043 CSP rasterization and inaccessible-page follow-up.
 
 - **1.0.34 — 2026-10-16:** Record actual-dashboard DOM and responsive long-page snapshot evidence; distinguish synthetic API/browser acceptance from production acceptance.
 

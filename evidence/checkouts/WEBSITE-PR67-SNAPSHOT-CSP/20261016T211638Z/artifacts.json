@@ -1,0 +1,24 @@
+{
+  "artifacts": {
+    "isolated-browser-acceptance.json": {
+      "path": "isolated-browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "03bccdcd38e7d3d8dd031d2576261d456bd370735b87f6b4020142a4f08d8cc8",
+      "size_bytes": 25272
+    },
+    "production-acceptance-summary.json": {
+      "path": "production-acceptance-summary.json",
+      "revision": "1.0.0",
+      "sha256": "49229322793628d08aaf004b292af7252bb70e4617dfd740b18bcc5ae918b27e",
+      "size_bytes": 4109
+    },
+    "synthetic-archive.sha256": {
+      "path": "synthetic-archive.sha256",
+      "revision": "1.0.0",
+      "sha256": "662fca7d77a19ef6ad9491aba54fb9dc142951fa62c47f5f3fe6fffb0c22bf5b",
+      "size_bytes": 116
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "schema_version": "rv.evidence.artifacts.v1"
+}
