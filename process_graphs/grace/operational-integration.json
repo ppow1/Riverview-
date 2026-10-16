@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:grace:operational-integration",
-  "graph_revision": "1.0.44",
+  "graph_revision": "1.0.45",
   "component_id": "RESIDENT-ORCHESTRATION",
   "workflow_id": "grace-engineering-objective.v1",
   "diagram_order": 9,
@@ -778,20 +778,22 @@
     },
     {
       "id": "rv:grace:operational-integration:verified-result-return-retry",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "recovery",
-      "label": "SOURCE IMPLEMENTED — Failed authorization/provider return remains in durable outbox; deterministic response identity prevents duplicate chat events after restart",
+      "label": "SOURCE IMPLEMENTED — Deferred verified-result review uses the bounded 512-token 80B output budget and sanitized provider-attempt diagnostics; the deterministic response identity prevents duplicate chat events after restart",
       "source_references": [
         "src/riverview_core/resident_execution/pipeline.py",
         "src/riverview_core/resident_execution/service.py",
-        "src/riverview_core/resident_execution/conversation.py"
+        "src/riverview_core/resident_execution/conversation.py",
+        "scripts/run_grace_execution_service.py"
       ],
       "documentation_references": [
         "docs/components/GRACE_EXECUTION_COOKBOOK.md",
         "docs/components/GRACE_PERSISTENT_EXECUTION.md"
       ],
       "verification_evidence": [
-        "tests/test_grace_conversation_result.py"
+        "tests/test_grace_conversation_result.py",
+        "tests/test_grace_runtime_provider_wiring.py"
       ]
     },
     {

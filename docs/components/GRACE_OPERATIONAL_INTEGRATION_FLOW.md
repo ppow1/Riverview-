@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.43
+**Document Revision:** 1.0.44
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -112,7 +112,7 @@ flowchart LR
     g_rv_grace_operational_integration_engineering_resource_request_5f8561c6[["PLANNED — persist pending resource request for HR/Helen or Steward decision; Helen is not commissioned and no allocation is presumed"]]
     g_rv_grace_operational_integration_router_backed_grace_proposal_931750ec["SOURCE IMPLEMENTED — Persistent ResidentReasoner proposals use the active router binding and require actual 80B provenance; smaller stages cannot substitute"]
     g_rv_grace_operational_integration_verified_result_chat_return_108e1033["SOURCE IMPLEMENTED — Independently accepted objective result is reviewed by bound 80B and appended once to its source conversation with durable provenance"]
-    g_rv_grace_operational_integration_verified_result_return_retry_ce159ed9["SOURCE IMPLEMENTED — Failed authorization/provider return remains in durable outbox; deterministic response identity prevents duplicate chat events after restart"]
+    g_rv_grace_operational_integration_verified_result_return_retry_ce159ed9["SOURCE IMPLEMENTED — Deferred verified-result review uses the bounded 512-token 80B output budget and sanitized provider-attempt diagnostics; the deterministic response identity prevents duplicate chat events after restart"]
     g_rv_grace_operational_integration_owner_session_provisioning_8f41090c["Implemented, isolated-tested provisioning: fixed AuthorityRegistry grants and protected credentials; stage reviewed owner-session unit without enabling or starting it"]
     g_rv_grace_operational_integration_objective_step_persistence_dd2c700f["Persist proposal step, dependency list, lifecycle state, and unique assignment identity in PostgreSQL"]
     g_rv_grace_operational_integration_dependency_ready_dispatch_b967d24b{"Dispatch only the first pending step whose dependencies are independently verified; reuse current CME lease and grants"}
