@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/continuous.py
 # Component: WORKER-ADAPTER
-# Revision: 1.1.0
+# Revision: 1.1.1
 # Purpose: Execute bounded capability work with pinned source-digest provenance
 # Execution Model: Repeatable poll cycle; durable claims and outcomes in PostgreSQL
 # Observability: Assignment state, knowledge observations, attempts, and results
@@ -14,6 +14,7 @@
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Support configured bounded lease-recovery retry limit
 # Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Add a single-assignment claim without reconciling unrelated leases
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Keep proven pre-execution failures out of the unknown external-effect state
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Persist sanitized retryable Codex failures as blocked no-artifact outcomes
 # Contracts: docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -122,6 +123,9 @@ class ContinuousWorker:
                                                    max_retries=self.recovery_max_retries)
             try:
                 recovery.reconcile_expired()
+                reconcile_action = getattr(self.action, "reconcile_retryable_no_artifact_failures", None)
+                if callable(reconcile_action):
+                    reconcile_action(recovery)
             finally:
                 recovery.close()
         claim = self.adapter.claim_next(self.worker_id, self.credential,
@@ -206,12 +210,34 @@ class ContinuousWorker:
             pre_execution_failure = (
                 self.action_effect_class == "external_uncertain" and
                 getattr(exc, "execution_started", None) is False)
-            intent_outcome = ("failed" if pre_execution_failure else
+            retryable_without_artifact = (
+                self.action_effect_class == "external_uncertain" and
+                self.action_capability == "engineering.codex-cli-artifact.v1" and
+                type(exc).__name__ == "CodexActionFailure" and
+                getattr(exc, "retryable_without_durable_artifact", None) is True)
+            intent_outcome = ("failed" if (pre_execution_failure or retryable_without_artifact) else
                               "outcome_unknown" if
                               self.action_effect_class == "external_uncertain" else "failed")
+            safe_code = getattr(exc, "code", None)
+            failure_marker = type(exc).__name__
+            if (retryable_without_artifact and isinstance(safe_code, str) and
+                    len(safe_code) <= 64 and safe_code.isascii() and
+                    all(char.islower() or char.isdigit() or char == "_" for char in safe_code)):
+                failure_marker += ":" + safe_code
             self.adapter.mark_execution_intent(intent_id, intent_outcome,
-                                               failure_class=type(exc).__name__)
+                                               failure_class=failure_marker)
             failure = {"failure_type": type(exc).__name__}
+            if isinstance(safe_code, str) and len(safe_code) <= 64 and safe_code.isascii():
+                failure["failure_code"] = safe_code
+            if retryable_without_artifact:
+                failure["durable_artifact_created"] = False
+            LOG.warning(json.dumps({"event": "worker_action_failed",
+                "assignment_id": assignment["id"], "failure_type": type(exc).__name__,
+                "failure_code": safe_code if isinstance(safe_code, str) and
+                    len(safe_code) <= 64 and safe_code.isascii() else None,
+                "execution_started": getattr(exc, "execution_started", None),
+                "durable_artifact_created": False if retryable_without_artifact else None},
+                sort_keys=True))
             latest = self.adapter.ledger.get(assignment["id"])
             if latest:
                 self.reground_assignment(latest, "action_failure")
@@ -223,6 +249,7 @@ class ContinuousWorker:
                     assignment["id"],
                     "awaiting_steward" if intent_outcome == "outcome_unknown" else "blocked",
                     "ACTION_OUTCOME_UNKNOWN" if intent_outcome == "outcome_unknown" else
+                    "WORKER_RETRYABLE_NO_ARTIFACT" if retryable_without_artifact else
                     "WORKER_PRE_EXECUTION_FAILED" if pre_execution_failure else "worker_action_failed",
                     f"continuous-failure:{assignment['id']}:{lease['generation']}",
                     self.worker_id, lease["generation"])

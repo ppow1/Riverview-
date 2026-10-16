@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.0
+# Revision: 1.2.1
 # Purpose: Adapt bounded Codex production and independent Markdown verification to CME
 # Execution Model: Existing leased worker action and independent verifier contract
 # Observability: Persisted artifact location, digest, criteria and verifier evidence
@@ -11,6 +11,7 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Initial persistent worker/verifier adapters
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Separate evidence provenance from the Codex repository pin and retain process-start status
 # Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Validate objective evidence against its immutable provenance, independently of current grounding revision
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Classify unsuccessful isolated Codex actions as retryable only while no durable artifact exists
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_codex_workflow.py
 # History: Git
@@ -40,10 +41,16 @@ CAPABILITY_REQUIREMENTS = {
 
 
 class CodexActionFailure(RuntimeError):
-    """Sanitized action failure with an explicit external-effect boundary."""
+    """Sanitized Codex action failure that produced no durable artifact."""
 
     def __init__(self, code, *, execution_started=False):
+        if not isinstance(code, str) or not re.fullmatch(r"[a-z0-9_]{1,64}", code):
+            code = "codex_action_failed"
+        self.code = code
         self.execution_started = bool(execution_started)
+        # Codex writes only into its temporary clone. The adapter persists the
+        # assignment artifact only when it returns DELIVERABLE_PRODUCED.
+        self.retryable_without_durable_artifact = True
         super().__init__(code)
 
 
@@ -112,18 +119,22 @@ class CodexWorkAction:
             "detail_code": result.detail_code,
         }
 
-    def reconcile_legacy_preexecution_failures(self, recovery):
-        """Use existing CME recovery only when the predecessor Git refusal is reproduced."""
-        if not self.adapter.legacy_git_ownership_refused():
-            return []
+    def reconcile_retryable_no_artifact_failures(self, recovery):
+        """Retry only typed Codex failures with no durable worker result or artifact."""
         try:
             repository_revision = self.adapter.repository_revision()
         except Exception:
             return []
-        return recovery.reconcile_confirmed_codex_preexecution_failures(
+        requeued = recovery.reconcile_codex_failures_without_artifact(
+            repository_revision=repository_revision,
+            artifact_root=self.adapter.artifact_root)
+        if not self.adapter.legacy_git_ownership_refused():
+            return requeued
+        legacy = recovery.reconcile_confirmed_codex_preexecution_failures(
             repository_revision=repository_revision,
             artifact_root=self.adapter.artifact_root,
             legacy_git_refusal_verified=True)
+        return requeued + legacy
 
 
 class CodexMarkdownVerifier:

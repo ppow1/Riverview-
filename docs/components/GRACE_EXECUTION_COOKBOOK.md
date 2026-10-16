@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.1
+File Revision: 1.1.2
 Purpose: Diagnose and safely resume the persistent Grace execution service
 Authority: Read-only diagnosis first; exact grants required for every mutation
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Add service operations and recovery procedures
@@ -17,6 +17,7 @@ Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Reuse recorded criteria
 Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-REGROUND-001 | Diagnose and resume verified evidence retries from WAITING_FOR_EVIDENCE
 Changed: 2026-10-15 UTC | RV-GRACE-GROUNDING-BOUNDED-001 | Diagnose evidence overflow from broad queries and describe ranked bounded retrieval
 Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Diagnose immutable objective versus current grounding revision mismatch and bounded no-launch recovery
+Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Diagnose committed single-file output rejection and recover typed no-artifact failures within the existing retry ceiling
 -->
 # Grace Execution Service — Troubleshooting and Recovery
 
@@ -45,6 +46,7 @@ Expected: `ActiveState=active`, `SubState=running`, a recent `last_heartbeat_at`
 | Objective remains `PROPOSED` | Inspect `execution.dispatch_failed` event count and configured exact scope. Three failures stop automatic dispatch. | Correct service identity/scope/grant via governed authority provisioning. Do not manually change objective status. | Service will retry after restart only while below the three-failure cap. At cap, escalate and create a new authorized correction decision before resuming. |
 | Assignment is queued | Confirm event processor service, assignment event, scope and worker registry. | Restore the existing event processor; do not manually set `ready` in a live schema. | Wait for its durable queued-to-ready transition, then confirm worker attempt/lease evidence. |
 | Assignment is blocked after worker failure | Inspect assignment events, worker attempts, execution intent and CME attention projection. | Let existing lease recovery reconcile only when safe; this worker is classified `retry_safe`. Correct the action fault first. | The artifact action is content-idempotent. Unknown external effects must remain in the existing Steward wait path. |
+| Codex reports `workspace_change_set_invalid` with no attempt or artifact | Inspect only the assignment's execution-intent failure class, attempt/result/verifier counts and assignment-bound artifact metadata. Codex CLI output and conversation bodies are not required. | Confirm the fixed Codex adapter's change-set check considers committed, staged, unstaged and untracked paths relative to the pinned commit. It may accept only `deliverable.md`. | A typed `CodexActionFailure` can resume after lease expiry only when the objective provenance remains verified, no attempt/result/verifier/artifact exists, and the existing retry ceiling permits it. Recovery records the decision and normal claim-time exact grant validation runs again. Any existing artifact or generic unknown exception remains blocked for Steward review. |
 | Assignment awaits verification | Check successful attempt result and verifier registry/lease/service. | Restore the distinct verifier service identity and exact `assignment.verify` grant. | Only a separately recorded `ACCEPTED` decision permits objective completion. |
 | Verification failures reach three | Inspect objective `verification_failures`, the three `execution.verification_failed` events and verifier journal. | Correct verifier/runtime faults; the poller caps retries per attempt and proceeds to other candidates. Do not change the assignment state manually. | The item remains awaiting verification and objective remains incomplete until independent verification succeeds; escalate unresolved evidence integrity concerns. |
 | Dashboard says Grace unavailable/stale | Check `/api/v1/status`, dashboard journal, migration presence and heartbeat age. | Restore dashboard/database connectivity; do not infer health from systemd active state alone. | Confirm the service instance, fresh heartbeat, objective detail, artifact digest and verification decision. |

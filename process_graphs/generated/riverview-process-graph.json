@@ -1858,7 +1858,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.1.16",
+      "graph_revision": "1.1.17",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -2471,9 +2471,9 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-cli-run",
-          "node_revision": "1.0.6",
+          "node_revision": "1.0.7",
           "type": "process",
-          "label": "IMPLEMENTED — exact-grant intake, persistent owner-session, network-disabled workspace, fixed artifact and fail-closed sandbox; source evidence and pinned execution repository revisions are distinct; root-owned checkout trust is private and command-scoped",
+          "label": "INTEGRATED — exact-grant intake and persistent owner-session; only deliverable.md may change in the pinned, network-disabled clone; a committed or uncommitted deliverable is accepted only when it is the sole changed path; the assignment artifact is persisted only after output validation",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "src/riverview_core/resident_execution/codex_workflow.py",
@@ -2519,9 +2519,9 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-execution-failed",
-          "node_revision": "1.0.4",
+          "node_revision": "1.0.5",
           "type": "failure",
-          "label": "Codex auth/session, exact-scope authorization, sandbox, Git ownership, immutable objective provenance, timeout, output bounds, or workspace integrity failed; proven no-launch failures are distinct from unknown external outcomes; work remains durable and non-complete",
+          "label": "Sanitized Codex failures retain bounded error codes; a typed CodexActionFailure without a durable assignment artifact is retryable after lease expiry, while generic or artifact-bearing unknown outcomes remain blocked",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "src/riverview_core/resident_execution/codex_workflow.py",
@@ -2540,9 +2540,9 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-execution-recovery",
-          "node_revision": "1.0.4",
+          "node_revision": "1.0.5",
           "type": "recovery",
-          "label": "Persisted CME recovery fences retries; a proven legacy Git refusal or durable WORKER_PRE_EXECUTION_FAILED intent may requeue only when Codex did not launch, the lease expired, objective provenance is verified, retry budget remains, and no attempt, verifier record, or assignment artifact exists; normal claim revalidates exact grants",
+          "label": "Persisted CME recovery requeues a typed Codex failure only after lease expiry, verified objective provenance, remaining retry budget, and independent absence of attempts, results, verifier records and assignment artifact; exact worker grants are revalidated at claim",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "src/riverview_core/resident_execution/codex_workflow.py",

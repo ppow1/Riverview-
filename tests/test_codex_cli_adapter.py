@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.0
+# Revision: 1.2.1
 # Purpose: Verify bounded subscription-authenticated Codex adapter contracts
 # Execution Model: Isolated temporary Git repository and synthetic executable
 # Observability: Assertions inspect sanitized adapter status and artifact metadata
@@ -15,6 +15,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-SANDBOX-READINESS-001 | Verify workspace sandbox failure blocks before dispatch
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Verify scoped Git trust, separate source/repository pins, and explicit process-start provenance
 # Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Verify older objective evidence remains valid under current grounding provenance
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Verify a single committed deliverable is accepted and all other workspace paths are rejected
 # Contracts: src/riverview_core/resident_execution/codex_cli.py
 # Tests: python3 -m unittest tests.test_codex_cli_adapter -v
 # History: Git
@@ -114,6 +115,52 @@ class CodexCLIAdapterTests(unittest.TestCase):
         self.assertEqual(result.artifact_bytes, path.stat().st_size)
         self.assertEqual(len(result.artifact_sha256), 64)
         self.assertEqual(list(self.workspace.iterdir()), [])
+
+    def test_committed_deliverable_is_accepted_when_it_is_the_only_changed_path(self):
+        self.codex.write_text(
+            "#!/usr/bin/env python3\n"
+            "import json,pathlib,subprocess,sys\n"
+            "args=sys.argv[1:]\n"
+            "path=pathlib.Path.cwd()/'deliverable.md'\n"
+            "path.write_text('# Verified fixture\\n\\nThe deliverable exists.\\n')\n"
+            "subprocess.run(['/usr/bin/git','add','--','deliverable.md'],check=True)\n"
+            "subprocess.run(['/usr/bin/git','-c','user.name=Riverview Test',"
+            "'-c','user.email=riverview-test@example.invalid','commit','-m','bounded deliverable'],"
+            "check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n"
+            "out=pathlib.Path(args[args.index('--output-last-message')+1])\n"
+            "out.write_text(json.dumps({'status':'DELIVERABLE_PRODUCED',"
+            "'artifact_name':'deliverable.md','summary':'Created fixture'}))\n",
+            encoding="utf-8")
+        result = self.adapter().execute(self.assignment())
+        self.assertEqual(result.status, "DELIVERABLE_PRODUCED")
+        self.assertEqual(result.detail_code, "independent_verification_required")
+        self.assertTrue((self.artifacts / result.artifact_name).is_file())
+        self.assertEqual(list(self.workspace.iterdir()), [])
+
+    def test_extra_workspace_path_is_rejected_even_when_deliverable_exists(self):
+        self.codex.write_text(
+            "#!/usr/bin/env python3\n"
+            "import json,pathlib,sys\n"
+            "args=sys.argv[1:]\n"
+            "path=pathlib.Path.cwd()/'deliverable.md'\n"
+            "path.write_text('# Verified fixture\\n\\nThe deliverable exists.\\n')\n"
+            "(pathlib.Path.cwd()/'unexpected.txt').write_text('out of scope')\n"
+            "out=pathlib.Path(args[args.index('--output-last-message')+1])\n"
+            "out.write_text(json.dumps({'status':'DELIVERABLE_PRODUCED',"
+            "'artifact_name':'deliverable.md','summary':'Created fixture'}))\n",
+            encoding="utf-8")
+        result = self.adapter().execute(self.assignment())
+        self.assertEqual(result.status, "INVALID_RESULT")
+        self.assertEqual(result.detail_code, "workspace_change_set_invalid")
+        self.assertTrue(result.execution_started)
+        self.assertEqual(list(self.artifacts.iterdir()), [])
+
+    def test_codex_action_failure_exposes_only_bounded_retry_metadata(self):
+        from riverview_core.resident_execution.codex_workflow import CodexActionFailure
+        failure = CodexActionFailure("workspace_change_set_invalid", execution_started=True)
+        self.assertEqual(failure.code, "workspace_change_set_invalid")
+        self.assertTrue(failure.execution_started)
+        self.assertTrue(failure.retryable_without_durable_artifact)
 
     def test_wrong_repository_and_revision_fail_before_codex(self):
         wrong_repo = self.adapter().execute(self.assignment(repository_reference="repo://other"))

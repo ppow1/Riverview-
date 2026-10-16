@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_cli.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.0
+# Revision: 1.1.1
 # Purpose: Run a bounded Codex CLI assignment in an isolated pinned repository copy
 # Execution Model: One noninteractive sandboxed Codex invocation per durable assignment
 # Observability: Typed result and artifact digest; prompt and CLI output are not logged
@@ -13,6 +13,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Support persistent worker use of the owning ChatGPT CLI home without credential copying
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-SANDBOX-READINESS-001 | Fail startup preflight when the bounded workspace sandbox is unavailable
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Use private per-command Git trust for the pinned root-owned checkout and report execution-start boundary
+# Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Accept a committed or uncommitted artifact only when the pinned clone changed deliverable.md alone
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; process_graphs/grace/operational-integration.json
 # Tests: tests/test_codex_cli_adapter.py
 # History: Git
@@ -254,6 +255,21 @@ class CodexCLIExecutionAdapter:
         return self._git(["-C", str(source), "rev-parse", "--verify", "HEAD"],
                          safe_repository=source)
 
+    @classmethod
+    def _workspace_changed_paths(cls, repository: Path, base_revision: str) -> set[str]:
+        """Return every committed, staged, unstaged, and untracked path change."""
+        outputs = (
+            cls._git(["-C", str(repository), "diff", "--name-only",
+                      f"{base_revision}..HEAD", "--"], safe_repository=repository),
+            cls._git(["-C", str(repository), "diff", "--cached", "--name-only", "--"],
+                     safe_repository=repository),
+            cls._git(["-C", str(repository), "diff", "--name-only", "--"],
+                     safe_repository=repository),
+            cls._git(["-C", str(repository), "ls-files", "--others",
+                      "--exclude-standard"], safe_repository=repository),
+        )
+        return {line for output in outputs for line in output.splitlines() if line}
+
     def legacy_git_ownership_refused(self) -> bool:
         """Prove the predecessor adapter's unconfigured Git call fails before CLI launch."""
         try:
@@ -353,9 +369,9 @@ class CodexCLIExecutionAdapter:
                         not response["summary"].strip() or len(response["summary"]) > 500):
                     return self._result(assignment, "INVALID_RESULT", "codex_result_invalid",
                                         execution_started=True)
-                status = self._git(["-C", str(repository), "status", "--porcelain",
-                                    "--untracked-files=all"])
-                if status != "?? deliverable.md":
+                changed_paths = self._workspace_changed_paths(
+                    repository, assignment.repository_revision)
+                if changed_paths != {self.OUTPUT_NAME}:
                     return self._result(assignment, "INVALID_RESULT", "workspace_change_set_invalid",
                                         execution_started=True)
                 source_artifact = repository / self.OUTPUT_NAME
