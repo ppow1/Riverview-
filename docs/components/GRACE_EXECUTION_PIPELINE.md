@@ -2,8 +2,9 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.10
+File Revision: 1.1.11
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
+Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Document corrected acceptance interpretation and append-only same-attempt verifier recovery
 Authority: Engineering contract; not evidence of production Grace commissioning
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Link persistent reconciliation and authenticated dashboard handoff
 Changed: 2026-10-13 UTC | RV-GRACE-CONVERSATION-WORKORDER-CONTRACT | Document explicit message-origin objective intake and its exact Steward grant
@@ -183,9 +184,12 @@ or a production release. The capability is not registered by the live service
 and remains unavailable to production assignments pending exact capability
 registration and its authority grant.
 
-Grace's final Engineering review remains free text in this source revision.
-Structured model-directed continuation and durable continuation dispatch are
-not yet implemented; a model response cannot grant its own authority.
+Grace's verified-result review now records a typed decision and may append a
+same-objective continuation only through the existing bounded pipeline. The
+continuation remains subject to the original accepted scope, dependency
+verification, current binding, and existing dispatch/worker grants; a model
+response cannot grant its own authority. Source and isolated PostgreSQL
+coverage are not evidence of live multi-step commissioning.
 
 The capability registry records capability, active worker, and exact authority
 scope; startup preflight plus the current Grace execution health heartbeat
@@ -220,5 +224,30 @@ attempt, no verifier record, no assignment-bound artifact, and remaining
 configured retry budget. The recovery event records the proof and graph node.
 Normal claim-time authorization still revalidates the exact
 `assignment.execute` grant before any retried action.
+
+#### Corrected verifier revision recovery — source implementation
+
+The bounded Markdown verifier interprets known acceptance instructions as
+structured checks: exact heading and phrase, exact declared citation count and
+paths, task-content requirements, the one-file source-worktree inventory, and
+the source-versus-production distinction. Unknown criteria remain literal
+requirements. The executor persists the checked source filename and changed
+path list only after the pinned clone's exact change-set check. This prevents
+the verifier from demanding that a deliverable reproduce task instructions
+verbatim while preserving file-scope enforcement.
+
+When a verifier rule is corrected, the original decision is immutable. Worker
+adapter migration `0006_verifier_revision_rechecks.sql` replaces the one-row
+per-attempt constraint with one row per attempt and verifier revision. The
+service rechecks the current exact verifier grant and only selects a successful
+attempt whose latest decision is REJECTED by this verifier under an older
+revision. The adapter requires the deterministic
+`grace-verifier-revalidation:<attempt-id>:<new-revision>` key, repeats
+authorization, locks the assignment and attempt, reopens the same stored result,
+and appends the new decision. It does not re-run Codex or alter the old row.
+Completion still requires a persisted ACCEPTED verifier record. PostgreSQL
+integration tests exercise the schema change, rejection preservation,
+idempotency, and same-attempt revalidation. Production migration and
+revalidation remain pending deployment.
 
 The generated workflow below is a projection of process_graphs/grace/operational-integration.json. Regenerate with python3 scripts/process_graph.py generate; verify with python3 scripts/process_graph.py check.

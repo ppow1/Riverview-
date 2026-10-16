@@ -43,7 +43,7 @@ assignment remains blocked pending the reviewed release and its ordinary
 lease/recovery path; no replacement objective, direct SQL state edit, or
 synthetic production artifact was created.
 
-**Document Revision:** 1.0.119
+**Document Revision:** 1.0.120
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-15 UTC | RV-GRACE-AUTHORIZED-SNAPSHOT-001 | Revalidate resident reasoning through the protected office-state capability
@@ -1721,3 +1721,26 @@ while the proposal succeeds and persists through the allowed functions. Focused
 resident reasoning tests pass 15/15; full isolated-suite verification is in
 progress. The live objective remains grounded with no assignment until this
 correction is integrated and deployed.
+
+## 2026-10-16 UTC — RV-GRACE-VERIFIER-REVALIDATION-001
+
+Read-only production metadata for the existing objective and assignment showed
+one successful Codex attempt, one immutable REJECTED decision under verifier
+revision 1.0.0, and an assignment still requiring rework. The artifact digest,
+pinned source/repository provenance, assignment binding, file mode, and size
+checks passed. The acceptance check failed because task instructions were tested
+as literal artifact prose, including the citation heading and its separately
+listed file paths. The stored result predates source-file inventory fields, but
+its exact registered capability has a fixed deliverable.md output contract and
+persisted only after the pinned clone's changed-path check.
+
+The development correction adds strict structured checks for the known task
+contract, requires the exact declared citation count, and retains literal
+matching for unknown criteria. It preserves the old decision and appends a
+new verifier-revision decision only after the same exact verifier grant, same
+assignment/attempt, deterministic idempotency key, and independent artifact
+reopen checks pass. A durable accepted decision with an interrupted state
+transition is retried idempotently without rerunning Codex. A disposable
+PostgreSQL regression reproduced the rejection, revalidated the same artifact,
+and confirmed original-decision preservation and one attempt. No production
+records were modified.

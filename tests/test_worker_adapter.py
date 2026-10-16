@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.2.7
+# Revision: 1.2.8
 # Purpose: Verify scoped deterministic and structured worker artifacts
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
@@ -29,6 +29,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-REVIEW | Assert exhausted retry ceiling blocks resume and verified action preflight is recorded
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-TEST-SYNTAX-FIX | Correct SQL assertion continuation in isolated worker test
 # Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Verify exact-scope recovery and active long-action lease maintenance
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Verify append-only verifier-revision recheck and duplicate-attempt prevention
 # Contracts: docs/development/M2.3-001_REVISION_RECORD.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -1188,6 +1189,57 @@ class WorkerAdapterTests(unittest.TestCase):
             idempotency_key="verify-tampered:" + uuid4().hex)
         self.assertEqual(decision.status.value, "REJECTED")
         self.assertEqual(self.ledger.get(self.assignment)["state"], "rework_required")
+
+    def test_new_verifier_revision_appends_decision_and_completes_same_attempt(self):
+        from riverview_core.worker_adapter.adapter import WorkerAdapterError
+        from riverview_core.worker_adapter.verifier import VerificationResult, VerificationStatus
+        outcome, verifier_id, credential, _ = self._execute_to_verification()
+
+        class OldVerifier:
+            REVISION = "fixture-1.0.0"
+            def verify(self, assignment, attempt, result):
+                return VerificationResult(VerificationStatus.REJECTED,
+                    {"fixture_contract": False},
+                    (f"urn:rv:worker-attempt:{attempt['attempt_id']}",),
+                    self.REVISION, "fixture predecessor decision")
+
+        class CorrectedVerifier:
+            REVISION = "fixture-1.0.1"
+            def verify(self, assignment, attempt, result):
+                return VerificationResult(VerificationStatus.ACCEPTED,
+                    {"artifact_contract": True},
+                    (f"urn:rv:worker-attempt:{attempt['attempt_id']}",),
+                    self.REVISION, "fixture corrected contract decision")
+
+        old_key = "verify-preserved-rejection:" + str(outcome["attempt_id"])
+        old = self.worker.verify_attempt(self.assignment, outcome["attempt_id"],
+            verifier_id, credential, OldVerifier(), idempotency_key=old_key)
+        self.assertEqual(old.status, VerificationStatus.REJECTED)
+        self.assertEqual(self.ledger.get(self.assignment)["state"], "rework_required")
+        with self.assertRaises(WorkerAdapterError):
+            self.worker.verify_attempt(self.assignment, outcome["attempt_id"],
+                verifier_id, credential, CorrectedVerifier(), idempotency_key="wrong-key")
+
+        corrected_key = (f"grace-verifier-revalidation:{outcome['attempt_id']}:"
+                         "fixture-1.0.1")
+        accepted = self.worker.verify_attempt(self.assignment, outcome["attempt_id"],
+            verifier_id, credential, CorrectedVerifier(), idempotency_key=corrected_key)
+        self.assertEqual(accepted.status, VerificationStatus.ACCEPTED)
+        self.assertEqual(self.ledger.get(self.assignment)["state"], "completed")
+        with self.worker.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT verifier_revision,decision,criteria,summary
+                FROM verification_records WHERE attempt_id=%s
+                ORDER BY verifier_revision""", (outcome["attempt_id"],))
+            rows = cur.fetchall()
+            cur.execute("SELECT count(*) AS n FROM worker_attempts WHERE assignment_id=%s",
+                        (self.assignment,))
+            attempt_count = cur.fetchone()["n"]
+        self.assertEqual([(row["verifier_revision"], row["decision"]) for row in rows],
+                         [("fixture-1.0.0", "REJECTED"), ("fixture-1.0.1", "ACCEPTED")])
+        self.assertEqual(rows[0]["criteria"], {"fixture_contract": False})
+        self.assertEqual(rows[0]["summary"], "fixture predecessor decision")
+        self.assertEqual(attempt_count, 1)
 
     def test_pinned_repository_provider_drives_worker_artifact_and_independent_verification(self):
         import shutil

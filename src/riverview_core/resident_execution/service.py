@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.9
+# Revision: 1.0.11
 # Purpose: Reconcile durable Grace work orders through existing CME worker contracts
 # Execution Model: Persistent scheduled poll over PostgreSQL objective state
 # Observability: Objective events, worker attempts, verification records, dashboard projection
@@ -18,6 +18,8 @@
 # Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Retry durable verified-result returns to the originating Grace conversation
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Dispatch only dependency-ready verified steps through existing worker leases
 # Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Persist cycle-specific result receipts and resume only idempotent same-objective continuations
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Re-evaluate preserved rejected results only when the verifier implementation revision changes
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Resume append-only verifier decisions after a correction, including interrupted completion transition
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -99,6 +101,55 @@ class GraceExecutionService:
             LOG.warning(json.dumps({"event": "resident_reasoning_cycle_failed",
                 "objective_id": objective_id,
                 "failure_type": type(exc).__name__}, sort_keys=True))
+        return False
+
+    def revalidate_rejected_one(self, assignment_id=None):
+        """Append a new verifier decision after a verifier revision correction.
+
+        The original rejection and result remain immutable. Only the same
+        successful attempt may be reconsidered, and verify_attempt rechecks the
+        current exact verifier grant plus the previous decision and revision.
+        """
+        verifier_revision = getattr(self.verifier, "REVISION", None)
+        if not isinstance(verifier_revision, str) or not verifier_revision:
+            return False
+        with self.adapter.ledger.db.cursor() as cur:
+            self.adapter.ledger._set_search_path(cur)
+            cur.execute("""SELECT a.id AS assignment_id,wa.attempt_id,
+                    latest.verifier_revision
+                FROM assignments a
+                JOIN worker_attempts wa ON wa.assignment_id=a.id
+                JOIN LATERAL (
+                    SELECT decision,verifier_id,verifier_revision
+                    FROM verification_records vr WHERE vr.attempt_id=wa.attempt_id
+                    ORDER BY recorded_at DESC,verification_id DESC LIMIT 1
+                ) latest ON true
+                WHERE a.state='rework_required' AND wa.status='succeeded'
+                  AND wa.capability=%s AND latest.verifier_id=%s
+                  AND (
+                    (latest.decision='REJECTED' AND latest.verifier_revision<>%s)
+                    OR (latest.decision='ACCEPTED' AND latest.verifier_revision=%s
+                        AND EXISTS (SELECT 1 FROM verification_records previous
+                            WHERE previous.attempt_id=wa.attempt_id
+                              AND previous.verifier_id=%s AND previous.decision='REJECTED'
+                              AND previous.verifier_revision<>latest.verifier_revision))
+                  )
+                  AND (%s::text IS NULL OR a.id=%s)
+                ORDER BY a.updated_at,wa.started_at,wa.attempt_id LIMIT 10""",
+                (self.execution_capability, self.verifier_id, verifier_revision,
+                 verifier_revision, self.verifier_id, assignment_id, assignment_id))
+            candidates = cur.fetchall()
+        for candidate in candidates:
+            key = (f"grace-verifier-revalidation:{candidate['attempt_id']}:{verifier_revision}")
+            try:
+                self.adapter.verify_attempt(candidate["assignment_id"], candidate["attempt_id"],
+                    self.verifier_id, self.verifier_credential, self.verifier,
+                    idempotency_key=key)
+                return True
+            except Exception as exc:
+                LOG.warning(json.dumps({"event": "grace_verifier_revalidation_failed",
+                    "assignment_id": candidate["assignment_id"],
+                    "failure_type": type(exc).__name__}, sort_keys=True))
         return False
 
     def _heartbeat(self, status, error_type=None):
@@ -213,6 +264,8 @@ class GraceExecutionService:
                 LOG.warning(json.dumps({"event": "grace_verification_failed",
                     "assignment_id": candidate["assignment_id"], "attempt_id": attempt_id,
                     "failure_type": type(exc).__name__, "retry": failure_count + 1}, sort_keys=True))
+        if self.revalidate_rejected_one(assignment_id=assignment_id):
+            return True
         return False
 
     def _verification_failure_count(self, objective_id, attempt_id):

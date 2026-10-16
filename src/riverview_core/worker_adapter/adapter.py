@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.19
+# Revision: 1.0.21
 # Purpose: Authenticate fixed engineering-test work under exact assignment grants
 # Execution Model: Request-driven local task execution with PostgreSQL durability
 # Observability: Worker identity, capability, attempt outcome, and result digest
@@ -19,6 +19,8 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-001 | Register the separate scoped Codex source-change capability under exact assignment.execute authority
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001 | Select only exact-scope, expired-lease WAITING_FOR_EVIDENCE assignments after current worker authorization
 # Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Expose authenticated worker scope to recovery before side effects
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Permit an append-only new-revision verifier decision for a previously rejected immutable attempt
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Append verifier-revision decisions while retaining prior rejection and exact grant checks
 # Contracts: docs/components/WORKER_ADAPTER.md; docs/architecture/CORE_CONTRACT.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -421,7 +423,13 @@ class PostgresWorkerAdapter:
         """Persist independent evidence, then advance only through the decision."""
         if not idempotency_key:
             raise ValueError("verification idempotency key is required")
+        verifier_revision = getattr(verifier, "REVISION", None)
+        if not isinstance(verifier_revision, str) or not verifier_revision:
+            raise WorkerAdapterError("verifier revision is required")
+        revalidation_key = f"grace-verifier-revalidation:{attempt_id}:{verifier_revision}"
+        revalidation_requested = idempotency_key == revalidation_key
         db = self.ledger.db
+        revalidation = False
         with db.transaction():
             with db.cursor() as cur:
                 self.ledger._set_search_path(cur)
@@ -449,7 +457,20 @@ class PostgresWorkerAdapter:
                         tuple(existing["evidence_references"]),
                         existing["verifier_revision"], existing["summary"])
                 else:
-                    if assignment["state"] != "awaiting_verification":
+                    if assignment["state"] == "awaiting_verification":
+                        if revalidation_requested:
+                            raise WorkerAdapterError("revalidation key is invalid for a first decision")
+                    elif assignment["state"] == "rework_required" and revalidation_requested:
+                        cur.execute("""SELECT decision,verifier_revision FROM verification_records
+                            WHERE attempt_id=%s AND verifier_id=%s
+                            ORDER BY recorded_at DESC,verification_id DESC LIMIT 1""",
+                            (attempt_id, verifier_id))
+                        previous = cur.fetchone()
+                        if (previous is None or previous["decision"] != "REJECTED" or
+                                previous["verifier_revision"] == verifier_revision):
+                            raise WorkerAdapterError("no prior rejected decision can be revalidated")
+                        revalidation = True
+                    else:
                         raise WorkerAdapterError("assignment is not awaiting verification")
                     decision = None
                 if existing is None:
@@ -467,25 +488,30 @@ class PostgresWorkerAdapter:
                     decision = verifier.verify(dict(assignment), dict(attempt), attempt["result"])
                     if not isinstance(decision, VerificationResult):
                         raise WorkerAdapterError("verifier returned an unsupported result")
+                    if decision.verifier_revision != verifier_revision:
+                        raise WorkerAdapterError("verifier result revision does not match implementation")
+                    if revalidation and decision.verifier_revision == previous["verifier_revision"]:
+                        raise WorkerAdapterError("verifier revalidation must use a new revision")
                     cur.execute("""INSERT INTO verification_records
                         (verification_id,assignment_id,attempt_id,executor_id,verifier_id,
                          verifier_revision,decision,criteria,evidence_references,summary,
                          idempotency_key)
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                        (attempt_id, assignment_id, attempt_id, attempt["worker_id"],
+                        (uuid4(), assignment_id, attempt_id, attempt["worker_id"],
                          verifier_id, decision.verifier_revision, decision.status.value,
                          json.dumps(dict(decision.criteria), sort_keys=True),
                          json.dumps(list(decision.evidence_references)), decision.summary,
                          idempotency_key))
         if decision.status is VerificationStatus.ACCEPTED:
-            self.ledger.transition(assignment_id, "completed", "independent_verification",
+            step = "verification_rule_correction_accepted" if revalidation_requested else "independent_verification"
+            self.ledger.transition(assignment_id, "completed", step,
                                    f"verification-transition:{idempotency_key}",
                                    actor_id=f"verifier:{verifier_id}", verified=True)
-        elif decision.status is VerificationStatus.REJECTED:
+        elif decision.status is VerificationStatus.REJECTED and not revalidation_requested:
             self.ledger.transition(assignment_id, "rework_required", "verification_rejected",
                                    f"verification-transition:{idempotency_key}",
                                    actor_id=f"verifier:{verifier_id}")
-        else:
+        elif decision.status is VerificationStatus.INCONCLUSIVE and not revalidation_requested:
             self.ledger.transition(assignment_id, "blocked", "verification_inconclusive",
                                    f"verification-transition:{idempotency_key}",
                                    actor_id=f"verifier:{verifier_id}")

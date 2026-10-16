@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.17
+# Revision: 1.0.18
 # Purpose: Exercise objective-to-authorized-worker-to-independent-verification pipeline
 # Execution Model: Isolated PostgreSQL schema, committed repository fixture, deterministic proposal
 # Observability: Durable objective/assignment events, worker attempt, artifact, verifier decision
@@ -26,6 +26,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Verify dependent step assignments wait for independent predecessor verification
 # Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Verify same-objective continuation is durable, scoped, and dispatched through CME
 # Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Scope expired recovery and verify a late Codex artifact proceeds through independent verification
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Verify late artifact recovery, preserved rejection, and restart-safe accepted revalidation
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -337,6 +338,7 @@ class GraceExecutionTests(unittest.TestCase):
                           "objective.completed"])
 
     def test_late_codex_artifact_is_preserved_for_independent_verification(self):
+        from unittest.mock import patch
         from riverview_core.resident_execution.codex_cli import CAPABILITY
         from riverview_core.resident_execution.codex_workflow import CodexMarkdownVerifier
         from riverview_core.worker_adapter import PostgresRecoveryCoordinator
@@ -401,12 +403,45 @@ class GraceExecutionTests(unittest.TestCase):
             intent = self.admin.execute(f'SELECT status,failure_class FROM "{self.schema}".worker_execution_intents '
                 "WHERE intent_id=%s", (intent_id,)).fetchone()
             self.assertEqual(intent, ("succeeded", "ProcessInterrupted"))
-            decision = self.adapter.verify_attempt(assignment_id, recovered[0]["attempt_id"],
-                self.verifier_id, self.credentials["verifier"],
-                CodexMarkdownVerifier(artifact_root),
+            from riverview_core.worker_adapter.verifier import VerificationResult, VerificationStatus
+
+            class PriorVerifier:
+                REVISION = "1.0.0"
+                def verify(self, assignment, attempt, result):
+                    return VerificationResult(VerificationStatus.REJECTED,
+                        {"legacy_exact_criteria_parser": False},
+                        (f"urn:rv:worker-attempt:{attempt['attempt_id']}",),
+                        self.REVISION, "preserved predecessor verifier decision")
+
+            prior = self.adapter.verify_attempt(assignment_id, recovered[0]["attempt_id"],
+                self.verifier_id, self.credentials["verifier"], PriorVerifier(),
                 idempotency_key="late-codex-verification:" + assignment_id)
-            self.assertEqual(decision.status.value, "ACCEPTED", dict(decision.criteria))
+            self.assertEqual(prior.status, VerificationStatus.REJECTED)
+            self.assertEqual(self.ledger.get(assignment_id)["state"], "rework_required")
+            from riverview_core.resident_execution.service import GraceExecutionService
+            service = GraceExecutionService(self.pipeline, self.adapter,
+                ContinuousWorker(self.adapter, self.worker_id, self.credentials["worker"]),
+                dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
+                verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
+                artifact_root=artifact_root, verifier=CodexMarkdownVerifier(artifact_root),
+                execution_capability=CAPABILITY)
+            corrected_key = (f"grace-verifier-revalidation:{recovered[0]['attempt_id']}:1.0.1")
+            with patch.object(self.adapter.ledger, "transition",
+                              side_effect=RuntimeError("simulated transition interruption")):
+                with self.assertRaisesRegex(RuntimeError, "transition interruption"):
+                    self.adapter.verify_attempt(assignment_id, recovered[0]["attempt_id"],
+                        self.verifier_id, self.credentials["verifier"],
+                        CodexMarkdownVerifier(artifact_root), idempotency_key=corrected_key)
+            self.assertEqual(self.ledger.get(assignment_id)["state"], "rework_required")
+            self.assertEqual(self.admin.execute(f'SELECT count(*) FROM "{self.schema}".verification_records '
+                "WHERE attempt_id=%s AND decision='ACCEPTED'", (recovered[0]["attempt_id"],)).fetchone()[0], 1)
+            self.assertTrue(service.verify_one(assignment_id))
             self.assertEqual(self.ledger.get(assignment_id)["state"], "completed")
+            rows = self.admin.execute(f'SELECT verifier_revision,decision FROM "{self.schema}".verification_records '
+                "WHERE attempt_id=%s ORDER BY verifier_revision", (recovered[0]["attempt_id"],)).fetchall()
+            self.assertEqual(rows, [("1.0.0", "REJECTED"), ("1.0.1", "ACCEPTED")])
+            self.assertEqual(self.admin.execute(f'SELECT count(*) FROM "{self.schema}".worker_attempts '
+                "WHERE assignment_id=%s", (assignment_id,)).fetchone()[0], 1)
         finally:
             recovery.close()
 
@@ -830,13 +865,16 @@ class GraceExecutionTests(unittest.TestCase):
         failing_id = {"value": None}
         delegate = BoundedArtifactVerifier(self.root / "isolation-artifacts")
         class IsolatedVerifier:
+            REVISION = "isolated-test-verifier-1"
             def verify(self, assignment, attempt, result):
                 if failing_id["value"] is None:
                     failing_id["value"] = assignment["id"]
                     raise RuntimeError("isolated verifier fixture failure")
                 if assignment["id"] == failing_id["value"]:
                     raise RuntimeError("isolated verifier fixture failure")
-                return delegate.verify(assignment, attempt, result)
+                decision = delegate.verify(assignment, attempt, result)
+                return type(decision)(decision.status, decision.criteria,
+                    decision.evidence_references, self.REVISION, decision.summary)
 
         artifact_root = self.root / "isolation-artifacts"
         def new_service():
