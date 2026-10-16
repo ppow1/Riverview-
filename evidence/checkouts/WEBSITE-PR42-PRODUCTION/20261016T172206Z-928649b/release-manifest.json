@@ -1,0 +1,26 @@
+{
+  "activated_at_utc": "2026-10-16T17:14:13Z",
+  "actual_production_url": "https://192.168.1.155/",
+  "archive_sha256": "19890d22e18caa4896a6e944cf021397d11d95a54ba96a4928e86e2529b46c6b",
+  "dashboard_backend": "http://127.0.0.1:8767/",
+  "deployed_source_commit": "928649bd1ff695fe9a95915647a49943ffe921fe",
+  "deployment_id": "website-pr42-928649bd1ff695fe9a95915647a49943ffe921fe",
+  "grants_changed": false,
+  "integration_merge_commit": "50ed988f84398bde7aa9df5bb3f163d753748fed",
+  "objectives_mutated": false,
+  "other_services_changed": false,
+  "postgresql_migrations_applied": false,
+  "predecessor_release": "/opt/riverview-status-dashboard/releases/af87c1a1b8ef4deeb8770c64da8bb4556bc85866",
+  "previous_release_preserved": true,
+  "public_dns_note": "riverview.ionoge.com resolves to 185.146.167.203 and served an unrelated IONOGE site; Camrui LAN TLS accepts the IP address in its certificate SAN. Use the LAN URL above.",
+  "pull_request": 42,
+  "pull_request_state": "merged",
+  "release_path": "/opt/riverview-status-dashboard/releases/928649bd1ff695fe9a95915647a49943ffe921fe",
+  "rollback_performed": false,
+  "rollback_plan": "rollback-plan.txt",
+  "services_restarted": [
+    "riverview-status-dashboard.service"
+  ],
+  "source_tree_matches_merge_tree": true,
+  "tested_source_commit": "928649bd1ff695fe9a95915647a49943ffe921fe"
+}

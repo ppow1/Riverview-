@@ -1,0 +1,38 @@
+captured_at=2026-10-16T17:14:13Z
+predecessor_release=/opt/riverview-status-dashboard/releases/af87c1a1b8ef4deeb8770c64da8bb4556bc85866
+dashboard_active=active
+MainPID=2140789
+NRestarts=0
+WorkingDirectory=/opt/riverview-status-dashboard/current
+User=riverview
+ActiveState=active
+SubState=running
+FragmentPath=/etc/systemd/system/riverview-status-dashboard.service
+dashboard_unit_sha256=91cf8ad088f794e763c594981398b881ecf2839cdaf6728eeed64aa4ab1815ca  /etc/systemd/system/riverview-status-dashboard.service
+dropin_checksums:
+9ae0e3ba10f6713ba03a71cf66f889cb00a84b90ad1812940bea0411ca01b0d1  /etc/systemd/system/riverview-status-dashboard.service.d/30-grace-chat.conf
+bbd8d9b1994522e12e15c563347bb1ff4579e734c90b7eaefa372179201090b4  /etc/systemd/system/riverview-status-dashboard.service.d/40-grace-chat-ui.conf
+954fa8154704047d0dc6b9ceba191f82a963b50dca76e8ff6ab3d99266eb4434  /etc/systemd/system/riverview-status-dashboard.service.d/50-grace-auth-session.conf
+a20e65316174a01ac184b4f891bbe581b182caae7ae130779355dd6e48e3c3a1  /etc/systemd/system/riverview-status-dashboard.service.d/60-lan-proxy.conf
+a8f2980d2c7f8ddca1df1df09572cf2b50bb9df453b363c3f6d0cfcba19034af  /etc/systemd/system/riverview-status-dashboard.service.d/70-account-email-key.conf
+140b133fcb89b204d589d18e6561b29149eca1f83ffaea947bb9f206bf315153  /etc/systemd/system/riverview-status-dashboard.service.d/80-account-auth-release.conf
+78eb9644ca23136fbbfeed97ca5176fbab674fb8a5293812d53ae29037d70770  /etc/systemd/system/riverview-status-dashboard.service.d/90-workflow-release.conf
+68f18e09c758b0c432f36ad5f1d3ec5129f72def76a569a83155120025a064f5  /etc/systemd/system/riverview-status-dashboard.service.d/95-grace-model-router.conf
+f94d6b3d1a99723dff3e1d219e7aa50815d281ccc450e5682d4782428b03bcf5  /etc/systemd/system/riverview-status-dashboard.service.d/99-grace-live-streaming.conf
+13a24b2112fd0ce10d715c216e608b28f74f9fd4de2c43c027079fd81a45d30f  /etc/systemd/system/riverview-status-dashboard.service.d/zz-grace-proposal-guidance.conf
+918020573ee47c7177893750be15a42b263e39907bc6deb1cddeebcf598ae9a2  /etc/systemd/system/riverview-status-dashboard.service.d/zzz-grace-workorder-retry.conf
+a8a4b0ce7546e28ed65553ed48401ce4e04b33166f3b5a0768657d1b38141101  /etc/systemd/system/riverview-status-dashboard.service.d/zzzz-riverview-grounding-release.conf
+af5e9000db63de1eff74ac80ae88ac41996f6dd3dd2134ea23c96e4849fbb75f  /etc/systemd/system/riverview-status-dashboard.service.d/zzzzz-riverview-objective-reground.conf
+be57a1380d25baf9c7fdbbe99bf8679b400098a1c44aa847dbee6a1ce72c9732  /etc/systemd/system/riverview-status-dashboard.service.d/zzzzzz-pr63-release.conf
+dependent_services:
+active
+active
+active
+active
+backend_listener:
+State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+LISTEN 0      64         127.0.0.1:8767      0.0.0.0:*    users:(("python3",pid=2140789,fd=7))
+tls_edge_http=200 verify=0
+backend_http=200
+rollback_target_exists=yes
+new_dropin_preexisting=no

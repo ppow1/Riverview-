@@ -1,0 +1,16 @@
+{
+  "assignment_counts": {
+    "blocked": 1,
+    "completed": 6,
+    "ready": 3
+  },
+  "assignments_total": 10,
+  "cme_status": "healthy",
+  "deployment_id": "website-pr42-928649bd1ff695fe9a95915647a49943ffe921fe",
+  "freshness": "current",
+  "grace_execution_status": "healthy",
+  "http_status": 200,
+  "observed_at": "2026-10-16T13:14:42.995608-04:00",
+  "projection_status": "healthy",
+  "source_commit": "928649bd1ff695fe9a95915647a49943ffe921fe"
+}

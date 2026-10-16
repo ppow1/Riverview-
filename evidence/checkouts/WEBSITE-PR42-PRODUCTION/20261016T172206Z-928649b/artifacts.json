@@ -1,0 +1,101 @@
+{
+  "artifacts": {
+    "access-path-diagnosis.json": {
+      "path": "access-path-diagnosis.json",
+      "revision": "1.0.0",
+      "sha256": "744a3c092db13b490a091eb60253d5fd1ff6ac9ac3ff3a99afe126a6a915fdf3",
+      "size_bytes": 753
+    },
+    "artifact-manifest.json": {
+      "path": "artifact-manifest.json",
+      "revision": "1.0.0",
+      "sha256": "689756d936c8e25b70aec011212a889e90b9a815e0ea624e1f4407a14ac2ad9c",
+      "size_bytes": 2567
+    },
+    "cookbook-view.png": {
+      "path": "cookbook-view.png",
+      "revision": "1.0.0",
+      "sha256": "ca033765521caf288d1582f0e00508ae8354c2c10220776ccdfec50d1eb9024a",
+      "size_bytes": 176770
+    },
+    "package-verification.json": {
+      "path": "package-verification.json",
+      "revision": "1.0.0",
+      "sha256": "e53176540143706b1771b45647a305e1ef324513b5d6fd6085af4a7d9be8c241",
+      "size_bytes": 2139
+    },
+    "postactivation-http.txt": {
+      "path": "postactivation-http.txt",
+      "revision": "1.0.0",
+      "sha256": "790041a1a59c745783909f9d661406b0bd2e8629ee1bf66618b98a072a3acc55",
+      "size_bytes": 48
+    },
+    "postactivation-status.json": {
+      "path": "postactivation-status.json",
+      "revision": "1.0.0",
+      "sha256": "92e6060d6756ff704c95705109952ef04ba0425095e98e1bd480804fe4c23767",
+      "size_bytes": 453
+    },
+    "predeployment-state.txt": {
+      "path": "predeployment-state.txt",
+      "revision": "1.0.0",
+      "sha256": "53c63fc90e1f823be2273fd7ed796c36dcae4cc89a5847c32e16bf44701c9147",
+      "size_bytes": 2957
+    },
+    "production-acceptance-summary.json": {
+      "path": "production-acceptance-summary.json",
+      "revision": "1.0.0",
+      "sha256": "500208c731e8ac9fa232bf19f8e868784e2d74c48bff3eee7249285bad45d384",
+      "size_bytes": 1911
+    },
+    "production-dashboard-browser-acceptance.json": {
+      "path": "production-dashboard-browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "3db43bb5132dc8e542303d81246db2d685149899ba974d10f82466cbd50d5d0c",
+      "size_bytes": 4327
+    },
+    "production-ux-acceptance.json": {
+      "path": "production-ux-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "d3dd3d2bb6797e21700705b960a30606f48fa9f2e5db4ddac55bdb88634ffed9",
+      "size_bytes": 1525
+    },
+    "release-manifest.json": {
+      "path": "release-manifest.json",
+      "revision": "1.0.0",
+      "sha256": "f41ed9b1a217acd3faa9baa04df7b1e8396269df7bd31c2e3a4be2dbe30aa73c",
+      "size_bytes": 1353
+    },
+    "release-record.txt": {
+      "path": "release-record.txt",
+      "revision": "1.0.0",
+      "sha256": "bbe86696350ad56ff103a90598e984a2bd91c5716f8648be8c4c41aa65284622",
+      "size_bytes": 286
+    },
+    "rollback-plan.txt": {
+      "path": "rollback-plan.txt",
+      "revision": "1.0.0",
+      "sha256": "19e1a024e891e2874a97e79a254ce57f825b247c917b11a3bb2d8a6fdcd4a7a0",
+      "size_bytes": 556
+    },
+    "status-workflow-rendering.json": {
+      "path": "status-workflow-rendering.json",
+      "revision": "1.0.0",
+      "sha256": "3e12a7c227c91ddc13fa7d4ee7fdb1be4aa89365958e929d57aeb4edf2400d06",
+      "size_bytes": 367
+    },
+    "workflow-view-before-explicit-render-wait.png": {
+      "path": "workflow-view-before-explicit-render-wait.png",
+      "revision": "1.0.0",
+      "sha256": "4cce0cd80d0edeee6cabfd4c1d14691624260f7148db91f5f5775a4acd469277",
+      "size_bytes": 262823
+    },
+    "workflow-view.png": {
+      "path": "workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "7666e3976d93e46550cb928f92dfc843b8fdba81f9bc47678287705ba8884268",
+      "size_bytes": 286364
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

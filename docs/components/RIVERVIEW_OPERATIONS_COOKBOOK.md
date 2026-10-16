@@ -2,11 +2,12 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md
 Component: RIVERVIEW-OPERATIONS
-File Revision: 1.0.3
+File Revision: 1.0.4
 Purpose: Provide a safe, evidence-grounded operations and recovery entry point
 Authority: Diagnostics are read-only; state-changing operations are explicitly identified
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Link identity and authority diagnosis
 Changed: 2026-10-11 UTC | RV-M4.1-DB-RESTORE-COOKBOOK | Document observed PostgreSQL backup path permission failure and verified recovery
+Changed: 2026-10-16 UTC | RV-WEBSITE-PR42-PRODUCTION-ACCEPTANCE | Correct Camrui dashboard TLS URL, proxy/backend ports, and direct-host release troubleshooting
 History: Git and revision/backup manifest
 -->
 # Riverview operations and recovery guide
@@ -22,11 +23,11 @@ hostnamectl --static
 id
 systemctl is-active postgresql@16-main.service riverview-event-processor.service riverview-cme-monitor.service riverview-status-dashboard.service ssh.service
 pg_lsclusters
-ss -ltn '( sport = :5432 or sport = :8766 )'
+ss -ltn '( sport = :5432 or sport = :443 or sport = :8766 or sport = :8767 )'
 systemctl show riverview-event-processor.service riverview-cme-monitor.service riverview-status-dashboard.service -p Id -p ActiveState -p SubState -p MainPID -p NRestarts
 ```
 
-Commissioned listener ownership is PostgreSQL on loopback port 5432 and the read-only dashboard on loopback port 8766. The dashboard's remote access is through an authorized SSH forward; it is not an internet-facing listener. On the observed host all four Riverview/PostgreSQL/SSH units were active. A different result is not repaired by restarting every unit: continue with the owning service below.
+On current Camrui, PostgreSQL uses loopback port 5432 and the dashboard backend uses loopback port 8767. Nginx accepts LAN TLS on port 443 and redirects HTTP port 8766 to TLS. The browser URL is `https://192.168.1.155/`; the installed LAN certificate has this IP in its subject alternative names. The public DNS name `riverview.ionoge.com` currently resolves to a separate public IONOGE site, so use the LAN IP for Camrui. The dashboard is not directly exposed on its backend port. Do not replace the existing dashboard unit drop-ins or proxy configuration as part of a website release. A different service result is not repaired by restarting every unit: continue with the owning service below.
 
 Read only the selected unit's recent, sanitized journal:
 
@@ -192,27 +193,27 @@ If PostgreSQL session loss is suspected, do not terminate a database backend by 
 
 ## 6. Dashboard and browser / SSH access
 
-The dashboard service is read-only and serves a bounded PostgreSQL projection on `127.0.0.1:8766`. The Steward's remote browser access uses SSH local forwarding; SSH is transport, not an independent system health source.
+The dashboard service is read-only and serves a bounded PostgreSQL projection on loopback. On current Camrui, the backend is `127.0.0.1:8767`; the LAN TLS reverse proxy serves `https://192.168.1.155/` on port 443 and redirects HTTP on port 8766. The browser connects to the TLS URL, not the backend port. SSH is a separate administrative transport and its authentication failure is not a dashboard health check.
 
 ```bash
 systemctl status riverview-status-dashboard.service --no-pager
 systemctl show riverview-status-dashboard.service -p ActiveState -p SubState -p MainPID -p NRestarts
-ss -ltn '( sport = :8766 )'
-curl --fail --silent --show-error --max-time 5 http://127.0.0.1:8766/ -o /dev/null -w 'HTTP %{http_code}\n'
+ss -ltn '( sport = :8767 )'
+curl --fail --silent --show-error --max-time 5 http://127.0.0.1:8767/ -o /dev/null -w 'HTTP %{http_code}\n'
 ```
 
 Expected: the unit is active, the listener is loopback-only, and the shell route returns HTTP 200. Authenticated APIs require the token entered in the browser; do not put tokens in URLs, shell history, command arguments, screenshots, reports, or journal output. Dashboard projection health and CME health are separate. HTTP 200 with `not_initialized` is not a healthy monitor; HTTP 503 indicates a failed required query, not a missing optional relation when that is represented explicitly.
 
 Browser symptoms include token rejection, stale/unavailable banner, failed request count, missing attention list, or unreadable diagnostic page. Recheck local service/journal first; then use the dashboard's Activity/Workflows diagnostic links and [read-only dashboard cookbook](STATUS_DASHBOARD_COOKBOOK.md). The formatted docs endpoint escapes source HTML and restricts clickable links; raw Markdown is not the operational presentation. A browser refresh or tab switch must not restart the institution or require inference.
 
-For remote access, use the authorized SSH alias/key/known-host setup on the client machine and forward local port 8766 to Camrui's loopback port. Do not expose 8766 to LAN or internet and do not change SSH host-key checking to bypass a connection error. If SSH alone fails while Camrui-local checks pass, diagnose client transport/authentication without restarting the dashboard or database. If the browser shows stale state while its host can reach the service, compare API `observed_at`, CME heartbeat, and service journal; do not label cached data healthy.
+For Steward browser access from the Riverview LAN, use `https://192.168.1.155/`. The LAN TLS proxy restricts access to the local subnet; do not expose backend port 8767 or change proxy/SSH policy to work around a client failure. If SSH alone fails while Camrui-local checks pass, diagnose client transport/authentication without restarting the dashboard or database. If the browser shows stale state while its host can reach the service, compare API `observed_at`, CME heartbeat, and service journal; do not label cached data healthy.
 
 Recovery of a transient dashboard process failure:
 
 ```bash
 sudo -n systemctl restart riverview-status-dashboard.service
 systemctl is-active riverview-status-dashboard.service
-curl --fail --silent --show-error --max-time 5 http://127.0.0.1:8766/ -o /dev/null -w 'HTTP %{http_code}\n'
+curl --fail --silent --show-error --max-time 5 http://127.0.0.1:8767/ -o /dev/null -w 'HTTP %{http_code}\n'
 ```
 
 Reauthenticate in the browser and confirm projection freshness. Dashboard failure must not interrupt CME or the event processor. Escalate repeated 503s, unexpected non-loopback bindings, token permission errors, or any indication of secret leakage; never weaken authentication or bind policy to restore convenience.
@@ -269,6 +270,7 @@ Stop state-changing work and escalate to the Steward/Operations owner for: migra
 
 ## Revision history
 
+- **1.0.4 — 2026-10-16:** Correct the observed Camrui dashboard TLS URL, proxy/backend ports, and direct-host release troubleshooting. Predecessor preserved in `.riverview-backups/20261016T172401977957Z/docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md`.
 - **1.0.0 — 2026-10-11:** Initial consolidated operational and recovery guide grounded in Camrui service units, component contracts, and retained commissioning findings.
 - **1.0.3 — 2026-10-11:** Document the observed private-state-directory traversal failure, protected PostgreSQL backup location, verified restore evidence, and exact safe diagnosis.
 - **1.0.1 — 2026-10-11:** Make backup paths collision-resistant and document a unique disposable database restore/cleanup path.

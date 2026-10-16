@@ -1,0 +1,14 @@
+{
+  "deployment_method": "direct local package build/install on Camrui using existing sudo -n authorization",
+  "identity_attempted": "/home/admin1/.ssh/id_ed25519 (default ED25519 identity); server rejected publickey; password was not attempted in batch mode",
+  "local_sudo_noninteractive_authorized": true,
+  "network_connectivity": "same host; loopback route; TCP 22 open",
+  "operating_system": "Ubuntu 24.04.3 LTS",
+  "runner_hostname": "admin1-Default-string",
+  "ssh_agent": "not available",
+  "ssh_config_alias": "none in effective configuration; direct HostName 192.168.1.155, User admin1, Port 22",
+  "ssh_credentials_exposed": false,
+  "ssh_policy_changed": false,
+  "target_ip": "192.168.1.155",
+  "target_ip_is_assigned_to_runner": true
+}
