@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.7
+# Revision: 1.1.8
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -22,6 +22,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-OWNER-CODEX-HOME-001 | Use the explicitly configured service-local CODEX_HOME rather than deriving credentials from HOME
 # Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Authenticate recovery scope before startup Codex recovery
 # Changed: 2026-10-16 UTC | RV-GRACE-RESULT-RETURN-DIAGNOSTICS-001 | Default verified-result review to the supported bounded 512-token output budget
+# Changed: 2026-10-16 UTC | RV-PR62-SOURCE-CHANGE-MODE | Route the explicit Codex source-change mode through its registered adapter branch
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-REASONING-BUDGET-001 | Default persistent resident plans to a bounded 768-token completion budget
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Wire the separately scoped source-change capability through the existing leased worker and independent verifier
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
@@ -105,6 +106,11 @@ def source_change_path_allowlist(environ):
         return _paths(tuple(values), maximum=128)
     except (TypeError, ValueError):
         raise WorkerServiceConfigurationError("source_change_allowlist_invalid") from None
+
+
+def is_codex_adapter_mode(adapter_mode):
+    """Return whether the configured mode selects a registered Codex adapter."""
+    return adapter_mode in {"codex-cli", "codex-source-change"}
 
 
 def persistent_owner_codex_home(environ, state_root):
@@ -232,9 +238,9 @@ def main() -> int:
         if codex_auth_mode not in {"service", "supervised-chatgpt", "chatgpt-owner-session"}:
             raise WorkerServiceConfigurationError("codex_auth_mode_invalid")
         if (codex_auth_mode in {"supervised-chatgpt", "chatgpt-owner-session"} and
-                adapter_mode not in {"codex-cli", "codex-source-change"}):
+                not is_codex_adapter_mode(adapter_mode)):
             raise WorkerServiceConfigurationError("supervised_mode_requires_codex_adapter")
-        if adapter_mode == "codex-cli":
+        if is_codex_adapter_mode(adapter_mode):
             executable = os.environ.get("RIVERVIEW_CODEX_EXECUTABLE", "")
             codex_home = os.environ.get("RIVERVIEW_CODEX_HOME", "")
             codex_workspace = os.environ.get("RIVERVIEW_CODEX_WORKSPACE_DIR", "")
