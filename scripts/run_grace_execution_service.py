@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.8
+# Revision: 1.1.0
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -16,6 +16,7 @@
 # Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Use the active bound router for proposal/review and return verified outcomes to chat
 # Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Add persistent no-copy ChatGPT owner-session runtime mode
 # Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Align bounded 80B provider and resident proposal deadlines
+# Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Run narrowly fenced legacy pre-execution recovery through existing CME at startup
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -45,6 +46,7 @@ from riverview_core.resident_execution.codex_cli import CAPABILITY as CODEX_CAPA
 from riverview_core.resident_execution.codex_cli import CodexCLIExecutionAdapter
 from riverview_core.resident_execution.codex_workflow import CodexMarkdownVerifier, CodexWorkAction
 from riverview_core.worker_adapter import ContinuousWorker, PostgresWorkerAdapter
+from riverview_core.worker_adapter.recovery import PostgresRecoveryCoordinator
 from riverview_core.worker_adapter.repository_knowledge import RepositoryKnowledgeProvider
 from riverview_core.worker_adapter.resident_knowledge import TaskRelevantRepositoryKnowledgeProvider
 from riverview_core.worker_adapter.service import (WorkerServiceConfigurationError,
@@ -222,6 +224,17 @@ def main() -> int:
             (execution_capability,), scope_ref)
         ensure_registered(adapter, verifier_id, verifier_token,
             ("assignment.verify.v1",), scope_ref)
+        if isinstance(execution_action, CodexWorkAction):
+            recovery = PostgresRecoveryCoordinator(dsn, schema=schema,
+                max_retries=int(os.environ.get("RIVERVIEW_GRACE_MAX_WORKER_RECOVERIES", "3")))
+            try:
+                recovered = execution_action.reconcile_legacy_preexecution_failures(recovery)
+            finally:
+                recovery.close()
+            if recovered:
+                logging.info(json.dumps({"event": "codex_preexecution_recovery_completed",
+                    "assignments": [item["assignment_id"] for item in recovered],
+                    "count": len(recovered)}, sort_keys=True))
         engine = ContinuousWorker(adapter, worker_id, worker_token,
             knowledge=RepositoryKnowledgeProvider(repo_root, commit),
             action=execution_action,

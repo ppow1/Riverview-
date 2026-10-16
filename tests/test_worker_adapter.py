@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.39
+# Revision: 1.1.0
 # Purpose: Verify scoped deterministic and structured worker artifacts
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
@@ -20,6 +20,7 @@
 # Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-VERIFICATION-DIAGNOSIS | Surface independent verifier criteria in the isolated regression
 # Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-VERIFICATION-DIAGNOSIS | Attach verifier criterion details to the repository artifact check
 # Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-VERIFICATION-DIAGNOSIS | Target repository-task verifier assertion for criteria output
+# Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Verify audited recovery of a reproduced legacy pre-execution failure without mislabeling uncertain work
 # Contracts: docs/development/M2.3-001_REVISION_RECORD.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -127,6 +128,8 @@ class WorkerAdapterTests(unittest.TestCase):
                          migrations_dir=root / "worker_adapter/migrations")
         apply_migrations(DSN, schema=self.schema,
                          migrations_dir=root / "institutional_authority/migrations")
+        apply_migrations(DSN, schema=self.schema,
+                         migrations_dir=root / "resident_execution/migrations")
         self.ledger = PostgresLedger(DSN, schema=self.schema)
         from riverview_core.worker_adapter import PostgresWorkerAdapter
         self.worker = PostgresWorkerAdapter(DSN, schema=self.schema)
@@ -172,7 +175,8 @@ class WorkerAdapterTests(unittest.TestCase):
         actions = ["worker.register"]
         if any(cap in capabilities for cap in
                ("deterministic.sha256.v1", "local.inference.v1",
-                "engineering.repository-check.v1")):
+                "engineering.repository-check.v1",
+                "engineering.codex-cli-artifact.v1")):
             actions.append("assignment.execute")
         if "assignment.verify.v1" in capabilities:
             actions.append("assignment.verify")
@@ -421,6 +425,102 @@ class WorkerAdapterTests(unittest.TestCase):
             cur.execute("SELECT decision FROM worker_recovery_records WHERE assignment_id=%s",
                         (self.assignment,))
             self.assertEqual(cur.fetchone()["decision"], "retry_safe")
+
+    def test_confirmed_legacy_codex_preexecution_failure_requeues_once(self):
+        import tempfile
+        from riverview_core.worker_adapter import PostgresRecoveryCoordinator
+
+        objective_id = "objective:legacy-codex:" + uuid4().hex
+        assignment_id = self.ready_assignment(objective=objective_id)
+        self.admin.execute("""INSERT INTO grace_objectives
+            (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,
+             evidence,assignment_id,source_revision,source_sha256)
+            VALUES (%s,'synthetic bounded fixture',%s,'steward:test','[]'::jsonb,
+                    'WORK_ORDER_CREATED','{"status":"VERIFIED"}'::jsonb,%s,%s,%s)""",
+            (objective_id, self.scope, assignment_id, "a" * 40, "b" * 64))
+        worker_id = "worker-codex-recovery-" + uuid4().hex
+        credential = self.register_as(
+            worker_id, ["engineering.codex-cli-artifact.v1"], self.scope)
+        claim = self.worker.claim_next(worker_id, credential, assignment_id=assignment_id,
+            lease_seconds=60, capability="engineering.codex-cli-artifact.v1")
+        generation = claim["lease"]["generation"]
+        self.worker.start_assignment(assignment_id, worker_id, credential, generation,
+            capability="engineering.codex-cli-artifact.v1")
+        intent_id = self.worker.begin_execution_intent(
+            assignment_id, worker_id, credential, generation,
+            f"continuous:{assignment_id}:{generation}", effect_class="external_uncertain",
+            capability="engineering.codex-cli-artifact.v1")
+        self.worker.mark_execution_intent(intent_id, "outcome_unknown",
+                                          failure_class="CodexActionFailure")
+        self.worker.scheduler.transition_with_lease(assignment_id, "awaiting_steward",
+            "ACTION_OUTCOME_UNKNOWN", f"fixture-unknown:{assignment_id}:{generation}",
+            worker_id, generation)
+        self.admin.execute("""UPDATE assignment_leases
+            SET acquired_at=clock_timestamp()-interval '2 seconds',
+                expires_at=clock_timestamp()-interval '1 second'
+            WHERE assignment_id=%s""",
+                           (assignment_id,))
+        with tempfile.TemporaryDirectory(prefix="rv-codex-recovery-") as directory:
+            artifact_root = Path(directory) / "artifacts"
+            artifact_root.mkdir(mode=0o700)
+            recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema)
+            try:
+                result = recovery.reconcile_confirmed_codex_preexecution_failures(
+                    repository_revision="c" * 40, artifact_root=artifact_root,
+                    legacy_git_refusal_verified=True)
+                self.assertEqual(result, [{"assignment_id": assignment_id,
+                    "intent_id": str(intent_id), "lease_generation": generation,
+                    "decision": "retry_safe", "resulting_state": "ready"}])
+                self.assertEqual(recovery.reconcile_confirmed_codex_preexecution_failures(
+                    repository_revision="c" * 40, artifact_root=artifact_root,
+                    legacy_git_refusal_verified=True), [])
+            finally:
+                recovery.close()
+        ready = self.ledger.get(assignment_id)
+        self.assertEqual(ready["state"], "ready")
+        self.assertEqual(ready["process_graph_id"],
+                         "rv:postgres-ledger:assignment-lifecycle")
+        self.assertEqual(ready["process_node_id"],
+                         "rv:postgres-ledger:assignment-lifecycle:ready")
+        intent = self.admin.execute("SELECT status FROM worker_execution_intents WHERE intent_id=%s",
+                                    (intent_id,)).fetchone()
+        self.assertEqual(intent[0], "retry_scheduled")
+        recorded = self.admin.execute("SELECT count(*) FROM worker_recovery_records WHERE assignment_id=%s",
+                                      (assignment_id,)).fetchone()[0]
+        self.assertEqual(recorded, 1)
+        event = self.admin.execute("""SELECT payload->'recovery_evidence'
+            FROM events WHERE assignment_id=%s ORDER BY seq DESC LIMIT 1""",
+            (assignment_id,)).fetchone()[0]
+        self.assertEqual(event["execution_process_started"], False)
+        self.assertEqual(event["assignment_attempt_absent"], True)
+        self.assertEqual(event["assignment_artifact_absent"], True)
+        transition = self.admin.execute("""SELECT payload->>'process_node_id'
+            FROM events WHERE assignment_id=%s ORDER BY seq DESC LIMIT 1""",
+            (assignment_id,)).fetchone()[0]
+        self.assertEqual(transition, "rv:postgres-ledger:assignment-lifecycle:ready")
+        resumed = self.worker.claim_next(worker_id, credential,
+            assignment_id=assignment_id, lease_seconds=30,
+            capability="engineering.codex-cli-artifact.v1")
+        self.assertEqual(resumed["assignment"]["id"], assignment_id)
+        self.assertGreater(resumed["lease"]["generation"], generation)
+
+    def test_preexecution_codex_failure_is_not_misreported_as_unknown(self):
+        from riverview_core.worker_adapter import ContinuousWorker
+        assignment_id = self.ready_assignment(objective="objective:known-preexecution")
+        class KnownPreExecutionFailure(RuntimeError):
+            execution_started = False
+        def fail_before_process(_assignment, _grounded):
+            raise KnownPreExecutionFailure("repository_preflight_failed")
+        engine = ContinuousWorker(self.worker, self.worker_id, self.token,
+            knowledge=self.VerifiedProvider(), action=fail_before_process,
+            action_effect_class="external_uncertain",
+            action_capability="deterministic.sha256.v1")
+        result = engine.run_once(assignment_id=assignment_id)
+        self.assertEqual(result["status"], "FAILED")
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "blocked")
+        intent = self.admin.execute("SELECT status FROM worker_execution_intents WHERE assignment_id=%s",
+                                    (assignment_id,)).fetchone()
+        self.assertEqual(intent[0], "failed")
 
     def test_killed_external_action_is_not_replayed_and_unrelated_work_continues(self):
         import multiprocessing

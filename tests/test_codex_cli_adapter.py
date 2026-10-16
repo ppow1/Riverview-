@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.5
+# Revision: 1.1.0
 # Purpose: Verify bounded subscription-authenticated Codex adapter contracts
 # Execution Model: Isolated temporary Git repository and synthetic executable
 # Observability: Assertions inspect sanitized adapter status and artifact metadata
@@ -13,6 +13,7 @@
 # Changed: 2026-10-13 UTC | RV-CODEX-SUBSCRIPTION-SUPERVISOR-001 | Verify API-key-free child environment and interactive session gate
 # Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Verify persistent owner-session mode without TTY or credential copy
 # Changed: 2026-10-15 UTC | RV-GRACE-CODEX-SANDBOX-READINESS-001 | Verify workspace sandbox failure blocks before dispatch
+# Changed: 2026-10-15 UTC | RV-GRACE-CODEX-REPOSITORY-PROVENANCE-001 | Verify scoped Git trust, separate source/repository pins, and explicit process-start provenance
 # Contracts: src/riverview_core/resident_execution/codex_cli.py
 # Tests: python3 -m unittest tests.test_codex_cli_adapter -v
 # History: Git
@@ -102,6 +103,7 @@ class CodexCLIAdapterTests(unittest.TestCase):
     def test_fixed_pinned_workspace_produces_assignment_bound_artifact(self):
         result = self.adapter().execute(self.assignment())
         self.assertEqual(result.status, "DELIVERABLE_PRODUCED")
+        self.assertTrue(result.execution_started)
         self.assertEqual(result.capability, CAPABILITY)
         self.assertTrue(result.verification_required)
         path = self.artifacts / result.artifact_name
@@ -119,6 +121,37 @@ class CodexCLIAdapterTests(unittest.TestCase):
         stale = self.adapter().execute(self.assignment(repository_revision=wrong_revision))
         self.assertEqual(stale.status, "WAITING_FOR_EVIDENCE")
         self.assertEqual(stale.detail_code, "repository_revision_mismatch")
+        self.assertFalse(stale.execution_started)
+
+    def test_git_trust_is_scoped_to_one_private_command_configuration(self):
+        original_run = subprocess.run
+        observed = []
+
+        def capture(command, **kwargs):
+            config = kwargs.get("env", {}).get("GIT_CONFIG_GLOBAL")
+            if config:
+                path = Path(config)
+                observed.append((path.read_text(encoding="utf-8"),
+                                 path.stat().st_mode & 0o777))
+            return original_run(command, **kwargs)
+
+        with patch("riverview_core.resident_execution.codex_cli.subprocess.run",
+                   side_effect=capture):
+            self.assertEqual(self.adapter().repository_revision(), self.revision)
+        self.assertEqual(len(observed), 1)
+        self.assertEqual(observed[0][1], 0o600)
+        self.assertIn(str(self.repo.resolve()), observed[0][0])
+        self.assertNotIn("directory = *", observed[0][0])
+        self.assertEqual(list(self.workspace.iterdir()), [])
+
+    def test_legacy_git_ownership_refusal_is_detected_without_logging_git_output(self):
+        adapter = self.adapter()
+        completed = subprocess.CompletedProcess(
+            ["git"], 128, stdout=b"", stderr=b"fatal: detected dubious ownership in repository")
+        with patch.object(adapter, "_preflight", return_value=(self.codex, self.repo)), \
+             patch("riverview_core.resident_execution.codex_cli.subprocess.run",
+                   return_value=completed):
+            self.assertTrue(adapter.legacy_git_ownership_refused())
 
     def test_unavailable_workspace_sandbox_fails_closed_before_codex(self):
         with patch.object(CodexCLIExecutionAdapter, "_verify_workspace_sandbox",
@@ -126,6 +159,7 @@ class CodexCLIAdapterTests(unittest.TestCase):
             result = self.adapter().execute(self.assignment())
         self.assertEqual(result.status, "UNAVAILABLE")
         self.assertEqual(result.detail_code, "codex_sandbox_unavailable")
+        self.assertFalse(result.execution_started)
         self.assertFalse(list(self.artifacts.iterdir()))
         self.assertFalse(list(self.workspace.iterdir()))
 
@@ -135,6 +169,7 @@ class CodexCLIAdapterTests(unittest.TestCase):
         result = self.adapter().execute(self.assignment())
         self.assertEqual(result.status, "UNAVAILABLE")
         self.assertEqual(result.detail_code, "codex_process_failed")
+        self.assertTrue(result.execution_started)
         self.assertEqual(list(self.artifacts.iterdir()), [])
 
     def test_timeout_kills_the_codex_process_and_returns_no_artifact(self):
@@ -144,6 +179,7 @@ class CodexCLIAdapterTests(unittest.TestCase):
         result = self.adapter().execute(self.assignment(timeout_seconds=1))
         self.assertEqual(result.status, "UNAVAILABLE")
         self.assertEqual(result.detail_code, "codex_timeout")
+        self.assertTrue(result.execution_started)
         self.assertEqual(list(self.artifacts.iterdir()), [])
 
     def test_personal_codex_home_is_rejected(self):
@@ -153,23 +189,26 @@ class CodexCLIAdapterTests(unittest.TestCase):
                 workspace_root=self.workspace, artifact_root=self.artifacts)
 
     def test_persistent_action_and_separate_verifier_accept_real_file_contract(self):
+        knowledge_revision = "a" * 40
         class Pipeline:
             def get_objective(self, _objective_id):
                 return {"objective_id": "objective:test-1", "status": "WORK_ORDER_CREATED",
-                    "assignment_id": "assignment:test-1", "source_revision": self_revision,
+                    "assignment_id": "assignment:test-1", "source_revision": knowledge_revision,
                     "source_sha256": "a" * 64,
                     "evidence": {"status": "VERIFIED"},
                     "proposal": {"steps": [{"objective": "Create bounded Markdown.",
                         "acceptance_criteria": ["The deliverable exists."]}]}}
-        self_revision = self.revision
         adapter = self.adapter()
         action = CodexWorkAction(Pipeline(), adapter, "repo://example/test", 5)
         assignment = {"id": "assignment:test-1", "objective_ref": "objective:test-1"}
         grounded = KnowledgeResult(KnowledgeStatus.VERIFIED,
-            source_references=("repo://docs/example.md",), source_revision=self.revision,
+            source_references=("repo://docs/example.md",), source_revision=knowledge_revision,
             source_sha256="b" * 64, retrieval_complete=True)
         result = action(assignment, grounded)
         self.assertEqual(result["status"], "SUCCEEDED")
+        self.assertEqual(result["source_revision"], knowledge_revision)
+        self.assertEqual(result["source_sha256"], "b" * 64)
+        self.assertEqual(result["repository_revision"], self.revision)
         self.assertTrue(Path(result["artifact_path"]).is_file())
         verification = CodexMarkdownVerifier(self.artifacts).verify(
             assignment, {"status": "succeeded", "capability": CAPABILITY,
@@ -193,6 +232,7 @@ class CodexCLIAdapterTests(unittest.TestCase):
             source_references=("repo://docs/example.md",), source_revision=revision,
             source_sha256="b" * 64, retrieval_complete=True)
         result = action(assignment, grounded)
+        self.assertEqual(result["repository_revision"], revision)
         Path(result["artifact_path"]).write_text("# altered\n", encoding="utf-8")
         verification = CodexMarkdownVerifier(self.artifacts).verify(
             assignment, {"status": "succeeded", "capability": CAPABILITY,
