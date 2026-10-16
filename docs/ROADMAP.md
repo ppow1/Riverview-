@@ -1,11 +1,12 @@
 # Riverview~ Implementation Roadmap
 
-**Document Revision:** 1.1.60
+**Document Revision:** 1.1.61
 **Status:** Active planning baseline — execution gates require evidence  
 **Date:** 2026-10-11
 **Component:** RV-ROADMAP  
 **Owner:** Steward  
 **Changed:** 2026-10-11 UTC | RV-M3.3-GOVERNED-INTAKE-ROUTE | Update M3.3 engineering and commissioning state after request API/provider integration
+**Changed:** 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Record backend-only revision decision and existing-pipeline promotion bridge; production migration and UI remain uncommissioned
 **Changed:** 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Record development-only resident policy profile, capability/resource metadata, and Steward checklist
 **Changed:** 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Implement default authenticated SSE delivery, durable cursors, reconnect, active conversation refresh and atomic terminal response state in development; no production deployment claimed
 **Changed:** 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Record persistent no-copy ChatGPT CLI owner-session path and current exact-grant commissioning blockers
@@ -52,17 +53,17 @@ privacy/retention metadata, and Steward-authenticated backend draft/search/retri
 interfaces. A selected Grace conversation can be formalized through the currently
 bound 80B path without `objective.submit`, repository-write permission, an existing
 assignment, or CME registration. The result is an unapproved `DRAFT`; it cannot
-create or dispatch work. This is source-level implementation and isolated test
-evidence only. The schema is not applied in production and the website has not yet
-integrated these endpoints. See `docs/components/INSTITUTIONAL_PROPOSALS.md` and
+create or dispatch work. The current development increment adds revision-bound
+Steward decisions, explicit conversation command handling, promotion through the
+existing exact-grant objective intake, and restart-safe assignment/verifier
+evidence linkage. Isolated PostgreSQL checks exercise an existing disposable
+Engineering worker and independent verifier. This remains source-level evidence:
+migration 0010 and website controls are not claimed deployed. Codex 2 can consume
+the versioned API contract. Provider/resource overrides, commissioned specialist
+reviews, and external proposal intake remain deferred. No production grant,
+record, migration, or service was changed. See
+`docs/components/INSTITUTIONAL_PROPOSALS.md` and
 `docs/components/INSTITUTIONAL_PROPOSALS_FLOW.md`.
-
-The next dependent increments must add the website controls with Codex 2, then
-connect a revision-specific Steward decision to the existing `objective.submit`
-and assignment pipeline; conversational work-order commands must converge on that
-same operation. Provider/resource overrides, commissioned specialist reviews,
-and external proposal intake remain deferred. No production grant, record, or
-service was changed by the development increment.
 
 ## “Next” protocol
 

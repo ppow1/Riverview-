@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.173"
+      "revision": "1.1.174"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -95,15 +95,15 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.136",
-      "sha256": "6748090c518aa38b4d913be2c0a40cf7f784acff48799d6c5e1ead448acbcdad",
-      "size_bytes": 540863
+      "revision": "1.0.137",
+      "sha256": "c5072ce5725a2c286832ce53b4c3aeb81491251c3c5bd25e6f6c1a34c7a62eea",
+      "size_bytes": 550405
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
-      "revision": "1.0.0",
-      "sha256": "ac0e42aadc5e7deca7ed4ba73e5c533cff1f406084e28f7a0dbde84df15a57af",
-      "size_bytes": 6893
+      "revision": "1.0.1",
+      "sha256": "07aef246708ac54f1ad8636202badc2179fa61941c0426ffab6d19b04fb0afb7",
+      "size_bytes": 13923
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
@@ -220,5 +220,5 @@
       "size_bytes": 1226
     }
   },
-  "manifest_revision": "1.1.173"
+  "manifest_revision": "1.1.174"
 }

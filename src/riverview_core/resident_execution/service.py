@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.12
+# Revision: 1.0.13
 # Purpose: Reconcile durable Grace work orders through existing CME worker contracts
 # Execution Model: Persistent scheduled poll over PostgreSQL objective state
 # Observability: Objective events, worker attempts, verification records, dashboard projection
@@ -21,6 +21,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Re-evaluate preserved rejected results only when the verifier implementation revision changes
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Resume append-only verifier decisions after a correction, including interrupted completion transition
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-REASONING-BUDGET-001 | Raise bounded resident proposal default to fit typed dependency plans and source scopes
+# Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Reconcile existing assignments, execution state and verifier evidence to proposal revisions
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -55,7 +56,7 @@ class GraceExecutionService:
                  authority_ref, verifier_id, verifier_credential, artifact_root,
                  max_dispatch_failures=3, verifier=None, resident_reasoner=None,
                  resident_token_budget=768, execution_capability=CAPABILITY,
-                 conversation_result_publisher=None):
+                 conversation_result_publisher=None, proposal_lifecycle=None):
         if not 1 <= max_dispatch_failures <= 10:
             raise ValueError("dispatch failure limit must be between 1 and 10")
         if type(resident_token_budget) is not int or not 1 <= resident_token_budget <= 4096:
@@ -77,6 +78,10 @@ class GraceExecutionService:
         if conversation_result_publisher is not None and not callable(conversation_result_publisher):
             raise ValueError("conversation result publisher must be callable")
         self.conversation_result_publisher = conversation_result_publisher
+        if proposal_lifecycle is not None and not callable(
+                getattr(proposal_lifecycle, "reconcile_links", None)):
+            raise ValueError("proposal lifecycle reconciliation contract is invalid")
+        self.proposal_lifecycle = proposal_lifecycle
         self.instance_id = uuid4()
 
     def reason_one_grounded_objective(self, objective_id=None):
@@ -339,6 +344,17 @@ class GraceExecutionService:
                     "failure_type": type(exc).__name__}, sort_keys=True))
         return published
 
+    def reconcile_proposal_lifecycle(self):
+        """Recover proposal links and execution evidence through durable existing records."""
+        if self.proposal_lifecycle is None:
+            return 0
+        try:
+            return self.proposal_lifecycle.reconcile_links()
+        except Exception as exc:
+            LOG.warning(json.dumps({"event": "proposal_execution_reconciliation_failed",
+                "failure_type": type(exc).__name__}, sort_keys=True))
+            return 0
+
     def run_once(self):
         """Run bounded dispatch, one existing leased worker poll and verification."""
         try:
@@ -348,9 +364,11 @@ class GraceExecutionService:
             verified = self.verify_one()
             completed = self.reconcile_completions()
             returned = self.publish_conversation_results()
+            proposal_updates = self.reconcile_proposal_lifecycle()
             self._heartbeat("healthy")
             return {"reasoned": reasoned, "dispatched": dispatched, "worker": worker_result,
-                    "verified": verified, "completed": completed, "returned": returned}
+                    "verified": verified, "completed": completed, "returned": returned,
+                    "proposal_updates": proposal_updates}
         except Exception as exc:
             self._heartbeat("degraded", type(exc).__name__)
             raise

@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.8
+# Revision: 1.1.9
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -25,6 +25,7 @@
 # Changed: 2026-10-16 UTC | RV-PR62-SOURCE-CHANGE-MODE | Route the explicit Codex source-change mode through its registered adapter branch
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-REASONING-BUDGET-001 | Default persistent resident plans to a bounded 768-token completion budget
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Wire the separately scoped source-change capability through the existing leased worker and independent verifier
+# Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Reconcile proposal records when registry migration exists without making it a prerequisite for older deployments
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_runtime_provider_wiring.py; tests/test_grace_execution.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -47,6 +48,8 @@ from riverview_core.assignment_intake import AuthorizedAssignmentIntake
 from riverview_core.institutional_authority import AuthorityRegistry, ExactGrantAuthorizer
 from riverview_core.postgres_ledger import PostgresLedger
 from riverview_core.resident_execution import GraceExecutionPipeline
+from riverview_core.resident_execution.proposals import ProposalRegistry
+from riverview_core.resident_execution.proposal_lifecycle import ProposalLifecycle
 from riverview_core.resident_execution.pipeline import ObjectiveContextReader
 from riverview_core.resident_execution.service import GraceExecutionService
 from riverview_core.resident_execution.worker import BoundedLocalCodingWorker
@@ -184,7 +187,7 @@ def reconcile_codex_startup_recovery(execution_action, recovery, *, scope_ref, w
 
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    ledger = adapter = authority_registry = conversation_store = None
+    ledger = adapter = authority_registry = conversation_store = proposal_registry = None
     try:
         codex_auth_mode = os.environ.get("RIVERVIEW_CODEX_AUTH_MODE", "service")
         credential_unit = (OWNER_SESSION_SERVICE_UNIT
@@ -215,6 +218,15 @@ def main() -> int:
         intake = AuthorizedAssignmentIntake(ledger, authorizer)
         resident_knowledge = TaskRelevantRepositoryKnowledgeProvider(repo_root, commit)
         pipeline = GraceExecutionPipeline(ledger, authorizer, intake, resident_knowledge)
+        with ledger.db.cursor() as cur:
+            ledger._set_search_path(cur)
+            cur.execute("SELECT to_regclass(%s) IS NOT NULL AS available",
+                        (f"{schema}.institutional_proposals",))
+            proposal_tables_ready = bool(cur.fetchone()["available"])
+        proposal_lifecycle = None
+        if proposal_tables_ready:
+            proposal_registry = ProposalRegistry(dsn, schema=schema)
+            proposal_lifecycle = ProposalLifecycle(proposal_registry, pipeline)
         reasoning_timeout = resident_reasoning_timeout(os.environ)
         providers, reasoning_model = configured_resident_providers(office)
         resident_reasoner = ResidentReasoner(
@@ -357,7 +369,8 @@ def main() -> int:
             resident_reasoner=resident_reasoner,
             resident_token_budget=int(os.environ.get("RIVERVIEW_RESIDENT_REASONING_TOKENS", "768")),
             verifier=outcome_verifier, execution_capability=execution_capability,
-            conversation_result_publisher=conversation_service.review_verified_work_order)
+            conversation_result_publisher=conversation_service.review_verified_work_order,
+            proposal_lifecycle=proposal_lifecycle)
         if codex_auth_mode == "supervised-chatgpt":
             if not re.search(r"80b", (reasoning_model or "").lower()) or not providers:
                 raise WorkerServiceConfigurationError("supervised_mode_requires_configured_80b_reasoner")
@@ -418,6 +431,8 @@ def main() -> int:
             adapter.close()
         if conversation_store is not None:
             conversation_store.close()
+        if proposal_registry is not None:
+            proposal_registry.close()
         if authority_registry is not None:
             authority_registry.close()
         if ledger is not None:

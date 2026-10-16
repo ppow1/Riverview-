@@ -1858,15 +1858,19 @@
     },
     {
       "graph_id": "rv:grace:institutional-proposal-lifecycle",
-      "graph_revision": "1.0.0",
+      "graph_revision": "1.1.0",
       "component_id": "INSTITUTIONAL-PROPOSALS",
       "workflow_id": "institutional-proposal.v1",
       "diagram_order": 1,
       "source_references": [
         "src/riverview_core/resident_execution/proposals.py",
+        "src/riverview_core/resident_execution/proposal_lifecycle.py",
+        "src/riverview_core/resident_execution/pipeline.py",
+        "src/riverview_core/resident_execution/service.py",
         "src/riverview_core/resident_execution/conversation.py",
         "src/riverview_core/resident_execution/migrations/0010_institutional_proposal_registry.sql",
-        "src/riverview_core/status_dashboard/server.py"
+        "src/riverview_core/status_dashboard/server.py",
+        "scripts/run_grace_execution_service.py"
       ],
       "documentation_references": [
         "docs/components/INSTITUTIONAL_PROPOSALS.md",
@@ -1874,6 +1878,8 @@
       ],
       "verification_evidence": [
         "tests/test_institutional_proposals.py",
+        "tests/test_proposal_work_order_lifecycle.py",
+        "tests/test_grace_execution.py",
         "tests/test_resident_conversation.py"
       ],
       "nodes": [
@@ -1959,17 +1965,20 @@
         },
         {
           "id": "rv:grace:institutional-proposal-lifecycle:steward-decision",
-          "node_revision": "1.0.0",
+          "node_revision": "1.1.0",
           "type": "decision",
-          "label": "Steward may decide an exact current revision for a stated purpose; proposal approval alone does not dispatch work",
+          "label": "Authenticated Steward decides an exact current content digest and revision for a stated purpose; approval is not execution authorization",
           "source_references": [
-            "src/riverview_core/resident_execution/proposals.py"
+            "src/riverview_core/resident_execution/proposals.py",
+            "src/riverview_core/resident_execution/proposal_lifecycle.py",
+            "src/riverview_core/status_dashboard/server.py"
           ],
           "documentation_references": [
             "docs/components/INSTITUTIONAL_PROPOSALS.md"
           ],
           "verification_evidence": [
-            "tests/test_institutional_proposals.py"
+            "tests/test_institutional_proposals.py",
+            "tests/test_proposal_work_order_lifecycle.py"
           ]
         },
         {
@@ -2005,9 +2014,9 @@
         },
         {
           "id": "rv:grace:institutional-proposal-lifecycle:proposal-ready",
-          "node_revision": "1.0.0",
+          "node_revision": "1.1.0",
           "type": "exit",
-          "label": "Draft is searchable and reviewable; separate authorized proposal-to-work-order transaction remains a later integration",
+          "label": "Draft remains independently searchable and reviewable; only an authenticated exact-revision decision can set approval",
           "source_references": [
             "src/riverview_core/resident_execution/proposals.py"
           ],
@@ -2016,6 +2025,126 @@
           ],
           "verification_evidence": [
             "tests/test_institutional_proposals.py"
+          ]
+        },
+        {
+          "id": "rv:grace:institutional-proposal-lifecycle:decision-eligibility",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Recheck Steward session, current proposal revision and content digest; reject stale, blocked, expired, or unresolved conditional reviews",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/resident_execution/proposal_lifecycle.py",
+            "src/riverview_core/resident_execution/proposals.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_PROPOSALS.md"
+          ],
+          "verification_evidence": [
+            "tests/test_proposal_work_order_lifecycle.py"
+          ]
+        },
+        {
+          "id": "rv:grace:institutional-proposal-lifecycle:promotion-authority",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Check current approved revision and exact objective.submit grant before reserving work-order intake",
+          "source_references": [
+            "src/riverview_core/resident_execution/proposal_lifecycle.py",
+            "src/riverview_core/resident_execution/pipeline.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_PROPOSALS.md"
+          ],
+          "verification_evidence": [
+            "tests/test_proposal_work_order_lifecycle.py"
+          ]
+        },
+        {
+          "id": "rv:grace:institutional-proposal-lifecycle:objective-intake",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Submit or recover one deterministic existing pipeline objective with immutable proposal revision, approval, grant, source, privacy, retention, purpose, and criteria provenance",
+          "source_references": [
+            "src/riverview_core/resident_execution/proposal_lifecycle.py",
+            "src/riverview_core/resident_execution/pipeline.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_PROPOSALS.md"
+          ],
+          "verification_evidence": [
+            "tests/test_proposal_work_order_lifecycle.py"
+          ]
+        },
+        {
+          "id": "rv:grace:institutional-proposal-lifecycle:dispatch-verification",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Existing Grace/CME service performs separately authorized assignment dispatch, worker execution, independent verification, and durable proposal linkage",
+          "source_references": [
+            "src/riverview_core/resident_execution/service.py",
+            "src/riverview_core/resident_execution/pipeline.py",
+            "scripts/run_grace_execution_service.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_PROPOSALS.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_proposal_work_order_lifecycle.py",
+            "tests/test_grace_execution.py"
+          ]
+        },
+        {
+          "id": "rv:grace:institutional-proposal-lifecycle:missing-authority",
+          "node_revision": "1.0.0",
+          "type": "escalation",
+          "label": "Missing objective.submit prevents promotion; missing assignment.create is surfaced from dispatch diagnostics while approval remains durable",
+          "source_references": [
+            "src/riverview_core/resident_execution/proposal_lifecycle.py",
+            "src/riverview_core/resident_execution/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_PROPOSALS.md",
+            "docs/components/INSTITUTIONAL_PROPOSALS_FLOW.md"
+          ],
+          "verification_evidence": [
+            "tests/test_proposal_work_order_lifecycle.py"
+          ]
+        },
+        {
+          "id": "rv:grace:institutional-proposal-lifecycle:promotion-retry",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Retry deterministic objective intake after service restart only after validating actor, proposal digest, criteria, grant, source and approval event; do not duplicate objective or assignment",
+          "source_references": [
+            "src/riverview_core/resident_execution/proposal_lifecycle.py",
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_PROPOSALS.md",
+            "docs/components/INSTITUTIONAL_PROPOSALS_FLOW.md"
+          ],
+          "verification_evidence": [
+            "tests/test_proposal_work_order_lifecycle.py"
+          ]
+        },
+        {
+          "id": "rv:grace:institutional-proposal-lifecycle:verified-result",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "Worker, verification, artifacts and outcomes are durably linked to the exact approved proposal revision; verification is not Steward acceptance",
+          "source_references": [
+            "src/riverview_core/resident_execution/proposals.py",
+            "src/riverview_core/resident_execution/proposal_lifecycle.py",
+            "src/riverview_core/resident_execution/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_PROPOSALS.md"
+          ],
+          "verification_evidence": [
+            "tests/test_proposal_work_order_lifecycle.py"
           ]
         }
       ],
@@ -2068,6 +2197,65 @@
           "to": "rv:grace:institutional-proposal-lifecycle:proposal-ready",
           "type": "runtime_transition",
           "label": "decision belongs to exact revision and purpose"
+        },
+        {
+          "from": "rv:grace:institutional-proposal-lifecycle:steward-decision",
+          "to": "rv:grace:institutional-proposal-lifecycle:decision-eligibility",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:institutional-proposal-lifecycle:decision-eligibility",
+          "to": "rv:grace:institutional-proposal-lifecycle:proposal-ready",
+          "type": "runtime_transition",
+          "label": "revision-bound APPROVE, REQUEST_CHANGES, DEFER, or REJECT is appended"
+        },
+        {
+          "from": "rv:grace:institutional-proposal-lifecycle:proposal-ready",
+          "to": "rv:grace:institutional-proposal-lifecycle:promotion-authority",
+          "type": "runtime_transition",
+          "label": "separate explicit promotion request"
+        },
+        {
+          "from": "rv:grace:institutional-proposal-lifecycle:promotion-authority",
+          "to": "rv:grace:institutional-proposal-lifecycle:objective-intake",
+          "type": "runtime_transition",
+          "label": "exact objective.submit grant passes"
+        },
+        {
+          "from": "rv:grace:institutional-proposal-lifecycle:promotion-authority",
+          "to": "rv:grace:institutional-proposal-lifecycle:missing-authority",
+          "type": "escalation",
+          "label": "missing or denied objective.submit"
+        },
+        {
+          "from": "rv:grace:institutional-proposal-lifecycle:objective-intake",
+          "to": "rv:grace:institutional-proposal-lifecycle:dispatch-verification",
+          "type": "runtime_transition",
+          "label": "grounding and existing Grace execution continue from durable objective state"
+        },
+        {
+          "from": "rv:grace:institutional-proposal-lifecycle:dispatch-verification",
+          "to": "rv:grace:institutional-proposal-lifecycle:verified-result",
+          "type": "verification",
+          "label": "worker completion is independently verified and linked to approved revision"
+        },
+        {
+          "from": "rv:grace:institutional-proposal-lifecycle:dispatch-verification",
+          "to": "rv:grace:institutional-proposal-lifecycle:missing-authority",
+          "type": "escalation",
+          "label": "assignment.create denied; approval and proposal history remain unchanged"
+        },
+        {
+          "from": "rv:grace:institutional-proposal-lifecycle:objective-intake",
+          "to": "rv:grace:institutional-proposal-lifecycle:promotion-retry",
+          "type": "diagnostic_branch",
+          "label": "interrupted intake or evidence grounding"
+        },
+        {
+          "from": "rv:grace:institutional-proposal-lifecycle:promotion-retry",
+          "to": "rv:grace:institutional-proposal-lifecycle:objective-intake",
+          "type": "recovery_route",
+          "label": "idempotent recovery after exact authority recheck"
         }
       ]
     },
@@ -12058,14 +12246,21 @@
     "rv:event-processor:assignment-progression:startup-preflight",
     "rv:event-processor:assignment-progression:stop",
     "rv:grace:institutional-proposal-lifecycle:authorize-and-bind",
+    "rv:grace:institutional-proposal-lifecycle:decision-eligibility",
+    "rv:grace:institutional-proposal-lifecycle:dispatch-verification",
     "rv:grace:institutional-proposal-lifecycle:idempotent-recovery",
+    "rv:grace:institutional-proposal-lifecycle:missing-authority",
+    "rv:grace:institutional-proposal-lifecycle:objective-intake",
     "rv:grace:institutional-proposal-lifecycle:persist-draft",
+    "rv:grace:institutional-proposal-lifecycle:promotion-authority",
+    "rv:grace:institutional-proposal-lifecycle:promotion-retry",
     "rv:grace:institutional-proposal-lifecycle:proposal-ready",
     "rv:grace:institutional-proposal-lifecycle:provider-failure",
     "rv:grace:institutional-proposal-lifecycle:reason-or-clarify",
     "rv:grace:institutional-proposal-lifecycle:search-revise-review",
     "rv:grace:institutional-proposal-lifecycle:steward-decision",
     "rv:grace:institutional-proposal-lifecycle:steward-source",
+    "rv:grace:institutional-proposal-lifecycle:verified-result",
     "rv:grace:operational-integration:assignment-fanout",
     "rv:grace:operational-integration:authority-check",
     "rv:grace:operational-integration:bounded-evidence-selection",
