@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.2
+# Revision: 1.2.3
 # Purpose: Adapt bounded Codex production and independent Markdown verification to CME
 # Execution Model: Existing leased worker action and independent verifier contract
 # Observability: Persisted artifact location, digest, criteria and verifier evidence
@@ -13,6 +13,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-OBJ-SOURCE-PROVENANCE-001 | Validate objective evidence against its immutable provenance, independently of current grounding revision
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Classify unsuccessful isolated Codex actions as retryable only while no durable artifact exists
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Resolve the current durable assignment step instead of always executing proposal step one
+# Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Constrain Codex recovery to its authenticated scope and preserve late artifacts for verification
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_codex_workflow.py
 # History: Git
@@ -133,7 +134,7 @@ class CodexWorkAction:
             "detail_code": result.detail_code,
         }
 
-    def reconcile_retryable_no_artifact_failures(self, recovery):
+    def reconcile_retryable_no_artifact_failures(self, recovery, *, scope_ref, worker_id):
         """Retry only typed Codex failures with no durable worker result or artifact."""
         try:
             repository_revision = self.adapter.repository_revision()
@@ -141,14 +142,29 @@ class CodexWorkAction:
             return []
         requeued = recovery.reconcile_codex_failures_without_artifact(
             repository_revision=repository_revision,
-            artifact_root=self.adapter.artifact_root)
+            artifact_root=self.adapter.artifact_root, scope_ref=scope_ref,
+            worker_id=worker_id)
         if not self.adapter.legacy_git_ownership_refused():
             return requeued
         legacy = recovery.reconcile_confirmed_codex_preexecution_failures(
             repository_revision=repository_revision,
             artifact_root=self.adapter.artifact_root,
+            scope_ref=scope_ref, worker_id=worker_id,
             legacy_git_refusal_verified=True)
         return requeued + legacy
+
+    def reconcile_late_artifacts(self, recovery, *, worker_adapter, worker_id,
+                                 credential, capability, scope_ref):
+        """Preserve a late artifact for independent verification without replay."""
+        try:
+            repository_revision = self.adapter.repository_revision()
+        except Exception:
+            return []
+        return recovery.reconcile_late_codex_artifacts(
+            worker_adapter=worker_adapter, worker_id=worker_id,
+            credential=credential, capability=capability, scope_ref=scope_ref,
+            artifact_root=self.adapter.artifact_root,
+            repository_revision=repository_revision)
 
 
 class CodexMarkdownVerifier:

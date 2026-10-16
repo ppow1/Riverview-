@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.2.6
+# Revision: 1.2.7
 # Purpose: Verify scoped deterministic and structured worker artifacts
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
@@ -28,6 +28,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-TEST-QUERY-FIX | Use an exact recovery-event idempotency key in the isolated fixture
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-REVIEW | Assert exhausted retry ceiling blocks resume and verified action preflight is recorded
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-TEST-SYNTAX-FIX | Correct SQL assertion continuation in isolated worker test
+# Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Verify exact-scope recovery and active long-action lease maintenance
 # Contracts: docs/development/M2.3-001_REVISION_RECORD.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -429,7 +430,7 @@ class WorkerAdapterTests(unittest.TestCase):
                            (self.assignment,))
         recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema)
         try:
-            return recovery.reconcile_expired()
+            return recovery.reconcile_expired(scope_ref=self.scope, worker_id=self.worker_id)
         finally:
             recovery.close()
 
@@ -447,6 +448,53 @@ class WorkerAdapterTests(unittest.TestCase):
             cur.execute("SELECT decision FROM worker_recovery_records WHERE assignment_id=%s",
                         (self.assignment,))
             self.assertEqual(cur.fetchone()["decision"], "retry_safe")
+
+    def test_expired_lease_reconciliation_is_limited_to_authenticated_scope(self):
+        from riverview_core.worker_adapter import ContinuousWorker
+        foreign_scope = "work-order:other-tenant"
+        foreign_assignment = self.ready_assignment(
+            scope=foreign_scope, objective="objective:foreign")
+        foreign_worker = "worker-foreign-" + uuid4().hex
+        foreign_token = self.register_as(
+            foreign_worker, ["deterministic.sha256.v1"], foreign_scope)
+        claim = self.worker.claim_next(foreign_worker, foreign_token,
+            capability="deterministic.sha256.v1", assignment_id=foreign_assignment)
+        self.assertIsNotNone(claim)
+        generation = claim["lease"]["generation"]
+        self.worker.start_assignment(foreign_assignment, foreign_worker,
+            foreign_token, generation, capability="deterministic.sha256.v1")
+        intent = self.worker.begin_execution_intent(
+            foreign_assignment, foreign_worker, foreign_token, generation,
+            "foreign-intent:" + foreign_assignment, effect_class="retry_safe",
+            capability="deterministic.sha256.v1")
+        self.admin.execute("UPDATE assignment_leases SET acquired_at=clock_timestamp()-interval '2 seconds', "
+                           "heartbeat_at=clock_timestamp()-interval '2 seconds', "
+                           "expires_at=clock_timestamp()-interval '1 second' "
+                           "WHERE assignment_id=%s", (foreign_assignment,))
+        ContinuousWorker(self.worker, self.worker_id, self.token).run_once()
+        self.assertEqual(self.ledger.get(foreign_assignment)["state"], "running")
+        self.assertEqual(self.admin.execute(
+            "SELECT status FROM worker_execution_intents WHERE intent_id=%s",
+            (intent,)).fetchone()[0], "running")
+        self.assertEqual(self.admin.execute(
+            "SELECT count(*) FROM worker_recovery_records WHERE assignment_id=%s",
+            (foreign_assignment,)).fetchone()[0], 0)
+
+    def test_long_action_heartbeats_its_lease_until_result_commit(self):
+        from riverview_core.worker_adapter import ContinuousWorker
+        assignment_id = self.ready_assignment(objective="objective:long-action")
+        def action(assignment, grounded):
+            time.sleep(1.4)
+            return {"status": "completed"}
+        worker = ContinuousWorker(self.worker, self.worker_id, self.token,
+            knowledge=self.VerifiedProvider(), lease_seconds=1, action=action,
+            action_effect_class="retry_safe", action_capability="deterministic.sha256.v1")
+        result = worker.run_once(assignment_id=assignment_id)
+        self.assertEqual(result["status"], "AWAITING_VERIFICATION")
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "awaiting_verification")
+        self.assertEqual(self.admin.execute(
+            "SELECT status FROM worker_attempts WHERE assignment_id=%s",
+            (assignment_id,)).fetchone()[0], "succeeded")
 
     def test_confirmed_legacy_codex_preexecution_failure_requeues_once(self):
         import tempfile
@@ -488,13 +536,13 @@ class WorkerAdapterTests(unittest.TestCase):
             recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema, max_retries=3)
             try:
                 result = recovery.reconcile_confirmed_codex_preexecution_failures(
-                    repository_revision="c" * 40, artifact_root=artifact_root,
+                    repository_revision="c" * 40, artifact_root=artifact_root, scope_ref=self.scope, worker_id=worker_id,
                     legacy_git_refusal_verified=True)
                 self.assertEqual(result, [{"assignment_id": assignment_id,
                     "intent_id": str(intent_id), "lease_generation": generation,
                     "decision": "retry_safe", "resulting_state": "ready"}])
                 self.assertEqual(recovery.reconcile_confirmed_codex_preexecution_failures(
-                    repository_revision="c" * 40, artifact_root=artifact_root,
+                    repository_revision="c" * 40, artifact_root=artifact_root, scope_ref=self.scope, worker_id=worker_id,
                     legacy_git_refusal_verified=True), [])
                 resumed = self.worker.claim_next(worker_id, credential,
                     assignment_id=assignment_id, lease_seconds=30,
@@ -519,14 +567,14 @@ class WorkerAdapterTests(unittest.TestCase):
                         expires_at=clock_timestamp()-interval '1 second'
                     WHERE assignment_id=%s""", (assignment_id,))
                 recovered_preexecution = recovery.reconcile_confirmed_codex_preexecution_failures(
-                    repository_revision="c" * 40, artifact_root=artifact_root,
+                    repository_revision="c" * 40, artifact_root=artifact_root, scope_ref=self.scope, worker_id=worker_id,
                     legacy_git_refusal_verified=True)
                 self.assertEqual(recovered_preexecution, [{
                     "assignment_id": assignment_id, "intent_id": str(second_intent),
                     "lease_generation": second_generation,
                     "decision": "retry_safe", "resulting_state": "ready"}])
                 self.assertEqual(recovery.reconcile_confirmed_codex_preexecution_failures(
-                    repository_revision="c" * 40, artifact_root=artifact_root,
+                    repository_revision="c" * 40, artifact_root=artifact_root, scope_ref=self.scope, worker_id=worker_id,
                     legacy_git_refusal_verified=True), [])
                 last_evidence = self.admin.execute("""SELECT payload->'recovery_evidence'
                     FROM events WHERE assignment_id=%s ORDER BY seq DESC LIMIT 1""",
@@ -659,9 +707,11 @@ class WorkerAdapterTests(unittest.TestCase):
                     "intent_id": str(intent_id), "lease_generation": generation,
                     "decision": "retry_safe", "resulting_state": "ready"}]
                 self.assertEqual(recovery.reconcile_codex_failures_without_artifact(
-                    repository_revision="c" * 40, artifact_root=artifact_root), expected)
+                    repository_revision="c" * 40, artifact_root=artifact_root,
+                    scope_ref=self.scope, worker_id=worker_id), expected)
                 self.assertEqual(recovery.reconcile_codex_failures_without_artifact(
-                    repository_revision="c" * 40, artifact_root=artifact_root), [])
+                    repository_revision="c" * 40, artifact_root=artifact_root,
+                    scope_ref=self.scope, worker_id=worker_id), [])
                 evidence = self.admin.execute("""SELECT payload->'recovery_evidence'
                     FROM events WHERE assignment_id=%s ORDER BY seq DESC LIMIT 1""",
                     (assignment_id,)).fetchone()[0]
@@ -727,7 +777,8 @@ class WorkerAdapterTests(unittest.TestCase):
             recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema, max_retries=3)
             try:
                 self.assertEqual(recovery.reconcile_codex_failures_without_artifact(
-                    repository_revision="c" * 40, artifact_root=artifact_root), [])
+                    repository_revision="c" * 40, artifact_root=artifact_root,
+                    scope_ref=self.scope, worker_id=worker_id), [])
             finally:
                 recovery.close()
         self.assertEqual(self.ledger.get(assignment_id)["state"], "awaiting_steward")
@@ -925,7 +976,7 @@ class WorkerAdapterTests(unittest.TestCase):
                            (self.assignment,))
         recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema)
         try:
-            outcomes = recovery.reconcile_expired()
+            outcomes = recovery.reconcile_expired(scope_ref=self.scope, worker_id=self.worker_id)
         finally:
             recovery.close()
         self.assertEqual(outcomes[0]["decision"], "result_preserved")
@@ -945,7 +996,7 @@ class WorkerAdapterTests(unittest.TestCase):
         self.assertEqual(self.ledger.get(self.assignment)["state"], "completed")
         recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema)
         try:
-            self.assertEqual(recovery.reconcile_expired(), [])
+            self.assertEqual(recovery.reconcile_expired(scope_ref=self.scope, worker_id=self.worker_id), [])
         finally:
             recovery.close()
         self.assertEqual(self.ledger.get(self.assignment)["state"], "completed")

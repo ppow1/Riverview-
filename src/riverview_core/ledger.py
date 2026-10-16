@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/ledger.py
 # Component: CORE-LEDGER
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: SQLite development assignment and event ledger
 # Execution Model: Request-driven library
 # Observability: SQLite records and event queries
@@ -31,7 +31,7 @@ TRANSITIONS = {
     "awaiting_verification": {"completed", "rework_required", "blocked"},
     "rework_required": {"ready", "blocked", "cancelled"},
     "blocked": {"ready", "cancelled", "awaiting_steward"},
-    "awaiting_steward": {"ready", "cancelled"},
+    "awaiting_steward": {"ready", "cancelled", "awaiting_verification"},
     "completed": set(),
     "cancelled": set(),
 }

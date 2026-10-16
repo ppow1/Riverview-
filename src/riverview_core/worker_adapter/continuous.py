@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/continuous.py
 # Component: WORKER-ADAPTER
-# Revision: 1.1.3
+# Revision: 1.1.4
 # Purpose: Execute bounded capability work with pinned source-digest provenance
 # Execution Model: Repeatable poll cycle; durable claims and outcomes in PostgreSQL
 # Observability: Assignment state, knowledge observations, attempts, and results
@@ -17,6 +17,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-BOUNDED-RETRY-001 | Persist sanitized retryable Codex failures as blocked no-artifact outcomes
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001 | Reground and safely requeue the same Codex assignment after a recoverable evidence wait
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-REVIEW | Revalidate both evidence and action preflight before same-assignment recovery
+# Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Authenticate recovery scope and heartbeat leases throughout bounded actions
 # Contracts: docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -27,6 +28,7 @@ import json
 import logging
 import threading
 import time
+from contextlib import contextmanager
 from collections.abc import Mapping
 
 from .adapter import PostgresWorkerAdapter, WorkerAdapterError
@@ -68,6 +70,36 @@ class ContinuousWorker:
             raise ValueError("recovery_max_retries must be None or an integer from 0 to 100")
         self.recovery_max_retries = recovery_max_retries
         self._knowledge_slots = threading.BoundedSemaphore(4)
+        action_timeout = getattr(action, "timeout_seconds", 0)
+        self.action_lease_seconds = max(
+            lease_seconds,
+            int(action_timeout) + 30 if isinstance(action_timeout, (int, float)) else lease_seconds)
+
+    @contextmanager
+    def _lease_heartbeat(self, assignment_id, generation):
+        """Keep a long bounded action leased while another worker polls recovery."""
+        stopped = threading.Event()
+        failures = []
+        interval = max(0.25, min(5.0, self.action_lease_seconds / 3))
+
+        def maintain():
+            while not stopped.wait(interval):
+                try:
+                    self.adapter.scheduler.heartbeat(
+                        assignment_id, self.worker_id, generation,
+                        lease_seconds=self.action_lease_seconds)
+                except Exception as exc:
+                    failures.append(type(exc).__name__)
+                    stopped.set()
+
+        thread = threading.Thread(target=maintain, name="assignment-lease-heartbeat",
+                                  daemon=True)
+        thread.start()
+        try:
+            yield failures
+        finally:
+            stopped.set()
+            thread.join(timeout=2)
 
     @staticmethod
     def _default_action(assignment, grounded):
@@ -148,19 +180,29 @@ class ContinuousWorker:
     def run_once(self, *, assignment_id=None):
         """Recover normally, or claim one explicitly selected assignment only."""
         if assignment_id is None:
+            scope_ref = self.adapter.authenticated_scope(
+                self.worker_id, self.credential, self.action_capability)
             recovery = PostgresRecoveryCoordinator(self.adapter.dsn, schema=self.adapter.schema,
                                                    max_retries=self.recovery_max_retries)
             try:
-                recovery.reconcile_expired()
+                recovery.reconcile_expired(scope_ref=scope_ref, worker_id=self.worker_id)
+                late_artifact_reconcile = getattr(
+                    self.action, "reconcile_late_artifacts", None)
+                if callable(late_artifact_reconcile):
+                    late_artifact_reconcile(
+                        recovery, worker_adapter=self.adapter, worker_id=self.worker_id,
+                        credential=self.credential, capability=self.action_capability,
+                        scope_ref=scope_ref)
                 reconcile_action = getattr(self.action, "reconcile_retryable_no_artifact_failures", None)
                 if callable(reconcile_action):
-                    reconcile_action(recovery)
+                    reconcile_action(recovery, scope_ref=scope_ref,
+                                     worker_id=self.worker_id)
                 self._resume_verified_waiting_assignment(recovery)
             finally:
                 recovery.close()
         claim = self.adapter.claim_next(self.worker_id, self.credential,
                                         capability=self.action_capability,
-                                        lease_seconds=self.lease_seconds,
+                                        lease_seconds=self.action_lease_seconds,
                                         assignment_id=assignment_id)
         if claim is None:
             return {"status": "IDLE"}
@@ -203,7 +245,10 @@ class ContinuousWorker:
             effect_class=self.action_effect_class,
             capability=self.action_capability)
         try:
-            data = self.action(assignment, regrounded)
+            with self._lease_heartbeat(assignment["id"], lease["generation"]) as heartbeat_failures:
+                data = self.action(assignment, regrounded)
+                if heartbeat_failures:
+                    raise WorkerAdapterError("assignment lease heartbeat was lost during action")
             attempt_key = f"continuous:{assignment['id']}:{lease['generation']}"
             if isinstance(data, str) and self.action_capability == self.ACTION:
                 outcome = self.adapter.execute_sha256(

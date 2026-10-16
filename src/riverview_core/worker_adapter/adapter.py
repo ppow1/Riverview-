@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.18
+# Revision: 1.0.19
 # Purpose: Authenticate fixed engineering-test work under exact assignment grants
 # Execution Model: Request-driven local task execution with PostgreSQL durability
 # Observability: Worker identity, capability, attempt outcome, and result digest
@@ -18,6 +18,7 @@
 # Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Pass an exact assignment pin through the authorized claim
 # Changed: 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-001 | Register the separate scoped Codex source-change capability under exact assignment.execute authority
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001 | Select only exact-scope, expired-lease WAITING_FOR_EVIDENCE assignments after current worker authorization
+# Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Expose authenticated worker scope to recovery before side effects
 # Contracts: docs/components/WORKER_ADAPTER.md; docs/architecture/CORE_CONTRACT.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -138,6 +139,13 @@ class PostgresWorkerAdapter:
         scope_ref = self._authenticated_worker(cur, worker_id, credential, capability)
         if scope_ref != authority_ref:
             raise WorkerAuthorizationError("worker scope does not match assignment authority")
+
+    def authenticated_scope(self, worker_id, credential, capability):
+        """Return a worker scope only after validating its current exact grant."""
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                return self._authenticated_worker(cur, worker_id, credential, capability)
 
     def claim_next(self, worker_id, credential, *, capability=None, lease_seconds=30,
                    assignment_id=None):
