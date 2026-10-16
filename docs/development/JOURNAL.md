@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.143
+**Document Revision:** 1.0.144
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
@@ -30,6 +30,7 @@
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PR45-REVISION-AUDIT | Record and repair predecessor evidence gaps found after integration
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PR46-RECONCILE | Reconcile current integration head and preserve resident-knowledge changes unchanged
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PR42-INTEGRATION-RECONCILE | Reconcile website work with latest integration through PR #63 and record release gates.
+**Changed:** 2026-10-16 UTC | RV-WEBSITE-PR42-EXACT-CI | Record exact-head CI and browser verification after integration reconciliation.
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PR42-RECONCILE | Preserve PR #44 integration journal entry and record current base reconciliation
 ## 2026-10-16 UTC — RV-GRACE-VERIFIED-GROUNDING-RESUME-001
 
@@ -2138,10 +2139,26 @@ PostgreSQL-dependent tests skipped because `RIVERVIEW_TEST_PG_DSN` is not
 configured. Process graph validation passed at 19 workflows / 478 nodes; the
 controlled revision audit passed with zero findings. The account-cookie Firefox fixture was rerun after the merge and passed with no
 browser errors: both registry/detail reads carried the synthetic account cookie,
-omitted Authorization, and rendered the fixture node. Report: `evidence/checkouts/WEBSITE-PR42-INTEGRATION/20261016T164500Z-account-cookie/`. The prior exact-head CI run
-on `aeaaf4b` does not cover the reconciled head; new exact-head CI is pending push.
+omitted Authorization, and rendered the fixture node. Report: `evidence/checkouts/WEBSITE-PR42-INTEGRATION/20261016T164500Z-account-cookie/`. Exact-head controlled CI run `38934516118` passed on merge commit
+`7ba28efa8591ffd91fbb55f62c1024457f427936`: 466 tests passed, 2 skipped;
+process graph and controlled revision checks passed. The independent Firefox
+account-cookie report is checksummed under
+`evidence/checkouts/WEBSITE-PR42-INTEGRATION/20261016T164500Z-account-cookie/`.
+A following documentation-only commit requires its own exact-head CI run.
 
 PR #42 remains draft with no submitted review or requested reviewer. Its base
 branch advanced, and GitHub reported the former head as dirty. The punch list
 records the current integration baseline and release gates. No production
 package, service, objective, or database was changed.
+
+
+## 2026-10-16 UTC — RV-WEBSITE-PR42-EXACT-CI
+
+The current integration merge `7ba28efa8591ffd91fbb55f62c1024457f427936`
+passed exact-head controlled CI run `38934516118` (466 tests, 2 skipped; graph
+19 workflows / 478 nodes; revision audit PASS). Isolated Firefox account-cookie
+verification passed against the reconciled website source with no browser errors;
+registry and detail requests carried the synthetic account cookie without an
+Authorization header. This is fixture evidence, not production acceptance. A
+documentation-only follow-up is being committed separately, so its new commit
+needs its own exact-head CI. PR #42 remains draft and unapproved.

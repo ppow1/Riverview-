@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md
 Component: STEWARD-DASHBOARD / WEBSITE
-File Revision: 1.0.25
+File Revision: 1.0.26
 Purpose: Consolidate traceable website improvement observations and separate them from accepted requirements and completed work
 Authority: Backlog recovery only; no new product requirement or acceptance decision
 Changed: 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Recover and prioritize documented website observations
@@ -36,6 +36,7 @@ Changed: 2026-10-16 UTC | RV-WEBSITE-PR45-RECONCILE | Reconcile the website bran
 Changed: 2026-10-16 UTC | RV-WEBSITE-PL038-POST-PR45 | Record integrated browser regression and updated 459-node graph baseline.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PR46-RECONCILE | Update PR #42's integration baseline through PR #46 without editing resident-reasoning changes.
 Changed: 2026-10-16 UTC | RV-WEBSITE-PR42-INTEGRATION-RECONCILE | Reconcile through PR #63, distinguish review/deployment gates, and prepare production acceptance.
+Changed: 2026-10-16 UTC | RV-WEBSITE-PR42-EXACT-CI | Record exact-head CI/browser evidence and current draft review gate.
 History: Git
 -->
 # Recovered Riverview website punch list
@@ -150,7 +151,7 @@ Disposition uses the requested categories. “Implemented but awaiting productio
 
 ### Current implementation order and readiness
 
-1. **PR #42:** reconciled through the current integration branch at `af87c1a1b8ef4deeb8770c64da8bb4556bc85866`, including merged PRs #44–#63. PR #44 work-order intake, PR #45 same-source retry, PR #46 bounded grounding, and later Codex 1 Engineering corrections remain inherited from integration; no functional file overlap was found after PR #46. The website branch merge is local pending exact-head CI. PR #42 remains draft/open with no submitted review or requested reviewer; approval and production deployment have not occurred.
+1. **PR #42:** reconciled through the current integration branch at `af87c1a1b8ef4deeb8770c64da8bb4556bc85866`, including merged PRs #44–#63. PR #44 work-order intake, PR #45 same-source retry, PR #46 bounded grounding, and later Codex 1 Engineering corrections remain inherited from integration; no functional file overlap was found after PR #46. Exact-head CI run `38934516118` passed on merge commit `7ba28efa8591ffd91fbb55f62c1024457f427936` (466 passed, 2 skipped; graph 19/478; revision audit passed). The isolated account-cookie browser report is linked under PL-NEW-025. This documentation follow-up requires fresh exact-head CI. PR #42 remains draft/open with no submitted review or requested reviewer; approval and production deployment have not occurred.
 2. **PL-NEW-038:** searchable graph registry and declared traceability UI are implemented and isolated-browser verified. Full item remains blocked on authoritative freshness metadata and attributable semantic test-coverage outcomes; the canonical API exposes references only. Its browser report is linked in the audit table.
 3. **Independent website-scope implementations already on this branch:** PL-003/004/006/008/010/011/014/015/016/019/020/023/024/026/027/036. Isolated browser or documented audit evidence is linked in the item rows and journal. Production acceptance remains separate and pending controlled release.
 4. **Next high-priority source contracts:** PL-018 resident conversation titles/history search (conversation integration); PL-001/002/005 assignment intent and blocker records (assignment intake/Engineering); PL-007/009 worker thresholds and inventory (worker/CME integration); PL-012 event task/diagnostic linkage (event integration); PL-028/029/032 notification/decision lifecycle (notification/CME integration). The exact known gaps are recorded in the audit table. No fabricated fields or backend edits are allowed in this website track.
@@ -228,6 +229,8 @@ The website track owns dashboard presentation and navigation, primarily `status_
 - **1.0.24 — 2026-10-16:** Reconcile the documented integration baseline through PR #46 while leaving its resident-knowledge implementation untouched. Predecessor preserved in `.riverview-backups/20261015T213508120442Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
 
 - **1.0.25 — 2026-10-16:** Reconcile the current integration through PR #63 and distinguish PR review, manual deployment procedure, and production acceptance. Predecessor preserved in `.riverview-backups/20261016T164347017851Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
+
+- **1.0.26 — 2026-10-16:** Record exact-head CI/browser evidence and the renewed review gate after the PR #63 reconciliation. Predecessor preserved in `.riverview-backups/20261016T164818266451Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
 
 - **1.0.21 — 2026-10-16:** Record PL-038 searchable catalog implementation and full audit dispositions for PL-NEW-001–041; retain the freshness/coverage contract blocker and production-acceptance boundary. Predecessor preserved in `.riverview-backups/20261015T211442725960Z/docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md`.
 
