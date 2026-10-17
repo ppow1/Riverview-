@@ -1471,7 +1471,7 @@
     },
     {
       "graph_id": "rv:comms5:camrui-adapter",
-      "graph_revision": "1.0.6",
+      "graph_revision": "1.0.7",
       "component_id": "COMMS5-CAMRUI-ADAPTER",
       "workflow_id": "comms5.camrui.compatibility.v1",
       "diagram_order": 91,
@@ -1574,9 +1574,9 @@
         },
         {
           "id": "rv:comms5:camrui-adapter:steward-credential-lifecycle",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "process",
-          "label": "Operator validates the shared Steward login/legacy bearer and may rotate only after explicit confirmation; protected rollback restores both clients",
+          "label": "Operator validates the shared Steward login/legacy bearer and may rotate only after explicit confirmation; protected rollback restores both clients and retries readiness within 15 seconds",
           "source_references": [
             "scripts/rotate_comms5_steward_credential.py",
             "deploy/comms5/caddy-comms5-oauth-block.caddy",
@@ -1584,6 +1584,51 @@
           ],
           "documentation_references": [
             "docs/components/COMMS5_OAUTH_TROUBLESHOOTING.md",
+            "docs/operations/RIVERVIEW_MACHINE_CONNECTIONS_AND_COMMS5_RECOVERY_2026-10-17.md"
+          ],
+          "verification_evidence": [
+            "tests/test_comms5_steward_credential.py"
+          ]
+        },
+        {
+          "id": "rv:comms5:camrui-adapter:rotation-readiness",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Retry post-restart service and endpoint readiness within one 15-second deadline using exact expected HTTP statuses",
+          "source_references": [
+            "scripts/rotate_comms5_steward_credential.py"
+          ],
+          "documentation_references": [
+            "docs/components/COMMS5_OAUTH_TROUBLESHOOTING.md"
+          ],
+          "verification_evidence": [
+            "tests/test_comms5_steward_credential.py"
+          ]
+        },
+        {
+          "id": "rv:comms5:camrui-adapter:rotation-readiness-timeout",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Readiness deadline emits only the stable failed-check identifier and triggers credential predecessor restoration",
+          "source_references": [
+            "scripts/rotate_comms5_steward_credential.py"
+          ],
+          "documentation_references": [
+            "docs/components/COMMS5_OAUTH_TROUBLESHOOTING.md"
+          ],
+          "verification_evidence": [
+            "tests/test_comms5_steward_credential.py"
+          ]
+        },
+        {
+          "id": "rv:comms5:camrui-adapter:rotation-predecessor-rollback",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Atomically restore both protected predecessor files and run bounded service recovery checks",
+          "source_references": [
+            "scripts/rotate_comms5_steward_credential.py"
+          ],
+          "documentation_references": [
             "docs/operations/RIVERVIEW_MACHINE_CONNECTIONS_AND_COMMS5_RECOVERY_2026-10-17.md"
           ],
           "verification_evidence": [
@@ -1616,6 +1661,26 @@
           "from": "rv:comms5:camrui-adapter:steward-credential-lifecycle",
           "to": "rv:comms5:camrui-adapter:authenticated-ingress",
           "type": "prerequisite"
+        },
+        {
+          "from": "rv:comms5:camrui-adapter:steward-credential-lifecycle",
+          "to": "rv:comms5:camrui-adapter:rotation-readiness",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:comms5:camrui-adapter:rotation-readiness",
+          "to": "rv:comms5:camrui-adapter:rotation-readiness-timeout",
+          "type": "diagnostic_branch"
+        },
+        {
+          "from": "rv:comms5:camrui-adapter:rotation-readiness-timeout",
+          "to": "rv:comms5:camrui-adapter:rotation-predecessor-rollback",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:comms5:camrui-adapter:rotation-predecessor-rollback",
+          "to": "rv:comms5:camrui-adapter:rotation-readiness",
+          "type": "verification"
         }
       ]
     },
@@ -13378,6 +13443,9 @@
     "rv:comms5:camrui-adapter:contract-call",
     "rv:comms5:camrui-adapter:hop-validation",
     "rv:comms5:camrui-adapter:not-implemented",
+    "rv:comms5:camrui-adapter:rotation-predecessor-rollback",
+    "rv:comms5:camrui-adapter:rotation-readiness",
+    "rv:comms5:camrui-adapter:rotation-readiness-timeout",
     "rv:comms5:camrui-adapter:steward-credential-lifecycle",
     "rv:event-processor:assignment-progression:advance",
     "rv:event-processor:assignment-progression:baseline-jump",

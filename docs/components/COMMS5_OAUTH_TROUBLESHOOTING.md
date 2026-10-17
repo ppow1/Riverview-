@@ -2,13 +2,14 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_OAUTH_TROUBLESHOOTING.md
 Component: COMMS5-OAUTH-IONOGE
-File Revision: 1.0.2
+File Revision: 1.0.3
 Status: Operational troubleshooting record
 Date: 2026-10-17
 Purpose: Diagnose and recover Comms5 OAuth-to-Camrui authenticated MCP forwarding.
 Changed: 2026-10-17 UTC | RV-COMMS5-OAUTH-FORWARD-HEADERS-001 | Record verified principal/marker defect, recovery, and acceptance evidence.
 Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-CREDENTIAL-001 | Explain authorization credential dependencies and guarded rotation.
 Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-CREDENTIAL-002 | Record direct-bearer inventory limits and verified helper preflight.
+Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-ROTATION-HEALTH-REPAIR | Record bounded readiness retries, sanitized failure IDs, and incident-cause limitation.
 History: New file; no predecessor existed.
 Authority: Existing OAuth and Steward authority boundaries; no grant changes.
 -->
@@ -68,4 +69,12 @@ sudo python3 /usr/local/sbin/rotate_comms5_steward_credential.py --check
 
 The helper was installed from merged PR #86 at `/usr/local/sbin/rotate_comms5_steward_credential.py` (SHA-256 `9910a03d74c538466d36888950a3186d77e6362ced45125fc26dac77b0458224`, root:root/0755). On 2026-10-17 its read-only `--check` passed against live systemd wiring and protected files; service health/discovery and unauthenticated 401 checks also passed. No credential was rotated and no service was restarted.
 
-Use the single Windows PowerShell 5.1 operator script documented in the machine-connection runbook. It verifies the exact helper hash and live service readiness, then requires the exact text `ROTATE` before generation and installation. It streams the new value over strict-host-verified SSH, leaves it only on the operator clipboard, and prints no secret. The utility validates both service environment-file references, refuses mismatched/duplicated entries, writes protected predecessors, atomically updates only the shared client-secret setting, restarts only OAuth and Caddy, and checks OAuth health/discovery plus anonymous MCP rejection. A failure restores the prior environment files and attempts the same service health checks. Complete OAuth in the browser using the clipboard and clear it. See the runbook for manual predecessor recovery if automatic service recovery is unverified.
+### Rotation post-restart readiness failure
+
+The first rotation attempt restarted OAuth and Caddy, failed post-restart validation, and restored both credential files byte-for-byte from the protected predecessor. Available incident evidence does not identify which validation failed or establish its timestamp, so the historical failure cause remains **unconfirmed**. The prior 2026-10-17 OAuth restart record independently shows that an immediate public probe can race listener startup: it returned 502 before loopback `/healthz` became 200, after which discovery and MCP checks passed. This proves a readiness-timing failure is possible, not that it caused the rotation incident.
+
+The corrected helper retries each post-restart readiness check within one shared 15-second monotonic deadline. It preserves expected HTTP responses: loopback OAuth health 200, public authorization-server discovery 200, and unauthenticated Comms5 MCP 401. Service-active checks are included in the same deadline. If the deadline expires, sanitized output identifies only the failed check, for example `readiness_deadline_exceeded:oauth_loopback_health_200`; raw curl/systemd output is not included. Rotation then restores both protected predecessor files atomically and performs the same bounded service recovery checks. `predecessor_restored` means those checks passed; `predecessor_files_restored_service_recovery_unverified` requires the documented operator recovery. No production rotation or service restart was performed for this code correction.
+
+Check IDs are `oauth_service_active`, `caddy_service_active`, `oauth_loopback_health_200`, `oauth_public_discovery_200`, and `mcp_anonymous_rejected_401`. Restart command failures identify the service unit separately and do not enter the readiness retry window.
+
+Use the single Windows PowerShell 5.1 operator script documented in the machine-connection runbook. It verifies the exact helper hash and live service readiness, then requires the exact text `ROTATE` before generation and installation. It streams the new value over strict-host-verified SSH, leaves it only on the operator clipboard, and prints no secret. The utility validates both service environment-file references, refuses mismatched/duplicated entries, writes protected predecessors, atomically updates only the shared client-secret setting, and restarts only OAuth and Caddy. Post-restart checks use the 15-second bounded readiness contract above. Complete OAuth in the browser using the clipboard and clear it. See the runbook for manual predecessor recovery if automatic service recovery is unverified.

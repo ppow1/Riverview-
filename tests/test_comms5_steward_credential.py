@@ -2,20 +2,22 @@
 # RIVERVIEW CONTROLLED TEST
 # File: tests/test_comms5_steward_credential.py
 # Component: COMMS5-OAUTH-IONOGE
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify safe shared Comms5 credential validation, rotation and rollback
 # Execution Model: Isolated unit test
 # Observability: unittest assertions; test values are synthetic only
 # Dependencies: Python standard library; scripts/rotate_comms5_steward_credential.py
 # Authority: Temporary files only; never contacts services or production
-# Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-CREDENTIAL-001 | Initial isolated coverage
+# Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-ROTATION-HEALTH-REPAIR | Cover delayed readiness, deadline diagnostics and rollback
 # Contracts: docs/components/COMMS5_OAUTH_TROUBLESHOOTING.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
 """Isolated tests for Comms5 Steward credential provisioning and rollback."""
 
+import hashlib
 import importlib.util
 import os
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -54,8 +56,19 @@ class CredentialRotationTests(unittest.TestCase):
 
     def _fake_run(self, command, timeout=20):
         if "curl" in command and "-w" in command:
-            return CompletedProcess(command, 0, "401", "")
+            status = "401" if command[-1].endswith("/mcp") else "200"
+            return CompletedProcess(command, 0, status, "")
         return CompletedProcess(command, 0, "", "")
+
+    class FakeClock:
+        def __init__(self):
+            self.now = 0.0
+
+        def monotonic(self):
+            return self.now
+
+        def sleep(self, seconds):
+            self.now += seconds
 
     def test_valid_configuration_reports_no_secret(self):
         result = MODULE.inspect_configuration(
@@ -92,6 +105,44 @@ class CredentialRotationTests(unittest.TestCase):
         self.assertEqual(0o600, (backup / "caddy.env").stat().st_mode & 0o777)
         self.assertIn(self.old, (backup / "caddy.env").read_text())
 
+    def test_delayed_readiness_retries_then_succeeds_with_exact_statuses(self):
+        clock = self.FakeClock()
+        attempts = {"oauth_health": 0}
+        observed_statuses = []
+
+        def delayed_run(command, timeout=20):
+            if "curl" in command and "-w" in command:
+                url = command[-1]
+                expected = "401" if url.endswith("/mcp") else "200"
+                if url.endswith("/healthz"):
+                    attempts["oauth_health"] += 1
+                    if attempts["oauth_health"] == 1:
+                        observed_statuses.append((url, "503"))
+                        return CompletedProcess(command, 0, "503", "")
+                observed_statuses.append((url, expected))
+                return CompletedProcess(command, 0, expected, "")
+            return CompletedProcess(command, 0, "", "")
+
+        self.assertTrue(
+            MODULE._restart_and_health(
+                delayed_run,
+                monotonic=clock.monotonic,
+                sleep=clock.sleep,
+            )
+        )
+        self.assertEqual(0.5, clock.now)
+        self.assertEqual(["503", "200", "200", "401"], [status for _, status in observed_statuses])
+
+    def test_operator_launcher_uses_checkout_scripts_parent_and_verified_target(self):
+        launcher = (ROOT / "scripts" / "Invoke-RiverviewComms5StewardCredentialRotation.ps1").read_text(encoding="utf-8")
+        self.assertIn("$RepoRoot = Split-Path -Parent $PSScriptRoot", launcher)
+        self.assertIn("$SshTarget = 'root@64.227.21.54'", launcher)
+        self.assertIn("StrictHostKeyChecking=yes", launcher)
+        embedded_hash = re.search(r"\$ExpectedUtilitySha256 = '([0-9a-f]{64})'", launcher)
+        actual_hash = hashlib.sha256((ROOT / "scripts" / "rotate_comms5_steward_credential.py").read_bytes()).hexdigest()
+        self.assertIsNotNone(embedded_hash)
+        self.assertEqual(actual_hash, embedded_hash.group(1))
+
     def test_invalid_secret_does_not_change_files_or_create_backup(self):
         before = (self.caddy.read_bytes(), self.oauth.read_bytes())
         with self.assertRaisesRegex(MODULE.CredentialError, "format_invalid"):
@@ -106,44 +157,84 @@ class CredentialRotationTests(unittest.TestCase):
         self.assertEqual(before, (self.caddy.read_bytes(), self.oauth.read_bytes()))
         self.assertFalse(self.backups.exists())
 
-    def test_failed_health_restores_both_predecessors(self):
-        calls = {"curl": 0, "restart": 0}
+    def test_persistent_readiness_failure_reports_check_and_successfully_rolls_back(self):
+        clock = self.FakeClock()
+        restart_cycles = 0
 
-        def fail_first_health(command, timeout=20):
-            if "curl" in command:
-                calls["curl"] += 1
-                if calls["curl"] == 1:
-                    return CompletedProcess(command, 1, "", "unavailable")
-                if "-w" in command:
-                    return CompletedProcess(command, 0, "401", "")
+        def fail_new_revision_then_recover_predecessor(command, timeout=20):
+            nonlocal restart_cycles
+            if command[:2] == ["systemctl", "restart"] and command[2] == MODULE.SERVICES[0]:
+                restart_cycles += 1
+            if "curl" in command and "-w" in command:
+                url = command[-1]
+                if restart_cycles == 1 and url.endswith("/healthz"):
+                    return CompletedProcess(command, 0, "503", "")
+                status = "401" if url.endswith("/mcp") else "200"
+                return CompletedProcess(command, 0, status, "")
             return CompletedProcess(command, 0, "", "")
 
         before = (self.caddy.read_bytes(), self.oauth.read_bytes())
-        with self.assertRaisesRegex(MODULE.CredentialError, "predecessor_restored"):
+        with self.assertRaisesRegex(
+            MODULE.CredentialError,
+            "readiness_deadline_exceeded:oauth_loopback_health_200; predecessor_restored",
+        ):
             MODULE.install_from_stdin(
                 caddy_env=self.caddy,
                 oauth_env=self.oauth,
                 backup_root=self.backups,
                 secret_input=(self.new + "\n").encode(),
-                run=fail_first_health,
+                run=fail_new_revision_then_recover_predecessor,
                 require_root=False,
+                monotonic=clock.monotonic,
+                sleep=clock.sleep,
             )
         self.assertEqual(before, (self.caddy.read_bytes(), self.oauth.read_bytes()))
+        self.assertEqual(MODULE.READINESS_TIMEOUT_SECONDS, clock.now)
+        self.assertEqual(2, restart_cycles)
 
-    def test_restart_failure_restores_prior_files(self):
-        calls = {"restart": 0}
+    def test_rotation_succeeds_after_delayed_service_readiness(self):
+        clock = self.FakeClock()
+        first_probe = True
 
-        def fail_first_restart(command, timeout=20):
-            if command[:2] == ["systemctl", "restart"]:
-                calls["restart"] += 1
-                if calls["restart"] == 1:
-                    return CompletedProcess(command, 1, "", "service restart failed")
+        def delayed_ready(command, timeout=20):
+            nonlocal first_probe
             if "curl" in command and "-w" in command:
-                return CompletedProcess(command, 0, "401", "")
+                url = command[-1]
+                if url.endswith("/healthz") and first_probe:
+                    first_probe = False
+                    return CompletedProcess(command, 0, "503", "")
+                status = "401" if url.endswith("/mcp") else "200"
+                return CompletedProcess(command, 0, status, "")
             return CompletedProcess(command, 0, "", "")
 
+        result = MODULE.install_from_stdin(
+            caddy_env=self.caddy,
+            oauth_env=self.oauth,
+            backup_root=self.backups,
+            secret_input=(self.new + "\n").encode(),
+            run=delayed_ready,
+            require_root=False,
+            monotonic=clock.monotonic,
+            sleep=clock.sleep,
+        )
+        self.assertEqual("credential_installed", result["status"])
+        self.assertEqual(0.5, clock.now)
+        self.assertEqual(self.new, MODULE._value_from_line(MODULE._read_assignments(self.caddy)[1][0][1]))
+        self.assertEqual(self.new, MODULE._value_from_line(MODULE._read_assignments(self.oauth)[1][0][1]))
+
+    def test_restart_failure_restores_prior_files_with_sanitized_service_id(self):
+        restart_attempts = 0
+
+        def fail_first_restart(command, timeout=20):
+            nonlocal restart_attempts
+            if command[:2] == ["systemctl", "restart"]:
+                restart_attempts += 1
+                if restart_attempts == 1:
+                    return CompletedProcess(command, 1, "", "service restart failed")
+            return self._fake_run(command, timeout)
+
         before = (self.caddy.read_bytes(), self.oauth.read_bytes())
-        with self.assertRaisesRegex(MODULE.CredentialError, "predecessor_restored"):
+        with self.assertRaisesRegex(MODULE.CredentialError, "service_restart_failed:riverview-comms5-oauth; predecessor_restored"):
             MODULE.install_from_stdin(
                 caddy_env=self.caddy,
                 oauth_env=self.oauth,

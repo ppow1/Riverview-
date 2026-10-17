@@ -3,13 +3,13 @@
 # RIVERVIEW CONTROLLED SOURCE
 # File: scripts/rotate_comms5_steward_credential.py
 # Component: COMMS5-OAUTH-IONOGE
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Safely validate or rotate the shared Comms5 Steward login credential
 # Execution Model: Explicit privileged operator CLI
 # Observability: Sanitized status output and exit code; never emits credential
 # Dependencies: Python 3.10+; systemd; curl; root-owned Ionoge environment files
 # Authority: Root-only; changes only two named Comms5 credential entries and restarts their services
-# Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-CREDENTIAL-001 | Initial controlled provision/rotation utility
+# Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-ROTATION-HEALTH-REPAIR | Add bounded post-restart readiness and check identifiers
 # Contracts: docs/components/COMMS5_OAUTH_TROUBLESHOOTING.md
 # Tests: tests/test_comms5_steward_credential.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -35,6 +35,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
@@ -46,6 +47,8 @@ OAUTH_ENV = Path("/etc/riverview/comms5-oauth.env")
 BACKUP_ROOT = Path("/var/backups/riverview")
 SERVICES = ("riverview-comms5-oauth.service", "caddy.service")
 URLSAFE_SECRET = re.compile(r"^[A-Za-z0-9_-]{43,128}$")
+READINESS_TIMEOUT_SECONDS = 15.0
+READINESS_RETRY_INTERVAL_SECONDS = 0.5
 
 
 class CredentialError(RuntimeError):
@@ -212,31 +215,89 @@ def _backup_files(
         raise
 
 
-def _run(command: list[str], *, timeout: int = 20) -> subprocess.CompletedProcess[str]:
+def _run(command: list[str], *, timeout: float = 20) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, check=False, capture_output=True, text=True, timeout=timeout)
 
 
-def _restart_and_health(run: Callable[..., subprocess.CompletedProcess[str]] = _run) -> bool:
+def _restart_and_health(
+    run: Callable[..., subprocess.CompletedProcess[str]] = _run,
+    *,
+    monotonic: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+    readiness_timeout: float = READINESS_TIMEOUT_SECONDS,
+    retry_interval: float = READINESS_RETRY_INTERVAL_SECONDS,
+) -> bool:
+    """Restart the two consumers and wait at most one bounded readiness window.
+
+    Readiness errors contain a stable check ID only; curl/systemd output is not
+    surfaced because it can contain deployment-specific details.
+    """
     for service in SERVICES:
-        result = run(["systemctl", "restart", service], timeout=45)
+        try:
+            result = run(["systemctl", "restart", service], timeout=45)
+        except subprocess.TimeoutExpired as exc:
+            raise CredentialError("service_restart_timeout:" + service.removesuffix(".service")) from exc
         if result.returncode != 0:
-            return False
-    for service in SERVICES:
-        result = run(["systemctl", "is-active", "--quiet", service], timeout=10)
-        if result.returncode != 0:
-            return False
-    checks = (
-        ["curl", "--silent", "--show-error", "--fail", "--max-time", "5", "http://127.0.0.1:11827/healthz", "--output", "/dev/null"],
-        ["curl", "--silent", "--show-error", "--fail", "--max-time", "8", "https://riverview-comms.ionoge.com/.well-known/oauth-authorization-server", "--output", "/dev/null"],
-        ["curl", "--silent", "--show-error", "--max-time", "8", "-o", "/dev/null", "-w", "%{http_code}", "https://riverview-comms.ionoge.com/comms5/mcp"],
+            raise CredentialError("service_restart_failed:" + service.removesuffix(".service"))
+
+    checks: tuple[tuple[str, Callable[[float], subprocess.CompletedProcess[str]], Callable[[subprocess.CompletedProcess[str]], bool]], ...] = (
+        (
+            "oauth_service_active",
+            lambda remaining: run(["systemctl", "is-active", "--quiet", SERVICES[0]], timeout=remaining),
+            lambda result: result.returncode == 0,
+        ),
+        (
+            "caddy_service_active",
+            lambda remaining: run(["systemctl", "is-active", "--quiet", SERVICES[1]], timeout=remaining),
+            lambda result: result.returncode == 0,
+        ),
+        (
+            "oauth_loopback_health_200",
+            lambda remaining: run(
+                ["curl", "--silent", "--show-error", "--max-time", f"{min(5.0, remaining):.3f}", "-o", "/dev/null", "-w", "%{http_code}", "http://127.0.0.1:11827/healthz"],
+                timeout=remaining,
+            ),
+            lambda result: result.returncode == 0 and result.stdout.strip() == "200",
+        ),
+        (
+            "oauth_public_discovery_200",
+            lambda remaining: run(
+                ["curl", "--silent", "--show-error", "--max-time", f"{min(5.0, remaining):.3f}", "-o", "/dev/null", "-w", "%{http_code}", "https://riverview-comms.ionoge.com/.well-known/oauth-authorization-server"],
+                timeout=remaining,
+            ),
+            lambda result: result.returncode == 0 and result.stdout.strip() == "200",
+        ),
+        (
+            "mcp_anonymous_rejected_401",
+            lambda remaining: run(
+                ["curl", "--silent", "--show-error", "--max-time", f"{min(5.0, remaining):.3f}", "-o", "/dev/null", "-w", "%{http_code}", "https://riverview-comms.ionoge.com/comms5/mcp"],
+                timeout=remaining,
+            ),
+            lambda result: result.returncode == 0 and result.stdout.strip() == "401",
+        ),
     )
-    for index, command in enumerate(checks):
-        result = run(command, timeout=15)
-        expected = result.returncode == 0
-        if index == 2:
-            expected = result.returncode == 0 and result.stdout.strip() == "401"
-        if not expected:
-            return False
+    deadline = monotonic() + readiness_timeout
+    for check_id, attempt, passed in checks:
+        while True:
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                raise CredentialError("readiness_deadline_exceeded:" + check_id)
+            try:
+                result = attempt(remaining)
+            except subprocess.TimeoutExpired:
+                remaining = deadline - monotonic()
+                if remaining <= 0:
+                    raise CredentialError("readiness_deadline_exceeded:" + check_id) from None
+                sleep(min(retry_interval, remaining))
+                continue
+            if monotonic() > deadline:
+                raise CredentialError("readiness_deadline_exceeded:" + check_id)
+            if passed(result):
+                break
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                raise CredentialError("readiness_deadline_exceeded:" + check_id)
+            sleep(min(retry_interval, remaining))
     return True
 
 
@@ -248,6 +309,8 @@ def install_from_stdin(
     secret_input: bytes | None = None,
     run: Callable[..., subprocess.CompletedProcess[str]] = _run,
     require_root: bool = True,
+    monotonic: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> dict[str, object]:
     """Replace the shared credential transactionally; never return its value."""
     if require_root and os.geteuid() != 0:
@@ -277,8 +340,7 @@ def install_from_stdin(
     try:
         for path, content in zip(paths, updated):
             _atomic_write(path, content, owner_uid=expected_uid)
-        if not _restart_and_health(run):
-            raise CredentialError("service_restart_or_health_check_failed")
+        _restart_and_health(run, monotonic=monotonic, sleep=sleep)
     except Exception as exc:
         for path, content in zip(paths, originals):
             try:
@@ -289,7 +351,7 @@ def install_from_stdin(
                     + str(protected_backup)
                 ) from None
         try:
-            recovered = _restart_and_health(run)
+            recovered = _restart_and_health(run, monotonic=monotonic, sleep=sleep)
         except Exception:
             recovered = False
         if isinstance(exc, CredentialError):
@@ -302,7 +364,13 @@ def install_from_stdin(
         "secret_value_emitted": False,
         "protected_predecessor": str(protected_backup),
         "services_restarted": list(SERVICES),
-        "health_checks": ["OAuth loopback health", "public authorization metadata", "anonymous MCP rejected with HTTP 401"],
+        "health_checks": [
+            "oauth_service_active",
+            "caddy_service_active",
+            "oauth_loopback_health_200",
+            "oauth_public_discovery_200",
+            "mcp_anonymous_rejected_401",
+        ],
     }
 
 
