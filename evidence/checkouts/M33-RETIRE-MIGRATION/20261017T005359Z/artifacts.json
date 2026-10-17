@@ -1,0 +1,11 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "controlled-ci.json": {
+      "path": "controlled-ci.json",
+      "revision": "1.0.0",
+      "sha256": "ca0b5cb2dc6582d605a0726e84d06914c9ea340ed4a37786f768c18cf57e4e3b",
+      "size_bytes": 542
+    }
+  }
+}
