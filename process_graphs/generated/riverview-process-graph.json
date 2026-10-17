@@ -2578,7 +2578,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.48",
+      "graph_revision": "1.0.49",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -2618,7 +2618,8 @@
         "tests/test_codex_source_change.py",
         "src/riverview_core/comms5/server.py",
         "src/riverview_core/comms5/dashboard_backend.py",
-        "deploy/systemd/riverview-grace-execution.service"
+        "deploy/systemd/riverview-grace-execution.service",
+        "src/riverview_core/resident_execution/codex_workflow.py"
       ],
       "documentation_references": [
         "docs/ROADMAP.md",
@@ -3641,6 +3642,24 @@
           "verification_evidence": [
             "tests/test_grace_internal_tools.py"
           ]
+        },
+        {
+          "id": "rv:grace:operational-integration:codex-persisted-criteria-verification",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Verify the Codex deliverable against acceptance criteria resolved from the pre-dispatch PostgreSQL objective step linked to this assignment; missing durable criteria fail closed",
+          "source_references": [
+            "src/riverview_core/resident_execution/codex_workflow.py",
+            "src/riverview_core/resident_execution/pipeline.py",
+            "scripts/run_grace_execution_service.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_codex_cli_adapter.py"
+          ]
         }
       ],
       "edges": [
@@ -3936,12 +3955,6 @@
         },
         {
           "from": "rv:grace:operational-integration:codex-cli-run",
-          "to": "rv:grace:operational-integration:codex-artifact-verification",
-          "type": "prerequisite",
-          "label": "Produced artifact is untrusted until separately verified"
-        },
-        {
-          "from": "rv:grace:operational-integration:codex-cli-run",
           "to": "rv:grace:operational-integration:codex-execution-failed",
           "type": "diagnostic_branch",
           "label": "Git safe-directory refusal or repository pin mismatch before CLI launch; provider failure, timeout, output-bound violation, or unexpected workspace change"
@@ -4155,6 +4168,18 @@
           "to": "rv:grace:operational-integration:internal-tool-call",
           "type": "recovery_route",
           "label": "A later lookup is a new model-originated request and is independently schema-validated"
+        },
+        {
+          "from": "rv:grace:operational-integration:codex-cli-run",
+          "to": "rv:grace:operational-integration:codex-persisted-criteria-verification",
+          "type": "verification",
+          "label": "Resolve exact persisted criteria through the assigned objective-step link before inspecting output"
+        },
+        {
+          "from": "rv:grace:operational-integration:codex-persisted-criteria-verification",
+          "to": "rv:grace:operational-integration:codex-artifact-verification",
+          "type": "verification",
+          "label": "Criteria contract is present and is evaluated independently against the artifact"
         }
       ]
     },
@@ -13657,6 +13682,7 @@
     "rv:grace:operational-integration:codex-owner-package-recovery",
     "rv:grace:operational-integration:codex-owner-preflight",
     "rv:grace:operational-integration:codex-patch-independent-verification",
+    "rv:grace:operational-integration:codex-persisted-criteria-verification",
     "rv:grace:operational-integration:codex-resource-check",
     "rv:grace:operational-integration:codex-source-change",
     "rv:grace:operational-integration:codex-source-scope-failure",

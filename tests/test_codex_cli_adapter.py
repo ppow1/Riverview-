@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.5
+# Revision: 1.2.6
 # Purpose: Verify bounded subscription-authenticated Codex adapter contracts
 # Execution Model: Isolated temporary Git repository and synthetic executable
 # Observability: Assertions inspect sanitized adapter status and artifact metadata
@@ -21,6 +21,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-ENABLE-001 | Require persistent Code Mode feature activation in the Codex CLI invocation
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-MDWE-001 | Require both Code Mode features and pinned package-path discovery for the companion host
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Cover exact work-order criteria, legacy scope proof, missing citation/phrase, and one-file metadata
+# Changed: 2026-10-17 UTC | RV-GRACE-ACCEPTANCE-CRITERIA-001 | Verify canonical persisted step criteria remain available to independent verification
 # Contracts: src/riverview_core/resident_execution/codex_cli.py
 # Tests: python3 -m unittest tests.test_codex_cli_adapter -v
 # History: Git
@@ -279,8 +280,15 @@ class CodexCLIAdapterTests(unittest.TestCase):
                                  "source_sha256": objective_digest},
                     "proposal": {"steps": [{"objective": "Create bounded Markdown.",
                         "acceptance_criteria": ["The deliverable exists."]}]}}
+            def proposal_step_for_assignment(self, objective_id, assignment_id):
+                self.assertion = (objective_id, assignment_id)
+                return {"objective": "Create bounded Markdown.",
+                        "acceptance_criteria": ["The deliverable exists."],
+                        "depends_on": [], "execution_capability": CAPABILITY,
+                        "authorized_paths": [], "test_targets": []}
         adapter = self.adapter()
-        action = CodexWorkAction(Pipeline(), adapter, "repo://example/test", 5)
+        pipeline = Pipeline()
+        action = CodexWorkAction(pipeline, adapter, "repo://example/test", 5)
         assignment = {"id": "assignment:test-1", "objective_ref": "objective:test-1"}
         grounded = KnowledgeResult(KnowledgeStatus.VERIFIED,
             source_references=("repo://docs/example.md",), source_revision=knowledge_revision,
@@ -291,11 +299,20 @@ class CodexCLIAdapterTests(unittest.TestCase):
         self.assertEqual(result["source_sha256"], "b" * 64)
         self.assertEqual(result["repository_revision"], self.revision)
         self.assertTrue(Path(result["artifact_path"]).is_file())
-        verification = CodexMarkdownVerifier(self.artifacts).verify(
+        verification = CodexMarkdownVerifier(self.artifacts, pipeline).verify(
             assignment, {"status": "succeeded", "capability": CAPABILITY,
                        "attempt_id": "attempt:fixture"}, result)
         self.assertEqual(verification.status.value, "ACCEPTED")
         self.assertTrue(all(verification.criteria.values()))
+        self.assertEqual(pipeline.assertion, ("objective:test-1", "assignment:test-1"))
+        # The verifier uses criteria persisted on the pre-dispatch step, even if
+        # the durable executor result omitted its redundant criteria echo.
+        missing_echo = {key: value for key, value in result.items()
+                        if key != "acceptance_criteria"}
+        recovered = CodexMarkdownVerifier(self.artifacts, pipeline).verify(
+            assignment, {"status": "succeeded", "capability": CAPABILITY,
+                        "attempt_id": "attempt:criteria-recovery"}, missing_echo)
+        self.assertEqual(recovered.status.value, "ACCEPTED")
 
     def test_independent_verifier_rejects_changed_artifact(self):
         class Pipeline:
