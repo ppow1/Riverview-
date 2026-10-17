@@ -1471,7 +1471,7 @@
     },
     {
       "graph_id": "rv:comms5:camrui-adapter",
-      "graph_revision": "1.0.10",
+      "graph_revision": "1.0.11",
       "component_id": "COMMS5-CAMRUI-ADAPTER",
       "workflow_id": "comms5.camrui.compatibility.v1",
       "diagram_order": 91,
@@ -1482,7 +1482,12 @@
         "deploy/systemd/riverview-comms5-tunnel.service",
         "deploy/systemd/riverview-comms5-oauth.service",
         "deploy/comms5/caddy-comms5-oauth-block.caddy",
-        "src/riverview_core/comms5/dashboard_backend.py"
+        "src/riverview_core/comms5/dashboard_backend.py",
+        "src/riverview_core/resident_execution/comms5_operations.py",
+        "src/riverview_core/resident_execution/proposals.py",
+        "src/riverview_core/resident_execution/proposal_lifecycle.py",
+        "src/riverview_core/resident_execution/pipeline.py",
+        "src/riverview_core/status_dashboard/server.py"
       ],
       "documentation_references": [
         "docs/components/COMMS5_CAMRUI_DEPLOYMENT.md",
@@ -1492,7 +1497,9 @@
       ],
       "verification_evidence": [
         "tests/test_comms5_mcp.py",
-        "tests/test_comms5_deployment.py"
+        "tests/test_comms5_deployment.py",
+        "tests/test_comms5_current_runtime.py",
+        "tests/test_proposal_work_order_lifecycle.py"
       ],
       "nodes": [
         {
@@ -1640,7 +1647,7 @@
           "id": "rv:comms5:camrui-adapter:authenticated-dashboard-read",
           "node_revision": "1.0.0",
           "type": "process",
-          "label": "Comms5 runs a bounded loopback probe and calls only fixed dashboard read routes using a protected systemd credential; objective text is filtered",
+          "label": "Comms5 uses fixed dashboard read routes and one closed authenticated operation endpoint; PostgreSQL access and lifecycle checks remain in the dashboard",
           "source_references": [
             "src/riverview_core/comms5/server.py",
             "src/riverview_core/comms5/dashboard_backend.py",
@@ -1669,6 +1676,45 @@
           ],
           "verification_evidence": [
             "tests/test_comms5_mcp.py"
+          ]
+        },
+        {
+          "id": "rv:comms5:camrui-adapter:current-runtime-operations",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Authenticated Comms5 seed, specification, proposal lifecycle, objective status, and recent-submission calls use the durable proposal/objective services",
+          "source_references": [
+            "src/riverview_core/resident_execution/comms5_operations.py",
+            "src/riverview_core/resident_execution/proposals.py",
+            "src/riverview_core/resident_execution/proposal_lifecycle.py",
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/comms5/dashboard_backend.py"
+          ],
+          "documentation_references": [
+            "docs/components/COMMS5_CAMRUI_MIGRATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_comms5_current_runtime.py",
+            "tests/test_proposal_work_order_lifecycle.py"
+          ]
+        },
+        {
+          "id": "rv:comms5:camrui-adapter:current-runtime-operation-denial",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Unauthenticated principals, stale proposal states, invalid lifecycle transitions, and missing exact grants fail without creating execution work",
+          "source_references": [
+            "src/riverview_core/comms5/server.py",
+            "src/riverview_core/resident_execution/comms5_operations.py",
+            "src/riverview_core/resident_execution/proposal_lifecycle.py"
+          ],
+          "documentation_references": [
+            "docs/components/COMMS5_CAMRUI_MIGRATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_comms5_current_runtime.py",
+            "tests/test_proposal_work_order_lifecycle.py"
           ]
         }
       ],
@@ -1726,6 +1772,16 @@
         {
           "from": "rv:comms5:camrui-adapter:authenticated-dashboard-read",
           "to": "rv:comms5:camrui-adapter:dashboard-read-failure",
+          "type": "diagnostic_branch"
+        },
+        {
+          "from": "rv:comms5:camrui-adapter:catalog",
+          "to": "rv:comms5:camrui-adapter:current-runtime-operations",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:comms5:camrui-adapter:current-runtime-operations",
+          "to": "rv:comms5:camrui-adapter:current-runtime-operation-denial",
           "type": "diagnostic_branch"
         }
       ]
@@ -13488,6 +13544,8 @@
     "rv:comms5:camrui-adapter:authenticated-ingress",
     "rv:comms5:camrui-adapter:catalog",
     "rv:comms5:camrui-adapter:contract-call",
+    "rv:comms5:camrui-adapter:current-runtime-operation-denial",
+    "rv:comms5:camrui-adapter:current-runtime-operations",
     "rv:comms5:camrui-adapter:dashboard-read-failure",
     "rv:comms5:camrui-adapter:hop-validation",
     "rv:comms5:camrui-adapter:not-implemented",

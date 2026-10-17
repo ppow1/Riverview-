@@ -1,8 +1,9 @@
 """Comms5 Camrui compatibility adapter tests.
 
-File Revision: 1.1.0
+File Revision: 1.1.3
 Component: COMMS5-CAMRUI-ADAPTER-TESTS
 History: New file; no predecessor existed.
+Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify authenticated internal operation routing for full objective status and submission listing.
 """
 
 import hashlib
@@ -94,7 +95,7 @@ class Comms5MCPTests(unittest.TestCase):
         self.assertEqual(application.handle(rpc("initialize", {"protocolVersion": "2099-01-01"}))["error"]["code"], -32602)
         self.assertIsNone(application.handle({"jsonrpc": "2.0", "method": "notifications/initialized"}))
 
-    def test_dashboard_backend_maps_cme_and_objective_without_returning_request_body(self):
+    def test_dashboard_backend_uses_attested_internal_operation_for_objective_status(self):
         with tempfile.TemporaryDirectory() as directory:
             credential = Path(directory) / "dashboard-token"
             credential.write_text("a" * 48)
@@ -102,25 +103,18 @@ class Comms5MCPTests(unittest.TestCase):
             backend = DashboardReadBackend(
                 base_url="http://127.0.0.1:8767", credential_file=credential)
             application = Comms5Application("x" * 48, backend=backend)
-            objective = {
-                "objective_id": "objective:test-1", "request": "PRIVATE BODY",
-                "acceptance_criteria": ["PRIVATE CRITERIA"], "scope_ref": "work-order:engineering",
-                "submitter_id": "steward:camrui", "status": "COMPLETED",
-                "assignment_id": "assignment:test-1", "assignment_state": "completed",
-                "attempt_id": "attempt:test-1", "verification": {"decision": "ACCEPTED"},
-                "dispatch_failures": 0, "verification_failures": 0,
-            }
-            with patch.object(backend, "_get", return_value=objective):
+            objective = {"status": "available", "executed": True,
+                "objective": {"objective_id": "objective:test-1", "state": "COMPLETED"},
+                "assignment": {"id": "assignment:test-1", "state": "completed"}}
+            with patch.object(backend, "_post_operation", return_value=objective) as operation:
                 result = application.handle(rpc("tools/call", {
                     "name": "comms5_objective_status",
                     "arguments": {"objective_id": "objective:test-1"},
-                }))
+                }), principal="steward")
             value = result["result"]["structuredContent"]
-            self.assertEqual(value["objective"]["status"], "COMPLETED")
-            self.assertEqual(value["implementation_status"], "PARTIALLY_IMPLEMENTED")
-            self.assertNotIn("request", value["objective"])
-            self.assertNotIn("acceptance_criteria", value["objective"])
-            self.assertNotIn("PRIVATE BODY", result["result"]["content"][0]["text"])
+            self.assertEqual(value["objective"]["state"], "COMPLETED")
+            self.assertEqual(value["implementation_status"], "IMPLEMENTED")
+            operation.assert_called_once_with("comms5_objective_status", {"objective_id": "objective:test-1"})
 
     def test_objective_lookup_uses_exact_id_route_and_reports_missing_record(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -128,10 +122,15 @@ class Comms5MCPTests(unittest.TestCase):
             credential.write_text("e" * 48)
             credential.chmod(0o600)
             backend = DashboardReadBackend(credential_file=credential)
-            with patch.object(backend, "_get", side_effect=DashboardRecordNotFound("objective_not_found")) as get:
-                result = backend.call("comms5_objective_status", {"objective_id": "objective:absent"})
-            self.assertEqual(get.call_args.args[0], "/api/v1/objectives/objective:absent")
+            with patch.object(backend, "_post_operation", return_value={
+                    "status": "not_found", "objective_id": "objective:absent"}) as get:
+                result = backend.call_authenticated("comms5_objective_status",
+                    {"objective_id": "objective:absent"}, principal="steward")
+            get.assert_called_once_with("comms5_objective_status", {"objective_id": "objective:absent"})
             self.assertEqual(result["status"], "not_found")
+            with self.assertRaises(PermissionError):
+                backend.call_authenticated("comms5_objective_status",
+                    {"objective_id": "objective:absent"}, principal="resident")
 
     def test_dashboard_cme_status_returns_authoritative_projection(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -202,9 +201,12 @@ class Comms5MCPTests(unittest.TestCase):
             statuses = {"comms5_" + item["name"]: item["camrui_implementation_status"]
                         for item in operations}
             self.assertEqual(statuses["comms5_cme_status"], "IMPLEMENTED")
-            self.assertEqual(statuses["comms5_objective_status"], "PARTIALLY_IMPLEMENTED")
+            self.assertEqual(statuses["comms5_objective_status"], "IMPLEMENTED")
+            self.assertEqual(statuses["comms5_recent_steward_submissions"], "IMPLEMENTED")
             self.assertEqual(statuses["comms5_transport_probe"], "PARTIALLY_IMPLEMENTED")
-            self.assertEqual(statuses["comms5_seed_status"], "NOT_IMPLEMENTED")
+            self.assertEqual(statuses["comms5_seed_status"], "IMPLEMENTED")
+            self.assertEqual(statuses["comms5_submit_steward_seed"], "IMPLEMENTED")
+            self.assertEqual(statuses["comms5_confirm_and_promote_seed"], "IMPLEMENTED")
 
     def test_dashboard_backend_rejects_noncanonical_objective_list_paths(self):
         with tempfile.TemporaryDirectory() as directory:
