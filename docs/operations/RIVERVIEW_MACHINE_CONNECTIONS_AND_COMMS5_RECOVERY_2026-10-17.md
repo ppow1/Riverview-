@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/operations/RIVERVIEW_MACHINE_CONNECTIONS_AND_COMMS5_RECOVERY_2026-10-17.md
 Component: COMMS5-OAUTH-IONOGE
-File Revision: 1.0.6
+File Revision: 1.0.7
 Status: Verified machine connection and recovery runbook
 Date: 2026-10-17
 Purpose: Record nonsecret Camrui/Ionoge Comms5 connectivity, health checks, and recovery evidence.
@@ -11,6 +11,7 @@ Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-CREDENTIAL-001 | Document credential
 Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-CREDENTIAL-002 | Record direct-bearer inventory limits, live utility preflight and guarded operator command.
 Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-ROTATION-HEALTH-REPAIR | Document bounded post-restart readiness and corrected Windows launcher paths/target.
 Changed: 2026-10-17 UTC | RV-CAMRUI-EXECUTION-ENVIRONMENT-001 | Confirm Windows alias operation and distinguish it from local Camrui Linux execution.
+Changed: 2026-10-17 UTC | RV-COMMS5-DASHBOARD-READ-DEPLOY-001 | Record the integrated Comms5 release, smoke tests, and protected rollback location.
 History: New file; no predecessor existed in the integration checkout.
 Authority: Existing service identities and grants; this document does not issue authority.
 -->
@@ -126,6 +127,14 @@ ss -ltnp | grep -E '127.0.0.1:11826|127.0.0.1:11827'
 On Camrui, verify the two unit states with `systemctl is-active riverview-comms5-camrui.service riverview-comms5-tunnel.service` and check local adapter health. If the tunnel drops, allow its systemd restart policy to reconnect, then poll Ionoge `http://127.0.0.1:11826/healthz`; do not kill/restart sshd globally. A controlled reconnect test recovered in 6 seconds on 2026-10-17.
 
 The Comms4 health issue is different: inspect only the existing Comms4 upstream and its owner before any repair. Do not repoint Comms4 to the Comms5 service.
+
+## Comms5 read-projection deployment — 2026-10-17 22:16 UTC
+
+PR #89 was merged at `c18b283ae7263b6fa708b80dbf179b8199ec4b64` and deployed from immutable package `/tmp/riverview-comms5-c18b283.tar.gz` (SHA-256 `c2a7c5681d0f94097bed27f124a3666e6f5cc0d3959ebf4573535573fcd65371`). The active Camrui pointer is `/opt/riverview-comms5-camrui/releases/c18b283ae7263b6fa708b80dbf179b8199ec4b64`. `riverview-comms5-camrui.service` is active/enabled and binds only `127.0.0.1:11826`; local health returned HTTP 200 and an anonymous MCP POST returned 401.
+
+A protected one-shot systemd check loaded the existing backend credential without displaying it, initialized a request to the running adapter, found all 21 historical tools, and invoked `comms5_cme_status` successfully. It returned healthy CME status and 7 registered workers from the authenticated dashboard projection. The public OAuth discovery endpoint returned 200; public anonymous Comms5 and Comms4 POSTs returned 401. This test did not use a ChatGPT browser session. Caddy, OAuth, the tunnel, Comms4 routing, and inference configurations were not modified.
+
+The deployment's root-only rollback directory is `/var/backups/riverview/comms5-deploy-20261017T221707Z` (mode 0700). It preserves the predecessor unit, predecessor pointer `588aee804fc6ada3cdf78f4bfded2f8306c783ea`, and package checksum. To roll back, restore that unit and pointer from the backup, run `systemctl daemon-reload`, restart only `riverview-comms5-camrui.service`, then verify its health and loopback listener.
 
 ## Rollback
 

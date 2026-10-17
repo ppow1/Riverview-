@@ -2,12 +2,14 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_CAMRUI_MIGRATION.md
 Component: COMMS5-CAMRUI-ADAPTER
-File Revision: 1.0.3
+File Revision: 1.0.4
 Status: Source implementation and live deployment tracker
 Date: 2026-10-16
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-OAUTH-FORWARD-HEADERS-001 | Record authenticated OAuth/MCP acceptance and identify the unchanged Comms4 upstream outage.
+Changed: 2026-10-17 UTC | RV-COMMS5-DASHBOARD-READ-DEPLOY-001 | Record PR #89 deployment and measured production operation coverage.
 Previous: 2026-10-17 UTC | RV-COMMS5-TOOL-CATALOG-AUDIT-001 | Link exact preserved input schemas and record current loopback deployment state.
+Previous: 2026-10-17 UTC | RV-COMMS5-DASHBOARD-READ-001 | Record read-only dashboard projection implementation before production deployment.
 -->
 
 # Comms5 Camrui migration matrix
@@ -69,3 +71,12 @@ The adapter uses a narrowly coded, fixed-path read-only client for the existing 
 - The live Caddy Comms5 OAuth route now copies only the OAuth-validated `steward` principal, overwrites the backend marker, and no longer deletes that marker. Public OAuth discovery returns 200; unauthenticated Comms5 returns 401.
 - Comms4 route/config was not changed. Its unauthenticated endpoint returns 401, but authorized `ping` currently returns 502 because Ionoge has no listener on upstream `127.0.0.1:11825`; that upstream recovery is an unresolved separate issue.
 - No legacy Comms5 database tables were installed or needed. The ChatGPT Plus account UI itself has not yet been used; production protocol acceptance is not equivalent to ChatGPT application acceptance.
+
+## Production deployment record — 2026-10-17 22:16 UTC
+
+- PR #89 merged at `c18b283ae7263b6fa708b80dbf179b8199ec4b64`. The immutable package is `/tmp/riverview-comms5-c18b283.tar.gz`, SHA-256 `c2a7c5681d0f94097bed27f124a3666e6f5cc0d3959ebf4573535573fcd65371`, containing nine source/config/document files plus its manifest and checksum list. Every embedded checksum passed on Camrui.
+- Camrui `current` points to `/opt/riverview-comms5-camrui/releases/c18b283ae7263b6fa708b80dbf179b8199ec4b64`; systemd is active and the sole listener is `127.0.0.1:11826`. `/healthz` returned 200. An unauthenticated MCP POST returned 401.
+- A one-shot transient systemd invocation loaded the existing protected backend-hop credential without displaying it, then called the running production adapter. `tools/list` returned all 21 historical contracts. `comms5_cme_status` returned `IMPLEMENTED`, healthy CME state, and 7 registered workers. The dashboard-backed source was exercised against the real dashboard endpoint and protected credential; no objective or conversation body was queried.
+- Public OAuth discovery returned 200; anonymous public Comms5 MCP returned 401. Anonymous Comms4 MCP also returned 401. Caddy, OAuth, and tunnel configurations were not changed. This is not ChatGPT UI acceptance. Comms4's protected upstream remains separately unverified as recorded above.
+- Root-only rollback evidence is at `/var/backups/riverview/comms5-deploy-20261017T221707Z` (directory mode 0700): predecessor unit SHA-256 `6ece4c2f765b57d7aa6bdecca0ca137f491ef14c0497fc540e98b12475e1fdd4`, predecessor release pointer `588aee804fc6ada3cdf78f4bfded2f8306c783ea`, and new package checksum. The predecessor release remains present. Rollback restores that unit and pointer, runs `systemctl daemon-reload`, restarts only `riverview-comms5-camrui.service`, and checks `/healthz`.
+- Production capability coverage is 6 fully implemented operations (5 static discovery/contract tools plus CME status), 3 partial operations (objective status, recent Steward submissions, and bounded local transport probe), and 12 explicit non-executing stubs. Assignment intake and CME monitor remain active; `riverview-grace-execution.service` is inactive, so this release did not demonstrate Comms5-to-Codex execution.
