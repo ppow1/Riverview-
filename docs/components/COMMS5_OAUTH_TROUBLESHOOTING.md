@@ -2,12 +2,13 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_OAUTH_TROUBLESHOOTING.md
 Component: COMMS5-OAUTH-IONOGE
-File Revision: 1.0.1
+File Revision: 1.0.2
 Status: Operational troubleshooting record
 Date: 2026-10-17
 Purpose: Diagnose and recover Comms5 OAuth-to-Camrui authenticated MCP forwarding.
 Changed: 2026-10-17 UTC | RV-COMMS5-OAUTH-FORWARD-HEADERS-001 | Record verified principal/marker defect, recovery, and acceptance evidence.
 Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-CREDENTIAL-001 | Explain authorization credential dependencies and guarded rotation.
+Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-CREDENTIAL-002 | Record direct-bearer inventory limits and verified helper preflight.
 History: New file; no predecessor existed.
 Authority: Existing OAuth and Steward authority boundaries; no grant changes.
 -->
@@ -57,10 +58,14 @@ The authorization page’s “Steward credential” is `RIVERVIEW_COMMS5_CLIENT_
 
 No deployment record identifies who generated the currently installed value, whether it reused an earlier Comms5 bearer, or whether it was handed to the Steward. Treat operator custody as unverified. The selected remediation is to establish a fresh operator-held value with the reviewed utility, rather than to expose the current secret through logs or chat.
 
+Read-only inventory found 11 OAuth DCR records (including one named ChatGPT and commissioning/diagnostic clients), which do not identify direct static-bearer callers. The Caddy Comms5 route has no access-log directive, and no server-side registry records direct-bearer client identities. External direct-bearer usage therefore remains unenumerated; have the Steward confirm/update any such clients before rotating.
+
 Read-only check after the utility is installed:
 
 ```sh
 sudo python3 /usr/local/sbin/rotate_comms5_steward_credential.py --check
 ```
 
-Rotation uses `--install-from-stdin`; see the Windows PowerShell 5.1 procedure in the machine-connection runbook. It validates both service environment-file references, refuses mismatched/duplicated entries, writes protected predecessors, atomically updates only the shared client-secret setting, restarts only OAuth and Caddy, and checks OAuth health/discovery plus anonymous MCP rejection. A failure restores the prior environment files and attempts the same service health checks. The replacement value is never emitted. After rotation, complete OAuth in the browser using the local clipboard and clear it; update any known legacy direct-bearer client through its own protected path.
+The helper was installed from merged PR #86 at `/usr/local/sbin/rotate_comms5_steward_credential.py` (SHA-256 `9910a03d74c538466d36888950a3186d77e6362ced45125fc26dac77b0458224`, root:root/0755). On 2026-10-17 its read-only `--check` passed against live systemd wiring and protected files; service health/discovery and unauthenticated 401 checks also passed. No credential was rotated and no service was restarted.
+
+Use the single Windows PowerShell 5.1 operator script documented in the machine-connection runbook. It verifies the exact helper hash and live service readiness, then requires the exact text `ROTATE` before generation and installation. It streams the new value over strict-host-verified SSH, leaves it only on the operator clipboard, and prints no secret. The utility validates both service environment-file references, refuses mismatched/duplicated entries, writes protected predecessors, atomically updates only the shared client-secret setting, restarts only OAuth and Caddy, and checks OAuth health/discovery plus anonymous MCP rejection. A failure restores the prior environment files and attempts the same service health checks. Complete OAuth in the browser using the clipboard and clear it. See the runbook for manual predecessor recovery if automatic service recovery is unverified.
