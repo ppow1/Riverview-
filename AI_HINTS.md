@@ -1,8 +1,8 @@
 # Riverview~ AI Engineering Hints
 
-**Document Revision:** 1.0.4
+**Document Revision:** 1.0.5  
 **Status:** Working agent guidance  
-**Date:** 2026-10-09  
+**Date:** 2026-10-17  
 **Component:** ENG-AGENT-GUIDANCE  
 **Purpose:** Startup instructions for any AI agent performing engineering work on Riverview~.  
 **Authority:** Guidance for work in this repository; subordinate to the user's explicit instructions and the governing engineering standards.
@@ -16,11 +16,17 @@
 5. Preserve each existing file's **exact predecessor bytes and SHA-256 before modifying it**. Record the predecessor location, revision, task ID, and restoration method. Confirm that the backup can be read back. Do not treat an unprotected working copy as an immutable backup.
 6. Increment the **individual file revision** on every content change, including metadata-only edits. New text/source files begin at `1.0.0` unless explicitly experimental. Keep language-appropriate source headers; use a sidecar for formats that cannot contain comments.
 7. Make the smallest coherent change. Maintain intended **persistent/event-driven** behavior when required. Do not silently replace continuous agents with turn-based, one-shot, or human-approval loops.
-8. Every new or materially changed workflow, execution adapter, and significant operational process must update its canonical versioned process graph in the same change. Preserve globally unique stable graph/node IDs, typed decision/failure/escalation/recovery/verification transitions, resolvable cross-workflow references, actual ledger-to-node correlation where known, diagnostic checkpoints, and observable evidence. Regenerate and check all graph projections; never infer a live node from a state label.
-9. Follow documentation-first and anti-rediscovery policy: retrieve established facts, procedures, dependencies, and evidence before discovery; distinguish durable knowledge from dynamic state; record verified changes with provenance; and reground when state may have drifted. Use the existing institutional/PostgreSQL authority model; do not create parallel learning or authority registries.
-10. Test affected behavior and relevant regressions. Record actual commands, exit codes, pass/fail/skip counts, environment, and limitations. Never report unexecuted tests as PASS.
-11. Review the diff, verify only intended files changed, and confirm predecessor restoration remains possible. Do not commit, push, deploy, or alter production data unless the task authorizes it.
-12. End with a precise handoff: files and revisions changed, predecessor locations, test evidence, commit/deployment status, outstanding problems, and next action.
+8. Test affected behavior and relevant regressions. Record actual commands, exit codes, pass/fail/skip counts, environment, and limitations. Never report unexecuted tests as PASS.
+9. Review the diff, verify only intended files changed, and confirm predecessor restoration remains possible. Do not commit, push, deploy, or alter production data unless the task authorizes it.
+10. End with a precise handoff: files and revisions changed, predecessor locations, test evidence, commit/deployment status, outstanding problems, and next action.
+
+
+## Institutional proposal authoring
+
+If the task is to suggest, formalize, submit, review, or track a Riverview proposal, read `docs/development/PROPOSAL_AUTHORING_PLAYBOOK.md` and the institutional contract `docs/components/INSTITUTIONAL_PROPOSALS.md` (currently on PR #70's branch; verify availability on the working branch) before acting. A proposal draft is not execution authority. Use only the documented authenticated Steward conversation submission flow; never invent proposal IDs, API routes, or grants. Explicit Steward approval and separate authorized promotion are required before Engineering objective intake. If the contract or endpoint is unavailable, produce a submission-ready draft and mark it NOT SUBMITTED.
+
+
+Every new or materially changed workflow, execution adapter, and significant operational process must update its canonical versioned process graph in the same change. Preserve stable graph IDs, typed decision/failure/recovery/verification transitions, relevant diagnostic checkpoints, and observable evidence. Regenerate and check all graph projections.
 
 ## Operational facts and boundaries
 
@@ -54,7 +60,9 @@ Before editing, briefly report: repository/branch/HEAD, applicable standards, ta
 
 ## Revision history
 
-- **1.0.4 — 2026-10-13:** Make canonical graph/diagnostic integrity and documentation-first anti-rediscovery standing acceptance criteria for every engineering session. Predecessor: `.riverview-backups/20261013T152238220458Z/AI_HINTS.md`.
+- **1.0.5 — 2026-10-17:** Preserve current proposal-authoring guidance and restore the canonical process-graph requirement for workflow changes. Predecessor: `.riverview-backups/20261017T233443650714Z/AI_HINTS.md`.
+
+- **1.0.4 — 2026-10-16:** Link proposal authoring and submission playbook; clarify Steward authorization boundary. Predecessor: `docs/history/AI_HINTS_rev1.0.3.md`.
 
 - **1.0.3 — 2026-10-09:** Require all engineering agents to load the full Codex campaign and its observability, web visibility, flowchart, troubleshooting and DoD obligations. Predecessor: `docs/history/AI_HINTS_rev1.0.2.md`.
 
