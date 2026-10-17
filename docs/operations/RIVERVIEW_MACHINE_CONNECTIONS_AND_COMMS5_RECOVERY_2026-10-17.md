@@ -2,11 +2,12 @@
 Riverview Controlled Document
 File: docs/operations/RIVERVIEW_MACHINE_CONNECTIONS_AND_COMMS5_RECOVERY_2026-10-17.md
 Component: COMMS5-OAUTH-IONOGE
-File Revision: 1.0.2
+File Revision: 1.0.3
 Status: Verified machine connection and recovery runbook
 Date: 2026-10-17
 Purpose: Record nonsecret Camrui/Ionoge Comms5 connectivity, health checks, and recovery evidence.
 Changed: 2026-10-17 UTC | RV-COMMS5-OAUTH-FORWARD-HEADERS-001 | Record byte-level equality between deployed Comms5 Caddy block and source template.
+Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-CREDENTIAL-001 | Document credential purpose, consumers, provenance limitation and safe rotation.
 History: New file; no predecessor existed in the integration checkout.
 Authority: Existing service identities and grants; this document does not issue authority.
 -->
@@ -27,6 +28,74 @@ ChatGPT MCP client
 Ionoge is `ionoge-control-01` at `64.227.21.54`. Comms5 public issuer is `https://riverview-comms.ionoge.com`; MCP resource is `https://riverview-comms.ionoge.com/comms5/mcp`. OAuth routes are on the same HTTPS host. The adapter and OAuth listeners remain loopback-only.
 
 Camrui units: `riverview-comms5-camrui.service` and `riverview-comms5-tunnel.service`. Ionoge units: `riverview-comms5-oauth.service` and `caddy.service`. The reverse tunnel uses the dedicated restricted key and pinned host key delivered to the Camrui service with systemd credentials; SSH uses strict host-key checking and a remote forward bound only to `127.0.0.1:11826`. Do not copy, print, or rotate credentials as routine recovery.
+
+## What the OAuth page means by “Steward credential”
+
+The authorization form validates the submitted string against `RIVERVIEW_COMMS5_CLIENT_SECRET`. The OAuth service reads this from `/etc/riverview/comms5-oauth.env`; Caddy reads the same-named value from `/etc/caddy/riverview-comms5.env` as its legacy Comms5 bearer. For the OAuth form, Caddy forwards the request to the loopback OAuth service with the separate `RIVERVIEW_COMMS5_OAUTH_PROXY_KEY`. The OAuth code compares the submitted value in constant time. A successful check issues an OAuth authorization code and maps the resulting OAuth subject to `steward`; the page is not asking for the dashboard login credential, a PostgreSQL password, an OAuth client secret, or an SSH key. Historical source `ppow1/Riverview` at `08c1162c4ad04a21df71ed7814a3e22bd9ba41a2` describes this variable as the Steward-controlled Comms5 connector bearer in `config/riverview-comms5-ingress.Caddyfile.example` and `docs/operations/RIVERVIEW_COMMS5_DEPLOYMENT.md`. This proves the intended credential owner predates the current OAuth page, but it does not prove that the live secret bytes were carried forward from that earlier installation.
+
+The same value is accepted as the legacy static bearer on Caddy’s `/comms5/mcp` route, which Caddy forwards as principal `steward`. Consequently, replacing it affects new OAuth logins and any direct Comms5 client still configured with the legacy bearer. Existing OAuth tokens are stored separately in OAuth state and are not the same value; no claim is made that every external static-bearer consumer has been inventoried. The separate `RIVERVIEW_COMMS5_OAUTH_PROXY_KEY` authenticates the trusted Caddy-to-OAuth authorization hop. `RIVERVIEW_COMMS5_UPSTREAM_AUTH` is the distinct Caddy-to-Camrui backend credential.
+
+Read-only live inspection on 2026-10-17 confirmed both client-secret environment entries exist, are equal, and are in root-owned mode-0600 files. Filesystem birth times are 2026-10-17 04:16 UTC, during the current OAuth commissioning window. The available deployment records do not contain an issuance record, entropy-generation record, or confirmation that the secret was delivered to the Steward. Therefore the live value was installed during OAuth commissioning, but whether it was newly generated or copied from an earlier Steward-held Comms5 bearer, and whether the operator received it, are **unverified**. Treat it as not yet explicitly provisioned to the operator. The inspection did not read the value into output, logs, or this record.
+
+### Establish or replace the operator-held credential
+
+The guarded utility `scripts/rotate_comms5_steward_credential.py` is the supported procedure. It has a read-only `--check` mode and an explicit `--install-from-stdin` mode. It accepts only a 43–128 character base64url value through stdin (never an argument or environment variable); the documented operator command generates 48 cryptographically random bytes. It requires the two existing entries to match, confirms the service environment-file wiring and protected file modes, creates a root-only predecessor backup, atomically updates only the two Comms5 client-secret entries, then restarts only `riverview-comms5-oauth.service` and `caddy.service`. It checks OAuth health/discovery and confirms anonymous MCP remains HTTP 401. A failure restores the predecessor files and attempts to restore service health. It never emits the replacement value. Unit coverage is in `tests/test_comms5_steward_credential.py`.
+
+After this utility is merged, install it from the reviewed checkout with Windows PowerShell 5.1. This copies only the public utility source, not a credential, and runs its read-only preflight:
+
+```powershell
+Clear-Host
+$RepoRoot = 'A:\Riverview-New-Core'
+scp "$RepoRoot\scripts\rotate_comms5_steward_credential.py" ionoge-control-01:/tmp/rotate_comms5_steward_credential.py
+$CopyExit = $LASTEXITCODE
+if ($CopyExit -eq 0) {
+    ssh -T ionoge-control-01 'install -o root -g root -m 0755 /tmp/rotate_comms5_steward_credential.py /usr/local/sbin/rotate_comms5_steward_credential.py && rm -f /tmp/rotate_comms5_steward_credential.py && python3 /usr/local/sbin/rotate_comms5_steward_credential.py --check'
+    $CheckExit = $LASTEXITCODE
+}
+if ($CopyExit -ne 0) {
+    $Report = 'Utility transfer failed; no production credential was changed.'
+    $Report | Set-Clipboard
+    Write-Host $Report
+}
+if (($CopyExit -eq 0) -and ($CheckExit -eq 0)) {
+    $Report = 'Read-only credential preflight passed. The utility is installed; no production credential was changed.'
+    $Report | Set-Clipboard
+    Write-Host $Report
+}
+if (($CopyExit -eq 0) -and ($CheckExit -ne 0)) {
+    $Report = 'Credential preflight failed; no production credential was changed. Keep the result sanitized and diagnose before rotation.'
+    $Report | Set-Clipboard
+    Write-Host $Report
+}
+```
+
+After preflight, the operator can generate a fresh value locally, stream it to Ionoge over that trusted SSH connection, and retain it only in the local PowerShell variable/clipboard for the browser form. The following does not print the value:
+
+```powershell
+Clear-Host
+$Bytes = New-Object byte[] 48
+$Rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$Rng.GetBytes($Bytes)
+$Credential = [Convert]::ToBase64String($Bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+$Credential | ssh -T ionoge-control-01 'python3 /usr/local/sbin/rotate_comms5_steward_credential.py --install-from-stdin'
+$InstallExit = $LASTEXITCODE
+if ($InstallExit -eq 0) {
+    $Credential | Set-Clipboard
+    $Report = "Comms5 credential installed. Paste the clipboard value into the HTTPS Steward credential field, complete OAuth, then clear the clipboard with Set-Clipboard -Value ''. The value was not printed."
+    Write-Host $Report
+}
+if ($InstallExit -ne 0) {
+    $Report = "Credential rotation failed or rolled back. Do not retry blindly; inspect the sanitized utility result and service health. The value was not printed."
+    Write-Host $Report
+}
+$Credential = $null
+$Bytes = $null
+$Rng.Dispose()
+```
+
+Run the command only after installing the reviewed utility. The program’s JSON result reports a protected backup path and whether predecessor recovery succeeded, never the secret. The operator should complete the browser login, then clear the clipboard. If any direct static-bearer Comms5 consumer exists, update that client through its own protected credential procedure; do not silently preserve the old value in another service. This is a credential rotation and causes a brief restart of Caddy and the OAuth unit. It does not alter Comms4, the tunnel, Camrui, or OAuth token state.
+
+For a no-change inspection, run `sudo python3 /usr/local/sbin/rotate_comms5_steward_credential.py --check`. Do not use `systemctl show -p Environment`, `cat` the environment files, pass the credential on a command line, place it in shell history, or send it in chat/email.
 
 ## 2026-10-17 commissioning record
 
