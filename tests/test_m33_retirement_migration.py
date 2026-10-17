@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_m33_retirement_migration.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Verify the fixed M33 retirement migration applies alone and preserves state
 # Execution Model: Disposable PostgreSQL schemas
 # Observability: unittest assertions for preflight, ledger, ACLs, and row preservation
@@ -10,6 +10,7 @@
 # Authority: Creates and drops only a unique rvtest_* schema
 # Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Add narrow-migration regression suite
 # Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Cover checksum drift and unexpected ledger entries
+# Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Run against the configured disposable database name
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -40,6 +41,7 @@ class M33RetirementMigrationTests(unittest.TestCase):
         from riverview_core.postgres_migrations import apply_migrations
 
         self.psycopg, self.sql = psycopg, sql
+        self.database = psycopg.conninfo.conninfo_to_dict(DSN).get("dbname", "riverview")
         self.apply = apply_m33_retirement_migration
         self.check = check_m33_retirement_migration
         self.apply_migrations = apply_migrations
@@ -100,14 +102,16 @@ class M33RetirementMigrationTests(unittest.TestCase):
             (self.schema,),
         ).fetchone()[0]
 
-        preflight = self.check(self.connection, self.full_dir, schema=self.schema)
+        preflight = self.check(self.connection, self.full_dir, schema=self.schema,
+                               expected_database=self.database)
         self.assertEqual(preflight["status"], "READY")
         self.assertEqual(preflight["checksum"], EXPECTED_MIGRATION_SHA256)
         self.assertNotIn(MIGRATION_VERSION, dict(self.admin.execute(
             self.sql.SQL("SELECT version,checksum FROM {}.schema_migrations")
             .format(self.sql.Identifier(self.schema))).fetchall()))
 
-        result = self.apply(self.connection, self.full_dir, schema=self.schema)
+        result = self.apply(self.connection, self.full_dir, schema=self.schema,
+                            expected_database=self.database)
         self.assertEqual(result["status"], "APPLIED")
         self.assertEqual(result["authority_data_and_permissions"], "PRESERVED")
         rows_after = self.admin.execute(self.sql.SQL(
@@ -127,21 +131,24 @@ class M33RetirementMigrationTests(unittest.TestCase):
             "SELECT checksum FROM {}.schema_migrations WHERE version=%s"
         ).format(self.sql.Identifier(self.schema)), (MIGRATION_VERSION,)).fetchone()[0],
                          EXPECTED_MIGRATION_SHA256)
-        self.assertEqual(self.apply(self.connection, self.full_dir, schema=self.schema)["status"],
+        self.assertEqual(self.apply(self.connection, self.full_dir, schema=self.schema,
+                                    expected_database=self.database)["status"],
                          "ALREADY_APPLIED")
 
     def test_refuses_unrelated_migration_file(self):
         extra = self.full_dir / "0010_unrelated.sql"
         extra.write_text("SELECT 1;\n", encoding="utf-8")
         with self.assertRaisesRegex(Exception, "unrelated_or_missing_migrations_present"):
-            self.check(self.connection, self.full_dir, schema=self.schema)
+            self.check(self.connection, self.full_dir, schema=self.schema,
+                       expected_database=self.database)
 
     def test_refuses_missing_or_drifted_prior_migration(self):
         self.admin.execute(self.sql.SQL(
             "DELETE FROM {}.schema_migrations WHERE version='0008_resident_permission_profiles'"
         ).format(self.sql.Identifier(self.schema)))
         with self.assertRaisesRegex(Exception, "prior_migrations_missing_or_unrelated_pending"):
-            self.check(self.connection, self.full_dir, schema=self.schema)
+            self.check(self.connection, self.full_dir, schema=self.schema,
+                       expected_database=self.database)
 
     def test_refuses_drifted_prior_checksum(self):
         self.admin.execute(self.sql.SQL(
@@ -149,11 +156,13 @@ class M33RetirementMigrationTests(unittest.TestCase):
             "WHERE version='0007_audited_office_role_update'"
         ).format(self.sql.Identifier(self.schema)), ("0" * 64,))
         with self.assertRaisesRegex(Exception, "prior_migrations_missing_or_unrelated_pending"):
-            self.check(self.connection, self.full_dir, schema=self.schema)
+            self.check(self.connection, self.full_dir, schema=self.schema,
+                       expected_database=self.database)
 
     def test_refuses_unrelated_applied_ledger_entry(self):
         self.admin.execute(self.sql.SQL(
             "INSERT INTO {}.schema_migrations(version,checksum) VALUES(%s,%s)"
         ).format(self.sql.Identifier(self.schema)), ("0010_unrelated", "1" * 64))
         with self.assertRaisesRegex(Exception, "prior_migrations_missing_or_unrelated_pending"):
-            self.check(self.connection, self.full_dir, schema=self.schema)
+            self.check(self.connection, self.full_dir, schema=self.schema,
+                       expected_database=self.database)

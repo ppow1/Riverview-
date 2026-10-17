@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/m33_retirement_migration.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Apply only the checksum-pinned M33 retirement event migration
 # Execution Model: Explicit DBA operation under the local PostgreSQL administrator
 # Observability: Redacted preflight/apply status; preserved rows and ACL snapshots
@@ -10,6 +10,7 @@
 # Authority: Fixed riverview_authority schema and migration 0009; no grants or registry writes
 # Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Add fixed-scope guarded migration runner
 # Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Allow only the single expected migration-ledger row count increase
+# Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Keep CLI target fixed while supporting CI's disposable database identity
 # Tests: tests/test_m33_retirement_migration.py
 # History: .riverview-backups/manifest.jsonl and Git
 # =============================================================================
@@ -128,7 +129,8 @@ def _schema_snapshot(cur, schema: str) -> tuple[tuple, tuple, tuple]:
     return tuple(namespace), relations, tuple(counts)
 
 
-def _preflight(cur, directory: Path, schema: str = SCHEMA) -> tuple[Path, str, bool]:
+def _preflight(cur, directory: Path, schema: str = SCHEMA,
+               expected_database: str = "riverview") -> tuple[Path, str, bool]:
     files = _migration_files(directory)
     migration_path = files[MIGRATION_VERSION]
     try:
@@ -140,7 +142,7 @@ def _preflight(cur, directory: Path, schema: str = SCHEMA) -> tuple[Path, str, b
         raise RetirementMigrationError("migration_checksum_does_not_match_reviewed_source")
 
     cur.execute("SELECT current_database()")
-    if cur.fetchone()[0] != "riverview":
+    if cur.fetchone()[0] != expected_database:
         raise RetirementMigrationError("wrong_database")
     cur.execute("SELECT to_regnamespace(%s)", (schema,))
     if cur.fetchone()[0] is None:
@@ -184,7 +186,8 @@ def _preflight(cur, directory: Path, schema: str = SCHEMA) -> tuple[Path, str, b
 
 
 def apply_m33_retirement_migration(connection, migration_directory: Path,
-                                   *, schema: str = SCHEMA) -> dict:
+                                   *, schema: str = SCHEMA,
+                                   expected_database: str = "riverview") -> dict:
     """Atomically apply only 0009 after exact source, chain, and schema checks."""
     directory = Path(migration_directory)
     try:
@@ -192,7 +195,9 @@ def apply_m33_retirement_migration(connection, migration_directory: Path,
             with connection.cursor() as cur:
                 cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))",
                             ("riverview-migrations:" + schema,))
-                migration_path, migration_hash, is_applied = _preflight(cur, directory, schema)
+                migration_path, migration_hash, is_applied = _preflight(
+                    cur, directory, schema, expected_database
+                )
                 if is_applied:
                     return {"status": "ALREADY_APPLIED", "version": MIGRATION_VERSION,
                             "checksum": migration_hash}
@@ -235,13 +240,16 @@ def apply_m33_retirement_migration(connection, migration_directory: Path,
 
 
 def check_m33_retirement_migration(connection, migration_directory: Path,
-                                   *, schema: str = SCHEMA) -> dict:
+                                   *, schema: str = SCHEMA,
+                                   expected_database: str = "riverview") -> dict:
     """Read-only prerequisite check; does not acquire a writer lock or apply DDL."""
     try:
         with connection.transaction():
             with connection.cursor() as cur:
                 cur.execute("SET TRANSACTION READ ONLY")
-                _path, checksum, is_applied = _preflight(cur, Path(migration_directory), schema)
+                _path, checksum, is_applied = _preflight(
+                    cur, Path(migration_directory), schema, expected_database
+                )
         return {"status": "READY" if not is_applied else "ALREADY_APPLIED",
                 "version": MIGRATION_VERSION, "checksum": checksum}
     except RetirementMigrationError:
