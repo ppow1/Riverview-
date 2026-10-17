@@ -1,0 +1,19 @@
+{
+  "activated_at_utc": "2026-10-16T22:04:59Z",
+  "database_migration_applied_by_release": false,
+  "deployment_id": "website-pr71-50e1e44b498927e5df67e5c08aec3cda8267dd72",
+  "integration_baseline": "b8d2cadc3503491226f23a7564a069d4077514ae",
+  "latest_migration": "0010_institutional_proposal_registry",
+  "merge_commit": "50e1e44b498927e5df67e5c08aec3cda8267dd72",
+  "migration_checksum": "3909705a38ec19f31be99088fa7fbfc8dfe9e9c6d28a55095f978d4bf10d4e18",
+  "package_sha256": "c60f7fca6325ed2a746c8a611cb0b9b5fc4afb64508401166c2770ab4f106a53",
+  "previous_release": "/opt/riverview-status-dashboard/releases/f957bddb5eda39d4fbd5860ee29f7c32831553b7",
+  "production_url": "https://192.168.1.155/",
+  "pull_request": 71,
+  "pull_request_head": "fd09129bbadd44738ac38fde837e37164f243964",
+  "release_directory": "/opt/riverview-status-dashboard/releases/50e1e44b498927e5df67e5c08aec3cda8267dd72",
+  "rollback_evidence": "/var/backups/riverview-status-dashboard/website-pr71-20261016T220335Z",
+  "rollback_performed": false,
+  "schema_version": "rv.website.production-release.v1",
+  "source_commit": "50e1e44b498927e5df67e5c08aec3cda8267dd72"
+}

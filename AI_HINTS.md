@@ -1,6 +1,6 @@
 # Riverview~ AI Engineering Hints
 
-**Document Revision:** 1.0.4
+**Document Revision:** 1.0.5
 **Status:** Working agent guidance  
 **Date:** 2026-10-09  
 **Component:** ENG-AGENT-GUIDANCE  
@@ -40,6 +40,10 @@
 - Do not fabricate repository contents, tool results, commits, tests, or completion.
 - Do not place secrets in source, headers, reports, or chat.
 
+## Institutional proposal authoring
+
+When the Steward asks to save, register, preserve, revise, or review an idea as an institutional proposal, consult `docs/components/INSTITUTIONAL_PROPOSALS.md` and `docs/operations/INSTITUTIONAL_PROPOSAL_AUTHORING.md` before drafting or submitting. Follow the registry's content, provenance, revision, and authorization contracts. Saving a proposal does not authorize Engineering execution.
+
 ## PowerShell rules for this project
 
 - Every supplied PowerShell script starts with `Clear-Host`.
@@ -53,6 +57,8 @@
 Before editing, briefly report: repository/branch/HEAD, applicable standards, task scope, relevant code/dependencies, predecessor-preservation plan, and tests to run. If the task is purely informational, do not modify files.
 
 ## Revision history
+
+- **1.0.5 — 2026-10-16:** Add the proposal-authoring playbook as the discovery path for Steward requests. Predecessor: `.riverview-backups/20261016T210041426926Z/AI_HINTS.md`.
 
 - **1.0.4 — 2026-10-13:** Make canonical graph/diagnostic integrity and documentation-first anti-rediscovery standing acceptance criteria for every engineering session. Predecessor: `.riverview-backups/20261013T152238220458Z/AI_HINTS.md`.
 

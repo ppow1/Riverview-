@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md
 Component: WORKER-ADAPTER / INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Specify safe retirement of the two registrations for revoked M33 commissioning run e92ec515
 Authority: Steward-authorized fixed-ID operation; production execution remains pending controlled release and live preflight
 Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Document retirement controls, audit, recovery boundary, and operator procedure
+Changed: 2026-10-17 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Add exact read-only postflight and match systemd preflight states
 History: Git and evidence/checkouts/WORKER-REGISTRY-RETIREMENT/20261016T-procedure/
 -->
 # M33 worker registration retirement
@@ -44,7 +45,7 @@ Before any write, it also verifies:
 1. The two exact M33 registration rows are active and have the exact M33 scope.
 2. There are seven rows and exactly five active rows: the two M33 registrations plus `worker:grace-engineering`, `worker:grace-engineering-source-change`, and `verifier:grace-engineering`.
 3. Neither M33 principal has any currently effective grant or credential.
-4. All three M33 units (`riverview-assignment-intake.service`, `riverview-m33-worker.service`, `riverview-m33-verifier.service`) report inactive/failed with `MainPID=0`.
+4. All three M33 units (`riverview-assignment-intake.service`, `riverview-m33-worker.service`, `riverview-m33-verifier.service`) report exactly `inactive` / `dead` with `MainPID=0`.
 5. No unexpired lease belongs to either M33 worker, and no assignment in the M33 scope is queued, ready, running, awaiting verification, or rework-required.
 6. The connected database role already has `UPDATE` on `riverview_dev.worker_registry`; the helper does not grant privileges or assume another role.
 
@@ -64,7 +65,34 @@ sudo -n env PYTHONPATH=/opt/riverview-core/current/src \
 
 The helper prints only redacted JSON: status, exact retired IDs, fixed run ID, remaining three Grace IDs, and verified stopped-unit states. It never prints the Steward token, credential digests, or database password. Do not retry an ambiguous response until the authority events, active flags, and assignment/lease postconditions are queried read-only.
 
-Postflight, using the documented read-only worker inventory query, must show seven registrations total, exactly three active (the three Grace IDs), both M33 rows inactive, and no changes to Grace registrations or assignments. Confirm exactly two new append-only `worker_registration_retired` events whose actors are the Steward and whose subjects are the two M33 worker principals. Confirm all three M33 services remain stopped and Grace/CME/event-processor/dashboard services unchanged. Preserve sanitized outputs and hashes under `evidence/checkouts/WORKER-REGISTRY-RETIREMENT/<timestamp>-<commit>/`.
+Run the following read-only database diagnostic after the helper. It reports the seven registration rows and active set, M33 assignment/lease state, and retirement audit events without exposing credentials:
+
+```sh
+sudo -n -u postgres psql -d riverview -X --set=ON_ERROR_STOP=1 <<'SQL'
+BEGIN READ ONLY;
+SELECT worker_id,active,scope_ref FROM riverview_dev.worker_registry ORDER BY worker_id;
+SELECT count(*) AS total_rows,
+       count(*) FILTER (WHERE active) AS active_rows,
+       array_agg(worker_id ORDER BY worker_id) FILTER (WHERE active) AS active_worker_ids
+FROM riverview_dev.worker_registry;
+SELECT id,state,workflow_step FROM riverview_dev.assignments
+WHERE authority_ref='work-order:m33-live-e92ec51590b34cd3' ORDER BY id;
+SELECT assignment_id,worker_id,expires_at FROM riverview_dev.assignment_leases
+WHERE worker_id IN ('worker:m33:executor:e92ec51590b34cd3',
+                    'worker:m33:verifier:e92ec51590b34cd3') ORDER BY assignment_id;
+SELECT event_id,actor_id,subject_id,payload,recorded_at
+FROM riverview_authority.institutional_authority_events
+WHERE event_type='worker_registration_retired'
+  AND subject_id IN ('worker:m33:executor:e92ec51590b34cd3',
+                     'worker:m33:verifier:e92ec51590b34cd3')
+ORDER BY recorded_at,event_id;
+COMMIT;
+SQL
+sudo -n systemctl show riverview-assignment-intake.service riverview-m33-worker.service \
+  riverview-m33-verifier.service --property=ActiveState,SubState,MainPID --no-pager
+```
+
+Acceptance requires seven rows total, exactly the three Grace IDs active, both exact M33 IDs inactive, two retirement events attributed to the Steward, no unexpired M33 lease, no executable M33 assignment, and all three M33 units still `inactive/dead` with PID 0. Confirm Grace, CME, event-processor, and dashboard service states were not changed. Preserve sanitized outputs and hashes under `evidence/checkouts/WORKER-REGISTRY-RETIREMENT/<timestamp>-<commit>/`.
 
 ## Troubleshooting and recovery
 

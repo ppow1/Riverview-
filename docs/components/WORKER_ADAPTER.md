@@ -1,6 +1,6 @@
 # Riverview~ worker adapter contract
 
-**Document Revision:** 1.0.20
+**Document Revision:** 1.0.21
 **Component:** WORKER-ADAPTER
 **Milestone:** M2.1–M2.3
 **Status:** M3.3 scoped technical acceptance criteria PASS and ready for Steward review; no simultaneous executor-process throughput claim. Formal acceptance and full Component DoD remain open; M4.3 local-inference execution remains isolated.
@@ -10,6 +10,7 @@
 **Changed:** 2026-10-11 UTC | RV-M3.3-ASSIGNMENT-INTAKE | Record isolated grant-gated assignment creation and undeployed service boundary
 **Changed:** 2026-10-11 UTC | RV-M3.3-REPOSITORY-KNOWLEDGE | Specify pinned read-only repository provider and its fail-closed status
 **Changed:** 2026-10-11 UTC | RV-M3.3-WORKER-SERVICE | Specify executor/verifier systemd runner contracts and commissioning state
+**Changed:** 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Clarify idle polling and distinguish assignment-lease heartbeat from process liveness.
 **Changed:** 2026-10-11 UTC | RV-M3.3-LIVE-COMMISSIONING | Record live grant-bound repository test executor, verifier, artifact and recovery evidence
 **Changed:** 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION | Record live unavailable-knowledge isolation while eligible work continues
 **Changed:** 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-STATUS | Align current scoped technical status and distinguish process concurrency claims

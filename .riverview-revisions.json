@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.187"
+      "revision": "1.1.195"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -20,6 +20,18 @@
       "revision": "1.0.5",
       "sha256": "0b97b787445ce1605fbf719c112df03fc14787448303348e4e59445651c80a16",
       "size_bytes": 12204
+    },
+    "docs/development/JOURNAL.md": {
+      "path": "docs/development/JOURNAL.md",
+      "revision": "1.0.159",
+      "sha256": "616e826331a10b6d8ff393e1459c1d635c1981b7de1ba2b501e8d8080d49f8ff",
+      "size_bytes": 200524
+    },
+    "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md": {
+      "path": "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md",
+      "revision": "1.0.2",
+      "sha256": "fe9a7aaf2d14e0309a6e221ff751c92bbccf4bb7ba584c12b691f7e6bd2712cf",
+      "size_bytes": 5000
     },
     "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json": {
       "path": "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
@@ -56,6 +68,12 @@
       "revision": "1.0.1",
       "sha256": "6d6ef80a5252415c7113309ac64ed8d889e83ead00e89266081583926b0d04d5",
       "size_bytes": 548
+    },
+    "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/revision-baseline.json": {
+      "path": "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/revision-baseline.json",
+      "revision": "1.0.0",
+      "sha256": "6ee6fa5d98e0827820b6c36c532cd5b0245a55e6353d99424278b23de3d605a7",
+      "size_bytes": 277250
     },
     "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json": {
       "path": "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json",
@@ -96,8 +114,8 @@
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
       "revision": "1.0.146",
-      "sha256": "7675e25b1cb41c57f364f40b6f8cbf6b2833e2f7f906a0b96f3f00a28404c16a",
-      "size_bytes": 559046
+      "sha256": "aa422c8660079e4fcee34c76c425374b19dc2b4bbe5a5d5f4bfc2675b0dcd02b",
+      "size_bytes": 583469
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -161,9 +179,9 @@
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "path": "process_graphs/resident-reasoning/runtime.json",
-      "revision": "1.0.12",
-      "sha256": "19171278b9dcd4efc4f93e66d32ac8891748a884a63ed0c24aac9b62740cfe36",
-      "size_bytes": 28784
+      "revision": "1.0.19",
+      "sha256": "afaf9e5d2bab536d91900f9970dda3f62451d684eb224db0faceb2674b6d22ce",
+      "size_bytes": 50050
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -178,10 +196,10 @@
       "size_bytes": 3203
     },
     "process_graphs/steward-dashboard/status.json": {
-      "revision": "1.0.28",
       "path": "process_graphs/steward-dashboard/status.json",
-      "sha256": "0060df8d73102ed4ef72ec8a7211dd00c392fa9a368ba5a1a0bef93df734747e",
-      "size_bytes": 39787
+      "revision": "1.0.29",
+      "sha256": "c853fb5b41c79ab2c6b8352741e6d0681dfa0f9071b3954768dc08e5127ff6ec",
+      "size_bytes": 39818
     },
     "process_graphs/worker-adapter/deterministic-attempt.json": {
       "path": "process_graphs/worker-adapter/deterministic-attempt.json",
@@ -189,11 +207,23 @@
       "sha256": "2de78352344260a63024549536dfa6b3714073455e2f5e07db87461ee0f6ee5d",
       "size_bytes": 43754
     },
+    "process_graphs/worker-adapter/registration-retirement.json": {
+      "path": "process_graphs/worker-adapter/registration-retirement.json",
+      "revision": "1.0.1",
+      "sha256": "547c13dc8f97b313c6fe151d1280f1c541d45d4aec334a06c4bc71f1024f94e6",
+      "size_bytes": 5661
+    },
     "process_graphs/worker-adapter/supervised-services.json": {
       "path": "process_graphs/worker-adapter/supervised-services.json",
       "revision": "1.0.1",
       "sha256": "e2e5911aae9b98d37c139995030103ebb8f29d891ea80c398411591a455f7b80",
       "size_bytes": 18530
+    },
+    "src/riverview_core/status_dashboard/static/capabilities.json": {
+      "path": "src/riverview_core/status_dashboard/static/capabilities.json",
+      "revision": "1.0.1",
+      "sha256": "fbe0fb6d53ca6e7fd3ff72073d6dbec49f6b36fd840dbc643cfd1fbc6dcc70f2",
+      "size_bytes": 23138
     },
     "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json": {
       "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json",
@@ -218,19 +248,8 @@
       "revision": "1.0.0",
       "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
       "size_bytes": 1226
-    },
-    "src/riverview_core/status_dashboard/static/capabilities.json": {
-      "path": "src/riverview_core/status_dashboard/static/capabilities.json",
-      "revision": "1.0.1",
-      "sha256": "fbe0fb6d53ca6e7fd3ff72073d6dbec49f6b36fd840dbc643cfd1fbc6dcc70f2",
-      "size_bytes": 23138
-    },
-    "process_graphs/worker-adapter/registration-retirement.json": {
-      "path": "process_graphs/worker-adapter/registration-retirement.json",
-      "revision": "1.0.1",
-      "sha256": "547c13dc8f97b313c6fe151d1280f1c541d45d4aec334a06c4bc71f1024f94e6",
-      "size_bytes": 5661
     }
   },
-  "manifest_revision": "1.1.187"
+  "manifest_revision": "1.1.195",
+  "updated_at": null
 }

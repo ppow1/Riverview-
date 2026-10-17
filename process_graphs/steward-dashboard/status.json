@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:steward-dashboard:status",
-  "graph_revision": "1.1.16",
+  "graph_revision": "1.1.17",
   "component_id": "STEWARD-DASHBOARD",
   "workflow_id": "status-projection.v1",
   "diagram_order": 1,
@@ -370,7 +370,7 @@
       "id": "rv:steward-dashboard:status:list-workers",
       "node_revision": "1.0.0",
       "type": "process",
-      "label": "Page individual worker lease health and active work counts",
+      "label": "Page worker lease-heartbeat freshness and active leases; process liveness is not reported",
       "source_references": [
         "src/riverview_core/status_dashboard/projection.py",
         "src/riverview_core/status_dashboard/server.py",

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.15
+# Revision: 1.0.16
 # Purpose: Regound institutional resident requests and route bounded plan proposals
 # Execution Model: Request-driven in-process runtime with replaceable reasoning providers
 # Observability: Office-scoped durable state stores grounding and provider outcomes
@@ -23,6 +23,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Reject empty or malformed source-change scopes instead of truthy generator results
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Restrict source-change test targets to tests paths
 # Changed: 2026-10-15 UTC | RV-GRACE-AUTHORIZED-SNAPSHOT-001 | Revalidate office through the restricted runtime function after inference
+# Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Accept bounded advisory input separately from verified knowledge
 # Contracts: docs/components/RESIDENT_REASONING.md
 # Tests: tests/test_resident_reasoning.py
 # History: .riverview-backups/manifest.jsonl
@@ -39,6 +40,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from enum import Enum
+import hashlib
 import json
 import re
 import threading
@@ -145,6 +147,7 @@ class ReasoningRequest:
     assignment: Mapping[str, Any]
     verified_knowledge: tuple[Mapping[str, Any], ...]
     prior_plan: Mapping[str, Any] | None
+    external_advisory: Mapping[str, Any] | None = None
 
 
 class AssignmentContextReader(Protocol):
@@ -274,7 +277,20 @@ class ResidentReasoner:
                               str(revision or "DURABLE_STATE_WRITE_FAILED"), provider_id)
 
     def _record(self, snapshot, assignment_id, request_id, status, trigger,
-                grounding, regrounding, *, provider_id=None, code="", proposal=None):
+                grounding, regrounding, *, provider_id=None, code="", proposal=None,
+                external_advisory=None):
+        advisory_provenance = None
+        if external_advisory is not None:
+            advisory_provenance = {
+                "request_id": external_advisory["request_id"],
+                "correlation_id": external_advisory["correlation_id"],
+                "response_id": external_advisory["response_id"],
+                "provider_id": external_advisory["provider_id"],
+                "provider_model": external_advisory["provider_model"],
+                "response_sha256": hashlib.sha256(json.dumps(
+                    external_advisory, sort_keys=True, separators=(",", ":"),
+                    ensure_ascii=False).encode("utf-8")).hexdigest(),
+            }
         return self._persist(snapshot, assignment_id=assignment_id,
                              observation={"request_id": request_id,
                                           "assignment_id": assignment_id,
@@ -283,7 +299,8 @@ class ResidentReasoner:
                                           "trigger": trigger,
                                           "grounding": self._knowledge_record(grounding),
                                           "regrounding": self._knowledge_record(regrounding),
-                                          "provider_id": provider_id},
+                                          "provider_id": provider_id,
+                                          "external_advisory": advisory_provenance},
                              proposal=proposal)
 
     def _call_knowledge(self, operation, *args):
@@ -302,11 +319,44 @@ class ResidentReasoner:
             return any(cls._contains_secret_key(child) for child in value)
         return False
 
-    def propose(self, assignment_id: str, *, trigger: str, token_budget: int) -> ReasoningResult:
+    @staticmethod
+    def _validate_external_advisory(value):
+        if value is None:
+            return None
+        required = {"schema_version", "request_id", "correlation_id", "response_id",
+                    "advisory", "evidence_references", "provider_id", "provider_model"}
+        if not isinstance(value, Mapping) or set(value) != required:
+            raise ValueError("external advisory does not match its typed response contract")
+        try:
+            from uuid import UUID
+            UUID(str(value["request_id"]))
+            UUID(str(value["correlation_id"]))
+        except (ValueError, TypeError, AttributeError):
+            raise ValueError("external advisory correlation is invalid") from None
+        refs = value["evidence_references"]
+        if (value["schema_version"] != "rv.external-reasoning.response.v1"
+                or not isinstance(value["response_id"], str) or not value["response_id"]
+                or len(value["response_id"]) > 160
+                or not isinstance(value["advisory"], str) or not value["advisory"].strip()
+                or len(value["advisory"]) > 8000
+                or not isinstance(refs, list) or len(refs) > 32
+                or any(not isinstance(item, str) or not item or len(item) > 512 for item in refs)
+                or any(not isinstance(value[key], str) or not value[key] or len(value[key]) > 160
+                       for key in ("provider_id", "provider_model"))):
+            raise ValueError("external advisory fields exceed the bounded response contract")
+        encoded = json.dumps(value, ensure_ascii=False, sort_keys=True,
+                             separators=(",", ":"), allow_nan=False).encode("utf-8")
+        if len(encoded) > 16 * 1024:
+            raise ValueError("external advisory exceeds the response size limit")
+        return dict(value)
+
+    def propose(self, assignment_id: str, *, trigger: str, token_budget: int,
+                external_advisory: Mapping[str, Any] | None = None) -> ReasoningResult:
         request_id = str(uuid4())
         if (not assignment_id or not trigger or len(trigger) > 80
                 or type(token_budget) is not int or not 1 <= token_budget <= 100_000):
             raise ValueError("assignment, bounded trigger, and token budget are required")
+        external_advisory = self._validate_external_advisory(external_advisory)
         try:
             snapshot = self.registry.authorize_office_state(
                 self._credential, self.office_id)
@@ -400,7 +450,7 @@ class ResidentReasoner:
             verified_knowledge=(
                 {"value": grounded.value, **self._knowledge_record(grounded)},
                 {"value": regrounded.value, **self._knowledge_record(regrounded)}),
-            prior_plan=prior_plan)
+            prior_plan=prior_plan, external_advisory=external_advisory)
 
         for provider_id in route:
             provider = self.providers[provider_id]
@@ -453,7 +503,7 @@ class ResidentReasoner:
             revision = self._record(latest, assignment_id, request_id,
                                     ReasoningStatus.PROPOSED, trigger, grounded, regrounded,
                                     provider_id=provider_id, code="PROPOSAL_ONLY",
-                                    proposal=result)
+                                    proposal=result, external_advisory=external_advisory)
             final = self._result_after_record(revision, ReasoningStatus.PROPOSED,
                                               request_id, "PROPOSAL_ONLY", provider_id)
             if final.status is not ReasoningStatus.PROPOSED:

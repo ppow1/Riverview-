@@ -1,0 +1,50 @@
+{
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "a38f6726da961f8c7cce044d507a905002c41e0f67fab828c9c4a4212a8f3b6e",
+      "size_bytes": 4280
+    },
+    "diff-check.log": {
+      "path": "diff-check.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "18d74076046e88f889042c97515a81077f6719b8e107487768ef859f939a1519",
+      "size_bytes": 93122
+    },
+    "graph-check.json": {
+      "path": "graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "9a34478b8c7b936eef5b8bcd4e303558045e4301a8ce6234e448787ffaca8352",
+      "size_bytes": 55
+    },
+    "pycompile.log": {
+      "path": "pycompile.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "revision-baseline.json": {
+      "path": "revision-baseline.json",
+      "revision": "1.0.0",
+      "sha256": "a9611150e22aa1426ece70e59fe844be399c47f60a334f8f781c4eec276a5b04",
+      "size_bytes": 285469
+    }
+  },
+  "component_id": "RESIDENT-REASONING",
+  "manifest_revision": "1.0.0",
+  "source_commit": "1359019ed377b791ac5b4004a6ca09d735e6797a",
+  "task_id": "RV-EXTERNAL-MCP-ADAPTER-001"
+}

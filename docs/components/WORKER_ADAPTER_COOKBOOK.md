@@ -2,11 +2,12 @@
 Riverview~ Controlled Document
 File: docs/components/WORKER_ADAPTER_COOKBOOK.md
 Component: WORKER-ADAPTER
-File Revision: 1.0.14
-Purpose: Diagnose worker identity, attempt, verification, recovery and exact M33 retirement safely
-Authority: Read-only diagnosis; registration retirement only through the fixed Steward-authorized M33 operation
+File Revision: 1.0.15
+Purpose: Diagnose worker identity, attempts, verification and recovery; retire the exact M33 registrations safely
+Authority: Read-only diagnosis; retirement only through the fixed Steward-authorized M33 operation. Credential delivery and enrollment remain trusted control-plane operations.
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Add redacted worker and verification record queries with failure interpretation
 Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Add bounded model execution and diagnosis steps
+Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Explain why lease-heartbeat freshness cannot determine idle worker process state.
 Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Document the real isolated concurrent model acceptance and harness
 Changed: 2026-10-11 UTC | RV-M3.3-WORKER-SERVICE | Document separate executor/verifier systemd preflight and recovery
 Changed: 2026-10-11 UTC | RV-M3.3-LIVE-COMMISSIONING | Link confirmed Camrui deployment evidence and distinguish verified queue recovery from concurrency
@@ -14,7 +15,7 @@ Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION | Link the live NO_MATCH and
 Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-LINK-CLARIFICATION | Present checkout evidence as a non-linked path in dashboard-served documentation
 Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-REVISION-CORRECTION | Add the missed controlled file revision increment for the preceding same-task content edits
 Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-DOCS | Require fresh action preflight and remaining retry budget for grounded resume
-Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Link the guarded M33 worker-registration retirement lifecycle and failure handling
+Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Link the guarded M33 worker-registration retirement lifecycle, failure handling, and integration-owner prerequisites
 Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-LINK-CLARIFICATION | Present checkout evidence as a non-linked path in dashboard-served documentation
 History: Git and revision backup manifest
 -->
@@ -194,6 +195,8 @@ Interpret the rows without promoting worker claims to verified completion:
 | Observation | Interpretation | Safe response |
 | --- | --- | --- |
 | No active worker row | No eligible registered identity is visible; it does not imply worker health. | Check expected migration state and governed enrollment records. Do not create or activate a worker by direct SQL. |
+| Active registration with no recent lease heartbeat | There is no current assignment-lease heartbeat to classify. An idle continuous poll loop does not own a lease, so this alone does not establish that the process is idle, disconnected, blocked, or failed. | Check service process and safe logs through authorized host access, then correlate with attempts, scheduler leases, and event processing. The dashboard does not report process liveness. Do not restart a production worker as a diagnostic step. |
+| Stale latest lease heartbeat and no active lease | The last lease heartbeat is old; current worker process state is not represented by this projection. | Inspect authorized read-only service and journal state and lease/attempt history. A stale lease signal alone is not proof that the worker process failed. |
 | Inactive worker, missing capability, or scope mismatch | Authentication/dispatch is expected to fail closed. | Compare the authorized identity and assignment scope with the control-plane record; rotate/re-enroll only through its approved secret path. Never inspect or export `credential_sha256`. |
 | `running` attempt without result | Work is incomplete; the external effect may be uncertain. | Inspect its matching execution intent and recovery record. Replay only a persisted `retry_safe` decision; `external_uncertain` or legacy work waits for evidence/escalation. |
 | `succeeded` attempt/result without verification row | Executor-reported output has not been independently accepted. | Preserve the result digest and run an independently registered verifier with a different identity; do not mark the assignment complete. |
