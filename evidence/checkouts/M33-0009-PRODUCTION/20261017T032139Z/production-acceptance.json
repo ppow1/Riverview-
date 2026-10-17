@@ -1,0 +1,82 @@
+{
+  "schema": "rv.m33-0009-production-acceptance.v1",
+  "captured_utc": "20261017T032139Z",
+  "source_commit": "bac5495c4b7d61fd250d88f6af4beead3c79ccfb",
+  "migration": {
+    "id": "0009_worker_registration_retirement_event",
+    "status": "applied",
+    "sha256": "0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6",
+    "ledger": "0000-0009 exact checksums",
+    "effect": "Adds worker_registration_retired to the authority event type check; no worker data or permissions changed"
+  },
+  "retirement": {
+    "status": "blocked_fail_closed",
+    "helper_exit_code": 1,
+    "failure_code": "InsufficientPrivilege",
+    "writes_performed": false,
+    "manager_privileges": {
+      "schema_usage_riverview_dev": false,
+      "worker_registry_select": false,
+      "worker_registry_table_update": false,
+      "worker_registry_column_update": false
+    },
+    "required_next_step": "Provide a separately reviewed, narrowly scoped authorized retirement execution boundary; no role substitution or ad hoc grants."
+  },
+  "registry": {
+    "total": 7,
+    "active": 5,
+    "active_grace": [
+      "verifier:grace-engineering",
+      "worker:grace-engineering",
+      "worker:grace-engineering-source-change"
+    ],
+    "active_m33": [
+      "worker:m33:executor:e92ec51590b34cd3",
+      "worker:m33:verifier:e92ec51590b34cd3"
+    ],
+    "inactive_historical_m31": 2,
+    "retirement_events": 0,
+    "active_m33_leases": 0,
+    "m33_assignments": {
+      "completed": 4,
+      "blocked_waiting_for_evidence": 1
+    }
+  },
+  "services": {
+    "m33_assignment_intake": "inactive/dead PID 0",
+    "m33_executor": "inactive/dead PID 0",
+    "m33_verifier": "inactive/dead PID 0",
+    "grace_execution_owner_session": "active/running",
+    "grace_cpu_inference": "active/running",
+    "dashboard": "active/running",
+    "event_processor": "active/running",
+    "cme_monitor": "active/running",
+    "notification_dispatcher": "active/running"
+  },
+  "health": {
+    "grace": "healthy, no last error",
+    "cme": "healthy, fresh heartbeat",
+    "event_processor_cursor": "assignment-intake.v1 sequence 58",
+    "dashboard_https": "HTTP 200; TLS certificate verification passed"
+  },
+  "release": {
+    "staged_commit": "bac5495c4b7d61fd250d88f6af4beead3c79ccfb",
+    "staged_path": "/opt/riverview/releases/bac5495c4b7d61fd250d88f6af4beead3c79ccfb",
+    "active_core_release": "/opt/riverview/releases/64e8f14ad6d71102a864755739a1c8a61506235c",
+    "active_pointer_changed": false,
+    "services_restarted": false
+  },
+  "backup": {
+    "status": "PASS",
+    "path": "/var/lib/postgresql/riverview-backup.m33-0009-khpdrd46/riverview.dump",
+    "sha256": "ac467c1a2aa5cf546acb31d40073cefa2489d2ec2a42049f3d7ae6bbf948ff8b",
+    "created_before_migration_0009": true,
+    "snapshot_consistent": true,
+    "disposable_restore": "PASS",
+    "schema_ownership_acl_relation_ownership_acl": "PASS",
+    "migration_ledgers": "PASS",
+    "non_system_heap_table_counts": 62,
+    "cleanup": "PASS",
+    "closeout_evidence": "backup-closeout.json"
+  }
+}

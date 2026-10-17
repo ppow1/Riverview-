@@ -1,0 +1,95 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "backup-closeout.json": {
+      "path": "backup-closeout.json",
+      "revision": "1.0.0",
+      "sha256": "444fe9bc45c97aa0a57121001b161007b7a167da72f64a26f673a5505186646b",
+      "size_bytes": 5093
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "7f4d77687de87d5e6fd1845f4368d77f2f877bcb7f50a9d5d6bd5919d62520b0",
+      "size_bytes": 1945
+    },
+    "dashboard-https.txt": {
+      "path": "dashboard-https.txt",
+      "revision": "1.0.0",
+      "sha256": "6a145e9c727925bf1a6e9152c382e82c85f1a5916d3167bb3a16001e7c61ffbe",
+      "size_bytes": 33
+    },
+    "deployment.json": {
+      "path": "deployment.json",
+      "revision": "1.0.0",
+      "sha256": "c06a21b0ddd622ed712f81b7f0c996f7ad207399bec28c6fdce3e57da5302212",
+      "size_bytes": 484
+    },
+    "diff-check.txt": {
+      "path": "diff-check.txt",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "focused-tests.txt": {
+      "path": "focused-tests.txt",
+      "revision": "1.0.0",
+      "sha256": "501f22fc9d3a0d7850a53973173d40208ceaa2f633d69feef6e2d879ed0aa56d",
+      "size_bytes": 179
+    },
+    "graph-validation.txt": {
+      "path": "graph-validation.txt",
+      "revision": "1.0.0",
+      "sha256": "cb22fa13f96787f015ee759d6bbeb1177da4fb481b5294df1a6f853f0fd6f8c1",
+      "size_bytes": 94
+    },
+    "manager-privileges.txt": {
+      "path": "manager-privileges.txt",
+      "revision": "1.0.0",
+      "sha256": "be38a36de07bde8408e98e908e13ea852c0748f1d939e820c6730a9de31d28c8",
+      "size_bytes": 439
+    },
+    "migration-postcheck.json": {
+      "path": "migration-postcheck.json",
+      "revision": "1.0.0",
+      "sha256": "7038c61d8870dd573921bf0b5b4a7fd37723ac01239018d94252e0fde2fd3cfc",
+      "size_bytes": 72
+    },
+    "operational-health.txt": {
+      "path": "operational-health.txt",
+      "revision": "1.0.0",
+      "sha256": "638ac9a9c3ab19bf130215f7c141edbb251abedce8af08d673779963feeb27f8",
+      "size_bytes": 1110
+    },
+    "postflight.txt": {
+      "path": "postflight.txt",
+      "revision": "1.0.0",
+      "sha256": "5ddb685e438bb0edc608b16ed584d889a5844450c5a5c15cac8107574fce405e",
+      "size_bytes": 3788
+    },
+    "production-acceptance.json": {
+      "path": "production-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "0960a40347e8e6080630020fb040ac4e090d3c86e9f7844a92e36d841818919a",
+      "size_bytes": 3043
+    },
+    "retirement-helper.txt": {
+      "path": "retirement-helper.txt",
+      "revision": "1.0.0",
+      "sha256": "a082766945b923685bf9f5a8aee6a2227a807132dc403da10a897aa4f5a16f43",
+      "size_bytes": 75
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "services.txt": {
+      "path": "services.txt",
+      "revision": "1.0.0",
+      "sha256": "c2c5451b4eb881624f05380967b92f1fa174550a6954148e6a8a82e6f7964f2d",
+      "size_bytes": 793
+    }
+  }
+}

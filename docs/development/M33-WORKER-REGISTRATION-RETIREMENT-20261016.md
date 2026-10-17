@@ -2,15 +2,17 @@
 Riverview~ Controlled Document
 File: docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md
 Component: WORKER-ADAPTER / INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.5
+File Revision: 1.0.10
 Purpose: Specify safe retirement of the two registrations for revoked M33 commissioning run e92ec515
-Authority: Steward-authorized fixed-ID operation; production execution remains pending controlled release and live preflight
+Authority: Steward-authorized fixed-ID operation; production migration 0009 is applied and registration retirement remains blocked on a reviewed execution boundary
 Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Document retirement controls, audit, recovery boundary, and operator procedure
 Changed: 2026-10-17 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Add exact read-only postflight and match systemd preflight states
 Changed: 2026-10-17 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Link the finalized controlled verification evidence
 Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Correct immutable release path and document the 0008 prerequisite blocker
 Changed: 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009 | Record authorized preparation, exact migration effects, and remaining production gates
 Changed: 2026-10-17 UTC | M33-0009-SYSTEMD-PARSER-FIX | Record corrected named-property stop verification and production manager-privilege blocker
+Changed: 2026-10-17 UTC | M33-0009-PRODUCTION-CLOSEOUT | Record migration 0009 and fail-closed retirement blocker
+Changed: 2026-10-17 UTC | M33-0009-PRODUCTION-CLOSEOUT | Clarify current live status and execution boundary
 History: Git and evidence/checkouts/WORKER-REGISTRY-RETIREMENT/20261017T000450Z-e494478/
 -->
 # M33 worker registration retirement
@@ -24,10 +26,12 @@ This procedure applies only to commissioning run `e92ec51590b34cd3b04d05c000f3ea
 
 The operation preserves registration, assignment, attempt, result, and authority history. It changes only the two `worker_registry.active` flags and appends one `worker_registration_retired` authority event per worker in the same PostgreSQL transaction. It never deletes rows, reactivates a registration, restarts a service, alters Grace, or modifies MCP.
 
-The source operation is implemented in `scripts/retire_revoked_m33_worker_registrations.py` and `src/riverview_core/worker_adapter/retirement.py`. Migration `0009_worker_registration_retirement_event.sql` only adds the required event type to the authority event constraint; it creates no grants. Production execution is not claimed until the reviewed source is installed, migration 0009 is explicitly applied through the authority migration cookbook, and the operator captures actual before/after evidence.
+The source operation is implemented in `scripts/retire_revoked_m33_worker_registrations.py` and `src/riverview_core/worker_adapter/retirement.py`. Migration `0009_worker_registration_retirement_event.sql` only adds the required event type to the authority event constraint; it creates no grants. Registration retirement is not claimed complete until the guarded operation succeeds and the operator captures actual before/after evidence.
 
-The executing manager role must already have the precise worker-table update
-privilege. Check that without changing anything:
+The retirement manager must have the required schema `USAGE` and registry
+`SELECT`/`UPDATE` rights under a reviewed narrow execution boundary. Current
+production lacks these rights. Check effective privilege state without changing
+anything:
 
 ```sh
 sudo -n env PGPASSFILE=/etc/riverview/authority/manager.pgpass \
@@ -51,9 +55,9 @@ Before any write, it also verifies:
 3. Neither M33 principal has any currently effective grant or credential.
 4. All three M33 units (`riverview-assignment-intake.service`, `riverview-m33-worker.service`, `riverview-m33-verifier.service`) report exactly `inactive` / `dead` with `MainPID=0`.
 5. No unexpired lease belongs to either M33 worker, and no assignment in the M33 scope is queued, ready, running, awaiting verification, or rework-required.
-6. The connected database role already has `UPDATE` on `riverview_dev.worker_registry`; the helper does not grant privileges or assume another role.
+6. The manager role must already have the narrowly required schema `USAGE` and registry `SELECT`/`UPDATE` privileges; current production lacks them, so the helper fails closed and does not grant privileges or assume another role.
 
-Any mismatch aborts the transaction. The exact active-worker postcondition is the three Grace registrations only. Historical blocked M33 assignments and all execution evidence remain unchanged. If the established authority-manager role lacks the required core-table `UPDATE` privilege, the operation reports `database_role_cannot_retire_registration` and makes no change. Do not grant it broader access or use a superuser workaround; an authorized database owner must provide/review a narrowly scoped execution boundary before production retirement can proceed.
+Any mismatch aborts the transaction. The exact active-worker postcondition is the three Grace registrations only. Historical blocked M33 assignments and all execution evidence remain unchanged. The 2026-10-17 live attempt returned `InsufficientPrivilege` before writes. Catalog verification established that the manager has no `USAGE` on `riverview_dev`, no `SELECT` on `worker_registry`, and no table/column `UPDATE`. Do not grant these broad privileges or use a superuser workaround; a separately reviewed, narrowly scoped execution boundary is required before production retirement can proceed.
 
 ## Controlled operator procedure
 
@@ -61,13 +65,13 @@ Camrui's actual active core path is `/opt/riverview-core`, a symlink directly to
 
 The exact source hashes are: retirement command `scripts/retire_revoked_m33_worker_registrations.py` `9c8c95cfc2e998e9a10bbc1eb2af0c7bd30a2efd2147058a30e0527aee2051e9`; retirement module `src/riverview_core/worker_adapter/retirement.py` `e815894e0d9a138b45b510be088913f5474606d5cd7cbf927474bf7021c53f83`; migration `0009_worker_registration_retirement_event.sql` `0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6`.
 
-Migration 0009's reviewed header declares migrations 0001–0008 as dependencies. Camrui's supplied authority ledger is 0000–0007. The Steward authorizes preparation and isolated validation of the required migration 0008, but has not authorized any production database change. Migration 0008 is additive; it creates the resident profile/capability/resource schema, seeds catalog and tier-default metadata, creates no profiles or resident-specific rules/events, and does not issue grants or credentials. Exact checksum, objects, seed counts, and 0000–0009 sequence are documented in `docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md` and isolated evidence. Do not apply 0009 alone, run a migration sweep, or execute production DDL without explicit execution authorization. The fixed 0009 runner checks the exact 0000–0008 chain and refuses drift or extra entries.
+Historical preparation note: 0009 declares migrations 0001–0008 as dependencies; at initial preflight the live ledger was 0000–0007. Since then the Steward authorized and migration 0008 was installed and verified, followed by authorized application of 0009. The current production ledger and checksums are recorded in the production closeout section below and in the linked evidence. Do not repeat either migration or run a migration sweep; the fixed runner rejects drift or extra entries.
 
-Before any future 0008 execution, inspect the actual active runtime source and effective function ACLs. The migration revokes `PUBLIC EXECUTE` on profile functions but does not grant runtime EXECUTE; the current authorizer calls its profile evaluator when it discovers the profile objects. If the exact runtime boundary is not already provisioned, stop and obtain separate review/authorization for that ACL change. Do not grant ad hoc or run the broad authority-boundary provisioner as part of this migration. Also pass the fixed manager `UPDATE` privilege preflight for the later retirement helper. The direct `/opt/riverview-core` symlink and current 64e8 release must remain unchanged; install approved tooling in a new immutable `/opt/riverview/releases/<full-commit>` directory. Protected full-database backup, digest/list verification, and a disposable restore/count/ACL comparison are mandatory before DDL. The full step-by-step sequence is in the authority cookbook. Production migration, retirement, and service changes remain unperformed.
+Historical 0008 preparation gate (already satisfied): inspect the actual active runtime source and effective function ACLs before any future migration change. The migration revokes `PUBLIC EXECUTE` on profile functions but does not grant runtime EXECUTE; the current authorizer calls its profile evaluator when it discovers the profile objects. If the exact runtime boundary is not already provisioned, stop and obtain separate review/authorization for that ACL change. Do not grant ad hoc or run the broad authority-boundary provisioner as part of this migration. The retirement helper remains blocked by missing manager schema `USAGE`, registry `SELECT`, and `UPDATE`; establish a separately reviewed narrow execution boundary before retrying. The direct `/opt/riverview-core` symlink and current 64e8 release must remain unchanged; install approved tooling in a new immutable `/opt/riverview/releases/<full-commit>` directory. Protected full-database backup, digest/list verification, and a disposable restore/count/ACL comparison are mandatory before DDL. The full step-by-step sequence is in the authority cookbook. Migration 0008 and 0009 are installed. Registration retirement and service changes have not occurred.
 
-After explicit production-execution authorization, protected backup/restore checks, and active-runtime ACL compatibility checks, apply 0008 alone with the candidate release's `--check-0008` then `--apply-0008` modes. Verify the resulting ledger, checksum, new object and seed counts. Then run `--check` for 0009; it must report `READY` against exact migrations 0000–0008. Applying 0009 and invoking the retirement helper require their own explicit execution authorization and live guarded preconditions.
+Historical execution sequence: 0008 was applied atomically with its runtime ACL correction after protected backup/restore and compatibility checks. Migration 0009 was subsequently applied through the exact single-migration runner. The current migration state is complete; only the separate worker-registration retirement remains blocked by the manager authorization boundary.
 
-Build and verify the exact committed package with the controlled package builder and verifier. Install it into a new root-owned `/opt/riverview/releases/<commit>` directory without changing either `/opt/riverview-core` or `/opt/riverview-m33/current`; never overwrite `/opt/riverview/releases/64e8f14ad6d71102a864755739a1c8a61506235c`. Use the existing `/opt/riverview-core/.venv/bin/python` to run the candidate release's fixed migration preflight:
+Historical package preparation instructions (completed for this run): build and verify the exact committed package with the controlled package builder and verifier. Install it into a new root-owned `/opt/riverview/releases/<commit>` directory without changing either `/opt/riverview-core` or `/opt/riverview-m33/current`; never overwrite `/opt/riverview/releases/64e8f14ad6d71102a864755739a1c8a61506235c`. Use the existing `/opt/riverview-core/.venv/bin/python` to run the candidate release's fixed migration preflight:
 
 ```sh
 sudo -n -u postgres env PYTHONPATH=/opt/riverview/releases/<approved-commit>/src \
@@ -75,7 +79,7 @@ sudo -n -u postgres env PYTHONPATH=/opt/riverview/releases/<approved-commit>/src
   /opt/riverview/releases/<approved-commit>/scripts/apply_m33_retirement_migration.py --check
 ```
 
-The current confirmed 0000–0007 ledger cannot pass this 0009 check; 0008 must first be applied as a separately authorized, single migration. Do not apply 0009 alone, run a general migration sweep, or skip the 0008 runtime/ACL compatibility gate. Until explicit production-execution authorization and all preconditions pass, do not run `--apply-0008`, `--apply`, or the retirement helper.
+This was the initial preflight state and is superseded by the production closeout below: migrations 0008 and 0009 are now installed with their expected checksums. Do not reapply them. The retirement helper remains fail-closed until a separately reviewed narrow execution boundary exists.
 
 After that dependency is resolved and every migration check passes, the Steward or authorized Camrui operator runs:
 
@@ -135,21 +139,20 @@ snapshot-consistent protected backup/restore rehearsal. Its ledger checksum is
 migration only expands the authority event constraint; it does not retire
 registrations.
 
-The first production helper invocation falsely reported `m33_service_not_stopped`:
-Camrui's `systemctl show --value` output placed `MainPID` before `ActiveState`
-and `SubState`. Read-only inspection confirmed all three exact M33 units were
-actually `inactive/dead`, PID 0. The parser was corrected to inspect named
-properties and its isolated regression passes. The remaining guarded retirement
-gate is manager role `UPDATE` on `riverview_dev.worker_registry`; both table and
-column-level privilege checks are false in production. The corrected helper
-must be installed and invoked once; if it returns
-`database_role_cannot_retire_registration`, stop. No direct SQL write, role
-substitution, or unreviewed grant is authorized by this runbook. The two
-registrations remain active until a reviewed execution boundary is provided.
+The initial production helper invocation falsely reported `m33_service_not_stopped` because Camrui's systemd property order differed from the assumed order. The parser was corrected to inspect named properties, then merged and installed in an immutable helper release. A subsequent invocation verified stopped-unit state but failed closed with `InsufficientPrivilege` before database writes. The manager lacks schema `USAGE`, registry `SELECT`, and table/column `UPDATE`. No direct SQL write, role substitution, or unreviewed grant was used. The exact two registrations remain active pending a separately reviewed execution boundary.
 
 The current production inventory and migration result are recorded in the
 M33-0009 execution evidence linked from the institutional authority cookbook.
 
 ## Source status
 
-The implementation and isolated tests are review material. The previous production SSH path from this Linux execution environment was unavailable; no live retirement or production acceptance is claimed by this document. See the linked evidence and PR for the exact controlled source head and subsequent live operator outcome.
+The implementation and regression tests are integrated in PR #80 at merge commit `bac5495c4b7d61fd250d88f6af4beead3c79ccfb`. Live production migration, service, health, TLS, and retirement-attempt results are recorded in `evidence/checkouts/M33-0009-PRODUCTION/20261017T032139Z/`. Migration 0009 is complete; registration retirement is blocked, not claimed as accepted.
+
+
+## Production result — 2026-10-17
+
+Migration `0009_worker_registration_retirement_event` is applied in production. The authority ledger contains the exact 0000–0009 chain and the 0009 SQL checksum is `0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6`. The applied migration only permits the `worker_registration_retired` event type; it did not alter worker rows or permissions.
+
+The guarded retirement attempt failed closed before writes with `InsufficientPrivilege`. Catalog-based checks as `riverview_authority_manager` confirmed no `USAGE` on `riverview_dev`, no `SELECT` on `riverview_dev.worker_registry`, and no table- or column-level `UPDATE`. The registry remains seven rows: three active Grace registrations, two active M33 registrations, and two inactive historical M31 registrations. No retirement audit events were added. All three M33 units remain inactive/dead, with PID 0. The helper was not retried with another role and no grants were changed. Evidence is in `evidence/checkouts/M33-0009-PRODUCTION/20261017T032139Z/`.
+
+**Status:** migration complete; registration retirement blocked. Resumption requires a separately reviewed, least-privilege retirement execution boundary that can verify the exact two registrations and append the Steward audit events without broadening general manager access. Until that boundary exists and is approved through the established process, do not manually grant schema/table access or substitute another database role.

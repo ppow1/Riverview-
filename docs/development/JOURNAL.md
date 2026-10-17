@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.170
+**Document Revision:** 1.0.171
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Add OAuth resource-server validation and verify Secure MCP Tunnel path
@@ -2528,3 +2528,12 @@ The committed candidate package was built from `7dec8a7ae542dd656e9dd7b34c892983
 Applied only `0009_worker_registration_retirement_event` from the already integrated immutable release after the live runner returned `READY` and a new snapshot-consistent protected backup/restore passed. Migration checksum is `0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6`; the event constraint now admits `worker_registration_retired`, with no grants, registration rows, service state, or existing audit events changed by the migration. Protected backup: `/var/lib/postgresql/riverview-backup.m33-0009-khpdrd46/`; closeout PASS, archive SHA-256 `ac467c1a2aa5cf546acb31d40073cefa2489d2ec2a42049f3d7ae6bbf948ff8b`.
 
 The first guarded retirement invocation failed closed because `_verify_stopped_services` parsed `systemctl show --value` output by positional order. Camrui returned `MainPID=0`, `ActiveState=inactive`, `SubState=dead`; a read-only local invocation of the corrected named-property parser passes for all three exact M33 units. The source correction and regression are isolated and committed for controlled integration. The production manager role has neither table-level nor column-level `UPDATE` on `riverview_dev.worker_registry`, so the existing retirement procedure still cannot write. No `postgres`/`riverview_core` substitution or grant was used. Current migration and privilege preflight: 0000–0009 checksums match, `0009` applied, manager update denied, M33 rows still active, no M33 leases, assignments only completed/blocked, and the three M33 units inactive/dead. This is a genuine execution-boundary blocker for retirement, not a failed migration.
+
+
+## 2026-10-17 UTC — M33-0009-PRODUCTION-CLOSEOUT
+
+Migration 0009 was applied through the checksum-pinned runner from the immutable source release after the current protected backup/restore closeout passed. Production now records the exact 0000–0009 ledger, with migration 0009 SHA-256 `0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6`. The migration changed only the authority event constraint. The active `/opt/riverview-core` pointer stayed on the pre-existing release; a new immutable helper release was staged without activation.
+
+The M33 retirement helper ran against its fixed target and failed closed before any write with `InsufficientPrivilege`. Read-only catalog inspection confirmed `riverview_authority_manager` lacks `USAGE` on `riverview_dev`, `SELECT` on the worker registry, and table/column `UPDATE`. The two M33 registrations remain active; the three Grace registrations remain active; the two historical M31 registrations remain inactive. No retirement events were written. The helper was not retried with a substitute role or ad hoc grants.
+
+Postflight: all three M33 units are inactive/dead, PID 0. Grace, dashboard, CME, notification dispatcher, and event processor are active; Grace and CME health report healthy, the event cursor is present, and the production HTTPS dashboard returned 200 with certificate verification. Evidence directory: `evidence/checkouts/M33-0009-PRODUCTION/20261017T032139Z/`. Migration is complete; registration retirement requires a separately reviewed least-privilege execution boundary.

@@ -1,0 +1,55 @@
+BEGIN
+                  version                  |                             checksum
+-------------------------------------------+------------------------------------------------------------------
+ 0000_authority_migration_ledger           | 8043b6f310f98e8e9613abbec71befcb4e3734d6fb374c36c6ccafe36b965fd6
+ 0001_institutional_authority              | 347e415b662675d492400a0af145edc9ca92e5122ee3e22886d9656b578fad36
+ 0002_exact_grant_authorization            | 84be0433c2e603875489a3e4311199f19b97eddc6a5ec55eef6dd47010cb091d
+ 0003_resident_office_state_api            | 6dc6702f959b77b18e5f959891979e49bbc10c1840c437de924c6c8187d74afb
+ 0004_exact_principal_grant_authorization  | 8db42ab887bcb03e9e5e8814ae85ddf5a82c8410535c77a18876204f608b62fe
+ 0005_audited_model_rebinding              | 09df3913c85e0014f67824f4219f219aa7aa402a6a0ba596b463f5f5b0d9909c
+ 0006_authorized_implementation_successor  | 05a0082a9f855ad57350e75c51c42abf7ae9eeeaf8de8c7167747e3f1a2e4ed7
+ 0007_audited_office_role_update           | d7ac90639c1496319a4a52306d0ed03af679186ca77a92a60a2db4c38cc49240
+ 0008_resident_permission_profiles         | 570c7aeb16fca04c64c4e010f1534d0efebe92628ddacd8f05f6eb1eda12d339
+ 0009_worker_registration_retirement_event | 0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6
+(10 rows)
+
+                        worker_id                         | active |                scope_ref
+----------------------------------------------------------+--------+------------------------------------------
+ verifier:grace-engineering                               | t      | work-order:engineering
+ verifier:m31-commission:c65a654212364199a0b688d2b344b792 | f      | steward:PR16-M3.1-live-worker-2026-10-10
+ worker:grace-engineering                                 | t      | work-order:engineering
+ worker:grace-engineering-source-change                   | t      | work-order:engineering
+ worker:m31-commission:2edf57119eef44fb8fa6f014cb4fca16   | f      | steward:PR16-M3.1-live-worker-2026-10-10
+ worker:m33:executor:e92ec51590b34cd3                     | t      | work-order:m33-live-e92ec51590b34cd3
+ worker:m33:verifier:e92ec51590b34cd3                     | t      | work-order:m33-live-e92ec51590b34cd3
+(7 rows)
+
+ total_rows | active_rows |                                                                               active_ids
+------------+-------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+          7 |           5 | {verifier:grace-engineering,worker:grace-engineering,worker:grace-engineering-source-change,worker:m33:executor:e92ec51590b34cd3,worker:m33:verifier:e92ec51590b34cd3}
+(1 row)
+
+                         id                         |   state   |      workflow_step
+----------------------------------------------------+-----------+--------------------------
+ m33-live-55ad3ad368284d48925dfc27e1e5dbcf          | completed | independent_verification
+ m33-live-followup-df010ec29b0747d089575a817e938261 | completed | independent_verification
+ m33-live-pair-8275424de12b4d2caac43816366d9913     | completed | independent_verification
+ m33-live-pair-a948a782fe764e4e846fedd9ce3e1601     | completed | independent_verification
+ m33-live-wait-e8646ad6795f4c7b9cf443faf236d0df     | blocked   | WAITING_FOR_EVIDENCE
+(5 rows)
+
+              worker_id               | active_leases
+--------------------------------------+---------------
+ worker:m33:executor:e92ec51590b34cd3 |             0
+(1 row)
+
+ event_id | actor_id | subject_id
+----------+----------+------------
+(0 rows)
+
+ manager_table_update | manager_active_column_update
+----------------------+------------------------------
+ f                    | f
+(1 row)
+
+COMMIT
