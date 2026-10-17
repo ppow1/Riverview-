@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:comms5:camrui-adapter",
-  "graph_revision": "1.0.5",
+  "graph_revision": "1.0.6",
   "component_id": "COMMS5-CAMRUI-ADAPTER",
   "workflow_id": "comms5.camrui.compatibility.v1",
   "diagram_order": 91,
@@ -103,12 +103,13 @@
     },
     {
       "id": "rv:comms5:camrui-adapter:steward-credential-lifecycle",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "process",
-      "label": "Operator validates or rotates the shared Steward login and legacy bearer through protected stdin with predecessor rollback",
+      "label": "Operator validates the shared Steward login/legacy bearer and may rotate only after explicit confirmation; protected rollback restores both clients",
       "source_references": [
         "scripts/rotate_comms5_steward_credential.py",
-        "deploy/comms5/caddy-comms5-oauth-block.caddy"
+        "deploy/comms5/caddy-comms5-oauth-block.caddy",
+        "scripts/Invoke-RiverviewComms5StewardCredentialRotation.ps1"
       ],
       "documentation_references": [
         "docs/components/COMMS5_OAUTH_TROUBLESHOOTING.md",
