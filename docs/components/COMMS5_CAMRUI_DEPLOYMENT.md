@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_CAMRUI_DEPLOYMENT.md
 Component: COMMS5-CAMRUI-ADAPTER
-File Revision: 1.0.0
+File Revision: 1.0.1
 Status: Deployment and recovery procedure
 Date: 2026-10-16
 History: New file; no predecessor existed.
@@ -32,7 +32,7 @@ The adapter does not listen on a LAN address and does not connect to the databas
 5. Install the dedicated restricted reverse-tunnel key and host-key file under `/etc/riverview/comms5`; configure the Ionoge `authorized_keys` line for remote listen `127.0.0.1:11826` only. Preserve the existing deployment key and all other authorized keys.
 6. Start the tunnel service, then test the Ionoge loopback path. Do not expose the service directly.
 7. Install the OAuth service from historical PR #15 at immutable commit `048787f574d42ff073a9f94f571dc79943d60fa4`, using its existing protected login/proxy credentials and dedicated SQLite state. Keep the OAuth service bound to Ionoge loopback `127.0.0.1:11827`.
-8. Add the OAuth discovery and forward-auth handlers to the existing Caddy site only after `caddy validate` passes. Preserve the current static Comms5 path and Comms4 route. Reload Caddy only after validation.
+8. Replace only the existing Comms5 handler block inside the current Caddy site with `deploy/comms5/caddy-comms5-oauth-block.caddy`. The fragment retains the existing static Steward bearer path and adds OAuth discovery/forward-auth. Keep the existing Comms4 `/mcp` block byte-for-byte unchanged. Validate the full Caddyfile before reloading Caddy.
 
 ## Verification gates
 

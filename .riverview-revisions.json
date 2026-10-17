@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.211"
+      "revision": "1.1.212"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -107,9 +107,9 @@
     },
     "process_graphs/comms5/camrui-adapter.json": {
       "path": "process_graphs/comms5/camrui-adapter.json",
-      "revision": "1.0.0",
-      "sha256": "1d884f4511d4ef676551ed77073e9b60a996083473dc204a5f29e3b4db5d0610",
-      "size_bytes": 3764
+      "revision": "1.0.1",
+      "sha256": "de0fe8704a550bb17188eec838c41fa7128334f3e7a5d7f1f04f2bcdc7402ae1",
+      "size_bytes": 3816
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "path": "process_graphs/event-processor/assignment-progression.json",
@@ -119,9 +119,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.161",
-      "sha256": "f7c05e8c5a7ac52448ad208c0d1e07b3eef0cbb14a8df3f192e53b30d405fc2c",
-      "size_bytes": 605105
+      "revision": "1.0.162",
+      "sha256": "e3573e9e267e62f061615ac337e264e4d470c9aecb3a910ffa3e7e4ca7d6385f",
+      "size_bytes": 605161
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -262,6 +262,6 @@
       "size_bytes": 1226
     }
   },
-  "manifest_revision": "1.1.211",
+  "manifest_revision": "1.1.212",
   "updated_at": null
 }

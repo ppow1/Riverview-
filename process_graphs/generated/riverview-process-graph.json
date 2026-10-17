@@ -1471,7 +1471,7 @@
     },
     {
       "graph_id": "rv:comms5:camrui-adapter",
-      "graph_revision": "1.0.0",
+      "graph_revision": "1.0.1",
       "component_id": "COMMS5-CAMRUI-ADAPTER",
       "workflow_id": "comms5.camrui.compatibility.v1",
       "diagram_order": 91,
@@ -1480,7 +1480,8 @@
         "src/riverview_core/comms5/tool_catalog.json",
         "deploy/systemd/riverview-comms5-camrui.service",
         "deploy/systemd/riverview-comms5-tunnel.service",
-        "deploy/systemd/riverview-comms5-oauth.service"
+        "deploy/systemd/riverview-comms5-oauth.service",
+        "deploy/comms5/caddy-comms5-oauth-block.caddy"
       ],
       "documentation_references": [
         "docs/components/COMMS5_CAMRUI_DEPLOYMENT.md",
