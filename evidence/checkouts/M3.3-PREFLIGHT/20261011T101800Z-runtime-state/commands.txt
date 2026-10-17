@@ -1,0 +1,8 @@
+date -u '+observed_utc=%Y-%m-%dT%H:%M:%SZ'
+hostnamectl --static
+id
+. /etc/os-release; printf '%s %s\n' "$NAME" "$VERSION_ID"
+systemctl is-active postgresql@16-main.service riverview-event-processor.service riverview-cme-monitor.service riverview-status-dashboard.service ssh.service
+systemctl show riverview-event-processor.service riverview-cme-monitor.service riverview-status-dashboard.service -p Id -p ActiveState -p SubState -p MainPID -p NRestarts --no-pager
+curl --fail --silent --show-error --max-time 5 http://127.0.0.1:8766/ -o /dev/null -w 'dashboard_http=%{http_code}\n'
+sudo -n -u postgres psql -X -d riverview -Atc "BEGIN READ ONLY; SELECT 'schema_migrations', count(*) FROM riverview_dev.schema_migrations UNION ALL SELECT 'assignments',count(*) FROM riverview_dev.assignments UNION ALL SELECT 'events',count(*) FROM riverview_dev.events; COMMIT;"

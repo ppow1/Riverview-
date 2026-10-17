@@ -1,0 +1,31 @@
+{
+  "artifacts": {
+    "checkout.md": {
+      "path": "evidence/checkouts/M4.1-RESIDENT-RUNTIME/20261011T191004Z-27d18cc/checkout.md",
+      "revision": "1.0.0",
+      "sha256": "65cf9f3ef7818c96d8c9e273f262e6f75291476a2b8ab1f1c428035d2a3398dd",
+      "size_bytes": 2110
+    },
+    "full-suite.log": {
+      "path": "evidence/checkouts/M4.1-RESIDENT-RUNTIME/20261011T191004Z-27d18cc/full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "0aabd13924078e378f23753c140860c6cf900c4de9ce1da2f314eda49a5eaa17",
+      "size_bytes": 37407
+    },
+    "isolated-postgres.log": {
+      "path": "evidence/checkouts/M4.1-RESIDENT-RUNTIME/20261011T191004Z-27d18cc/isolated-postgres.log",
+      "revision": "1.0.0",
+      "sha256": "85739a04827d73f05a59ebd9d9649583aa1bc8d6c9105e1682c9479de91cd7e7",
+      "size_bytes": 24500
+    },
+    "result-summary.json": {
+      "path": "evidence/checkouts/M4.1-RESIDENT-RUNTIME/20261011T191004Z-27d18cc/result-summary.json",
+      "revision": "1.0.0",
+      "sha256": "e6dd0ebab851b58fab139e4b718ecc6d3e66f80b3923c382291fad1dc3871586",
+      "size_bytes": 907
+    }
+  },
+  "evidence_id": "RV-M4.1-PERSISTENT-RESIDENT-RUNTIME-20261011T191004Z",
+  "manifest_revision": "1.0.1",
+  "source_commit": "27d18cc15fbc8d6c093014709f6cfe5c04b3cfb6"
+}

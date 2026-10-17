@@ -1,0 +1,29 @@
+{
+  "artifacts": {
+    "bounded-work-product.json": {
+      "path": "evidence/checkouts/M4.4-GRACE-EXECUTION-INFRA/20261011T164453Z-6a32627/bounded-work-product.json",
+      "revision": "1.0.0",
+      "sha256": "9842377acb5da2233c0ab4b995cf7739a2efad03374c5db91764db1266ad3c16",
+      "size_bytes": 1011
+    },
+    "checkout.md": {
+      "path": "evidence/checkouts/M4.4-GRACE-EXECUTION-INFRA/20261011T164453Z-6a32627/checkout.md",
+      "revision": "1.0.0",
+      "sha256": "df218bd2359c62a8048353d229ce8f0ddd8b0583611ce9961ad536b78adf8520",
+      "size_bytes": 943
+    },
+    "integration-result.json": {
+      "path": "evidence/checkouts/M4.4-GRACE-EXECUTION-INFRA/20261011T164453Z-6a32627/integration-result.json",
+      "revision": "1.0.0",
+      "sha256": "3830faff472fcb2993e0e66ec9b4e39a1c47af7d130ee7b3c330a74121249773",
+      "size_bytes": 1760
+    },
+    "test-output.log": {
+      "path": "evidence/checkouts/M4.4-GRACE-EXECUTION-INFRA/20261011T164453Z-6a32627/test-output.log",
+      "revision": "1.0.0",
+      "sha256": "df5a985084c02da2d4a8cbe86b45dc8fa2b2b9dacc3b6dc3f12d04bf3dedc0a1",
+      "size_bytes": 35294
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

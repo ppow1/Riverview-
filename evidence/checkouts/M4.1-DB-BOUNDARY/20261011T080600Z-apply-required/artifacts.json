@@ -1,0 +1,34 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M4.1-APPLY-REQUIRED-DRY-RUN",
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "source_commit": "e73844acfb921ea0573361c03c48ff603efb29a5",
+  "target": "Disposable socket-only PostgreSQL 16.15; complete isolated regression suite",
+  "decision": "PASS isolated verification; final exact-head CI and corrected live preflight/deployment pending",
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "d4935c0a267f19301b5267a37d2b91d3f5ea43bf9af52b9bee3c754981b82c91",
+      "size_bytes": 2579
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "4a0cc4b279205b739c5a68786238f906dbe0c53969cbdd2565c61d50a5d4818c",
+      "size_bytes": 24572
+    },
+    "fixture-cleanup.txt": {
+      "path": "fixture-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "52f96c26a39ed25108a6db43d6e11c6051eba8a498a5baab1891adfa7ac7c262",
+      "size_bytes": 4
+    },
+    "source-files.sha256": {
+      "path": "source-files.sha256",
+      "revision": "1.0.0",
+      "sha256": "6736b4fed93c0487be321de0266e8cbd7cb431ff013d3f77fcff13648987da13",
+      "size_bytes": 466
+    }
+  }
+}

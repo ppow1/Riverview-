@@ -1,0 +1,50 @@
+{
+  "evidence_revision": "1.0.0",
+  "task_id": "RV-C3-DOORBELL-001",
+  "component_id": "CHATGPT-DOORBELL",
+  "verified_at_utc": "2026-10-17T23:32:24.018771+00:00",
+  "host": "admin1-Default-string",
+  "os": "Ubuntu 24.04.3 LTS",
+  "source_repository": "ppow1/Riverview- (New-Core)",
+  "reference_repository": "ppow1/Riverview (historical only)",
+  "branch": "codex/doorbell-ubuntu-restore-20261017",
+  "baseline_commit": "0db48a2d06236e800d05df2dd618f5bdcad7fe4a",
+  "node_version": "v18.19.1",
+  "chrome_version": "Google Chrome 155.0.8059.84",
+  "runtime_preflight": {
+    "runtime_version": "1.0.0",
+    "browser_runtime": true,
+    "cdp_available": true,
+    "cdp_address": "127.0.0.1",
+    "cdp_port": 9225,
+    "dedicated_profile": "/home/admin1/.local/share/riverview/browser/profile"
+  },
+  "doorbell_preflight": {
+    "bridge_version": "1.0.0",
+    "browser_runtime": true,
+    "cdp_available": true,
+    "authenticated_session": false,
+    "designated_target_configured": true,
+    "exact_target_resolvable": true,
+    "fixed_action_available": true,
+    "ready": false
+  },
+  "designated_target_ref": "target-sha256:965de4402e92257ec0d25b38002dc512d7db70164236d29eeb4f56eece978ecf",
+  "binding_provenance": "historical designated-reasoning ID from ppow1/Riverview reference docs; active Comms5 binding not queryable through current Comms5 operations",
+  "comms5": {
+    "contract": "riverview-comms-contract:5.0",
+    "catalog_operation_count": 21,
+    "mailbox_operations_available": [],
+    "catalog_source": "authenticated current Comms5 capabilities response"
+  },
+  "browser_service": {
+    "qualification_unit": "active",
+    "production_unit_installed": false,
+    "cdp_listener": "127.0.0.1:9225"
+  },
+  "mailbox_request_created": false,
+  "fixed_wake_submitted": false,
+  "mailbox_round_trip": "NOT_RUN: Comms5 mailbox contract missing; no request was created",
+  "grace_response_consumption": "NOT_RUN: no Comms5 response interface available",
+  "credential_or_page_content_recorded": false
+}

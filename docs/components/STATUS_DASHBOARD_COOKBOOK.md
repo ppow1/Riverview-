@@ -1,11 +1,12 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.0.8
+File Revision: 1.0.9
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Link durable notification receipt diagnostics
+Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-CURRENT-DOCS-RELEASE | Document immutable composite docs release provenance and verification
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -162,3 +163,15 @@ existing PostgreSQL credential.
 No shared database migration is required. Do not use the dashboard to apply one.
 The default source returns truthful unavailable/not-initialized states if its
 database tables are absent or unreadable.
+
+For a docs-only release, preserve the existing dashboard executable and static
+assets; install updated component documents and synchronized canonical graph
+views into a new root-owned immutable release directory. Preserve predecessor
+releases. Record the dashboard code commit separately from the documentation
+and graph commit in a release manifest and checksum list. Keep `source_commit`
+bound to the code commit, set a unique deployment identifier, and change only
+the dashboard systemd unit and `current` release link. Verify all documented
+routes and process graphs against the candidate before switching; after restart
+verify loopback HTTP, authenticated status, service health and dependent service
+continuity. On failure restore only the prior dashboard link/unit and restart
+only `riverview-status-dashboard.service`.

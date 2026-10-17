@@ -1,0 +1,104 @@
+{
+  "task_id": "RV-M4.1-DASHBOARD-DOCS-LIVE",
+  "component_id": "STATUS-DASHBOARD",
+  "manifest_revision": "1.0.0",
+  "source_commit": "087b940be4074c15959400a97453e26ace79966f",
+  "artifacts": {
+    "active-services.txt": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/active-services.txt",
+      "revision": "1.0.0",
+      "sha256": "7a2bc802e548eaecd114e1f103186a28a27d905c4fe1d0233ff9dcaa214d32fc",
+      "size_bytes": 804
+    },
+    "browser-acceptance.json": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "3c8c7bf181571b73986ef0229384baac78fd8967bb0890af80b2c337fefb2420",
+      "size_bytes": 3843
+    },
+    "candidate-validation.txt": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/candidate-validation.txt",
+      "revision": "1.0.0",
+      "sha256": "ea864dd55c433198412c43882ca52d5b46f227f1cb2475f3ab208f3ec50aae0e",
+      "size_bytes": 694
+    },
+    "checkout.md": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/checkout.md",
+      "revision": "1.0.0",
+      "sha256": "eecc8d2fca3648b8c4bb5625d9cd7444dbd29987664fd2cca15fcf0f4b9c10ca",
+      "size_bytes": 1181
+    },
+    "cookbook-view.png": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/cookbook-view.png",
+      "revision": "1.0.0",
+      "sha256": "ca033765521caf288d1582f0e00508ae8354c2c10220776ccdfec50d1eb9024a",
+      "size_bytes": 176770
+    },
+    "current-release.txt": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/current-release.txt",
+      "revision": "1.0.0",
+      "sha256": "e5fed4c4b91602653e5dc8da64d7725c61a0b9ccb83091564588284992583766",
+      "size_bytes": 95
+    },
+    "dashboard-service-state.txt": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/dashboard-service-state.txt",
+      "revision": "1.0.0",
+      "sha256": "4f79be5ae5905b86de9136c8f8686d287cbe1f003246287c0ac59194bca3fc27",
+      "size_bytes": 80
+    },
+    "database-readonly-state.txt": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/database-readonly-state.txt",
+      "revision": "1.0.0",
+      "sha256": "9629bcc237162d7bc306e65a3ca9ed7cb079b49665820935df6f44863005702e",
+      "size_bytes": 65
+    },
+    "deployment-checksums.txt": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/deployment-checksums.txt",
+      "revision": "1.0.0",
+      "sha256": "cffbaaed14587373bd47d0115a5aefd44e46c4d7abf24f6226146cf3997c87b7",
+      "size_bytes": 377
+    },
+    "deployment-manifest.json": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/deployment-manifest.json",
+      "revision": "1.0.0",
+      "sha256": "d264996ede6832e1ff3146914a54f62d069d9b7e9befd672cf073f2eb4b4d8cf",
+      "size_bytes": 626
+    },
+    "github-ci.json": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/github-ci.json",
+      "revision": "1.0.0",
+      "sha256": "e2c1c71e2c21bc5546d7a5da775494f0306e1207d0d71162bdfb5887d28609e1",
+      "size_bytes": 279
+    },
+    "ownership-metadata.txt": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/ownership-metadata.txt",
+      "revision": "1.0.0",
+      "sha256": "97e6d01e63637abab18eb5e87ab6633e80f1314b698c0c826e2865a26133a33a",
+      "size_bytes": 217
+    },
+    "process-graph-check.json": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "58d566abc099e0f8b0dd489d2984c869fa573ead52a9df90977b927e48b00ec4",
+      "size_bytes": 113
+    },
+    "restart-rollback.txt": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/restart-rollback.txt",
+      "revision": "1.0.0",
+      "sha256": "345a87083129c22b1aab1e5ac2fa625443d6a50d19eabed49b07f1141cbb2b0e",
+      "size_bytes": 980
+    },
+    "revision-audit.json": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "bf178a95611973ac83625581db5be3a30bdbc8d29b2e5ebd5e5291921a8b15be",
+      "size_bytes": 193
+    },
+    "workflow-view.png": {
+      "path": "/home/admin1/projects/Riverview-New-Core/evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "6b8dc3635a9505dca7fdcfc0c47cd8192baef248fc6606042a872532a88b5d8c",
+      "size_bytes": 234096
+    }
+  }
+}

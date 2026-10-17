@@ -1,0 +1,28 @@
+observed_utc=2026-10-11T10:04:58Z
+hostname_static=admin1-Default-string
+user=uid=1000(admin1) gid=1000(admin1) groups=1000(admin1),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),100(users),114(lpadmin)
+os=Ubuntu 24.04
+services=active active active active active 
+MainPID=61932
+NRestarts=0
+Id=riverview-event-processor.service
+ActiveState=active
+SubState=running
+
+MainPID=139749
+NRestarts=1
+Id=riverview-cme-monitor.service
+ActiveState=active
+SubState=running
+
+MainPID=351052
+NRestarts=0
+Id=riverview-status-dashboard.service
+ActiveState=active
+SubState=running
+dashboard_http=200
+BEGIN
+schema_migrations|9
+assignments|4
+events|11
+COMMIT

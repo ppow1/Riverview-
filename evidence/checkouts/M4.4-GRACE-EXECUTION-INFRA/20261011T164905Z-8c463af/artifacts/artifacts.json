@@ -1,0 +1,11 @@
+{
+  "artifacts": {
+    "bounded-work-product.json": {
+      "path": "evidence/checkouts/M4.4-GRACE-EXECUTION-INFRA/20261011T164905Z-8c463af/artifacts/bounded-work-product.json",
+      "revision": "1.0.0",
+      "sha256": "713c4d973a0a956fee13eb2e6d6f59c8970c8abcf1c044a46020429d1564578b",
+      "size_bytes": 1011
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

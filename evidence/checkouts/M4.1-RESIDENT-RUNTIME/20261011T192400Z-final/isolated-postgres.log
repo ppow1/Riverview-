@@ -1,0 +1,7 @@
+Private PostgreSQL integration-test cluster only; socket /tmp/rv-m41-runtime-pg.UV4bgY/socket; port 55493; no shared service/database used.
+Pre-stop database and cleanup query (SELECT version/database/user; count(rvtest_ schemas)):
+PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu | database=postgres | user=admin1
+0
+Private cluster shutdown:
+waiting for server to shut down.... done
+server stopped

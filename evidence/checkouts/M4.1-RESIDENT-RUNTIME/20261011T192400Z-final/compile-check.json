@@ -1,0 +1,5 @@
+{
+  "compileall_command": "python3 -m compileall -q src scripts tests",
+  "compileall": "PASS",
+  "git_diff_check": "PASS"
+}

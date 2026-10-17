@@ -1,10 +1,10 @@
 {
   "graph_id": "rv:postgres-ledger:migration",
-  "graph_revision": "1.0.1",
+  "graph_revision": "1.0.2",
   "component_id": "POSTGRES-LEDGER",
   "workflow_id": "postgres-migration.v1",
   "diagram_order": 1,
-  "source_references": ["src/riverview_core/postgres_migrations.py", "src/riverview_core/migrations/0001_assignment_event_ledger.sql"],
+  "source_references": ["src/riverview_core/postgres_migrations.py", "src/riverview_core/migrations/0001_assignment_event_ledger.sql", "src/riverview_core/migrations/0002_assignment_process_position.sql"],
   "documentation_references": ["docs/components/POSTGRES_LEDGER_FLOW.md", "docs/components/POSTGRES_LEDGER_COOKBOOK.md", "docs/components/POSTGRES_LEDGER.md"],
   "verification_evidence": ["evidence/checkouts/POSTGRES-LEDGER/20261010T1529Z-27a8c55/checkout.md"],
   "nodes": [
@@ -17,7 +17,7 @@
     {"id":"rv:postgres-ledger:migration:check","node_revision":"1.0.0","type":"decision","label":"Stored checksum matches source?","source_references":["src/riverview_core/postgres_migrations.py"],"documentation_references":["docs/components/POSTGRES_LEDGER_FLOW.md"],"verification_evidence":[]},
     {"id":"rv:postgres-ledger:migration:drift","node_revision":"1.0.0","type":"failure","label":"Checksum mismatch; stop without schema changes","source_references":["src/riverview_core/postgres_migrations.py"],"documentation_references":["docs/components/POSTGRES_LEDGER_COOKBOOK.md"],"verification_evidence":[]},
     {"id":"rv:postgres-ledger:migration:noop","node_revision":"1.0.0","type":"process","label":"Identical applied migration is a no-op","source_references":["src/riverview_core/postgres_migrations.py"],"documentation_references":["docs/components/POSTGRES_LEDGER_FLOW.md"],"verification_evidence":[]},
-    {"id":"rv:postgres-ledger:migration:sql","node_revision":"1.0.0","type":"process","label":"Apply versioned SQL and checksum atomically","source_references":["src/riverview_core/migrations/0001_assignment_event_ledger.sql"],"documentation_references":["docs/components/POSTGRES_LEDGER_FLOW.md"],"verification_evidence":[]},
+    {"id":"rv:postgres-ledger:migration:sql","node_revision":"1.0.1","type":"process","label":"Apply each new additive versioned SQL migration and checksum atomically; retain existing data","source_references":["src/riverview_core/migrations/0001_assignment_event_ledger.sql","src/riverview_core/migrations/0002_assignment_process_position.sql"],"documentation_references":["docs/components/POSTGRES_LEDGER_FLOW.md","docs/components/POSTGRES_LEDGER.md"],"verification_evidence":["tests/test_postgres_ledger.py"]},
     {"id":"rv:postgres-ledger:migration:require-schema","node_revision":"1.0.0","type":"verification","label":"PostgresLedger requires migrated target schema","source_references":["src/riverview_core/postgres_ledger.py"],"documentation_references":["docs/components/POSTGRES_LEDGER.md"],"verification_evidence":[]},
     {"id":"rv:postgres-ledger:migration:caller","node_revision":"1.0.0","type":"process","label":"Caller requests assignment create or transition","source_references":["src/riverview_core/postgres_ledger.py"],"documentation_references":["docs/components/POSTGRES_LEDGER.md"],"verification_evidence":[]},
     {"id":"rv:postgres-ledger:migration:transaction","node_revision":"1.0.0","type":"process","label":"Begin PostgreSQL transaction","source_references":["src/riverview_core/postgres_ledger.py"],"documentation_references":["docs/components/POSTGRES_LEDGER_FLOW.md"],"verification_evidence":[]},

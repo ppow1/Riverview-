@@ -1,0 +1,39 @@
+{
+  "artifact_path": "artifacts/bounded-work-product.json",
+  "artifact_sha256": "713c4d973a0a956fee13eb2e6d6f59c8970c8abcf1c044a46020429d1564578b",
+  "artifact_size_bytes": 1011,
+  "assignment_id": "assignment:6298c0fb4f914472b7f815d1a544b64c",
+  "assignment_status": "completed",
+  "attempt_id": "c0fdf1c7-cdb9-40d3-9b6e-031c6ff7d03b",
+  "component_id": "RESIDENT-ORCHESTRATION",
+  "evidence_schema": "rv.grace.execution-checkout.v1",
+  "mode": "isolated model-independent deterministic integration test",
+  "objective_event_types": [
+    "objective.received",
+    "objective.grounded",
+    "work_order.proposed",
+    "work_order.dispatched",
+    "objective.completed"
+  ],
+  "objective_id": "objective:grace-e2e",
+  "objective_status": "COMPLETED",
+  "postgresql_version": "PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu",
+  "recorded_at": "2026-10-11T16:49:22.747288+00:00",
+  "repository_revision": "c71f23787d6ae4f7f948defef63aafc1e801dcec",
+  "repository_sha256": "72a5066a8cb0788591c1e9df3003ce62d999318b5bd73934be2f1cde074772f2",
+  "shared_services_modified": false,
+  "source_commit": "8c463af92b31a10afe53af2426ad99a3310613e0",
+  "test_schema": "rvtest_aac41165177c403bac0dda94747a91bf",
+  "verifier_criteria": {
+    "artifact_digest_matches": true,
+    "artifact_reference_is_safe": true,
+    "assignment_contract_matches": true,
+    "attempt_succeeded": true,
+    "executor_capability_matches": true,
+    "source_provenance_present": true,
+    "work_product_is_complete": true,
+    "worker_report_succeeded": true
+  },
+  "verifier_revision": "1.0.0",
+  "verifier_status": "ACCEPTED"
+}

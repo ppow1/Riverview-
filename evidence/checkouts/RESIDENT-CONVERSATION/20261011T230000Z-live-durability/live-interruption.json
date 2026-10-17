@@ -1,0 +1,49 @@
+{
+  "after_restart": {
+    "api_event_count": 2,
+    "dashboard_active": true,
+    "error_code": "service_restarted",
+    "event_type": "response_interrupted",
+    "independent_database_event_count": 2,
+    "response_status_api": "interrupted"
+  },
+  "before_restart": {
+    "final_event_absent": true,
+    "user_event_visible_on_fresh_connection": true
+  },
+  "browser_wait_attempt": {
+    "later_api_and_postgresql_comparison": "PASS",
+    "model_journal_total_generation_seconds": 31.54,
+    "outcome": "timeout_then_independently_verified",
+    "predicate_timeout_seconds": 30,
+    "response_was_durable": true
+  },
+  "credentials_recorded": false,
+  "deployment_id": "m3.4-camrui-chat-durable-30085f04",
+  "final_postgresql_counts": {
+    "assignments": 9,
+    "conversation_events": 12,
+    "conversations": 3,
+    "idle_in_transaction_sessions": 0
+  },
+  "followup": {
+    "api_event_count": 4,
+    "event_sequence": [
+      "user_message",
+      "response_interrupted",
+      "user_message",
+      "assistant_message"
+    ],
+    "fresh_firefox_reload_rendered_interruption_and_response": true,
+    "implementation_sha_matches": true,
+    "independent_database_event_count": 4,
+    "model_id": "qwen3-0.6b-q8_0-local",
+    "model_response_completed": true
+  },
+  "message_content_recorded": false,
+  "outcome": "PASS",
+  "procedure": "Submit browser turn; independently observe committed user event and absence of final event; restart only dashboard; query response status and fresh database; submit follow-up; refresh browser history.",
+  "record_revision": "1.0.0",
+  "record_schema": "rv.grace-chat-interruption-recovery.v1",
+  "source_commit": "30085f040d16c666ab8e715e2b9f8c384d1adf9c"
+}

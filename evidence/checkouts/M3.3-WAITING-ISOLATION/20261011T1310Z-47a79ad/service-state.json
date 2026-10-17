@@ -1,0 +1,54 @@
+{
+  "release": "/opt/riverview-m33/releases/47a79adafe1524b3e819148b70c02a1857f50dbf",
+  "units": [
+    {
+      "ActiveState": "active",
+      "ExecMainStatus": "0",
+      "MainPID": "404579",
+      "SubState": "running",
+      "unit": "riverview-assignment-intake.service"
+    },
+    {
+      "ActiveState": "active",
+      "ExecMainStatus": "0",
+      "MainPID": "409593",
+      "SubState": "running",
+      "unit": "riverview-m33-worker.service"
+    },
+    {
+      "ActiveState": "active",
+      "ExecMainStatus": "0",
+      "MainPID": "404580",
+      "SubState": "running",
+      "unit": "riverview-m33-verifier.service"
+    },
+    {
+      "ActiveState": "active",
+      "ExecMainStatus": "0",
+      "MainPID": "61932",
+      "SubState": "running",
+      "unit": "riverview-event-processor.service"
+    },
+    {
+      "ActiveState": "active",
+      "ExecMainStatus": "0",
+      "MainPID": "139749",
+      "SubState": "running",
+      "unit": "riverview-cme-monitor.service"
+    },
+    {
+      "ActiveState": "active",
+      "ExecMainStatus": "0",
+      "MainPID": "222915",
+      "SubState": "running",
+      "unit": "riverview-notification-dispatcher.service"
+    },
+    {
+      "ActiveState": "active",
+      "ExecMainStatus": "0",
+      "MainPID": "351052",
+      "SubState": "running",
+      "unit": "riverview-status-dashboard.service"
+    }
+  ]
+}

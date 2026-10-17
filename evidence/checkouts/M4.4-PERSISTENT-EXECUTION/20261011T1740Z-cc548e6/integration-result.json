@@ -1,0 +1,46 @@
+{
+  "base_commit": "cc548e605075fdb5f0a9b258382904da17fa8f48",
+  "branch": "codex/grace-persistent-execution",
+  "complete_test_suite": {
+    "duration_seconds": 118.438,
+    "errors": 0,
+    "failures": 0,
+    "passed": 211,
+    "skipped": 0,
+    "total": 211
+  },
+  "evidence_schema": "rv.grace.persistent-execution-checkout.v1",
+  "execution_mode": "isolated integration and contract tests; no live service commissioning",
+  "focused_recovery_test": "separate spawned service processes: first process persisted dispatch and stopped with assignment queued; second process resumed; exactly one worker attempt and one accepted independent verification persisted",
+  "functional_coverage": [
+    "governed dashboard objective submission and rejection",
+    "durable objective/work-order dispatch",
+    "bounded registered worker execution",
+    "artifact and independent verification projection",
+    "cancellation authorization",
+    "retry exhaustion persistence",
+    "worker/verifier failure isolation",
+    "continuous processing of multiple objectives",
+    "service process restart recovery and duplicate prevention"
+  ],
+  "independent_checks": {
+    "compileall": "PASS",
+    "git_diff_check": "PASS excluding preserved predecessor bytes",
+    "process_graph_check": "PASS (16 graphs, 330 nodes)",
+    "process_graph_validate": "PASS (16 graphs)",
+    "revision_audit": "PASS against base commit inventory",
+    "systemd_analyze_verify": "PASS for unit template"
+  },
+  "limitations": [
+    "No live Camrui service install, credential provisioning, or real dashboard browser session was performed.",
+    "The worker is the existing bounded local JSON-artifact capability, not a general-purpose coding executor.",
+    "No inference/model provider was used; objective plan proposals are supplied through typed governed interface."
+  ],
+  "postgresql": "16.15 private temporary cluster; isolated per-test schemas",
+  "production_database_modified": false,
+  "recorded_at_utc": "2026-10-11T17:40:10Z",
+  "repository": "ppow1/Riverview-",
+  "service_installed_or_started": false,
+  "shared_services_modified": false,
+  "source_manifest_sha256": "e232f00c9daa2150d6bff964aabaf44641adaf2a5384908dba71eb98297afc4e"
+}

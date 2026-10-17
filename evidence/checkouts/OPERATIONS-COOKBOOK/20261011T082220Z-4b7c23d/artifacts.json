@@ -1,0 +1,33 @@
+{
+  "component_id": "RIVERVIEW-OPERATIONS / STEWARD-DASHBOARD",
+  "deployed_commit": "8dcec2ada7d811a78f6cb28a1b81e6f8f59b1a9b",
+  "evidence_bundle": "RV-OVERNIGHT-20261011-DASHBOARD-DOCS-CHECK",
+  "files": {
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "24433e901c14092d50c3db4406c110aec32451d0e3c3ad60239c721b2e5a3438",
+      "size_bytes": 4058
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "f0be784c62eb8900af6cffa770848957a29f959908a8f15d591c89bcab8c280e",
+      "size_bytes": 2360
+    },
+    "cookbook-view.png": {
+      "path": "cookbook-view.png",
+      "revision": "1.0.0",
+      "sha256": "ca033765521caf288d1582f0e00508ae8354c2c10220776ccdfec50d1eb9024a",
+      "size_bytes": 176770
+    },
+    "workflow-view.png": {
+      "path": "workflow-view.png",
+      "revision": "1.0.0",
+      "sha256": "c18c592a241495120ed713179a8b2b100a6ba8a20d18b8ddfa07eb25536cee52",
+      "size_bytes": 234074
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "source_commit": "4b7c23d4be505cd211fedcd37fafa58a49a13d3d"
+}

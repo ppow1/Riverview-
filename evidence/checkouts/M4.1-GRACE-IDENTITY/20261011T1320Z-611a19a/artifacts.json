@@ -1,0 +1,29 @@
+{
+  "artifacts": {
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "add354765223cf2c6ca795654d982395267eb6b67876fb07b4e269f8f912f18e",
+      "size_bytes": 32657
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "e2e70831ded7b370762ce616cb04ca132e9f8e6fb10607236ba4f171956708ec",
+      "size_bytes": 55
+    },
+    "result-summary.json": {
+      "path": "result-summary.json",
+      "revision": "1.0.0",
+      "sha256": "7252b07678e928531fad650512bc1a71a433b3cdbc7f392d47d1ff7f2bc218fa",
+      "size_bytes": 1030
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

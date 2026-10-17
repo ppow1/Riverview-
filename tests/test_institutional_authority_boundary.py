@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_institutional_authority_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.11
+# Revision: 1.0.24
 # Purpose: Verify isolated M4.1 ownership separation denies runtime SQL bypass
 # Execution Model: PostgreSQL integration test using unique rvtest schema and roles
 # Observability: Protected object owners, runtime denial, manager registry authorization
@@ -20,6 +20,17 @@
 # Changed: 2026-10-11 UTC | RV-M4.1-NOINHERIT-MANAGER-TEST | Model a NOINHERIT manager login in the boundary fixture
 # Changed: 2026-10-11 UTC | RV-M4.1-DEDICATED-SCHEMA-FUNCTION-TEST | Reject unrelated schema functions before privilege changes
 # Changed: 2026-10-11 UTC | RV-M4.1-PREFLIGHT-DIAGNOSTIC | Assert safe static target failures and SQLSTATE-only diagnostics
+# Changed: 2026-10-11 UTC | RV-M4.1-OWNER-SCHEMA-USAGE | Exercise manager FK checks while owner retains USAGE but not CREATE
+# Changed: 2026-10-11 UTC | RV-M4.1-APPLY-REQUIRED-DRY-RUN | Require preflight to detect missing owner schema USAGE before apply
+# Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT | Verify exact-grant function is the runtime's sole authority access
+# Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-FIX | Read default tuple rows by position
+# Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-TEST-FIX | Revoke only a separate test credential
+# Changed: 2026-10-11 UTC | RV-M4.1-RUNTIME-OFFICE-API | Exercise least-privilege office snapshot and state CAS functions
+# Changed: 2026-10-11 UTC | RV-M4.1-OFFICE-FUNCTION-DRIFT | Verify preflight repairs resident office function ACL drift
+# Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Verify principal-based grant checks share the protected function ACL
+# Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Isolate each denied manager function call in a clean database transaction
+# Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Require principal-keyed checks to target a Steward principal
+# Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Include the audited successor decision in the least-privilege runtime function boundary
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -96,6 +107,7 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
             apply_migrations(DSN, schema=self.schema, migrations_dir=migration_dir)
             self.steward_token = secrets.token_urlsafe(32)
             self.worker_token = secrets.token_urlsafe(32)
+            self.resident_token = secrets.token_urlsafe(32)
             with self.admin.transaction():
                 self.admin.execute(sql.SQL("INSERT INTO {}.institutional_principals(principal_id,principal_kind) VALUES (%s,'steward')").format(sql.Identifier(self.schema)),
                                    ("steward:boundary-test",))
@@ -105,11 +117,30 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
                                    ("worker:boundary-test",))
                 self.admin.execute(sql.SQL("INSERT INTO {}.principal_credentials(credential_id,principal_id,credential_sha256) VALUES (%s,%s,%s)").format(sql.Identifier(self.schema)),
                                    (uuid4(), "worker:boundary-test", hashlib.sha256(self.worker_token.encode()).digest()))
+                self.admin.execute(sql.SQL("INSERT INTO {}.institutional_principals(principal_id,principal_kind) VALUES (%s,'resident')").format(sql.Identifier(self.schema)),
+                                   ("resident:boundary-test",))
+                self.admin.execute(sql.SQL("INSERT INTO {}.principal_credentials(credential_id,principal_id,credential_sha256) VALUES (%s,%s,%s)").format(sql.Identifier(self.schema)),
+                                   (uuid4(), "resident:boundary-test", hashlib.sha256(self.resident_token.encode()).digest()))
                 self.admin.execute(sql.SQL("""INSERT INTO {}.authority_grants
                     (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
                     VALUES ('boundary-test-grant','worker:boundary-test','assignment.execute',
                             'assignment:boundary-test','steward:boundary-test','rv.policy:test.v1')""").format(
                                 sql.Identifier(self.schema)))
+                self.admin.execute(sql.SQL("""INSERT INTO {}.authority_grants
+                    (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+                    VALUES ('boundary-test-steward-grant','steward:boundary-test','assignment.execute',
+                            'assignment:boundary-test','steward:boundary-test','rv.policy:test.v1')""").format(
+                                sql.Identifier(self.schema)))
+                self.admin.execute(sql.SQL("INSERT INTO {}.institutional_offices(office_id,office_role) VALUES ('office:boundary-test','resident test')").format(sql.Identifier(self.schema)))
+                self.admin.execute(sql.SQL("INSERT INTO {}.resident_occupants(occupant_id,principal_id) VALUES ('occupant:boundary-test-a','resident:boundary-test')").format(sql.Identifier(self.schema)))
+                self.admin.execute(sql.SQL("INSERT INTO {}.resident_implementations(implementation_id,kind,provider_ref,revision) VALUES ('implementation:boundary-test-a','model','provider.test','model-a')").format(sql.Identifier(self.schema)))
+                self.admin.execute(sql.SQL("INSERT INTO {}.office_bindings(office_id,occupant_id,implementation_id,binding_revision) VALUES ('office:boundary-test','occupant:boundary-test-a','implementation:boundary-test-a',1)").format(sql.Identifier(self.schema)))
+                self.admin.execute(sql.SQL("INSERT INTO {}.office_runtime_state(office_id,state) VALUES (%s,%s::jsonb)").format(sql.Identifier(self.schema)),
+                                   ("office:boundary-test", "{}"))
+                self.admin.execute(sql.SQL("""INSERT INTO {}.authority_grants
+                    (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+                    VALUES ('resident-boundary-grant','resident:boundary-test','office.state.write',
+                            'office:office:boundary-test','steward:boundary-test','rv.policy:test.v1')""").format(sql.Identifier(self.schema)))
             self.manager_dsn = make_conninfo(
                 DSN, user=self.manager_role, password=self.manager_password)
             self.runtime_dsn = make_conninfo(
@@ -171,7 +202,44 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
             self.admin, schema=self.schema, runtime_role=self.runtime_role,
             manager_role=self.manager_role, owner_role=self.owner_role, apply=True)
         self.assertEqual(applied["status"], "APPLIED")
-        self.assertEqual(len(applied["authority_tables"]), 9)
+        self.assertEqual(len(applied["authority_tables"]), 18)
+
+        # Runtime and manager ACL drift on either resident API function must
+        # trigger a repair instead of being missed by table/function checks.
+        for function_name, signature in (
+                ("read_authorized_office_state", "(bytea,text)"),
+                ("write_authorized_office_state", "(bytea,text,jsonb,bigint)"),
+                ("authorized_office_implementation_successor",
+                 "(bytea,text,text,text,text,text,text)")):
+            function = self.sql.SQL("{}.{}{}").format(
+                self.sql.Identifier(self.schema), self.sql.Identifier(function_name),
+                self.sql.SQL(signature))
+            self.admin.execute(self.sql.SQL("REVOKE EXECUTE ON FUNCTION {} FROM {}").format(
+                function, self.sql.Identifier(self.runtime_role)))
+            self.admin.execute(self.sql.SQL("GRANT EXECUTE ON FUNCTION {} TO {}").format(
+                function, self.sql.Identifier(self.manager_role)))
+        drift = provision_authority_boundary(
+            self.admin, schema=self.schema, runtime_role=self.runtime_role,
+            manager_role=self.manager_role, owner_role=self.owner_role, apply=False)
+        self.assertTrue(drift["apply_required"])
+        repaired_functions = provision_authority_boundary(
+            self.admin, schema=self.schema, runtime_role=self.runtime_role,
+            manager_role=self.manager_role, owner_role=self.owner_role, apply=True)
+        self.assertEqual(repaired_functions["status"], "APPLIED")
+
+        # A previously transferred boundary can still be incomplete. The
+        # read-only preflight must detect the missing table-owner schema USAGE
+        # required for later foreign-key checks, then an idempotent apply fixes it.
+        self.admin.execute(self.sql.SQL("REVOKE USAGE ON SCHEMA {} FROM {}").format(
+            self.sql.Identifier(self.schema), self.sql.Identifier(self.owner_role)))
+        incomplete = provision_authority_boundary(
+            self.admin, schema=self.schema, runtime_role=self.runtime_role,
+            manager_role=self.manager_role, owner_role=self.owner_role, apply=False)
+        self.assertTrue(incomplete["apply_required"])
+        repaired = provision_authority_boundary(
+            self.admin, schema=self.schema, runtime_role=self.runtime_role,
+            manager_role=self.manager_role, owner_role=self.owner_role, apply=True)
+        self.assertEqual(repaired["status"], "APPLIED")
 
         # Repeated application must be safe and report the protected state.
         repeated = provision_authority_boundary(
@@ -184,16 +252,120 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
                                   has_schema_privilege(%s,%s,'USAGE') AS runtime_usage,
                                   has_schema_privilege(%s,%s,'CREATE') AS runtime_create,
                                   has_schema_privilege(%s,%s,'USAGE') AS manager_usage,
-                                  has_schema_privilege(%s,%s,'CREATE') AS manager_create""",
+                                  has_schema_privilege(%s,%s,'CREATE') AS manager_create,
+                                  has_schema_privilege(%s,%s,'USAGE') AS owner_usage,
+                                  has_schema_privilege(%s,%s,'CREATE') AS owner_create""",
                         (self.manager_role, self.owner_role,
                          self.runtime_role, self.schema, self.runtime_role, self.schema,
-                         self.manager_role, self.schema, self.manager_role, self.schema))
+                         self.manager_role, self.schema, self.manager_role, self.schema,
+                         self.owner_role, self.schema, self.owner_role, self.schema))
             access = cur.fetchone()
         self.assertFalse(access["manager_is_owner"])
-        self.assertFalse(access["runtime_usage"])
+        self.assertTrue(access["runtime_usage"])
         self.assertFalse(access["runtime_create"])
         self.assertTrue(access["manager_usage"])
         self.assertFalse(access["manager_create"])
+        self.assertTrue(access["owner_usage"])
+        self.assertFalse(access["owner_create"])
+        from psycopg.errors import InsufficientPrivilege
+        digest = hashlib.sha256(self.worker_token.encode("utf-8")).digest()
+        check_sql = self.sql.SQL(
+            "SELECT principal_id,grant_id FROM {}.authorize_exact_grant(%s,%s,%s)"
+        ).format(self.sql.Identifier(self.schema))
+        principal_check_sql = self.sql.SQL(
+            "SELECT principal_id,grant_id FROM {}.authorize_exact_principal_grant(%s,%s,%s)"
+        ).format(self.sql.Identifier(self.schema))
+        with self.psycopg.connect(self.runtime_dsn) as runtime:
+            valid = runtime.execute(check_sql, (digest, "assignment.execute",
+                                                "assignment:boundary-test")).fetchone()
+            self.assertEqual(valid[0], "worker:boundary-test")
+            self.assertEqual(valid[1], "boundary-test-grant")
+            self.assertIsNone(runtime.execute(check_sql, (digest, "assignment.execute",
+                                                          "assignment:other")).fetchone())
+            self.assertIsNone(runtime.execute(check_sql, (digest, "assignment.verify",
+                                                          "assignment:boundary-test")).fetchone())
+            self.assertIsNone(runtime.execute(check_sql, (b"bad", "assignment.execute",
+                                                          "assignment:boundary-test")).fetchone())
+            self.assertEqual(runtime.execute(principal_check_sql,
+                ("steward:boundary-test", "assignment.execute", "assignment:boundary-test")).fetchone(),
+                ("steward:boundary-test", "boundary-test-steward-grant"))
+            self.assertIsNone(runtime.execute(principal_check_sql,
+                ("worker:boundary-test", "assignment.execute", "assignment:boundary-test")).fetchone())
+            self.assertIsNone(runtime.execute(principal_check_sql,
+                ("steward:boundary-test", "assignment.verify", "assignment:boundary-test")).fetchone())
+
+        from riverview_core.institutional_authority import (
+            AuthorityDenied, AuthorityRegistry, IdentityConflict)
+        office_registry = AuthorityRegistry(self.runtime_dsn, schema=self.schema, runtime_safe=True)
+        self.registry = office_registry
+        initial = office_registry.authorize_office_state(self.resident_token, "office:boundary-test")
+        self.assertEqual(initial["principal_id"], "resident:boundary-test")
+        self.assertEqual(initial["binding_revision"], 1)
+        self.assertFalse(office_registry.is_authorized_implementation_successor(
+            self.resident_token, "office:boundary-test",
+            predecessor_id="impl:unrelated", predecessor_revision="old",
+            successor_id=initial["implementation_id"],
+            successor_revision=initial["implementation_revision"],
+            required_capability="grace.reasoning.80b"))
+        self.assertEqual(office_registry.set_office_state(
+            self.resident_token, "office:boundary-test", {"plan": "first"},
+            expected_revision=1), 2)
+        with self.assertRaises(IdentityConflict):
+            office_registry.set_office_state(self.resident_token, "office:boundary-test",
+                                             {"plan": "stale"}, expected_revision=1)
+
+        # Simulate the ordinary binding replacement transaction, then an
+        # erroneous re-grant to the former occupant. The SQL boundary must still deny it.
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.institutional_principals
+            (principal_id,principal_kind) VALUES ('resident:boundary-test-b','resident')""").format(self.sql.Identifier(self.schema)))
+        replacement_token = secrets.token_urlsafe(32)
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.principal_credentials
+            (credential_id,principal_id,credential_sha256) VALUES (%s,'resident:boundary-test-b',%s)""").format(self.sql.Identifier(self.schema)),
+            (uuid4(), hashlib.sha256(replacement_token.encode()).digest()))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.resident_occupants
+            (occupant_id,principal_id) VALUES ('occupant:boundary-test-b','resident:boundary-test-b')""").format(self.sql.Identifier(self.schema)))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.resident_implementations
+            (implementation_id,kind,provider_ref,revision)
+            VALUES ('implementation:boundary-test-b','model','provider.test.b','model-b')""").format(self.sql.Identifier(self.schema)))
+        self.admin.execute(self.sql.SQL("UPDATE {}.authority_grants SET revoked_at=clock_timestamp() WHERE grant_id='resident-boundary-grant'").format(self.sql.Identifier(self.schema)))
+        self.admin.execute(self.sql.SQL("UPDATE {}.office_bindings SET occupant_id='occupant:boundary-test-b',implementation_id='implementation:boundary-test-b',binding_revision=binding_revision+1 WHERE office_id='office:boundary-test'").format(self.sql.Identifier(self.schema)))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES ('resident-stale-regrant','resident:boundary-test','office.state.write',
+                    'office:office:boundary-test','steward:boundary-test','rv.policy:test.v1')""").format(self.sql.Identifier(self.schema)))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES ('resident-current-grant','resident:boundary-test-b','office.state.write',
+                    'office:office:boundary-test','steward:boundary-test','rv.policy:test.v1')""").format(self.sql.Identifier(self.schema)))
+        with self.assertRaises(AuthorityDenied):
+            office_registry.authorize_office_state(self.resident_token, "office:boundary-test")
+        with self.assertRaises(AuthorityDenied):
+            office_registry.set_office_state(self.resident_token, "office:boundary-test",
+                                              {"unauthorized": True})
+        replacement_snapshot = office_registry.authorize_office_state(
+            replacement_token, "office:boundary-test")
+        self.assertEqual(replacement_snapshot["binding_revision"], 2)
+        self.assertEqual(replacement_snapshot["state"], {"plan": "first"})
+        with self.psycopg.connect(self.manager_dsn) as manager:
+            with self.assertRaises(InsufficientPrivilege):
+                manager.execute(check_sql, (digest, "assignment.execute",
+                                             "assignment:boundary-test")).fetchone()
+        with self.psycopg.connect(self.manager_dsn) as manager:
+            with self.assertRaises(InsufficientPrivilege):
+                manager.execute(principal_check_sql, ("steward:boundary-test", "assignment.execute",
+                                                       "assignment:boundary-test")).fetchone()
+        revoked_digest = hashlib.sha256(secrets.token_bytes(32)).digest()
+        self.admin.execute(self.sql.SQL(
+            "INSERT INTO {}.principal_credentials(credential_id,principal_id,credential_sha256) "
+            "VALUES (%s,'worker:boundary-test',%s)"
+        ).format(self.sql.Identifier(self.schema)), (uuid4(), revoked_digest))
+        self.admin.execute(self.sql.SQL(
+            "UPDATE {}.principal_credentials SET revoked_at=clock_timestamp() "
+            "WHERE credential_sha256=%s"
+        ).format(self.sql.Identifier(self.schema)), (revoked_digest,))
+        with self.psycopg.connect(self.runtime_dsn) as runtime:
+            self.assertIsNone(runtime.execute(check_sql, (revoked_digest, "assignment.execute",
+                                                          "assignment:boundary-test")).fetchone())
         self.admin.execute(self.sql.SQL("GRANT {} TO {}").format(
             self.sql.Identifier(self.owner_role), self.sql.Identifier(self.manager_role)))
         with self.assertRaisesRegex(BoundaryPreflightError, "manager role can assume"):
@@ -218,6 +390,26 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
             with self.assertRaises(InsufficientPrivilege):
                 runtime.execute(self.sql.SQL("SELECT count(*) FROM {}.institutional_principals").format(
                     self.sql.Identifier(self.schema))).fetchone()
+        from riverview_core.institutional_authority.db_boundary import AUTHORITY_TABLES
+        for table_name in AUTHORITY_TABLES:
+            with self.psycopg.connect(self.runtime_dsn) as runtime:
+                with self.assertRaises(InsufficientPrivilege):
+                    runtime.execute(self.sql.SQL("SELECT count(*) FROM {}.{}").format(
+                        self.sql.Identifier(self.schema), self.sql.Identifier(table_name))).fetchone()
+        with self.psycopg.connect(self.runtime_dsn) as runtime:
+            result = runtime.execute(self.sql.SQL(
+                "SELECT {}.evaluate_resident_permission(%s,%s,%s,%s,%s,false)").format(
+                    self.sql.Identifier(self.schema)),
+                ("resident:boundary-test", "assignment.execute", "assignment:boundary-test",
+                 "execute", "internal")).fetchone()[0]
+            self.assertEqual(result["mode"], "legacy_exact_grant_only")
+        with self.psycopg.connect(self.manager_dsn) as manager:
+            with self.assertRaises(InsufficientPrivilege):
+                manager.execute(self.sql.SQL(
+                    "SELECT {}.evaluate_resident_permission(%s,%s,%s,%s,%s,false)").format(
+                        self.sql.Identifier(self.schema)),
+                    ("resident:boundary-test", "assignment.execute", "assignment:boundary-test",
+                     "execute", "internal")).fetchone()
         with self.psycopg.connect(self.runtime_dsn) as runtime:
             with self.assertRaises(InsufficientPrivilege):
                 runtime.execute(self.sql.SQL("""INSERT INTO {}.institutional_authority_events
@@ -229,6 +421,27 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
                     self.sql.Identifier(self.schema)))
         with self.psycopg.connect(self.manager_dsn) as manager:
             manager.execute("SELECT count(*) FROM {}.institutional_principals".format(self.schema)).fetchone()
+            principal_id = "service:fk-boundary-test"
+            credential_id = uuid4()
+            grant_id = "fk-boundary-test-grant"
+            manager.execute(self.sql.SQL("""INSERT INTO {}.institutional_principals
+                (principal_id,principal_kind) VALUES (%s,'service')""").format(
+                    self.sql.Identifier(self.schema)), (principal_id,))
+            manager.execute(self.sql.SQL("""INSERT INTO {}.principal_credentials
+                (credential_id,principal_id,credential_sha256) VALUES (%s,%s,%s)""").format(
+                    self.sql.Identifier(self.schema)),
+                (credential_id, principal_id, hashlib.sha256(secrets.token_bytes(32)).digest()))
+            manager.execute(self.sql.SQL("""INSERT INTO {}.authority_grants
+                (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+                VALUES (%s,%s,'probe','probe',%s,'rv.policy:test.v1')""").format(
+                    self.sql.Identifier(self.schema)), (grant_id, principal_id, principal_id))
+            manager.execute(self.sql.SQL("""INSERT INTO {}.institutional_authority_events
+                (event_id,event_type,actor_id,subject_id,grant_id,payload)
+                VALUES (%s,'authority_granted',%s,%s,%s,'{{}}'::jsonb)""").format(
+                    self.sql.Identifier(self.schema)),
+                (uuid4(), principal_id, principal_id, grant_id))
+            manager.commit()
+        with self.psycopg.connect(self.manager_dsn) as manager:
             with self.assertRaises(InsufficientPrivilege):
                 manager.execute(self.sql.SQL("DROP TABLE {}.authority_grants").format(
                     self.sql.Identifier(self.schema)))
@@ -245,7 +458,7 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
                                    (self.schema, list(__import__(
                                        "riverview_core.institutional_authority.db_boundary",
                                        fromlist=["AUTHORITY_TABLES"]).AUTHORITY_TABLES))).fetchall()
-        self.assertEqual(len(owners), 9)
+        self.assertEqual(len(owners), 18)
         self.assertTrue(all(row["tableowner"] == self.owner_role for row in owners))
 
         # Demonstrate why the schema-owner gate is mandatory. This is a unique

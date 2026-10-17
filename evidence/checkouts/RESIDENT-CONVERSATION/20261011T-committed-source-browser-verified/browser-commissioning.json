@@ -1,0 +1,67 @@
+{
+  "browser_refresh": {
+    "conversation_id_retained": "a214255d-c74d-4926-98cb-cf7b53e7a22a",
+    "history_reloaded": true,
+    "post_restart_continuation": "PASS",
+    "status": "PASS"
+  },
+  "cleanup": {
+    "browser_session_closed": true,
+    "dashboard_process_stopped": true,
+    "model_process_stopped": true,
+    "test_schema_dropped": true
+  },
+  "database_schema": "rvtest_chat_aeb1b158c810491fb7ae0a7cf9eb1871",
+  "database_socket": "private /tmp/rv-m43-sock-* test cluster",
+  "finished_at_epoch": 1791751012.106784,
+  "host": "Camrui",
+  "mode": "isolated",
+  "model": {
+    "binary_sha256": "dc82364c7428bcfa22ca07d2e6edf958a16bb1b7294920a749bf6fbf9ab70b57",
+    "context_size": 4096,
+    "endpoint": "loopback only",
+    "gpu_layers": 0,
+    "id": "qwen3-0.6b-q8_0-local",
+    "loaded_model": "qwen3-0.6b-q8_0-local",
+    "runtime_context": 4096,
+    "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031"
+  },
+  "ports": {
+    "dashboard_loopback": 8700,
+    "geckodriver_loopback": 47237,
+    "model_loopback": 37933
+  },
+  "postgresql": {
+    "assistant_messages": 2,
+    "interruptions": 1,
+    "models": 1,
+    "objectives_created_by_chat": 0,
+    "user_messages": 3
+  },
+  "recovery": {
+    "browser_history_and_interruption_visible": true,
+    "supporting_http_service_restarted": true,
+    "unfinished_turns_marked_interrupted": 1
+  },
+  "schema_version": "rv.grace.conversation.commissioning.v1",
+  "source_commit": "1fa9d6104fc07609e3d8bbda8bf836b0b22e19c1",
+  "stage": "browser_chat_model_turn",
+  "status": "PASS",
+  "task_id": "RV-M3.4-GRACE-CHAT",
+  "turns": [
+    {
+      "browser_elapsed_ms": 31934,
+      "conversation_id": "a214255d-c74d-4926-98cb-cf7b53e7a22a",
+      "elapsed_wall_ms": 31952.09,
+      "last_message": "Grace\nHi! I'm Grace, your resident. Let me know if there's anything I can help with.\n10/11/2026, 4:36:20 PM \u00b7 qwen3-0.6b-q8_0-local",
+      "phase": "first_browser_inference"
+    },
+    {
+      "browser_elapsed_ms": 27906,
+      "conversation_id": "a214255d-c74d-4926-98cb-cf7b53e7a22a",
+      "elapsed_wall_ms": 27918.59,
+      "last_message": "Grace\nHi! Grace's office history remains available. Let me know if there's anything I can help with.\n10/11/2026, 4:36:50 PM \u00b7 qwen3-0.6b-q8_0-local",
+      "phase": "post_restart_browser_inference"
+    }
+  ]
+}

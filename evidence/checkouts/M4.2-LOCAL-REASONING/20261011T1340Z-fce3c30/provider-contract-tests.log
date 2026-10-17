@@ -1,0 +1,14 @@
+test_complete_schema_object_is_accepted_at_length_boundary (tests.test_local_reasoning_provider.LocalReasoningProviderTests.test_complete_schema_object_is_accepted_at_length_boundary) ... ok
+test_endpoint_errors_are_sanitized (tests.test_local_reasoning_provider.LocalReasoningProviderTests.test_endpoint_errors_are_sanitized) ... ok
+test_model_revision_mismatch_fails_before_network_call (tests.test_local_reasoning_provider.LocalReasoningProviderTests.test_model_revision_mismatch_fails_before_network_call) ... ok
+test_non_loopback_endpoint_is_rejected (tests.test_local_reasoning_provider.LocalReasoningProviderTests.test_non_loopback_endpoint_is_rejected) ... ok
+test_verified_context_produces_typed_unapproved_proposal (tests.test_local_reasoning_provider.LocalReasoningProviderTests.test_verified_context_produces_typed_unapproved_proposal) ... ok
+test_wrong_model_incomplete_response_or_usage_cannot_become_proposal (tests.test_local_reasoning_provider.LocalReasoningProviderTests.test_wrong_model_incomplete_response_or_usage_cannot_become_proposal) ... /usr/lib/python3.12/email/parser.py:49: ResourceWarning: unclosed <socket.socket [closed] fd=4, family=2, type=1, proto=6>
+  feedparser = FeedParser(self._class, policy=self.policy)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 3.116s
+
+OK

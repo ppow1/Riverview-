@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/development/OPERATIONS-COOKBOOK-001_REVISION_RECORD.md
 Component: RIVERVIEW-OPERATIONS
-File Revision: 1.0.7
+File Revision: 1.0.8
 Purpose: Record the consolidated operational guide deliverable and evidence
 Authority: Documentation and diagnostics; does not authorize shared-state mutation
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Record passing suite, live deployment, and browser evidence
@@ -115,3 +115,4 @@ Component DoD remain open; exact-head GitHub CI is tracked on PR #20.
 - **1.0.5 — 2026-10-11:** Record isolated worker/verifier query smoke and checkout results.
 - **1.0.6 — 2026-10-11:** Record PostgreSQL cookbook secret-safety review and correct M1.4 migration-presence statement using live read-only evidence; no scheduler commissioning claim.
 - **1.0.7 — 2026-10-11:** Record dashboard candidate package 404, immediate symlink rollback, preserved services, and remaining M3.3 source-content integration requirement.
+Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-DOCS-LIVE | Record immutable live docs/graph overlay, startup rollback and bounded readiness recovery, and Firefox verification evidence

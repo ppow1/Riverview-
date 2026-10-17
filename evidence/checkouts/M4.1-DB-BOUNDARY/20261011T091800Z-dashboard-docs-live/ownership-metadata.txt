@@ -1,0 +1,3 @@
+root:root mode=777 /opt/riverview-status-dashboard/current
+root:root mode=644 /etc/systemd/system/riverview-status-dashboard.service
+root:root mode=600 /var/backups/riverview/status-dashboard/docs-d2c145c/unit.before

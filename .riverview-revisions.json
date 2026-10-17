@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.59",
+  "manifest_revision": "1.1.139",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.37",
+      "revision": "1.0.102",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "23177a899ba16d9953c474b365239599376bdabd7920124f75cd97839e8469e6",
-      "size_bytes": 219776
+      "sha256": "fa63d094c3248ad0ecd16aae782391c00c6cb9bb78552ff8351386cd4964d6a1",
+      "size_bytes": 488206
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -14,16 +14,16 @@
       "size_bytes": 3203
     },
     "process_graphs/postgres-ledger/assignment-lifecycle.json": {
-      "revision": "1.0.0",
+      "revision": "1.0.2",
       "path": "process_graphs/postgres-ledger/assignment-lifecycle.json",
-      "sha256": "3cf4993bd5a07c8ad99cfbf2179d33b0fd606174b795624897c4f146bdc7e9bd",
-      "size_bytes": 6599
+      "sha256": "3e8847f43f6b3f57e32cdce7bf0d3e91f771523cfe1ec5eaf88bce19120b8bd4",
+      "size_bytes": 10595
     },
     "process_graphs/postgres-ledger/migration.json": {
-      "revision": "1.0.1",
+      "revision": "1.0.2",
       "path": "process_graphs/postgres-ledger/migration.json",
-      "sha256": "4fe10b7583e6c6b2fdd01afee4da4f3b7ffd083a3c609ed36fc7fd015e215093",
-      "size_bytes": 13553
+      "sha256": "ccb1105762de4f518981114d5d0e6156a5ea4641c1c4097f431a606a92645db3",
+      "size_bytes": 13810
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "revision": "1.0.1",
@@ -32,13 +32,13 @@
       "size_bytes": 14418
     },
     "process_graphs/steward-dashboard/status.json": {
-      "revision": "1.0.7",
+      "revision": "1.0.11",
       "path": "process_graphs/steward-dashboard/status.json",
-      "sha256": "51b3e7932ac419c25aaa709c2fbad1f7785cb777d707315de5d4e58625ea71ce",
-      "size_bytes": 27724
+      "sha256": "9d1e725300a2704a7d23accbaf8e54cd0b3290240ee1226efc932bbb53655fd9",
+      "size_bytes": 33631
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.59"
+      "revision": "1.1.139"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -89,10 +89,10 @@
       "size_bytes": 724
     },
     "process_graphs/worker-adapter/deterministic-attempt.json": {
-      "revision": "1.0.7",
+      "revision": "1.0.13",
       "path": "process_graphs/worker-adapter/deterministic-attempt.json",
-      "sha256": "f9576ede49fe6a9ce7ee20e9198f5c0ee52528d1ec23f02bc059817654d6e9fa",
-      "size_bytes": 30113
+      "sha256": "5e029cba24141ac68c689774b6ca18024edb5ddc7af9253dbe07d7f4b8f3d296",
+      "size_bytes": 35845
     },
     "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json": {
       "revision": "1.0.0",
@@ -131,10 +131,10 @@
       "size_bytes": 17159
     },
     "process_graphs/grace/operational-integration.json": {
-      "revision": "1.0.1",
+      "revision": "1.0.23",
       "path": "process_graphs/grace/operational-integration.json",
-      "sha256": "878a5c1d1377941f9f5d011f5e284e057c021951809028f6bf464623eb77941c",
-      "size_bytes": 8145
+      "sha256": "1d86b6e58158185b7aefaf347ad3bf235842d29358fd0f425f44111d69dd1f17",
+      "size_bytes": 47536
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "revision": "1.0.0",
@@ -149,10 +149,10 @@
       "size_bytes": 8028
     },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
-      "revision": "1.0.4",
+      "revision": "1.0.5",
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
-      "sha256": "4267b8d917010e65424b06d96d1b0e32c3b547649724d39a57645cb50c1fc7e6",
-      "size_bytes": 12076
+      "sha256": "0b97b787445ce1605fbf719c112df03fc14787448303348e4e59445651c80a16",
+      "size_bytes": 12204
     },
     "process_graphs/notification-delivery/visual-attention.json": {
       "revision": "1.0.0",
@@ -167,10 +167,70 @@
       "size_bytes": 2957
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
-      "revision": "1.0.5",
+      "revision": "1.0.13",
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
-      "sha256": "a2cfa08f3abbc2d6d4e873ea9e4125266f2afbb56edec2228ce5aacc56c94b01",
-      "size_bytes": 15802
+      "sha256": "d025a392627a819b0f1957a070effbd56f32c3f9efb65811eae5c1eae194cf25",
+      "size_bytes": 42764
+    },
+    "process_graphs/resident-reasoning/runtime.json": {
+      "revision": "1.0.7",
+      "path": "process_graphs/resident-reasoning/runtime.json",
+      "sha256": "1c848e560dd9d58d8f9d3083be8165761563f777eab73fc7efe423f9a5a44344",
+      "size_bytes": 28216
+    },
+    "process_graphs/knowledge-provider/repository-contracts.json": {
+      "revision": "1.0.3",
+      "path": "process_graphs/knowledge-provider/repository-contracts.json",
+      "sha256": "33a20a32e75197886d2b8e8ab3c4a4ccdd8bc1a82f12360a29be146954bf1cd4",
+      "size_bytes": 11764
+    },
+    "process_graphs/assignment-intake/governed-request.json": {
+      "revision": "1.0.0",
+      "path": "process_graphs/assignment-intake/governed-request.json",
+      "sha256": "a90a852c01150fdabfe714e053e55dbbef38ca3687ae863d2a3cff9bd30d4df8",
+      "size_bytes": 8451
+    },
+    "process_graphs/worker-adapter/supervised-services.json": {
+      "revision": "1.0.1",
+      "path": "process_graphs/worker-adapter/supervised-services.json",
+      "sha256": "e2e5911aae9b98d37c139995030103ebb8f29d891ea80c398411591a455f7b80",
+      "size_bytes": 18530
+    },
+    "process_graphs/resident-conversation/browser-chat.json": {
+      "revision": "1.0.13",
+      "path": "process_graphs/resident-conversation/browser-chat.json",
+      "sha256": "6befdceaa815ea706bbdb65c398e7db146263a187041610945853b39d3ad308b",
+      "size_bytes": 38064
+    },
+    "process_graphs/account-authentication/account-lifecycle.json": {
+      "revision": "1.1.0",
+      "path": "process_graphs/account-authentication/account-lifecycle.json",
+      "sha256": "00b5fc68b2a4849c1f7f5dca52ee27306ce73ceb1676c773d45de411bf0cf7d4",
+      "size_bytes": 19068
+    },
+    "process_graphs/institutional-authority/resident-permission-profiles.json": {
+      "revision": "1.0.2",
+      "path": "process_graphs/institutional-authority/resident-permission-profiles.json",
+      "sha256": "f0b34294aa3dd65666dea5c45e0a3a0f971c55c733d50cf66c72a96b5763bd2b",
+      "size_bytes": 19488
+    },
+    "process_graphs/chatgpt-doorbell/browser-runtime.json": {
+      "revision": "1.0.2",
+      "path": "process_graphs/chatgpt-doorbell/browser-runtime.json",
+      "sha256": "66bca93bab463ef81a83ddea36f58998ace104ce7dce5f9b6e30da7fea9d09d7",
+      "size_bytes": 7249
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/runtime-qualification.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/runtime-qualification.json",
+      "sha256": "18885bb27223d32c01ff7f92f20b7f2036fc9fe89379128aa204a6b369420479",
+      "size_bytes": 2014
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/artifacts.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/artifacts.json",
+      "sha256": "7795ac8ef3dc75d565a83ce2ba4f789ec4a0bbd73216706df28def8c9f66fb9d",
+      "size_bytes": 509
     }
   }
 }

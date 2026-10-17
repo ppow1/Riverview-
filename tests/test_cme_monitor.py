@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_cme_monitor.py
 # Component: CME
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Verify concurrent monitoring, durable alerts, health and process restart
 # Execution Model: Isolated PostgreSQL integration tests and real monitor subprocesses
 # Observability: CME health rows, append-only alerts and independent status projection
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL 16 test database
 # Authority: Creates and drops only unique rvtest_* schemas
 # Changed: 2026-10-10 UTC | RV-M2.4-001 | Verify stale/unavailable CME health and unknown worker state
+# Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT | Exercise registry-backed worker grant checks
 # Contracts: docs/components/CME_MONITOR.md; docs/ROADMAP.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -50,6 +51,10 @@ class CMEMonitorTests(unittest.TestCase):
         self.assertEqual(apply_migrations(
             DSN, schema=self.schema, migrations_dir=self.root / "cme/migrations"),
             ["0005_cme_monitoring"])
+        apply_migrations(DSN, schema=self.schema,
+                         migrations_dir=self.root / "institutional_authority/migrations")
+        self.admin.execute("INSERT INTO institutional_principals(principal_id,principal_kind) "
+                           "VALUES ('steward:test','steward')")
         self.ledger = PostgresLedger(DSN, schema=self.schema)
         from riverview_core.cme import CMEPostgresMonitor
         self.monitor = CMEPostgresMonitor(DSN, schema=self.schema,
@@ -57,6 +62,31 @@ class CMEMonitorTests(unittest.TestCase):
                                           worker_freshness_seconds=0.05,
                                           poll_interval=0.05,
                                           max_backoff_seconds=0.2)
+
+    def register_worker(self, worker, worker_id, capabilities, scope):
+        import hashlib
+        import secrets
+        from uuid import uuid4
+
+        token = secrets.token_urlsafe(32)
+        principal_id = "worker-principal:" + worker_id
+        digest = hashlib.sha256(token.encode("utf-8")).digest()
+        self.admin.execute(
+            "INSERT INTO institutional_principals(principal_id,principal_kind) VALUES (%s,'worker')",
+            (principal_id,))
+        self.admin.execute("""INSERT INTO principal_credentials
+            (credential_id,principal_id,credential_sha256) VALUES (%s,%s,%s)""",
+            (uuid4(), principal_id, digest))
+        actions = ["worker.register"]
+        if worker.SHA256_CAPABILITY in capabilities:
+            actions.append("assignment.execute")
+        for action in actions:
+            self.admin.execute("""INSERT INTO authority_grants
+                (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+                VALUES (%s,%s,%s,%s,'steward:test','rv.policy:cme-fixture.v1')""",
+                (f"test:{action}:{worker_id}", principal_id, action, scope))
+        return worker.register_worker(worker_id, capabilities, scope,
+                                      credential=token)
 
     def tearDown(self):
         from psycopg import sql
@@ -77,8 +107,8 @@ class CMEMonitorTests(unittest.TestCase):
             worker = PostgresWorkerAdapter(DSN, schema=self.schema)
             worker_id = f"worker:{assignment_id}"
             try:
-                token = worker.register_worker(worker_id, [worker.SHA256_CAPABILITY],
-                                               "grant:test")
+                token = self.register_worker(worker, worker_id,
+                    [worker.SHA256_CAPABILITY], "grant:test")
                 lease = worker.claim_next(worker_id, token, lease_seconds=30)
                 self.assertEqual(lease["assignment"]["id"], assignment_id)
                 worker.start_assignment(assignment_id, worker_id, token,
@@ -170,7 +200,8 @@ class CMEMonitorTests(unittest.TestCase):
         from riverview_core.worker_adapter import PostgresWorkerAdapter
         worker = PostgresWorkerAdapter(DSN, schema=self.schema)
         try:
-            worker.register_worker("worker:no-lease", [worker.SHA256_CAPABILITY], "grant:test")
+            self.register_worker(worker, "worker:no-lease",
+                                 [worker.SHA256_CAPABILITY], "grant:test")
         finally:
             worker.close()
         result = self.monitor.scan_once()

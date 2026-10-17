@@ -1,0 +1,29 @@
+{
+  "artifacts": {
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "2f50f5119ca4749fe5e136425bd641bcea80c8cd8ab649b56442fac36278ba7d",
+      "size_bytes": 3929
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "167ea954948e19a05e64779499ba5e51b42c6895956832a9f6ee10f332f06e33",
+      "size_bytes": 6209
+    },
+    "final-revision-audit.json": {
+      "path": "final-revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "live-interruption.json": {
+      "path": "live-interruption.json",
+      "revision": "1.0.0",
+      "sha256": "b27dc59ff19c7bd60a3c818f6c9ed3a51c59792323d2fafad44e1c7729080fa2",
+      "size_bytes": 1700
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

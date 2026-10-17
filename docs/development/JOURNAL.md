@@ -1,8 +1,124 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.74
+**Document Revision:** 1.0.116
 **Component:** ENG-RECORDS
-**Date:** 2026-10-10 UTC
+**Date:** 2026-10-12 UTC
+**Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
+**Changed:** 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow the explicitly reviewed supervised Bash runner in exact-source packages while retaining strict checks for other scripts
+**Changed:** 2026-10-11 UTC | RV-M4.2-HTTP-FIXTURE-CORRECTION | Isolate local reasoning contract tests from sockets and assert HTTPError stream closure
+**Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record responsive conversation interface implementation and isolated real-model browser acceptance
+**Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record dashboard-only Camrui deployment and post-deployment browser/runtime evidence
+**Changed:** 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Diagnose transient credential loss, confirm exact Steward grants, and test persistent same-origin cookie authorization
+**Changed:** 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Commission dashboard release and verify real model turn, exact denial, PostgreSQL persistence, and service restart recovery
+**Changed:** 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Record deployed 390 CSS-pixel responsive iframe verification; retain physical Windows check as pending
+**Changed:** 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-CHECKPOINT | Record persistent objective execution evidence and non-commissioning boundary
+**Changed:** 2026-10-11 UTC | RV-M4.1-M4.2-OCCUPANT-REPLACEMENT-INTEGRATION | Record isolated cross-component Grace identity replacement regression and limits
+**Changed:** 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Diagnose shared psycopg connection transaction interleaving; serialize database scopes and add independent-connection concurrency regressions
+**Changed:** 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Record passing Camrui Firefox recommission, independent PostgreSQL commit checks, protected backup/restore, and transient CPU-model boundary
+**Changed:** 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Verify live dashboard restart marks pending turn interrupted, and follow-up is committed and browser-visible despite a 30-second test wait timeout
+**Changed:** 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Reproduce exact 6 API versus 4 independent committed events on preserved pre-fix code under an overlapping transaction scope
+**Changed:** 2026-10-11 UTC | RV-M3.4-CHAT-DURABILITY-001 | Preserve reproducible pre-fix script, checksummed 6/4 output, and corrected temporary-worktree setup attempt
+**Changed:** 2026-10-11 UTC | RV-M4.1-CROSS-INTEGRATION-CI | Record exact-head CI run 38165302494 at commit 89752f7
+**Changed:** 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Record committed-source browser acceptance, full tests, graph and revision audit
+
+## 2026-10-11 UTC — RV-M3.4-GRACE-CHAT / isolated resident website conversation
+
+Verified clean PR #24 baseline `c5d694909bc88fb94c09658d57b8cc00d8f88d3b` and
+created `codex/m3.4-grace-web-conversation` stacked on that draft. The canonical
+roadmap describes M3.4 as a proposal; this implementation records the requested
+chat work as isolated engineering and does not claim formal proposal acceptance.
+The dashboard already separated its bearer from an `X-Riverview-Authority`
+credential on governed objective routes, and `AuthorityRegistry` already exposes
+office-bound occupant/model bindings. Reused those contracts and the existing
+loopback, model-name, and SHA-pinned local inference adapter. Conversation rows
+and append-only events were added to the resident-execution migration family.
+
+The website path now has explicit office-scoped read/send grants, server-side
+model binding resolution, message idempotency, bounded recent-history context,
+durable response/failure state, startup recovery for incomplete turns, and a
+chat view integrated into the existing dashboard shell. Ordinary chat has no
+objective or worker promotion call. Prior to edits, exact predecessor bytes and
+checksums were preserved by `scripts/revision_control.py` for the touched
+dashboard, provider, contract and journal files; new files start at revision
+1.0.0. The local Qwen3-0.6B GGUF and pinned llama.cpp binary are already present.
+No shared service, database, secret, external model endpoint, or 235B process was
+modified. Commit `1fa9d6104fc07609e3d8bbda8bf836b0b22e19c1` passed the complete
+unittest suite (224 tests, no skips/failures) and a committed-source Firefox
+commissioning run. The browser run produced two actual model responses at 31.95s
+and 27.92s, retained the same conversation through refresh and isolated server/
+runtime reconstruction, persisted one controlled interruption, and verified
+zero objective promotion. The PostgreSQL counts were 3 user events, 2 assistant
+events, 1 interruption, and 0 objectives. Evidence:
+`evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/`.
+The database cluster, schema, browser session, server and model process were
+test-owned and cleaned up. PostgreSQL-focused/provider tests passed 16/16; graph
+validation/synchronization passed at 17 workflows / 348 nodes; the revision
+audit against PR #24 head reported zero findings. Existing resource warnings
+from unrelated suite fixtures were emitted but did not fail tests. This is not
+shared-service deployment, a systemd process restart test, formal M3.4 proposal
+acceptance, or full Component DoD.
+
+## 2026-10-11 UTC — RV-M3.3-COURSE-CORRECTION / M3.3 commissioning and M4.2 checkpoint
+
+Reconciled M3.3 commissioning evidence against the canonical criterion. Live
+records prove a governed authorized request, denied unauthorized request with
+no writes, durable assignment/event creation, scheduled execution by the
+commissioned service, a protected repository-test report artifact, distinct
+independent verification, PostgreSQL lifecycle/provenance, dashboard status,
+and restart recovery. A separate NO_MATCH assignment remained in
+WAITING_FOR_EVIDENCE while another normal-route assignment completed and was
+verified. This satisfies the roadmap requirement for two concurrent durable
+assignments progressing independently; simultaneous throughput across multiple
+executor processes was not measured and is not stated as a separate criterion.
+Existing isolated suite, CI, graph, and revision-audit evidence is retained in
+the M3.3 commissioning directories. Scoped technical criteria are ready for
+Steward review; no formal acceptance, merge, or full Component DoD is claimed.
+
+Completed the M4.2 local provider boundary checkpoint already in progress. Six
+isolated HTTP contract tests passed. A real Qwen3-0.6B loopback call did not
+produce a complete plan within the bounded 30-second request and returned
+sanitized UNAVAILABLE; no resident call or authority-state write occurred.
+Explicitly close `HTTPError` response resources and replace the threaded
+socket-backed M4.2 contract fixture after the six focused tests pass with
+`ResourceWarning` promoted to an error. The full suite passed 196/196 with no
+skips, failures, or errors. Tracemalloc localized its remaining
+`ResourceWarning` to the existing M4.3 `tests/test_local_inference.py` threaded
+HTTP fixture when it replaces the test server; that out-of-scope fixture was
+not changed during this M3.3-priority checkpoint. No service, shared database,
+resident identity, credential, or M3.3 worker state was changed. Evidence:
+`evidence/checkouts/M4.2-LOCAL-REASONING/20261011T1340Z-fce3c30/`.
+
+## 2026-10-11 UTC — RV-M3.3-AUTHORITY-COOKBOOK-COMMISSIONING / dashboard route
+
+Expanded the institutional authority cookbook with the isolated `assignment.create` transaction boundary, exact denial/unavailable handling, a throwaway-database regression command, post-recovery checks and escalation conditions. Corrected its current-state text to distinguish the deployed exact-grant database function from an application intake that has no live route. The dashboard documentation endpoint returned HTTP 200 and safe readable HTML with headings and command blocks; evidence paths remain plain text because the dashboard deliberately serves only `docs/components/*.md`. The first added browser-test assertion expected Markdown backticks in the rendered output; actual HTML correctly used a `<code>` element. Corrected the assertion, then the focused route test passed 1/1 and the complete dashboard HTTP class passed 12/12. Evidence retains the initial assertion failure and corrected results. No runtime, shared database, or service changed. M3.3 remains blocked on governed request-path/worker integration, commissioned real worker and real repository-backed knowledge provider.
+
+## 2026-10-11 UTC — RV-M3.3-ASSIGNMENT-INTAKE / isolated authorized creation
+
+Added `AuthorizedAssignmentIntake`, which requires a current exact `assignment.create` grant, derives the assignment actor from the protected grant result, and holds the grant-row lock across the ledger write and created event in one PostgreSQL transaction. Focused isolated PostgreSQL integration tests passed 4/4, including idempotent replay and missing, wrong, revoked, unavailable, and forged-actor rejection. The disposable schema was removed. This is a callable application entry point, not a deployed route: raw `PostgresLedger.create` and direct SQL are still persistence-level bypass paths unless callers are constrained to this API. The shared schema/runtime privileges and live services were not changed. M3.3 remains BLOCKED pending governed request-path integration, a commissioned approved worker, and a real repository-backed institutional knowledge provider. Evidence: `evidence/checkouts/M3.3-ASSIGNMENT-INTAKE/`.
+
+## 2026-10-11 UTC — RV-M4.3-LOCAL-INFERENCE / real concurrent CPU inference
+
+Implemented an optional `local.inference.v1` worker action using the existing exact-grant, lease, execution-intent, PostgreSQL artifact, and independent-verifier path. Standard-library HTTP is restricted to literal loopback `/v1` endpoints; request/response sizes and duration are bounded, credential-shaped prompt content is rejected, and incomplete output cannot succeed. Existing deterministic SHA-256 execution remains the default. Added four loopback/error regression tests and a PostgreSQL-backed structured-artifact/independent-verification test.
+
+Built llama.cpp v0.6.0 from pinned commit `d81235049384534c167caea52b85a694f6103d14`; Qwen3-0.6B Q8_0 was sourced at immutable model revision `23749fefcc72300e3a2ad315e1317431b06b590a` and verified against publisher SHA-256 `9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031`. A successful actual-model run created two unique PostgreSQL assignments, claimed distinct leases in parallel, persisted `AUTH` and `RESOURCE` JSON results, passed independent exact-label verification, and completed both assignments. Model calls overlapped 18.545 seconds; event-to-lease queue delays were 185.0 ms and 134.3 ms. The acceptance JSON verified result hashes and temporary server/schema cleanup.
+
+The first classification attempt was a genuine model-quality failure: it emitted `AUTH` for both prompts and the independent verifier rejected the full-disk result. A harness timestamp bug also interrupted report completion and the first cleanup omitted `CASCADE`; these defects were diagnosed, the evidence was preserved, and only the identified disposable test schema was inspected and explicitly removed. A corrected isolated instruction-following task then passed. This is not evidence of general model reasoning. The UTF-8 private PostgreSQL test cluster was user-owned and isolated; no shared database, installed service, worker credential, or production configuration changed. The external knowledge provider, operational worker service, M3.3, and Grace M4.4 remain outstanding. M3.3 remains the roadmap cursor. Evidence: `evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094446Z-cpu-e2e/` (failed attempt) and `20261011T094654Z-cpu-e2e/` (successful precommit run).
+
+The feature/evidence source is committed and pushed as `bbe9a6c1c63345861da5bfeb7cfb77931961e005` on `codex/m4.2-resident-reasoning`. The committed-source acceptance was repeated with a clean tracked tree; two concurrent model calls again completed with independently accepted results and verified digests. The full suite passed 155/155 with no skips, the canonical graph check passed at 13 workflows / 269 nodes, the revision audit reported zero findings, and exact-head CI run 38129918014 passed. Evidence: `evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/`.
+
+## 2026-10-11 UTC — RV-OVERNIGHT-20261011-CHECKPOINT / M4.1 live bootstrap and M4.2 CI
+
+Completed scoped M4.1 database-boundary and Steward-token bootstrap verification on Camrui. A protected PostgreSQL dump restored into a disposable database with matching catalog counts; the disposable database was removed. Exact committed source `d3a0ed4fdec3061923964451ce2fccff18fadca7` passed preflight, apply and postflight. Bootstrap returned `BOOTSTRAPPED`, then `ALREADY_BOOTSTRAPPED` on a fresh process. The root-owned token was checked in-process against the digest and three scoped active grants without printing the token. Runtime registry reads and manager DDL were denied. `riverview_dev` remained at 9 migrations, 4 assignments and 11 events; PostgreSQL, event processor, CME monitor, notification dispatcher, dashboard and SSH stayed active. Evidence: `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T081700Z-live-bootstrap/`.
+
+M4.1 remains IN PROGRESS because no resident/worker assignment control consumes the registry. M3.3 still requires that integration and a real institutional knowledge provider. M4.2 is isolated engineering only; no reasoning provider/resident service exists. Exact-head CI run 38124331966 passed on `f807d95d688b8a486db34eb5aa4be9f78c8f998d`. PR #21 is open/draft/unmerged. No Steward acceptance beyond M3.1 is claimed. Next: correct the roadmap and M4.2 records, then continue safe independent cookbook and resident/model integration work without substituting mocks for live proof.
+
+## 2026-10-11 UTC — RV-M4.2-001 / isolated resident reasoning verification
+
+Implemented a provider-neutral resident reasoning slice on `codex/m4.2-resident-reasoning`, based on the unmerged M4.1 DB-boundary PR #20 head. It reuses the exact `AuthorityRegistry` office binding/state grant and frozen worker knowledge-provider v1 contract. Current assignment/rules are regrounded before each bounded provider route; missing or unverified knowledge waits and is durably recorded; only explicit configured fallback targets are eligible. Provider output is a bounded typed plan proposal, never executable authority. The exact office-state grant and assignment revision are rechecked before CAS persistence; a new runtime instance reloads the previous persisted plan. Input redaction, request size, concurrency, timeout, and per-route token budgets are bounded.
+
+The focused current resident suite passed 10/10 and the complete suite passed 147/147 with no skips/errors/failures against disposable socket-only PostgreSQL 16.15 clusters. The focused and complete fixture cleanup left zero `rvtest_*` schemas/roles; the final cluster stopped cleanly. Graph validation passed at 13 workflows/255 nodes, compileall passed, and the controlled revision audit passed with zero issues. An earlier full-suite attempt exposed the newly added JSON graph's missing revision-sidecar registration; its failure/cleanup evidence is retained and the sidecar was corrected before the passing run. Full evidence is `evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/`; earlier failures are retained in sibling timestamped directories.
+
+No shared DB, identity, credentials, services, assignments, or deployment changed. The test provider is a mock only; no live provider/resident integration is claimed. Exact-head GitHub controlled-checkout run 38122430742 passed on `bf9905af575da6b0254920e467476f0883156050`. PR #21 is draft/open/unmerged on top of PR #20; neither PR was merged. M4.2 remains in progress pending operational provider/authority integration and acceptance. M3.3 remains the earliest unaccepted roadmap step, gated on live authorization and the real institutional knowledge provider.
 
 ## 2026-10-11 UTC — RV-M4.1-FRESH-SCHEMA-CI-RESULT / controlled checkout passed
 
@@ -1145,3 +1261,337 @@ its isolated schema. A subsequent source indentation error was caught at test
 collection and fixed before execution; no shared database was touched. No live
 roles, schema, credentials or identity state changed. Exact-head CI and final
 checkpoint evidence are pending.
+
+## 2026-10-11 UTC — RV-OVERNIGHT-20261011-DASHBOARD-DOCS-CHECK / live browser evidence
+
+Ran the controlled read-only Firefox check against the currently deployed dashboard release `8dcec2ada7d811a78f6cb28a1b81e6f8f59b1a9b`; all services remained active. The actual completed M3.1 assignment showed healthy/current projection, healthy CME, six attention records, one independent verification, and no failed checks or browser errors. The Operations Cookbook rendered 17 headings, 2 tables and 17 code blocks; all 21 linked component documents returned HTTP 200, with no raw Markdown, scripts or unsafe links. Graph view showed 12 nodes, 11 canonical edges and one decision, with correct unknown execution position. Navigation handler timings were 84/332/90/242 ms for Assignments/Activity/Overview/Workflows in this single run; not paint latency or a sustained benchmark. Durable report/screenshots and checksums: `evidence/checkouts/OPERATIONS-COOKBOOK/20261011T082220Z-4b7c23d/`.
+
+The deployed release is based on the M3.3 repository-knowledge branch, while the present M4.2 PR source is based on the M4.1 database-boundary branch. The deployed cookbook has a repository-knowledge diagnosis absent in this checkout; this checkout has the observed PostgreSQL backup-path permission-failure procedure absent in the deployed package. Do not hot-edit or replace the working dashboard. Reconcile those controlled documents in the owning source branch before a later compatible package release. The current live read confirms documentation route health, but does not clear the docs/source divergence. Next: preserve the live run artifacts, then address the cookbook divergence through its owning source branch without altering database or service state.
+
+## 2026-10-11 UTC — RV-M4.1-GRANT-ENFORCEMENT / exact-grant worker integration
+
+Added a protected `authorize_exact_grant(bytea,text,text)` database function,
+DB-boundary ACL integration, and `ExactGrantAuthorizer` on the existing worker
+transaction. Worker registration now requires a grant-bound `worker.register`
+credential; action and verification re-check exact `assignment.execute` and
+`assignment.verify` scope grants. No grant, expired/revoked credential, unknown
+function or database failure authorizes work. The existing deterministic worker
+and CME integration fixtures now issue isolated grants rather than relying on a
+free-form worker scope string.
+
+The first boundary test run failed because its assertion expected runtime
+schema USAGE to remain absent; the revised invariant is USAGE plus execute on
+one function with all authority tables inaccessible. A follow-up test run
+exposed that a revocation assertion had also revoked the same test credential
+used by a later registry check; the test now revokes a separate credential.
+Final focused PostgreSQL run passed 22/22 tests with no skips/failures/errors.
+Process graph regeneration and validation passed at 13 workflows/265 nodes and
+all 13 graph unit tests passed. Camrui read-only inspection confirms migrations
+0000/0001 only, absent migration 0002/function, and runtime schema USAGE=false.
+No live schema, grants, identities, credentials, assignments or services were
+changed. M3.3 remains blocked on live deployment, an authorized assignment
+intake path, a commissioned worker and the external real knowledge provider;
+M4.1 remains in progress and M4.2 remains isolated. Next: complete full-suite,
+revision and CI gates, checkpoint evidence, then evaluate protected additive
+deployment without altering M1.1/runtime services.
+
+## 2026-10-11 UTC — RV-M4.1-GRANT-FULL-SUITE / migration expectation correction
+
+The first complete suite after adding authority migration 0002 found one stale
+idempotency assertion still expecting only migrations 0000 and 0001. Updated
+the test to assert all three migrations; the focused regression passed 1/1 and
+the complete PostgreSQL-backed suite then passed **150/150**, zero
+skips/errors/failures. Fixture cleanup found no `rvtest_*` schema or role and
+the isolated PostgreSQL cluster stopped cleanly. `compileall`, process graph
+(13 workflows/265 nodes), and controlled revision/predecessor audit passed.
+Evidence and artifact checksums:
+`evidence/checkouts/M4.1-DB-BOUNDARY/20261011T090500Z-exact-grant-worker-integration/`.
+Camrui was only read-only preflighted: the 0002 function remains absent and
+runtime schema USAGE remains false; no shared state or service changed. PR #21
+is open/draft and exact-head CI for these changes remains pending. The next
+safe step is exact-head CI, followed by protected backup/restore rehearsal and
+only then an additive deployment decision; M3.3 also requires assignment
+creation authorization, a commissioned worker, and the external real
+knowledge provider.
+
+## 2026-10-11 UTC — RV-M4.1-LIVE-EXACT-GRANT / additive boundary commissioning
+
+Exact-head CI passed on `36622e573f9e030aba909967be76fc4cd646b620` (run
+`38126965396`). Took a fresh PostgreSQL-owned 0600 full backup of `riverview`
+(SHA-256 `f25af3984fa29f7f0a035c9fc0b01a6086e9eadbcb3b26ea77f2a7181255e4c7`),
+validated the custom archive, restored it to a unique disposable DB, matched
+Core/authority migration counts plus assignments/events/authority relation
+counts, then removed only that restore DB and verified absence. Source
+`36622e5` was extracted from its Git archive into a root-owned read-only-to-
+admin source directory. Its checksum migration runner applied only authority
+migration 0002. The boundary helper dry-run selected exactly the authority
+relations and reported `apply_required=true`; apply returned `APPLIED`; an
+idempotency rerun returned no pending migration; postflight returned
+`apply_required=false`.
+
+Live catalog checks verified the security-definer owner, pinned search path,
+runtime execution grant, manager denial, runtime schema USAGE without CREATE,
+and no runtime table SELECT. In a single rollback-only DB transaction, a
+synthetic exact grant was allowed to the real `riverview_core` role, a wrong
+action was denied, direct table access was denied, and the manager was denied
+function execution; all rows were rolled back and verified absent. The initial
+post-restore count query used the wrong ledger schema and failed read-only; a
+corrected query established the expected counts. PostgreSQL, event processor,
+CME monitor, notification dispatcher, dashboard and SSH remained active.
+`riverview_dev` still has 9 migrations, 4 assignments and 11 events. Evidence:
+`evidence/checkouts/M4.1-DB-BOUNDARY/20261011T090700Z-live-exact-grant/`.
+This is database-function/ACL commissioning, not worker-service integration or
+full M4.1/M3.3 acceptance. The next engineering tasks are `assignment.create`
+authorization and controlled deployment of the actual worker adapter; M3.3
+also requires the externally owned real institutional knowledge provider.
+
+
+## 2026-10-11 UTC — RV-M4.1-DASHBOARD-DOCS-LIVE / deployment and browser evidence
+
+Deployed an immutable documentation and synchronized-process-graph overlay at
+`/opt/riverview-status-dashboard/releases/8556598b19a7da4aa191a600c767d79d24432afe-docs-d2c145c`. The executable, scripts, static assets, systemd security controls, and PostgreSQL state were retained byte-for-byte from the prior release; the overlay is sourced from docs/process-graph commit `d2c145cb9c7fbfb983ea842199e204d03bfdf731`. Source identity and docs identity are separately recorded in the package manifest and systemd deployment ID. Package checksums passed.
+
+The first immediate HTTP probe raced systemd startup; the rollback guard restored the prior symlink and unit. A bounded readiness retry then passed without touching other services or database state. The service is active with `NRestarts=0`, `/api/v1/attention` returns 200, and the current release is the immutable docs overlay. Firefox 156.0.1 live-browser evidence shows a completed real assignment, one persisted attempt and independent verification, healthy CME projection, six attention items, 19 documentation links returning 200, rendered headings/tables/code blocks, no browser errors or unsafe links, and graph structure/navigation with live execution position truthfully shown as unknown. View-handler navigation timings in this single run were 64–210 ms; they are not paint benchmarks. Evidence, screenshots, service state, database read-only counts, checksums, and release manifest are retained in `evidence/checkouts/M4.1-DB-BOUNDARY/20261011T091800Z-dashboard-docs-live/`. This is operational dashboard documentation deployment evidence, not full dashboard Component DoD or milestone acceptance.
+
+
+## 2026-10-11 UTC — RV-M3.3-LIVE-COMMISSIONING / authorized unattended execution
+
+Deployed M3.3 release `47a79adafe1524b3e819148b70c02a1857f50dbf` with a
+loopback governed intake, exact-grant executor/verifier services, and immutable
+repository-backed knowledge package. An unauthorized request returned HTTP 403
+with zero target rows; the authorized route created a durable assignment and
+event. The scheduled executor ran the repository knowledge test suite, created a
+real protected report artifact, and the separately credentialed verifier
+independently reran and accepted it. PostgreSQL evidence includes complete
+VERIFIED grounding/preflight/regrounding; `record_learning` is UNAVAILABLE and
+was not claimed.
+
+The first service starts exposed the credential final-newline parser defect;
+systemd retries were stopped, source was corrected and regression-tested, package
+rebuilt, and the corrected release passed live execution. Later SIGKILL/restart
+left an already completed result with one attempt and one verification. During a
+separate bounded executor stop, two assignments remained queued, triggered durable
+CME stall/attention notices, and completed after restart with accepted independent
+verification; browser delivery receipts were persisted. No shared data was reset.
+
+Full isolated PostgreSQL suite passed 184/184 (zero skips); graph validation and
+synchronization passed at 16 workflows/311 nodes; exact-head GitHub CI passed.
+The recovered pair did not establish simultaneous multi-executor throughput, so
+the canonical M3.3 independent-concurrency criterion remains NOT VERIFIED.
+Evidence is `evidence/checkouts/M3.3-LIVE-E2E/20261011T1245Z-47a79ad/`. PR #21
+remains draft/open/unmerged; no Steward acceptance is inferred.
+
+
+## 2026-10-11 UTC — RV-M3.3-WAITING-ISOLATION / fail-closed scheduler continuation
+
+Submitted an authorized unknown-contract assignment through the live loopback
+request API. Its assignment and events persisted, the repository knowledge
+provider returned `NO_MATCH`, and the scheduler persisted
+`blocked/WAITING_FOR_EVIDENCE` with no attempt. While it remained waiting,
+submitted a separate authorized repository-test assignment. The normal scheduler
+dispatched it; the credentialed worker produced a new report artifact; the
+independent verifier accepted it; the dashboard live status/detail endpoints
+returned HTTP 200 and displayed the waiting and completed assignments. No direct
+state manipulation or service/credential configuration change occurred.
+Evidence: `evidence/checkouts/M3.3-WAITING-ISOLATION/20261011T1310Z-47a79ad/`.
+This supplies the canonical live evidence that two durable assignments progress
+independently and missing knowledge cannot authorize an action. Scoped M3.3
+technical criteria are ready for Steward review; formal acceptance and full
+Component DoD remain open.
+
+## 2026-10-11 UTC — RV-M4.1-GRACE-BOOTSTRAP-STATUS / controlled identity preparation
+
+Resumed M4.1 after the live M3.3 technical commissioning. Read-only Camrui
+inspection confirmed PostgreSQL 16.15, the dedicated authority schema, five
+existing principals, and no Grace office, implementation, or binding. The
+M3.3 intake, worker, verifier, and dashboard services remained active. Added a
+fixed-scope root-local Grace bootstrap helper and safety tests; six focused
+tests passed and the helper compiles. The full disposable-PostgreSQL test suite
+passed 190/190 (zero skips/errors/failures) in 57.095 seconds; process graph
+validation passed at 16 workflows/311 nodes, and the revision audit returned
+zero issues. A recovery defect found in review was
+corrected: if the database credential committed but token-file delivery was
+interrupted, retries revoke orphaned bearers before issuing a new credential.
+The interrupted-delivery regression passes. The provisioner has not been run
+against the live registry. Isolated full-suite, graph, revision, exact-head CI,
+and immutable-package verification remain pending; no live identity or service
+was changed. Next: run the full private-PostgreSQL suite and controlled audits,
+then commit/push before considering live provisioner execution.
+
+## 2026-10-11 UTC — RV-M4.1-GRACE-IDENTITY-COMMISSIONING / additive live bootstrap
+
+Exact-head CI passed on commit `fb536bb647d7d7a655a56155f687c74bec219945`
+(run `38142915471`). The committed helper was extracted from that commit,
+archived and SHA-256 verified, installed root-owned, then run locally against
+the dedicated authority schema. It created only the stable Grace office,
+resident, occupant, local-model binding and exact office-state grant. An
+independent fresh process verified the grant using the protected resident
+credential and a retry returned `ALREADY_PROVISIONED`. Credential metadata is
+root:root 0600, no token was emitted, all seven existing M3.3 services remained
+active, and M3.3 assignment data was not touched. Evidence is
+`evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/`. Graph
+registration and synchronized views now pass with 16 workflows/318 nodes.
+This advances M4.1 identity bootstrap only; a continuous resident service and
+Grace-directed end-to-end execution are still absent. Proceed with authority-
+bound resident service integration and restart/replacement verification.
+
+## 2026-10-11 UTC — RV-M4.4-OBJECTIVE-WORKORDER-PIPELINE / deterministic infrastructure slice
+
+Implemented bounded, commit-pinned resident evidence selection and distinct
+CONTEXT_TOO_LARGE versus KNOWLEDGE_NOT_SERIALIZABLE reasoning outcomes.
+Added a PostgreSQL objective/event record and a typed proposal bridge that keeps
+objective submission (objective.submit) separate from assignment dispatch
+(assignment.create). Assignment creation, its ledger event, and the objective
+link share the existing ledger transaction. Added one fixed, no-shell artifact
+worker capability and an independent verifier that reopens the on-disk artifact.
+
+Verified in a private temporary PostgreSQL 16 cluster and random disposable
+schemas. Positive flow persisted a scoped objective, commit-pinned evidence,
+unapproved proposal, authorized assignment, worker attempt, actual mode-0600
+artifact file, accepted independent verification, and completed objective. Denied
+authorization, missing evidence, over-budget context, worker failure, and
+completion before persisted verification were rejected. Selector tests passed
+against a temporary committed Git repository. No live model, service, shared
+database, or OctoMiner endpoint was contacted. This is infrastructure test
+evidence only; real resident reasoning, commissioned coding worker service,
+dashboard interaction, unattended repetition, and M4.4 acceptance remain open.
+
+The complete test suite subsequently passed 205/205 with zero skips against the
+same isolated PostgreSQL 16 cluster. Process-graph synchronization and validation
+passed for 16 workflows / 323 nodes. The controlled-source revision audit against
+the clean 6a326279 baseline returned zero issues. These results qualify this
+working-tree implementation only; CI and a reviewable feature commit are still
+required before a merge-ready claim.
+
+## 2026-10-11 UTC — RV-M4.4-PERSISTENT-EXECUTION / supervised execution infrastructure
+
+Added a continuously supervised, model-independent Grace service over the
+existing PostgreSQL objective pipeline, exact grants, event processor, leased
+worker adapter, bounded artifact worker, verifier, and dashboard. Governed
+objective submission, proposal, cancellation, durable health/progress,
+idempotent dispatch, bounded retry/recovery, and status projection are covered.
+The service unit targets its own immutable Grace release path; deployment,
+credentials, and migration application remain separate controlled operations.
+
+The complete suite passed 211/211 with zero failures, errors, or skips against
+private PostgreSQL 16.15 in 118.438 seconds. A spawned-process restart test
+proved queued durable work was resumed with exactly one execution attempt and
+one accepted independent verification. Graph check/validation passed for 16
+graphs and 330 nodes; static unit validation, compilation, and revision audit
+passed. Exact output and source checksums are in
+`evidence/checkouts/M4.4-PERSISTENT-EXECUTION/20261011T1740Z-cc548e6/`.
+Commit `da0b724` is a dependent draft change based on PR #23 head `cc548e6`.
+No live service was installed or started and no shared database or production
+service was changed; operational commissioning and full M4.4 DoD remain open.
+
+## 2026-10-11 UTC — RV-M4.1-M4.2-OCCUPANT-REPLACEMENT-INTEGRATION
+
+Added a cross-component regression proving M4.1 office state follows the
+institutional office when occupant/implementation change while
+`office.state.write` authority follows the replacement occupant. A new
+`ResidentReasoner` instance resumed the persisted plan using the current binding
+and provider; the former credential was denied. Focused PostgreSQL suite:
+12/12 PASS. The complete suite passed 212/212 with zero skips, errors, or
+failures on an isolated socket-only PostgreSQL 16 cluster. Process graph
+validation passed (16 workflows / 330 nodes), and the controlled revision audit
+returned zero issues. The fixture-schema check found no leftovers and the
+private cluster was stopped. No shared or operational state was changed. This
+is an M4.1/M4.2 isolated integration proof only; live resident operation, model
+proposal, and full Component DoD remain open. M3.3 is technically ready for
+Steward review with formal acceptance pending. Next work remains M4.1 runtime
+integration in dependency order. Exact-head GitHub CI passed for source commit
+`89752f79487cf9178484db6451a4c36fd107b80a` in run
+[38165302494](https://github.com/ppow1/Riverview-/actions/runs/38165302494).
+
+
+## 2026-10-12 UTC — RV-GRACE-CHAT-UX-001
+
+Refined the existing Talk with Grace workspace without changing its conversation API,
+identity, grants, provider binding, or PostgreSQL writes. The browser now renders full
+multiline history as role-distinct bubbles, preserves an unsent browser-session draft,
+provides Enter/Shift+Enter and touch line-break controls, response states, factual detail
+dialogs, per-message details/copy, and explicitly disabled future actions. A historical
+interruption is retained in the transcript but no longer appears as the current error
+after a subsequent successful response. The canonical browser-chat graph and generated
+focused/aggregate views were synchronized.
+
+The isolated Firefox/WebDriver acceptance run reused the existing loopback
+`qwen3-0.6b-q8_0-local` service (4096 context; it was not restarted or reconfigured) and
+a dedicated disposable PostgreSQL 16 cluster. A 770-character multiline Steward input
+was rendered exactly; two actual model responses (89 characters each) completed at
+11.38 s and 14.91 s browser elapsed time. A controlled pending turn was reconciled as
+interrupted across a supporting dashboard restart; the following turn succeeded.
+PostgreSQL independently contained 3 user events, 2 assistant events, and 1 interruption,
+with zero objectives. The test passed unauthorized access as HTTP 403; Chat Details
+matched persisted conversation/model/status and included UTC; message Details and Copy
+passed; future capabilities were disabled; composer sizing/duplicate protection/newline
+behavior passed; long-content layout did not truncate or overflow; 500-pixel narrow and
+1280-pixel desktop layouts kept controls visible without horizontal page overflow. Firefox
+headless clamped the requested 390-pixel window to a 500-pixel CSS viewport, so a physical
+390-pixel Windows/mobile browser check remains outstanding.
+
+Full repository suite: 228 passed, 0 failures, 0 skips in 140.169 s with isolated
+PostgreSQL configured. Graph validation/synchronization: 17 graphs / 353 globally unique
+nodes, PASS. Controlled revision audit against clean baseline `ed0ea269` reported no
+issues. Exact evidence is in
+`evidence/checkouts/RESIDENT-CONVERSATION/20261012T-ui-refinement-isolated-13/`; the
+browser report contains no message body or credential value. The first test-harness
+iteration exposed stale expected status text, prior-interruption presentation, untrusted
+synthetic clipboard clicks, and a modal/scroll interaction; each was diagnosed, corrected
+in the harness or UI, and retested. The successful result is not Windows-browser
+commissioning or Steward acceptance. The currently deployed dashboard has not yet been
+replaced; rollback deployment remains to be performed only after packaging and provenance
+checks.
+
+
+## 2026-10-12 UTC — RV-GRACE-CHAT-UX-001 / controlled deployment
+
+PR #27 (`5cbf315b95b5b644296910b4c7a16e5ae358e55b`) passed controlled-checkout CI
+(run `38193890852`) and was deployed without merge as a versioned dashboard-only release.
+The prior dashboard release and symlink target are retained. The release's three changed
+static files were checksum-matched to the committed branch, and a revision 1.0.0
+root-owned drop-in updates dashboard source/deployment identity. A single dashboard service
+restart succeeded; the dashboard remained active, PostgreSQL projection and CME reported
+healthy, attention returned HTTP 200, and the deployed Firefox browser check found no
+errors. The check verified a real completed assignment/attempt/independent-verification
+projection, workflow navigation, and documentation rendering/link status. A second live
+Firefox check exercised the actual Talk with Grace shell, composer/menu/details, and
+invalid-grant HTTP 403. Evidence is
+`evidence/checkouts/RESIDENT-CONVERSATION/20261012T-ui-live-deployed/`; operational
+Firefox screenshots and report are retained under the private
+`/home/admin1/.local/state/riverview/commissioning/grace-chat-ui-5cbf315/` directory.
+
+No PostgreSQL migration, human or resident credential, conversation content, model server,
+CME/worker/verifier, event processor, or notification service was modified. The existing
+loopback Qwen CPU inference service remains on the same process and configuration. The
+Steward's Windows browser could not be controlled from this Camrui session; no message was
+sent with a human credential. The isolated real-model and PostgreSQL integration evidence
+remains distinct from live website interaction. A 390-pixel same-origin responsive iframe fixture passed with complete text, visible controls, and no horizontal overflow. Windows refresh-and-send confirmation and physical-device verification remain outstanding. Technical UI deployment is verified;
+formal Steward acceptance and full Component DoD are not claimed.
+
+## 2026-10-13 UTC — RV-GRACE-ROUTER-ACL-READINESS-001
+
+Corrected the dashboard router startup preflight after the approved
+`ddfe62c` commissioning release treated the runtime-invisible
+`riverview_authority.schema_migrations` ledger as absent. The dashboard now
+checks the deferred-response migration only in its runtime-owned
+`riverview_dev` ledger and verifies the current router binding through the
+existing exact-grant `AuthorityRegistry.authorize_office_state` API. Startup
+fails closed on a missing resident migration, unavailable authority capability,
+or provider/digest mismatch. Authority migration checks remain the deployment
+runner's checksum-verified responsibility; database permissions were not
+expanded.
+
+Added a disposable PostgreSQL role regression reproducing Camrui's ACL
+behavior: `information_schema.tables` hides the authority ledger and SELECT is
+denied, while valid readiness succeeds through the authorized capability.
+Missing migration, unavailable authority API, and mismatched binding each fail
+closed. The full suite passed 303/303 with zero skips; canonical graph check
+passed at 18 workflows / 410 nodes; controlled revision audit passed with zero
+issues. The test used a socket-only disposable PostgreSQL 16 cluster; no
+production service or database was changed by this correction. The new release
+is not deployed. Camrui remains on dashboard release `3639f680`, with Grace
+bound to the 0.6B implementation at binding revision 3. The corrected release
+still needs PR/CI and a new immutable candidate archive before a later
+commissioning attempt. The real authenticated 80B browser acceptance remains
+open.

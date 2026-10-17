@@ -1,0 +1,7 @@
+1. Fresh protected backup/restore rehearsal passed before change.
+2. Checksum migration runner applied exactly: 0002_exact_grant_authorization.
+3. Provisioner dry-run on riverview_authority returned PREFLIGHT_PASS and apply_required=true, with only the nine allowlisted authority tables.
+4. Reviewed provisioner --apply returned APPLIED, runtime access limited to schema USAGE and the exact function; all authority table access remained denied, manager DML remained allowlisted, manager DDL/function execution denied.
+5. Repeat migration runner returned [] and provisioner dry-run returned PREFLIGHT_PASS, apply_required=false.
+6. Runtime-role transaction test passed exact grant allow, wrong action deny, direct table read deny, manager function deny. Synthetic principal/credential/grant were rolled back; follow-up query confirmed principal absent.
+7. Core assignment/event counts and all listed PostgreSQL/Riverview services remained stable/active.

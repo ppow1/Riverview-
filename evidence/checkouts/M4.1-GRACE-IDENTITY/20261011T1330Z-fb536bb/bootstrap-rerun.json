@@ -1,0 +1,1 @@
+{"implementation_id": "implementation:grace:qwen3-0.6b-q8", "model_sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031", "occupant_id": "occupant:grace:initial", "office_id": "office:grace", "office_state_grant": "office.state.write:office:office:grace", "principal_id": "resident:grace", "provider_ref": "local.inference.v1", "status": "ALREADY_PROVISIONED"}

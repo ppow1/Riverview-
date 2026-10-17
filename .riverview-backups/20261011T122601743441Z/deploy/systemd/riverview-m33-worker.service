@@ -1,0 +1,44 @@
+# Riverview~ controlled unit
+# File Revision: 1.0.2
+# Task: RV-M3.3-WORKER-SERVICE
+# Purpose: Run an exact-scope, credentialed deterministic executor
+[Unit]
+Description=Riverview M3.3 grant-bound assignment executor
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=riverview
+Group=riverview
+WorkingDirectory=/opt/riverview-m33/current
+Environment=PYTHONPATH=/opt/riverview-m33/current/src:/opt/riverview-m33/current/scripts
+Environment="RIVERVIEW_PG_DSN=host=127.0.0.1 port=5432 dbname=riverview user=riverview_core application_name=riverview-m33-worker"
+Environment=RIVERVIEW_PG_SCHEMA=riverview_dev
+Environment=RIVERVIEW_AUTHORITY_SCHEMA=riverview_authority
+Environment=RIVERVIEW_KNOWLEDGE_ROOT=/opt/riverview-m33/current
+EnvironmentFile=/etc/riverview/m33-worker.env
+LoadCredential=pgpass:/etc/riverview/pgpass
+LoadCredential=worker-token:/etc/riverview/worker/m33-worker.credential
+RuntimeDirectory=riverview-m33-worker
+RuntimeDirectoryMode=0700
+ExecStart=/opt/riverview-core/.venv/bin/python /opt/riverview-m33/current/scripts/run_worker_service.py
+Restart=on-failure
+RestartSec=3s
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_INET AF_UNIX
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

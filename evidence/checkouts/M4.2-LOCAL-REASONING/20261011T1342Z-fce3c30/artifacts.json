@@ -1,0 +1,11 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "6aa633ac229451beb16659a00af665b8b4f5f66d94e317611fcd5d8449f64783",
+      "size_bytes": 33662
+    }
+  }
+}

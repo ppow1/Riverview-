@@ -1,0 +1,2 @@
+Command: RIVERVIEW_TEST_PG_DSN=host=/tmp/rv-m41-authcheck-pg port=55441 dbname=riverview_test user=admin1 PYTHONPATH=src python3 -m unittest tests.test_institutional_authority.InstitutionalAuthorityTests.test_migration_is_idempotent_and_bootstrap_is_single_use -v
+Result: 1/1 passed after updating expected migration list to include 0002_exact_grant_authorization.

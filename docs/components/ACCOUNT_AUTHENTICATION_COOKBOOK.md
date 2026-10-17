@@ -1,0 +1,102 @@
+<!--
+Riverview~ Controlled Document
+File: docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md
+Component: WEBSITE-ACCOUNT-AUTH
+File Revision: 1.7.1
+Purpose: Safely commission and diagnose Riverview account access and reusable SMTP configuration
+Authority: Inspection is read-only; provider setup and Steward bootstrap require explicit local authorization
+Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Document password login, grants and email-provider commissioning
+Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-COMMIT-AND-STACKMAIL-PREP | Prepare candidate Stackmail SMTP profile and secure local entry command
+Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-STACKMAIL-LOCAL-TEST | Document predeployment isolated SMTP and mailbox receipt test
+Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-STACKMAIL-LOCAL-TEST-REVIEW | Keep mailbox selection interactive in the isolated tester
+Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-TTY | Document secure SSH TTY mailbox-test invocation
+Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SSH-COMMISSION | Document root SSH TTY setup and Steward bootstrap prompts
+Changed: 2026-10-13 UTC | RV-ACCOUNT-AUTH-SMTP-PREFILL | Record approved prefilled provider settings and two-input wizard
+Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Reconcile the live deployed account-authentication state and Grace authority linkage
+History: Git and revision/backup manifest
+-->
+# Account authentication diagnostics and commissioning
+
+This guide distinguishes repository verification from live readiness. Camrui has the account-authentication schema and dashboard release installed; Stackmail SMTP authentication and delivery were verified, and the Steward reports that the linked `w@wjs1.com` account login succeeded. The protected dashboard bearer recovery path remains active. Grace conversation authorization still requires its separate exact institutional grants; the account role alone does not create them. The 2026-10-13 account-session integration is tracked in `docs/components/RESIDENT_CONVERSATION.md` and its active release state must be checked before claiming browser acceptance.
+
+## Read-only diagnosis
+
+| Check | Command | Expected / failure interpretation |
+| --- | --- | --- |
+| Dashboard service | `systemctl is-active riverview-status-dashboard.service` | `active`; account routes share this service after deployment. |
+| Current release | `readlink -f /opt/riverview-status-dashboard/current` | Versioned release path; do not change it for diagnosis. |
+| Account schema | `sudo -u postgres psql -X -d riverview -c "SELECT to_regclass('riverview_accounts.schema_migrations');"` | `schema_migrations` means initialized; null means absent. |
+| Migration versions | `sudo -u postgres psql -X -d riverview -c "SELECT version, applied_at FROM riverview_accounts.schema_migrations ORDER BY version;"` | Versions/checksums must match the release migration set. |
+| Account service status | Authenticated `GET /api/v1/status` | Read bounded readiness counts/status; no personal data or secrets. |
+| Provider settings status | Steward-only email settings UI/API | Shows configured fields, password-configured flag and last test/delivery state; never returns SMTP password. |
+| Bootstrap identity | `sudo -u postgres psql -X -d riverview -c "SELECT principal_id, status FROM riverview_authority.institutional_principals WHERE principal_id='steward:camrui';"` | Existing active Steward identity must remain present. Do not query credential tables. |
+
+Never print challenge tokens, cookies, SMTP passwords, private keys, database DSNs with credentials, or passfiles into terminal capture, logs, shell history, or evidence.
+
+## CueMastery email hosting findings
+
+Public DNS currently points email to `mx.stackmail.com`, with SPF including `spf.stackmail.com`; this indicates existing 20i/Stackmail hosting. The mailbox/control-panel credentials and permission to send as the desired sender were not verified. Prepare this candidate profile for Steward/provider confirmation:
+
+| Setting | Candidate value | Verification still needed |
+| --- | --- | --- |
+| SMTP host | `smtp.stackmail.com` | Steward reports successful SMTP authentication and delivery. |
+| Port | `465` | Steward reports successful test from Camrui. |
+| TLS mode | `implicit` (TLS from connection start) | Steward reports successful TLS test and IMAP receipt verification. |
+| Username | `social@cuemastery.com` | Steward reports successful mailbox authentication. |
+| Sender address | `social@cuemastery.com` | Steward reports successful self-addressed delivery. |
+| Administrator notification address | `social@cuemastery.com` | Steward-designated inbox; production notification still requires commissioning verification. |
+| Password | Enter only at the hidden prompt in the root TTY wizard | Never send it in chat, command arguments, shell history, source, or reports. |
+
+20i also documents port 587 with STARTTLS; the approved profile above uses port 465. Successful isolated delivery verifies the tested mailbox path only; it does not prove production SMTP configuration or application-generated approval messages. No mail server or paid provider is being introduced.
+
+## Isolated predeployment SMTP test
+
+The dashboard's provider test reads settings from the account database and systemd key credential, so it cannot be safely used before account-schema commissioning. Use `scripts/test_stackmail_mailbox.py` from an interactive Camrui terminal, including SSH only when a pseudo-terminal is allocated. It has no database/service dependency. It prompts visibly for the mailbox address and an explicit one-message confirmation, accepts the mailbox password through hidden terminal input, authenticates to `smtp.stackmail.com:465` with implicit TLS, and sends exactly one test message from the mailbox to itself. It does not persist the password or settings. It then asks for the password again and searches INBOX read-only over IMAP for the unique Message-ID; it prints only authentication/submission/receipt outcomes and sanitized exception classes. SSH sessions must use `-tt`; non-TTY sessions and input pipelines are rejected. Do not put the password in shell arguments, environment variables, scripts, Codex input, or terminal recording.
+
+Run it as:
+
+```powershell
+ssh -tt admin1@192.168.1.155 "cd /home/admin1/projects/Riverview-New-Core && python3 scripts/test_stackmail_mailbox.py"
+```
+
+Confirm the one-message send phrase, enter the authorized mailbox address, then enter its password at the hidden prompt. After SMTP submission, enter the password again at the hidden IMAP prompt for the read-only receipt check. Never paste the password into the PowerShell command or terminal input line.
+
+This sends one real email but changes no Riverview database or dashboard configuration. A PASS from SMTP means authenticated relay submission; only the read-only mailbox search or manual mailbox inspection confirms receipt.
+
+## Commissioning sequence
+
+1. Stage the reviewed immutable release from the approved account-authentication commit, preserve the current release and dashboard unit, and verify the package before switching the `current` symlink. Then have the local PostgreSQL administrator inspect and apply the additive schema provisioning plan:
+
+   ```bash
+   sudo -u postgres python3 /opt/riverview-status-dashboard/current/scripts/provision_account_auth_schema.py
+   sudo -u postgres python3 /opt/riverview-status-dashboard/current/scripts/provision_account_auth_schema.py --apply
+   sudo -u postgres env PYTHONPATH=/opt/riverview-status-dashboard/current/src python3 /opt/riverview-status-dashboard/current/scripts/migrate_account_auth.py
+   sudo -u postgres python3 /opt/riverview-status-dashboard/current/scripts/provision_account_auth_schema.py --apply
+   ```
+
+   The dedicated schema owner is NOLOGIN; the dashboard runtime receives only necessary DML grants. Never put account tables in `public`, `riverview_dev`, or `riverview_authority`. Do not migrate the live database until the release is reviewed and deployment is authorized.
+2. Configure provider settings after the reviewed release and schema migration are commissioned. The root wizard accepts a local console or allocated SSH TTY (`ssh -tt`); non-TTY and non-root execution are rejected, and password input aborts if echo cannot be disabled. Run `sudo python3 /opt/riverview-status-dashboard/current/scripts/configure_account_email_provider.py`. It displays the approved Stackmail values in the table above. Type `CONFIGURE RIVERVIEW EMAIL` to confirm those values, then enter the mailbox password at the hidden prompt; no SMTP setting is re-entered. It creates an owner-only Fernet key, stores the password encrypted in PostgreSQL, and sends no message during initial configuration. Install the matching systemd LoadCredential drop-in only after the key exists.
+3. Confirm authority to send through the CueMastery mailbox, and use the SMTP test-email function to a controlled inbox. Confirm actual receipt, sender/reply-to, TLS delivery, and success/failure status. SMTP acceptance alone is not proof of inbox delivery. Check that a wrong password or unavailable relay is reported without exposing credentials.
+4. Request access using a controlled test address. Verify the ownership challenge, pending state, and administrator notification. Open the notification link while signed out and confirm it does not expose the request or perform a decision. Sign in as Steward and review the request.
+5. Exercise denial and each grant choice (one-time, 90 days, one year, permanent), roles, applicant notices, expiry/revocation behavior, and the one-session-only rule. A one-time grant allows only the first session ever, with a maximum 24-hour session; logout, expiry or revocation never makes a second session available.
+6. Run `sudo python3 /opt/riverview-status-dashboard/current/scripts/bootstrap_account_steward.py` from a root local console or allocated SSH TTY. It asks for the Steward login email through hidden input, requires the exact phrase `BOOTSTRAP steward:camrui`, checks the active institutional principal and migration, and emails a single-use verification/setup link. The authorized initial login email is `w@wjs1.com`; the SMTP sender and administrator notification inbox are `social@cuemastery.com`. Complete the link, set the password in the browser, sign in, and verify queue, email settings, role/grant controls, recovery-token login, and exact-grant engineering boundaries before changing any recovery mechanism.
+
+The systemd credential source path in the checked-in drop-in is `/etc/riverview/account-email-config.key`; its content must stay root-owned and mode 0600. Runtime access is via systemd's credential directory and does not expose the key to the browser or logs. Do not place SMTP credentials in environment variables, source control, or browser configuration. Do not enable autonomous Grace/Riverview mail workflows as part of this commissioning.
+
+## Failure interpretation
+
+| Outcome | Meaning | Safe next step |
+| --- | --- | --- |
+| `not_initialized` / missing relation | Account schema absent or migration incomplete | Verify release migration checksums and provisioning grants; do not restart repeatedly. |
+| `unavailable` / HTTP 503 | Database/schema/key access issue | Inspect sanitized service error category and read-only grants; preserve secrets. |
+| `email_delivery_unavailable` | No usable configured transport | Confirm key credential and provider settings; run test-email only after authorized configuration. |
+| SMTP test failed | Relay/TLS/auth/address error | Review sanitized status and provider account settings; never log password. |
+| Challenge invalid/expired | Challenge malformed, used, or older than 15 minutes | Request a fresh message; never edit challenge rows manually. |
+| `not_authorized` / HTTP 403 | Role, session or CSRF check failed | Re-authenticate or ask a Steward; never weaken server checks. |
+| Session denied | Disabled account, expired/revoked grant or session | Steward reviews account; one-time grants cannot create replacement sessions. |
+
+For application rollback, restore the previous versioned dashboard release and restart only `riverview-status-dashboard.service` when deployment has occurred and rollback is needed. Preserve the additive account data and bearer recovery path.
+
+## Evidence boundary
+
+The source suite includes disposable PostgreSQL integration checks, HTTP checks, and a loopback HTTPS Firefox browser flow. These do not prove Camrui migration, live email delivery, an actual Steward bootstrap, or production browser authentication. Record these as unverified until commissioned with real provider access and receipt confirmation.

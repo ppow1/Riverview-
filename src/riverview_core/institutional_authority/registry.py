@@ -1,13 +1,19 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/registry.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.6
+# Revision: 1.0.13
 # Purpose: Persist separated offices, occupants, implementations and scoped grants
 # Execution Model: Synchronous transactional PostgreSQL registry
 # Observability: Append-only authority events and office binding revisions
 # Dependencies: Python 3.10+; Psycopg 3; institutional_authority migration
 # Authority: Exact active credential, principal, action and scope are required
 # Changed: 2026-10-11 UTC | RV-M4.1-001 | Validate expiry timestamps and object-shaped office state
+# Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Allow trusted root caller to persist random token before bootstrap transaction
+# Changed: 2026-10-11 UTC | RV-M4.1-BOUND-OCCUPANT-WRITE | Require the exact office-state writer to be the currently bound resident
+# Changed: 2026-10-11 UTC | RV-M4.1-RUNTIME-OFFICE-API | Route restricted runtime office reads/writes through exact-grant database functions
+# Changed: 2026-10-13 UTC | RV-GRACE-MULTISTAGE-ROUTING-001 | Add expected-revision audited implementation-only office rebind
+# Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Verify only the current audited predecessor-to-successor binding transition
+# Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Add Steward-only compare-and-swap office-role correction with durable audit event
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: tests/test_institutional_authority.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -52,17 +58,19 @@ class AuthorityRegistry:
         ("office.manage", "institution"),
     )
 
-    def __init__(self, dsn, *, schema="public"):
+    def __init__(self, dsn, *, schema="public", runtime_safe=False):
         if not schema or not schema[0].isalpha() or not schema.replace("_", "").isalnum():
             raise ValueError("invalid schema")
         self.schema = schema
+        self.runtime_safe = bool(runtime_safe)
         try:
             self.db = psycopg.connect(dsn, row_factory=dict_row, autocommit=True)
-            with self.db.cursor() as cur:
-                cur.execute("SELECT to_regclass(%s) AS registry",
-                            (f"{schema}.institutional_principals",))
-                if cur.fetchone()["registry"] is None:
-                    raise RegistryUnavailable("institutional authority migration is not applied")
+            if not self.runtime_safe:
+                with self.db.cursor() as cur:
+                    cur.execute("SELECT to_regclass(%s) AS registry",
+                                (f"{schema}.institutional_principals",))
+                    if cur.fetchone()["registry"] is None:
+                        raise RegistryUnavailable("institutional authority migration is not applied")
         except Exception as exc:
             if hasattr(self, "db"):
                 self.db.close()
@@ -132,12 +140,21 @@ class AuthorityRegistry:
                     (uuid4(), principal_id, self._digest(token), expires_at))
         return token
 
-    def bootstrap_steward(self, principal_id="steward:camrui"):
-        """Create the first Steward principal from trusted root-local setup only."""
+    def bootstrap_steward(self, principal_id="steward:camrui", *, token=None):
+        """Create the first Steward from root-local setup, optionally with a
+        pre-generated token that the caller has already persisted securely.
+
+        Supplying a token enables write-ahead persistence: a protected local
+        secret file can be durable before PostgreSQL commits. A failed
+        transaction leaves an unusable token file that can safely be retried.
+        """
         if os.geteuid() != 0:
             raise AuthorityDenied("initial Steward bootstrap requires trusted root-local setup")
         if not principal_id:
             raise ValueError("principal_id is required")
+        if token is None:
+            token = secrets.token_urlsafe(32)
+        self._digest(token)
         try:
             with self.db.transaction():
                 with self.db.cursor() as cur:
@@ -149,7 +166,8 @@ class AuthorityRegistry:
                         raise IdentityConflict("active Steward is already provisioned")
                     cur.execute("INSERT INTO institutional_principals(principal_id,principal_kind) VALUES (%s,'steward')",
                                 (principal_id,))
-                    token = self._new_credential(cur, principal_id)
+                    cur.execute("INSERT INTO principal_credentials(credential_id,principal_id,credential_sha256) VALUES (%s,%s,%s)",
+                                (uuid4(), principal_id, self._digest(token)))
                     for action, scope in self.BOOTSTRAP_GRANTS:
                         cur.execute("""INSERT INTO authority_grants
                             (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
@@ -292,6 +310,57 @@ class AuthorityRegistry:
         except Exception as exc:
             raise RegistryUnavailable(type(exc).__name__) from None
 
+    def authorize_office_state(self, credential, office_id):
+        """Authenticate the exact grant and require its principal to occupy the office."""
+        if not isinstance(office_id, str) or not office_id:
+            raise ValueError("office identity is required")
+        if self.runtime_safe:
+            try:
+                with self.db.cursor() as cur:
+                    query = psycopg.sql.SQL("SELECT {}.{}(%s,%s) AS snapshot").format(
+                        psycopg.sql.Identifier(self.schema),
+                        psycopg.sql.Identifier("read_authorized_office_state"))
+                    cur.execute(query, (self._digest(credential), office_id))
+                    row = cur.fetchone()
+                if row is None or row["snapshot"] is None:
+                    raise AuthorityDenied("credential is not the current office occupant")
+                return dict(row["snapshot"])
+            except AuthorityDenied:
+                raise
+            except Exception as exc:
+                raise RegistryUnavailable(type(exc).__name__) from None
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    cur.execute("""SELECT o.office_id,o.office_role,b.occupant_id,
+                        p.principal_id,p.principal_kind,i.implementation_id,i.kind AS implementation_kind,
+                        i.provider_ref,i.revision AS implementation_revision,b.binding_revision,
+                        s.state,s.revision AS state_revision,s.updated_at AS state_updated_at
+                        FROM institutional_offices o
+                        JOIN office_bindings b USING (office_id)
+                        JOIN resident_occupants r USING (occupant_id)
+                        JOIN institutional_principals p ON p.principal_id=r.principal_id
+                        JOIN resident_implementations i USING (implementation_id)
+                        JOIN office_runtime_state s ON s.office_id=o.office_id
+                        WHERE o.office_id=%s FOR SHARE OF b""", (office_id,))
+                    snapshot = cur.fetchone()
+                    if snapshot is None:
+                        raise IdentityConflict("office does not exist")
+                    principal = self._require(
+                        cur, credential, "office.state.write", "office:" + office_id)
+                    if (principal["principal_kind"] != "resident"
+                            or principal["principal_id"] != snapshot["principal_id"]
+                            or not snapshot["occupant_id"] or not snapshot["implementation_id"]):
+                        raise AuthorityDenied("credential principal is not the active office occupant")
+                    snapshot["state"] = dict(snapshot["state"])
+                    snapshot["state_updated_at"] = snapshot["state_updated_at"].isoformat()
+                    return snapshot
+        except (AuthorityDenied, IdentityConflict):
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
     def revoke_grant(self, steward_token, grant_id, *, reason_code="steward_revoked"):
         if not reason_code or len(reason_code) > 64:
             raise ValueError("reason_code must be a bounded non-empty code")
@@ -330,6 +399,49 @@ class AuthorityRegistry:
             raise
         except psycopg.errors.UniqueViolation as exc:
             raise IdentityConflict("office already exists") from exc
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def update_office_role(self, steward_token, office_id, office_role, *,
+                           expected_office_role):
+        """Correct stable office metadata under Steward authority without rebinding it."""
+        if (not isinstance(office_id, str) or not office_id or len(office_id) > 256
+                or not isinstance(office_role, str) or not office_role.strip()
+                or len(office_role) > 256
+                or not isinstance(expected_office_role, str)
+                or not expected_office_role.strip() or len(expected_office_role) > 256):
+            raise ValueError("office identity and bounded current and replacement roles are required")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    actor = self._require(cur, steward_token, "office.manage", "institution")
+                    if actor.get("principal_kind") != "steward":
+                        raise AuthorityDenied("office role correction requires Steward identity")
+                    cur.execute("""SELECT office_role FROM institutional_offices
+                        WHERE office_id=%s FOR UPDATE""", (office_id,))
+                    current = cur.fetchone()
+                    if current is None:
+                        raise IdentityConflict("office does not exist")
+                    if current["office_role"] != expected_office_role:
+                        raise IdentityConflict("office role changed")
+                    if office_role == expected_office_role:
+                        return {"office_id": office_id, "office_role": office_role,
+                                "changed": False}
+                    cur.execute("""UPDATE institutional_offices SET office_role=%s
+                        WHERE office_id=%s AND office_role=%s RETURNING office_role""",
+                        (office_role.strip(), office_id, expected_office_role))
+                    updated = cur.fetchone()
+                    if updated is None:
+                        raise IdentityConflict("office role changed")
+                    self._event(cur, event_type="office_role_updated",
+                        actor_id=actor["principal_id"], office_id=office_id,
+                        payload={"previous_office_role": expected_office_role,
+                                 "office_role": updated["office_role"]})
+                    return {"office_id": office_id,
+                            "office_role": updated["office_role"], "changed": True}
+        except (AuthorityDenied, IdentityConflict, ValueError):
+            raise
         except Exception as exc:
             raise RegistryUnavailable(type(exc).__name__) from None
 
@@ -427,17 +539,126 @@ class AuthorityRegistry:
         except Exception as exc:
             raise RegistryUnavailable(type(exc).__name__) from None
 
+    def update_office_implementation(self, steward_token, office_id, implementation_id,
+                                     *, expected_binding_revision,
+                                     deferred_compatibility_capabilities=()):
+        """Replace only an office's implementation using an audited CAS update.
+
+        The occupant and office identity are invariant. The returned prior
+        implementation can be restored through this same method using the new
+        binding revision, so stale rollback attempts fail closed.
+        """
+        if not office_id or not implementation_id:
+            raise ValueError("office and implementation identities are required")
+        if type(expected_binding_revision) is not int or expected_binding_revision < 1:
+            raise ValueError("expected binding revision must be a positive integer")
+        if (not isinstance(deferred_compatibility_capabilities, (tuple, list))
+                or any(capability != "grace.reasoning.80b"
+                       for capability in deferred_compatibility_capabilities)
+                or len(set(deferred_compatibility_capabilities)) !=
+                   len(deferred_compatibility_capabilities)):
+            raise ValueError("unsupported deferred compatibility capability")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    actor = self._require(cur, steward_token, "office.manage", "institution")
+                    if (deferred_compatibility_capabilities
+                            and actor.get("principal_kind") != "steward"):
+                        raise AuthorityDenied("deferred continuity requires Steward authority")
+                    cur.execute("""SELECT occupant_id,implementation_id,binding_revision
+                        FROM office_bindings WHERE office_id=%s FOR UPDATE""", (office_id,))
+                    previous = cur.fetchone()
+                    if previous is None:
+                        raise IdentityConflict("office has no active binding")
+                    if previous["binding_revision"] != expected_binding_revision:
+                        raise IdentityConflict("office binding revision changed")
+                    cur.execute("""SELECT implementation_id,kind,provider_ref,revision
+                        FROM resident_implementations WHERE implementation_id=%s""",
+                        (implementation_id,))
+                    target = cur.fetchone()
+                    if target is None or target["kind"] != "model":
+                        raise IdentityConflict("target model implementation is unavailable")
+                    if (deferred_compatibility_capabilities
+                            and target["provider_ref"] != "grace.readiness_router.v1"):
+                        raise ValueError("deferred compatibility is limited to the Grace router")
+                    cur.execute("""UPDATE office_bindings SET implementation_id=%s,
+                        binding_revision=binding_revision+1,updated_at=clock_timestamp()
+                        WHERE office_id=%s AND binding_revision=%s
+                        RETURNING binding_revision""",
+                        (implementation_id, office_id, expected_binding_revision))
+                    updated = cur.fetchone()
+                    if updated is None:
+                        raise IdentityConflict("office binding revision changed")
+                    cur.execute("SELECT principal_id FROM resident_occupants WHERE occupant_id=%s",
+                                (previous["occupant_id"],))
+                    occupant = cur.fetchone()
+                    self._event(cur, event_type="office_model_implementation_changed",
+                        actor_id=actor["principal_id"],
+                        subject_id=occupant["principal_id"] if occupant else None,
+                        office_id=office_id,
+                        payload={"previous_implementation_id": previous["implementation_id"],
+                            "implementation_id": implementation_id,
+                            "previous_binding_revision": expected_binding_revision,
+                            "binding_revision": updated["binding_revision"],
+                            "provider_ref": target["provider_ref"],
+                            "implementation_revision": target["revision"],
+                            "deferred_compatibility_capabilities":
+                                list(deferred_compatibility_capabilities)})
+                    return {"office_id": office_id,
+                        "occupant_id": previous["occupant_id"],
+                        "previous_implementation_id": previous["implementation_id"],
+                        "implementation_id": implementation_id,
+                        "previous_binding_revision": expected_binding_revision,
+                        "binding_revision": updated["binding_revision"]}
+        except (AuthorityDenied, IdentityConflict, ValueError):
+            raise
+        except psycopg.errors.ForeignKeyViolation as exc:
+            raise IdentityConflict("target implementation does not exist") from exc
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
     def set_office_state(self, credential, office_id, state, *, expected_revision=None):
         if not isinstance(state, dict):
             raise ValueError("office state must be a JSON object")
         encoded = json.dumps(state, sort_keys=True, separators=(",", ":"))
         if len(encoded.encode("utf-8")) > self.MAX_STATE_BYTES:
             raise ValueError("office state exceeds the bounded state limit")
+        if self.runtime_safe:
+            try:
+                with self.db.cursor() as cur:
+                    query = psycopg.sql.SQL("SELECT {}.{}(%s,%s,%s::jsonb,%s) AS revision").format(
+                        psycopg.sql.Identifier(self.schema),
+                        psycopg.sql.Identifier("write_authorized_office_state"))
+                    cur.execute(query, (self._digest(credential), office_id, encoded,
+                                        expected_revision))
+                    row = cur.fetchone()
+                if row is None or row["revision"] is None:
+                    raise AuthorityDenied("credential is not the current office occupant")
+                return row["revision"]
+            except (AuthorityDenied, ValueError):
+                raise
+            except psycopg.errors.SerializationFailure as exc:
+                raise IdentityConflict("office state revision conflict") from exc
+            except psycopg.Error as exc:
+                if exc.sqlstate == "22023":
+                    raise ValueError("office state is invalid or exceeds its bound") from None
+                raise RegistryUnavailable(type(exc).__name__) from None
         try:
             with self.db.transaction():
                 with self.db.cursor() as cur:
                     self._path(cur)
+                    cur.execute("""SELECT p.principal_id FROM office_bindings b
+                        JOIN resident_occupants r USING (occupant_id)
+                        JOIN institutional_principals p ON p.principal_id=r.principal_id
+                        WHERE b.office_id=%s FOR SHARE OF b""", (office_id,))
+                    binding = cur.fetchone()
+                    if binding is None:
+                        raise AuthorityDenied("office has no active resident binding")
                     principal = self._require(cur, credential, "office.state.write", f"office:{office_id}")
+                    if (principal["principal_kind"] != "resident"
+                            or principal["principal_id"] != binding["principal_id"]):
+                        raise AuthorityDenied("credential principal is not the active office occupant")
                     cur.execute("SELECT revision FROM office_runtime_state WHERE office_id=%s FOR UPDATE", (office_id,))
                     row = cur.fetchone()
                     if row is None:
@@ -476,5 +697,26 @@ class AuthorityRegistry:
                 return row
         except IdentityConflict:
             raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def is_authorized_implementation_successor(self, credential, office_id, *,
+            predecessor_id, predecessor_revision, successor_id, successor_revision,
+            required_capability):
+        """Accept only the direct predecessor recorded by the current audited CAS binding."""
+        if not all(isinstance(value, str) and value for value in
+                   (office_id, predecessor_id, predecessor_revision,
+                    successor_id, successor_revision, required_capability)):
+            return False
+        try:
+            with self.db.cursor() as cur:
+                query = psycopg.sql.SQL("SELECT {}.{}(%s,%s,%s,%s,%s,%s,%s) AS allowed").format(
+                    psycopg.sql.Identifier(self.schema),
+                    psycopg.sql.Identifier("authorized_office_implementation_successor"))
+                cur.execute(query, (self._digest(credential), office_id, predecessor_id,
+                    predecessor_revision, successor_id, successor_revision,
+                    required_capability))
+                row = cur.fetchone()
+            return bool(row and row["allowed"])
         except Exception as exc:
             raise RegistryUnavailable(type(exc).__name__) from None

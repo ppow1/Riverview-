@@ -1,0 +1,22 @@
+{
+  "observed_attempts": [
+    {
+      "assignment_id": "m43-authentication-8400f9a865524fd7a233f908dcbd22b9",
+      "attempt_status": "succeeded",
+      "output": "AUTH",
+      "result_sha256": "72dcac217e416b16bbeb1d2078e754f86ff2c8aeef057ae9642893e20ae28215",
+      "verification": "ACCEPTED"
+    },
+    {
+      "assignment_id": "m43-storage-0e7de2b992a64f41adb5a6cdde82cabc",
+      "attempt_status": "succeeded",
+      "output": "AUTH",
+      "result_sha256": "72dcac217e416b16bbeb1d2078e754f86ff2c8aeef057ae9642893e20ae28215",
+      "verification": null
+    }
+  ],
+  "private_cluster": "/tmp/rv-m43-pg-20261011T092845Z-utf8",
+  "remaining_m43_schemas": [],
+  "schema": "rvtest_m43_ae36f4ee9ade46d5a073",
+  "schema_absent_after_explicit_disposable_cleanup": true
+}

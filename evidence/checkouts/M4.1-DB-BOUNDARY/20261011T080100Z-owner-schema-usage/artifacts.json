@@ -1,0 +1,35 @@
+{
+  "manifest_revision": "1.0.1",
+  "task_id": "RV-M4.1-OWNER-SCHEMA-USAGE",
+  "component_id": "INSTITUTIONAL-AUTHORITY",
+  "source_commit": "9b5dc84bf452c16d9bf46dc5884dc5ace529b0c4",
+  "tested_tree_source_sha256": "see source-files.sha256",
+  "target": "Disposable socket-only PostgreSQL 16.15; isolated regression; no shared data",
+  "decision": "PASS isolated verification; corrected live reapply, bootstrap, service integration and component acceptance remain open",
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.1",
+      "sha256": "e9c18468da2efc959400e2f6bfdfdc5a78c93704ee15658b48fa3e433c789025",
+      "size_bytes": 3472
+    },
+    "full-suite.log": {
+      "path": "full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "bc16c56932b2da884c6f807a146dbe4ef5494a71b724479e678383c1b5963d15",
+      "size_bytes": 24572
+    },
+    "fixture-cleanup.txt": {
+      "path": "fixture-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "52f96c26a39ed25108a6db43d6e11c6051eba8a498a5baab1891adfa7ac7c262",
+      "size_bytes": 4
+    },
+    "source-files.sha256": {
+      "path": "source-files.sha256",
+      "revision": "1.0.1",
+      "sha256": "3e5040597bb1384a4c080bd0eae2110706d469298f37e7a84419b0b5efcdb735",
+      "size_bytes": 575
+    }
+  }
+}

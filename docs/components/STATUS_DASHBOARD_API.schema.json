@@ -491,6 +491,10 @@
                 },
                 "state": {
                   "type": "string"
+                },
+                "recorded_at": {
+                  "type": "string",
+                  "format": "date-time"
                 }
               },
               "additionalProperties": false

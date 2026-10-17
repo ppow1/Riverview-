@@ -1,0 +1,17 @@
+{
+  "artifacts": {
+    "provider-contract-tests.log": {
+      "path": "provider-contract-tests.log",
+      "revision": "1.0.0",
+      "sha256": "d54e0ab8b960352e1b49dec4d634f104749e465067e65bd9eb61153f51077da0",
+      "size_bytes": 1421
+    },
+    "result-summary.json": {
+      "path": "result-summary.json",
+      "revision": "1.0.0",
+      "sha256": "4048a1f831705404ba6ac43a823594f4d9a1db8a23ca72ff57a1961afca28e51",
+      "size_bytes": 1149
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

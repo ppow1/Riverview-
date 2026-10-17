@@ -1,0 +1,9 @@
+runtime_select_exit=1
+ERROR:  permission denied for schema riverview_authority
+LINE 1: SELECT count(*) FROM riverview_authority.institutional_princ...
+                             ^
+manager_create_exit=1
+BEGIN
+ERROR:  permission denied for schema riverview_authority
+LINE 1: BEGIN; CREATE TABLE riverview_authority.manager_probe(id int...
+                            ^

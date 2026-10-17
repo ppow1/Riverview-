@@ -1,0 +1,121 @@
+{
+  "graph_id": "rv:chatgpt-doorbell:browser-runtime",
+  "graph_revision": "1.0.2",
+  "component_id": "CHATGPT-DOORBELL",
+  "workflow_id": "chatgpt.doorbell.v1",
+  "diagram_order": 18,
+  "source_references": [
+    "src/riverview_core/doorbell/__init__.py",
+    "src/riverview_core/doorbell/bootstrap.py",
+    "src/riverview_core/doorbell/browser_bridge.py",
+    "src/riverview_core/doorbell/config.py",
+    "tools/riverview_browser_runtime.cjs",
+    "tools/riverview_doorbell_bridge.cjs",
+    "deploy/systemd-user/riverview-doorbell-browser.service"
+  ],
+  "documentation_references": [
+    "docs/components/CHATGPT_DOORBELL.md",
+    "docs/components/CHATGPT_DOORBELL_FLOW.md"
+  ],
+  "verification_evidence": [
+    "tests/test_chatgpt_doorbell.py",
+    "tests/test_riverview_doorbell_bridge_node.cjs",
+    "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/runtime-qualification.json"
+  ],
+  "nodes": [
+    {
+      "id": "rv:chatgpt-doorbell:browser-runtime:request-identity",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Comms5-owned caller supplies one durable request and correlation identity",
+      "source_references": ["src/riverview_core/doorbell/browser_bridge.py"],
+      "documentation_references": ["docs/components/CHATGPT_DOORBELL.md"],
+      "verification_evidence": ["tests/test_chatgpt_doorbell.py"]
+    },
+    {
+      "id": "rv:chatgpt-doorbell:browser-runtime:binding-check",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Require local conversation config to match the caller's current designated Comms5 binding",
+      "source_references": ["src/riverview_core/doorbell/browser_bridge.py", "src/riverview_core/doorbell/config.py"],
+      "documentation_references": ["docs/components/CHATGPT_DOORBELL.md"],
+      "verification_evidence": ["tests/test_chatgpt_doorbell.py"]
+    },
+    {
+      "id": "rv:chatgpt-doorbell:browser-runtime:wake-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Fail closed on binding mismatch, missing or duplicate target, or unverified submission",
+      "source_references": ["src/riverview_core/doorbell/browser_bridge.py"],
+      "documentation_references": ["docs/components/CHATGPT_DOORBELL.md"],
+      "verification_evidence": ["tests/test_chatgpt_doorbell.py"]
+    },
+    {
+      "id": "rv:chatgpt-doorbell:browser-runtime:target-resolution",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Resolve exactly one configured ChatGPT conversation over localhost CDP",
+      "source_references": ["tools/riverview_doorbell_bridge.cjs"],
+      "documentation_references": ["docs/components/CHATGPT_DOORBELL.md"],
+      "verification_evidence": ["tests/test_riverview_doorbell_bridge_node.cjs", "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/runtime-qualification.json"]
+    },
+    {
+      "id": "rv:chatgpt-doorbell:browser-runtime:authenticated-composer",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Is the selected target authenticated and its composer available?",
+      "source_references": ["tools/riverview_doorbell_bridge.cjs"],
+      "documentation_references": ["docs/components/CHATGPT_DOORBELL.md"],
+      "verification_evidence": ["tests/test_riverview_doorbell_bridge_node.cjs"]
+    },
+    {
+      "id": "rv:chatgpt-doorbell:browser-runtime:steward-login",
+      "node_revision": "1.0.0",
+      "type": "escalation",
+      "label": "Steward completes supported login or MFA in the dedicated Riverview profile",
+      "source_references": ["tools/riverview_browser_runtime.cjs"],
+      "documentation_references": ["docs/components/CHATGPT_DOORBELL.md"],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:chatgpt-doorbell:browser-runtime:fixed-wake",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Submit only the fixed wake text with the allowlisted send control",
+      "source_references": ["tools/riverview_doorbell_bridge.cjs"],
+      "documentation_references": ["docs/components/CHATGPT_DOORBELL.md"],
+      "verification_evidence": ["tests/test_riverview_doorbell_bridge_node.cjs"]
+    },
+    {
+      "id": "rv:chatgpt-doorbell:browser-runtime:submit-verification",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Require click invocation and composer-cleared transition before recording success",
+      "source_references": ["tools/riverview_doorbell_bridge.cjs"],
+      "documentation_references": ["docs/components/CHATGPT_DOORBELL.md"],
+      "verification_evidence": ["tests/test_riverview_doorbell_bridge_node.cjs"]
+    },
+    {
+      "id": "rv:chatgpt-doorbell:browser-runtime:metadata-result",
+      "node_revision": "1.0.0",
+      "type": "exit",
+      "label": "Return request/correlation identity and metadata-only evidence to the caller",
+      "source_references": ["src/riverview_core/doorbell/browser_bridge.py", "tools/riverview_doorbell_bridge.cjs"],
+      "documentation_references": ["docs/components/CHATGPT_DOORBELL.md"],
+      "verification_evidence": ["tests/test_chatgpt_doorbell.py", "tests/test_riverview_doorbell_bridge_node.cjs"]
+    }
+  ],
+  "edges": [
+    {"from": "rv:chatgpt-doorbell:browser-runtime:request-identity", "to": "rv:chatgpt-doorbell:browser-runtime:binding-check", "type": "runtime_transition"},
+    {"from": "rv:chatgpt-doorbell:browser-runtime:binding-check", "to": "rv:chatgpt-doorbell:browser-runtime:target-resolution", "type": "runtime_transition", "label": "binding matches"},
+    {"from": "rv:chatgpt-doorbell:browser-runtime:binding-check", "to": "rv:chatgpt-doorbell:browser-runtime:wake-failure", "type": "diagnostic_branch", "label": "binding differs"},
+    {"from": "rv:chatgpt-doorbell:browser-runtime:target-resolution", "to": "rv:chatgpt-doorbell:browser-runtime:authenticated-composer", "type": "runtime_transition", "label": "one exact target"},
+    {"from": "rv:chatgpt-doorbell:browser-runtime:target-resolution", "to": "rv:chatgpt-doorbell:browser-runtime:wake-failure", "type": "diagnostic_branch", "label": "target missing or duplicated"},
+    {"from": "rv:chatgpt-doorbell:browser-runtime:authenticated-composer", "to": "rv:chatgpt-doorbell:browser-runtime:fixed-wake", "type": "runtime_transition", "label": "ready"},
+    {"from": "rv:chatgpt-doorbell:browser-runtime:authenticated-composer", "to": "rv:chatgpt-doorbell:browser-runtime:steward-login", "type": "escalation", "label": "authentication required"},
+    {"from": "rv:chatgpt-doorbell:browser-runtime:steward-login", "to": "rv:chatgpt-doorbell:browser-runtime:authenticated-composer", "type": "recovery_route", "label": "login completed; rerun preflight"},
+    {"from": "rv:chatgpt-doorbell:browser-runtime:fixed-wake", "to": "rv:chatgpt-doorbell:browser-runtime:submit-verification", "type": "runtime_transition"},
+    {"from": "rv:chatgpt-doorbell:browser-runtime:submit-verification", "to": "rv:chatgpt-doorbell:browser-runtime:metadata-result", "type": "runtime_transition", "label": "verified submission"},
+    {"from": "rv:chatgpt-doorbell:browser-runtime:submit-verification", "to": "rv:chatgpt-doorbell:browser-runtime:wake-failure", "type": "diagnostic_branch", "label": "send transition not verified"}
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "dashboard_deployment": "m3.1-camrui-docs-e26f937",
+  "evidence_type": "live authenticated browser verification",
+  "host": "Camrui dashboard, authenticated Firefox headless client",
+  "measurement_note": "Navigation values are observed local DOM/tab transition timings from the instrumented authenticated browser run; they are not end-to-end network latency benchmarks.",
+  "observations": {
+    "assignment_detail": "primary assignment completed; attempt, lifecycle events, correlation ID, and independent verifier decision rendered",
+    "browser_errors": 0,
+    "navigation_measurements_ms": {
+      "assignments_tab": 134,
+      "notifications_tab": 10
+    },
+    "notification_view": "two assignment_stalled and two attention_resolved notices rendered DELIVERED; PostgreSQL delivery rows confirm; no acknowledgement displayed or claimed",
+    "projection_freshness": "Projection current; notifications source available; dispatcher healthy at capture",
+    "same_origin_get_requests": {
+      "/api/v1/assignments": 200,
+      "/api/v1/attention": 200,
+      "/api/v1/events": 200,
+      "/api/v1/notifications": 200,
+      "/api/v1/status": 200,
+      "/api/v1/workers": 200
+    }
+  },
+  "screenshots": [
+    "dashboard-completed-assignment.png",
+    "dashboard-notifications.png"
+  ],
+  "source_of_authoritative_state": "PostgreSQL riverview_dev projections; see database-state.json",
+  "verification_scope": "Live dashboard rendering and API projection verification; screenshots are retained in this directory."
+}

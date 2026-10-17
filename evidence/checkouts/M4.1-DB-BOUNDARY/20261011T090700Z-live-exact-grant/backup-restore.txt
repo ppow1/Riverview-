@@ -1,0 +1,8 @@
+Protected source backup: /var/lib/postgresql/backups/riverview/m4.1/rv-m41-exact-grant-20261011T090346Z/riverview.dump
+Owner/mode: postgres:postgres 0600; 97,847 bytes
+SHA-256: f25af3984fa29f7f0a035c9fc0b01a6086e9eadbcb3b26ea77f2a7181255e4c7
+pg_restore --list: PASS; custom format, 185 TOC entries.
+Restore to disposable database rv_restore_m41_exact_grant_20261011t090346z: PASS.
+Restored catalog: Core migrations 9; authority migrations 2; assignments 4; events 11; authority relations 10; runtime schema USAGE=false; runtime table SELECT=false.
+First read-only count probe used the wrong ledger schema (public.schema_migrations), returned relation-not-found, and changed nothing. Corrected probe queried riverview_dev.schema_migrations; all counts above verified.
+Removed only the newly created restore database. Catalog confirmed it absent afterward. Source riverview remains 9 Core migrations, 2 authority migrations before deployment, 4 assignments, 11 events.

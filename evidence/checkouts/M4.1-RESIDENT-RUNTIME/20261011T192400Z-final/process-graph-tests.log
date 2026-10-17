@@ -1,0 +1,18 @@
+test_aggregate_mermaid_is_a_workflow_overview_with_jump_links (tests.test_process_graph.ProcessGraphTests.test_aggregate_mermaid_is_a_workflow_overview_with_jump_links) ... ok
+test_all_graphs_match_json_schema_and_have_globally_unique_ids (tests.test_process_graph.ProcessGraphTests.test_all_graphs_match_json_schema_and_have_globally_unique_ids) ... ok
+test_broken_cross_component_jump_fails (tests.test_process_graph.ProcessGraphTests.test_broken_cross_component_jump_fails) ... ok
+test_changed_canonical_json_increments_its_file_specific_revision (tests.test_process_graph.ProcessGraphTests.test_changed_canonical_json_increments_its_file_specific_revision) ... ok
+test_duplicate_global_node_identity_fails (tests.test_process_graph.ProcessGraphTests.test_duplicate_global_node_identity_fails) ... ok
+test_extension_types_are_forward_compatible (tests.test_process_graph.ProcessGraphTests.test_extension_types_are_forward_compatible) ... ok
+test_generated_aggregate_increments_document_revision (tests.test_process_graph.ProcessGraphTests.test_generated_aggregate_increments_document_revision) ... ok
+test_generated_flow_increments_file_revision_not_body_revision (tests.test_process_graph.ProcessGraphTests.test_generated_flow_increments_file_revision_not_body_revision) ... ok
+test_generated_json_and_mermaid_views_are_synchronized (tests.test_process_graph.ProcessGraphTests.test_generated_json_and_mermaid_views_are_synchronized) ... ok
+test_json_sidecar_checksum_is_enforced (tests.test_process_graph.ProcessGraphTests.test_json_sidecar_checksum_is_enforced) ... ok
+test_runtime_transitions_cannot_impersonate_cross_component_dependencies (tests.test_process_graph.ProcessGraphTests.test_runtime_transitions_cannot_impersonate_cross_component_dependencies) ... ok
+test_unresolved_edge_reference_fails (tests.test_process_graph.ProcessGraphTests.test_unresolved_edge_reference_fails) ... ok
+test_unsupported_edge_type_fails (tests.test_process_graph.ProcessGraphTests.test_unsupported_edge_type_fails) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 2.217s
+
+OK

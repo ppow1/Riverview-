@@ -1,0 +1,11 @@
+{
+  "artifacts": {
+    "browser-commissioning.json": {
+      "path": "browser-commissioning.json",
+      "revision": "1.0.0",
+      "sha256": "ea8c0e269dbc7e57d6a4f709e3cf459b92ab58f86c73e1e9b2c09ce878b9a205",
+      "size_bytes": 2167
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

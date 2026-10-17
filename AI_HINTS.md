@@ -1,8 +1,8 @@
 # Riverview~ AI Engineering Hints
 
-**Document Revision:** 1.0.4  
+**Document Revision:** 1.0.5  
 **Status:** Working agent guidance  
-**Date:** 2026-10-16  
+**Date:** 2026-10-17  
 **Component:** ENG-AGENT-GUIDANCE  
 **Purpose:** Startup instructions for any AI agent performing engineering work on Riverview~.  
 **Authority:** Guidance for work in this repository; subordinate to the user's explicit instructions and the governing engineering standards.
@@ -24,6 +24,9 @@
 ## Institutional proposal authoring
 
 If the task is to suggest, formalize, submit, review, or track a Riverview proposal, read `docs/development/PROPOSAL_AUTHORING_PLAYBOOK.md` and the institutional contract `docs/components/INSTITUTIONAL_PROPOSALS.md` (currently on PR #70's branch; verify availability on the working branch) before acting. A proposal draft is not execution authority. Use only the documented authenticated Steward conversation submission flow; never invent proposal IDs, API routes, or grants. Explicit Steward approval and separate authorized promotion are required before Engineering objective intake. If the contract or endpoint is unavailable, produce a submission-ready draft and mark it NOT SUBMITTED.
+
+
+Every new or materially changed workflow, execution adapter, and significant operational process must update its canonical versioned process graph in the same change. Preserve stable graph IDs, typed decision/failure/recovery/verification transitions, relevant diagnostic checkpoints, and observable evidence. Regenerate and check all graph projections.
 
 ## Operational facts and boundaries
 
@@ -56,6 +59,8 @@ If the task is to suggest, formalize, submit, review, or track a Riverview propo
 Before editing, briefly report: repository/branch/HEAD, applicable standards, task scope, relevant code/dependencies, predecessor-preservation plan, and tests to run. If the task is purely informational, do not modify files.
 
 ## Revision history
+
+- **1.0.5 — 2026-10-17:** Preserve current proposal-authoring guidance and restore the canonical process-graph requirement for workflow changes. Predecessor: `.riverview-backups/20261017T233443650714Z/AI_HINTS.md`.
 
 - **1.0.4 — 2026-10-16:** Link proposal authoring and submission playbook; clarify Steward authorization boundary. Predecessor: `docs/history/AI_HINTS_rev1.0.3.md`.
 

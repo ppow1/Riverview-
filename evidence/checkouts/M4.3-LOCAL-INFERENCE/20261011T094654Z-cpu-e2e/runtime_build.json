@@ -1,0 +1,22 @@
+{
+  "build_command": "cmake --build /tmp/rv-llama-build --target llama-server -j2",
+  "cmake_configuration": {
+    "CMAKE_BUILD_TYPE": "Release",
+    "GGML_NATIVE": "ON",
+    "LLAMA_BUILD_EXAMPLES": "ON",
+    "LLAMA_BUILD_SERVER": "ON",
+    "LLAMA_BUILD_TESTS": "OFF",
+    "LLAMA_CURL": "OFF"
+  },
+  "cpu_count": 4,
+  "cpu_model": "Intel(R) Celeron(R) CPU J3455 @ 1.50GHz",
+  "gpu_used": false,
+  "host_platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.39",
+  "llama_cpp_commit": "d81235049384534c167caea52b85a694f6103d14",
+  "llama_cpp_tag": "v0.6.0",
+  "llama_server_sha256": "dc82364c7428bcfa22ca07d2e6edf958a16bb1b7294920a749bf6fbf9ab70b57",
+  "model_file": "Qwen3-0.6B-Q8_0.gguf",
+  "model_repository": "Qwen/Qwen3-0.6B-GGUF",
+  "model_revision": "23749fefcc72300e3a2ad315e1317431b06b590a",
+  "model_sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031"
+}

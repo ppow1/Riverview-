@@ -1,0 +1,90 @@
+{
+  "automated_verification": {
+    "full_suite": {
+      "command": "RIVERVIEW_TEST_PG_DSN=<isolated disposable PostgreSQL> PYTHONPATH=src python3 -m unittest discover -s tests -p test_*.py -v",
+      "duration_seconds": 143.573,
+      "errors": 0,
+      "failed": 0,
+      "passed": 228,
+      "skipped": 0
+    },
+    "github_ci": {
+      "conclusion": "SUCCESS",
+      "run_id": 38198052053,
+      "url": "https://github.com/ppow1/Riverview-/actions/runs/38198052053"
+    },
+    "isolated_browser_evidence": "../20261012T-auth-session-browser-isolated-1/browser-commissioning.json",
+    "process_graphs": {
+      "graphs": 17,
+      "nodes": 357,
+      "synchronization": "PASS",
+      "validation": "PASS"
+    },
+    "revision_audit": {
+      "baseline": "ed0ea269297ab3be56287e6618db64adb25a43bc",
+      "issues": 0,
+      "result": "PASS"
+    }
+  },
+  "correction": {
+    "authority": "Cookie transports the existing credential only; no new grant, identity, or authorization system. Every request rechecks exact current database grants; revocation is immediate.",
+    "privacy": "Credential excluded from JS storage, URLs, application logs, conversation events, and evidence; browser connect clears the password input. Dashboard bearer remains separately required.",
+    "session_transport": "POST /api/v1/resident/conversation-session validates both existing grants for the same principal before setting a host-only 30-day Secure, HttpOnly, SameSite=Strict cookie scoped to /api/v1/resident/conversations."
+  },
+  "deployment_id": "m3.4-camrui-grace-auth-0382ce1",
+  "evidence_revision": "1.0.0",
+  "independent_postgresql_check": {
+    "assistant_events": 4,
+    "assistant_model": "qwen3-0.6b-q8_0-local",
+    "connection": "Fresh independent connection after browser acknowledgments",
+    "conversation_reference_sha256": "2e30113595926dc1921c6f08aeda535c7fd6ab62439a9ee2f69a116f25b33458",
+    "implementation_revision_sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+    "interrupted_events": 1,
+    "latest_assistant_sequence": 10,
+    "latest_response_characters": 77,
+    "latest_user_sequence": 9,
+    "provider": "local.inference.v1",
+    "user_events": 5
+  },
+  "limitations": [
+    "Steward Windows browser session was not remotely controlled; Camrui Firefox proves deployment behavior but not the Windows client.",
+    "The browser used the existing authorized conversation history and appended bounded authorization-recovery test turns; no message content is included here.",
+    "No formal Steward acceptance or full Component Definition of Done is claimed."
+  ],
+  "live_browser": {
+    "authorized_session": "PASS; current protected Steward credential established cookie; input cleared",
+    "browser": "Firefox headless, Camrui, localhost dashboard origin",
+    "dashboard_service_restart": "PASS; browser cookie/history restored and another real model response completed without credential re-entry",
+    "history": "PASS; reused latest authorized conversation; no existing message content exported",
+    "invalid_explicit_credential": "HTTP 403 even with a valid cookie present",
+    "real_inference": "PASS; model qwen3-0.6b-q8_0-local, provider local.inference.v1, model SHA 9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031, response persisted; response text omitted",
+    "refresh": "PASS without credential re-entry",
+    "windows_steward_browser": "NOT VERIFIED from this Camrui session; one explicit Connect is needed to establish its host-local cookie if its current field has no valid saved credential"
+  },
+  "operational_state": {
+    "dashboard_deployment_id": "m3.4-camrui-grace-auth-0382ce1",
+    "dashboard_http": 200,
+    "dashboard_service": "active",
+    "dashboard_source_commit": "0382ce1cf713885dce4ee2cc2020a6d92fceae99",
+    "database_migrations": "none applied",
+    "grants_or_credentials_modified": false,
+    "model_service": "existing process preserved; PID 654501; loopback port 18796; not restarted or reconfigured",
+    "other_services_modified": false,
+    "service_restart_count": 0
+  },
+  "previous_release": "/opt/riverview-status-dashboard/releases/5cbf315b95b5b644296910b4c7a16e5ae358e55b-grace-chat-ui",
+  "release_path": "/opt/riverview-status-dashboard/releases/0382ce1cf713885dce4ee2cc2020a6d92fceae99-grace-auth-session",
+  "rollback": {
+    "previous_release": "/opt/riverview-status-dashboard/releases/5cbf315b95b5b644296910b4c7a16e5ae358e55b-grace-chat-ui",
+    "procedure": "Restore the current symlink to previous_release; remove only /etc/systemd/system/riverview-status-dashboard.service.d/50-grace-auth-session.conf; systemctl daemon-reload; restart only riverview-status-dashboard.service. Do not modify PostgreSQL or credentials."
+  },
+  "root_cause": {
+    "grant_audit": "Protected installed steward:camrui credential is ALLOW for resident.conversation.read and resident.conversation.send, exact scope office:office:grace.",
+    "retry_behavior": "Conversation history was not polled by the five-second dashboard status timer. Requests were navigation/refresh/send triggered. UI now pauses further protected requests after 403 until explicit reconnect.",
+    "verified": "The deployed browser contract kept the conversation authority credential only in page memory, and the password field explicitly used autocomplete=off. Refresh/release reload therefore did not restore the credential. The supplied 403 snapshot proves the browser request was denied by the exact-grant path; the actual Windows-presented credential was not captured or inspected."
+  },
+  "schema_version": "rv.grace.conversation.authorization-recovery.v1",
+  "source_commit": "0382ce1cf713885dce4ee2cc2020a6d92fceae99",
+  "status": "TECHNICAL_LIVE_VERIFICATION_PASS_WINDOWS_CONFIRMATION_PENDING",
+  "task_id": "RV-GRACE-AUTH-SESSION-001"
+}

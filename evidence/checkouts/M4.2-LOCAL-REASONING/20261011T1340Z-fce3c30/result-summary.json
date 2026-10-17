@@ -1,0 +1,23 @@
+{
+  "actual_local_model_attempt": {
+    "authority": "no ResidentReasoner call or office state write; no plan produced",
+    "endpoint": "127.0.0.1:8767/v1",
+    "model_alias": "qwen3-0.6b-q8_0-local",
+    "model_provider_source_commit": "d81235049384534c167caea52b85a694f6103d14",
+    "model_sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+    "reason": "LocalReasoningUnavailable: endpoint_unavailable after 30-second bounded request",
+    "result": "UNAVAILABLE",
+    "server_mode": "temporary user process; loopback only; not a persistent service"
+  },
+  "base_commit": "fce3c30e568dfb29ce7733ec05ff9b94b620974c",
+  "contract_tests": "6 passed; fake HTTP contract only; no credentials/database/model used",
+  "operational_effects": {
+    "M3.3_services_modified": false,
+    "database_modified": false,
+    "persistent_inference_service_installed": false,
+    "resident_identity_modified": false
+  },
+  "provider_source_sha256": "00800a0556d1a9a1fec22c98c7bedaa6e776cdaf93ec9f74300c7896d415bdc9",
+  "record_schema": "rv.m42-local-reasoning-provider-evidence.v1",
+  "source_branch": "codex/m4.2-resident-reasoning"
+}

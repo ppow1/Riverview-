@@ -1,0 +1,41 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "acceptance-review.json": {
+      "path": "acceptance-review.json",
+      "revision": "1.0.0",
+      "sha256": "94442d0d53dab40c35665a8f4f2cd92f0d10cdd8367b214fca291b5c9f75fb51",
+      "size_bytes": 4052
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "15dc3fbd14c676fd83bb81097b97b9b964bf22eaad848e651b4b89f123a65874",
+      "size_bytes": 1551
+    },
+    "isolated-cluster-cleanup.txt": {
+      "path": "isolated-cluster-cleanup.txt",
+      "revision": "1.0.0",
+      "sha256": "81f0e5ff6680949ab2139e25890ed30ddcdef74390cd87335954df6e34165d3d",
+      "size_bytes": 18
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "9fef24d87d670c985356585bbd062e1ca0e077e4293cd6c7f1ad4cb9421dd4f8",
+      "size_bytes": 55
+    },
+    "process-graph-validate.json": {
+      "path": "process-graph-validate.json",
+      "revision": "1.0.0",
+      "sha256": "5141ab715e2fd189f9c47a72e229726a5f8f610ff5bb9825af7746f3ca880544",
+      "size_bytes": 39
+    },
+    "service-state.txt": {
+      "path": "service-state.txt",
+      "revision": "1.0.0",
+      "sha256": "135b364e59b9bbf13ebaca0b132aa376b6152992dcf9d9ca4734186089318470",
+      "size_bytes": 49
+    }
+  }
+}

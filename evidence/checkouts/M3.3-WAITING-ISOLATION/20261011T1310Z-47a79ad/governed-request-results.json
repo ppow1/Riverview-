@@ -1,0 +1,20 @@
+{
+  "no_match_assignment": {
+    "assignment_id": "m33-live-wait-e8646ad6795f4c7b9cf443faf236d0df",
+    "http_status": 200,
+    "initial_state": "queued",
+    "subsequent_state": "blocked",
+    "workflow_step": "WAITING_FOR_EVIDENCE"
+  },
+  "unauthorized_request_prior_test": {
+    "assignment_persisted": false,
+    "event_persisted": false,
+    "http_status": 403
+  },
+  "valid_followup_assignment": {
+    "assignment_id": "m33-live-followup-df010ec29b0747d089575a817e938261",
+    "final_state": "completed",
+    "http_status": 200,
+    "workflow_step": "independent_verification"
+  }
+}

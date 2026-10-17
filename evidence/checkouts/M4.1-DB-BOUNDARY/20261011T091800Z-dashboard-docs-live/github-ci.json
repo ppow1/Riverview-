@@ -1,0 +1,11 @@
+{
+  "run_id": "38127642815",
+  "commit": "087b940be4074c15959400a97453e26ace79966f",
+  "conclusion": "success",
+  "check": "controlled-checkout",
+  "scope": [
+    "complete applicable test suite",
+    "process graph validation",
+    "controlled revision/predecessor audit"
+  ]
+}

@@ -2,13 +2,24 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.23
-# Purpose: Verify scoped dispatch, fail-closed knowledge, independent outcomes, and recovery
+# Revision: 1.0.39
+# Purpose: Verify scoped deterministic and structured worker artifacts
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL test database
 # Authority: Creates and drops only unique rvtest_* schemas
 # Changed: 2026-10-10 UTC | RV-M2.4-001 | Verify knowledge timeout with synchronization instead of a brittle latency bound
+# Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-TEST-FIX | Give self-verification test its explicit verification grant
+# Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-REVOCATION | Deny registration without a grant and execution after revocation
+# Changed: 2026-10-11 UTC | RV-M4.3-LOCAL-INFERENCE | Verify structured artifact execution under its own exact capability grant
+# Changed: 2026-10-11 UTC | RV-M3.3-REPOSITORY-KNOWLEDGE | Exercise pinned repository provider through worker and independent verifier
+# Changed: 2026-10-11 UTC | RV-M3.3-WORKER-SERVICE | Verify service restart registration is exact and idempotent
+# Changed: 2026-10-11 UTC | RV-M33-ENGINEERING-ARTIFACT | Exercise the repository test task, durable file artifact, and independent rerun in PostgreSQL
+# Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-FAILURE-DIAGNOSIS | Include safe action error code in isolated integration failure output
+# Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-FAILURE-DIAGNOSIS | Include durable failure class in isolated integration assertion
+# Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-VERIFICATION-DIAGNOSIS | Surface independent verifier criteria in the isolated regression
+# Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-VERIFICATION-DIAGNOSIS | Attach verifier criterion details to the repository artifact check
+# Changed: 2026-10-11 UTC | RV-M33-ARTIFACT-VERIFICATION-DIAGNOSIS | Target repository-task verifier assertion for criteria output
 # Contracts: docs/development/M2.3-001_REVISION_RECORD.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -114,9 +125,13 @@ class WorkerAdapterTests(unittest.TestCase):
                          migrations_dir=root / "assignment_scheduler/migrations")
         apply_migrations(DSN, schema=self.schema,
                          migrations_dir=root / "worker_adapter/migrations")
+        apply_migrations(DSN, schema=self.schema,
+                         migrations_dir=root / "institutional_authority/migrations")
         self.ledger = PostgresLedger(DSN, schema=self.schema)
         from riverview_core.worker_adapter import PostgresWorkerAdapter
         self.worker = PostgresWorkerAdapter(DSN, schema=self.schema)
+        self.admin.execute("INSERT INTO institutional_principals(principal_id,principal_kind) "
+                           "VALUES ('steward:test','steward')")
         self.assignment = "worker-task-" + uuid4().hex
         self.worker_id = "worker-local-" + uuid4().hex
         self.scope = "grant:local-task"
@@ -140,10 +155,34 @@ class WorkerAdapterTests(unittest.TestCase):
         self.admin.close()
 
     def register(self, capabilities=None, scope=None):
-        return self.worker.register_worker(
-            self.worker_id,
-            capabilities or ["deterministic.sha256.v1"],
-            scope or self.scope)
+        return self.register_as(self.worker_id,
+                                capabilities or ["deterministic.sha256.v1"],
+                                scope or self.scope)
+
+    def register_as(self, worker_id, capabilities, scope):
+        token = __import__("secrets").token_urlsafe(32)
+        principal_id = "worker-principal:" + worker_id
+        digest = hashlib.sha256(token.encode("utf-8")).digest()
+        self.admin.execute(
+            "INSERT INTO institutional_principals(principal_id,principal_kind) VALUES (%s,'worker')",
+            (principal_id,))
+        self.admin.execute("""INSERT INTO principal_credentials
+            (credential_id,principal_id,credential_sha256) VALUES (%s,%s,%s)""",
+            (uuid4(), principal_id, digest))
+        actions = ["worker.register"]
+        if any(cap in capabilities for cap in
+               ("deterministic.sha256.v1", "local.inference.v1",
+                "engineering.repository-check.v1")):
+            actions.append("assignment.execute")
+        if "assignment.verify.v1" in capabilities:
+            actions.append("assignment.verify")
+        for action in actions:
+            self.admin.execute("""INSERT INTO authority_grants
+                (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+                VALUES (%s,%s,%s,%s,'steward:test','rv.policy:worker-fixture.v1')""",
+                (f"test:{action}:{worker_id}", principal_id, action, scope))
+        return self.worker.register_worker(worker_id, capabilities, scope,
+                                           credential=token)
 
     def ready_assignment(self, *, scope=None, objective="objective:sha256"):
         assignment_id = "worker-cycle-" + uuid4().hex
@@ -212,6 +251,71 @@ class WorkerAdapterTests(unittest.TestCase):
             result = cur.fetchone()
             self.assertEqual(result["result"], first["result"])
             self.assertEqual(result["result_sha256"], first["result_sha256"])
+
+    def test_continuous_worker_persists_structured_artifact_and_independent_verification(self):
+        from riverview_core.worker_adapter import (
+            ContinuousWorker, VerificationResult, VerificationStatus)
+
+        assignment_id = self.ready_assignment(objective="objective:local:label-auth-message")
+        inference_worker_id = "worker-inference-" + uuid4().hex
+        inference_token = self.register_as(
+            inference_worker_id, [self.worker.LOCAL_INFERENCE_CAPABILITY], self.scope)
+        prompt = ("Classify the diagnostic text. Return exactly one lowercase label: "
+                  "auth or resource. Text: credential expired during authentication.")
+
+        class GroundedProvider(WorkerAdapterTests.VerifiedProvider):
+            pass
+
+        engine = ContinuousWorker(
+            self.worker, inference_worker_id, inference_token,
+            knowledge=GroundedProvider(prompt),
+            action=lambda assignment, grounded: {
+                "provider": "test-local-model", "model": "fixture-model-v1",
+                "output": "auth", "finish_reason": "stop"},
+            action_capability=self.worker.LOCAL_INFERENCE_CAPABILITY,
+            action_effect_class="retry_safe", lease_seconds=60)
+        outcome = engine.run_once()
+        self.assertEqual(outcome["status"], "AWAITING_VERIFICATION")
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "awaiting_verification")
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("SELECT capability,input_sha256,status FROM worker_attempts WHERE attempt_id=%s",
+                        (outcome["attempt_id"],))
+            attempt = cur.fetchone()
+            cur.execute("SELECT result,result_sha256 FROM worker_results WHERE attempt_id=%s",
+                        (outcome["attempt_id"],))
+            artifact = cur.fetchone()
+        self.assertEqual(attempt["capability"], self.worker.LOCAL_INFERENCE_CAPABILITY)
+        self.assertEqual(attempt["status"], "succeeded")
+        self.assertEqual(artifact["result"]["output"], "auth")
+        canonical = json.dumps(artifact["result"], sort_keys=True,
+                               separators=(",", ":"), ensure_ascii=False).encode()
+        self.assertEqual(hashlib.sha256(canonical).hexdigest(), artifact["result_sha256"].strip())
+
+        verifier_id = "worker-inference-verifier-" + uuid4().hex
+        verifier_token = self.register_as(verifier_id, ["assignment.verify.v1"], self.scope)
+
+        class IndependentVerifier:
+            REVISION = "local-inference-test-verifier-1"
+            def verify(self, assignment, attempt_row, result):
+                accepted = (result.get("provider") == "test-local-model"
+                            and result.get("model") == "fixture-model-v1"
+                            and result.get("output") == "auth"
+                            and result.get("finish_reason") == "stop"
+                            and attempt_row.get("status") == "succeeded")
+                criteria = {"distinct_executor_result": accepted,
+                            "expected_classification": result.get("output") == "auth"}
+                return VerificationResult(
+                    VerificationStatus.ACCEPTED if all(criteria.values()) else
+                    VerificationStatus.REJECTED, criteria,
+                    (f"urn:rv:attempt:{attempt_row['attempt_id']}",), self.REVISION,
+                    "fixture artifact independently matches expected classification")
+
+        verified = self.worker.verify_attempt(
+            assignment_id, outcome["attempt_id"], verifier_id, verifier_token,
+            IndependentVerifier(), idempotency_key="verify-local-inference-" + assignment_id)
+        self.assertEqual(verified.status, VerificationStatus.ACCEPTED)
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "completed")
         self.assertEqual(self.worker.incomplete_attempts(), [])
 
     def test_wrong_credential_capability_and_scope_are_rejected(self):
@@ -221,7 +325,7 @@ class WorkerAdapterTests(unittest.TestCase):
         with self.assertRaises(WorkerAuthorizationError):
             self.worker.claim_next(self.worker_id, "wrong-token")
         other_id = "worker-other-" + uuid4().hex
-        other_token = self.worker.register_worker(
+        other_token = self.register_as(
             other_id, ["deterministic.sha256.v1"], "grant:other")
         with self.assertRaises(WorkerAuthorizationError):
             self.worker.execute_sha256(self.assignment, other_id, other_token,
@@ -234,6 +338,28 @@ class WorkerAdapterTests(unittest.TestCase):
                                actor_id="event-processor")
         scoped_claim = self.worker.claim_next(other_id, other_token, lease_seconds=30)
         self.assertEqual(scoped_claim["assignment"]["id"], other_assignment)
+
+    def test_missing_registration_grant_and_revoked_execution_grant_fail_closed(self):
+        import secrets
+        from riverview_core.worker_adapter import WorkerAuthorizationError
+
+        with self.assertRaises(WorkerAuthorizationError):
+            self.worker.register_worker(
+                "worker-ungranted-" + uuid4().hex,
+                ["deterministic.sha256.v1"], self.scope,
+                credential=secrets.token_urlsafe(32))
+        digest = hashlib.sha256(self.token.encode("utf-8")).digest()
+        self.admin.execute("UPDATE principal_credentials SET revoked_at=clock_timestamp() "
+                           "WHERE credential_sha256=%s", (digest,))
+        with self.assertRaises(WorkerAuthorizationError):
+            self.worker.execute_sha256(
+                self.assignment, self.worker_id, self.token,
+                self.lease["generation"], "revoked-action:" + uuid4().hex, "must not run")
+        with self.worker.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("SELECT count(*) AS attempts FROM worker_attempts WHERE assignment_id=%s",
+                        (self.assignment,))
+            self.assertEqual(cur.fetchone()["attempts"], 0)
 
     def test_interrupted_attempt_is_durably_visible_for_worker_loss_detection(self):
         token = self.token
@@ -304,7 +430,7 @@ class WorkerAdapterTests(unittest.TestCase):
 
         assignment_id = self.ready_assignment(objective="objective:external-effect")
         worker_id = "worker-crash-" + uuid4().hex
-        credential = self.worker.register_worker(
+        credential = self.register_as(
             worker_id, ["deterministic.sha256.v1"], self.scope)
         ctx = multiprocessing.get_context("fork")
         parent, child = ctx.Pipe(duplex=False)
@@ -372,14 +498,14 @@ class WorkerAdapterTests(unittest.TestCase):
                                    (attempt_id,)).fetchone()[0]
         self.assertEqual(len(saved.strip()), 64)
         verifier_id = "verifier-recovery-" + uuid4().hex
-        verifier_token = self.worker.register_worker(
+        verifier_token = self.register_as(
             verifier_id, ["assignment.verify.v1"], self.scope)
         from riverview_core.worker_adapter import DeterministicSha256Verifier
         decision = self.worker.verify_attempt(
             self.assignment, attempt_id, verifier_id, verifier_token,
             DeterministicSha256Verifier(),
             idempotency_key="verify-after-recovery:" + uuid4().hex)
-        self.assertEqual(decision.status.value, "ACCEPTED")
+        self.assertEqual(decision.status.value, "ACCEPTED", dict(decision.criteria))
         self.assertEqual(self.ledger.get(self.assignment)["state"], "completed")
         recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema)
         try:
@@ -449,7 +575,7 @@ class WorkerAdapterTests(unittest.TestCase):
             scope = f"grant:parallel:{index}"
             assignment_id = self.ready_assignment(scope=scope)
             worker_id = f"worker-parallel-{uuid4().hex}"
-            credential = self.worker.register_worker(worker_id,
+            credential = self.register_as(worker_id,
                           ["deterministic.sha256.v1"], scope)
             adapter = PostgresWorkerAdapter(DSN, schema=self.schema)
             workers.append((adapter, ContinuousWorker(
@@ -523,7 +649,7 @@ class WorkerAdapterTests(unittest.TestCase):
                                "await-verification:" + uuid4().hex,
                                actor_id=f"worker:{self.worker_id}")
         verifier_id = "verifier-" + uuid4().hex
-        credential = self.worker.register_worker(
+        credential = self.register_as(
             verifier_id, ["assignment.verify.v1"], self.scope)
         from riverview_core.worker_adapter.verifier import DeterministicSha256Verifier
         return outcome, verifier_id, credential, DeterministicSha256Verifier()
@@ -576,6 +702,220 @@ class WorkerAdapterTests(unittest.TestCase):
         self.assertEqual(decision.status.value, "REJECTED")
         self.assertEqual(self.ledger.get(self.assignment)["state"], "rework_required")
 
+    def test_pinned_repository_provider_drives_worker_artifact_and_independent_verification(self):
+        import shutil
+        import subprocess
+        import tempfile
+        from riverview_core.worker_adapter import ContinuousWorker
+        from riverview_core.worker_adapter.repository_knowledge import RepositoryKnowledgeProvider
+        from riverview_core.worker_adapter.verifier import DeterministicSha256Verifier
+
+        source_root = Path(__file__).resolve().parents[1]
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        repository = Path(temporary.name) / "pinned-source"
+        repository.mkdir()
+        source_paths = RepositoryKnowledgeProvider.CONTRACTS[
+            RepositoryKnowledgeProvider.WORKER_CONTRACT]
+        for relative in source_paths:
+            destination = repository / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source_root / relative, destination)
+        subprocess.run(["git", "-C", str(repository), "init", "-q"], check=True)
+        subprocess.run(["git", "-C", str(repository), "config", "user.name", "Riverview test"], check=True)
+        subprocess.run(["git", "-C", str(repository), "config", "user.email", "test@example.invalid"], check=True)
+        subprocess.run(["git", "-C", str(repository), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(repository), "commit", "-qm", "pinned worker contract"], check=True)
+        commit = subprocess.run(["git", "-C", str(repository), "rev-parse", "HEAD"],
+                                check=True, capture_output=True, text=True).stdout.strip()
+        provider = RepositoryKnowledgeProvider(repository, commit)
+        contract_ref = RepositoryKnowledgeProvider.WORKER_CONTRACT
+        assignment_id = "repository-knowledge-" + uuid4().hex
+        self.ledger.create(assignment_id, "engineering", f"create-{assignment_id}",
+                           authority_ref=self.scope, objective_ref="objective:verify-worker-contract",
+                           actor_id="resident:test", contract_ref=contract_ref)
+        self.ledger.transition(assignment_id, "ready", "intake", f"ready-{assignment_id}",
+                               actor_id="event-processor")
+        executor_id = "worker-repository-" + uuid4().hex
+        executor_credential = self.register_as(
+            executor_id, ["deterministic.sha256.v1"], self.scope)
+
+        def create_artifact(assignment, grounding):
+            self.assertEqual(assignment["contract_ref"], contract_ref)
+            self.assertEqual(grounding.status.value, "VERIFIED")
+            self.assertTrue(grounding.retrieval_complete)
+            return grounding.value["documents"][0]["content"]
+
+        execution = ContinuousWorker(
+            self.worker, executor_id, executor_credential, knowledge=provider,
+            action=create_artifact, action_effect_class="retry_safe").run_once()
+        self.assertEqual(execution["status"], "AWAITING_VERIFICATION")
+        verifier_id = "verifier-repository-" + uuid4().hex
+        verifier_credential = self.register_as(
+            verifier_id, ["assignment.verify.v1"], self.scope)
+        decision = self.worker.verify_attempt(
+            assignment_id, execution["attempt_id"], verifier_id, verifier_credential,
+            DeterministicSha256Verifier(),
+            idempotency_key=f"repository-verification:{execution['attempt_id']}")
+        self.assertEqual(decision.status.value, "ACCEPTED", dict(decision.criteria))
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "completed")
+        self.assertNotEqual(executor_id, verifier_id)
+        with self.worker.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT operation,status,source_revision,retrieval_complete
+                           FROM knowledge_observations WHERE assignment_id=%s
+                           ORDER BY recorded_at,observation_id""", (assignment_id,))
+            observations = cur.fetchall()
+            cur.execute("SELECT result FROM worker_results WHERE attempt_id=%s",
+                        (execution["attempt_id"],))
+            artifact = cur.fetchone()["result"]
+        grounded = [row for row in observations
+                    if row["operation"] in {"ground_assignment", "preflight_action",
+                                             "reground_assignment"}]
+        self.assertEqual({row["operation"] for row in grounded},
+                         {"ground_assignment", "preflight_action", "reground_assignment"})
+        self.assertTrue(all(row["status"] == "VERIFIED" and
+                            row["source_revision"] == commit and
+                            row["retrieval_complete"] is True for row in grounded))
+        self.assertEqual(set(artifact), {"sha256", "utf8_bytes"})
+        self.assertEqual(len(artifact["sha256"]), 64)
+        self.assertGreater(artifact["utf8_bytes"], 0)
+
+    def test_worker_service_registration_is_idempotent_and_exact(self):
+        from riverview_core.worker_adapter.service import (
+            WorkerServiceConfigurationError, ensure_registered,
+        )
+
+        ensure_registered(self.worker, self.worker_id, self.token,
+                          ("deterministic.sha256.v1",), self.scope)
+        with self.assertRaises(WorkerServiceConfigurationError):
+            ensure_registered(self.worker, self.worker_id, self.token,
+                              ("assignment.verify.v1",), self.scope)
+        with self.assertRaises(WorkerServiceConfigurationError):
+            ensure_registered(self.worker, self.worker_id, self.token,
+                              ("deterministic.sha256.v1",), "work-order:other")
+        with self.worker.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("SELECT count(*) AS n FROM worker_registry WHERE worker_id=%s",
+                        (self.worker_id,))
+            self.assertEqual(cur.fetchone()["n"], 1)
+
+    def test_repository_test_assignment_persists_real_file_and_independent_reverification(self):
+        import hashlib
+        import json
+        import shutil
+        import subprocess
+        import tempfile
+        from riverview_core.worker_adapter import ContinuousWorker
+        from riverview_core.worker_adapter.engineering_artifact import (
+            CAPABILITY, OBJECTIVE_REF, RepositoryContractTestAction,
+        )
+        from riverview_core.worker_adapter.repository_knowledge import RepositoryKnowledgeProvider
+        from riverview_core.worker_adapter.verifier import RepositoryContractTestVerifier
+
+        source_root = Path(__file__).resolve().parents[1]
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        base = Path(temporary.name)
+        source_repo, package = base / "source-repo", base / "immutable-release"
+        source_repo.mkdir()
+        source_paths = RepositoryKnowledgeProvider.CONTRACTS[
+            RepositoryKnowledgeProvider.WORKER_CONTRACT]
+        test_path = "tests/test_repository_knowledge.py"
+        for relative in [*source_paths, test_path]:
+            destination = source_repo / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source_root / relative, destination)
+        subprocess.run(["git", "-C", str(source_repo), "init", "-q"], check=True)
+        subprocess.run(["git", "-C", str(source_repo), "config", "user.name", "Riverview test"], check=True)
+        subprocess.run(["git", "-C", str(source_repo), "config", "user.email", "test@example.invalid"], check=True)
+        subprocess.run(["git", "-C", str(source_repo), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(source_repo), "commit", "-qm", "pinned engineering test package"], check=True)
+        commit = subprocess.run(["git", "-C", str(source_repo), "rev-parse", "HEAD"],
+                                check=True, capture_output=True, text=True).stdout.strip()
+        package.mkdir()
+        for relative in [*source_paths, test_path]:
+            destination = package / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source_repo / relative, destination)
+        (package / "SOURCE_COMMIT").write_text(commit + "\n", encoding="ascii")
+        manifest_paths = [*source_paths, test_path, "SOURCE_COMMIT"]
+        rows = []
+        for relative in manifest_paths:
+            raw = (package / relative).read_bytes()
+            rows.append(f"{hashlib.sha256(raw).hexdigest()}  {relative}")
+        (package / "PACKAGE_SHA256SUMS").write_text("\n".join(rows) + "\n", encoding="ascii")
+        for path in sorted(package.rglob("*"), reverse=True):
+            path.chmod(0o555 if path.is_dir() else 0o444)
+        package.chmod(0o555)
+        def restore_fixture_permissions():
+            for item in package.rglob("*"):
+                item.chmod(0o755 if item.is_dir() else 0o644)
+            package.chmod(0o755)
+        self.addCleanup(restore_fixture_permissions)
+        artifacts = base / "artifacts"
+        artifacts.mkdir(mode=0o700)
+
+        provider = RepositoryKnowledgeProvider(package, commit)
+        assignment_id = "engineering-test-" + uuid4().hex
+        contract_ref = RepositoryKnowledgeProvider.WORKER_CONTRACT
+        self.ledger.create(assignment_id, "engineering", f"create-{assignment_id}",
+                           authority_ref=self.scope, objective_ref=OBJECTIVE_REF,
+                           actor_id="steward:test", contract_ref=contract_ref)
+        self.ledger.transition(assignment_id, "ready", "intake", f"ready-{assignment_id}",
+                               actor_id="event-processor")
+        executor_id = "worker-engineering-test-" + uuid4().hex
+        executor_credential = self.register_as(executor_id, [CAPABILITY], self.scope)
+        action_impl = RepositoryContractTestAction(package, artifacts, commit)
+        action_failures = []
+        def action(assignment, grounding):
+            try:
+                return action_impl(assignment, grounding)
+            except Exception as exc:
+                action_failures.append(type(exc).__name__ + ":" + str(exc))
+                raise
+        execution = ContinuousWorker(
+            self.worker, executor_id, executor_credential, knowledge=provider,
+            action=action, action_effect_class="retry_safe",
+            action_capability=CAPABILITY).run_once()
+        self.assertEqual(execution["status"], "AWAITING_VERIFICATION",
+                         {"action_failures": action_failures,
+                          "worker_failure_type": execution.get("failure_type"),
+                          "execution": execution})
+
+        result_row = self.admin.execute(
+            "SELECT result,result_sha256 FROM worker_results WHERE attempt_id=%s",
+            (execution["attempt_id"],)).fetchone()
+        artifact = result_row[0]
+        artifact_path = artifacts / artifact["artifact_name"]
+        self.assertTrue(artifact_path.is_file())
+        self.assertEqual(hashlib.sha256(artifact_path.read_bytes()).hexdigest(),
+                         artifact["artifact_sha256"])
+        report = json.loads(artifact_path.read_text(encoding="utf-8"))
+        self.assertEqual(report["status"], "PASS")
+        self.assertGreater(report["test_count"], 0)
+        self.assertIn("Ran ", report["output"])
+
+        verifier_id = "verifier-engineering-test-" + uuid4().hex
+        verifier_credential = self.register_as(
+            verifier_id, ["assignment.verify.v1"], self.scope)
+        verifier = RepositoryContractTestVerifier(artifacts, commit, package)
+        decision = self.worker.verify_attempt(
+            assignment_id, execution["attempt_id"], verifier_id, verifier_credential,
+            verifier, idempotency_key=f"engineering-test-verification:{execution['attempt_id']}")
+        self.assertEqual(decision.status.value, "ACCEPTED", dict(decision.criteria))
+        self.assertTrue(all(decision.criteria.values()))
+        self.assertNotEqual(executor_id, verifier_id)
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "completed")
+        self.assertTrue(decision.criteria["independent_test_rerun_matches_report"])
+        observations = self.admin.execute(
+            "SELECT operation,status,source_revision,retrieval_complete FROM knowledge_observations "
+            "WHERE assignment_id=%s ORDER BY recorded_at,observation_id", (assignment_id,)).fetchall()
+        self.assertEqual({row[0] for row in observations},
+                         {"ground_assignment", "preflight_action", "reground_assignment", "record_learning"})
+        self.assertTrue(all(row[1] == "VERIFIED" and row[2] == commit
+                            and row[3] is True for row in observations[:3]))
+
     def test_executor_identity_cannot_verify_its_own_attempt(self):
         from riverview_core.worker_adapter import WorkerAuthorizationError
         outcome = self.worker.execute_sha256(
@@ -589,6 +929,11 @@ class WorkerAdapterTests(unittest.TestCase):
                 self.ledger._set_search_path(cur)
                 cur.execute("UPDATE worker_registry SET capabilities=capabilities || '[\"assignment.verify.v1\"]'::jsonb WHERE worker_id=%s",
                             (self.worker_id,))
+        self.admin.execute("""INSERT INTO authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES (%s,%s,'assignment.verify',%s,'steward:test','rv.policy:self-verification-test.v1')""",
+            ("test:self-verify:" + self.worker_id,
+             "worker-principal:" + self.worker_id, self.scope))
         from riverview_core.worker_adapter.verifier import DeterministicSha256Verifier
         with self.assertRaisesRegex(WorkerAuthorizationError, "cannot verify its own"):
             self.worker.verify_attempt(

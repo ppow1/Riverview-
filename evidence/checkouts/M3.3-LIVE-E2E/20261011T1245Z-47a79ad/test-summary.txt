@@ -1,0 +1,4 @@
+Command: RIVERVIEW_TEST_PG_DSN='host=/tmp/rv-m33-provider-pg/socket port=55489 dbname=postgres user=admin1' PYTHONPATH=src python3 -m unittest discover -s tests -v
+Environment: isolated PostgreSQL 16.15 temporary cluster /tmp/rv-m33-provider-pg; test-only admin1 superuser role created in this disposable cluster after the initial wrong-role attempt; shared riverview DB untouched.
+Result: 184 tests, 184 passed, 0 skipped, 0 failures, 0 errors; 56.796 seconds. Full output: full-suite-recheck.log. Test-cluster residual rvtest schemas=0 and rvtest roles=0 after completion.
+Exact-head GitHub CI: run 38140334555 controlled-checkout SUCCESS on 47a79adafe1524b3e819148b70c02a1857f50dbf.

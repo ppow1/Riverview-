@@ -1,0 +1,12 @@
+{
+  "status": "PROVISIONED",
+  "source_commit": "fb536bb647d7d7a655a56155f687c74bec219945",
+  "office_id": "office:grace",
+  "principal_id": "resident:grace",
+  "occupant_id": "occupant:grace:initial",
+  "implementation_id": "implementation:grace:qwen3-0.6b-q8",
+  "provider_ref": "local.inference.v1",
+  "exact_grant": "office.state.write:office:office:grace",
+  "resident_token_emitted": false,
+  "model_sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031"
+}

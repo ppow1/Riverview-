@@ -1,0 +1,23 @@
+{
+  "limitation": "The executor is a single worker process. The outage/restart proves independent durable queue recovery and no lost work. Simultaneous execution by separate workers was not measured in this commissioning run.",
+  "queued_assignment_recovery": {
+    "assignments": [
+      "m33-live-pair-8275424de12b4d2caac43816366d9913",
+      "m33-live-pair-a948a782fe764e4e846fedd9ce3e1601"
+    ],
+    "executor_restarted_local": "2026-10-11T08:53:57-04:00",
+    "executor_stopped_local": "2026-10-11T08:48:35-04:00",
+    "outcome": "both were processed through normal scheduler after restart, each with one successful attempt and ACCEPTED independent verification; two attention_resolved notices persisted",
+    "while_stopped": "both remained persisted and ready; CME emitted two assignment_stalled events and dispatcher created corresponding attention notices"
+  },
+  "scope": "live Camrui M3.3 runtime on PostgreSQL riverview_dev",
+  "worker_process_kill": {
+    "assignment_id": "m33-live-55ad3ad368284d48925dfc27e1e5dbcf",
+    "method": "systemd recorded SIGKILL to idle executor PID 404582",
+    "post_recovery_state": "completed; one successful attempt; one accepted verification; no duplicate attempt",
+    "restart_pid": 405426,
+    "restart_time_local": "2026-10-11T08:45:04-04:00",
+    "systemd_restart_count_after_event": 1,
+    "time_local": "2026-10-11T08:44:59-04:00"
+  }
+}

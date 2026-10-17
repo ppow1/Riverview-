@@ -1,0 +1,11 @@
+test_complete_schema_object_is_accepted_at_length_boundary (tests.test_local_reasoning_provider.LocalReasoningProviderTests.test_complete_schema_object_is_accepted_at_length_boundary) ... ok
+test_endpoint_errors_are_sanitized (tests.test_local_reasoning_provider.LocalReasoningProviderTests.test_endpoint_errors_are_sanitized) ... ok
+test_model_revision_mismatch_fails_before_network_call (tests.test_local_reasoning_provider.LocalReasoningProviderTests.test_model_revision_mismatch_fails_before_network_call) ... ok
+test_non_loopback_endpoint_is_rejected (tests.test_local_reasoning_provider.LocalReasoningProviderTests.test_non_loopback_endpoint_is_rejected) ... ok
+test_verified_context_produces_typed_unapproved_proposal (tests.test_local_reasoning_provider.LocalReasoningProviderTests.test_verified_context_produces_typed_unapproved_proposal) ... ok
+test_wrong_model_incomplete_response_or_usage_cannot_become_proposal (tests.test_local_reasoning_provider.LocalReasoningProviderTests.test_wrong_model_incomplete_response_or_usage_cannot_become_proposal) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.012s
+
+OK

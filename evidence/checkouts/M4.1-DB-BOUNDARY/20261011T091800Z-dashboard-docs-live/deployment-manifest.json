@@ -1,0 +1,12 @@
+{
+  "release_id": "m3.1-camrui-docs-d2c145c",
+  "dashboard_code_source_commit": "8556598b19a7da4aa191a600c767d79d24432afe",
+  "documentation_and_process_graph_source_commit": "d2c145cb9c7fbfb983ea842199e204d03bfdf731",
+  "previous_immutable_release": "8556598b19a7da4aa191a600c767d79d24432afe",
+  "preserved_additional_active_documents": [
+    "REPOSITORY_KNOWLEDGE_COOKBOOK.md",
+    "REPOSITORY_KNOWLEDGE_FLOW.md",
+    "REPOSITORY_KNOWLEDGE_PROVIDER.md"
+  ],
+  "change_scope": "documentation and synchronized process graphs only; dashboard executable, static assets, systemd security controls and database state preserved"
+}

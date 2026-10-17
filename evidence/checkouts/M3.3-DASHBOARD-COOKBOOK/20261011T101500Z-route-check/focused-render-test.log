@@ -1,0 +1,6 @@
+test_assignment_intake_cookbook_renders_without_broken_evidence_link (tests.test_status_dashboard.DashboardHTTPTests.test_assignment_intake_cookbook_renders_without_broken_evidence_link) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.513s
+
+OK

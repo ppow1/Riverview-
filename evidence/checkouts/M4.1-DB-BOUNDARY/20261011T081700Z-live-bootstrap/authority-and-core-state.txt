@@ -1,0 +1,7 @@
+core_migrations=9
+core_assignments=4
+core_events=11
+active_stewards=1
+runtime_usage=false
+manager_owner_membership=false
+manager_probe=false

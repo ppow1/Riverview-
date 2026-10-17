@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:worker-adapter:deterministic-attempt",
-  "graph_revision": "1.0.6",
+  "graph_revision": "1.0.11",
   "component_id": "WORKER-ADAPTER",
   "workflow_id": "deterministic-attempt.v1",
   "diagram_order": 7,
@@ -10,11 +10,23 @@
     "src/riverview_core/worker_adapter/continuous.py",
     "src/riverview_core/worker_adapter/knowledge.py",
     "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
+    "src/riverview_core/worker_adapter/local_inference.py",
     "src/riverview_core/worker_adapter/migrations/0001_worker_attempts.sql",
     "src/riverview_core/worker_adapter/migrations/0002_knowledge_observations.sql",
     "src/riverview_core/worker_adapter/migrations/0004_failure_recovery.sql",
     "src/riverview_core/worker_adapter/recovery.py",
-    "tests/test_worker_adapter.py"
+    "tests/test_local_inference.py",
+    "tests/test_worker_adapter.py",
+    "scripts/verify_local_inference.py",
+    "src/riverview_core/worker_adapter/repository_knowledge.py",
+    "src/riverview_core/worker_adapter/service.py",
+    "scripts/run_worker_service.py",
+    "scripts/run_verifier_service.py",
+    "deploy/systemd/riverview-m33-worker.service",
+    "deploy/systemd/riverview-m33-verifier.service",
+    "tests/test_worker_service.py",
+    "src/riverview_core/worker_adapter/engineering_artifact.py",
+    "src/riverview_core/worker_adapter/verifier.py"
   ],
   "documentation_references": [
     "docs/components/WORKER_ADAPTER.md",
@@ -22,11 +34,17 @@
     "docs/components/WORKER_ADAPTER_FLOW.md",
     "docs/development/M2.1-001_REVISION_RECORD.md",
     "docs/development/M2.3-001_REVISION_RECORD.md",
+    "docs/development/M4.3-001_REVISION_RECORD.md",
     "src/riverview_core/worker_adapter/knowledge_provider_v1/README.md"
   ],
   "verification_evidence": [
     "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json",
-    "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json"
+    "evidence/checkouts/WORKER-ADAPTER/20261010T1917Z-7ae8252/recovery_acceptance.json",
+    "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/acceptance.json",
+    "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log",
+    "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094446Z-cpu-e2e/acceptance.json",
+    "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094446Z-cpu-e2e/failure_review.json",
+    "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/acceptance.json"
   ],
   "nodes": [
     {
@@ -331,10 +349,12 @@
       "id": "rv:worker-adapter:deterministic-attempt:action",
       "node_revision": "1.0.1",
       "type": "process",
-      "label": "Invoke action only after durable effect-classified intent",
+      "label": "Invoke the assigned, preflighted execution capability",
       "source_references": [
         "src/riverview_core/worker_adapter/continuous.py",
-        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py"
+        "src/riverview_core/worker_adapter/engineering_artifact.py",
+        "src/riverview_core/worker_adapter/knowledge_provider_v1/contract.py",
+        "src/riverview_core/worker_adapter/local_inference.py"
       ],
       "documentation_references": [
         "docs/components/WORKER_ADAPTER.md",
@@ -535,6 +555,75 @@
       ],
       "verification_evidence": [],
       "jump_target_id": "rv:outcome-verifier:independent-result:verification-intake"
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:local-endpoint-check",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Require literal loopback endpoint and bounded complete response",
+      "source_references": [
+        "src/riverview_core/worker_adapter/local_inference.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/acceptance.json",
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log",
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/acceptance.json"
+      ]
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:local-inference-call",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Run registered local inference capability on grounded input",
+      "source_references": [
+        "src/riverview_core/worker_adapter/local_inference.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/acceptance.json",
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log",
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/acceptance.json"
+      ]
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:local-inference-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject unavailable, oversized, malformed, or truncated inference output",
+      "source_references": [
+        "src/riverview_core/worker_adapter/local_inference.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094446Z-cpu-e2e/acceptance.json",
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094446Z-cpu-e2e/failure_review.json",
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log"
+      ]
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:structured-artifact",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Persist bounded JSON output and canonical digest under current lease",
+      "source_references": [
+        "src/riverview_core/worker_adapter/adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/acceptance.json",
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T094654Z-cpu-e2e/full-suite.log",
+        "evidence/checkouts/M4.3-LOCAL-INFERENCE/20261011T095229Z-committed-source-e2e/acceptance.json"
+      ]
     }
   ],
   "edges": [
@@ -794,6 +883,41 @@
       "to": "rv:worker-adapter:deterministic-attempt:learning",
       "type": "runtime_transition",
       "label": "durable result"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:action",
+      "to": "rv:worker-adapter:deterministic-attempt:local-inference-call",
+      "type": "runtime_transition",
+      "label": "capability is local.inference.v1"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:local-inference-call",
+      "to": "rv:worker-adapter:deterministic-attempt:local-endpoint-check",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:local-endpoint-check",
+      "to": "rv:worker-adapter:deterministic-attempt:local-inference-failure",
+      "type": "diagnostic_branch",
+      "label": "endpoint or response validation fails"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:local-inference-failure",
+      "to": "rv:worker-adapter:deterministic-attempt:action-failure",
+      "type": "recovery_route",
+      "label": "fail this assignment; retry-safe recovery only"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:local-endpoint-check",
+      "to": "rv:worker-adapter:deterministic-attempt:structured-artifact",
+      "type": "runtime_transition",
+      "label": "complete bounded response"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:structured-artifact",
+      "to": "rv:worker-adapter:deterministic-attempt:complete-check",
+      "type": "runtime_transition",
+      "label": "exact grant and current lease rechecked"
     }
   ]
 }

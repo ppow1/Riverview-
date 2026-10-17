@@ -1,0 +1,36 @@
+{
+  "evidence_id": "RV-M3.3-PREFLIGHT-20261011",
+  "status": "PASS read-only host/service/database checks; live M3.3 execution NOT VERIFIED",
+  "source_commit": "493879a9f98cbb94a33d67bed5319702ea5d3084",
+  "environment": "Local execution host reports Ubuntu 24.04, admin1; static hostname observed exactly as admin1-Default-string. Repository worktree is on codex/m4.2-resident-reasoning.",
+  "observed": {
+    "postgresql_16_main": "active",
+    "event_processor": "active, running, NRestarts=0",
+    "cme_monitor": "active, running, NRestarts=1",
+    "status_dashboard": "active, running, NRestarts=0",
+    "ssh": "active",
+    "dashboard_loopback_http": "200",
+    "riverview_dev": {
+      "migration_rows": 9,
+      "assignments": 4,
+      "events": 11
+    }
+  },
+  "github_ci": {
+    "run_id": 38130568744,
+    "head_sha": "493879a9f98cbb94a33d67bed5319702ea5d3084",
+    "status": "success",
+    "tests": "160 passed, zero failures/errors/skips; graph and revision checks passed",
+    "url": "https://github.com/ppow1/Riverview-/actions/runs/38130568744"
+  },
+  "limitations": [
+    "Read-only checks only; no current live assignment or worker was created.",
+    "Static hostname is not the historical label Camrui; no attempt was made to rename the host.",
+    "These observations do not commission the worker or knowledge provider."
+  ],
+  "artifacts": [
+    "20261011T101800Z-runtime-state/host-readonly.txt",
+    "20261011T101800Z-runtime-state/commands.txt",
+    "20261011T101800Z-runtime-state/github-ci.json"
+  ]
+}

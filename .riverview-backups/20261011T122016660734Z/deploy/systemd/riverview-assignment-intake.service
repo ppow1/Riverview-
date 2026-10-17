@@ -1,0 +1,43 @@
+# Riverview~ controlled unit
+# File Revision: 1.0.0
+# Task: RV-M3.3-GOVERNED-INTAKE-ROUTE
+# Purpose: Loopback-only assignment creation through exact Steward grants
+[Unit]
+Description=Riverview governed assignment intake API
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=riverview
+Group=riverview
+WorkingDirectory=/opt/riverview-m33/current
+Environment=PYTHONPATH=/opt/riverview-m33/current/src:/opt/riverview-m33/current/scripts
+Environment="RIVERVIEW_PG_DSN=host=127.0.0.1 port=5432 dbname=riverview user=riverview_core application_name=riverview-assignment-intake"
+Environment=RIVERVIEW_PG_SCHEMA=riverview_dev
+Environment=RIVERVIEW_AUTHORITY_SCHEMA=riverview_authority
+Environment=RIVERVIEW_INTAKE_HOST=127.0.0.1
+Environment=RIVERVIEW_INTAKE_PORT=8768
+LoadCredential=pgpass:/etc/riverview/pgpass
+RuntimeDirectory=riverview-assignment-intake
+RuntimeDirectoryMode=0750
+ExecStart=/opt/riverview-core/current/.venv/bin/python /opt/riverview-m33/current/scripts/run_assignment_intake.py
+Restart=on-failure
+RestartSec=3s
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_INET AF_UNIX
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

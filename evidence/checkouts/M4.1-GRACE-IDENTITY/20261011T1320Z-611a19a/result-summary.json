@@ -1,0 +1,31 @@
+{
+  "branch": "codex/m4.2-resident-reasoning",
+  "compilation": "pass",
+  "environment": {
+    "cluster": "disposable private Unix-socket cluster",
+    "live_services_modified": false,
+    "postgresql": "16.15",
+    "shared_database_modified": false
+  },
+  "live_identity_bootstrap": "not run; no identity or credential write made",
+  "postgres_cleanup": {
+    "query": "no schemas matching rvtest_%",
+    "remaining": []
+  },
+  "process_graph": {
+    "graphs": 16,
+    "nodes": 311,
+    "status": "PASS"
+  },
+  "record_schema": "rv.m41-grace-identity-engineering-evidence.v1",
+  "revision_audit": {
+    "issues": [],
+    "passed": true
+  },
+  "source_commit": "611a19aa0474939fbe7eb81ad218a5e2d377f5d1",
+  "status": "ISOLATED_ENGINEERING_PASS_LIVE_IDENTITY_NOT_PROVISIONED",
+  "tests": {
+    "command": "RIVERVIEW_TEST_PG_DSN=host=/tmp/rv-m33-provider-pg/socket port=55489 dbname=postgres user=admin1 PYTHONPATH=src python3 -m unittest discover -s tests -v",
+    "result": "190 tests passed, 0 failures, 0 errors, 0 skips"
+  }
+}

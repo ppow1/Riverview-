@@ -1,0 +1,7 @@
+{
+  "fixture_failure": "SQL_ASCII test cluster caused Psycopg text state values to be returned as bytes in the existing ledger integration; this was test infrastructure configuration, not an adapter defect.",
+  "cause": "Private initdb invocation used --no-locale without explicitly selecting UTF-8.",
+  "correction": "Stopped and discarded only the disposable SQL_ASCII cluster; recreated a private socket-only PostgreSQL 16.15 cluster with UTF-8 encoding at /tmp/rv-m43-pg-20261011T092845Z-utf8.",
+  "verification": "Focused PostgreSQL-backed worker integration passed on the UTF-8 cluster; all suite fixtures later cleaned with zero rvtest schemas and roles.",
+  "shared_state_modified": false
+}

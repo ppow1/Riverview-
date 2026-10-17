@@ -1,0 +1,1 @@
+{"principal_id": "steward:camrui", "status": "ALREADY_BOOTSTRAPPED", "token_file": "/etc/riverview/authority/steward.token", "token_file_mode": "0600"}

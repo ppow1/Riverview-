@@ -1,26 +1,40 @@
 {
   "graph_id": "rv:institutional-authority:identity-and-grants",
-  "graph_revision": "1.0.5",
+  "graph_revision": "1.0.13",
   "component_id": "INSTITUTIONAL-AUTHORITY",
   "workflow_id": "identity-and-grants.v1",
   "diagram_order": 1,
   "source_references": [
-    "src/riverview_core/institutional_authority/registry.py",
+    "scripts/bootstrap_authority_steward.py",
+    "scripts/provision_authority_boundary.py",
+    "scripts/provision_grace_resident.py",
+    "src/riverview_core/institutional_authority/db_boundary.py",
+    "src/riverview_core/institutional_authority/grants.py",
     "src/riverview_core/institutional_authority/migrations/0000_authority_migration_ledger.sql",
     "src/riverview_core/institutional_authority/migrations/0001_institutional_authority.sql",
+    "src/riverview_core/institutional_authority/migrations/0002_exact_grant_authorization.sql",
+    "src/riverview_core/institutional_authority/migrations/0005_audited_model_rebinding.sql",
+    "src/riverview_core/institutional_authority/migrations/0006_authorized_implementation_successor.sql",
+    "src/riverview_core/institutional_authority/registry.py",
+    "src/riverview_core/worker_adapter/adapter.py",
+    "tests/test_grace_provisioning.py",
     "tests/test_institutional_authority.py",
-    "src/riverview_core/institutional_authority/db_boundary.py",
-    "scripts/provision_authority_boundary.py",
-    "tests/test_institutional_authority_boundary.py"
+    "tests/test_institutional_authority_boundary.py",
+    "tests/test_worker_adapter.py",
+    "src/riverview_core/institutional_authority/migrations/0007_audited_office_role_update.sql"
   ],
   "documentation_references": [
     "docs/components/INSTITUTIONAL_AUTHORITY.md",
     "docs/components/INSTITUTIONAL_AUTHORITY_FLOW.md",
     "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
     "docs/development/M4.1-001_REVISION_RECORD.md",
-    "process_graphs/README.md"
+    "process_graphs/README.md",
+    "docs/components/WORKER_ADAPTER.md"
   ],
-  "verification_evidence": [],
+  "verification_evidence": [
+    "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/identity-verification.json",
+    "tests/test_institutional_authority.py"
+  ],
   "nodes": [
     {
       "id": "rv:institutional-authority:identity-and-grants:bootstrap",
@@ -278,6 +292,423 @@
         "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
       ],
       "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Create or reuse and fsync the root-only bearer file before DB commit",
+      "source_references": [
+        "scripts/bootstrap_authority_steward.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:bootstrap-record-commit",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Persist the initial Steward digest, exact grants and audit event transactionally",
+      "source_references": [
+        "src/riverview_core/institutional_authority/registry.py",
+        "scripts/bootstrap_authority_steward.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:bootstrap-token-verify",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Verify persisted bearer authorizes exact bootstrap grant and only its digest is stored",
+      "source_references": [
+        "scripts/bootstrap_authority_steward.py",
+        "tests/test_institutional_authority.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:bootstrap-error",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Bootstrap outcome unavailable or secret persistence failed; retain protected token and fail closed",
+      "source_references": [
+        "scripts/bootstrap_authority_steward.py",
+        "src/riverview_core/institutional_authority/registry.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:bootstrap-retry",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Resume with the same protected token after interruption",
+      "source_references": [
+        "scripts/bootstrap_authority_steward.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:runtime-worker-registration",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Worker registration or a scoped worker action begins with a grant-bound credential",
+      "source_references": [
+        "src/riverview_core/worker_adapter/adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Protected exact-grant function validates active credential, action, and exact scope",
+      "source_references": [
+        "src/riverview_core/institutional_authority/grants.py",
+        "src/riverview_core/institutional_authority/migrations/0002_exact_grant_authorization.sql"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:runtime-grant-allowed",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Exact active grant allows this transaction-bound worker operation",
+      "source_references": [
+        "src/riverview_core/worker_adapter/adapter.py",
+        "tests/test_worker_adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:runtime-grant-denied",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Missing, revoked, expired, wrong-action, or wrong-scope credential is denied",
+      "source_references": [
+        "src/riverview_core/institutional_authority/grants.py",
+        "tests/test_worker_adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:runtime-grant-unavailable",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Protected grant function or PostgreSQL is unavailable; worker action fails closed",
+      "source_references": [
+        "src/riverview_core/institutional_authority/grants.py",
+        "src/riverview_core/worker_adapter/adapter.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:grace-provision-request",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Root-local request to bind the fixed Grace resident identity",
+      "source_references": [
+        "scripts/provision_grace_resident.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/development/M4.1-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:grace-provision-preflight",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Validate root credentials, local model and fixed authority schema preconditions",
+      "source_references": [
+        "scripts/provision_grace_resident.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/development/M4.1-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/identity-verification.json"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:grace-provision-registry",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Idempotently create the Grace office, resident, occupant, model binding and exact office-state grant",
+      "source_references": [
+        "scripts/provision_grace_resident.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/development/M4.1-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/identity-verification.json"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:grace-provision-verify",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Independently confirm the bound identity and exact office-state grant",
+      "source_references": [
+        "scripts/provision_grace_resident.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/development/M4.1-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/identity-verification.json"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:grace-provision-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Fail closed on unavailable credentials, conflicting identity, or unsafe protected path",
+      "source_references": [
+        "scripts/provision_grace_resident.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/development/M4.1-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:grace-provision-recovery",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Revoke orphan resident bearer records and retry safely after interrupted credential delivery",
+      "source_references": [
+        "scripts/provision_grace_resident.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/development/M4.1-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1320Z-611a19a/full-suite.log"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:grace-identity-bound",
+      "node_revision": "1.0.0",
+      "type": "exit",
+      "label": "Identity-only bootstrap verified; resident runtime and Grace objective execution remain separate work",
+      "source_references": [
+        "scripts/provision_grace_resident.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/development/M4.1-001_REVISION_RECORD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M4.1-GRACE-IDENTITY/20261011T1330Z-fb536bb/identity-verification.json"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:model-rebind-request",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Steward requests an implementation-only rebind with current binding revision",
+      "source_references": [
+        "src/riverview_core/institutional_authority/registry.py",
+        "src/riverview_core/institutional_authority/migrations/0005_audited_model_rebinding.sql"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_institutional_authority.py"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:model-rebind-authority",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Require exact office.manage institutional authority",
+      "source_references": [
+        "src/riverview_core/institutional_authority/registry.py",
+        "src/riverview_core/institutional_authority/migrations/0005_audited_model_rebinding.sql"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_institutional_authority.py"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:model-rebind-cas",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Does current binding revision equal the expected revision?",
+      "source_references": [
+        "src/riverview_core/institutional_authority/registry.py",
+        "src/riverview_core/institutional_authority/migrations/0005_audited_model_rebinding.sql"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_institutional_authority.py"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:model-rebind-update",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Update only implementation through the office.manage CAS; optionally record exact 80B deferred-continuity capability in the immutable audit event",
+      "source_references": [
+        "src/riverview_core/institutional_authority/migrations/0005_audited_model_rebinding.sql",
+        "src/riverview_core/institutional_authority/migrations/0006_authorized_implementation_successor.sql",
+        "src/riverview_core/institutional_authority/registry.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_institutional_authority.py"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:model-rebind-stale",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject stale expected revision without mutating the office binding",
+      "source_references": [
+        "src/riverview_core/institutional_authority/registry.py",
+        "src/riverview_core/institutional_authority/migrations/0005_audited_model_rebinding.sql"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_institutional_authority.py"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:model-rebind-rollback",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Restore predecessor implementation through the same CAS API and current revision",
+      "source_references": [
+        "src/riverview_core/institutional_authority/registry.py",
+        "src/riverview_core/institutional_authority/migrations/0005_audited_model_rebinding.sql"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_institutional_authority.py"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:model-rebind-verify",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Verify occupant identity, implementation, incremented revision and audit evidence",
+      "source_references": [
+        "src/riverview_core/institutional_authority/registry.py",
+        "src/riverview_core/institutional_authority/migrations/0005_audited_model_rebinding.sql"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_institutional_authority.py"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:office-role-update",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Steward compare-and-swap updates stable office title and appends an audit event without changing occupant, binding, or grants",
+      "source_references": [
+        "src/riverview_core/institutional_authority/registry.py",
+        "src/riverview_core/institutional_authority/migrations/0007_audited_office_role_update.sql"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_institutional_authority.py"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:office-role-update-conflict",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject stale expected office role, non-Steward actor, or unavailable registry; leave office and binding unchanged",
+      "source_references": [
+        "src/riverview_core/institutional_authority/registry.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_institutional_authority.py"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:identity-and-grants:office-role-update-retry",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Re-read current office title and retry only after Steward confirms the intended correction",
+      "source_references": [
+        "src/riverview_core/institutional_authority/registry.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_institutional_authority.py"
+      ]
     }
   ],
   "edges": [
@@ -398,6 +829,214 @@
       "to": "rv:institutional-authority:identity-and-grants:boundary-preflight-failure",
       "type": "diagnostic_branch",
       "label": "Runtime/manager role or schema-owner relationship is unsafe"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:bootstrap",
+      "to": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+      "type": "runtime_transition",
+      "label": "Root-only commissioning helper"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:migration-ready",
+      "to": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+      "type": "prerequisite",
+      "label": "Dedicated migration and privilege boundary verified"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+      "to": "rv:institutional-authority:identity-and-grants:bootstrap-record-commit",
+      "type": "runtime_transition",
+      "label": "File fsync precedes transaction"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+      "to": "rv:institutional-authority:identity-and-grants:bootstrap-error",
+      "type": "diagnostic_branch",
+      "label": "Unsafe path or persistence failure"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:bootstrap-record-commit",
+      "to": "rv:institutional-authority:identity-and-grants:bootstrap-token-verify",
+      "type": "verification",
+      "label": "Database commit succeeds"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:bootstrap-record-commit",
+      "to": "rv:institutional-authority:identity-and-grants:bootstrap-error",
+      "type": "diagnostic_branch",
+      "label": "Transaction unavailable or ambiguous"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:bootstrap-error",
+      "to": "rv:institutional-authority:identity-and-grants:bootstrap-retry",
+      "type": "recovery_route",
+      "label": "Preserve token file; investigate DB result"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:bootstrap-retry",
+      "to": "rv:institutional-authority:identity-and-grants:bootstrap-token-persist",
+      "type": "runtime_transition",
+      "label": "Reuse existing token; never rotate on uncertain commit"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:bootstrap-token-verify",
+      "to": "rv:institutional-authority:identity-and-grants:complete",
+      "type": "runtime_transition",
+      "label": "Initial authority verified"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:runtime-worker-registration",
+      "to": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+      "type": "runtime_transition",
+      "label": "Check worker.register or the capability-mapped action and exact scope"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+      "to": "rv:institutional-authority:identity-and-grants:runtime-grant-allowed",
+      "type": "runtime_transition",
+      "label": "Active credential and exact grant match"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+      "to": "rv:institutional-authority:identity-and-grants:runtime-grant-denied",
+      "type": "diagnostic_branch",
+      "label": "No exact active grant"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+      "to": "rv:institutional-authority:identity-and-grants:runtime-grant-unavailable",
+      "type": "diagnostic_branch",
+      "label": "Function or database unavailable"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:runtime-grant-allowed",
+      "to": "rv:institutional-authority:identity-and-grants:authorized-action",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:runtime-grant-denied",
+      "to": "rv:institutional-authority:identity-and-grants:deny",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:runtime-grant-unavailable",
+      "to": "rv:institutional-authority:identity-and-grants:unavailable",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:recover",
+      "to": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+      "type": "recovery_route",
+      "label": "Revalidate the exact grant in the resumed operation"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:grace-provision-request",
+      "to": "rv:institutional-authority:identity-and-grants:grace-provision-preflight",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:grace-provision-preflight",
+      "to": "rv:institutional-authority:identity-and-grants:grace-provision-registry",
+      "type": "runtime_transition",
+      "label": "All root-owned inputs and exact schema preconditions pass"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:grace-provision-preflight",
+      "to": "rv:institutional-authority:identity-and-grants:grace-provision-failure",
+      "type": "diagnostic_branch",
+      "label": "Credential, model, database or path precondition fails"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:grace-provision-registry",
+      "to": "rv:institutional-authority:identity-and-grants:grace-provision-verify",
+      "type": "verification"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:grace-provision-registry",
+      "to": "rv:institutional-authority:identity-and-grants:grace-provision-failure",
+      "type": "diagnostic_branch",
+      "label": "Registry mutation conflicts or becomes unavailable"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:grace-provision-failure",
+      "to": "rv:institutional-authority:identity-and-grants:grace-provision-recovery",
+      "type": "recovery_route",
+      "label": "Reconcile durable registry state and protected credential file"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:grace-provision-recovery",
+      "to": "rv:institutional-authority:identity-and-grants:grace-provision-registry",
+      "type": "runtime_transition",
+      "label": "Retry fixed identities idempotently; orphan bearer is revoked before replacement"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:grace-provision-verify",
+      "to": "rv:institutional-authority:identity-and-grants:grace-identity-bound",
+      "type": "runtime_transition",
+      "label": "One exact office.state.write grant and matching binding verified"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:model-rebind-request",
+      "to": "rv:institutional-authority:identity-and-grants:model-rebind-authority",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:model-rebind-authority",
+      "to": "rv:institutional-authority:identity-and-grants:model-rebind-cas",
+      "type": "runtime_transition",
+      "label": "Exact office.manage grant verified"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:model-rebind-cas",
+      "to": "rv:institutional-authority:identity-and-grants:model-rebind-update",
+      "type": "runtime_transition",
+      "label": "Expected revision matches"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:model-rebind-cas",
+      "to": "rv:institutional-authority:identity-and-grants:model-rebind-stale",
+      "type": "diagnostic_branch",
+      "label": "Expected revision is stale"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:model-rebind-update",
+      "to": "rv:institutional-authority:identity-and-grants:model-rebind-verify",
+      "type": "verification"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:model-rebind-verify",
+      "to": "rv:institutional-authority:identity-and-grants:model-rebind-rollback",
+      "type": "recovery_route",
+      "label": "Rollback requested; use predecessor implementation and current revision"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:authorize",
+      "to": "rv:institutional-authority:identity-and-grants:office-role-update",
+      "type": "runtime_transition",
+      "label": "Steward exact office.manage grant and expected title supplied"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:office-role-update",
+      "to": "rv:institutional-authority:identity-and-grants:complete",
+      "type": "verification",
+      "label": "Role event persisted; occupant, implementation and grants remain unchanged"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:office-role-update",
+      "to": "rv:institutional-authority:identity-and-grants:office-role-update-conflict",
+      "type": "diagnostic_branch",
+      "label": "Stale title expectation, non-Steward actor or registry failure"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:office-role-update-conflict",
+      "to": "rv:institutional-authority:identity-and-grants:office-role-update-retry",
+      "type": "recovery_route"
+    },
+    {
+      "from": "rv:institutional-authority:identity-and-grants:office-role-update-retry",
+      "to": "rv:institutional-authority:identity-and-grants:authorize",
+      "type": "runtime_transition",
+      "label": "Refresh authoritative title and revalidate Steward authority"
     }
   ]
 }

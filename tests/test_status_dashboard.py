@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.17
+# Revision: 1.0.26
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
@@ -10,14 +10,20 @@
 # Authority: Creates/drops only unique rvtest_* schemas; never accesses shared Riverview data
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Verify safe component links remain functional in the consolidated guide
 # Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ROUTE | Exercise updated authority diagnostics through the dashboard documentation route
+# Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Enforce browser-managed persistent grant cookie and denial retry suppression UI contract
 # Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ASSERTION | Match cookbook's documented DROP CASCADE warning text
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-SCHEDULER-DIAGNOSTICS | Assert expanded scheduler recovery docs render through dashboard route
+# Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-EXACT-DOCS-REVISION | Match the exact docs/graph source revision in the deployment contract
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Assert worker recovery diagnostics render through dashboard route
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-PG-SECRET-SAFETY | Assert PostgreSQL cookbook has no password-bearing command examples
+# Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING | Verify workflow-session transport, exact Steward work-order gate and corrected cookie text assertion
 # Changed: 2026-10-11 UTC | RV-M1.4-LIVE-DEPENDENCY-CORRECTION | Assert scheduler docs distinguish shared migration from commissioning
+# Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Assert complete conversational controls, accessibility hooks, and disabled future actions
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-DASHBOARD-REPOSITORY-LINK | Preserve installed knowledge-cookbook navigation in source shell
 # Changed: 2026-10-11 UTC | RV-M4.1-DB-RESTORE-COOKBOOK | Verify observed backup path incident renders safely through docs route
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-PACKAGE-ROUTE-INTEGRITY | Require every dashboard shell documentation link to resolve
+# Changed: 2026-10-11 UTC | RV-M3.3-ASSIGNMENT-INTAKE-COOKBOOK-RENDER | Verify current authority recovery section renders safely with no broken evidence link
+# Changed: 2026-10-11 UTC | RV-M3.3-DASHBOARD-COOKBOOK-ASSERTION-CORRECTION | Match expected HTML code-tag rendering rather than Markdown source
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -49,6 +55,10 @@ ROOT = Path(__file__).resolve().parents[1]
 class _FakeProjection:
     def __init__(self):
         self.last_limit = None
+        self.execution_position = {"status": "unknown", "reason": "No recorded node."}
+
+    def graph_execution_position(self, graph_id):
+        return self.execution_position
 
     def status(self):
         return {"schema_version":"rv.dashboard.status.v1", "component_id":"STEWARD-DASHBOARD",
@@ -79,11 +89,53 @@ class _FakeProjection:
 
 
 class DashboardDeploymentContractTests(unittest.TestCase):
+    def test_workflow_registry_client_supports_account_cookie_sessions(self):
+        static = Path(__file__).resolve().parents[1] / "src/riverview_core/status_dashboard/static"
+        js = (static / "workflow.js").read_text(encoding="utf-8")
+        self.assertIn('credentials:"same-origin"', js)
+        self.assertIn('if (token()) headers.Authorization', js)
+        self.assertNotIn('if(!token()) return;', js)
+        app = (static / "app.js").read_text(encoding="utf-8")
+        html = (static / "index.html").read_text(encoding="utf-8")
+        self.assertIn('data-message-work-order', app)
+        self.assertIn('/work-orders', app)
+        self.assertIn('id="work-order-criteria"', html)
+        self.assertIn('objective.submit on work-order:engineering', app)
+
+    def test_grace_conversation_workspace_controls_and_complete_rendering_contract(self):
+        static = Path(__file__).resolve().parents[1] / "src/riverview_core/status_dashboard/static"
+        html = (static / "index.html").read_text(encoding="utf-8")
+        js = (static / "app.js").read_text(encoding="utf-8")
+        css = (static / "app.css").read_text(encoding="utf-8")
+        self.assertIn('id="chat-history" class="conversation-timeline"', html)
+        self.assertIn('id="chat-message" rows="2"', html)
+        self.assertIn('id="chat-auth-form"', html)
+        self.assertIn('autocomplete="current-password"', html)
+        self.assertIn("HttpOnly same-origin cookie", html)
+        self.assertIn('id="chat-disconnect"', html)
+        self.assertIn("Shift+Enter adds a line", html)
+        self.assertLess(html.index('class="chat-more"'), html.index('id="chat-send"'))
+        self.assertIn('data-chat-option="details"', html)
+        self.assertIn("Image generation — coming later", html)
+        self.assertIn("disabled", html[html.index("Image generation — coming later")-80:html.index("Image generation — coming later")])
+        self.assertIn("white-space:pre-wrap", css)
+        self.assertIn("overflow-wrap:anywhere", css)
+        self.assertIn("<div class=\"message-content\">${esc(body)}</div>", js)
+        self.assertNotIn("textContent.slice", js[js.index("function renderConversation"):js.index("async function loadGraceConversation")])
+        self.assertIn("chat-details-dialog", html)
+        self.assertIn("message-details-dialog", html)
+        self.assertIn('credentials: "same-origin"', js)
+        self.assertIn("state.chatAuthRejected || state.chatLoading", js)
+        self.assertIn('resident_conversation_not_authorized', js)
+        self.assertIn('rv_grace_authority', (ROOT / "src/riverview_core/status_dashboard/server.py").read_text())
+
     def test_unit_uses_private_runtime_pgpass_delivery(self):
         unit = (ROOT / "deploy/riverview-status-dashboard.service").read_text()
         launcher = (ROOT / "scripts/run_status_dashboard.py").read_text()
         self.assertIn("RuntimeDirectory=riverview-status-dashboard", unit)
         self.assertIn("LoadCredential=pgpass:/etc/riverview/pgpass", unit)
+        self.assertIn("Environment=RIVERVIEW_SOURCE_COMMIT=8556598b19a7da4aa191a600c767d79d24432afe", unit)
+        self.assertIn("Environment=RIVERVIEW_DEPLOYMENT_ID=m3.1-camrui-docs-d2c145c", unit)
         self.assertIn("scripts/run_status_dashboard.py", unit)
         self.assertIn("copy_systemd_credential(source, PASSFILE, identity.pw_uid)", launcher)
         self.assertNotIn("Environment=PGPASSFILE=%d/pgpass", unit)
@@ -169,6 +221,14 @@ class DashboardHTTPTests(unittest.TestCase):
         status, _, body = self.request("GET", "/api/v1/status", token="B" * 43)
         self.assertEqual(status, 401)
         self.assertNotIn(self.token.encode(), body)
+
+    def test_conversation_work_order_requires_account_steward_not_recovery_token(self):
+        path = "/api/v1/resident/conversations/00000000-0000-4000-8000-000000000001/work-orders"
+        status, _, body = self.request("POST", path)
+        self.assertEqual(status, 401)
+        status, _, body = self.request("POST", path, token=self.token)
+        self.assertEqual(status, 403)
+        self.assertEqual(json.loads(body)["error"], "steward_account_session_required")
 
     def test_api_is_read_only_host_checked_and_never_claims_healthy_without_source(self):
         status, _, body = self.request("GET", "/api/v1/status", token=self.token)
@@ -286,7 +346,7 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(status, 404)
         self.assertNotIn(b"README", body)
 
-    def test_canonical_graph_api_is_authenticated_and_never_fabricates_live_position(self):
+    def test_canonical_graph_api_uses_only_persisted_live_position(self):
         from urllib.parse import quote
         status, _, _ = self.request("GET", "/api/v1/graphs")
         self.assertEqual(status, 401)
@@ -308,9 +368,30 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertTrue(any(item["type"] == "decision" for item in graph["nodes"]))
         self.assertTrue(any(item["type"] == "runtime_transition" for item in graph["edges"]))
         self.assertEqual(graph["execution_position"]["status"], "unknown")
-        self.assertIn("does not currently persist", graph["execution_position"]["reason"])
+        self.assertEqual(graph["execution_position"]["reason"], "No recorded node.")
+        self.projection.execution_position = {"status": "current",
+            "assignment_id": "assignment:recorded", "state": "running",
+            "node_id": "rv:postgres-ledger:assignment-lifecycle:running",
+            "recorded_at": "2026-10-13T00:00:00+00:00"}
+        status, _, body = self.request("GET", "/api/v1/graphs/" + graph_id, token=self.token)
+        self.assertEqual(status, 200)
+        graph = json.loads(body)["graph"]
+        self.assertEqual(graph["execution_position"]["node_id"],
+                         "rv:postgres-ledger:assignment-lifecycle:running")
         status, _, body = self.request("GET", "/api/v1/graphs/rv%3Anot-registered%3Anone", token=self.token)
         self.assertEqual(status, 404)
+
+    def test_assignment_intake_cookbook_renders_without_broken_evidence_link(self):
+        status, headers, body = self.request(
+            "GET", "/docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", dict(headers)["Content-Type"])
+        self.assertIn(b"Assignment-create authorization boundary", body)
+        self.assertIn(b"<pre><code class=\"language-bash\">", body)
+        self.assertIn(b"exact <code>assignment.create</code>", body)
+        self.assertIn(b"evidence/checkouts/M3.3-ASSIGNMENT-INTAKE/acceptance.json", body)
+        self.assertNotIn(b"href=\"/evidence/", body)
+        self.assertNotIn(b"<!--", body)
 
     def test_markdown_renderer_escapes_html_and_rejects_unsafe_link_schemes(self):
         html = render_markdown("# Title\n\n<script>alert(1)</script>\n\n[bad](javascript:alert(1))\n\n[component](CME_MONITOR_COOKBOOK.md)\n\n| A | B |\n|---|---|\n| x | y |\n\n```sh\necho safe\n```",
@@ -508,6 +589,68 @@ class DashboardPostgresTests(unittest.TestCase):
                                           schema=self.schema)
         self.assertEqual(unavailable.status()["projection_status"], "unavailable")
         self.assertFalse(unavailable.snapshot()["observed_state"])
+
+    def test_restricted_riverview_core_role_can_read_only_grace_health_after_migration(self):
+        import psycopg
+        from psycopg import sql
+        from riverview_core.status_dashboard.projection import ProjectionUnavailable
+
+        role = "riverview_core"
+        with self.admin.cursor() as cur:
+            cur.execute("SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname=%s) AS present", (role,))
+            if not cur.fetchone()["present"]:
+                self.skipTest("isolated PostgreSQL instance does not define the dashboard runtime role")
+            cur.execute("SELECT rolsuper AS is_superuser FROM pg_roles WHERE rolname=current_user")
+            is_superuser = cur.fetchone()["is_superuser"]
+            cur.execute("SELECT pg_has_role(current_user,%s,'MEMBER') AS member", (role,))
+            if not is_superuser and not cur.fetchone()["member"]:
+                self.skipTest("test database identity cannot exercise the dashboard runtime role")
+            cur.execute(sql.SQL("""CREATE TABLE {}.grace_execution_health (
+                service_id TEXT PRIMARY KEY, instance_id UUID NOT NULL, status TEXT NOT NULL,
+                last_heartbeat_at TIMESTAMPTZ NOT NULL, last_cycle_at TIMESTAMPTZ,
+                last_error_type TEXT, cycles_completed BIGINT NOT NULL)""").format(
+                    sql.Identifier(self.schema)))
+            cur.execute(sql.SQL("GRANT USAGE ON SCHEMA {} TO {}").format(
+                sql.Identifier(self.schema), sql.Identifier(role)))
+            cur.execute("SELECT tablename FROM pg_tables WHERE schemaname=%s AND tablename<>%s",
+                        (self.schema, "grace_execution_health"))
+            for row in cur.fetchall():
+                cur.execute(sql.SQL("GRANT SELECT ON {}.{} TO {}").format(
+                    sql.Identifier(self.schema), sql.Identifier(row["tablename"]), sql.Identifier(role)))
+            cur.execute(sql.SQL("REVOKE ALL ON {}.grace_execution_health FROM {}, PUBLIC").format(
+                sql.Identifier(self.schema), sql.Identifier(role)))
+            cur.execute("SELECT has_table_privilege(%s,%s,'SELECT') AS allowed", (role,
+                f"{self.schema}.grace_execution_health"))
+            self.assertFalse(cur.fetchone()["allowed"])
+
+        original_connect = psycopg.connect
+        def restricted_connect(*args, **kwargs):
+            connection = original_connect(*args, **kwargs)
+            connection.execute(sql.SQL("SET ROLE {}").format(sql.Identifier(role)))
+            connection.commit()
+            return connection
+
+        with mock.patch("riverview_core.status_dashboard.projection.psycopg.connect",
+                        side_effect=restricted_connect):
+            before = self.projection.status()
+        self.assertEqual(before["projection_status"], "unavailable")
+        self.assertEqual(before["unavailable_reason"], "InsufficientPrivilege")
+
+        migration = (self.core / "resident_execution/migrations/0005_dashboard_grace_health_read.sql").read_text()
+        self.assertIn("GRANT SELECT ON %I.grace_execution_health TO riverview_core", migration)
+        self.assertNotIn("schema_migrations", migration)
+        with self.admin.cursor() as cur:
+            cur.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(self.schema)))
+            cur.execute(migration)
+            cur.execute("SELECT has_table_privilege(%s,%s,'SELECT') AS allowed", (role,
+                f"{self.schema}.grace_execution_health"))
+            self.assertTrue(cur.fetchone()["allowed"])
+
+        with mock.patch("riverview_core.status_dashboard.projection.psycopg.connect",
+                        side_effect=restricted_connect):
+            status = self.projection.status()
+        self.assertEqual(status["projection_status"], "healthy")
+        self.assertEqual(status["grace_execution"]["status"], "not_initialized")
 
     def test_private_assignments_events_and_payload_are_filtered_from_snapshot(self):
         public = self.create("public")

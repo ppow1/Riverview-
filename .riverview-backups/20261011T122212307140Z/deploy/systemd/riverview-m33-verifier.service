@@ -1,0 +1,44 @@
+# Riverview~ controlled unit
+# File Revision: 1.0.1
+# Task: RV-M3.3-WORKER-SERVICE
+# Purpose: Run a separately credentialed deterministic artifact verifier
+[Unit]
+Description=Riverview M3.3 independent result verifier
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=riverview
+Group=riverview
+WorkingDirectory=/opt/riverview-m33/current
+Environment=PYTHONPATH=/opt/riverview-m33/current/src:/opt/riverview-m33/current/scripts
+Environment="RIVERVIEW_PG_DSN=host=127.0.0.1 port=5432 dbname=riverview user=riverview_core application_name=riverview-m33-verifier"
+Environment=RIVERVIEW_PG_SCHEMA=riverview_dev
+Environment=RIVERVIEW_AUTHORITY_SCHEMA=riverview_authority
+Environment=RIVERVIEW_VERIFIER_POLL_SECONDS=1
+EnvironmentFile=/etc/riverview/m33-verifier.env
+LoadCredential=pgpass:/etc/riverview/pgpass
+LoadCredential=verifier-token:/etc/riverview/worker/m33-verifier.credential
+RuntimeDirectory=riverview-m33-verifier
+RuntimeDirectoryMode=0700
+ExecStart=/opt/riverview-core/current/.venv/bin/python /opt/riverview-m33/current/scripts/run_verifier_service.py
+Restart=on-failure
+RestartSec=3s
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_INET AF_UNIX
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

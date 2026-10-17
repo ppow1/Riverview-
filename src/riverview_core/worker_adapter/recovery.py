@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/recovery.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Reconcile expired worker leases without losing or blindly repeating work
 # Execution Model: Explicit PostgreSQL recovery pass at worker startup or polling
 # Observability: Recovery records and causal assignment transition events
 # Dependencies: Psycopg 3; PostgreSQL ledger, scheduler and worker migrations
 # Authority: Recovery only; unknown external outcomes wait for Steward decision
-# Changed: 2026-10-10 UTC | RV-M2.3-001 | Add durable lease-expiry reconciliation
+# Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Enforce optional persistent retry ceilings
 # Contracts: docs/ROADMAP.md; docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_adapter.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -22,9 +22,12 @@ from ..postgres_ledger import PostgresLedger
 class PostgresRecoveryCoordinator:
     """Atomically reconcile expired leases and persist each recovery decision."""
 
-    def __init__(self, dsn, *, schema="public"):
+    def __init__(self, dsn, *, schema="public", max_retries=None):
+        if max_retries is not None and (type(max_retries) is not int or not 0 <= max_retries <= 100):
+            raise ValueError("max_retries must be None or an integer from 0 to 100")
         self.ledger = PostgresLedger(dsn, schema=schema)
         self.schema = schema
+        self.max_retries = max_retries
 
     def close(self):
         self.ledger.close()
@@ -86,7 +89,14 @@ class PostgresRecoveryCoordinator:
                     if has_result:
                         decision, target, step = "result_preserved", "awaiting_verification", "RECOVERY_RESULT_PRESERVED"
                     elif intent and intent["effect_class"] == "retry_safe":
-                        decision, target, step = "retry_safe", "ready", "RECOVERY_REQUEUED"
+                        cur.execute("SELECT count(*) AS retries FROM worker_recovery_records "
+                                    "WHERE assignment_id=%s AND decision='retry_safe'",
+                                    (assignment["id"],))
+                        retries = int(cur.fetchone()["retries"])
+                        if self.max_retries is not None and retries >= self.max_retries:
+                            decision, target, step = "retry_exhausted", "blocked", "RECOVERY_RETRY_LIMIT"
+                        else:
+                            decision, target, step = "retry_safe", "ready", "RECOVERY_REQUEUED"
                     else:
                         decision, target, step = "outcome_unknown", "awaiting_steward", "RECOVERY_OUTCOME_UNKNOWN"
 
@@ -107,6 +117,7 @@ class PostgresRecoveryCoordinator:
                             (attempt["attempt_id"],))
                     if intent and intent["status"] == "running":
                         new_status = {"retry_safe": "retry_scheduled",
+                                      "retry_exhausted": "failed",
                                       "outcome_unknown": "outcome_unknown",
                                       "result_preserved": "succeeded"}[decision]
                         cur.execute("""UPDATE worker_execution_intents

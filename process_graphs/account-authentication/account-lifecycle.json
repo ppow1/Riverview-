@@ -1,0 +1,529 @@
+{
+  "graph_id": "rv:website-account-auth:account-lifecycle",
+  "graph_revision": "1.1.0",
+  "component_id": "WEBSITE-ACCOUNT-AUTH",
+  "workflow_id": "website.account-auth.v1",
+  "diagram_order": 21,
+  "source_references": [
+    "src/riverview_core/account_auth/__init__.py",
+    "src/riverview_core/account_auth/migrations/0001_account_authentication.sql",
+    "src/riverview_core/status_dashboard/server.py",
+    "src/riverview_core/status_dashboard/static/app.js",
+    "scripts/bootstrap_account_steward.py",
+    "tests/test_account_auth.py",
+    "tests/test_account_auth_http.py"
+  ],
+  "documentation_references": [
+    "docs/components/ACCOUNT_AUTHENTICATION.md",
+    "docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md",
+    "docs/components/ACCOUNT_AUTHENTICATION_FLOW.md",
+    "docs/components/STATUS_DASHBOARD.md"
+  ],
+  "verification_evidence": [
+    "tests/test_account_auth.py",
+    "tests/test_account_auth_http.py"
+  ],
+  "nodes": [
+    {
+      "id": "rv:website-account-auth:account-lifecycle:visitor-request",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Visitor chooses Portal Login or Request Access; login uses email and password",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth_http.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:delivery-ready",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Is an approved email transport configured?",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:delivery-disabled",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Fail closed and report email delivery unavailable",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:challenge-denied",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject expired, consumed, malformed or replayed email challenges",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:issue-challenge",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Rate-limit request and persist only a high-entropy challenge hash",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py",
+        "src/riverview_core/account_auth/migrations/0001_account_authentication.sql"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:consume-enrollment",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Verify the single-use email challenge before its expiry",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:pending-steward",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Persist verified request as pending; notify configured administrator with Steward-only page link",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py",
+        "src/riverview_core/account_auth/migrations/0001_account_authentication.sql"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:steward-decision",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Does an authenticated Steward approve or reject the request?",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/account_auth/__init__.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py",
+        "tests/test_account_auth_http.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:approve-role",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Steward records role and one-time, 90-day, one-year or permanent grant",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:reject-request",
+      "node_revision": "1.0.0",
+      "type": "exit",
+      "label": "Record Steward rejection without creating an account",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:email-login",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Set or reset password through verified email challenge; applicant gets decision notice",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:session-create",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Issue password-authenticated session; one-time grant creates at most one session, max 24 hours",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py",
+        "tests/test_account_auth_http.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:session-cookie",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Check account disablement, revocation, expiry, role and CSRF on requests",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py",
+        "tests/test_account_auth_http.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:deny-session",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Deny expired, revoked, disabled, role-ineligible or CSRF-invalid requests",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py",
+        "tests/test_account_auth_http.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:steward-management",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Steward disables accounts, changes roles and revokes sessions",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py",
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py",
+        "tests/test_account_auth_http.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:local-steward-bootstrap",
+      "node_revision": "1.0.0",
+      "type": "escalation",
+      "label": "Root local TTY explicitly authorizes email verification linked to steward:camrui",
+      "source_references": [
+        "scripts/bootstrap_account_steward.py",
+        "src/riverview_core/account_auth/__init__.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:bootstrap-verify",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Verify single-use bootstrap challenge for existing Steward email",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:bootstrap-create-steward",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Create verified account linked to steward:camrui with no default password",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:email-admin-config",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Steward configures reusable SMTP settings; encrypted secret stays server-side",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py",
+        "src/riverview_core/email_delivery.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py",
+        "tests/test_account_auth_http.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:applicant-notice",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Send applicant approval or denial notice; record delivery outcome",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py",
+        "src/riverview_core/email_delivery.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py",
+        "tests/test_account_auth_http.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:password-auth",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Verify password hash, active account, role and grant before creating session",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py",
+        "src/riverview_core/email_delivery.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py",
+        "tests/test_account_auth_http.py"
+      ]
+    },
+    {
+      "id": "rv:website-account-auth:account-lifecycle:grant-check",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Enforce grant expiry and revocation on every protected request",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py",
+        "src/riverview_core/email_delivery.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py",
+        "tests/test_account_auth_http.py"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:website-account-auth:account-lifecycle:visitor-request",
+      "to": "rv:website-account-auth:account-lifecycle:delivery-ready",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:delivery-ready",
+      "to": "rv:website-account-auth:account-lifecycle:delivery-disabled",
+      "type": "diagnostic_branch",
+      "label": "No approved provider"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:delivery-ready",
+      "to": "rv:website-account-auth:account-lifecycle:issue-challenge",
+      "type": "runtime_transition",
+      "label": "Provider configured"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:issue-challenge",
+      "to": "rv:website-account-auth:account-lifecycle:consume-enrollment",
+      "type": "runtime_transition",
+      "label": "Email link submitted"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:consume-enrollment",
+      "to": "rv:website-account-auth:account-lifecycle:pending-steward",
+      "type": "runtime_transition",
+      "label": "Valid enrollment challenge"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:consume-enrollment",
+      "to": "rv:website-account-auth:account-lifecycle:challenge-denied",
+      "type": "diagnostic_branch",
+      "label": "Invalid, expired or replayed challenge"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:pending-steward",
+      "to": "rv:website-account-auth:account-lifecycle:steward-decision",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:steward-decision",
+      "to": "rv:website-account-auth:account-lifecycle:approve-role",
+      "type": "runtime_transition",
+      "label": "Approve Viewer or Operator"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:steward-decision",
+      "to": "rv:website-account-auth:account-lifecycle:reject-request",
+      "type": "diagnostic_branch",
+      "label": "Reject"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:approve-role",
+      "to": "rv:website-account-auth:account-lifecycle:email-login",
+      "type": "runtime_transition",
+      "label": "Applicant requests sign-in"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:email-login",
+      "to": "rv:website-account-auth:account-lifecycle:session-create",
+      "type": "runtime_transition",
+      "label": "Valid email challenge"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:session-create",
+      "to": "rv:website-account-auth:account-lifecycle:session-cookie",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:session-cookie",
+      "to": "rv:website-account-auth:account-lifecycle:deny-session",
+      "type": "diagnostic_branch",
+      "label": "Expired, revoked, disabled or CSRF invalid"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:session-cookie",
+      "to": "rv:website-account-auth:account-lifecycle:steward-management",
+      "type": "runtime_transition",
+      "label": "Steward account controls"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:local-steward-bootstrap",
+      "to": "rv:website-account-auth:account-lifecycle:issue-challenge",
+      "type": "runtime_transition",
+      "label": "Only after root TTY confirmation and active principal check"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:issue-challenge",
+      "to": "rv:website-account-auth:account-lifecycle:bootstrap-verify",
+      "type": "runtime_transition",
+      "label": "Bootstrap email link submitted"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:bootstrap-verify",
+      "to": "rv:website-account-auth:account-lifecycle:bootstrap-create-steward",
+      "type": "runtime_transition",
+      "label": "Valid single-use challenge"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:bootstrap-verify",
+      "to": "rv:website-account-auth:account-lifecycle:challenge-denied",
+      "type": "diagnostic_branch",
+      "label": "Invalid, expired or replayed challenge"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:pending-steward",
+      "to": "rv:website-account-auth:account-lifecycle:applicant-notice",
+      "type": "runtime_transition",
+      "label": "Verified request; notify administrator"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:steward-decision",
+      "to": "rv:website-account-auth:account-lifecycle:applicant-notice",
+      "type": "runtime_transition",
+      "label": "Record decision and notify applicant"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:email-admin-config",
+      "to": "rv:website-account-auth:account-lifecycle:delivery-ready",
+      "type": "runtime_transition",
+      "label": "Provider settings saved"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:email-login",
+      "to": "rv:website-account-auth:account-lifecycle:password-auth",
+      "type": "runtime_transition",
+      "label": "Password submitted"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:password-auth",
+      "to": "rv:website-account-auth:account-lifecycle:session-create",
+      "type": "runtime_transition",
+      "label": "Approved account and active grant"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:session-cookie",
+      "to": "rv:website-account-auth:account-lifecycle:grant-check",
+      "type": "runtime_transition",
+      "label": "Protected request"
+    },
+    {
+      "from": "rv:website-account-auth:account-lifecycle:grant-check",
+      "to": "rv:website-account-auth:account-lifecycle:deny-session",
+      "type": "diagnostic_branch",
+      "label": "Expired or revoked grant"
+    }
+  ]
+}
