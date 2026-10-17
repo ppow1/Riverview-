@@ -1,8 +1,10 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.163
+**Document Revision:** 1.0.165
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
+**Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009-ONE-SHOT | Add exact 0008-only preflight/apply mode and record 53 focused disposable PostgreSQL tests
+**Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009 | Record exact effects and disposable 0000–0009 chain verification
 **Changed:** 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001-FINAL-CI | Record passing exact-head controlled CI on corrected migration runner
 **Changed:** 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Record fixed 0009 migration runner verification, actual release path correction, and 0008 production prerequisite blocker
 **Changed:** 2026-10-16 UTC | RV-M33-DECOMMISSION-001 | Record exact-run M33 decommission and preserve production acceptance evidence
@@ -2414,3 +2416,19 @@ Exact-head controlled CI run `38987983617` exposed that the migration runner's s
 
 
 Exact-head PR #76 CI retry passed at run `38988305516` on `6b806ac45f046f2e0b2a6c237c8fdaf3c4504446`: 513 tests passed, 2 skipped; graph check/validation passed at 21 workflows / 524 nodes; revision audit passed with zero issues. PR #76 remains open and mergeable. Evidence: `evidence/checkouts/M33-RETIRE-MIGRATION/20261017T005359Z/controlled-ci.json`. Production remains unchanged and blocked by the explicit 0008 dependency decision.
+
+
+## 2026-10-17 UTC — RV-M33-MIGRATION-CHAIN-0008-0009
+
+Per Steward authorization, inspected and validated the required predecessor migration 0008 without production execution. Its reviewed SHA-256 is `570c7aeb16fca04c64c4e010f1534d0efebe92628ddacd8f05f6eb1eda12d339`; the unchanged 0009 SHA-256 remains `0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6`. The additive 0008 SQL creates nine resident permission/capability/resource tables, two explicit indexes, five profile API functions plus the append-only trigger function and trigger, and inserts four tiers, 18 capability rows, 11 resource rows, 26 capability/resource bindings and 50 tier-default rules. It leaves resident profiles, drafts, resident rules and profile events empty; makes no grant/credential changes and does not modify pre-existing authority rows. Exact details and the gated production order are in `docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md`.
+
+Added a fresh-schema regression that applies migrations 0000–0009 in order, verifies all ten ledger checksums against source bytes, verifies the 0008 object/seed state and empty profile data, checks the 0009 event constraint, then confirms generic rerun is a no-op. The focused authority/profile/compatibility/retirement PostgreSQL set passed 52/52 on disposable PostgreSQL 16; graph validation passed (21 workflows / 524 nodes), revision audit passed with zero issues, compilation and `git diff --check` passed. Evidence: `evidence/checkouts/M33-RETIRE-MIGRATION/20261017T010938Z/`. PR #76 remains based on integration `7780a780e8232d1e1b312c0f57d3b3df81c93bea`; no production release, migration, ACL, service, worker registration or grant changed. The exact-head PR CI present at this journal update is run `38988497586` on `74f3b06a022ebfa367558a030b421a3b8fd7056d`, success (513 tests, 2 skipped).
+
+Operational risk identified for any future execution: 0008 revokes `PUBLIC EXECUTE` from its five profile APIs and does not grant runtime EXECUTE. The profile-aware `ExactGrantAuthorizer` calls the evaluator when these objects exist. A live read-only check must establish the active backend source and effective ACL before applying 0008; if the required function-only boundary is absent, stop and separately authorize/review the exact ACL provisioning. Production migration and M33 retirement remain unperformed pending explicit execution authorization, protected backup/restore gates and that runtime compatibility check.
+
+
+## 2026-10-17 UTC — RV-M33-MIGRATION-CHAIN-0008-0009-ONE-SHOT
+
+Prepared a fail-closed 0008-only mode in the existing fixed M33 migration utility, preserving the exact 0009 dependency. `--check-0008`/`--apply-0008` require the complete reviewed 0000–0009 source inventory, exact 0008 and 0009 hashes, exact 0000–0007 checksum ledger, and base event constraint. Apply runs only 0008 in one transaction. It verifies nine new relations and exact seed counts, six new functions, trigger and indexes; requires function search paths and revoked public API execution; rejects unexpected grants to new objects; and confirms all prior relation/function metadata, owners, ACLs and table counts unchanged except the single migration ledger row. Failure rolls back. The following 0009 read-only check is verified to return READY after the isolated 0008 apply.
+
+The complete 0000–0009 chain and the new single-0008 operation passed focused disposable PostgreSQL 16 integration coverage; combined permission-profile, authority, compatibility and worker-retirement suite passed 53/53 with zero skips. Graph check/validation passed at 21 workflows / 524 nodes; controlled revision audit has zero issues; Python compilation and `git diff --check` passed. Evidence: `evidence/checkouts/M33-RETIRE-MIGRATION/20261017T011414Z/`. Cookbook and M33 runbook record migration effects, exact immutable release path, backup/restore gates, ACL compatibility risk, and non-execution status. PR #76 remains open; production deployment, database changes, ACL provisioning, registration retirement and service restarts are not authorized by this preparation directive and were not performed. Before production 0008 execution, explicitly check the live active runtime code and required `evaluate_resident_permission` EXECUTE boundary; the migration revokes PUBLIC execute and grants no runtime role. Missing rights require a separate reviewed authority-change decision.

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_m33_retirement_migration.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.2
+# Revision: 1.1.0
 # Purpose: Verify the fixed M33 retirement migration applies alone and preserves state
 # Execution Model: Disposable PostgreSQL schemas
 # Observability: unittest assertions for preflight, ledger, ACLs, and row preservation
@@ -11,6 +11,8 @@
 # Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Add narrow-migration regression suite
 # Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Cover checksum drift and unexpected ledger entries
 # Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Run against the configured disposable database name
+# Changed: 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009 | Verify the complete authority migration chain and exact 0008 seed state
+# Changed: 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009 | Exercise the production 0008-only check/apply path on disposable PostgreSQL
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -79,6 +81,95 @@ class M33RetirementMigrationTests(unittest.TestCase):
             "(event_id,event_type,actor_id,subject_id) "
             "VALUES (%s,'steward_bootstrapped','steward:migration-fixture','steward:migration-fixture')"
         ).format(self.sql.Identifier(self.schema)), (uuid4(),))
+
+    def test_complete_authority_chain_0000_through_0009(self):
+        """Exercise every reviewed migration in order in a fresh isolated schema."""
+        schema = "rvtestchain_" + uuid4().hex
+        self.admin.execute(self.sql.SQL("CREATE SCHEMA {}").format(
+            self.sql.Identifier(schema)))
+        try:
+            applied = self.apply_migrations(
+                DSN, schema=schema, migrations_dir=MIGRATIONS
+            )
+            expected_versions = [path.stem for path in sorted(MIGRATIONS.glob("*.sql"))]
+            self.assertEqual(applied, expected_versions)
+            ledger = dict(self.admin.execute(self.sql.SQL(
+                "SELECT version,checksum FROM {}.schema_migrations ORDER BY version"
+            ).format(self.sql.Identifier(schema))).fetchall())
+            self.assertEqual(set(ledger), set(expected_versions))
+            import hashlib
+            self.assertEqual(ledger, {
+                path.stem: hashlib.sha256(path.read_bytes()).hexdigest()
+                for path in sorted(MIGRATIONS.glob("*.sql"))
+            })
+
+            expected_seed_counts = {
+                "resident_permission_tiers": 4,
+                "capability_catalog": 18,
+                "resource_catalog": 11,
+                "capability_resources": 26,
+                "resident_permission_profiles": 0,
+                "resident_permission_profile_drafts": 0,
+                "resident_permission_tier_rules": 50,
+                "resident_permission_rules": 0,
+                "resident_permission_events": 0,
+            }
+            for table, expected_count in expected_seed_counts.items():
+                actual = self.admin.execute(self.sql.SQL(
+                    "SELECT count(*) FROM {}.{}"
+                ).format(self.sql.Identifier(schema), self.sql.Identifier(table))).fetchone()[0]
+                self.assertEqual(actual, expected_count, table)
+            self.assertEqual(self.apply_migrations(
+                DSN, schema=schema, migrations_dir=MIGRATIONS
+            ), [])
+            from riverview_core.institutional_authority.m33_retirement_migration import (
+                RETIRED_EVENT_TYPES, _event_types,
+            )
+            with self.admin.cursor() as cur:
+                self.assertEqual(_event_types(cur, schema), RETIRED_EVENT_TYPES)
+            self.assertEqual(self.admin.execute(self.sql.SQL(
+                "SELECT count(*) FROM {}.institutional_authority_events"
+            ).format(self.sql.Identifier(schema))).fetchone()[0], 0)
+        finally:
+            self.admin.execute(self.sql.SQL("DROP SCHEMA {} CASCADE").format(
+                self.sql.Identifier(schema)))
+
+    def test_0008_prerequisite_applies_alone_and_unlocks_0009_check(self):
+        from riverview_core.institutional_authority.m33_retirement_migration import (
+            apply_m33_retirement_prerequisite,
+            check_m33_retirement_migration,
+            check_m33_retirement_prerequisite,
+        )
+        schema = "rvtest0008_" + uuid4().hex
+        self.admin.execute(self.sql.SQL("CREATE SCHEMA {}").format(
+            self.sql.Identifier(schema)))
+        only_0000_to_0007 = Path(self.tmp.name) / "only-0000-through-0007"
+        only_0000_to_0007.mkdir()
+        for path in sorted(MIGRATIONS.glob("*.sql")):
+            if path.name < "0008_resident_permission_profiles.sql":
+                shutil.copyfile(path, only_0000_to_0007 / path.name)
+        self.apply_migrations(DSN, schema=schema,
+                              migrations_dir=only_0000_to_0007)
+        connection = self.psycopg.connect(DSN, autocommit=True)
+        try:
+            self.assertEqual(check_m33_retirement_prerequisite(
+                connection, self.full_dir, schema=schema,
+                expected_database=self.database)["status"], "READY")
+            applied = apply_m33_retirement_prerequisite(
+                connection, self.full_dir, schema=schema,
+                expected_database=self.database)
+            self.assertEqual(applied["status"], "APPLIED")
+            self.assertEqual(applied["profile_records_created"], 0)
+            self.assertEqual(check_m33_retirement_prerequisite(
+                connection, self.full_dir, schema=schema,
+                expected_database=self.database)["status"], "ALREADY_APPLIED")
+            self.assertEqual(check_m33_retirement_migration(
+                connection, self.full_dir, schema=schema,
+                expected_database=self.database)["status"], "READY")
+        finally:
+            connection.close()
+            self.admin.execute(self.sql.SQL("DROP SCHEMA {} CASCADE").format(
+                self.sql.Identifier(schema)))
 
     def test_check_is_read_only_and_apply_changes_only_constraint_and_ledger(self):
         from riverview_core.institutional_authority.m33_retirement_migration import (

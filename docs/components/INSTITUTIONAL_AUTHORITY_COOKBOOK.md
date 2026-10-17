@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.24
+File Revision: 1.0.25
 Purpose: Diagnose and safely recover institutional authority registry state
 Authority: Read-only diagnostics first; grant changes require authenticated Steward
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Keep evidence references as readable paths in safe dashboard renderer
@@ -25,6 +25,7 @@ Changed: 2026-10-11 UTC | RV-M3.3-ASSIGNMENT-INTAKE-COOKBOOK | Record isolated e
 Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-RECORDS | Record the post-bootstrap live migration baseline and isolated grant-check result
 Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Add profile migration/read-only diagnostics and fail-closed troubleshooting
 Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Document the single-migration runner, exact release layout, backup gate, and missing-0008 stop condition
+Changed: 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009 | Record exact predecessor migration effects, isolated chain evidence, and gated release sequence
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional authority registry cookbook
@@ -176,7 +177,23 @@ cookbook: verify target identity and migration source hashes, create a new
 protected full custom-format backup outside the repository, verify its digest
 and `pg_restore --list`, restore it to a unique disposable database, and compare
 authority/Core counts and ACLs. Do not overwrite or remove prior backups. The
-exact code check/apply commands from a versioned release are:
+fixed helper has separate modes; use its 0008 modes only after the execution
+gate in the next section is authorized. Its existing 0009 modes remain separate.
+
+```sh
+sudo -n -u postgres env PYTHONPATH=/opt/riverview/releases/<approved-commit>/src \
+  /opt/riverview-core/.venv/bin/python \
+  /opt/riverview/releases/<approved-commit>/scripts/apply_m33_retirement_migration.py --check-0008
+sudo -n -u postgres env PYTHONPATH=/opt/riverview/releases/<approved-commit>/src \
+  /opt/riverview-core/.venv/bin/python \
+  /opt/riverview/releases/<approved-commit>/scripts/apply_m33_retirement_migration.py --apply-0008
+```
+
+`--check-0008` is read-only. `--apply-0008` applies only 0008 and checks the
+exact 0000–0007 ledger, reviewed 0008 and dependent 0009 hashes, expected
+object/seed state, unchanged pre-existing rows/ACLs/owners, and no unexpected
+grants to new objects. Any failed postcondition rolls back the transaction.
+The exact code check/apply commands for 0009 from a versioned release are:
 
 ```sh
 sudo -n -u postgres env PYTHONPATH=/opt/riverview/releases/<approved-commit>/src \
@@ -190,14 +207,82 @@ sudo -n -u postgres env PYTHONPATH=/opt/riverview/releases/<approved-commit>/src
 `--check` is read-only. `--apply` requires OS user `postgres`, local peer access
 to only database `riverview`, fixed schema `riverview_authority`, the exact
 reviewed SQL checksum, the exact prior ledger, and no unrelated migration
-files. The runbook's current production ledger observation is `0000`–`0007`;
+files. The runbook's supplied production ledger observation is `0000`–`0007`;
 because 0009 declares 0008 as a predecessor, the expected result is a
-fail-closed `prior_migrations_missing_or_unrelated_pending`. Migration 0008
-adds the resident-permission-profile subsystem, which is not needed for worker
-retirement; do not apply it implicitly or run a general migration loop. A
-Steward must separately decide whether to authorize that prerequisite or
-commission a reviewed migration design with an accurate dependency chain.
-Until then, do not apply 0009 and do not run the retirement helper.
+fail-closed `prior_migrations_missing_or_unrelated_pending`. Do not apply 0009
+or run the retirement helper until 0008 is applied and the exact chain is
+verified.
+
+### Migration 0008 effect and production preparation gate
+
+The Steward authorized preparation and isolated validation only. Migration
+`0008_resident_permission_profiles.sql` has SHA-256
+`570c7aeb16fca04c64c4e010f1534d0efebe92628ddacd8f05f6eb1eda12d339` and
+depends on migrations 0001–0007. It is additive: nine tables
+(`capability_catalog`, `resource_catalog`, `capability_resources`,
+`resident_permission_tiers`, `resident_permission_profiles`,
+`resident_permission_profile_drafts`, `resident_permission_tier_rules`,
+`resident_permission_rules`, `resident_permission_events`); two explicit
+indexes; six functions (five resident-profile APIs plus the append-only event
+trigger function); one append-only trigger; and one migration-ledger row. It
+seeds four permission tiers, 18 capability metadata rows, 11 resource metadata
+rows, 26 capability/resource bindings, and 50 inherited tier-default rules.
+The migration leaves resident profiles, drafts, resident-specific rules, and
+profile audit events empty. It does not modify/delete any pre-existing row,
+grant authority or credentials, activate a profile, or change service
+configuration. Its only pre-existing data change is appending its checksum to
+`schema_migrations`.
+
+The five profile API functions revoke `PUBLIC` EXECUTE and pin their
+`SECURITY DEFINER` search paths. 0008 does not grant them to runtime or manager
+roles. `ExactGrantAuthorizer` detects the paired profile objects and calls
+`evaluate_resident_permission`; with no resident profile this returns the
+legacy exact-grant-only result, but only if the runtime has the required
+function EXECUTE privilege. Therefore before any future production apply, use
+read-only checks to identify the actual active runtime code and effective
+function ACLs. If the required function-only ACL is absent, stop; do not grant
+it ad hoc or run the broader authority-boundary provisioner without a separate
+approved, reviewed authority change. The manager's worker-registry UPDATE
+privilege is a separate retirement-helper precondition and is not granted by
+0008.
+
+Only after explicit production-execution authorization, the sequence is:
+
+1. Merge PR #76 after its review and exact-head controlled CI. Build from its
+   exact integrated commit, verify the package manifest, and install to a new
+   root-owned immutable `/opt/riverview/releases/<full-commit>` directory.
+   Camrui's `/opt/riverview-core` is a direct symlink to a release; preserve
+   the existing 64e8 release and do not invent a `/current` subdirectory,
+   switch pointers, or restart services. Use the existing
+   `/opt/riverview-core/.venv/bin/python` for one-shot commands.
+2. Verify host/database/schema identity; require the exact 0000–0007 ledger
+   and source checksums; verify 0008 and 0009 source checksums and ensure no
+   extra migration source or ledger entries exist.
+3. Create a new root-protected custom-format backup of `riverview` outside
+   the repository; record the digest, verify `pg_restore --list`, restore to a
+   unique disposable database, and compare authority/Core counts, relation
+   ownership, ACLs, and ledger checksums. Stop on any discrepancy.
+4. Apply only 0008 transactionally with the fixed
+   `apply_m33_retirement_migration.py --apply-0008` mode. It checks the exact
+   0000–0007 ledger and 0008/0009 checksums, records only the 0008 ledger
+   entry, validates expected new objects/seed counts, and proves existing
+   authority data, ownership, and ACLs are unchanged. Do not invoke a general
+   migration sweep. This preparation task does not authorize or execute DDL.
+5. Verify the 0000–0008 ledger and 0008 checksum; inspect every new object,
+   owner, default/effective privilege and policy seed; confirm profiles and
+   user-specific rules/events remain empty. Validate active-runtime
+   compatibility and the function-only ACL using the established boundary
+   contract; stop if it would change runtime behavior or require an
+   unapproved grant change.
+6. Run `apply_m33_retirement_migration.py --check`; it must report `READY` on
+   the exact 0000–0008 chain. Applying 0009 and retiring registrations each
+   require their own explicit execution authorization and the existing
+   guarded helper's prerequisites.
+7. These migrations are additive; do not drop objects or edit ledger rows as
+   rollback. Preserve the pre-migration release and backup. If failure occurs,
+   stop writes and preserve evidence; restore the verified backup only under
+   a separately authorized recovery decision. This plan does not switch
+   service pointers or restart services.
 
 For the one-shot utility package, build only from a clean, reviewed, committed
 checkout with the existing package builder and verifier. Transfer the archive

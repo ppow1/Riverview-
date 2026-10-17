@@ -1,0 +1,56 @@
+{
+  "task": "RV-M33-MIGRATION-CHAIN-0008-0009",
+  "environment": "Disposable PostgreSQL 16; riverview_test; all temporary schemas dropped",
+  "production_state": "UNCHANGED; no database writes, release install, ACL changes, registry retirement, or service restart",
+  "migration_0008_sha256": "570c7aeb16fca04c64c4e010f1534d0efebe92628ddacd8f05f6eb1eda12d339",
+  "migration_0009_sha256": "0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6",
+  "0008_only_runner": {
+    "check": "PASS",
+    "transactional_apply": "PASS",
+    "0009_followup_check": "READY",
+    "idempotent_repeat": "ALREADY_APPLIED",
+    "preexisting_data_owner_acl_preservation": "PASS"
+  },
+  "complete_chain": {
+    "versions": "0000 through 0009 in order",
+    "count": 10,
+    "source_checksums_match": "PASS",
+    "rerun": "PASS, no migrations applied"
+  },
+  "0008_effects": {
+    "new_tables": 9,
+    "new_explicit_indexes": 2,
+    "profile_api_functions": 5,
+    "trigger_function": 1,
+    "append_only_triggers": 1,
+    "seed_counts": {
+      "tiers": 4,
+      "capabilities": 18,
+      "resources": 11,
+      "capability_resource_bindings": 26,
+      "tier_default_rules": 50,
+      "resident_profiles": 0,
+      "drafts": 0,
+      "resident_rules": 0,
+      "profile_events": 0
+    },
+    "existing_authority_rows_modified": false,
+    "grants_or_credentials_issued": false
+  },
+  "regression_suite": {
+    "tests": 53,
+    "failures": 0,
+    "skips": 0
+  },
+  "graph_check_validation": "PASS, 21 workflows / 524 nodes",
+  "revision_audit": "PASS, zero issues",
+  "py_compile": "PASS",
+  "git_diff_check": "PASS",
+  "pr_76": "Open; changes will be pushed to existing PR; no merge/deploy performed",
+  "production_gates": [
+    "Separate explicit production execution authorization",
+    "Verified protected backup, pg_restore list and disposable restore comparison",
+    "Read-only confirmation of actual active backend profile-aware authorizer and effective execute ACL for evaluate_resident_permission",
+    "Exact manager UPDATE privilege preflight before later retirement operation"
+  ]
+}
