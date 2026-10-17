@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/operations/RIVERVIEW_MACHINE_CONNECTIONS_AND_COMMS5_RECOVERY_2026-10-17.md
 Component: COMMS5-OAUTH-IONOGE
-File Revision: 1.0.5
+File Revision: 1.0.6
 Status: Verified machine connection and recovery runbook
 Date: 2026-10-17
 Purpose: Record nonsecret Camrui/Ionoge Comms5 connectivity, health checks, and recovery evidence.
@@ -10,6 +10,7 @@ Changed: 2026-10-17 UTC | RV-COMMS5-OAUTH-FORWARD-HEADERS-001 | Record byte-leve
 Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-CREDENTIAL-001 | Document credential purpose, consumers, provenance limitation and safe rotation.
 Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-CREDENTIAL-002 | Record direct-bearer inventory limits, live utility preflight and guarded operator command.
 Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-ROTATION-HEALTH-REPAIR | Document bounded post-restart readiness and corrected Windows launcher paths/target.
+Changed: 2026-10-17 UTC | RV-CAMRUI-EXECUTION-ENVIRONMENT-001 | Confirm Windows alias operation and distinguish it from local Camrui Linux execution.
 History: New file; no predecessor existed in the integration checkout.
 Authority: Existing service identities and grants; this document does not issue authority.
 -->
@@ -30,6 +31,18 @@ ChatGPT MCP client
 Ionoge is `ionoge-control-01` at `64.227.21.54`. Comms5 public issuer is `https://riverview-comms.ionoge.com`; MCP resource is `https://riverview-comms.ionoge.com/comms5/mcp`. OAuth routes are on the same HTTPS host. The adapter and OAuth listeners remain loopback-only.
 
 Camrui units: `riverview-comms5-camrui.service` and `riverview-comms5-tunnel.service`. Ionoge units: `riverview-comms5-oauth.service` and `caddy.service`. The reverse tunnel uses the dedicated restricted key and pinned host key delivered to the Camrui service with systemd credentials; SSH uses strict host-key checking and a remote forward bound only to `127.0.0.1:11826`. Do not copy, print, or rotate credentials as routine recovery.
+
+## Verified Windows SSH and Linux execution context — 2026-10-17
+
+The Windows development workstation's existing OpenSSH alias and identity were verified headlessly:
+
+```powershell
+ssh.exe -o BatchMode=yes camrui "hostname; whoami; pwd"
+```
+
+It returned hostname `admin1-Default-string`, account `admin1`, directory `/home/admin1`, and exit code `0`. The Windows alias and its configured key remain the working Windows access path; the private key is not copied into this Linux environment.
+
+The Codex Linux execution shell for this campaign is itself Camrui (`admin1-Default-string`, `admin1`, `/home/admin1`, local address `192.168.1.155`). Local systemd, loopback services, and checkouts are therefore accessed directly from that shell. The attempted `ssh camrui` from Linux failed at alias/name resolution because this Linux environment does not contain the Windows-only alias configuration; that was not an SSH authentication failure or a Camrui server fault. Run `ssh.exe -G camrui` in Windows PowerShell to inspect effective Windows mapping without exposing private-key contents. See the historical repository's `docs/operations/network/RIVERVIEW_SSH_STANDARD.md` for the client-side standard and diagnosis sequence.
 
 ## What the OAuth page means by “Steward credential”
 

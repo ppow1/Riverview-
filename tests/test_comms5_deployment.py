@@ -1,6 +1,6 @@
 """Comms5 deployment-unit safety regression tests.
 
-File Revision: 1.0.3
+File Revision: 1.0.4
 Component: COMMS5-CAMRUI-DEPLOYMENT-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-OAUTH-FORWARD-HEADERS-001 | Reject header deletion that strips the trusted Comms5 marker.
@@ -11,6 +11,13 @@ from pathlib import Path
 
 
 class Comms5DeploymentTests(unittest.TestCase):
+    def test_service_uses_systemd_dashboard_credential_and_loopback_projection(self):
+        unit = (Path(__file__).parents[1] / "deploy/systemd/riverview-comms5-camrui.service").read_text()
+        self.assertIn("LoadCredential=dashboard-token:/home/admin1/.config/riverview/status-dashboard.token", unit)
+        self.assertIn("Environment=RIVERVIEW_COMMS5_DASHBOARD_URL=http://127.0.0.1:8767", unit)
+        self.assertIn("Environment=RIVERVIEW_COMMS5_HOST=127.0.0.1", unit)
+        self.assertIn("DynamicUser=yes", unit)
+
     def test_oauth_principal_is_copied_from_successful_forward_auth(self):
         fragment = (Path(__file__).parents[1] / "deploy/comms5/caddy-comms5-oauth-block.caddy").read_text()
         oauth_path = fragment.split("\n\thandle {\n\t\tforward_auth", 1)[1]

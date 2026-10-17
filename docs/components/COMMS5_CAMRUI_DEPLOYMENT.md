@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_CAMRUI_DEPLOYMENT.md
 Component: COMMS5-CAMRUI-ADAPTER
-File Revision: 1.0.4
+File Revision: 1.0.5
 Status: Deployment and recovery procedure
 Date: 2026-10-17
 History: New file; no predecessor existed.
@@ -44,6 +44,7 @@ The adapter does not listen on a LAN address and does not connect to the databas
 - Tool list is byte-equivalent in the original 21 names, descriptions, input schemas and annotations to the checked-in source catalog (plus historical OAuth security metadata).
 - A safe implemented operation such as `comms5_contract_info` returns the historical versioned result.
 - A not-yet-migrated operation returns `isError=true`, `NOT_IMPLEMENTED`, `executed=false`, with no database or filesystem mutation.
+- CME and objective read projections use the dashboard's existing bearer through a systemd `LoadCredential`; the adapter contacts only loopback `127.0.0.1:8767` and fixed read routes. Objective payload text and acceptance criteria are not returned. Never pass a caller-controlled URL or route to this backend.
 - OAuth metadata/discovery, authorization-code PKCE, token exchange, unauthorized rejection, and authenticated MCP operation pass through the public Caddy endpoint.
 - Existing `https://riverview-comms.ionoge.com/mcp` (Comms4) and prior authenticated Comms5 connector continue working.
 - ChatGPT custom connector is authenticated, discovers all 21 tools, and invokes `comms5_contract_info` successfully. This account-side gate must be completed in the Steward's ChatGPT workspace; server-side tests cannot impersonate it.

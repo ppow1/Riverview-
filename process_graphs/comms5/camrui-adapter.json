@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:comms5:camrui-adapter",
-  "graph_revision": "1.0.7",
+  "graph_revision": "1.0.10",
   "component_id": "COMMS5-CAMRUI-ADAPTER",
   "workflow_id": "comms5.camrui.compatibility.v1",
   "diagram_order": 91,
@@ -10,7 +10,8 @@
     "deploy/systemd/riverview-comms5-camrui.service",
     "deploy/systemd/riverview-comms5-tunnel.service",
     "deploy/systemd/riverview-comms5-oauth.service",
-    "deploy/comms5/caddy-comms5-oauth-block.caddy"
+    "deploy/comms5/caddy-comms5-oauth-block.caddy",
+    "src/riverview_core/comms5/dashboard_backend.py"
   ],
   "documentation_references": [
     "docs/components/COMMS5_CAMRUI_DEPLOYMENT.md",
@@ -163,6 +164,41 @@
       "verification_evidence": [
         "tests/test_comms5_steward_credential.py"
       ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:authenticated-dashboard-read",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Comms5 runs a bounded loopback probe and calls only fixed dashboard read routes using a protected systemd credential; objective text is filtered",
+      "source_references": [
+        "src/riverview_core/comms5/server.py",
+        "src/riverview_core/comms5/dashboard_backend.py",
+        "deploy/systemd/riverview-comms5-camrui.service"
+      ],
+      "documentation_references": [
+        "docs/components/COMMS5_CAMRUI_MIGRATION.md",
+        "docs/components/COMMS5_CAMRUI_DEPLOYMENT.md"
+      ],
+      "verification_evidence": [
+        "tests/test_comms5_mcp.py",
+        "tests/test_comms5_deployment.py"
+      ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:dashboard-read-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Unavailable or malformed dashboard reads return an MCP tool error with executed=false and sanitized failure identity",
+      "source_references": [
+        "src/riverview_core/comms5/server.py",
+        "src/riverview_core/comms5/dashboard_backend.py"
+      ],
+      "documentation_references": [
+        "docs/components/COMMS5_CAMRUI_MIGRATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_comms5_mcp.py"
+      ]
     }
   ],
   "edges": [
@@ -210,6 +246,16 @@
       "from": "rv:comms5:camrui-adapter:rotation-predecessor-rollback",
       "to": "rv:comms5:camrui-adapter:rotation-readiness",
       "type": "verification"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:catalog",
+      "to": "rv:comms5:camrui-adapter:authenticated-dashboard-read",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:authenticated-dashboard-read",
+      "to": "rv:comms5:camrui-adapter:dashboard-read-failure",
+      "type": "diagnostic_branch"
     }
   ]
 }
