@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_institutional_authority.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.16
+# Revision: 1.0.17
 # Purpose: Verify durable identity separation and fail-closed exact scoped grants
 # Execution Model: PostgreSQL integration tests in rvtest_* disposable schemas
 # Observability: unittest evidence, authority events, binding/state revisions
@@ -16,6 +16,7 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Include linked-principal exact-grant migration in migration sequence assertion
 # Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Require and checksum-apply the audited successor migration in authority fixtures
 # Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Verify Steward-only office-role CAS, audit event, and binding/occupant preservation
+# Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Include worker retirement audit migration in authority sequence
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -79,6 +80,7 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "0006_authorized_implementation_successor",
             "0007_audited_office_role_update",
             "0008_resident_permission_profiles",
+            "0009_worker_registration_retirement_event",
         ])
         self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
         if os.geteuid() != 0:

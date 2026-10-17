@@ -1,0 +1,6 @@
+Production result: NOT RUN / UNVERIFIED.
+Steward-provided latest inventory: seven total, five active (three Grace and two exact M33), two inactive historical M31.
+Linux direct SSH attempt: admin1@192.168.1.155 rejected with Permission denied (publickey,password).
+This is an authentication/access block, not evidence of production service failure.
+No production PostgreSQL query/write, migration, service action, or worker retirement occurred.
+The current production UPDATE privilege for riverview_authority_manager is unknown; the operation checks this read-only and fails closed if absent.

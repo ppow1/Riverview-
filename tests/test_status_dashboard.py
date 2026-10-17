@@ -2,14 +2,16 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.50
+# Revision: 1.0.51
 # Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Assert UI distinguishes lease heartbeat status from worker process liveness.
+# Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Assert inactive retired registrations do not affect active worker health counts.
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
 # Execution Model: HTTP component tests and isolated PostgreSQL integration tests
 # Observability: Versioned status and request failure contracts
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL for integration class
 # Authority: Creates/drops only unique rvtest_* schemas; never accesses shared Riverview data
 # Changed: 2026-10-16 UTC | RV-WEBSITE-PL-NEW-042 | Verify registered workflow fit/zoom/pan/reset/fullscreen controls.
+# Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Verify inactive registrations are excluded from active health counts
 # Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Verify safe component links remain functional in the consolidated guide
 # Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ROUTE | Exercise updated authority diagnostics through the dashboard documentation route
 # Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Enforce browser-managed persistent grant cookie and denial retry suppression UI contract
@@ -991,6 +993,22 @@ class DashboardPostgresTests(unittest.TestCase):
         self.assertEqual(summary["status"],"unverified")
         self.assertEqual(sum(w["active_leases"] for p in pages for w in p["items"]),2)
         self.assertEqual(len(self.projection.snapshot()["workers"]["items"]),4)
+
+    def test_inactive_retired_registration_is_excluded_from_active_health_counts(self):
+        with self.admin.cursor() as cur:
+            cur.execute("INSERT INTO worker_registry(worker_id,credential_sha256,capabilities,scope_ref,active) "
+                        "VALUES ('retired-worker',%s,'[]'::jsonb,'work-order:retired',false)",
+                        (b"r" * 32,))
+        worker_page = self.projection.workers(limit=10)
+        retired = next(item for item in worker_page["items"]
+                       if item["worker_id"] == "retired-worker")
+        self.assertFalse(retired["active"])
+        self.assertEqual(retired["status"], "inactive")
+        summary = self.projection.status()["workers"]
+        self.assertEqual(summary["active_workers"], 0)
+        self.assertEqual(summary["healthy_workers"], 0)
+        self.assertEqual(summary["stale_workers"], 0)
+        self.assertEqual(summary["unknown_workers"], 0)
 
     def test_unavailable_and_not_initialized_sources_are_distinct(self):
         missing = DashboardProjection(DSN, schema="rvtest_missing_dashboard")

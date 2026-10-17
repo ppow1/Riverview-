@@ -1,0 +1,121 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-M33-DECOMMISSION-001",
+  "capture_timestamp_utc": "2026-10-16T23:19:25Z",
+  "artifacts": {
+    "SHA256SUMS": {
+      "path": "SHA256SUMS",
+      "revision": "1.0.0",
+      "sha256": "5aec8d26426a34e6092c3823e12a86ee555b3f7b53e169eceda586530ac233e6",
+      "size_bytes": 2781
+    },
+    "assignment-preservation-check.txt": {
+      "path": "assignment-preservation-check.txt",
+      "revision": "1.0.0",
+      "sha256": "e38d2fc79a48962e3a0206069fa7123f3292d74739fc46f95c6e04a9d21e3ed9",
+      "size_bytes": 139
+    },
+    "assignments-after.rows": {
+      "path": "assignments-after.rows",
+      "revision": "1.0.0",
+      "sha256": "1d0b34bf26d37cffd25168d0a1bb6fdd51a9a7e96bee3781868d77e6be99d802",
+      "size_bytes": 614
+    },
+    "assignments-before.rows": {
+      "path": "assignments-before.rows",
+      "revision": "1.0.0",
+      "sha256": "1d0b34bf26d37cffd25168d0a1bb6fdd51a9a7e96bee3781868d77e6be99d802",
+      "size_bytes": 614
+    },
+    "capture-index.txt": {
+      "path": "capture-index.txt",
+      "revision": "1.0.0",
+      "sha256": "9deec2e8b8ed4c07e67b645aed5f69787c0bc5d3efe932223d29582cf876ccfd",
+      "size_bytes": 301
+    },
+    "commissioning-state-after.txt": {
+      "path": "commissioning-state-after.txt",
+      "revision": "1.0.0",
+      "sha256": "eb1e1967a5435b518cbf41740146bc9dd5555c0ab71407dc59b8ca591de4e247",
+      "size_bytes": 1317
+    },
+    "commissioning-state-before.json": {
+      "path": "commissioning-state-before.json",
+      "revision": "1.0.0",
+      "sha256": "b6867d74417333b55b855d6b34a717c2bf7a0b7e93fdca27e521a98e056da1b6",
+      "size_bytes": 916
+    },
+    "grace-authority-after.txt": {
+      "path": "grace-authority-after.txt",
+      "revision": "1.0.0",
+      "sha256": "c9d29a6b1654bd54163b1cbde7bf59cf2c9dac364d96d07a1f00796c2eac5d97",
+      "size_bytes": 1375
+    },
+    "intake-connections-before.txt": {
+      "path": "intake-connections-before.txt",
+      "revision": "1.0.0",
+      "sha256": "14f4ea5bdea2bd6f8d856ec28619243555e53de100d4bca155a751876e97a843",
+      "size_bytes": 64
+    },
+    "intake-listener-before.txt": {
+      "path": "intake-listener-before.txt",
+      "revision": "1.0.0",
+      "sha256": "2d3bb81ed3b8f56139aac5b33c90b9b44449db23f716993d7c38d41f6ac34885",
+      "size_bytes": 156
+    },
+    "post-state-postgres.txt": {
+      "path": "post-state-postgres.txt",
+      "revision": "1.0.0",
+      "sha256": "179ebf06431448556770ab9b9b506b6aa3d27298682da28032342c1739b8908e",
+      "size_bytes": 3678
+    },
+    "pre-state-postgres.txt": {
+      "path": "pre-state-postgres.txt",
+      "revision": "1.0.0",
+      "sha256": "76723ae7434ef6e79c20c3a2ddab9e1098079b3a0698fd4ba1c098519dc62e98",
+      "size_bytes": 3319
+    },
+    "protected-state-backup-check.txt": {
+      "path": "protected-state-backup-check.txt",
+      "revision": "1.0.0",
+      "sha256": "6d7e81f7a102ad3343f78fca300917584e0bbfa06ab4997b10bcbd1a73a25b7c",
+      "size_bytes": 162
+    },
+    "reverse-dependencies-before.txt": {
+      "path": "reverse-dependencies-before.txt",
+      "revision": "1.0.0",
+      "sha256": "f8d240d01acae68ce95161f8d6e446e0b4052e8977e8988ab987215f765b5f08",
+      "size_bytes": 269
+    },
+    "revocation-result.json": {
+      "path": "revocation-result.json",
+      "revision": "1.0.0",
+      "sha256": "da6cd94084c90313cdcc8c5057706d946a823e688fe6cf4d19627ae8e364369f",
+      "size_bytes": 491
+    },
+    "services-after.txt": {
+      "path": "services-after.txt",
+      "revision": "1.0.0",
+      "sha256": "ea5efcddd6f0afbc64da544e782dda2b2c3b98552ea8a2f401df050766a78c51",
+      "size_bytes": 861
+    },
+    "services-before.txt": {
+      "path": "services-before.txt",
+      "revision": "1.0.0",
+      "sha256": "7101e8e960cab6a28b67945ed735a4a8977348fb95e82c8e26d6c9bb582c7a51",
+      "size_bytes": 1306
+    },
+    "unrelated-services-after.txt": {
+      "path": "unrelated-services-after.txt",
+      "revision": "1.0.0",
+      "sha256": "34f2ba7c59af3175fba2fbfa14b026daa686a4e0d3f7de102ba084afdf883a40",
+      "size_bytes": 1018
+    },
+    "unrelated-services-before.txt": {
+      "path": "unrelated-services-before.txt",
+      "revision": "1.0.0",
+      "sha256": "cc3ece85128adda7102c6de9d3c2a938af50a695b8193355b48da514d5caea87",
+      "size_bytes": 1383
+    }
+  }
+}

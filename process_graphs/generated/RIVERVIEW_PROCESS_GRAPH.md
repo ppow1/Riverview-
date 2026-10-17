@@ -1,6 +1,6 @@
 # Riverview aggregate process graph
 
-**Document Revision:** 1.0.21
+**Document Revision:** 1.0.22
 **Generated from:** canonical workflow JSON; do not edit this projection by hand.  
 **Source:** `python3 scripts/process_graph.py generate`  
 
@@ -27,6 +27,7 @@ flowchart LR
   g_rv_runtime_baseline_commissioning_46ff1ccf[["RUNTIME-BASELINE<br/>runtime-baseline.v1<br/>rv:runtime-baseline:commissioning"]]
   g_rv_steward_dashboard_status_75f7c259[["STEWARD-DASHBOARD<br/>status-projection.v1<br/>rv:steward-dashboard:status"]]
   g_rv_worker_adapter_deterministic_attempt_15d59b6f[["WORKER-ADAPTER<br/>deterministic-attempt.v1<br/>rv:worker-adapter:deterministic-attempt"]]
+  g_rv_worker_adapter_registration_retirement_6a7a90c3[["WORKER-ADAPTER<br/>registration-retirement.v1<br/>rv:worker-adapter:registration-retirement"]]
   g_rv_worker_adapter_supervised_services_d9ea8d99[["WORKER-ADAPTER<br/>supervised-services.v1<br/>rv:worker-adapter:supervised-services"]]
   g_rv_assignment_intake_governed_request_226f3420 -->|jump| g_rv_institutional_authority_identity_and_grants_05fdf0c5
   g_rv_assignment_scheduler_independent_claims_88bd80c4 -->|jump: Open the M1.3 ready-state producer workflow| g_rv_event_processor_assignment_progression_fa10db2d

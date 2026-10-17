@@ -1,0 +1,8 @@
+  riverview-cme-monitor.service                         loaded active running Riverview CME assignment progress monitor
+  riverview-event-processor.service                     loaded active running Riverview M1.3 durable assignment event processor
+  riverview-grace-cpu-inference.service                 loaded active running Riverview Grace local Qwen3 CPU inference
+  riverview-grace-execution-owner-session.service       loaded active running Riverview Grace persistent Engineering execution (ChatGPT owner session)
+  riverview-notification-dispatcher.service             loaded active running Riverview durable visual notification dispatcher
+  riverview-status-dashboard.service                    loaded active running Riverview read-only Steward status dashboard
+  systemd-tmpfiles-setup-dev-early.service              loaded active exited  Create Static Device Nodes in /dev gracefully
+  systemd-udevd.service                                 loaded active running Rule-based Manager for Device Events and Files
