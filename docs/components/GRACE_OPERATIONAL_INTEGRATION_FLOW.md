@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.48
+**Document Revision:** 1.0.49
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -128,6 +128,7 @@ flowchart LR
     g_rv_grace_operational_integration_verified_result_review_decision_58c1884b{"After independently verified work, the bound 80B chooses complete, request evidence, propose a same-objective step within approved scope, or require Steward authorization; it cannot grant authority"}
     g_rv_grace_operational_integration_internal_tool_call_340d40b0["IMPLEMENTED — Grace 80B may emit one strict bounded read-tool request; Comms5Application dispatches it through the existing dashboard backend, preserving published schemas, validation, and result shaping"]
     g_rv_grace_operational_integration_internal_tool_consume_a8336489["IMPLEMENTED — Grace receives the structured tool result in a bounded follow-up completion; the result is persisted with the assistant conversation event; malformed or failed calls return sanitized errors"]
+    g_rv_grace_operational_integration_codex_persisted_criteria_verification_3aad2766["Verify the Codex deliverable against acceptance criteria resolved from the pre-dispatch PostgreSQL objective step linked to this assignment; missing durable criteria fail closed"]
   end
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_cme_progress_and_recovery_observe_428defda["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -186,7 +187,6 @@ flowchart LR
   g_rv_grace_operational_integration_codex_resource_check_71ed8b3b -->|diagnostic_branch: Missing binary, dedicated identity/credential, capacity, or fresh dependency evidence| g_rv_grace_operational_integration_codex_execution_failed_f49befea
   g_rv_grace_operational_integration_codex_authority_gate_738aae11 -->|prerequisite: Exact worker registration and assignment execution grants required| g_rv_grace_operational_integration_codex_cli_run_ade47dcf
   g_rv_grace_operational_integration_codex_authority_gate_738aae11 -->|diagnostic_branch: Missing, denied, or unavailable exact grant; never infer approval| g_rv_grace_operational_integration_codex_execution_failed_f49befea
-  g_rv_grace_operational_integration_codex_cli_run_ade47dcf -->|prerequisite: Produced artifact is untrusted until separately verified| g_rv_grace_operational_integration_codex_artifact_verification_ab484b65
   g_rv_grace_operational_integration_codex_cli_run_ade47dcf -->|diagnostic_branch: Git safe-directory refusal or repository pin mismatch before CLI launch; provider failure, timeout, output-bound violation, or unexpected workspace change| g_rv_grace_operational_integration_codex_execution_failed_f49befea
   g_rv_grace_operational_integration_codex_execution_failed_f49befea -->|recovery_route: Proven pre-execution no-effect uses one durable retry-safe recovery record; uncertain post-launch outcomes remain held for Steward decision| g_rv_grace_operational_integration_codex_execution_recovery_5c33f626
   g_rv_grace_operational_integration_codex_execution_recovery_5c33f626 -->|prerequisite: Reground dynamic resource and credential readiness before retry| g_rv_grace_operational_integration_codex_resource_check_71ed8b3b
@@ -223,6 +223,8 @@ flowchart LR
   g_rv_grace_operational_integration_internal_tool_call_340d40b0 -->|Dispatch one registered read operation, return its structured result to Grace, and persist that result with the completed conversation turn| g_rv_grace_operational_integration_internal_tool_consume_a8336489
   g_rv_grace_operational_integration_internal_tool_call_340d40b0 -->|diagnostic_branch: Unknown operation, invalid arguments, or projection failure returns a sanitized structured error for Grace to report| g_rv_grace_operational_integration_internal_tool_consume_a8336489
   g_rv_grace_operational_integration_internal_tool_consume_a8336489 -->|recovery_route: A later lookup is a new model-originated request and is independently schema-validated| g_rv_grace_operational_integration_internal_tool_call_340d40b0
+  g_rv_grace_operational_integration_codex_cli_run_ade47dcf -->|verification: Resolve exact persisted criteria through the assigned objective-step link before inspecting output| g_rv_grace_operational_integration_codex_persisted_criteria_verification_3aad2766
+  g_rv_grace_operational_integration_codex_persisted_criteria_verification_3aad2766 -->|verification: Criteria contract is present and is evaluated independently against the artifact| g_rv_grace_operational_integration_codex_artifact_verification_ab484b65
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 
