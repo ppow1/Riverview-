@@ -1,10 +1,12 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.159
+**Document Revision:** 1.0.160
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
+**Changed:** 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Add OAuth resource-server validation and verify Secure MCP Tunnel path
+**Changed:** 2026-10-16 UTC | RV-M33-DECOMMISSION-001 | Record exact-run M33 decommission and preserve production acceptance evidence
+**Changed:** 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Record guarded M33 registration retirement, integration reconciliation, verification, and production execution boundary
 **Changed:** 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Investigate stale/unknown worker projection and distinguish lease activity from process liveness.
-**Changed:** 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Implement OAuth resource-token validation, 401/403 challenges and verify private Tunnel option; record final isolated suite and live access gates
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record offline diagnostic snapshot source, verification evidence and production boundary
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PR67-SNAPSHOT-CSP-FIX | Record controlled f957 release, verified migration and live service, partial diagnostic export, and isolated CSP correction evidence
 **Changed:** 2026-10-16 UTC | RV-PROPOSAL-AUTHORING-GUIDANCE | Link the AI startup hints to a concise proposal authoring playbook
@@ -2254,6 +2256,41 @@ passed 37/37; 8 PostgreSQL-dependent tests were skipped. Evidence:
 The API/session values and release identifiers are synthetic; Camrui was not
 accessed and production account/session acceptance remains unverified.
 
+## 2026-10-16 UTC — RV-M33-DECOMMISSION-001 — expired commissioning decommission
+
+With explicit Steward authorization, stopped only the assignment intake, M33
+executor, and M33 verifier, then ran the deployed M33 revocation helper for
+commissioning run `e92ec51590b34cd3b04d05c000f3eab4`. The helper revoked its five
+exact grants and all worker credentials for the run, removed the four expected
+protected credential/config files, and retained the state record as `revoked`.
+Four completed and one `WAITING_FOR_EVIDENCE` assignment remained unchanged; no
+ready, running, or awaiting-verification assignment existed. The services
+remain stopped. PostgreSQL read-only verification, Grace, CME, event processor,
+notification dispatcher, dashboard, and unrelated Grace workers remained
+operational. No timestamps, schemas, assignments, Grace authority, or unrelated
+credentials were changed. Pre/post metadata, unit/dependency checks, assignment
+comparison, and redacted helper outcome are recorded in
+`evidence/checkouts/M33-DECOMMISSION/20261016T231925Z-e92ec515/`; the exact
+predecessor state JSON is protected under `/var/lib/riverview-m33-worker/`.
+The M33 run was a finite test commissioning, not standing production authority.
+The existing helper does not support another run after revocation; future
+activation requires separate reviewed commissioning work and authorization.
+
+## 2026-10-16 UTC — RV-WORKER-REGISTRY-RETIRE-001 — fixed M33 registration retirement
+
+The Steward supplied a live seven-row inventory: five active registrations
+(three Grace, two revoked-run M33) and two inactive historical M31 rows. Added a
+fixed root-local retirement operation that requires the exact revoked M33 state,
+active Steward `identity.manage` authority, all three M33 units stopped, no
+effective M33 worker authority/credentials, no active lease or executable M33
+assignment, and the expected exact inventory. Its database transaction changes
+only the two M33 `active` flags and appends two authority events; it verifies the
+three Grace IDs are the only active rows afterward. Authority migration 0009
+adds only the event type. Regression tests, troubleshooting procedure, and a
+canonical process graph were added. The Linux session still has no usable
+Windows SSH bridge and direct SSH remains denied, so the migration and helper
+were not run on production; live registry count remains unverified after this
+source change. Predecessors are recorded in `.riverview-backups/manifest.jsonl`.
 
 ## 2026-10-16 UTC — RV-WEBSITE-PR67-SNAPSHOT-CSP-FIX
 
@@ -2353,6 +2390,10 @@ Production `/api/v1/workers` and status observations on 2026-10-16 reported five
 ## 2026-10-16 UTC — RV-EXTERNAL-MCP-ADAPTER-001 integrated verification
 
 PR #69 was reconciled against the latest integration base `5221da72286aea73bed2fb1ac9aa043a120df2bd` at merge commit `1359019ed377b791ac5b4004a6ca09d735e6797a`. The append-only backup manifest and revision inventory conflicts were resolved by preserving records from both branches. The integrated repository suite passed **501 tests, 0 failures, 0 skips** against a disposable PostgreSQL 16.15 cluster on port 55494 (416.430 seconds). Canonical process graph check passed at 20 graphs / 513 nodes; controlled revision audit passed with zero issues; changed Python compilation and `git diff --check` passed. Independent loopback MCP client and durable PostgreSQL exchange tests passed. Evidence is recorded at `evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T230300Z-1359019/`. PR #69 remains open and unmerged; no production migration, deployment, public route, or ChatGPT configuration occurred. External-network reachability is unverified. Predecessor journal: `.riverview-backups/20261016T230217899962Z/docs/development/JOURNAL.md`.
+
+
+
+Integration reconciliation preserved the latest target-branch worker-health, Grace, proposal, and external-reasoning records while retaining this retirement operation. The merged process graph validates at 21 workflows / 520 nodes; focused retirement and worker regressions pass against disposable PostgreSQL. Production registry retirement remains unexecuted because this session has no authorized Windows SSH bridge.
 
 ## 2026-10-17 UTC — RV-MCP-CHATGPT-OAUTH-RESOURCE-001
 

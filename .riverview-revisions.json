@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.197"
+      "revision": "1.1.198"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -23,9 +23,9 @@
     },
     "docs/development/JOURNAL.md": {
       "path": "docs/development/JOURNAL.md",
-      "revision": "1.0.159",
-      "sha256": "1535124a827be35a743b201c1f44ebfddd3a8cc8dee6f6cd114c79a14b920daa",
-      "size_bytes": 199425
+      "revision": "1.0.160",
+      "sha256": "8d095760c734ac25f37629b3d3d6a94ca04876fd1ce860e4a62bef4ebb3fe5e2",
+      "size_bytes": 202581
     },
     "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md": {
       "path": "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md",
@@ -113,9 +113,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.149",
-      "sha256": "261c8a72ed3114f61eeea3b395106e4b952c07472a09d758f123a68bf6e966f3",
-      "size_bytes": 576669
+      "revision": "1.0.150",
+      "sha256": "6e157c08a770837355572a14e999af168913bbe37a1a1dc49fd6dd4060b0f233",
+      "size_bytes": 583817
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -207,6 +207,12 @@
       "sha256": "2de78352344260a63024549536dfa6b3714073455e2f5e07db87461ee0f6ee5d",
       "size_bytes": 43754
     },
+    "process_graphs/worker-adapter/registration-retirement.json": {
+      "path": "process_graphs/worker-adapter/registration-retirement.json",
+      "revision": "1.0.1",
+      "sha256": "547c13dc8f97b313c6fe151d1280f1c541d45d4aec334a06c4bc71f1024f94e6",
+      "size_bytes": 5661
+    },
     "process_graphs/worker-adapter/supervised-services.json": {
       "path": "process_graphs/worker-adapter/supervised-services.json",
       "revision": "1.0.1",
@@ -244,6 +250,6 @@
       "size_bytes": 1226
     }
   },
-  "manifest_revision": "1.1.197",
+  "manifest_revision": "1.1.198",
   "updated_at": null
 }

@@ -1,0 +1,37 @@
+{
+  "artifacts": {
+    "README.md": {
+      "path": "README.md",
+      "revision": "1.0.0",
+      "sha256": "b8d495a143d51e944b131533e7259100b9904282be0a98672fb0b9d25e0c6b28",
+      "size_bytes": 3223
+    },
+    "focused-tests.log": {
+      "path": "focused-tests.log",
+      "revision": "1.0.0",
+      "sha256": "f55f340cd03f1f0a1bec0fa1ff937f178de78b24fa342330ccf5285f2b4b9665",
+      "size_bytes": 626
+    },
+    "graph-check.json": {
+      "path": "graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "5814f2d99fb44ccce8b45a7dbb70a586352756dbda3be4f80ff9012b037a0d3e",
+      "size_bytes": 112
+    },
+    "production-boundary.txt": {
+      "path": "production-boundary.txt",
+      "revision": "1.0.0",
+      "sha256": "0d9c15002f7cc81f8e86969bfbfa2f4871f4b7c2109562f16d408049b9d435c8",
+      "size_bytes": 592
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "37aa6f60a55db53edac353fb14de11f3482b9512be0aaeba94c47559fa76b9f1",
+      "size_bytes": 128
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "source_commit": "e49447855a2abc9b70bfe6f0c4b28ba8cc4f597e",
+  "task_id": "RV-WORKER-REGISTRY-RETIRE-001"
+}

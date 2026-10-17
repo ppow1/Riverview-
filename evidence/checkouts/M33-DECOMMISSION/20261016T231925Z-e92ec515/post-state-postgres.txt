@@ -1,0 +1,40 @@
+BEGIN
+                  grant_id                  |             principal_id             |       action       |              scope_ref               |          valid_until          |          revoked_at           
+--------------------------------------------+--------------------------------------+--------------------+--------------------------------------+-------------------------------+-------------------------------
+ rv-m33:e92ec51590b34cd3:assignment-create  | steward:camrui                       | assignment.create  | work-order:m33-live-e92ec51590b34cd3 | 2026-10-11 16:43:30.319977-04 | 2026-10-16 19:19:59.238583-04
+ rv-m33:e92ec51590b34cd3:assignment-execute | worker:m33:executor:e92ec51590b34cd3 | assignment.execute | work-order:m33-live-e92ec51590b34cd3 | 2026-10-11 16:43:30.319977-04 | 2026-10-16 19:19:59.280185-04
+ rv-m33:e92ec51590b34cd3:assignment-verify  | worker:m33:verifier:e92ec51590b34cd3 | assignment.verify  | work-order:m33-live-e92ec51590b34cd3 | 2026-10-11 16:43:30.319977-04 | 2026-10-16 19:19:59.314611-04
+ rv-m33:e92ec51590b34cd3:executor-register  | worker:m33:executor:e92ec51590b34cd3 | worker.register    | work-order:m33-live-e92ec51590b34cd3 | 2026-10-11 16:43:30.319977-04 | 2026-10-16 19:19:59.261915-04
+ rv-m33:e92ec51590b34cd3:verifier-register  | worker:m33:verifier:e92ec51590b34cd3 | worker.register    | work-order:m33-live-e92ec51590b34cd3 | 2026-10-11 16:43:30.319977-04 | 2026-10-16 19:19:59.297127-04
+(5 rows)
+
+            credential_id             |             principal_id             |          expires_at           |          revoked_at           
+--------------------------------------+--------------------------------------+-------------------------------+-------------------------------
+ b2c44cb4-5f79-48bf-bfd9-f832fd313e08 | worker:m33:executor:e92ec51590b34cd3 |                               | 2026-10-11 08:43:30.499288-04
+ d7b8c66c-d68b-4717-bf14-55a267c61c94 | worker:m33:executor:e92ec51590b34cd3 | 2026-10-11 16:43:30.319977-04 | 2026-10-16 19:19:59.343953-04
+ 0e30c469-7d47-4e6f-9e5a-fd85e16919a8 | worker:m33:verifier:e92ec51590b34cd3 |                               | 2026-10-11 08:43:30.648673-04
+ ef778ffa-584c-4c84-99bb-5187a421208f | worker:m33:verifier:e92ec51590b34cd3 | 2026-10-11 16:43:30.319977-04 | 2026-10-16 19:19:59.361471-04
+(4 rows)
+
+                         id                         |   state   |      workflow_step       |          updated_at           
+----------------------------------------------------+-----------+--------------------------+-------------------------------
+ m33-live-55ad3ad368284d48925dfc27e1e5dbcf          | completed | independent_verification | 2026-10-11 08:44:00.611269-04
+ m33-live-followup-df010ec29b0747d089575a817e938261 | completed | independent_verification | 2026-10-11 09:09:50.055266-04
+ m33-live-pair-8275424de12b4d2caac43816366d9913     | completed | independent_verification | 2026-10-11 08:54:02.430327-04
+ m33-live-pair-a948a782fe764e4e846fedd9ce3e1601     | completed | independent_verification | 2026-10-11 08:54:05.041546-04
+ m33-live-wait-e8646ad6795f4c7b9cf443faf236d0df     | blocked   | WAITING_FOR_EVIDENCE     | 2026-10-11 09:09:39.56825-04
+(5 rows)
+
+               worker_id                | active |       scope_ref        
+----------------------------------------+--------+------------------------
+ verifier:grace-engineering             | t      | work-order:engineering
+ worker:grace-engineering               | t      | work-order:engineering
+ worker:grace-engineering-source-change | t      | work-order:engineering
+(3 rows)
+
+ database_read_only_health 
+---------------------------
+                         1
+(1 row)
+
+COMMIT

@@ -1,0 +1,19 @@
+{
+  "created_at": "2026-10-11T12:43:30.319998+00:00",
+  "grant_ids": {
+    "assignment.create": "rv-m33:e92ec51590b34cd3:assignment-create",
+    "assignment.execute": "rv-m33:e92ec51590b34cd3:assignment-execute",
+    "assignment.verify": "rv-m33:e92ec51590b34cd3:assignment-verify",
+    "worker.register.executor": "rv-m33:e92ec51590b34cd3:executor-register",
+    "worker.register.verifier": "rv-m33:e92ec51590b34cd3:verifier-register"
+  },
+  "provisioned_at": "2026-10-11T12:43:30.751843+00:00",
+  "record_schema": "rv.m33-commissioning.v1",
+  "run_id": "e92ec51590b34cd3b04d05c000f3eab4",
+  "scope_ref": "work-order:m33-live-e92ec51590b34cd3",
+  "source_commit": "47a79adafe1524b3e819148b70c02a1857f50dbf",
+  "status": "provisioned",
+  "valid_until": "2026-10-11T20:43:30.319977+00:00",
+  "verifier_principal": "worker:m33:verifier:e92ec51590b34cd3",
+  "worker_principal": "worker:m33:executor:e92ec51590b34cd3"
+}

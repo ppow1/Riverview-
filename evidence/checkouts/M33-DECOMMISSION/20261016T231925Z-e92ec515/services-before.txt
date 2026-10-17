@@ -1,0 +1,26 @@
+Restart=on-failure
+RestartUSec=3s
+MainPID=1692
+ExecStart={ path=/opt/riverview-core/.venv/bin/python ; argv[]=/opt/riverview-core/.venv/bin/python /opt/riverview-m33/current/scripts/run_assignment_intake.py ; ignore_errors=no ; start_time=[n/a] ; stop_time=[n/a] ; pid=0 ; code=(null) ; status=0/0 }
+Id=riverview-assignment-intake.service
+ActiveState=active
+SubState=running
+FragmentPath=/etc/systemd/system/riverview-assignment-intake.service
+
+Restart=on-failure
+RestartUSec=3s
+MainPID=1696
+ExecStart={ path=/opt/riverview-core/.venv/bin/python ; argv[]=/opt/riverview-core/.venv/bin/python /opt/riverview-m33/current/scripts/run_worker_service.py ; ignore_errors=no ; start_time=[n/a] ; stop_time=[n/a] ; pid=0 ; code=(null) ; status=0/0 }
+Id=riverview-m33-worker.service
+ActiveState=active
+SubState=running
+FragmentPath=/etc/systemd/system/riverview-m33-worker.service
+
+Restart=on-failure
+RestartUSec=3s
+MainPID=1695
+ExecStart={ path=/opt/riverview-core/.venv/bin/python ; argv[]=/opt/riverview-core/.venv/bin/python /opt/riverview-m33/current/scripts/run_verifier_service.py ; ignore_errors=no ; start_time=[n/a] ; stop_time=[n/a] ; pid=0 ; code=(null) ; status=0/0 }
+Id=riverview-m33-verifier.service
+ActiveState=active
+SubState=running
+FragmentPath=/etc/systemd/system/riverview-m33-verifier.service
