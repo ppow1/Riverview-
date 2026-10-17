@@ -1,0 +1,31 @@
+# Riverview Controlled Source
+# File: deploy/systemd/riverview-comms5-tunnel.service
+# Component: COMMS5-CAMRUI-IONOGE-TRANSPORT
+# Revision: 1.0.0
+# History: New unit; no predecessor existed.
+[Unit]
+Description=Riverview Comms5 reverse tunnel to Ionoge Caddy loopback
+After=network-online.target riverview-comms5-camrui.service
+Wants=network-online.target
+Requires=riverview-comms5-camrui.service
+
+[Service]
+Type=simple
+User=admin1
+Environment=AUTOSSH_GATETIME=0
+ExecStart=/usr/bin/ssh -NT -i /etc/riverview/comms5/ionoge-tunnel -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/etc/riverview/comms5/known_hosts -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o TCPKeepAlive=yes -R 127.0.0.1:11826:127.0.0.1:11826 root@64.227.21.54
+Restart=always
+RestartSec=5s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictSUIDSGID=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
