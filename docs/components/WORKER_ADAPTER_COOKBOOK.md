@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/WORKER_ADAPTER_COOKBOOK.md
 Component: WORKER-ADAPTER
-File Revision: 1.0.15
+File Revision: 1.0.16
 Purpose: Diagnose worker identity, attempts, verification and recovery; retire the exact M33 registrations safely
 Authority: Read-only diagnosis; retirement only through the fixed Steward-authorized M33 operation. Credential delivery and enrollment remain trusted control-plane operations.
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Add redacted worker and verification record queries with failure interpretation
@@ -16,6 +16,7 @@ Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-LINK-CLARIFICATION | Present
 Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-REVISION-CORRECTION | Add the missed controlled file revision increment for the preceding same-task content edits
 Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-DOCS | Require fresh action preflight and remaining retry budget for grounded resume
 Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Link the guarded M33 worker-registration retirement lifecycle, failure handling, and integration-owner prerequisites
+Changed: 2026-10-17 UTC | M33-0009-SYSTEMD-PARSER-FIX | Parse named systemd properties independent of output order and document the manager privilege gate
 Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-LINK-CLARIFICATION | Present checkout evidence as a non-linked path in dashboard-served documentation
 History: Git and revision backup manifest
 -->
@@ -37,6 +38,22 @@ credentials, and no live M33 lease or executable assignment. The transaction
 preserves all historical rows and appends two authority events. Any mismatch
 fails closed. Production execution is separate from source implementation and
 requires migration 0009 plus captured operator pre/postflight evidence.
+
+The helper reads `systemctl show` output as named `key=value` properties; it
+must not assume output order or use `--value`. Verify stopped units with:
+
+```bash
+sudo -n systemctl show --property=ActiveState --property=SubState --property=MainPID \
+  riverview-assignment-intake.service riverview-m33-worker.service \
+  riverview-m33-verifier.service --no-pager
+```
+
+Require `ActiveState=inactive`, `SubState=dead`, and `MainPID=0` for each unit.
+A prior helper revision incorrectly assumed property output order; that parser
+is corrected in the reviewed successor. If the corrected helper reports
+`database_role_cannot_retire_registration`, stop without switching to
+`postgres` or adding a grant. A missing manager update privilege is an
+authorization boundary requiring a separately reviewed least-privilege design.
 
 ## Isolated verification
 

@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md
 Component: WORKER-ADAPTER / INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.4
+File Revision: 1.0.5
 Purpose: Specify safe retirement of the two registrations for revoked M33 commissioning run e92ec515
 Authority: Steward-authorized fixed-ID operation; production execution remains pending controlled release and live preflight
 Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Document retirement controls, audit, recovery boundary, and operator procedure
@@ -10,6 +10,7 @@ Changed: 2026-10-17 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Add exact read-only po
 Changed: 2026-10-17 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Link the finalized controlled verification evidence
 Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Correct immutable release path and document the 0008 prerequisite blocker
 Changed: 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009 | Record authorized preparation, exact migration effects, and remaining production gates
+Changed: 2026-10-17 UTC | M33-0009-SYSTEMD-PARSER-FIX | Record corrected named-property stop verification and production manager-privilege blocker
 History: Git and evidence/checkouts/WORKER-REGISTRY-RETIREMENT/20261017T000450Z-e494478/
 -->
 # M33 worker registration retirement
@@ -125,6 +126,29 @@ Acceptance requires seven rows total, exactly the three Grace IDs active, both e
 - If the helper returns an error, its single transaction rolls back both registration changes and audit events. No rollback write is needed.
 
 After successful retirement, do not reactivate these old rows as rollback. Their credentials and grants are revoked. If M33 is commissioned again, use a new separately authorized run and fresh identities/credentials; retain the retired rows for audit.
+
+## Current production status — 2026-10-17
+
+Migration 0009 was applied to Camrui after a checksum-pinned preflight and a
+snapshot-consistent protected backup/restore rehearsal. Its ledger checksum is
+`0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6`. The
+migration only expands the authority event constraint; it does not retire
+registrations.
+
+The first production helper invocation falsely reported `m33_service_not_stopped`:
+Camrui's `systemctl show --value` output placed `MainPID` before `ActiveState`
+and `SubState`. Read-only inspection confirmed all three exact M33 units were
+actually `inactive/dead`, PID 0. The parser was corrected to inspect named
+properties and its isolated regression passes. The remaining guarded retirement
+gate is manager role `UPDATE` on `riverview_dev.worker_registry`; both table and
+column-level privilege checks are false in production. The corrected helper
+must be installed and invoked once; if it returns
+`database_role_cannot_retire_registration`, stop. No direct SQL write, role
+substitution, or unreviewed grant is authorized by this runbook. The two
+registrations remain active until a reviewed execution boundary is provided.
+
+The current production inventory and migration result are recorded in the
+M33-0009 execution evidence linked from the institutional authority cookbook.
 
 ## Source status
 
