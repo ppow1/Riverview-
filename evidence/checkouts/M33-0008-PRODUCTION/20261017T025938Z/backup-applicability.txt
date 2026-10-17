@@ -1,0 +1,6 @@
+pg_restore_list=PASS
+backup_closeout_status=PASS
+backup_closeout_path=/var/lib/postgresql/riverview-backup.2UxLUa4n/verification-closeout.json
+backup_created_utc=2026-10-17T02:08:22.024652+00:00
+backup_migration_0008_applied=false
+Retained audit note: the earlier verification.json and verification-output.log record a failed preliminary restore comparison for schema_definition_no_owner_no_acl at 2026-10-17T02:05Z and a retained disposable DB. The later protected verification-closeout.json at 2026-10-17T02:08Z records overall PASS, schema hash evidence, ledger/ACL/snapshot row-count PASS, and disposable cleanup PASS. The disposable database is absent in a fresh read-only catalog check. Earlier failure evidence was retained unchanged; the later Steward-reported PASS closeout and matching archive/hash/ledger were the gate used.

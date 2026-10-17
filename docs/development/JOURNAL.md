@@ -1,11 +1,12 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.168
+**Document Revision:** 1.0.169
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Add OAuth resource-server validation and verify Secure MCP Tunnel path
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009-PACKAGE | Verify immutable candidate package from the prepared migration-runner commit
 **Changed:** 2026-10-17 UTC | M33-0008-ATOMIC-RUNTIME-ACL | Record atomic profile function boundary correction, live role evidence, final isolated tests, and corrected query defects
+**Changed:** 2026-10-17 UTC | M33-0008-PRODUCTION-ACCEPTANCE | Record PR #78, immutable release installation, production migration and postflight
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009-ONE-SHOT | Add exact 0008-only preflight/apply mode and record 53 focused disposable PostgreSQL tests
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009 | Record exact effects and disposable 0000–0009 chain verification
 **Changed:** 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001-FINAL-CI | Record passing exact-head controlled CI on corrected migration runner
@@ -62,6 +63,39 @@ the snapshot validator before this passing run. Evidence:
 No migration was applied to production. The atomic correction still requires
 review, exact-head CI, and a new immutable release before any separately
 authorized execution; the protected backup closeout remains the prior PASS.
+
+## 2026-10-17 UTC — M33-0008-PRODUCTION-ACCEPTANCE
+
+PR #78 was merged after exact-head controlled-checkout CI passed at head
+`f1c462edf9d16ad4b383805a75dbe4d495693da1`. Integration commit
+`3f1b38ceb8460fa1fefa10094d2d04676e3b6f02` was packaged and verified; package
+SHA-256 is
+`47f4d34b02e9d73ab35cd2cce3af56060753add37d189d243a00e84ff3b0d19c`. The new
+root-owned immutable release was installed at
+`/opt/riverview/releases/3f1b38ceb8460fa1fefa10094d2d04676e3b6f02`; active
+`/opt/riverview-core` remained on the prior `64e8f14ad6d71102a864755739a1c8a61506235c`
+release.
+
+The corrected release's read-only 0008 preflight returned `READY`. The
+transactional `--apply-0008` returned `APPLIED` with checksum
+`570c7aeb16fca04c64c4e010f1534d0efebe92628ddacd8f05f6eb1eda12d339`; the
+subsequent read-only check returned `ALREADY_APPLIED`. The authority ledger is
+0000–0008 and 0009 remains unapplied. Postflight found all five runtime
+function EXECUTE privileges present, manager and PUBLIC denied, runtime schema
+USAGE without CREATE, no runtime profile-table access, and no active resident
+profiles/drafts/rules/events. The live evaluator call as `riverview_core`
+returned the legacy exact-grant-only mode. No service restart or release
+pointer change occurred.
+
+Grace execution, dashboard, event processor, CME, and notification dispatcher
+units remained active. Strict-TLS GET of the dashboard returned HTTP 200 with
+verification result 0. The protected backup closeout, archive SHA-256, and
+`pg_restore --list` were checked and the existing closeout was reused. The
+retained earlier `verification.json`/log shows a failed preliminary schema
+comparison, while the later root-owned closeout records PASS and cleanup PASS;
+both artifacts were preserved and the discrepancy is explicitly recorded in
+the acceptance evidence. No whole-database restore or other recovery action was
+performed. Detailed acceptance: `evidence/checkouts/M33-0008-PRODUCTION/20261017T025938Z/`.
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Verify actual dashboard DOM and complete desktop/mobile snapshot package exports
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Recover website punch list and implement cross-workflow destination focus/return

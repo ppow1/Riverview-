@@ -1,0 +1,1 @@
+{"checksum": "570c7aeb16fca04c64c4e010f1534d0efebe92628ddacd8f05f6eb1eda12d339", "status": "ALREADY_APPLIED", "version": "0008_resident_permission_profiles"}

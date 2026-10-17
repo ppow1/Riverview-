@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.201"
+      "revision": "1.1.202"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -113,9 +113,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.152",
-      "sha256": "3d579e315b73ad028225fee885e2ee63b6a50012a9464c1fcb4de42ba45c81cf",
-      "size_bytes": 597314
+      "revision": "1.0.153",
+      "sha256": "8ef92aff810f017a1a2f2b09183c2e6fb232840880421a3ecdd61b8d17e740ab",
+      "size_bytes": 597408
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -137,9 +137,9 @@
     },
     "process_graphs/institutional-authority/resident-permission-profiles.json": {
       "path": "process_graphs/institutional-authority/resident-permission-profiles.json",
-      "revision": "1.0.4",
-      "sha256": "bbe287ef1df0940ddd32d91c1a85a42504f6adcafcb86c30c171f2afb3c9a73b",
-      "size_bytes": 26540
+      "revision": "1.0.5",
+      "sha256": "a957d9326dc925bac1232d0bb366ba63aaa15aac2d2242c38953cfb0123242a5",
+      "size_bytes": 26630
     },
     "process_graphs/knowledge-provider/repository-contracts.json": {
       "path": "process_graphs/knowledge-provider/repository-contracts.json",
@@ -250,6 +250,6 @@
       "size_bytes": 1226
     }
   },
-  "manifest_revision": "1.1.201",
+  "manifest_revision": "1.1.202",
   "updated_at": null
 }
