@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/proposal_lifecycle.py
 # Component: INSTITUTIONAL-PROPOSALS
-# Revision: 1.0.0
+# Revision: 1.0.2
 # Purpose: Bridge exact Steward proposal decisions to existing authorized objective intake
 # Execution Model: Request-driven; recoverable through durable proposal and objective events
 # Observability: Proposal events, objective events, assignment links, verification records
 # Dependencies: ProposalRegistry; GraceExecutionPipeline; exact objective.submit grant
-# Authority: Steward account role for proposal decision; pipeline exact grants for intake/dispatch
+# Authority: Authenticated Steward account or Comms5 ingress for decision; pipeline exact grants for intake/dispatch
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Initial lifecycle bridge
+# Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Permit current Comms5 Steward-authored provenance during approved proposal promotion.
 # Contracts: docs/components/INSTITUTIONAL_PROPOSALS.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -79,9 +80,11 @@ class ProposalLifecycle:
         """Record a decision only after the HTTP/account boundary authenticates Steward."""
         if not isinstance(actor_id, str) or not actor_id.startswith("steward:"):
             raise PermissionError("a Steward institutional principal is required")
-        if not isinstance(authority_reference, str) or not authority_reference.startswith(
-                "account-auth-session:"):
-            raise PermissionError("authenticated Steward session provenance is required")
+        valid_account_session = (isinstance(authority_reference, str)
+            and authority_reference.startswith("account-auth-session:"))
+        valid_comms5_attestation = authority_reference == "comms5-ingress:steward"
+        if not (valid_account_session or valid_comms5_attestation):
+            raise PermissionError("authenticated Steward transport provenance is required")
         return self.registry.steward_decision(proposal_id, revision,
             decision=decision, actor_id=actor_id,
             authority_reference=authority_reference, reason=reason,

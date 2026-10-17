@@ -2,12 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_proposal_work_order_lifecycle.py
 # Component: INSTITUTIONAL-PROPOSALS
-# Revision: 1.1.0
+# Revision: 1.1.2
 # Purpose: Verify revision approval and promotion into the existing objective pipeline
 # Execution Model: Pure command parser tests and disposable PostgreSQL integration
 # Observability: Proposal/objective events and correlation IDs are asserted
 # Dependencies: RIVERVIEW_TEST_PG_DSN; PostgreSQL 16; Psycopg 3
 # Authority: Unique disposable schema only; no production grants or records
+# Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Exercise current-runtime Comms5 objective and proposal projections against a disposable PostgreSQL schema.
+# Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Exercise the append-only supersede transition for a confirmed replacement draft.
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Initial lifecycle bridge coverage
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Compose authenticated API approval/intake with real disposable worker execution, independent verification, and proposal result linkage
 # =============================================================================
@@ -424,3 +426,81 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
                 idempotency_key="bad", content_sha256="0" * 64,
                 approved_purpose="test",
                 authority_reference="account-auth-session:untrusted:steward")
+
+    def test_comms5_recent_and_objective_status_use_current_durable_registries(self):
+        from riverview_core.resident_execution.comms5_operations import Comms5Operations
+        saved = self.registry.create_draft(self.content, created_by="steward:authorized",
+            origin_kind="steward_authored", source_references=[],
+            provenance={"source": "isolated-test"}, idempotency_key="comms5:recent:1")
+        objective_id = "objective:" + uuid4().hex
+        self.pipeline.submit_objective(objective_id, "Private bounded test request",
+            ["Private acceptance criterion"], credential=self.tokens["steward:authorized"],
+            scope_ref=self.scope)
+        operations = Comms5Operations(self.registry, self.lifecycle, self.pipeline)
+        recent = operations.execute("comms5_recent_steward_submissions", {},
+            principal_id="steward:authorized")
+        self.assertEqual({item["record_type"] for item in recent["items"]},
+                         {"objective", "proposal"})
+        self.assertIn(saved["proposal"]["proposal_id"],
+                      {item["record_id"] for item in recent["items"]})
+        detail = operations.execute("comms5_objective_status",
+            {"objective_id": objective_id}, principal_id="steward:authorized")
+        self.assertEqual(detail["objective"]["state"], "RECEIVED")
+        self.assertEqual(detail["submission_authority"]["grant_id"],
+                         "steward:authorized-objective.submit")
+        self.assertEqual(detail["execution_intents"], [])
+        serialized = json.dumps(detail)
+        self.assertNotIn("Private bounded test request", serialized)
+        self.assertNotIn("Private acceptance criterion", serialized)
+
+    def test_comms5_proposal_operations_use_durable_lifecycle_and_existing_objective_intake(self):
+        from riverview_core.resident_execution.comms5_operations import Comms5Operations
+        operations = Comms5Operations(self.registry, self.lifecycle, self.pipeline)
+        base = {"client_id": "isolated", "client_type": "test", "client_name": "Comms5 fixture"}
+
+        seed = operations.execute("comms5_submit_steward_seed", {
+            **base, "seed_text": "A bounded proposal seed.", "idempotency_key": "comms5:seed:1"},
+            principal_id="steward:authorized")
+        self.assertEqual(seed["status"], "draft_saved")
+        seed_status = operations.execute("comms5_seed_status", {"seed_id": seed["seed_id"]},
+            principal_id="steward:authorized")
+        self.assertEqual(seed_status["proposal"]["lifecycle_status"], "DRAFT")
+        lineage = operations.execute("comms5_seed_lineage", {"seed_id": seed["seed_id"]},
+            principal_id="steward:authorized")
+        self.assertIn("proposal.created", {item["event_type"] for item in lineage["events"]})
+
+        spec = operations.execute("comms5_store_specification", {
+            **base, "content": "A bounded specification.", "summary": "Fixture",
+            "idempotency_key": "comms5:spec:1",
+            "formation_contract": {"allowed_paths": ["deliverable.md"]}},
+            principal_id="steward:authorized")
+        cancelled = operations.execute("comms5_cancel_draft", {
+            **base, "seed_id": spec["seed_id"], "reason": "Fixture cancellation",
+            "idempotency_key": "comms5:cancel:1", "explicit_steward_confirmation": True},
+            principal_id="steward:authorized")
+        self.assertEqual(cancelled["status"], "draft_cancelled")
+        self.assertEqual(self.registry.get(spec["seed_id"])["proposal"]["lifecycle_status"], "ARCHIVED")
+
+        replaced = operations.execute("comms5_submit_steward_seed", {
+            **base, "seed_text": "An older bounded draft.", "idempotency_key": "comms5:old:1"},
+            principal_id="steward:authorized")
+        replacement = operations.execute("comms5_submit_steward_seed", {
+            **base, "seed_text": "Its replacement draft.", "idempotency_key": "comms5:new:1"},
+            principal_id="steward:authorized")
+        superseded = operations.execute("comms5_supersede_seed", {
+            **base, "seed_id": replaced["seed_id"], "replacement_seed_id": replacement["seed_id"],
+            "reason": "Revision replaced", "idempotency_key": "comms5:supersede:1",
+            "explicit_steward_confirmation": True}, principal_id="steward:authorized")
+        self.assertEqual(superseded["status"], "superseded")
+        self.assertEqual(self.registry.get(replaced["seed_id"])["proposal"]["lifecycle_status"], "SUPERSEDED")
+
+        ready = self.ready_proposal(key="comms5:ready:1")
+        promoted = operations.execute("comms5_confirm_and_promote_seed", {
+            **base, "seed_id": ready["proposal"]["proposal_id"],
+            "idempotency_key": "comms5:promote:1", "explicit_steward_confirmation": True},
+            principal_id="steward:authorized")
+        self.assertEqual(promoted["status"], "GROUNDED")
+        self.assertTrue(promoted["executed"])
+        objective = self.pipeline.get_objective(promoted["objective_id"])
+        self.assertEqual(objective["status"], "GROUNDED")
+        self.assertIsNone(objective["assignment_id"])

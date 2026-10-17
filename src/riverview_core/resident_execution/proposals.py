@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/proposals.py
 # Component: INSTITUTIONAL-PROPOSALS
-# Revision: 1.1.0
+# Revision: 1.1.3
 # Purpose: Persist searchable, revisioned institutional proposals and review evidence
 # Execution Model: Request-driven PostgreSQL repository
 # Observability: Append-only proposal events with revision, actor and provenance references
@@ -10,6 +10,8 @@
 # Authority: Proposal records never authorize work; callers enforce Steward and resident grants
 # Changed: 2026-10-16 UTC | RV-INSTITUTIONAL-PROPOSAL-LIFECYCLE-001 | Initial durable proposal registry
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Add revision-bound Steward decisions, idempotent intake provenance, and execution evidence linkage
+# Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Add bounded creator-prefix filtering to proposal search for complete Steward submission listing.
+# Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Permit explicitly confirmed superseding of an unreviewed draft while retaining append-only lifecycle evidence.
 # Contracts: docs/components/INSTITUTIONAL_PROPOSALS.md
 # Tests: tests/test_institutional_proposals.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -43,7 +45,7 @@ _LIFECYCLE = {
     "SUPERSEDED", "ARCHIVED",
 }
 _TRANSITIONS = {
-    "DRAFT": {"READY_FOR_REVIEW", "ARCHIVED"},
+    "DRAFT": {"READY_FOR_REVIEW", "SUPERSEDED", "ARCHIVED"},
     "READY_FOR_REVIEW": {"UNDER_REVIEW", "CHANGES_REQUIRED", "READY_FOR_STEWARD_DECISION", "ARCHIVED"},
     "UNDER_REVIEW": {"CHANGES_REQUIRED", "READY_FOR_STEWARD_DECISION", "ARCHIVED"},
     "CHANGES_REQUIRED": {"DRAFT", "READY_FOR_REVIEW", "ARCHIVED"},
@@ -487,7 +489,7 @@ class ProposalRegistry:
             return None
         return self.get(row["proposal_id"])
 
-    def search(self, query="", *, status=None, tag=None, limit=25):
+    def search(self, query="", *, status=None, tag=None, created_by_prefix=None, limit=25):
         if type(limit) is not int or not 1 <= limit <= 100:
             raise ProposalValidationError("invalid proposal search limit")
         query = _text(query, "search query", 256, required=False)
@@ -495,6 +497,8 @@ class ProposalRegistry:
             raise ProposalValidationError("invalid proposal status filter")
         if tag is not None:
             tag = _text(tag, "tag filter", 64).casefold()
+        if created_by_prefix is not None:
+            created_by_prefix = _text(created_by_prefix, "creator prefix", 256)
         with self.db.cursor() as cur:
             self._path(cur)
             cur.execute("""SELECT p.proposal_id,p.current_revision,r.title,r.summary,r.tags,
@@ -509,9 +513,13 @@ class ProposalRegistry:
                         WHERE to_tsvector('simple',tag) @@ plainto_tsquery('simple',%s)))
                   AND (%s::text IS NULL OR p.lifecycle_status=%s)
                   AND (%s::text IS NULL OR %s=ANY(r.tags))
+                  AND (%s::text IS NULL OR p.created_by LIKE %s)
                   AND (p.retention_until IS NULL OR p.retention_until>clock_timestamp())
                 ORDER BY rank DESC,p.updated_at DESC,p.proposal_id LIMIT %s""",
-                (query, query, query, query, query, status, status, tag, tag, limit))
+                (query, query, query, query, query, status, status, tag, tag,
+                 created_by_prefix,
+                 created_by_prefix + "%" if created_by_prefix is not None else None,
+                 limit))
             rows = cur.fetchall()
         return {"schema_version": "rv.institutional.proposals.v1", "status": "available",
                 "items": [{**row, "updated_at": row["updated_at"].isoformat()} for row in rows],
@@ -570,9 +578,17 @@ class ProposalRegistry:
             raise ProposalError(type(exc).__name__) from None
 
     def transition(self, proposal_id, revision, new_status, *, actor_id, reason,
-                   approved_purpose=None, authority_reference=None):
+                   approved_purpose=None, authority_reference=None,
+                   idempotency_key=None, related_proposal_id=None):
         actor_id = _text(actor_id, "actor identity", 256)
         reason = _text(reason, "transition reason", 1000)
+        if idempotency_key is not None:
+            idempotency_key = _text(idempotency_key, "transition idempotency key", 240)
+        if related_proposal_id is not None and (
+                new_status != "SUPERSEDED" or not isinstance(related_proposal_id, str)
+                or not _PROPOSAL_ID.fullmatch(related_proposal_id)
+                or related_proposal_id == proposal_id):
+            raise ProposalValidationError("invalid related proposal")
         if new_status not in _LIFECYCLE:
             raise ProposalValidationError("invalid proposal lifecycle status")
         if new_status == "APPROVED":
@@ -581,6 +597,21 @@ class ProposalRegistry:
         try:
             with self.db.transaction(), self.db.cursor() as cur:
                 self._path(cur)
+                if idempotency_key:
+                    cur.execute("""SELECT revision,event_type,actor_id,payload
+                        FROM institutional_proposal_events WHERE idempotency_key=%s""",
+                        (idempotency_key,))
+                    prior = cur.fetchone()
+                    if prior:
+                        payload = prior["payload"]
+                        if (prior["revision"] != revision
+                                or prior["event_type"] != "proposal.lifecycle_changed"
+                                or prior["actor_id"] != actor_id
+                                or payload.get("to") != new_status
+                                or payload.get("reason") != reason
+                                or payload.get("related_proposal_id") != related_proposal_id):
+                            raise ProposalConflict("transition idempotency key conflicts")
+                        return self.get(proposal_id, revision=revision)
                 cur.execute("""SELECT p.current_revision,r.lifecycle_status FROM institutional_proposals p
                     JOIN institutional_proposal_revisions r ON r.proposal_id=p.proposal_id
                     AND r.revision=%s WHERE p.proposal_id=%s FOR UPDATE OF p,r""",
@@ -588,6 +619,23 @@ class ProposalRegistry:
                 row = cur.fetchone()
                 if row is None:
                     raise ProposalNotFound("proposal revision not found")
+                if idempotency_key:
+                    # Another identical request may have completed while this
+                    # transaction waited for the proposal row lock.
+                    cur.execute("""SELECT revision,event_type,actor_id,payload
+                        FROM institutional_proposal_events WHERE idempotency_key=%s""",
+                        (idempotency_key,))
+                    prior = cur.fetchone()
+                    if prior:
+                        payload = prior["payload"]
+                        if (prior["revision"] != revision
+                                or prior["event_type"] != "proposal.lifecycle_changed"
+                                or prior["actor_id"] != actor_id
+                                or payload.get("to") != new_status
+                                or payload.get("reason") != reason
+                                or payload.get("related_proposal_id") != related_proposal_id):
+                            raise ProposalConflict("transition idempotency key conflicts")
+                        return self.get(proposal_id, revision=revision)
                 if row["current_revision"] != revision:
                     raise ProposalConflict("only the current proposal revision can transition")
                 old = row["lifecycle_status"]
@@ -601,8 +649,11 @@ class ProposalRegistry:
                 if new_status == "APPROVED":
                     payload.update({"approved_purpose": approved_purpose,
                                     "authority_reference": authority_reference})
+                if related_proposal_id is not None:
+                    payload["related_proposal_id"] = related_proposal_id
                 self._event(cur, proposal_id, revision, "proposal.lifecycle_changed",
-                    f"proposal-transition:{proposal_id}:{revision}:{new_status}", actor_id, payload)
+                    idempotency_key or f"proposal-transition:{proposal_id}:{revision}:{new_status}",
+                    actor_id, payload)
             return self.get(proposal_id, revision=revision)
         except psycopg.Error as exc:
             if "UniqueViolation" in type(exc).__name__:

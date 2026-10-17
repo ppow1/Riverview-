@@ -1,6 +1,6 @@
 """Loopback Comms5 MCP compatibility endpoint.
 
-File Revision: 1.1.0
+File Revision: 1.1.3
 Component: COMMS5-CAMRUI-ADAPTER
 Authority: OAuth is validated at the Ionoge ingress; this service accepts only
            the Caddy-injected principal marker and a separate protected hop token.
@@ -47,7 +47,17 @@ def _error(code: int, message: str) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "error": {"code": code, "message": message}}
 
 
-def _valid(schema: dict[str, Any], value: Any) -> bool:
+def _valid(schema: dict[str, Any], value: Any, root: dict[str, Any] | None = None) -> bool:
+    root = root or schema
+    reference = schema.get("$ref")
+    if reference is not None:
+        prefix = "#/$defs/"
+        if not isinstance(reference, str) or not reference.startswith(prefix):
+            return False
+        target = root.get("$defs", {}).get(reference[len(prefix):])
+        if not isinstance(target, dict):
+            return False
+        return _valid(target, value, root)
     kind = schema.get("type")
     if kind == "object":
         if not isinstance(value, dict):
@@ -55,11 +65,13 @@ def _valid(schema: dict[str, Any], value: Any) -> bool:
         if any(key not in value for key in schema.get("required", [])):
             return False
         properties = schema.get("properties", {})
+        if schema.get("additionalProperties") is False and any(key not in properties for key in value):
+            return False
         if any(key not in properties for key in value):
             return False
-        return all(_valid(properties[key], item) for key, item in value.items())
+        return all(_valid(properties[key], item, root) for key, item in value.items())
     if kind == "array":
-        return isinstance(value, list) and all(_valid(schema.get("items", {}), item) for item in value)
+        return isinstance(value, list) and all(_valid(schema.get("items", {}), item, root) for item in value)
     if kind == "string":
         return isinstance(value, str)
     if kind == "integer":
@@ -107,7 +119,7 @@ class Comms5Application:
             and hmac.compare_digest(supplied, self._backend_token)
         )
 
-    def handle(self, request: Any) -> dict[str, Any] | None:
+    def handle(self, request: Any, *, principal: str | None = None) -> dict[str, Any] | None:
         if not isinstance(request, dict) or request.get("jsonrpc") != "2.0":
             return _error(-32600, "Invalid Request")
         method = request.get("method")
@@ -141,7 +153,7 @@ class Comms5Application:
             tool = _TOOLS.get(name) if isinstance(name, str) else None
             if tool is None:
                 return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32602, "message": "Unknown tool"}}
-            if not _valid(tool["inputSchema"], arguments):
+            if not _valid(tool["inputSchema"], arguments, tool["inputSchema"]):
                 return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32602, "message": "Arguments do not match the published tool schema"}}
             if name not in self.implemented_tools:
                 result_value = {
@@ -159,11 +171,27 @@ class Comms5Application:
                 }
             if self.backend and name in getattr(self.backend, "supported_tools", ()):
                 try:
-                    value = self.backend.call(name, arguments)
+                    authenticated_call = getattr(self.backend, "call_authenticated", None)
+                    value = (authenticated_call(name, arguments, principal=principal)
+                             if authenticated_call else self.backend.call(name, arguments))
                 except ValueError:
                     return {"jsonrpc": "2.0", "id": request_id,
                             "error": {"code": -32602, "message": "Arguments do not match the bounded operation contract"}}
+                except PermissionError:
+                    return _tool_payload(request_id, {"status": "NOT_AUTHORIZED",
+                        "executed": False, "tool": name,
+                        "reason": "The authenticated Steward identity or existing exact grant is required."},
+                        is_error=True)
                 except Exception as exc:
+                    from .dashboard_backend import DashboardOperationConflict, DashboardRecordNotFound
+                    if isinstance(exc, DashboardRecordNotFound):
+                        return _tool_payload(request_id, {"status": "NOT_FOUND",
+                            "executed": True, "tool": name}, is_error=True)
+                    if isinstance(exc, DashboardOperationConflict):
+                        return _tool_payload(request_id, {"status": "CONFLICT",
+                            "executed": False, "tool": name,
+                            "reason": "The requested transition is not eligible in the current durable state."},
+                            is_error=True)
                     from .dashboard_backend import DashboardBackendUnavailable
                     error_value = {
                         "status": ("BACKEND_UNAVAILABLE" if isinstance(exc, DashboardBackendUnavailable)
@@ -312,7 +340,7 @@ def create_handler(app: Comms5Application) -> type[BaseHTTPRequestHandler]:
             ):
                 self._send(400, _error(-32600, "A supported MCP-Protocol-Version header is required"))
                 return
-            response = app.handle(value)
+            response = app.handle(value, principal=self.headers.get("X-Riverview-Comms5-Principal"))
             if response is None:
                 self._send(202, None, empty=True)
             else:

@@ -1,11 +1,12 @@
 # Riverview Controlled Source
 # File: src/riverview_core/comms5/dashboard_backend.py
 # Component: COMMS5-CAMRUI-ADAPTER
-# Revision: 1.0.0
-# Purpose: Expose bounded read-only dashboard projections through Comms5
-# Authority: Existing authenticated dashboard credential; fixed loopback read routes only
+# Revision: 1.0.4
+# Purpose: Expose bounded current-runtime operations through Comms5
+# Authority: Existing dashboard credential plus ingress-attested Steward principal
+# Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Route proposal and complete bounded status operations through the fixed authenticated internal dashboard contract.
 # History: New file; no predecessor existed.
-"""Narrow read-only bridge to Riverview's existing authenticated dashboard API."""
+"""Narrow authenticated bridge to Riverview's existing dashboard API."""
 
 from __future__ import annotations
 
@@ -15,19 +16,24 @@ import re
 import stat
 import time
 from pathlib import Path
-from urllib.parse import quote, urlencode, urlsplit
+from urllib.parse import urlsplit
 from uuid import uuid4
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 _TOKEN = re.compile(r"^[A-Za-z0-9_-]{43,128}$")
-_OBJECTIVE_ID = re.compile(r"^objective:[A-Za-z0-9._:-]{1,120}$")
 _READ_TOOLS = {
-    "comms5_objective_status",
     "comms5_cme_status",
-    "comms5_recent_steward_submissions",
     "comms5_transport_probe",
+}
+_PROPOSAL_TOOLS = {
+    "comms5_submit_steward_seed", "comms5_store_specification",
+    "comms5_seed_status", "comms5_seed_lineage", "comms5_cancel_draft",
+    "comms5_supersede_seed", "comms5_confirm_and_promote_seed",
+}
+_INTERNAL_TOOLS = _PROPOSAL_TOOLS | {
+    "comms5_objective_status", "comms5_recent_steward_submissions",
 }
 
 
@@ -44,6 +50,10 @@ class DashboardRecordNotFound(RuntimeError):
     """The current authoritative projection has no record for the requested ID."""
 
 
+class DashboardOperationConflict(RuntimeError):
+    """A valid operation conflicts with the current durable lifecycle state."""
+
+
 class DashboardReadBackend:
     """Call only fixed read endpoints on the loopback dashboard.
 
@@ -53,10 +63,17 @@ class DashboardReadBackend:
     """
 
     IMPLEMENTATION_STATUS = {
-        "comms5_objective_status": "PARTIALLY_IMPLEMENTED",
+        "comms5_objective_status": "IMPLEMENTED",
         "comms5_cme_status": "IMPLEMENTED",
-        "comms5_recent_steward_submissions": "PARTIALLY_IMPLEMENTED",
+        "comms5_recent_steward_submissions": "IMPLEMENTED",
         "comms5_transport_probe": "PARTIALLY_IMPLEMENTED",
+        "comms5_submit_steward_seed": "IMPLEMENTED",
+        "comms5_store_specification": "IMPLEMENTED",
+        "comms5_seed_status": "IMPLEMENTED",
+        "comms5_seed_lineage": "IMPLEMENTED",
+        "comms5_cancel_draft": "IMPLEMENTED",
+        "comms5_supersede_seed": "IMPLEMENTED",
+        "comms5_confirm_and_promote_seed": "IMPLEMENTED",
     }
 
     def __init__(self, *, base_url=None, credential_file=None, timeout=3.0):
@@ -110,15 +127,62 @@ class DashboardReadBackend:
     def _open(self, request):
         return self._opener.open(request, timeout=self.timeout)
 
+    def _post_operation(self, tool, arguments):
+        request = Request(self._base_url + "/api/v1/internal/comms5/operation",
+            data=json.dumps({"tool": tool, "arguments": arguments},
+                separators=(",", ":"), allow_nan=False).encode("utf-8"),
+            headers={"Authorization": "Bearer " + self._token,
+                     "Content-Type": "application/json",
+                     "Accept": "application/json",
+                     "X-Riverview-Comms5": "1",
+                     "X-Riverview-Comms5-Principal": "steward"}, method="POST")
+        try:
+            with self._open(request) as response:
+                if response.status != 200 or response.headers.get_content_type() != "application/json":
+                    raise DashboardBackendUnavailable("dashboard_operation_http_status")
+                payload = response.read(1_048_577)
+        except HTTPError as exc:
+            try:
+                error = json.loads(exc.read(4096))
+            except Exception:
+                error = {}
+            code = error.get("error") if isinstance(error, dict) else None
+            if code == "proposal_not_found":
+                raise DashboardRecordNotFound("proposal_not_found") from None
+            if code == "objective_not_found":
+                raise DashboardRecordNotFound("objective_not_found") from None
+            if code in {"comms5_operation_not_authorized", "comms5_transport_attestation_required"}:
+                raise PermissionError("comms5_operation_not_authorized") from None
+            if code == "proposal_lifecycle_conflict":
+                raise DashboardOperationConflict("proposal_lifecycle_conflict") from None
+            if code == "invalid_comms5_operation":
+                raise ValueError("invalid_comms5_operation") from None
+            raise DashboardBackendUnavailable("dashboard_operation_http_status") from None
+        except (URLError, TimeoutError, OSError):
+            raise DashboardBackendUnavailable("dashboard_operation_unavailable") from None
+        if len(payload) > 1_048_576:
+            raise DashboardBackendUnavailable("dashboard_response_exceeds_limit")
+        try:
+            value = json.loads(payload)
+        except (UnicodeError, json.JSONDecodeError):
+            raise DashboardBackendUnavailable("dashboard_operation_response_invalid") from None
+        if not isinstance(value, dict):
+            raise DashboardBackendUnavailable("dashboard_operation_response_invalid")
+        return value
+
     @property
     def supported_tools(self):
-        return frozenset(_READ_TOOLS)
+        return frozenset(_READ_TOOLS | _INTERNAL_TOOLS)
+
+    def call_authenticated(self, name, arguments, *, principal=None):
+        if name in _INTERNAL_TOOLS:
+            if principal != "steward":
+                raise PermissionError("authenticated Steward ingress required")
+            return self._post_operation(name, arguments)
+        return self.call(name, arguments)
 
     def _get(self, path):
-        objective_detail = re.fullmatch(r"/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})", path)
-        objective_list = re.fullmatch(r"/api/v1/objectives\?limit=[1-9][0-9]{0,2}", path)
-        if (path not in {"/api/v1/status", "/api/v1/attention"}
-                and objective_list is None and objective_detail is None):
+        if path not in {"/api/v1/status", "/api/v1/attention"}:
             raise DashboardBackendUnavailable("dashboard_path_not_allowlisted")
         request = Request(self._base_url + path, headers={
             "Authorization": "Bearer " + self._token,
@@ -132,8 +196,6 @@ class DashboardReadBackend:
                     raise DashboardBackendUnavailable("dashboard_content_type_invalid")
                 payload = response.read(1_048_577)
         except HTTPError as exc:
-            if exc.code == 404 and objective_detail is not None:
-                raise DashboardRecordNotFound("objective_not_found") from None
             raise DashboardBackendUnavailable("dashboard_http_status") from None
         except (URLError, TimeoutError, OSError):
             raise DashboardBackendUnavailable("dashboard_unavailable") from None
@@ -146,26 +208,6 @@ class DashboardReadBackend:
         if not isinstance(value, dict):
             raise DashboardBackendUnavailable("dashboard_response_invalid")
         return value
-
-    @staticmethod
-    def _safe_objective(item):
-        # Deliberately omit request, acceptance text, scope, and submitter fields.
-        allowed = (
-            "objective_id", "status", "assignment_id", "assignment_state",
-            "attempt_id", "artifact", "verification", "dispatch_failures",
-            "last_dispatch_failure_at", "verification_failures",
-            "last_verification_failure_at", "source_revision", "source_sha256",
-            "revision", "created_at", "updated_at",
-        )
-        result = {key: item[key] for key in allowed if key in item}
-        result["available_detail"] = [
-            "objective_state", "linked_assignment", "latest_attempt",
-            "artifact_metadata", "latest_verification", "failure_counts",
-        ]
-        result["unavailable_detail"] = [
-            "stage_lineage", "authority_record", "execution_intent",
-        ]
-        return result
 
     def call(self, name, arguments):
         if name not in _READ_TOOLS:
@@ -196,41 +238,3 @@ class DashboardReadBackend:
                     "source": "riverview_dashboard_status_projection",
                     "cme": cme,
                     "observed_at": value.get("observed_at")}
-
-        if name == "comms5_objective_status":
-            objective_id = arguments.get("objective_id")
-            if not isinstance(objective_id, str) or not _OBJECTIVE_ID.fullmatch(objective_id):
-                raise ValueError("invalid_objective_id")
-            try:
-                item = self._get("/api/v1/objectives/" + quote(objective_id, safe=":._-"))
-            except DashboardRecordNotFound:
-                return {"status": "not_found", "objective_id": objective_id,
-                        "executed": True, "implementation_status": "PARTIALLY_IMPLEMENTED"}
-            if item.get("objective_id") != objective_id:
-                raise DashboardBackendUnavailable("objective_projection_mismatch")
-            return {"status": "available", "executed": True,
-                    "implementation_status": "PARTIALLY_IMPLEMENTED",
-                    "objective": self._safe_objective(item)}
-
-        limit = arguments.get("limit", 20)
-        if type(limit) is not int or not 1 <= limit <= 100:
-            raise ValueError("invalid_limit")
-        value = self._get("/api/v1/objectives?" + urlencode({"limit": str(limit)}))
-        items = value.get("items")
-        if value.get("status") != "available" or not isinstance(items, list):
-            raise DashboardBackendUnavailable("objective_projection_unavailable")
-        submissions = []
-        for item in items:
-            if not isinstance(item, dict):
-                raise DashboardBackendUnavailable("objective_projection_invalid")
-            submitter = item.get("submitter_id")
-            if isinstance(submitter, str) and submitter.startswith("steward:"):
-                submissions.append({key: item[key] for key in (
-                    "objective_id", "status", "assignment_id", "assignment_state",
-                    "created_at", "updated_at") if key in item})
-        return {"status": "available", "executed": True,
-                "implementation_status": "PARTIALLY_IMPLEMENTED",
-                "source": "steward_submitted_objective_projection",
-                "ordering": "dashboard_updated_at_descending",
-                "items": submissions, "limit": limit,
-                "truncated": bool(value.get("truncated"))}

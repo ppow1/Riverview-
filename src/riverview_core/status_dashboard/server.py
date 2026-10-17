@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.18
+# Revision: 1.3.22
 # Purpose: Serve account-authenticated operational, proposal, capability and snapshot APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
 # Dependencies: Python 3.10+; standard library; status_dashboard.projection
 # Authority: Dashboard credential protects views; objective API also requires exact objective.submit grant
 # Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Add capability registry and canonical workflow inventory APIs while preserving PR #65 proposal routes
+# Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Route authenticated current-runtime Comms5 proposal/status operations through the existing service layer.
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-ERROR-SEMANTICS | Preserve conflict/dependency failure distinction
 # Changed: 2026-10-11 UTC | RV-M3.2-001 | Enforce the notification-specific maximum page size
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Add exact-grant resident conversation API and restart reconciliation
@@ -91,6 +92,7 @@ _PROPOSAL_ITEM = re.compile(r"^/api/v1/institutional-proposals/(proposal:[0-9a-f
 _PROPOSAL_DECISION = re.compile(r"^/api/v1/institutional-proposals/(proposal:[0-9a-f-]{36})/decision$")
 _PROPOSAL_WORK_ORDERS = re.compile(r"^/api/v1/institutional-proposals/(proposal:[0-9a-f-]{36})/work-orders$")
 _PROPOSAL_COMMAND = "/api/v1/institutional-proposals/conversational-command"
+_COMMS5_OPERATION = "/api/v1/internal/comms5/operation"
 
 
 class WorkOrderOriginConflict(Exception):
@@ -233,6 +235,11 @@ class _BoundedHTTPServer(HTTPServer):
         if proposal_registry is not None and objective_pipeline is not None:
             from riverview_core.resident_execution.proposal_lifecycle import ProposalLifecycle
             self._proposal_lifecycle = ProposalLifecycle(proposal_registry, objective_pipeline)
+        self._comms5_operations = None
+        if proposal_registry is not None:
+            from riverview_core.resident_execution.comms5_operations import Comms5Operations
+            self._comms5_operations = Comms5Operations(
+                proposal_registry, self._proposal_lifecycle, objective_pipeline)
         self._static_dir = Path(static_dir)
         self._slots = threading.BoundedSemaphore(_MAX_THREADS)
         super().__init__(address, handler)
@@ -540,6 +547,7 @@ def make_handler():
             proposal_work_orders = (_PROPOSAL_WORK_ORDERS.fullmatch(parsed.path)
                                     if self.command == "POST" else None)
             proposal_command = (parsed.path == _PROPOSAL_COMMAND and self.command == "POST")
+            comms5_operation = parsed.path == _COMMS5_OPERATION and self.command == "POST"
             conversation_session = (parsed.path == _CONVERSATION_SESSION
                                      and self.command in {"POST", "DELETE"})
             if not self._host_ok():
@@ -551,6 +559,7 @@ def make_handler():
                     and not conversation_work_order and not proposal_create
                     and not proposal_revision and not proposal_decision
                     and not proposal_work_orders and not proposal_command
+                    and not comms5_operation
                     and not auth_logout and not account_decision and not account_user
                     and not permission_profile and not permission_transition
                     and not account_email_save and not account_email_test):
@@ -664,7 +673,45 @@ def make_handler():
                 return
             try:
                 query = parse_qs(parsed.query, keep_blank_values=False, max_num_fields=12)
-                if parsed.path == "/api/v1/auth/session" and self.command in {"GET", "HEAD"}:
+                if comms5_operation:
+                    if (self.headers.get("X-Riverview-Comms5") != "1"
+                            or self.headers.get("X-Riverview-Comms5-Principal") != "steward"):
+                        self._error(403, "comms5_transport_attestation_required", request_id)
+                        return
+                    if self.server._comms5_operations is None:
+                        self._error(503, "comms5_operations_unavailable", request_id)
+                        return
+                    data = self._json_body(_MAX_CHAT_BODY)
+                    if (set(data) != {"tool", "arguments"}
+                            or not isinstance(data["tool"], str)
+                            or not isinstance(data["arguments"], dict)):
+                        self._error(400, "invalid_comms5_operation", request_id)
+                        return
+                    try:
+                        result = self.server._comms5_operations.execute(
+                            data["tool"], data["arguments"], principal_id="steward:camrui")
+                        self._json(200, result, request_id)
+                    except PermissionError:
+                        self._error(403, "comms5_operation_not_authorized", request_id)
+                    except Exception as exc:
+                        from riverview_core.resident_execution.proposals import (
+                            ProposalConflict, ProposalNotFound, ProposalValidationError)
+                        from riverview_core.resident_execution.pipeline import ObjectiveNotAuthorized
+                        from riverview_core.resident_execution.comms5_operations import Comms5OperationNotFound
+                        if isinstance(exc, ProposalNotFound):
+                            self._error(404, "proposal_not_found", request_id)
+                        elif isinstance(exc, Comms5OperationNotFound):
+                            self._error(404, "objective_not_found", request_id)
+                        elif isinstance(exc, ObjectiveNotAuthorized):
+                            self._error(403, "objective_submission_not_authorized", request_id)
+                        elif isinstance(exc, ProposalConflict):
+                            self._error(409, "proposal_lifecycle_conflict", request_id)
+                        elif isinstance(exc, (ValueError, TypeError, ProposalValidationError)):
+                            self._error(400, "invalid_comms5_operation", request_id)
+                        else:
+                            self._error(503, "comms5_operation_unavailable", request_id)
+                    return
+                elif parsed.path == "/api/v1/auth/session" and self.command in {"GET", "HEAD"}:
                     if not self._account_identity:
                         self._error(401, "authentication_required", request_id)
                     else:
@@ -1218,8 +1265,9 @@ def make_handler():
                             "source_conversation_id": data["conversation_id"],
                             "source_sequences": expected_sources,
                             "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
-                        saved = registry.create_draft(draft["content"],
-                            created_by=principal_id, origin_kind="grace_conversation",
+                        saved = self.server._comms5_operations.create_draft_record(
+                            draft["content"], actor_id=principal_id,
+                            origin_kind="grace_conversation",
                             source_references=draft["source_references"], provenance=provenance,
                             idempotency_key=data["idempotency_key"])
                         self._json(201, {"status": "draft_saved", **saved}, request_id)
