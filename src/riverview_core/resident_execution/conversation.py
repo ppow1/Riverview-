@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.2.11
+# Revision: 1.2.12
 # Purpose: Persist and serve office-bound, authorized Grace conversations
 # Execution Model: Authenticated request-driven completion with durable event history
 # Observability: Redacted response status and append-only PostgreSQL conversation events
@@ -28,6 +28,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Preserve approved source execution scope through model-directed continuations
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Review each verified work-order step and require explicit model decision before dependent dispatch
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-STEP-CONTINUATION | Resolve model-selected pending steps from the durable proposal before continuation authorization
+# Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-INTERNAL-TOOLS-001 | Persist structured results from Grace-originated internal read calls
 # Changed: 2026-10-16 UTC | RV-GRACE-REVIEW-OBJECTIVE-PROGRESS | Give result review authoritative objective and step completion state
 # Changed: 2026-10-16 UTC | RV-GRACE-PROVIDER-PROVENANCE | Fall back to the binding provider ID when a completion omits provenance
 # Contracts: docs/components/RESIDENT_CONVERSATION.md
@@ -1172,7 +1173,7 @@ class ResidentConversationService:
                     provider_ref=getattr(fallback,"provider_id","autonomic"),
                     model_id=getattr(fallback,"model","unknown"),
                     reasoning_stage="autonomic")
-            if hasattr(provider,"stream_chat"):
+            if hasattr(provider,"stream_chat") and not getattr(provider,"internal_tools",None):
                 stream_options={"max_tokens":self.max_response_tokens,
                     "expected_revision":binding["implementation_revision"],
                     "on_delta":callback,"timeout_seconds":120}
@@ -1200,6 +1201,7 @@ class ResidentConversationService:
                 "completion_tokens":getattr(completion,"completion_tokens",None),
                 "finish_reason":getattr(completion,"finish_reason",None),
                 "provider_attempts":list(getattr(completion,"provider_attempts",())),
+                "internal_tool_results":list(getattr(completion,"internal_tool_results",())),
                 "time_to_first_token_ms":round((first_delta[0]-generation_started)*1000,3)
                     if first_delta[0] is not None else None,
                 "generation_elapsed_ms":round((monotonic()-generation_started)*1000,3),
@@ -1645,6 +1647,7 @@ class ResidentConversationService:
                     "completion_tokens": getattr(completion, "completion_tokens", None),
                     "finish_reason": getattr(completion, "finish_reason", None),
                     "provider_attempts": list(getattr(completion, "provider_attempts", ())),
+                    "internal_tool_results": list(getattr(completion, "internal_tool_results", ())),
                     "role_context_revision": ROLE_CONTEXT_REVISION,
                     **self._context_metadata(operational_snapshot),
                     "final_served_provider": getattr(completion, "provider_id", None) or
@@ -1753,7 +1756,7 @@ class ResidentConversationService:
                 stream_enabled=self.store.has_stream(row["request_id"])
                 generation_started=monotonic()
                 first_delta=[None]
-                if stream_enabled:
+                if stream_enabled and not getattr(router, "internal_tools", None):
                     reasoning_provider=router.providers["reasoning"]
                     self.store.stream_generation_started(row["request_id"],
                         provider_ref=reasoning_provider.provider_id,
@@ -1806,6 +1809,7 @@ class ResidentConversationService:
                         "prompt_tokens": completion.prompt_tokens,
                         "completion_tokens": completion.completion_tokens,
                         "provider_attempts": list(getattr(completion, "provider_attempts", ())),
+                        "internal_tool_results": list(getattr(completion, "internal_tool_results", ())),
                         "role_context_revision": ROLE_CONTEXT_REVISION,
                         **self._context_metadata(operational_snapshot),
                         "final_served_provider": (getattr(completion, "provider_attempts", ())[-1].get("selected_provider")
