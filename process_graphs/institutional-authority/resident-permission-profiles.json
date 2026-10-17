@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:institutional-authority:resident-permission-profiles",
-  "graph_revision": "1.0.2",
+  "graph_revision": "1.0.4",
   "component_id": "RESIDENT-PERMISSION-PROFILES",
   "workflow_id": "resident-permission-profiles.v1",
   "diagram_order": 2,
@@ -13,7 +13,10 @@
     "src/riverview_core/status_dashboard/static/resident-permissions.js",
     "tests/test_permission_profiles.py",
     "tests/test_institutional_authority_boundary.py",
-    "tests/test_authorizer_profile_legacy_compatibility.py"
+    "tests/test_authorizer_profile_legacy_compatibility.py",
+    "src/riverview_core/institutional_authority/m33_retirement_migration.py",
+    "scripts/apply_m33_retirement_migration.py",
+    "tests/test_m33_retirement_migration.py"
   ],
   "documentation_references": [
     "docs/components/RESIDENT_PERMISSION_PROFILES.md",
@@ -23,7 +26,9 @@
   ],
   "verification_evidence": [
     "tests/test_permission_profiles.py",
-    "tests/test_authorizer_profile_legacy_compatibility.py"
+    "tests/test_authorizer_profile_legacy_compatibility.py",
+    "tests/test_m33_retirement_migration.py",
+    "evidence/checkouts/M33-0008-ATOMIC-RUNTIME-ACL/20261017T023249Z-final/summary.txt"
   ],
   "nodes": [
     {
@@ -298,6 +303,113 @@
       "verification_evidence": [
         "tests/test_authorizer_profile_legacy_compatibility.py"
       ]
+    },
+    {
+      "id": "rv:institutional-authority:resident-permission-profiles:migration-entry",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Steward-authorized 0008 execution request",
+      "source_references": [
+        "scripts/apply_m33_retirement_migration.py",
+        "src/riverview_core/institutional_authority/m33_retirement_migration.py",
+        "src/riverview_core/institutional_authority/db_boundary.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:resident-permission-profiles:migration-preflight",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Verify target, 0000–0007 chain, immutable 0008/0009 checksums, role and schema prerequisites",
+      "source_references": [
+        "scripts/apply_m33_retirement_migration.py",
+        "src/riverview_core/institutional_authority/m33_retirement_migration.py",
+        "src/riverview_core/institutional_authority/db_boundary.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:resident-permission-profiles:migration-ready",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Can the exact migration and established ownership boundary be applied safely?",
+      "source_references": [
+        "scripts/apply_m33_retirement_migration.py",
+        "src/riverview_core/institutional_authority/m33_retirement_migration.py",
+        "src/riverview_core/institutional_authority/db_boundary.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:resident-permission-profiles:migration-apply-atomic",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Apply 0008, ledger checksum, protected ownership and five-function runtime ACL in one transaction",
+      "source_references": [
+        "scripts/apply_m33_retirement_migration.py",
+        "src/riverview_core/institutional_authority/m33_retirement_migration.py",
+        "src/riverview_core/institutional_authority/db_boundary.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:resident-permission-profiles:migration-postflight",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Verify owners, runtime EXECUTE, manager/PUBLIC denial, schema USAGE-only and unchanged prior data",
+      "source_references": [
+        "scripts/apply_m33_retirement_migration.py",
+        "src/riverview_core/institutional_authority/m33_retirement_migration.py",
+        "src/riverview_core/institutional_authority/db_boundary.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_m33_retirement_migration.py"
+      ]
+    },
+    {
+      "id": "rv:institutional-authority:resident-permission-profiles:migration-rollback",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "On any failed boundary or postcondition, roll back all DDL, ledger and ACL changes; preserve evidence",
+      "source_references": [
+        "scripts/apply_m33_retirement_migration.py",
+        "src/riverview_core/institutional_authority/m33_retirement_migration.py",
+        "src/riverview_core/institutional_authority/db_boundary.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:institutional-authority:resident-permission-profiles:migration-stop",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Stop without commit on checksum, role, ownership, privilege or postcondition mismatch",
+      "source_references": [
+        "scripts/apply_m33_retirement_migration.py",
+        "src/riverview_core/institutional_authority/m33_retirement_migration.py",
+        "src/riverview_core/institutional_authority/db_boundary.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+      ],
+      "verification_evidence": []
     }
   ],
   "edges": [
@@ -450,6 +562,51 @@
       "to": "rv:institutional-authority:resident-permission-profiles:recovery",
       "type": "recovery_route",
       "label": "Preserve fail-closed behavior; reconcile migration and runtime capability evidence"
+    },
+    {
+      "from": "rv:institutional-authority:resident-permission-profiles:migration-entry",
+      "to": "rv:institutional-authority:resident-permission-profiles:migration-preflight",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:institutional-authority:resident-permission-profiles:migration-preflight",
+      "to": "rv:institutional-authority:resident-permission-profiles:migration-ready",
+      "type": "verification"
+    },
+    {
+      "from": "rv:institutional-authority:resident-permission-profiles:migration-ready",
+      "to": "rv:institutional-authority:resident-permission-profiles:migration-stop",
+      "type": "diagnostic_branch",
+      "label": "No; retain the existing release and database state"
+    },
+    {
+      "from": "rv:institutional-authority:resident-permission-profiles:migration-ready",
+      "to": "rv:institutional-authority:resident-permission-profiles:migration-apply-atomic",
+      "type": "runtime_transition",
+      "label": "Yes; exact release, checksum and backup gates pass"
+    },
+    {
+      "from": "rv:institutional-authority:resident-permission-profiles:migration-apply-atomic",
+      "to": "rv:institutional-authority:resident-permission-profiles:migration-postflight",
+      "type": "verification",
+      "label": "All changes remain inside the open migration transaction"
+    },
+    {
+      "from": "rv:institutional-authority:resident-permission-profiles:migration-apply-atomic",
+      "to": "rv:institutional-authority:resident-permission-profiles:migration-stop",
+      "type": "diagnostic_branch",
+      "label": "Any DDL, role, grant or postcondition failure"
+    },
+    {
+      "from": "rv:institutional-authority:resident-permission-profiles:migration-stop",
+      "to": "rv:institutional-authority:resident-permission-profiles:migration-rollback",
+      "type": "recovery_route"
+    },
+    {
+      "from": "rv:institutional-authority:resident-permission-profiles:migration-rollback",
+      "to": "rv:institutional-authority:resident-permission-profiles:migration-preflight",
+      "type": "runtime_transition",
+      "label": "Only after a reviewed correction and fresh preflight"
     }
   ]
 }

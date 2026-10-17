@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_m33_retirement_migration.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.1.0
-# Purpose: Verify the fixed M33 retirement migration applies alone and preserves state
+# Revision: 1.2.0
+# Purpose: Verify 0008 commits atomically with the runtime function ACL boundary
 # Execution Model: Disposable PostgreSQL schemas
 # Observability: unittest assertions for preflight, ledger, ACLs, and row preservation
 # Dependencies: RIVERVIEW_TEST_PG_DSN; PostgreSQL 16; Psycopg 3
@@ -13,6 +13,7 @@
 # Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Run against the configured disposable database name
 # Changed: 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009 | Verify the complete authority migration chain and exact 0008 seed state
 # Changed: 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009 | Exercise the production 0008-only check/apply path on disposable PostgreSQL
+# Changed: 2026-10-17 UTC | M33-0008-ATOMIC-RUNTIME-ACL | Cover five-function effective grants, PUBLIC denial, and transaction rollback
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -40,15 +41,38 @@ class M33RetirementMigrationTests(unittest.TestCase):
         from riverview_core.institutional_authority.m33_retirement_migration import (
             apply_m33_retirement_migration, check_m33_retirement_migration,
         )
+        from riverview_core.institutional_authority.db_boundary import provision_authority_boundary
         from riverview_core.postgres_migrations import apply_migrations
 
         self.psycopg, self.sql = psycopg, sql
         self.database = psycopg.conninfo.conninfo_to_dict(DSN).get("dbname", "riverview")
-        self.apply = apply_m33_retirement_migration
-        self.check = check_m33_retirement_migration
+        suffix = uuid4().hex[:12]
+        self.runtime_role = "rv_runtime_" + suffix
+        self.manager_role = "rv_manager_" + suffix
+        self.owner_role = "rv_owner_" + suffix
+        self.guest_role = "rv_guest_" + suffix
+        self.role_kwargs = {"runtime_role": self.runtime_role,
+                            "manager_role": self.manager_role,
+                            "owner_role": self.owner_role}
+        self.apply = lambda connection, directory, **kwargs: apply_m33_retirement_migration(
+            connection, directory, **self.role_kwargs, **kwargs)
+        self.check = lambda connection, directory, **kwargs: check_m33_retirement_migration(
+            connection, directory, **self.role_kwargs, **kwargs)
         self.apply_migrations = apply_migrations
         self.schema = "rvtest_" + uuid4().hex
         self.admin = psycopg.connect(DSN, autocommit=True)
+        self.admin.execute(sql.SQL(
+            "CREATE ROLE {} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS"
+        ).format(sql.Identifier(self.runtime_role)))
+        self.admin.execute(sql.SQL(
+            "CREATE ROLE {} LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS"
+        ).format(sql.Identifier(self.manager_role)))
+        self.admin.execute(sql.SQL(
+            "CREATE ROLE {} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS"
+        ).format(sql.Identifier(self.owner_role)))
+        self.admin.execute(sql.SQL(
+            "CREATE ROLE {} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS"
+        ).format(sql.Identifier(self.guest_role)))
         self.admin.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(self.schema)))
         self.tmp = tempfile.TemporaryDirectory(prefix="rv-m33-migration-test-")
         self.prior_dir = Path(self.tmp.name) / "prior"
@@ -64,10 +88,17 @@ class M33RetirementMigrationTests(unittest.TestCase):
                     shutil.copyfile(path, self.prior_dir / path.name)
         self.apply_migrations(DSN, schema=self.schema, migrations_dir=self.prior_dir)
         self.connection = psycopg.connect(DSN, autocommit=True)
+        provision_authority_boundary(
+            self.connection, schema=self.schema, runtime_role=self.runtime_role,
+            manager_role=self.manager_role, owner_role=self.owner_role, apply=True)
 
     def tearDown(self):
         self.connection.close()
         self.admin.execute(self.sql.SQL("DROP SCHEMA {} CASCADE").format(self.sql.Identifier(self.schema)))
+        for role in (self.runtime_role, self.manager_role,
+                     self.owner_role, self.guest_role):
+            self.admin.execute(self.sql.SQL("DROP ROLE IF EXISTS {}").format(
+                self.sql.Identifier(role)))
         self.admin.close()
         self.tmp.cleanup()
 
@@ -81,6 +112,53 @@ class M33RetirementMigrationTests(unittest.TestCase):
             "(event_id,event_type,actor_id,subject_id) "
             "VALUES (%s,'steward_bootstrapped','steward:migration-fixture','steward:migration-fixture')"
         ).format(self.sql.Identifier(self.schema)), (uuid4(),))
+
+    def _apply_pre_0008_boundary_fixture(self, schema):
+        """Mirror the deployed 0000-0007 function-only boundary for this schema."""
+        from riverview_core.institutional_authority.db_boundary import (
+            AUTHORIZATION_FUNCTION, AUTHORITY_TABLES, EVENT_TRIGGER_FUNCTION,
+            PRINCIPAL_AUTHORIZATION_FUNCTION, RUNTIME_OFFICE_FUNCTION_SIGNATURES,
+        )
+        ident = self.sql.Identifier(schema)
+        self.admin.execute(self.sql.SQL(
+            "REVOKE ALL ON SCHEMA {} FROM PUBLIC,{},{}"
+        ).format(ident, self.sql.Identifier(self.runtime_role),
+                 self.sql.Identifier(self.owner_role)))
+        for role in (self.runtime_role, self.manager_role, self.owner_role):
+            self.admin.execute(self.sql.SQL("GRANT USAGE ON SCHEMA {} TO {}").format(
+                ident, self.sql.Identifier(role)))
+        for table in AUTHORITY_TABLES[:9]:
+            self.admin.execute(self.sql.SQL("ALTER TABLE {}.{} OWNER TO {}").format(
+                ident, self.sql.Identifier(table), self.sql.Identifier(self.owner_role)))
+            self.admin.execute(self.sql.SQL(
+                "REVOKE ALL PRIVILEGES ON TABLE {}.{} FROM PUBLIC,{},{}"
+            ).format(ident, self.sql.Identifier(table),
+                     self.sql.Identifier(self.runtime_role),
+                     self.sql.Identifier(self.manager_role)))
+            self.admin.execute(self.sql.SQL(
+                "GRANT SELECT,INSERT,UPDATE,DELETE ON TABLE {}.{} TO {}"
+            ).format(ident, self.sql.Identifier(table),
+                     self.sql.Identifier(self.manager_role)))
+        function_specs = [
+            (EVENT_TRIGGER_FUNCTION, "()", False),
+            (AUTHORIZATION_FUNCTION, "(bytea,text,text)", True),
+            (PRINCIPAL_AUTHORIZATION_FUNCTION, "(text,text,text)", True),
+        ] + [(name, signature, True)
+             for name, signature in RUNTIME_OFFICE_FUNCTION_SIGNATURES.items()]
+        for name, signature, runtime_execute in function_specs:
+            self.admin.execute(self.sql.SQL("ALTER FUNCTION {}.{}{} OWNER TO {}").format(
+                ident, self.sql.Identifier(name), self.sql.SQL(signature),
+                self.sql.Identifier(self.owner_role)))
+            self.admin.execute(self.sql.SQL(
+                "REVOKE ALL PRIVILEGES ON FUNCTION {}.{}{} FROM PUBLIC,{},{}"
+            ).format(ident, self.sql.Identifier(name), self.sql.SQL(signature),
+                     self.sql.Identifier(self.runtime_role),
+                     self.sql.Identifier(self.manager_role)))
+            if runtime_execute:
+                self.admin.execute(self.sql.SQL(
+                    "GRANT EXECUTE ON FUNCTION {}.{}{} TO {}"
+                ).format(ident, self.sql.Identifier(name), self.sql.SQL(signature),
+                         self.sql.Identifier(self.runtime_role)))
 
     def test_complete_authority_chain_0000_through_0009(self):
         """Exercise every reviewed migration in order in a fresh isolated schema."""
@@ -150,24 +228,95 @@ class M33RetirementMigrationTests(unittest.TestCase):
                 shutil.copyfile(path, only_0000_to_0007 / path.name)
         self.apply_migrations(DSN, schema=schema,
                               migrations_dir=only_0000_to_0007)
+        self._apply_pre_0008_boundary_fixture(schema)
         connection = self.psycopg.connect(DSN, autocommit=True)
         try:
             self.assertEqual(check_m33_retirement_prerequisite(
                 connection, self.full_dir, schema=schema,
-                expected_database=self.database)["status"], "READY")
+                expected_database=self.database, **self.role_kwargs)["status"], "READY")
             applied = apply_m33_retirement_prerequisite(
                 connection, self.full_dir, schema=schema,
-                expected_database=self.database)
+                expected_database=self.database, **self.role_kwargs)
             self.assertEqual(applied["status"], "APPLIED")
             self.assertEqual(applied["profile_records_created"], 0)
+            self.assertEqual(applied["runtime_function_acl"],
+                             "five profile functions only; PUBLIC denied")
             self.assertEqual(check_m33_retirement_prerequisite(
                 connection, self.full_dir, schema=schema,
-                expected_database=self.database)["status"], "ALREADY_APPLIED")
+                expected_database=self.database, **self.role_kwargs)["status"], "ALREADY_APPLIED")
             self.assertEqual(check_m33_retirement_migration(
                 connection, self.full_dir, schema=schema,
-                expected_database=self.database)["status"], "READY")
+                expected_database=self.database, **self.role_kwargs)["status"], "READY")
+
+            from riverview_core.institutional_authority.db_boundary import (
+                RUNTIME_PERMISSION_SIGNATURES,
+            )
+            for function, signature in RUNTIME_PERMISSION_SIGNATURES.items():
+                procedure = f"{schema}.{function}{signature}"
+                privileges = self.admin.execute(
+                    "SELECT has_function_privilege(%s,to_regprocedure(%s),'EXECUTE'), "
+                    "has_function_privilege(%s,to_regprocedure(%s),'EXECUTE'), "
+                    "EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace "
+                    "CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) a "
+                    "WHERE n.nspname=%s AND p.proname=%s AND a.grantee=0 "
+                    "AND a.privilege_type='EXECUTE')",
+                    (self.runtime_role, procedure, self.manager_role, procedure,
+                     schema, function),
+                ).fetchone()
+                self.assertEqual(privileges, (True, False, False), function)
+            evaluator = (f"{schema}.evaluate_resident_permission"
+                         "(text,text,text,text,text,boolean)")
+            with self.admin.transaction():
+                self.admin.execute(self.sql.SQL("SET LOCAL ROLE {}").format(
+                    self.sql.Identifier(self.runtime_role)))
+                decision = self.admin.execute(self.sql.SQL(
+                    "SELECT {}.evaluate_resident_permission(%s,%s,%s,%s,%s,%s)"
+                ).format(self.sql.Identifier(schema)),
+                    ("resident:legacy-test", "assignment.execute", "work-order:test",
+                     "execute", "internal", False)).fetchone()[0]
+                self.assertEqual(decision["mode"], "legacy_exact_grant_only")
+            with self.admin.transaction():
+                self.admin.execute(self.sql.SQL("SET LOCAL ROLE {}").format(
+                    self.sql.Identifier(self.guest_role)))
+                with self.assertRaises(self.psycopg.errors.InsufficientPrivilege):
+                    self.admin.execute(self.sql.SQL(
+                        "SELECT {}.evaluate_resident_permission(%s,%s,%s,%s,%s,%s)"
+                    ).format(self.sql.Identifier(schema)),
+                        ("resident:legacy-test", "assignment.execute", "work-order:test",
+                         "execute", "internal", False)).fetchone()
         finally:
             connection.close()
+            self.admin.execute(self.sql.SQL("DROP SCHEMA {} CASCADE").format(
+                self.sql.Identifier(schema)))
+
+    def test_0008_boundary_failure_rolls_back_schema_and_ledger(self):
+        from riverview_core.institutional_authority.m33_retirement_migration import (
+            apply_m33_retirement_prerequisite,
+        )
+        schema = "rvtestrollback_" + uuid4().hex
+        self.admin.execute(self.sql.SQL("CREATE SCHEMA {}").format(
+            self.sql.Identifier(schema)))
+        prior_only = Path(self.tmp.name) / "rollback-0000-through-0007"
+        prior_only.mkdir()
+        for path in sorted(MIGRATIONS.glob("*.sql")):
+            if path.name < "0008_resident_permission_profiles.sql":
+                shutil.copyfile(path, prior_only / path.name)
+        self.apply_migrations(DSN, schema=schema, migrations_dir=prior_only)
+        broken_roles = dict(self.role_kwargs)
+        broken_roles["manager_role"] = "rv_missing_manager_" + uuid4().hex[:12]
+        try:
+            with self.assertRaises(Exception):
+                apply_m33_retirement_prerequisite(
+                    self.connection, self.full_dir, schema=schema,
+                    expected_database=self.database, **broken_roles)
+            self.assertIsNone(self.admin.execute(
+                "SELECT to_regclass(%s)",
+                (f"{schema}.resident_permission_profiles",)).fetchone()[0])
+            self.assertFalse(self.admin.execute(
+                self.sql.SQL("SELECT EXISTS (SELECT 1 FROM {}.schema_migrations "
+                             "WHERE version='0008_resident_permission_profiles')").format(
+                    self.sql.Identifier(schema))).fetchone()[0])
+        finally:
             self.admin.execute(self.sql.SQL("DROP SCHEMA {} CASCADE").format(
                 self.sql.Identifier(schema)))
 
