@@ -12396,7 +12396,7 @@
     },
     {
       "graph_id": "rv:worker-adapter:registration-retirement",
-      "graph_revision": "1.0.3",
+      "graph_revision": "1.0.6",
       "component_id": "WORKER-ADAPTER",
       "workflow_id": "registration-retirement.v1",
       "diagram_order": 9,
@@ -12509,9 +12509,9 @@
         },
         {
           "id": "rv:worker-adapter:registration-retirement:stopped-services",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "verification",
-          "label": "Verify intake, executor, and verifier are stopped with no process IDs",
+          "label": "Read named systemd properties and require all three M33 units inactive/dead with PID 0",
           "source_references": [
             "src/riverview_core/worker_adapter/retirement.py"
           ],
@@ -12522,9 +12522,9 @@
         },
         {
           "id": "rv:worker-adapter:registration-retirement:transaction-gates",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "decision",
-          "label": "Require active Steward grant, existing database UPDATE privilege, revoked worker authority, exact inventory, and no lease or executable assignment",
+          "label": "Require active Steward grant, manager UPDATE privilege, revoked worker authority, exact inventory, and no lease or executable assignment",
           "source_references": [
             "src/riverview_core/worker_adapter/retirement.py",
             "src/riverview_core/institutional_authority/registry.py"

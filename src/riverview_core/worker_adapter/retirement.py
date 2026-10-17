@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/retirement.py
 # Component: WORKER-ADAPTER / INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Retire only revoked, stopped M33 worker registrations with no executable work
 # Execution Model: Explicit root-local operator action using one PostgreSQL transaction
 # Observability: Append-only institutional authority event and resulting active registration count
 # Dependencies: PostgreSQL schemas riverview_dev/riverview_authority; systemd; AuthorityRegistry
 # Authority: Exact M33 IDs, active Steward identity.manage grant, revoked worker authority, stopped units, no runnable work
 # Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Initial guarded retirement operation
+# Changed: 2026-10-17 UTC | M33-0009-SYSTEMD-PARSER-FIX | Parse named systemd properties without relying on output order
 # Contracts: docs/components/WORKER_ADAPTER_COOKBOOK.md; docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 # Tests: tests/test_worker_registration_retirement.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -61,13 +62,20 @@ def _verify_stopped_services() -> dict[str, dict[str, str]]:
     for unit in SERVICE_UNITS:
         completed = subprocess.run(
             ["systemctl", "show", "--property=ActiveState", "--property=SubState",
-             "--property=MainPID", "--value", unit],
+             "--property=MainPID", unit],
             capture_output=True, text=True, check=False, timeout=5)
-        lines = completed.stdout.splitlines()
-        if (completed.returncode != 0 or len(lines) != 3 or
-                lines[0] != "inactive" or lines[1] != "dead" or lines[2] != "0"):
+        properties = {}
+        for line in completed.stdout.splitlines():
+            key, separator, value = line.partition("=")
+            if not separator or key in properties:
+                raise WorkerRetirementError("m33_service_not_stopped")
+            properties[key] = value
+        if (completed.returncode != 0 or
+                properties != {"MainPID": "0", "ActiveState": "inactive", "SubState": "dead"}):
             raise WorkerRetirementError("m33_service_not_stopped")
-        result[unit] = {"active_state": lines[0], "sub_state": lines[1], "main_pid": lines[2]}
+        result[unit] = {"active_state": properties["ActiveState"],
+                        "sub_state": properties["SubState"],
+                        "main_pid": properties["MainPID"]}
     return result
 
 

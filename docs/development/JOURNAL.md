@@ -1,12 +1,13 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.169
+**Document Revision:** 1.0.170
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Add OAuth resource-server validation and verify Secure MCP Tunnel path
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009-PACKAGE | Verify immutable candidate package from the prepared migration-runner commit
 **Changed:** 2026-10-17 UTC | M33-0008-ATOMIC-RUNTIME-ACL | Record atomic profile function boundary correction, live role evidence, final isolated tests, and corrected query defects
 **Changed:** 2026-10-17 UTC | M33-0008-PRODUCTION-ACCEPTANCE | Record PR #78, immutable release installation, production migration and postflight
+**Changed:** 2026-10-17 UTC | M33-0009-SYSTEMD-PARSER-FIX | Correct property-order bug; record 0009 application and retirement authorization blocker
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009-ONE-SHOT | Add exact 0008-only preflight/apply mode and record 53 focused disposable PostgreSQL tests
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009 | Record exact effects and disposable 0000–0009 chain verification
 **Changed:** 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001-FINAL-CI | Record passing exact-head controlled CI on corrected migration runner
@@ -2522,3 +2523,8 @@ The complete 0000–0009 chain and the new single-0008 operation passed focused 
 
 
 The committed candidate package was built from `7dec8a7ae542dd656e9dd7b34c8929836da7a80b` and passed the existing Camrui package verifier (manifest PASS, source commit match, shell compatibility PASS). The verified archive SHA-256 is `412d059c6cb36f0f8ed91e392c053c09778e354442221ab510feb0427c3eb2b3`; package evidence is `evidence/checkouts/M33-RETIRE-MIGRATION/20261017T011613Z-package/`. It was not transferred or installed. The exact release remains gated on PR integration and explicit production execution authorization; the existing `/opt/riverview-core` pointer remains untouched.
+## 2026-10-17 UTC — M33-0009-EXECUTION
+
+Applied only `0009_worker_registration_retirement_event` from the already integrated immutable release after the live runner returned `READY` and a new snapshot-consistent protected backup/restore passed. Migration checksum is `0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6`; the event constraint now admits `worker_registration_retired`, with no grants, registration rows, service state, or existing audit events changed by the migration. Protected backup: `/var/lib/postgresql/riverview-backup.m33-0009-khpdrd46/`; closeout PASS, archive SHA-256 `ac467c1a2aa5cf546acb31d40073cefa2489d2ec2a42049f3d7ae6bbf948ff8b`.
+
+The first guarded retirement invocation failed closed because `_verify_stopped_services` parsed `systemctl show --value` output by positional order. Camrui returned `MainPID=0`, `ActiveState=inactive`, `SubState=dead`; a read-only local invocation of the corrected named-property parser passes for all three exact M33 units. The source correction and regression are isolated and committed for controlled integration. The production manager role has neither table-level nor column-level `UPDATE` on `riverview_dev.worker_registry`, so the existing retirement procedure still cannot write. No `postgres`/`riverview_core` substitution or grant was used. Current migration and privilege preflight: 0000–0009 checksums match, `0009` applied, manager update denied, M33 rows still active, no M33 leases, assignments only completed/blocked, and the three M33 units inactive/dead. This is a genuine execution-boundary blocker for retirement, not a failed migration.

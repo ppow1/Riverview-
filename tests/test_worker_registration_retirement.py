@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_registration_retirement.py
 # Component: WORKER-ADAPTER / INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify exact M33 worker retirement preconditions, atomic audit, and preservation
 # Execution Model: Disposable PostgreSQL schemas plus mocked systemd status
 # Observability: unittest results and append-only authority event assertions
 # Dependencies: RIVERVIEW_TEST_PG_DSN; PostgreSQL 16; Psycopg
 # Authority: Creates and drops only unique rvtest_* schemas
 # Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Initial retirement regression tests
+# Changed: 2026-10-17 UTC | M33-0009-SYSTEMD-PARSER-FIX | Cover named systemd property parsing independent of output order
 # Contracts: docs/components/WORKER_ADAPTER_COOKBOOK.md; docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -174,16 +175,26 @@ class WorkerRegistrationRetirementTests(unittest.TestCase):
 class ServiceStopGateTests(unittest.TestCase):
     def test_requires_every_exact_unit_stopped_with_pid_zero(self):
         from riverview_core.worker_adapter import retirement
-        good = [mock.Mock(returncode=0, stdout="inactive\ndead\n0\n") for _ in retirement.SERVICE_UNITS]
+        good = [mock.Mock(returncode=0, stdout="MainPID=0\nActiveState=inactive\nSubState=dead\n")
+                for _ in retirement.SERVICE_UNITS]
         with mock.patch.object(retirement.subprocess, "run", side_effect=good):
             result = retirement._verify_stopped_services()
         self.assertEqual(set(result), set(retirement.SERVICE_UNITS))
-        bad = mock.Mock(returncode=0, stdout="active\nrunning\n123\n")
+        reordered = [mock.Mock(returncode=0, stdout="SubState=dead\nMainPID=0\nActiveState=inactive\n")
+                     for _ in retirement.SERVICE_UNITS]
+        with mock.patch.object(retirement.subprocess, "run", side_effect=reordered):
+            result = retirement._verify_stopped_services()
+        self.assertEqual({value["active_state"] for value in result.values()}, {"inactive"})
+        bad = mock.Mock(returncode=0, stdout="MainPID=123\nActiveState=active\nSubState=running\n")
         with mock.patch.object(retirement.subprocess, "run", return_value=bad):
             with self.assertRaisesRegex(retirement.WorkerRetirementError, "m33_service_not_stopped"):
                 retirement._verify_stopped_services()
-        failed = mock.Mock(returncode=0, stdout="failed\nfailed\n0\n")
+        failed = mock.Mock(returncode=0, stdout="MainPID=0\nActiveState=failed\nSubState=failed\n")
         with mock.patch.object(retirement.subprocess, "run", return_value=failed):
+            with self.assertRaisesRegex(retirement.WorkerRetirementError, "m33_service_not_stopped"):
+                retirement._verify_stopped_services()
+        malformed = mock.Mock(returncode=0, stdout="MainPID=0\nActiveState=inactive\nSubState=dead\nExtra=value\n")
+        with mock.patch.object(retirement.subprocess, "run", return_value=malformed):
             with self.assertRaisesRegex(retirement.WorkerRetirementError, "m33_service_not_stopped"):
                 retirement._verify_stopped_services()
 
