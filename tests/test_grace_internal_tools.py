@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_internal_tools.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Verify Grace current-status tool call policy.
 # Purpose: Verify Grace-originated bounded Comms5 tool calls return and retain structured results
 # Execution Model: Isolated provider and Comms5 backend HTTP contract fixture
@@ -107,6 +107,57 @@ class GraceInternalToolTests(unittest.TestCase):
                          "tool_not_available")
         self.assertEqual(tools.call("comms5_cme_status", {"extra": True})["error"]["code"],
                          "tool_arguments_invalid")
+
+    def test_required_current_lookup_retries_for_model_originated_tool_call(self):
+        call = '<rv-tool-call>{"name":"comms5_cme_status","arguments":{}}</rv-tool-call>'
+
+        class Tools:
+            def __init__(self): self.calls = []
+            def catalog(self):
+                return [{"name": "comms5_cme_status", "inputSchema": {
+                    "type": "object", "properties": {}, "additionalProperties": False}}]
+            def call(self, name, arguments):
+                self.calls.append((name, arguments))
+                return {"schema_version": "rv.grace.tool-result.v1", "status": "ok",
+                        "tool": name, "result": {"cme": {"status": "healthy"}}}
+
+        tools = Tools()
+        reasoning = Provider("80B", ["The CME is healthy from the dashboard snapshot.",
+            call, "The current CME tool result reports healthy."])
+        router = GraceModelRouter(autonomic=Provider("0.6B", ["ack"]),
+            vision=Provider("30B", ["interim"]), reasoning=reasoning,
+            internal_tools=tools)
+        result = router.complete_chat([{"role": "user", "content":
+            "Use your current internal Comms5 tool catalog and call comms5_cme_status "
+            "to report actual CME worker status."}], max_tokens=96,
+            expected_revision=router.model_sha256,
+            required_capability="grace.reasoning.80b")
+
+        self.assertEqual(len(reasoning.calls), 3)
+        self.assertIn("emit only one valid tool call", reasoning.calls[1][-1]["content"].lower())
+        self.assertEqual(tools.calls, [("comms5_cme_status", {})])
+        self.assertEqual(result.internal_tool_results[0]["result"]["cme"]["status"], "healthy")
+        self.assertEqual(result.content, "The current CME tool result reports healthy.")
+
+    def test_required_current_lookup_fails_closed_if_model_still_omits_call(self):
+        class Tools:
+            def catalog(self):
+                return [{"name": "comms5_cme_status", "inputSchema": {"type": "object"}}]
+            def call(self, *_args): raise AssertionError("no tool call was emitted")
+
+        reasoning = Provider("80B", ["The CME is healthy.", "The CME is healthy."])
+        router = GraceModelRouter(autonomic=Provider("0.6B", ["ack"]),
+            vision=Provider("30B", ["interim"]), reasoning=reasoning,
+            internal_tools=Tools())
+        result = router.complete_chat([{"role": "user", "content": "Check CME status."}],
+            max_tokens=96, expected_revision=router.model_sha256,
+            required_capability="grace.reasoning.80b")
+
+        self.assertEqual(len(reasoning.calls), 2)
+        self.assertIn("couldn't complete the requested current lookup", result.content)
+        self.assertEqual(result.internal_tool_results[0]["status"], "error")
+        self.assertEqual(result.internal_tool_results[0]["error"]["code"],
+                         "required_tool_call_not_emitted")
 
 
 if __name__ == "__main__":

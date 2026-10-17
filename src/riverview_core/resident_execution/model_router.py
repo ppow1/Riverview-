@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.2.3
+# Revision: 1.2.4
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Require tool-backed current-status answers.
 # Purpose: Prefer 80B for substantive turns, bound context and autonomic acknowledgments, and persist diagnostics
 # Execution Model: Request-driven; persisted deferred turns are resumed by the conversation owner
@@ -203,10 +203,13 @@ class GraceModelRouter:
                 if removable is None:
                     break
                 provider_context.pop(removable)
+        tool_catalog = (self.internal_tools.catalog()
+                        if stage == "reasoning" and self.internal_tools is not None else [])
+        required_tool = self._required_internal_tool(messages, tool_catalog)
         routed = [{"role": "system", "content": system},
                   *provider_context]
         if stage == "reasoning" and self.internal_tools is not None:
-            catalog = json.dumps(self.internal_tools.catalog(), sort_keys=True,
+            catalog = json.dumps(tool_catalog, sort_keys=True,
                                  separators=(",", ":"), ensure_ascii=False)
             routed[0]["content"] += "\n\n" + (
                 "For any user request that asks for current Riverview status, records, "
@@ -288,6 +291,61 @@ class GraceModelRouter:
         tool_results = ()
         if stage == "reasoning" and self.internal_tools is not None:
             call = self._internal_tool_call(completion.content)
+            if required_tool and (call is None or call[0] != required_tool):
+                tool_spec = next((item for item in tool_catalog
+                                  if item.get("name") == required_tool), None)
+                retry_prompt = (
+                    "The user's request requires a current lookup. Your prior answer did not "
+                    "make that lookup. Emit only one valid tool call for " + required_tool + ". "
+                    "Use arguments that match this published schema: " +
+                    json.dumps(tool_spec.get("inputSchema", {}) if tool_spec else {},
+                               sort_keys=True, separators=(",", ":")) + ". "
+                    "Return exactly <rv-tool-call>{\"name\":\"" + required_tool +
+                    "\",\"arguments\":{...}}</rv-tool-call>. Do not answer in prose."
+                )
+                retry_messages = [*routed, {"role": "system", "content": retry_prompt}]
+                retry_started_at = datetime.now(UTC)
+                retry_started = monotonic()
+                try:
+                    completion = provider.complete_chat(retry_messages,
+                        max_tokens=min(stage_max_tokens, 128),
+                        expected_revision=provider.model_sha256,
+                        timeout_seconds=self.TIMEOUTS[stage])
+                    attempts.append(self._attempt(stage, provider, retry_started_at,
+                        retry_started, outcome="succeeded",
+                        fallback_reason="required_tool_call_retry",
+                        finish_reason=completion.finish_reason,
+                        completion_tokens=completion.completion_tokens,
+                        completion_token_limit=min(stage_max_tokens, 128)))
+                    call = self._internal_tool_call(completion.content)
+                except LocalReasoningUnavailable as exc:
+                    attempts.append(self._attempt(stage, provider, retry_started_at,
+                        retry_started, outcome="failed",
+                        fallback_reason="required_tool_call_retry",
+                        error_code=self._safe_error(exc),
+                        finish_reason=getattr(exc, "finish_reason", None),
+                        completion_tokens=getattr(exc, "completion_tokens", None),
+                        completion_token_limit=min(stage_max_tokens, 128)))
+                    call = None
+            if required_tool and (call is None or call[0] != required_tool):
+                tool_results = ({
+                    "schema_version": "rv.grace.tool-result.v1", "status": "error",
+                    "tool": required_tool,
+                    "error": {"code": "required_tool_call_not_emitted"}},)
+                completion = replace(completion, content=(
+                    "I couldn't complete the requested current lookup because the "
+                    "required internal tool call was not produced."))
+            if call is not None:
+                tool_name, arguments = call
+                if required_tool and tool_name != required_tool:
+                    tool_results = ({
+                        "schema_version": "rv.grace.tool-result.v1", "status": "error",
+                        "tool": required_tool,
+                        "error": {"code": "required_tool_call_not_emitted"}},)
+                    completion = replace(completion, content=(
+                        "I couldn't complete the requested current lookup because the "
+                        "required internal tool call was not produced."))
+                    call = None
             if call is not None:
                 tool_name, arguments = call
                 tool_result = self.internal_tools.call(tool_name, arguments)
@@ -313,6 +371,27 @@ class GraceModelRouter:
         return replace(completion, reasoning_stage=stage,
                        provisional=(stage != "reasoning"), provider_attempts=tuple(attempts),
                        internal_tool_results=tool_results)
+
+    @staticmethod
+    def _required_internal_tool(messages, catalog):
+        """Recognize narrowly scoped current lookups that must fail closed."""
+        latest = next((item.get("content", "") for item in reversed(messages)
+                       if item.get("role") == "user"), "")
+        text = str(latest).lower()
+        names = {item.get("name") for item in catalog if isinstance(item, dict)}
+        for name in names:
+            if isinstance(name, str) and name.lower() in text:
+                return name
+        if ("comms5_cme_status" in names and re.search(r"\bcme\b", text)
+                and re.search(r"\b(status|health|healthy|worker|workers|registered|enabled|assignment)\b", text)):
+            return "comms5_cme_status"
+        if ("comms5_objective_status" in names and re.search(r"\bobjective:[a-z0-9._:-]+", text)
+                and re.search(r"\b(status|state|progress|result)\b", text)):
+            return "comms5_objective_status"
+        if ("comms5_recent_steward_submissions" in names
+                and re.search(r"\b(recent|latest)\b.*\b(steward|submission|proposal)\b", text)):
+            return "comms5_recent_steward_submissions"
+        return None
 
     @staticmethod
     def _internal_tool_call(content):
