@@ -1,6 +1,6 @@
 # Riverview aggregate process graph
 
-**Document Revision:** 1.0.20
+**Document Revision:** 1.0.21
 **Generated from:** canonical workflow JSON; do not edit this projection by hand.  
 **Source:** `python3 scripts/process_graph.py generate`  
 
@@ -11,6 +11,7 @@ flowchart LR
   g_rv_website_account_auth_account_lifecycle_68396cbf[["WEBSITE-ACCOUNT-AUTH<br/>website.account-auth.v1<br/>rv:website-account-auth:account-lifecycle"]]
   g_rv_assignment_intake_governed_request_226f3420[["ASSIGNMENT-INTAKE<br/>governed-request.v1<br/>rv:assignment-intake:governed-request"]]
   g_rv_assignment_scheduler_independent_claims_88bd80c4[["ASSIGNMENT-SCHEDULER<br/>independent-assignment-claims.v1<br/>rv:assignment-scheduler:independent-claims"]]
+  g_rv_chatgpt_doorbell_browser_runtime_b8102058[["CHATGPT-DOORBELL<br/>chatgpt.doorbell.v1<br/>rv:chatgpt-doorbell:browser-runtime"]]
   g_rv_cme_progress_and_recovery_402efffa[["CME<br/>progress-and-recovery.v1<br/>rv:cme:progress-and-recovery"]]
   g_rv_event_processor_assignment_progression_fa10db2d[["EVENT-PROCESSOR<br/>assignment-progression.v1<br/>rv:event-processor:assignment-progression"]]
   g_rv_grace_operational_integration_9989f0be[["RESIDENT-ORCHESTRATION<br/>grace-engineering-objective.v1<br/>rv:grace:operational-integration"]]
