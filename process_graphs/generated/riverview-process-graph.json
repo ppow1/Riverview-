@@ -8233,7 +8233,7 @@
     },
     {
       "graph_id": "rv:resident-reasoning:runtime",
-      "graph_revision": "1.2.5",
+      "graph_revision": "1.2.8",
       "component_id": "RESIDENT-REASONING",
       "workflow_id": "resident.reasoning.v1",
       "diagram_order": 13,
@@ -8255,7 +8255,8 @@
         "src/riverview_core/resident_execution/external_reasoning_mcp.py",
         "scripts/run_external_reasoning_mcp.py",
         "deploy/systemd/riverview-external-reasoning-mcp.service",
-        "deploy/external-reasoning-mcp.env.example"
+        "deploy/external-reasoning-mcp.env.example",
+        "deploy/external-reasoning-mcp-requirements.txt"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_REASONING.md",
@@ -8273,7 +8274,8 @@
         "tests/test_external_reasoning_mcp.py",
         "tests/test_external_reasoning_exchange.py",
         "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/checkout.md",
-        "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T230300Z-1359019/checkout.md"
+        "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T230300Z-1359019/checkout.md",
+        "evidence/checkouts/EXTERNAL-MCP-CHATGPT-TUNNEL/20261017T0034Z/checkout.md"
       ],
       "nodes": [
         {
@@ -8834,9 +8836,9 @@
         },
         {
           "id": "rv:resident-reasoning:runtime:exchange-transport-readiness",
-          "node_revision": "1.0.2",
+          "node_revision": "1.0.5",
           "type": "decision",
-          "label": "IMPLEMENTED IN SOURCE — Is the authenticated MCP adapter internally configured and tested? Public issuer, route and external-client access remain uncommissioned.",
+          "label": "OAuth resource-server and Streamable HTTP adapter pass isolated verification; official Tunnel is suitable, but Camrui service, Platform tunnel, OAuth issuer and ChatGPT exchange are not commissioned",
           "source_references": [
             "src/riverview_core/resident_execution/external_reasoning_mcp.py",
             "scripts/run_external_reasoning_mcp.py"
@@ -8850,7 +8852,8 @@
             "tests/test_external_reasoning_mcp.py",
             "tests/test_external_reasoning_exchange.py",
             "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/checkout.md",
-            "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T230300Z-1359019/checkout.md"
+            "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T230300Z-1359019/checkout.md",
+            "evidence/checkouts/EXTERNAL-MCP-CHATGPT-TUNNEL/20261017T0034Z/checkout.md"
           ]
         },
         {
@@ -9035,9 +9038,9 @@
         },
         {
           "id": "rv:resident-reasoning:runtime:exchange-mcp-auth",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.3",
           "type": "decision",
-          "label": "Resolve finite-lived bearer credential to one configured provider principal and exchange scope on every HTTP request",
+          "label": "Validate OAuth JWT issuer, exact MCP audience, expiry and fixed subject/client mapping; return 401 for invalid tokens and 403 for missing scope",
           "source_references": [
             "src/riverview_core/resident_execution/external_reasoning_mcp.py",
             "scripts/run_external_reasoning_mcp.py"
@@ -9053,9 +9056,9 @@
         },
         {
           "id": "rv:resident-reasoning:runtime:exchange-mcp-auth-denied",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.2",
           "type": "failure",
-          "label": "Reject missing, unknown, expired or out-of-scope bearer without revealing whether a provider exists",
+          "label": "Reject missing or invalid OAuth tokens with HTTP 401/WWW-Authenticate; reject authenticated insufficient scope with HTTP 403; preserve challenge metadata",
           "source_references": [
             "src/riverview_core/resident_execution/external_reasoning_mcp.py",
             "scripts/run_external_reasoning_mcp.py"

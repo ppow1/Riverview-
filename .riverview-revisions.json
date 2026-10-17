@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.193"
+      "revision": "1.1.197"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -23,9 +23,9 @@
     },
     "docs/development/JOURNAL.md": {
       "path": "docs/development/JOURNAL.md",
-      "revision": "1.0.157",
-      "sha256": "c5e197073eaa51f0b15dd9facb46a28e86adcf11442e3e425156adc9db21d48c",
-      "size_bytes": 197293
+      "revision": "1.0.159",
+      "sha256": "1535124a827be35a743b201c1f44ebfddd3a8cc8dee6f6cd114c79a14b920daa",
+      "size_bytes": 199425
     },
     "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md": {
       "path": "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md",
@@ -113,9 +113,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.146",
-      "sha256": "e4e5ec6a18e6b8cd61d2ef2b5b0d937cdecb33805142955054b10ccad2bc7846",
-      "size_bytes": 576321
+      "revision": "1.0.149",
+      "sha256": "261c8a72ed3114f61eeea3b395106e4b952c07472a09d758f123a68bf6e966f3",
+      "size_bytes": 576669
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -179,9 +179,9 @@
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "path": "process_graphs/resident-reasoning/runtime.json",
-      "revision": "1.0.19",
-      "sha256": "afaf9e5d2bab536d91900f9970dda3f62451d684eb224db0faceb2674b6d22ce",
-      "size_bytes": 50050
+      "revision": "1.0.22",
+      "sha256": "5564e19fa72db12910dda487403d36cab2da2f7252f5bb51fb65b11a26e23f31",
+      "size_bytes": 50386
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -244,6 +244,6 @@
       "size_bytes": 1226
     }
   },
-  "manifest_revision": "1.1.193",
+  "manifest_revision": "1.1.197",
   "updated_at": null
 }

@@ -1,0 +1,141 @@
+<!--
+Riverview~ Controlled Document
+File: docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md
+Component: RESIDENT-REASONING
+File Revision: 1.1.0
+Purpose: Diagnose durable external reasoning exchange transitions safely
+Authority: Read-only diagnostics first; no production migration or transport operation
+Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial troubleshooting guide
+Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Add adapter checks, authentication handling, and external-client test boundaries
+Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Correct adapter status guidance and token-map commissioning boundary
+Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Document required Accept negotiation and rejection behavior
+Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Document OAuth issuer/JWKS validation, open discovery, and tunnel prerequisites
+History: Git and .riverview-backups/manifest.jsonl
+-->
+# External reasoning exchange troubleshooting
+
+## MCP transport readiness and diagnostics (2026-10-16)
+
+The durable exchange remains transport-neutral. The adapter is an OAuth
+resource server; it does not implement an authorization server, issue tokens,
+perform browser wake, or connect an external provider. Its root-protected
+subject/client-to-provider map must be provisioned only after the issuer and
+exact AuthorityRegistry grant are approved. Keep Grace-only consumption and
+delivery lease operations private to the Riverview runtime.
+
+The current development adapter is available through authenticated Streamable
+HTTP at `/mcp` when run locally. Its reference unit listens only at
+`127.0.0.1:11827`; `GET /healthz` checks exchange relations and the required
+narrow runtime ACL, while protected-resource metadata publishes the configured
+issuer and scope list. Initialization and `tools/list` are unauthenticated
+protocol calls; each listed tool advertises OAuth scopes and every `tools/call`
+validates the bearer JWT. Unauthorized tool calls return the MCP
+`_meta["mcp/www_authenticate"]` challenge. `GET /mcp` returns 405 because
+server-initiated SSE is not implemented. POST clients must advertise both
+`application/json` and `text/event-stream`; this server returns one JSON
+object and does not open an SSE stream. A successful loopback MCP
+handshake is not evidence of a public route or internet reachability.
+POST rejects a missing/unacceptable media-type pair with HTTP 406 and a
+non-JSON request body type with HTTP 415; rejected requests are closed without
+logging or parsing the body.
+
+For a ChatGPT web connection, the external authorization server must expose
+OAuth/OIDC discovery, authorization-code + PKCE `S256`, token endpoint auth
+metadata, CIMD or DCR registration, and tokens whose audience exactly matches
+the configured MCP resource URL. The adapter validates issuer, audience,
+signature, expiration, scope, subject, and client ID/authorized party on each
+tool call. Authorization server, user consent and token issuance remain
+external. Do not treat legacy Caddy static bearer authentication as compatible
+with ChatGPT. See OpenAI's official [MCP authentication contract]
+(https://developers.openai.com/plugins/build/auth) for current requirements.
+
+Secure MCP Tunnel is a transport option that can keep the Riverview MCP service
+private and avoid inbound firewall/DNS/Caddy changes. It is not the OAuth
+issuer: OpenAI documents that OAuth discovery can pass through the tunnel, but
+the authorization server itself is not automatically tunneled. The tunnel also
+requires an OpenAI Platform `tunnel_id`, a runtime API key for `tunnel-client`,
+Tunnels Read+Manage to create/configure, and Read+Use to run/select it, plus
+ChatGPT workspace access to custom MCP. Its documentation does not specify
+pricing; do not provision the runtime API key until the account owner verifies
+entitlement and any charges. See the official [Secure MCP Tunnel guide]
+(https://developers.openai.com/api/docs/guides/secure-mcp-tunnels). A public
+HTTPS route is an alternative only after hostname ownership and the distinct
+route/security design are approved.
+
+Do not configure an external client against the historical Comms5 route merely
+because its DNS name responds. The legacy route uses a separate predecessor
+tool/schema and its public `401` only proves that the HTTPS authentication
+boundary was reached. It does not prove that current exchange tools are served.
+The 2026-10-16/17 production evidence is recorded in
+`evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T234651Z-stage-a-b-auth/checkout.md`.
+It records an inactive MCP unit, absent provider mapping and absent exact
+escalation grant. Do not enable service or claim external acceptance until a
+valid issuer map, exact grant, and independent ChatGPT tool call are evidenced.
+
+The independent development client test is
+`tests/test_external_reasoning_mcp.py`; the PostgreSQL-backed adapter round-trip
+is `ExternalReasoningExchangePostgresTests.test_mcp_provider_scoped_round_trip_uses_durable_exchange`.
+The tests use synthetic provider tokens and synthetic advisory data only. They
+do not prove an internet route, authorization-server issuance, ChatGPT client
+compatibility, migration 0011 production installation, Grace outbound request
+delivery, or production Grace consumption.
+
+| Signal | First read-only check | Safe response |
+|---|---|---|
+| OAuth tool error / `_meta.mcp/www_authenticate` | Check issuer/audience/expiry/scope error code and the configured resource metadata URL without printing token material | Re-authorize through the approved issuer; verify the exact mapped subject/client pair and scope ceiling. Never log bearer values |
+| HTTP 403 `host_not_allowed` / `origin_not_allowed` | Compare the request Host/Origin with the reviewed allowlists | Correct only the exact reverse-proxy host/origin values; do not use wildcard hosts |
+| `oauth_authorization_server_incompatible` | Check sanitized issuer metadata status for authorization-code, PKCE `S256`, client registration and token endpoint methods | Select/provision a compatible existing issuer; do not fake or weaken metadata checks |
+| `provider_not_registered` at startup | Compare protected subject/client mapping provider/principal pairs with provider registrations derived at startup | Preserve requests and correct only the reviewed mapping; do not accept provider IDs from tool arguments |
+| `invalid_token` | Check issuer, audience, signature, `exp`, mapped subject/client and scopes from sanitized counters only | Re-authenticate or correct the issuer/resource configuration; never dump or paste the JWT |
+| `awaiting_delivery` remains | Inspect bounded status and event codes; test adapter health and current DB migration outside the public endpoint | Keep the exchange durable; retry the pull operation after adapter readiness returns |
+| `awaiting_external_claim` / `awaiting_response` | Use `reasoning_exchange_list_requests` then reclaim with the same authenticated principal | Reuse the current request and correlation IDs; fencing and response idempotency reject stale/duplicate actions |
+| HTTP 413 or `tool_arguments_invalid` | Check the documented 64 KiB HTTP, 32 KiB context and 16 KiB response bounds | Reduce only the submitted advisory/context within the existing schema; do not raise limits blindly |
+| HTTP 406 / `not_acceptable` | Check that `Accept` lists both `application/json` and `text/event-stream` with nonzero quality values | Correct the client media-type negotiation; keep the server response JSON-only |
+| `GET /mcp` returns 405 | This is expected; Streamable HTTP sends JSON-RPC requests by POST | Use POST with JSON content and Accept headers; SSE is intentionally not implemented |
+
+Use only an isolated PostgreSQL test schema during this development phase. The
+exchange stores bounded reasoning context, so do not print request/response
+payloads or include them in logs/evidence. Query `status(request_id,
+correlation_id)` and `events(...)` for the diagnostic projection.
+
+| State or error | Safe interpretation | Next step |
+|---|---|---|
+| `awaiting_delivery` | Durable request exists; a delivery attempt has not been acknowledged | Check deadline, provider ID, backoff, delivery lease and sanitized event codes. The transport should take a short lease then acknowledge or fail the attempt. |
+| `awaiting_external_claim` | Transport acknowledged delivery; no external claim is durable yet | Check connector availability/schema through its own future diagnostics. Do not create a second request; reuse the idempotency key. |
+| `awaiting_response` | A provider claim is active or reclaimable after its lease expires | Check claim fence/expiry metadata. A stale fence cannot submit a response. |
+| `response_received` | A correlated, bounded advisory and digest are committed | Grace may acquire a consumption lease. A process restart must resume this state; do not redeliver the request. |
+| `grace_consumed` | Grace's existing reasoning path acknowledged a durable result reference | A retry returns the same advisory under the stable consumption key. The continuation must use that key idempotently. |
+| `expired` | Deadline passed before completion | Preserve the record. A genuinely new reasoning request requires a new authorized decision and idempotency key. |
+| `failed` | Delivery was non-retryable or reached five attempts | Preserve the sanitized failure event. Repair the transport before creating a new request. |
+| `exact_grant_required` / `authority_check_unavailable` | Router admission was denied or its authority check failed | No exchange should be created. Use the existing AuthorityRegistry inspection and grant process; never insert a row to bypass it. |
+| `idempotency key was reused for a different request` | Caller supplied a key whose immutable context differs | Preserve the existing request. Use the original request for retry or a new authorized request with a new key. |
+| `active response claim and fencing token required` | Claim is stale, belongs to another provider, or its lease expired | Reclaim through the selected provider identity and use its newest fence. |
+| `response ... schema` / correlation mismatch | Response is malformed or belongs to another exchange | Preserve diagnostics; do not relax response validation. |
+
+The exchange service performs no background polling and makes no provider
+network call. It is safe for the existing Grace/CME cycle to keep handling
+unrelated assignments while an exchange is pending. A future event consumer
+may invoke bounded operations, but it must not block the assignment event
+processor while waiting for ChatGPT.
+
+## Isolated PostgreSQL verification
+
+```bash
+PYTHONPATH=src RIVERVIEW_TEST_PG_DSN='<private disposable PostgreSQL 16 socket DSN>' \
+  python3 -m unittest tests.test_external_reasoning_exchange -v
+```
+
+Expected: all exchange integration tests execute (no DSN skip), use a unique
+`rvtest_*` schema, and drop only that schema in teardown. Never use the shared
+`riverview_dev` database for this suite. After an interrupted isolated run,
+identify only the schema created by that run before cleanup.
+
+The unit tests use a synthetic RSA-signed JWT and synthetic provider mapping.
+They prove local signature/claim validation only; they do not exercise a live
+issuer, OAuth browser flow, ChatGPT connector, Platform tunnel, or production
+service. Production commissioning also installs the pinned
+`deploy/external-reasoning-mcp-requirements.txt` into the release virtualenv,
+checks the protected provider map's ownership/mode, confirms the exact Registry
+grant via AuthorityRegistry, then runs the service health and independent MCP
+client checks. Do not run the deployment until provider identity and exact grant
+are issued.

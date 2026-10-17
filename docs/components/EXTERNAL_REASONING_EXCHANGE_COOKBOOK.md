@@ -2,31 +2,38 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.5
+File Revision: 1.1.2
 Purpose: Diagnose durable external reasoning exchange transitions safely
 Authority: Read-only diagnostics first; no production migration or transport operation
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial troubleshooting guide
 Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Add adapter checks, authentication handling, and external-client test boundaries
 Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Correct adapter status guidance and token-map commissioning boundary
 Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Document required Accept negotiation and rejection behavior
+Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Document OAuth issuer/JWKS validation, open discovery, and tunnel prerequisites
+Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Record official Tunnel operation, authentication separation, and OAuth resource-server implementation
+Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Document HTTP 401/403 OAuth challenges from the MCP handler
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # External reasoning exchange troubleshooting
 
 ## MCP transport readiness and diagnostics (2026-10-16)
 
-The durable exchange remains transport-neutral. Its development adapter
-implements a listener and tools, but does not implement an authorization
-server, issue tokens, perform browser wake, or connect an external provider.
-The bearer-to-provider map is operator-provisioned and must be tied to a
-separately reviewed issuer grant. Keep Grace-only consumption and delivery
-lease operations private to the Riverview runtime.
+The durable exchange remains transport-neutral. The adapter is an OAuth
+resource server; it does not implement an authorization server, issue tokens,
+perform browser wake, or connect an external provider. Its root-protected
+subject/client-to-provider map must be provisioned only after the issuer and
+exact AuthorityRegistry grant are approved. Keep Grace-only consumption and
+delivery lease operations private to the Riverview runtime.
 
 The current development adapter is available through authenticated Streamable
 HTTP at `/mcp` when run locally. Its reference unit listens only at
 `127.0.0.1:11827`; `GET /healthz` checks exchange relations and the required
 narrow runtime ACL, while protected-resource metadata publishes the configured
-issuer and scope list. Authenticated `GET /mcp` returns 405 by design because
+issuer and scope list. Initialization and `tools/list` are unauthenticated
+protocol calls; each listed tool advertises OAuth scopes and every `tools/call`
+validates the bearer JWT. Missing/invalid tokens receive HTTP 401 with
+`WWW-Authenticate` and MCP `_meta["mcp/www_authenticate"]`; authenticated tokens
+without scope receive 403 with `insufficient_scope`. `GET /mcp` returns 405 because
 server-initiated SSE is not implemented. POST clients must advertise both
 `application/json` and `text/event-stream`; this server returns one JSON
 object and does not open an SSE stream. A successful loopback MCP
@@ -35,28 +42,60 @@ POST rejects a missing/unacceptable media-type pair with HTTP 406 and a
 non-JSON request body type with HTTP 415; rejected requests are closed without
 logging or parsing the body.
 
-For a future **ChatGPT web** connection, use the supported plugin/hosted MCP
-connection flow at the final HTTPS `/mcp` route and its supported user OAuth
-setup. Current OpenAI MCP authentication guidance describes OAuth protected-
-resource/authorization metadata and the authorization-code + PKCE flow for
-user-authenticated connectors. Do not assume the legacy Caddy-held static
-bearer is a ChatGPT web connector credential. The separate Codex-host MCP
-configuration supports bearer tokens, but that does not make its local config
-or static bearer available to ChatGPT web. See
-<https://developers.openai.com/plugins/build/auth> and
-<https://developers.openai.com/plugins/build/app-quickstart>. Reconfirm the
-platform requirements at commissioning time.
+For a ChatGPT web connection, the external authorization server must expose
+OAuth/OIDC discovery, authorization-code + PKCE `S256`, token endpoint auth
+metadata, CIMD or DCR registration, and tokens whose audience exactly matches
+the configured MCP resource URL. The adapter validates issuer, audience,
+signature, expiration, scope, subject, and client ID/authorized party on each
+tool call. Authorization server, user consent and token issuance remain
+external. Do not treat legacy Caddy static bearer authentication as compatible
+with ChatGPT. See OpenAI's official [MCP authentication contract](https://developers.openai.com/plugins/build/auth) for current requirements.
+
+Secure MCP Tunnel is a transport option that can keep the Riverview MCP service
+private and avoid inbound firewall/DNS/Caddy changes. It is not the OAuth
+issuer: OpenAI documents that OAuth discovery can pass through the tunnel, but
+the authorization server itself is not automatically tunneled. The tunnel also
+requires an OpenAI Platform `tunnel_id`, a runtime API key for `tunnel-client`,
+Tunnels Read+Manage to create/configure, and Read+Use to run/select it, plus
+ChatGPT workspace access to custom MCP. The official guide does not state
+pricing. Treat Platform API-key/account entitlement and any charge as an
+unverified external dependency; do not create a key or tunnel until the account
+owner confirms permitted billing and grants. The tunnel key authenticates the
+local tunnel client to OpenAI's tunnel control plane; it does not authenticate
+ChatGPT users to Riverview or replace OAuth. See the official [Secure MCP Tunnel guide](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels).
+
+The supported deployment pattern for this adapter is a Linux `tunnel-client`
+process on Camrui, running under a dedicated systemd identity and forwarding to
+the existing loopback `/mcp` listener. It opens outbound HTTPS to OpenAI and
+requires no inbound port or Caddy route. OpenAI's current Tunnel guide explicitly
+supports a VM/systemd host and private MCP HTTP target. The ChatGPT setup still
+requires the user to choose **Connection: Tunnel**, select the provisioned
+tunnel, choose **Authentication: OAuth**, then complete the issuer login and
+consent. `No authentication` is not acceptable for this provider-scoped write
+surface. No tunnel ID, Platform runtime key, `tunnel-client`, OAuth issuer, or
+ChatGPT connection is currently commissioned. The API-key pricing/entitlement
+impact is not stated in the official guide and must be confirmed by the account
+owner before provisioning.
+
+OAuth remains independently required with Tunnel. The MCP protected-resource
+metadata can be delivered through the tunnel, but the authorization server must
+be reachable by the browser/ChatGPT OAuth flow. The adapter is only a resource
+server: it validates the OAuth signature, exact issuer and audience, expiry,
+scope, and a preconfigured subject/client pair mapped to one fixed provider
+principal. The OAuth issuer must preserve ChatGPT's `resource` parameter as the
+access-token audience and support authorization code with PKCE `S256` plus a
+ChatGPT-compatible CIMD or DCR method. An approved issuer and exact provider
+identity map remain prerequisites.
 
 Do not configure an external client against the historical Comms5 route merely
 because its DNS name responds. The legacy route uses a separate predecessor
 tool/schema and its public `401` only proves that the HTTPS authentication
 boundary was reached. It does not prove that current exchange tools are served.
-The 2026-10-16 preflight is recorded in
-`evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T220001Z-b318a2f/checkout.md`.
-That record confirms the current production limitation: no MCP/doorbell service
-is installed and migration 0011 is absent. Do not expose unauthenticated MCP or
-claim external acceptance until an independent network client completes MCP
-initialization, tool discovery, and a correlated request/response round trip.
+The 2026-10-16/17 production evidence is recorded in
+`evidence/checkouts/EXTERNAL-MCP-CONNECTION/20261016T234651Z-stage-a-b-auth/checkout.md`.
+It records an inactive MCP unit, absent provider mapping and absent exact
+escalation grant. Do not enable service or claim external acceptance until a
+valid issuer map, exact grant, and independent ChatGPT tool call are evidenced.
 
 The independent development client test is
 `tests/test_external_reasoning_mcp.py`; the PostgreSQL-backed adapter round-trip
@@ -68,9 +107,11 @@ delivery, or production Grace consumption.
 
 | Signal | First read-only check | Safe response |
 |---|---|---|
-| HTTP 401 / `WWW-Authenticate` | Confirm the configured resource metadata URL and credential-map expiry without printing token material | Obtain a valid issuer token and confirm its digest-to-provider entry; never copy the bearer into logs or evidence |
+| OAuth tool error / `_meta.mcp/www_authenticate` | Check issuer/audience/expiry/scope error code and the configured resource metadata URL without printing token material | Re-authorize through the approved issuer; verify the exact mapped subject/client pair and scope ceiling. Never log bearer values |
 | HTTP 403 `host_not_allowed` / `origin_not_allowed` | Compare the request Host/Origin with the reviewed allowlists | Correct only the exact reverse-proxy host/origin values; do not use wildcard hosts |
-| `provider_not_registered` at startup | Compare credential-map provider/principal pairs with provider registrations derived at startup | Preserve requests and correct the reviewed identity mapping; do not accept provider IDs from tool arguments |
+| `oauth_authorization_server_incompatible` | Check sanitized issuer metadata status for authorization-code, PKCE `S256`, client registration and token endpoint methods | Select/provision a compatible existing issuer; do not fake or weaken metadata checks |
+| `provider_not_registered` at startup | Compare protected subject/client mapping provider/principal pairs with provider registrations derived at startup | Preserve requests and correct only the reviewed mapping; do not accept provider IDs from tool arguments |
+| `invalid_token` | Check issuer, audience, signature, `exp`, mapped subject/client and scopes from sanitized counters only | Re-authenticate or correct the issuer/resource configuration; never dump or paste the JWT |
 | `awaiting_delivery` remains | Inspect bounded status and event codes; test adapter health and current DB migration outside the public endpoint | Keep the exchange durable; retry the pull operation after adapter readiness returns |
 | `awaiting_external_claim` / `awaiting_response` | Use `reasoning_exchange_list_requests` then reclaim with the same authenticated principal | Reuse the current request and correlation IDs; fencing and response idempotency reject stale/duplicate actions |
 | HTTP 413 or `tool_arguments_invalid` | Check the documented 64 KiB HTTP, 32 KiB context and 16 KiB response bounds | Reduce only the submitted advisory/context within the existing schema; do not raise limits blindly |
@@ -114,6 +155,12 @@ Expected: all exchange integration tests execute (no DSN skip), use a unique
 `riverview_dev` database for this suite. After an interrupted isolated run,
 identify only the schema created by that run before cleanup.
 
-The package/runtime projection is intentionally metadata-only. No MCP endpoint,
-browser session, ChatGPT application schema, Playwright profile, or production
-service is exercised by these tests.
+The unit tests use a synthetic RSA-signed JWT and synthetic provider mapping.
+They prove local signature/claim validation only; they do not exercise a live
+issuer, OAuth browser flow, ChatGPT connector, Platform tunnel, or production
+service. Production commissioning also installs the pinned
+`deploy/external-reasoning-mcp-requirements.txt` into the release virtualenv,
+checks the protected provider map's ownership/mode, confirms the exact Registry
+grant via AuthorityRegistry, then runs the service health and independent MCP
+client checks. Do not run the deployment until provider identity and exact grant
+are issued.

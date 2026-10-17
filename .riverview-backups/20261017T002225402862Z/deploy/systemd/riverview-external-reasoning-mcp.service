@@ -1,0 +1,47 @@
+# Riverview~ controlled unit
+# File Revision: 1.1.0
+# Component: EXTERNAL-REASONING-MCP-TRANSPORT
+# Task: RV-EXTERNAL-MCP-ADAPTER-001
+# Purpose: Serve OAuth-protected provider-scoped durable reasoning exchange over loopback MCP HTTP
+# Authority: Authenticated external advice only; no execution or Steward authority
+# Rollback: Disable this unit and retain PostgreSQL exchange rows and events
+[Unit]
+Description=Riverview authenticated external reasoning MCP adapter
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=riverview
+Group=riverview
+WorkingDirectory=/opt/riverview-external-reasoning-mcp/current
+Environment=HOME=/var/lib/riverview-external-reasoning-mcp
+Environment=PYTHONPATH=/opt/riverview-external-reasoning-mcp/current/src:/opt/riverview-external-reasoning-mcp/current/scripts
+Environment="RIVERVIEW_PG_DSN=host=127.0.0.1 port=5432 dbname=riverview user=riverview_core application_name=riverview-external-reasoning-mcp"
+Environment=RIVERVIEW_PG_SCHEMA=riverview_dev
+Environment=RIVERVIEW_MCP_LISTEN_HOST=127.0.0.1
+Environment=RIVERVIEW_MCP_LISTEN_PORT=11827
+EnvironmentFile=/etc/riverview/external-reasoning-mcp.env
+LoadCredential=pgpass:/etc/riverview/pgpass
+LoadCredential=provider-auth-map:/etc/riverview/external-reasoning/provider-auth-map.json
+RuntimeDirectory=riverview-external-reasoning-mcp
+RuntimeDirectoryMode=0700
+UMask=0077
+ExecStart=/opt/riverview-core/.venv/bin/python /opt/riverview-external-reasoning-mcp/current/scripts/run_external_reasoning_mcp.py
+Restart=on-failure
+RestartSec=3s
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=tmpfs
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

@@ -1,9 +1,10 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.157
+**Document Revision:** 1.0.159
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Investigate stale/unknown worker projection and distinguish lease activity from process liveness.
+**Changed:** 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Implement OAuth resource-token validation, 401/403 challenges and verify private Tunnel option; record final isolated suite and live access gates
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record offline diagnostic snapshot source, verification evidence and production boundary
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-PR67-SNAPSHOT-CSP-FIX | Record controlled f957 release, verified migration and live service, partial diagnostic export, and isolated CSP correction evidence
 **Changed:** 2026-10-16 UTC | RV-PROPOSAL-AUTHORING-GUIDANCE | Link the AI startup hints to a concise proposal authoring playbook
@@ -2352,3 +2353,11 @@ Production `/api/v1/workers` and status observations on 2026-10-16 reported five
 ## 2026-10-16 UTC — RV-EXTERNAL-MCP-ADAPTER-001 integrated verification
 
 PR #69 was reconciled against the latest integration base `5221da72286aea73bed2fb1ac9aa043a120df2bd` at merge commit `1359019ed377b791ac5b4004a6ca09d735e6797a`. The append-only backup manifest and revision inventory conflicts were resolved by preserving records from both branches. The integrated repository suite passed **501 tests, 0 failures, 0 skips** against a disposable PostgreSQL 16.15 cluster on port 55494 (416.430 seconds). Canonical process graph check passed at 20 graphs / 513 nodes; controlled revision audit passed with zero issues; changed Python compilation and `git diff --check` passed. Independent loopback MCP client and durable PostgreSQL exchange tests passed. Evidence is recorded at `evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T230300Z-1359019/`. PR #69 remains open and unmerged; no production migration, deployment, public route, or ChatGPT configuration occurred. External-network reachability is unverified. Predecessor journal: `.riverview-backups/20261016T230217899962Z/docs/development/JOURNAL.md`.
+
+## 2026-10-17 UTC — RV-MCP-CHATGPT-OAUTH-RESOURCE-001
+
+OpenAI's current Secure MCP Tunnel documentation confirms that a Linux/systemd `tunnel-client` can make outbound HTTPS calls and forward requests to a private MCP server without opening inbound ports. Tunnel does not replace OAuth: ChatGPT still authenticates through OAuth, while the tunnel runtime key authenticates only the client to OpenAI's tunnel plane. The existing adapter was extended with OAuth JWT resource-token validation, protected-resource metadata and per-tool OAuth metadata; it rejects wrong signature, issuer, exact audience, expiry, scope, or unmapped subject/client. The launcher no longer accepts the predecessor static bearer map. A real loopback HTTP handler test with a synthetic signed JWT passed.
+
+Focused MCP suite passed 10/10; the full suite passed **507 tests, 1 skipped, 0 failures** on a disposable PostgreSQL 16.15 cluster at port 55527, with the one skip limited to a dashboard runtime-role ACL fixture absent from that cluster. Process graph validation passed (20 graphs / 513 nodes), controlled revision audit passed with zero issues, compileall and whitespace checks passed. Evidence is at `evidence/checkouts/EXTERNAL-MCP-CHATGPT-TUNNEL/20261017T0034Z/checkout.md`.
+
+The post-HTTP-challenge full-suite rerun on disposable PostgreSQL 16.15 port 55537 completed in 439.521 seconds with 507 passed, 1 expected skip, and 0 failures. Production activation and ChatGPT acceptance remain unverified. A single BatchMode SSH connection to known-host `192.168.1.155` as configured account `admin1` was rejected; no further credential attempts were made. No OAuth issuer, tunnel ID/runtime key, or subject/client mapping is provisioned in the available source/runtime evidence. No production service, grant, route, or database was changed. Predecessor journal: `.riverview-backups/20261017T003427585170Z/docs/development/JOURNAL.md`.
