@@ -1,0 +1,121 @@
+{
+  "graph_id": "rv:comms5:camrui-adapter",
+  "graph_revision": "1.0.0",
+  "component_id": "COMMS5-CAMRUI-ADAPTER",
+  "workflow_id": "comms5.camrui.compatibility.v1",
+  "diagram_order": 91,
+  "source_references": [
+    "src/riverview_core/comms5/server.py",
+    "src/riverview_core/comms5/tool_catalog.json",
+    "deploy/systemd/riverview-comms5-camrui.service",
+    "deploy/systemd/riverview-comms5-tunnel.service",
+    "deploy/systemd/riverview-comms5-oauth.service"
+  ],
+  "documentation_references": [
+    "docs/components/COMMS5_CAMRUI_DEPLOYMENT.md",
+    "docs/components/COMMS5_CAMRUI_MIGRATION.md"
+  ],
+  "verification_evidence": [
+    "tests/test_comms5_mcp.py"
+  ],
+  "nodes": [
+    {
+      "id": "rv:comms5:camrui-adapter:authenticated-ingress",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Caddy OAuth validation injects the authenticated Steward hop identity",
+      "source_references": [
+        "deploy/systemd/riverview-comms5-camrui.service"
+      ],
+      "documentation_references": [
+        "docs/components/COMMS5_CAMRUI_DEPLOYMENT.md"
+      ],
+      "verification_evidence": [
+        "tests/test_comms5_mcp.py"
+      ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:hop-validation",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Loopback adapter validates Caddy marker, principal and backend hop credential",
+      "source_references": [
+        "src/riverview_core/comms5/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/COMMS5_CAMRUI_DEPLOYMENT.md"
+      ],
+      "verification_evidence": [
+        "tests/test_comms5_mcp.py"
+      ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:catalog",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Serve the preserved 21-tool historical MCP catalog",
+      "source_references": [
+        "src/riverview_core/comms5/server.py",
+        "src/riverview_core/comms5/tool_catalog.json"
+      ],
+      "documentation_references": [
+        "docs/components/COMMS5_CAMRUI_MIGRATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_comms5_mcp.py"
+      ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:contract-call",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Run supported static contract operations without database access",
+      "source_references": [
+        "src/riverview_core/comms5/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/COMMS5_CAMRUI_MIGRATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_comms5_mcp.py"
+      ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:not-implemented",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Unmapped historical backend operation returns explicit MCP tool error without execution",
+      "source_references": [
+        "src/riverview_core/comms5/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/COMMS5_CAMRUI_MIGRATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_comms5_mcp.py"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:comms5:camrui-adapter:authenticated-ingress",
+      "to": "rv:comms5:camrui-adapter:hop-validation",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:hop-validation",
+      "to": "rv:comms5:camrui-adapter:catalog",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:catalog",
+      "to": "rv:comms5:camrui-adapter:contract-call",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:catalog",
+      "to": "rv:comms5:camrui-adapter:not-implemented",
+      "type": "diagnostic_branch"
+    }
+  ]
+}
