@@ -2,12 +2,13 @@
 Riverview~ Controlled Document
 File: docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md
 Component: WORKER-ADAPTER / INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.1
+File Revision: 1.0.2
 Purpose: Specify safe retirement of the two registrations for revoked M33 commissioning run e92ec515
 Authority: Steward-authorized fixed-ID operation; production execution remains pending controlled release and live preflight
 Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Document retirement controls, audit, recovery boundary, and operator procedure
 Changed: 2026-10-17 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Add exact read-only postflight and match systemd preflight states
-History: Git and evidence/checkouts/WORKER-REGISTRY-RETIREMENT/20261016T-procedure/
+Changed: 2026-10-17 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Link the finalized controlled verification evidence
+History: Git and evidence/checkouts/WORKER-REGISTRY-RETIREMENT/20261017T000450Z-e494478/
 -->
 # M33 worker registration retirement
 
