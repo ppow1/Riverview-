@@ -2,21 +2,21 @@ Clear-Host
 # Riverview Controlled Operator Script
 # File: scripts/Invoke-RiverviewComms5StewardCredentialRotation.ps1
 # Component: COMMS5-OAUTH-IONOGE
-# File Revision: 1.0.0
+# File Revision: 1.0.1
 # Purpose: Stage and preflight the approved Comms5 credential utility, then rotate only after explicit operator confirmation.
 # Execution Model: Interactive Windows PowerShell 5.1
 # Observability: Sanitized result; successful credential is copied to clipboard and never printed.
-# Dependencies: OpenSSH scp/ssh, ionoge-control-01 SSH alias, Set-Clipboard.
+# Dependencies: OpenSSH scp/ssh, verified Ionoge host key for 64.227.21.54, Set-Clipboard.
 # Authority: Explicitly asks for exact ROTATE confirmation before changing the shared Comms5 login/direct-bearer credential.
-# Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-CREDENTIAL-002 | Add one guarded operator procedure.
+# Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-ROTATION-HEALTH-REPAIR | Fix checkout root and pin target to verified Ionoge address.
 # Contracts: docs/operations/RIVERVIEW_MACHINE_CONNECTIONS_AND_COMMS5_RECOVERY_2026-10-17.md
 # History: Git + revision/backup manifest.
 
 $ErrorActionPreference = 'Stop'
-$SshTarget = 'ionoge-control-01'
-$ExpectedUtilitySha256 = '9910a03d74c538466d36888950a3186d77e6362ced45125fc26dac77b0458224'
+$SshTarget = 'root@64.227.21.54'
+$ExpectedUtilitySha256 = 'ede7a8a12ec0baa03ff2af48529298950c30ef2586c1f7951423c8bc6c0eaeea'
 $RemoteUtility = '/usr/local/sbin/rotate_comms5_steward_credential.py'
-$RepoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$RepoRoot = Split-Path -Parent $PSScriptRoot
 $UtilityPath = Join-Path $RepoRoot 'scripts\rotate_comms5_steward_credential.py'
 
 if (-not (Test-Path -LiteralPath $UtilityPath -PathType Leaf)) {
