@@ -1471,7 +1471,7 @@
     },
     {
       "graph_id": "rv:comms5:camrui-adapter",
-      "graph_revision": "1.0.4",
+      "graph_revision": "1.0.5",
       "component_id": "COMMS5-CAMRUI-ADAPTER",
       "workflow_id": "comms5.camrui.compatibility.v1",
       "diagram_order": 91,
@@ -1571,6 +1571,23 @@
           "verification_evidence": [
             "tests/test_comms5_mcp.py"
           ]
+        },
+        {
+          "id": "rv:comms5:camrui-adapter:steward-credential-lifecycle",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Operator validates or rotates the shared Steward login and legacy bearer through protected stdin with predecessor rollback",
+          "source_references": [
+            "scripts/rotate_comms5_steward_credential.py",
+            "deploy/comms5/caddy-comms5-oauth-block.caddy"
+          ],
+          "documentation_references": [
+            "docs/components/COMMS5_OAUTH_TROUBLESHOOTING.md",
+            "docs/operations/RIVERVIEW_MACHINE_CONNECTIONS_AND_COMMS5_RECOVERY_2026-10-17.md"
+          ],
+          "verification_evidence": [
+            "tests/test_comms5_steward_credential.py"
+          ]
         }
       ],
       "edges": [
@@ -1593,6 +1610,11 @@
           "from": "rv:comms5:camrui-adapter:catalog",
           "to": "rv:comms5:camrui-adapter:not-implemented",
           "type": "diagnostic_branch"
+        },
+        {
+          "from": "rv:comms5:camrui-adapter:steward-credential-lifecycle",
+          "to": "rv:comms5:camrui-adapter:authenticated-ingress",
+          "type": "prerequisite"
         }
       ]
     },
@@ -13355,6 +13377,7 @@
     "rv:comms5:camrui-adapter:contract-call",
     "rv:comms5:camrui-adapter:hop-validation",
     "rv:comms5:camrui-adapter:not-implemented",
+    "rv:comms5:camrui-adapter:steward-credential-lifecycle",
     "rv:event-processor:assignment-progression:advance",
     "rv:event-processor:assignment-progression:baseline-jump",
     "rv:event-processor:assignment-progression:checkpoint",

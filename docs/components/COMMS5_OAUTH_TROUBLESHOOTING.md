@@ -2,11 +2,12 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_OAUTH_TROUBLESHOOTING.md
 Component: COMMS5-OAUTH-IONOGE
-File Revision: 1.0.0
+File Revision: 1.0.1
 Status: Operational troubleshooting record
 Date: 2026-10-17
 Purpose: Diagnose and recover Comms5 OAuth-to-Camrui authenticated MCP forwarding.
 Changed: 2026-10-17 UTC | RV-COMMS5-OAUTH-FORWARD-HEADERS-001 | Record verified principal/marker defect, recovery, and acceptance evidence.
+Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-CREDENTIAL-001 | Explain authorization credential dependencies and guarded rotation.
 History: New file; no predecessor existed.
 Authority: Existing OAuth and Steward authority boundaries; no grant changes.
 -->
@@ -49,3 +50,17 @@ ss -ltnp | grep -E '127.0.0.1:11826|127.0.0.1:11827'
 ```
 
 For a blocked authenticated MCP call, inspect the Caddy adapted route without emitting environment values. The OAuth-to-backend proxy headers must have a set for marker `1`, no delete for that marker, and a principal copied from the successful OAuth `/oauth/verify` response. Keep OAuth `/oauth/verify` loopback-only.
+
+## Steward credential diagnosis and rotation
+
+The authorization page’s “Steward credential” is `RIVERVIEW_COMMS5_CLIENT_SECRET`, read by the OAuth service and compared in constant time. The same value is used by Caddy as the direct legacy Comms5 bearer, so rotation also invalidates any direct client using that bearer. It is not the internal OAuth proxy key, backend upstream credential, dashboard credential, or OAuth-issued token. Live files and service wiring were inspected without disclosing their values; their owner/mode were root:root/0600 and the two client-secret entries matched.
+
+No deployment record identifies who generated the currently installed value, whether it reused an earlier Comms5 bearer, or whether it was handed to the Steward. Treat operator custody as unverified. The selected remediation is to establish a fresh operator-held value with the reviewed utility, rather than to expose the current secret through logs or chat.
+
+Read-only check after the utility is installed:
+
+```sh
+sudo python3 /usr/local/sbin/rotate_comms5_steward_credential.py --check
+```
+
+Rotation uses `--install-from-stdin`; see the Windows PowerShell 5.1 procedure in the machine-connection runbook. It validates both service environment-file references, refuses mismatched/duplicated entries, writes protected predecessors, atomically updates only the shared client-secret setting, restarts only OAuth and Caddy, and checks OAuth health/discovery plus anonymous MCP rejection. A failure restores the prior environment files and attempts the same service health checks. The replacement value is never emitted. After rotation, complete OAuth in the browser using the local clipboard and clear it; update any known legacy direct-bearer client through its own protected path.
