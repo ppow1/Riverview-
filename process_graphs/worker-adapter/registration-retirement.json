@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:worker-adapter:registration-retirement",
-  "graph_revision": "1.0.6",
+  "graph_revision": "1.0.8",
   "component_id": "WORKER-ADAPTER",
   "workflow_id": "registration-retirement.v1",
   "diagram_order": 9,
@@ -19,7 +19,9 @@
     "docs/components/WORKER_ADAPTER_COOKBOOK.md",
     "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
   ],
-  "verification_evidence": [],
+  "verification_evidence": [
+    "evidence/checkouts/M33-0009-PRODUCTION/20261017T032139Z/production-acceptance.json"
+  ],
   "nodes": [
     {
       "id": "rv:worker-adapter:registration-retirement:entry",
@@ -86,9 +88,9 @@
     },
     {
       "id": "rv:worker-adapter:registration-retirement:manager-update-check",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "decision",
-      "label": "Verify the existing authority-manager role already has UPDATE on the worker registry; do not grant or substitute roles",
+      "label": "Verify manager schema USAGE, worker-registry SELECT and UPDATE; missing privilege boundary aborts without role substitution or grants",
       "source_references": [
         "scripts/retire_revoked_m33_worker_registrations.py",
         "src/riverview_core/worker_adapter/retirement.py"
@@ -96,7 +98,9 @@
       "documentation_references": [
         "docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "evidence/checkouts/M33-0009-PRODUCTION/20261017T032139Z/production-acceptance.json"
+      ]
     },
     {
       "id": "rv:worker-adapter:registration-retirement:run-state",
@@ -126,9 +130,9 @@
     },
     {
       "id": "rv:worker-adapter:registration-retirement:transaction-gates",
-      "node_revision": "1.0.1",
+      "node_revision": "1.0.2",
       "type": "decision",
-      "label": "Require active Steward grant, manager UPDATE privilege, revoked worker authority, exact inventory, and no lease or executable assignment",
+      "label": "Require active Steward grant, manager schema USAGE and registry SELECT/UPDATE, revoked worker authority, exact inventory, and no lease or executable assignment",
       "source_references": [
         "src/riverview_core/worker_adapter/retirement.py",
         "src/riverview_core/institutional_authority/registry.py"
@@ -136,7 +140,9 @@
       "documentation_references": [
         "docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "evidence/checkouts/M33-0009-PRODUCTION/20261017T032139Z/production-acceptance.json"
+      ]
     },
     {
       "id": "rv:worker-adapter:registration-retirement:retire-and-audit",
@@ -177,7 +183,9 @@
       "documentation_references": [
         "docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md"
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        "evidence/checkouts/M33-0009-PRODUCTION/20261017T032139Z/production-acceptance.json"
+      ]
     }
   ],
   "edges": [
@@ -195,7 +203,7 @@
       "from": "rv:worker-adapter:registration-retirement:migration-chain",
       "to": "rv:worker-adapter:registration-retirement:apply-migration-0009",
       "type": "diagnostic_branch",
-      "label": "0000\u20130008 chain, checksums, backup and restore rehearsal all verified"
+      "label": "0000–0008 chain, checksums, backup and restore rehearsal all verified"
     },
     {
       "from": "rv:worker-adapter:registration-retirement:migration-chain",
@@ -218,7 +226,7 @@
       "from": "rv:worker-adapter:registration-retirement:manager-update-check",
       "to": "rv:worker-adapter:registration-retirement:abort",
       "type": "diagnostic_branch",
-      "label": "manager UPDATE privilege missing; do not alter grants or switch roles"
+      "label": "manager lacks schema USAGE and registry SELECT/UPDATE; abort without role substitution or grant"
     },
     {
       "from": "rv:worker-adapter:registration-retirement:run-state",

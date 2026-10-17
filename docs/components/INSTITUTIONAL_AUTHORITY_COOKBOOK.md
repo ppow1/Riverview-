@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.29
+File Revision: 1.0.33
 Purpose: Diagnose and safely recover institutional authority registry state
 Authority: Read-only diagnostics first; grant changes require authenticated Steward
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Keep evidence references as readable paths in safe dashboard renderer
@@ -30,15 +30,18 @@ Changed: 2026-10-17 UTC | M33-0008-ATOMIC-RUNTIME-ACL | Apply migration 0008 and
 Changed: 2026-10-17 UTC | M33-0008-ATOMIC-RUNTIME-ACL | Clarify post-commit restore coordination and data reconciliation
 Changed: 2026-10-17 UTC | M33-0008-ATOMIC-RUNTIME-ACL | Require the atomic runtime boundary runner and reuse valid backup closeout evidence
 Changed: 2026-10-17 UTC | M33-0008-PRODUCTION-ACCEPTANCE | Record installed immutable runner release, migration 0008, runtime ACLs and production checks
+Changed: 2026-10-17 UTC | M33-0009-PRODUCTION-CLOSEOUT | Update current-state banner to installed migration chain
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional authority registry cookbook
 
 **Current state:** Camrui has the dedicated `riverview_authority` schema,
-protected table ownership, manager credential, root-local Steward identity,
-migration 0002 and exact-grant function-only runtime ACL. The live worker adapter is not deployed in a service. The isolated
-`AuthorizedAssignmentIntake` library now checks exact `assignment.create` and
-binds the grant lock to assignment/event persistence, but no live route uses it.
+protected table ownership, manager credential, root-local Steward identity, and
+authority migrations 0000–0009 applied with verified checksums. The profile
+runtime ACL is installed. The worker-adapter assignment intake library is not
+a live route; the separate M33 commissioning units remain stopped. The isolated
+`AuthorizedAssignmentIntake` library checks exact `assignment.create` and binds
+the grant lock to assignment/event persistence, but no live route uses it.
 The low-level ledger API and direct SQL are not authorization boundaries. The
 registry belongs in its separate schema; never use the mixed `riverview_dev`
 application schema. Do not paste bearer or database credential values into a
@@ -432,13 +435,12 @@ The package and new release remain available for audit; the existing immutable
 release and active symlink remain unchanged. If any check fails, do not rename
 the staging directory into a release and do not run a candidate script.
 
-The confirmed production ledger is 0000–0007, so stop at read-only `--check`.
-Production apply and retirement are not authorized by this procedure until
-migration 0008's prerequisite is separately resolved. If a future live check
-confirms the exact 0000–0008 chain and checksums, first complete the protected
-backup/restore rehearsal and manager privilege precheck, then run `--apply` for
-0009 only. Repeat `--check` for `ALREADY_APPLIED` and verify the ledger checksum
-before invoking the retirement helper.
+Historical preflight note (superseded 2026-10-17): the production ledger was
+0000–0007. The approved 0008 and 0009 migrations have since been applied and
+verified against their exact checksums after protected backup/restore. Do not
+reapply either migration. The M33 registration-retirement helper was attempted
+once and failed closed on the manager authorization boundary; see the dated
+production closeout below.
 
 
 ## Database privilege boundary preflight
@@ -833,8 +835,8 @@ was restarted or release pointer switched.
 
 The preflight returned `READY`; `--apply-0008` returned `APPLIED`, and the
 postflight `--check-0008` returned `ALREADY_APPLIED` with the pinned checksum
-`570c7aeb16fca04c64c4e010f1534d0efebe92628ddacd8f05f6eb1eda12d339`. The
-ledger now contains 0000–0008; 0009 remains unapplied. All five profile API
+`570c7aeb16fca04c64c4e010f1534d0efebe92628ddacd8f05f6eb1eda12d339`. At this 0008 acceptance checkpoint the
+ledger contained 0000–0008; 0009 was applied later as recorded below. All five profile API
 functions are owned by `riverview_authority_owner`, executable by
 `riverview_core`, and not executable by `PUBLIC` or the manager. Runtime schema
 USAGE is present without CREATE; profile table access remains denied to the
@@ -859,3 +861,10 @@ recovery authorization and post-snapshot write reconciliation.
 - **1.0.27 — 2026-10-17:** Clarify whole-database restore after committed 0008 requires an authorized recovery window and reconciliation of post-backup writes.
 - **1.0.28 — 2026-10-17:** Require the corrected atomic runtime boundary in the 0008 runner and allow reuse of applicable verified backup evidence.
 - **1.0.29 — 2026-10-17:** Record Camrui migration 0008 production execution, function ACL postflight, service continuity, and the installed non-active release.
+
+
+### M33-0009 production closeout (2026-10-17)
+
+Production authority migration 0009 is applied and verified. The ledger contains 0000–0009 with expected checksums, including `0009_worker_registration_retirement_event` SHA-256 `0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6`. It only extends the authority event type constraint. It does not retire registrations or change grants.
+
+The separately authorized guarded helper failed closed with `InsufficientPrivilege`. The manager role has no `USAGE` on `riverview_dev`, no `SELECT` on `worker_registry`, and no table or column `UPDATE`. No fallback role or ad hoc grant was used, so the worker registry and authority event history were unchanged. The active-release pointer was not changed. Before resuming retirement, establish and review a narrow authorized execution boundary; do not grant these broad schema/table privileges merely to satisfy the helper.

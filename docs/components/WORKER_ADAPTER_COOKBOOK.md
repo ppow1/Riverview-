@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/WORKER_ADAPTER_COOKBOOK.md
 Component: WORKER-ADAPTER
-File Revision: 1.0.16
+File Revision: 1.0.20
 Purpose: Diagnose worker identity, attempts, verification and recovery; retire the exact M33 registrations safely
 Authority: Read-only diagnosis; retirement only through the fixed Steward-authorized M33 operation. Credential delivery and enrollment remain trusted control-plane operations.
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Add redacted worker and verification record queries with failure interpretation
@@ -18,11 +18,13 @@ Changed: 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-DOCS | Re
 Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Link the guarded M33 worker-registration retirement lifecycle, failure handling, and integration-owner prerequisites
 Changed: 2026-10-17 UTC | M33-0009-SYSTEMD-PARSER-FIX | Parse named systemd properties independent of output order and document the manager privilege gate
 Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-LINK-CLARIFICATION | Present checkout evidence as a non-linked path in dashboard-served documentation
+Changed: 2026-10-17 UTC | M33-0009-PRODUCTION-CLOSEOUT | Record exact privilege blocker and preserve Grace/M31 registrations
+Changed: 2026-10-17 UTC | M33-0009-PRODUCTION-CLOSEOUT | Correct worker retirement guidance and revision history placement
 History: Git and revision backup manifest
 -->
 # Riverview~ worker adapter cookbook
 
-**Document Revision:** 1.0.10
+**Document Revision:** 1.0.11
 **Component:** WORKER-ADAPTER
 **Task:** RV-M2.1-001
 **Status:** IN PROGRESS — disposable PostgreSQL only
@@ -50,10 +52,11 @@ sudo -n systemctl show --property=ActiveState --property=SubState --property=Mai
 
 Require `ActiveState=inactive`, `SubState=dead`, and `MainPID=0` for each unit.
 A prior helper revision incorrectly assumed property output order; that parser
-is corrected in the reviewed successor. If the corrected helper reports
-`database_role_cannot_retire_registration`, stop without switching to
-`postgres` or adding a grant. A missing manager update privilege is an
-authorization boundary requiring a separately reviewed least-privilege design.
+is corrected in the reviewed successor. The 2026-10-17 production invocation
+then failed closed with `InsufficientPrivilege`. Catalog checks confirmed the
+manager lacks schema `USAGE`, registry `SELECT`, and table/column `UPDATE`.
+Do not switch to `postgres`/`riverview_core` or add grants; establish a
+separately reviewed least-privilege execution boundary before retrying.
 
 ## Isolated verification
 
@@ -376,3 +379,8 @@ cluster's cleanup separately. Do not kill by a broad `pkill` pattern. The local
 inference call has no remote side effects; keep action `retry_safe`, while future
 network tools must declare `external_uncertain` until their contract proves
 otherwise.
+
+
+### Current M33 retirement status (2026-10-17)
+
+Authority migration 0009 is installed with its reviewed checksum. The exact helper invocation then returned `InsufficientPrivilege` and made no changes. The manager role has no schema `USAGE`, registry `SELECT`, or registry `UPDATE` on `riverview_dev.worker_registry`; these facts were verified through PostgreSQL catalogs. Both exact M33 registrations remain active, as do all three Grace registrations; the two historical M31 rows remain inactive. The M33 services remain stopped. Do not grant ad hoc privileges, use `postgres`/`riverview_core`, or retry until a separately reviewed narrow execution boundary is available. See the M33 runbook and production evidence directory for the detailed state and acceptance record.

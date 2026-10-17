@@ -1,0 +1,2 @@
+{"failure_code": "InsufficientPrivilege", "status": "ERROR"}
+helper_exit=1

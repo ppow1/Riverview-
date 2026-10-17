@@ -1,0 +1,151 @@
+{
+  "archive_path": "/var/lib/postgresql/riverview-backup.m33-0009-khpdrd46/riverview.dump",
+  "archive_sha256": "ac467c1a2aa5cf546acb31d40073cefa2489d2ec2a42049f3d7ae6bbf948ff8b",
+  "checksums": {
+    "riverview_authority.schema_migrations": [
+      [
+        "0000_authority_migration_ledger",
+        "8043b6f310f98e8e9613abbec71befcb4e3734d6fb374c36c6ccafe36b965fd6"
+      ],
+      [
+        "0001_institutional_authority",
+        "347e415b662675d492400a0af145edc9ca92e5122ee3e22886d9656b578fad36"
+      ],
+      [
+        "0002_exact_grant_authorization",
+        "84be0433c2e603875489a3e4311199f19b97eddc6a5ec55eef6dd47010cb091d"
+      ],
+      [
+        "0003_resident_office_state_api",
+        "6dc6702f959b77b18e5f959891979e49bbc10c1840c437de924c6c8187d74afb"
+      ],
+      [
+        "0004_exact_principal_grant_authorization",
+        "8db42ab887bcb03e9e5e8814ae85ddf5a82c8410535c77a18876204f608b62fe"
+      ],
+      [
+        "0005_audited_model_rebinding",
+        "09df3913c85e0014f67824f4219f219aa7aa402a6a0ba596b463f5f5b0d9909c"
+      ],
+      [
+        "0006_authorized_implementation_successor",
+        "05a0082a9f855ad57350e75c51c42abf7ae9eeeaf8de8c7167747e3f1a2e4ed7"
+      ],
+      [
+        "0007_audited_office_role_update",
+        "d7ac90639c1496319a4a52306d0ed03af679186ca77a92a60a2db4c38cc49240"
+      ],
+      [
+        "0008_resident_permission_profiles",
+        "570c7aeb16fca04c64c4e010f1534d0efebe92628ddacd8f05f6eb1eda12d339"
+      ]
+    ],
+    "riverview_dev.schema_migrations": [
+      [
+        "0001_assignment_event_ledger",
+        "7f3580aacc057b977f8dd6f880584d1fed678488523b0d2ce6737c1107487492"
+      ],
+      [
+        "0001_assignment_leases",
+        "ce29c2994904f54706db883f61127bf05ee195ecbdce90e7242886e86711b717"
+      ],
+      [
+        "0001_grace_objectives",
+        "24abef0f91fa50368b7b0a4ff884efd62562c1c52cc05c56c8033b72be5de238"
+      ],
+      [
+        "0001_worker_attempts",
+        "023efdda83d2498e96febb1daa4b7705ec76d2d0b84aa900ad720075a099b780"
+      ],
+      [
+        "0002_assignment_process_position",
+        "bd4db186149d3f687bc7dd9f483391ad958bda1d759b6b1052ac004ff1492d10"
+      ],
+      [
+        "0002_event_processor_cursor",
+        "356c473027044429f403ca55da7a13fda86a4bfacc606d0727dc23ee98eafa3b"
+      ],
+      [
+        "0002_execution_health",
+        "2635541132aaa5319f7f967d1a8d71ef86f920cffec4404982d43fb20914985b"
+      ],
+      [
+        "0002_knowledge_observations",
+        "2c9f40826ec405ded2f2f14c0b12f281b625358707943f67a8e642a59556930c"
+      ],
+      [
+        "0003_independent_verification",
+        "70b9c9f3e3038897b1ef1c729f3619f31e49894c920da99dcb44a6556d3c7448"
+      ],
+      [
+        "0003_resident_conversation",
+        "10597d1f0fb91814994ced2a0e3433a0e6aec97152416da3e493754f13033840"
+      ],
+      [
+        "0004_deferred_conversation_responses",
+        "816fe5db7d41fec21f0cfbb8486ca817e35c438b8709a71a4a87870d195441d0"
+      ],
+      [
+        "0004_failure_recovery",
+        "144564ca3b73f9190801c2133a8c495dd562a0338ae2afd1936a2fdd32f8dd9b"
+      ],
+      [
+        "0005_cme_monitoring",
+        "8a637d18c55eae4ddb4defe713e1ff04bcdbeba9ae1ecbb7cd1923a7062a1824"
+      ],
+      [
+        "0005_dashboard_grace_health_read",
+        "5443b7707c3f47164591a98573fdf57db087fcfa9998413a5ffb54a4d6f393e1"
+      ],
+      [
+        "0006_deferred_execution_claims",
+        "65f2ca74a502c0897e91ab97e50e1041e997a58cf7cf51fb72cabd9be033c0d8"
+      ],
+      [
+        "0006_durable_notifications",
+        "446ac3a7af152e4ae18f6a24970abc9153134fdecf9c7e2827c539eb81299d14"
+      ],
+      [
+        "0006_verifier_revision_rechecks",
+        "0d916361cf95882e686370be3d037616d8619f362b03f7ac25096127cb8076b8"
+      ],
+      [
+        "0007_grace_runtime_objective_and_health_acl",
+        "f76b414ea6ecd5a369f762a26fcf5075cc2d0afc3e1008f927f83d4e0a324e5c"
+      ],
+      [
+        "0008_resident_conversation_stream_delivery",
+        "31de02bef92210f95f77645b110aade2f927400d9b9aad2daffc8e885edbd116"
+      ],
+      [
+        "0009_durable_objective_steps",
+        "fd2f6140106358d96316c6c70c4a01e205908ac4ca21d32c066a30f4909acf2a"
+      ],
+      [
+        "0010_institutional_proposal_registry",
+        "3909705a38ec19f31be99088fa7fbfc8dfe9e9c6d28a55095f978d4bf10d4e18"
+      ],
+      [
+        "0011_external_reasoning_exchange",
+        "93e2603dd92237b95700356f723e21553bcafdee5314800bb04cd18469163b30"
+      ]
+    ]
+  },
+  "cleanup": "PASS",
+  "counts": {
+    "non_system_heap_tables": 62
+  },
+  "created_utc": "20261017T030836Z",
+  "disposable_restore_database": "rv_m33_restore_20261017t030836z",
+  "migration_ledgers": "PASS",
+  "pg_restore_list": "PASS",
+  "restore_owner": "riverview_core",
+  "restore_semantics": "pg_restore run as postgres with archived ownership and ACLs preserved",
+  "schema": "riverview.m33-0009-pre-migration-backup.v1",
+  "schema_ownership_acl_relation_ownership_acl": "PASS",
+  "snapshot_consistent": true,
+  "source_database": "riverview",
+  "source_database_owner": "riverview_core",
+  "status": "PASS",
+  "table_row_counts": "PASS"
+}

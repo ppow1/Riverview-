@@ -1,0 +1,7 @@
+BEGIN
+        current_user         |    nspname    | schema_usage |     relname     | can_select | can_update | any_column_select | any_column_update
+-----------------------------+---------------+--------------+-----------------+------------+------------+-------------------+-------------------
+ riverview_authority_manager | riverview_dev | f            | worker_registry | f          | f          | f                 | f
+(1 row)
+
+COMMIT
