@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.4
+File Revision: 1.1.2
 Purpose: Define the durable transport-neutral external reasoning exchange contract
 Authority: Existing resident.reasoning.escalate exact grant; advisory-only result
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial phase-one contract
@@ -10,6 +10,9 @@ Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Connect typed adv
 Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Specify authenticated MCP Streamable HTTP operations and commissioning boundary
 Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Record operator-provisioned identity map and Streamable HTTP media-type requirement
 Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Specify exact POST media-type negotiation and sessionless GET behavior
+Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Add OAuth resource-server validation and ChatGPT mixed-auth MCP contract
+Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Record Tunnel transport suitability and OAuth issuer boundary
+Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Return standard HTTP OAuth challenges for missing/invalid tokens and insufficient scope
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Durable external reasoning exchange
@@ -93,24 +96,41 @@ uses HTTP 202 for protocol notifications, and returns 405 for GET `/mcp` since
 server-initiated SSE is not used by this request/response exchange.
 MCP clients POST UTF-8 JSON-RPC and advertise both `application/json` and
 `text/event-stream`; this implementation responds with one JSON object and no
-SSE body. Its GET endpoint is authenticated and returns 405 because it does
-not provide server-initiated SSE.
+SSE body. Its GET endpoint returns 405 because it does not provide
+server-initiated SSE.
 
 The resource publishes RFC 9728 protected-resource metadata at
-`/.well-known/oauth-protected-resource/mcp`. The configured authorization
-server's exact grant and issuance path must be provisioned separately. The
-adapter accepts operator-preloaded opaque bearer mappings; it does not
-implement an OAuth authorization server or validate JWT issuer/audience
-claims. A protected systemd credential stores only each token's SHA-256 digest,
-fixed provider ID, exact provider
-principal, bounded scopes, and UTC expiry. The adapter maps a supplied bearer
-token to that identity on every HTTP request using a constant-time digest
-comparison. The identity and provider cannot be supplied in tool arguments.
-Token mappings are finite-lived and revoked by updating the protected mapping
-and restarting the adapter. No token or authorization header is logged. The
-credential map schema is `rv.external-reasoning.provider-auth.v1`; entries
-contain exactly `token_sha256`, `provider_id`, `principal_id`, `scopes`, and
-`expires_at`. Only token digests belong in this file.
+`/.well-known/oauth-protected-resource/mcp`. The production service uses OAuth
+access-token validation as a resource server; it does not implement an
+authorization server, login, consent, code exchange or PKCE. At startup it loads
+an administrator-protected provider map and issuer discovery metadata. The
+authorization server must publish HTTPS OAuth/OIDC metadata with
+authorization-code response support, PKCE `S256`, token-endpoint authentication
+methods compatible with a public PKCE client, and CIMD or DCR support. Discovery
+redirects are rejected. OAuth endpoints must be HTTPS; its JWKS URI must share
+the issuer's HTTPS origin. Each tool access token is signature-checked against that JWKS and
+validated for exact issuer, MCP resource audience, expiry, subject, ChatGPT
+client ID (`client_id` or `azp`) and scope. Only an exact configured
+subject/client pair maps to a fixed provider/principal identity; tool arguments
+cannot choose either identity. The credential schema is
+`rv.external-reasoning.oauth-provider-auth.v1`; it contains fixed provider and
+principal IDs, explicit subject/client-ID allowlists and a scope ceiling, but
+no bearer token or signing key. Actual token scopes are intersected with that
+ceiling. Unsupported issuer metadata, missing `S256`, wrong audience, unmapped
+identity, invalid signature, expiry or missing scope fail closed. PyJWT/JWKS
+key retrieval is pinned in `deploy/external-reasoning-mcp-requirements.txt`.
+
+Per OpenAI's mixed-auth contract, MCP initialization, notifications and tool
+discovery are unauthenticated protocol operations. Each tool advertises
+`securitySchemes: [{type: oauth2, scopes: ...}]`; every `tools/call` requires a
+valid OAuth token. A missing/invalid token returns HTTP 401 with
+`WWW-Authenticate` and the MCP tool-level `_meta["mcp/www_authenticate"]`
+resource-metadata challenge so ChatGPT can start OAuth linking. A valid token
+without the required scope returns 403 with an `insufficient_scope` challenge.
+The protected-resource document is public but reveals only the
+issuer and scope names. `healthz` is a sanitized local status projection. The
+predecessor static bearer-map class remains for regression fixtures; the
+production launcher no longer accepts that authentication mode.
 
 The bounded tool set is:
 
@@ -131,12 +151,19 @@ rebinding boundaries.
 
 `run_external_reasoning_mcp.py` builds the adapter using the current
 `DurableExternalReasoningExchange`, `PostgresLedger`, and provider registrations
-derived from the token mapping. It does not apply migrations or create exchange
-records. Migration `0011_external_reasoning_exchange.sql` must be installed
-through the normal controlled procedure before commissioning this service.
-The example systemd unit binds only loopback. No Caddy route, public endpoint,
-authorization server, provider token, or ChatGPT connection is commissioned by
-this source change.
+derived from the protected OAuth subject/client map. It does not apply migrations
+or create exchange records. Migration `0011_external_reasoning_exchange.sql`
+must be installed through the normal controlled procedure before commissioning.
+The example systemd unit binds only loopback and uses its release-specific source
+path. OpenAI's Secure MCP Tunnel is compatible with this loopback listener: a
+Linux `tunnel-client` on Camrui can poll OpenAI over outbound HTTPS and forward
+requests to `127.0.0.1:11827/mcp`, requiring no inbound listener or Caddy route.
+Tunnel is transport only; OAuth user authentication and Riverview's exact
+exchange authorization remain required. The official guide requires a Platform
+`tunnel_id`, a runtime API key and separate Platform/ChatGPT workspace
+permissions, and does not specify pricing. No identity provider, subject
+mapping, AuthorityRegistry grant, OpenAI tunnel account/key, tunnel-client,
+public route or ChatGPT app is commissioned by source alone.
 
 ## Typed interface for the exchange
 
@@ -163,11 +190,12 @@ proposal. A consumer acknowledges the exchange only after that reasoning outcome
 has been durably recorded. A crash before acknowledgment is recoverable through
 the stable consumption key; retries cannot authorize an action.
 
-An MCP adapter must derive provider identity from authenticated server-side
-transport context, never from an untrusted body field. It should expose only
-provider-scoped eligible requests, claim, submit, and status. It must not expose
-Grace consumption to the external provider. MCP installation, authentication,
-and deployment are explicitly deferred to the next increment.
+The MCP adapter derives provider identity from the verified OAuth token and
+protected exact subject/client mapping, never from an untrusted body field. It
+exposes only provider-scoped eligible requests, claim, submit and status. It
+does not expose Grace consumption to the external provider. The OAuth issuer and
+public or tunneled transport remain separately commissioned dependencies; an
+issuer URL or tunnel credential alone does not prove ChatGPT connected.
 
 ## Troubleshooting and safeguards
 

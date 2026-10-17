@@ -2,18 +2,18 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning_mcp.py
 # Component: EXTERNAL-REASONING-MCP-TRANSPORT
-# Revision: 1.0.5
+# Revision: 1.1.2
 # Purpose: Expose the durable advisory exchange through authenticated MCP Streamable HTTP
 # Execution Model: Request-driven, sessionless HTTP JSON-RPC adapter
 # Observability: Sanitized request outcomes; authoritative exchange state remains PostgreSQL
-# Dependencies: Python standard library; DurableExternalReasoningExchange
+# Dependencies: PyJWT with cryptography; DurableExternalReasoningExchange
 # Authority: Provider-scoped advisory exchange only; no Grace consumption or execution tools
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Initial provider-scoped MCP transport
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Require expiring credential mappings and reject side-effecting JSON-RPC notifications
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Accept protocol header fallback and authenticate every MCP endpoint method
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Bound request sockets and strictly validate configured Host/Origin allowlists
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Require both Streamable HTTP response media types in MCP client Accept
-# Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Honor Accept quality values and close rejected requests without consuming untrusted bodies
+# Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Add OAuth JWT resource-server validation and OpenAI mixed-auth tool metadata
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # Tests: tests/test_external_reasoning_mcp.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -21,8 +21,8 @@
 """Bounded MCP Streamable HTTP adapter for Riverview's durable advisory exchange.
 
 The transport is stateless; request, delivery, claim and response state remain in
-PostgreSQL. Bearer credentials are represented in a protected credential file by
-SHA-256 digest and map to fixed provider principals. No tool argument can choose
+PostgreSQL. The production launcher validates OAuth access-token signatures and
+claims against a protected issuer/subject/client map. No tool argument can choose
 or override an authenticated provider identity.
 """
 
@@ -42,6 +42,10 @@ import stat
 import threading
 from typing import Any, Mapping
 from urllib.parse import urlsplit
+from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+import jwt
+from jwt import PyJWKClient
 
 from .external_reasoning import (
     DurableExternalReasoningExchange, ExchangeConflict, ExchangeError,
@@ -68,6 +72,206 @@ class MCPConfigurationError(ValueError):
 
 class MCPAuthenticationError(ValueError):
     """A bearer credential did not map to one provider principal."""
+
+
+def _read_oauth_document(url: str) -> dict[str, Any]:
+    """Fetch bounded HTTPS authorization metadata without following redirects."""
+    parsed = urlsplit(url)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+        raise MCPConfigurationError("oauth_metadata_url_invalid")
+    class _NoRedirect(HTTPRedirectHandler):
+        def redirect_request(self, _request, _fp, _code, _message, _headers, _new_url):
+            return None
+
+    request = Request(url, headers={"Accept": "application/json"})
+    try:
+        opener = build_opener(_NoRedirect())
+        with opener.open(request, timeout=4) as response:
+            if response.geturl() != url or response.status != 200:
+                raise MCPConfigurationError("oauth_metadata_unavailable")
+            raw = response.read(64 * 1024 + 1)
+        if len(raw) > 64 * 1024:
+            raise MCPConfigurationError("oauth_metadata_invalid")
+        document = json.loads(raw.decode("utf-8"))
+    except MCPConfigurationError:
+        raise
+    except Exception:
+        raise MCPConfigurationError("oauth_metadata_unavailable") from None
+    if not isinstance(document, dict):
+        raise MCPConfigurationError("oauth_metadata_invalid")
+    return document
+
+
+class OAuthProviderTokenMap:
+    """Validate OAuth access JWTs and map allowed subjects to fixed provider principals.
+
+    This is a resource-server verifier only. OAuth authorization, login, consent,
+    PKCE, token issuance and refresh remain responsibilities of the configured
+    standards-compliant authorization server.
+    """
+
+    SCHEMA = "rv.external-reasoning.oauth-provider-auth.v1"
+
+    def __init__(self, *, issuer: str, audience: str, entries: tuple,
+                 jwks_client, client_id_metadata_document_supported: bool):
+        self.issuer = issuer
+        self.audience = audience
+        self._entries = entries
+        self._jwks_client = jwks_client
+        self.client_id_metadata_document_supported = client_id_metadata_document_supported
+        registrations = {}
+        for entry, _subjects, _client_ids in entries:
+            old = registrations.setdefault(entry.provider_id, entry.principal_id)
+            if old != entry.principal_id:
+                raise MCPConfigurationError("provider_principal_mapping_conflict")
+        self.registrations = registrations
+
+    @classmethod
+    def load(cls, path: str | os.PathLike[str], *, issuer: str, audience: str):
+        candidate = Path(path)
+        try:
+            if candidate.is_symlink():
+                raise MCPConfigurationError("provider_auth_credential_invalid")
+            info = candidate.stat()
+            if (not stat.S_ISREG(info.st_mode)
+                    or stat.S_IMODE(info.st_mode) not in {0o400, 0o440, 0o600}
+                    or info.st_uid not in {0, os.geteuid()} or info.st_size > 16 * 1024):
+                raise MCPConfigurationError("provider_auth_credential_invalid")
+            document = json.loads(candidate.read_text(encoding="utf-8"))
+        except MCPConfigurationError:
+            raise
+        except Exception:
+            raise MCPConfigurationError("provider_auth_credential_invalid") from None
+        return cls.from_document(document, issuer=issuer, audience=audience)
+
+    @classmethod
+    def from_document(cls, document: Any, *, issuer: str, audience: str,
+                      metadata: Mapping[str, Any] | None = None, jwks_client=None):
+        issuer = _https_url(issuer)
+        audience = _https_url(audience)
+        if (not isinstance(document, dict)
+                or set(document) != {"schema_version", "providers"}
+                or document.get("schema_version") != cls.SCHEMA
+                or not isinstance(document.get("providers"), list)
+                or not document["providers"]):
+            raise MCPConfigurationError("provider_auth_map_invalid")
+        if metadata is None:
+            base = issuer.rstrip("/") + "/.well-known/"
+            try:
+                metadata = _read_oauth_document(base + "openid-configuration")
+            except MCPConfigurationError as exc:
+                if str(exc) != "oauth_metadata_unavailable":
+                    raise
+                issuer_parts = urlsplit(issuer)
+                path = "/.well-known/oauth-authorization-server" + issuer_parts.path.rstrip("/")
+                metadata = _read_oauth_document(
+                    issuer_parts.scheme + "://" + issuer_parts.netloc + path)
+        if (not isinstance(metadata, Mapping) or metadata.get("issuer") != issuer
+                or not isinstance(metadata.get("authorization_endpoint"), str)
+                or not isinstance(metadata.get("token_endpoint"), str)
+                or not isinstance(metadata.get("jwks_uri"), str)
+                or not isinstance(metadata.get("code_challenge_methods_supported"), list)
+                or "S256" not in metadata["code_challenge_methods_supported"]
+                or not isinstance(metadata.get("response_types_supported"), list)
+                or "code" not in metadata["response_types_supported"]
+                or not isinstance(metadata.get("token_endpoint_auth_methods_supported"), list)
+                or not metadata["token_endpoint_auth_methods_supported"]
+                or any(not isinstance(method, str)
+                       for method in metadata["token_endpoint_auth_methods_supported"])
+                or not set(metadata["token_endpoint_auth_methods_supported"])
+                       & {"none", "private_key_jwt"}
+                or not (metadata.get("client_id_metadata_document_supported") is True
+                        or isinstance(metadata.get("registration_endpoint"), str))):
+            raise MCPConfigurationError("oauth_authorization_server_incompatible")
+        for field in ("authorization_endpoint", "token_endpoint"):
+            try:
+                _oauth_endpoint(metadata[field])
+            except MCPConfigurationError:
+                raise MCPConfigurationError("oauth_authorization_server_incompatible") from None
+        if metadata.get("registration_endpoint") is not None:
+            try:
+                _oauth_endpoint(metadata["registration_endpoint"])
+            except MCPConfigurationError:
+                raise MCPConfigurationError("oauth_authorization_server_incompatible") from None
+        jwks_uri = metadata["jwks_uri"]
+        jwks_parts = urlsplit(jwks_uri)
+        issuer_parts = urlsplit(issuer)
+        if (jwks_parts.scheme != "https" or jwks_parts.hostname != issuer_parts.hostname
+                or jwks_parts.port != issuer_parts.port or jwks_parts.username
+                or jwks_parts.password):
+            raise MCPConfigurationError("oauth_jwks_origin_invalid")
+        if jwks_client is None:
+            jwks_client = PyJWKClient(jwks_uri, cache_jwk_set=True,
+                                      lifespan=300, timeout=4)
+        entries = []
+        pairs = set()
+        for item in document["providers"]:
+            if (not isinstance(item, dict) or set(item) != {
+                    "provider_id", "principal_id", "subjects", "client_ids", "scopes"}):
+                raise MCPConfigurationError("provider_auth_entry_invalid")
+            provider_id, principal_id = item["provider_id"], item["principal_id"]
+            subjects, client_ids, scopes = item["subjects"], item["client_ids"], item["scopes"]
+            if (not isinstance(provider_id, str) or not _IDENTITY.fullmatch(provider_id)
+                    or not isinstance(principal_id, str) or not _IDENTITY.fullmatch(principal_id)
+                    or not isinstance(subjects, list) or not subjects
+                    or any(not isinstance(value, str) or not value or len(value) > 256 for value in subjects)
+                    or not isinstance(client_ids, list) or not client_ids
+                    or any(not isinstance(value, str) or not value or len(value) > 512 for value in client_ids)
+                    or not isinstance(scopes, list) or not scopes
+                    or any(value not in _ALLOWED_SCOPES for value in scopes)
+                    or "reasoning:exchange" not in scopes):
+                raise MCPConfigurationError("provider_auth_entry_invalid")
+            for subject in subjects:
+                for client_id in client_ids:
+                    pair = (subject, client_id)
+                    if pair in pairs:
+                        raise MCPConfigurationError("provider_auth_mapping_ambiguous")
+                    pairs.add(pair)
+            entries.append(ProviderPrincipal(provider_id, principal_id,
+                frozenset(scopes), "", datetime.max.replace(tzinfo=timezone.utc)))
+            entries[-1] = (entries[-1], frozenset(subjects), frozenset(client_ids))
+        return cls(issuer=issuer, audience=audience, entries=tuple(entries),
+                   jwks_client=jwks_client,
+                   client_id_metadata_document_supported=(
+                       metadata.get("client_id_metadata_document_supported") is True))
+
+    @property
+    def provider_entries(self):
+        return self._entries
+
+    def resolve(self, token: str) -> ProviderPrincipal:
+        if not isinstance(token, str) or not 32 <= len(token) <= 8192 or any(c.isspace() for c in token):
+            raise MCPAuthenticationError("invalid_token")
+        try:
+            signing_key = self._jwks_client.get_signing_key_from_jwt(token).key
+            claims = jwt.decode(token, signing_key, algorithms=["RS256", "ES256"],
+                audience=self.audience, issuer=self.issuer,
+                options={"require": ["exp", "iss", "sub", "aud"]})
+            if claims.get("aud") != self.audience:
+                raise MCPAuthenticationError("invalid_token")
+            subject = claims.get("sub")
+            client_id = claims.get("client_id", claims.get("azp"))
+            azp = claims.get("azp")
+            if (not isinstance(subject, str) or not isinstance(client_id, str)
+                    or (azp is not None and azp != client_id)):
+                raise MCPAuthenticationError("invalid_token")
+            raw_scopes = claims.get("scope", "")
+            if not isinstance(raw_scopes, str):
+                raise MCPAuthenticationError("invalid_token")
+            token_scopes = frozenset(raw_scopes.split())
+            matched = [entry for entry, subjects, clients in self._entries
+                       if subject in subjects and client_id in clients]
+            if len(matched) != 1:
+                raise MCPAuthenticationError("invalid_token")
+            entry = matched[0]
+            scopes = entry.scopes & token_scopes
+            return ProviderPrincipal(entry.provider_id, entry.principal_id, scopes,
+                hashlib.sha256(token.encode("utf-8")).hexdigest(),
+                datetime.fromtimestamp(claims["exp"], timezone.utc))
+        except MCPAuthenticationError:
+            raise
+        except Exception:
+            raise MCPAuthenticationError("invalid_token") from None
 
 
 @dataclass(frozen=True)
@@ -223,14 +427,14 @@ class ExternalReasoningMCPAdapter:
     """Expose only provider-scoped list, claim, submit and body-free status tools."""
 
     COMPONENT_ID = "external-reasoning-mcp"
-    VERSION = "1.0.4"
+    VERSION = "1.1.0"
 
     def __init__(self, exchange: DurableExternalReasoningExchange,
-                 token_map: ProviderTokenMap):
+                 token_map: ProviderTokenMap | OAuthProviderTokenMap):
         if not isinstance(exchange, DurableExternalReasoningExchange):
             raise TypeError("DurableExternalReasoningExchange is required")
-        if not isinstance(token_map, ProviderTokenMap):
-            raise TypeError("ProviderTokenMap is required")
+        if not isinstance(token_map, (ProviderTokenMap, OAuthProviderTokenMap)):
+            raise TypeError("a provider token resolver is required")
         for provider_id, principal_id in token_map.registrations.items():
             provider = exchange.router.providers.get(provider_id)
             if (provider is None or getattr(provider, "provider_id", None) != provider_id
@@ -241,18 +445,24 @@ class ExternalReasoningMCPAdapter:
 
     @staticmethod
     def tools() -> list[dict[str, Any]]:
+        auth = [{"type": "oauth2", "scopes": ["reasoning:exchange",
+            "reasoning:exchange:confidential"]}]
         return [
             {"name": "reasoning_exchange_list_requests",
              "description": "List bounded advisory requests assigned to this authenticated provider. Request context is visible only to its selected provider.",
+             "securitySchemes": auth,
              "inputSchema": {"type": "object", "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 10}}, "additionalProperties": False}},
             {"name": "reasoning_exchange_claim_request",
              "description": "Claim one assigned request with a finite lease and fencing identity.",
+             "securitySchemes": auth,
              "inputSchema": {"type": "object", "required": ["request_id", "correlation_id"], "properties": {"request_id": {"type": "string", "format": "uuid"}, "correlation_id": {"type": "string", "format": "uuid"}, "lease_seconds": {"type": "integer", "minimum": 1, "maximum": 300}}, "additionalProperties": False}},
             {"name": "reasoning_exchange_submit_response",
              "description": "Submit one bounded structured advisory for the active correlated claim. Advice grants no approval or execution authority.",
+             "securitySchemes": auth,
              "inputSchema": {"type": "object", "required": ["request_id", "correlation_id", "claim_token", "fence", "idempotency_key", "response"], "properties": {"request_id": {"type": "string", "format": "uuid"}, "correlation_id": {"type": "string", "format": "uuid"}, "claim_token": {"type": "string", "minLength": 36, "maxLength": 36}, "fence": {"type": "integer", "minimum": 1}, "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 240}, "response": {"type": "object"}}, "additionalProperties": False}},
             {"name": "reasoning_exchange_status",
              "description": "Read state, sanitized diagnostics, provenance and digests for this provider's exchange; response contents are never returned.",
+             "securitySchemes": auth,
              "inputSchema": {"type": "object", "required": ["request_id", "correlation_id"], "properties": {"request_id": {"type": "string", "format": "uuid"}, "correlation_id": {"type": "string", "format": "uuid"}}, "additionalProperties": False}},
         ]
 
@@ -274,6 +484,7 @@ class ExternalReasoningMCPAdapter:
 
     def call_tool(self, principal: ProviderPrincipal, name: str,
                   arguments: Mapping[str, Any]) -> dict[str, Any]:
+        self._require_scope(principal, "institutional")
         if not isinstance(arguments, Mapping):
             raise ValueError("tool_arguments_invalid")
         if name == "reasoning_exchange_list_requests":
@@ -358,8 +569,9 @@ class ExternalReasoningMCPAdapter:
         if not required <= keys or keys - required - set(optional):
             raise ValueError("tool_arguments_invalid")
 
-    def handle_rpc(self, principal: ProviderPrincipal, message: Any,
-                   protocol_version: str | None = None):
+    def handle_rpc(self, principal: ProviderPrincipal | None, message: Any,
+                   protocol_version: str | None = None, *,
+                   auth_challenge: str | None = None):
         if not isinstance(message, dict) or message.get("jsonrpc") != "2.0":
             return self._rpc_error(message.get("id") if isinstance(message, dict) else None,
                                    -32600, "Invalid Request")
@@ -411,6 +623,9 @@ class ExternalReasoningMCPAdapter:
                     or not isinstance(params.get("name"), str)
                     or not isinstance(params.get("arguments", {}), dict)):
                 return self._rpc_error(request_id, -32602, "Invalid params")
+            if principal is None:
+                return self._auth_tool_error(request_id, auth_challenge,
+                                             "invalid_token", "A valid OAuth access token is required")
             try:
                 result = self.call_tool(principal, params["name"], params.get("arguments", {}))
                 content = [{"type": "text", "text": self._json(result)}]
@@ -420,8 +635,8 @@ class ExternalReasoningMCPAdapter:
                 return {"jsonrpc": "2.0", "id": request_id,
                     "result": {"content": [{"type": "text", "text": "tool_not_found"}], "isError": True}}
             except ExchangeUnauthorized:
-                return {"jsonrpc": "2.0", "id": request_id,
-                    "result": {"content": [{"type": "text", "text": "provider_scope_denied"}], "isError": True}}
+                return self._auth_tool_error(request_id, auth_challenge,
+                    "insufficient_scope", "The access token lacks the required exchange scope")
             except ExchangeNotFound:
                 return {"jsonrpc": "2.0", "id": request_id,
                     "result": {"content": [{"type": "text", "text": "exchange_not_found"}], "isError": True}}
@@ -445,6 +660,15 @@ class ExternalReasoningMCPAdapter:
     def _rpc_error(request_id, code, message):
         return {"jsonrpc": "2.0", "id": request_id,
                 "error": {"code": code, "message": message}}
+
+    @staticmethod
+    def _auth_tool_error(request_id, challenge, error, description):
+        result = {"content": [{"type": "text", "text": "authentication_required"}],
+                  "isError": True}
+        if challenge:
+            result["_meta"] = {"mcp/www_authenticate": [
+                challenge + ', error="' + error + '", error_description="' + description + '"']}
+        return {"jsonrpc": "2.0", "id": request_id, "result": result}
 
 
 class BoundedThreadingHTTPServer(ThreadingHTTPServer):
@@ -498,7 +722,7 @@ def make_handler(adapter: ExternalReasoningMCPAdapter, *, resource_url: str,
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
-        server_version = "RiverviewMCP/1.0"
+        server_version = "RiverviewMCP/1.1"
         sys_version = ""
 
         def setup(self):
@@ -556,10 +780,6 @@ def make_handler(adapter: ExternalReasoningMCPAdapter, *, resource_url: str,
                         "component_version": adapter.VERSION, "status": "unavailable"})
                 return
             if self.path == MCP_PATH:
-                token = self._provider_token()
-                if token is None:
-                    self._unauthorized(resource)
-                    return
                 self._send(405, {"error": "method_not_allowed"}, {"Allow": "POST"})
                 return
             self._send(404, {"error": "not_found"})
@@ -570,9 +790,6 @@ def make_handler(adapter: ExternalReasoningMCPAdapter, *, resource_url: str,
             if self.path != MCP_PATH:
                 self._send(404, {"error": "not_found"})
                 return
-            if self._provider_token() is None:
-                self._unauthorized(resource)
-                return
             self._send(405, {"error": "method_not_allowed"}, {"Allow": "GET, POST"})
 
         def do_POST(self):
@@ -580,10 +797,6 @@ def make_handler(adapter: ExternalReasoningMCPAdapter, *, resource_url: str,
                 return
             if self.path != MCP_PATH:
                 self._send(404, {"error": "not_found"})
-                return
-            principal = self._provider_token()
-            if principal is None:
-                self._unauthorized(resource)
                 return
             content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
             accepted = set()
@@ -623,6 +836,9 @@ def make_handler(adapter: ExternalReasoningMCPAdapter, *, resource_url: str,
             except (UnicodeError, json.JSONDecodeError, ValueError):
                 self._send(400, ExternalReasoningMCPAdapter._rpc_error(None, -32700, "Parse error"))
                 return
+            principal = (self._provider_token()
+                if isinstance(message, dict) and message.get("method") == "tools/call"
+                else None)
             protocol = self.headers.get("MCP-Protocol-Version")
             if protocol is not None and protocol not in SUPPORTED_PROTOCOL_VERSIONS:
                 self._send(400, ExternalReasoningMCPAdapter._rpc_error(
@@ -646,7 +862,11 @@ def make_handler(adapter: ExternalReasoningMCPAdapter, *, resource_url: str,
                             message.get("id"), -32600, "MCP name header mismatch"))
                         return
             try:
-                response = adapter.handle_rpc(principal, message, protocol)
+                metadata_url = resource + PROTECTED_RESOURCE_PATH
+                challenge = ('Bearer resource_metadata="' + metadata_url +
+                             '", scope="reasoning:exchange"')
+                response = adapter.handle_rpc(principal, message, protocol,
+                                              auth_challenge=challenge)
             except Exception as exc:
                 # Do not log input, provider credentials, SQL text, or exception messages.
                 import logging
@@ -658,7 +878,17 @@ def make_handler(adapter: ExternalReasoningMCPAdapter, *, resource_url: str,
             if response is None:
                 self._send(202)
             else:
-                self._send(200, response)
+                challenge = None
+                result = response.get("result") if isinstance(response, dict) else None
+                metadata = result.get("_meta") if isinstance(result, dict) else None
+                challenges = metadata.get("mcp/www_authenticate") if isinstance(metadata, dict) else None
+                if isinstance(challenges, list) and challenges and isinstance(challenges[0], str):
+                    challenge = challenges[0]
+                if challenge:
+                    status = 403 if 'error="insufficient_scope"' in challenge else 401
+                    self._send(status, response, {"WWW-Authenticate": challenge})
+                else:
+                    self._send(200, response)
 
         def _unauthorized(self, protected_resource_url):
             metadata_url = resource + PROTECTED_RESOURCE_PATH
@@ -701,6 +931,21 @@ def _https_url(value):
     if (parsed.scheme != "https" or not parsed.hostname or parsed.username is not None
             or parsed.password is not None or parsed.query or parsed.fragment):
         raise MCPConfigurationError("oauth_resource_metadata_invalid")
+    return value
+
+
+def _oauth_endpoint(value):
+    """Accept only absolute HTTPS OAuth endpoints without userinfo/fragments."""
+    if not isinstance(value, str) or len(value) > 2048:
+        raise MCPConfigurationError("oauth_endpoint_invalid")
+    parsed = urlsplit(value)
+    if (parsed.scheme != "https" or not parsed.hostname or parsed.username is not None
+            or parsed.password is not None or parsed.fragment):
+        raise MCPConfigurationError("oauth_endpoint_invalid")
+    try:
+        parsed.port
+    except ValueError:
+        raise MCPConfigurationError("oauth_endpoint_invalid") from None
     return value
 
 

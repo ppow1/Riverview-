@@ -1,8 +1,9 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.166
+**Document Revision:** 1.0.167
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
+**Changed:** 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Add OAuth resource-server validation and verify Secure MCP Tunnel path
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009-PACKAGE | Verify immutable candidate package from the prepared migration-runner commit
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009-ONE-SHOT | Add exact 0008-only preflight/apply mode and record 53 focused disposable PostgreSQL tests
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009 | Record exact effects and disposable 0000–0009 chain verification
@@ -2398,6 +2399,14 @@ PR #69 was reconciled against the latest integration base `5221da72286aea73bed2f
 
 
 Integration reconciliation preserved the latest target-branch worker-health, Grace, proposal, and external-reasoning records while retaining this retirement operation. The merged process graph validates at 21 workflows / 520 nodes; focused retirement and worker regressions pass against disposable PostgreSQL. Production registry retirement remains unexecuted because this session has no authorized Windows SSH bridge.
+
+## 2026-10-17 UTC — RV-MCP-CHATGPT-OAUTH-RESOURCE-001
+
+OpenAI's current Secure MCP Tunnel documentation confirms that a Linux/systemd `tunnel-client` can make outbound HTTPS calls and forward requests to a private MCP server without opening inbound ports. Tunnel does not replace OAuth: ChatGPT still authenticates through OAuth, while the tunnel runtime key authenticates only the client to OpenAI's tunnel plane. The existing adapter was extended with OAuth JWT resource-token validation, protected-resource metadata and per-tool OAuth metadata; it rejects wrong signature, issuer, exact audience, expiry, scope, or unmapped subject/client. The launcher no longer accepts the predecessor static bearer map. A real loopback HTTP handler test with a synthetic signed JWT passed.
+
+Focused MCP suite passed 10/10; the full suite passed **507 tests, 1 skipped, 0 failures** on a disposable PostgreSQL 16.15 cluster at port 55527, with the one skip limited to a dashboard runtime-role ACL fixture absent from that cluster. Process graph validation passed (20 graphs / 513 nodes), controlled revision audit passed with zero issues, compileall and whitespace checks passed. Evidence is at `evidence/checkouts/EXTERNAL-MCP-CHATGPT-TUNNEL/20261017T0034Z/checkout.md`.
+
+The post-HTTP-challenge full-suite rerun on disposable PostgreSQL 16.15 port 55537 completed in 439.521 seconds with 507 passed, 1 expected skip, and 0 failures. Production activation and ChatGPT acceptance remain unverified. A single BatchMode SSH connection to known-host `192.168.1.155` as configured account `admin1` was rejected; no further credential attempts were made. No OAuth issuer, tunnel ID/runtime key, or subject/client mapping is provisioned in the available source/runtime evidence. No production service, grant, route, or database was changed. Predecessor journal: `.riverview-backups/20261017T003427585170Z/docs/development/JOURNAL.md`.
 
 
 ## 2026-10-17 UTC — RV-M33-RETIRE-MIGRATION-001 — Narrow migration runner
