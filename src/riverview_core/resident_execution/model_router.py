@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.2.2
+# Revision: 1.2.3
+# Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Require tool-backed current-status answers.
 # Purpose: Prefer 80B for substantive turns, bound context and autonomic acknowledgments, and persist diagnostics
 # Execution Model: Request-driven; persisted deferred turns are resumed by the conversation owner
 # Observability: Selected stage and served model are returned as completion provenance
@@ -207,11 +208,16 @@ class GraceModelRouter:
         if stage == "reasoning" and self.internal_tools is not None:
             catalog = json.dumps(self.internal_tools.catalog(), sort_keys=True,
                                  separators=(",", ":"), ensure_ascii=False)
-            routed.insert(1, {"role": "system", "content": (
-                "You may perform one read-only Riverview lookup when needed. Emit exactly "
+            routed[0]["content"] += "\n\n" + (
+                "For any user request that asks for current Riverview status, records, "
+                "inventory, or recent operations covered by an available tool, you MUST "
+                "call the matching tool before answering. Do not answer from memory or "
+                "from operational context when a tool covers the request. Emit exactly "
                 "<rv-tool-call>{\"name\":\"...\",\"arguments\":{...}}</rv-tool-call> "
-                "as the entire response. Available internal tools: " + catalog + ". "
-                "Do not invent tool names or arguments.")})
+                "as your entire first response. The tool result will be supplied for you "
+                "to consume in a follow-up. Available internal tools: " + catalog + ". "
+                "Do not invent tool names or arguments, and do not provide a status answer "
+                "until the matching tool result is available.")
         attempts = []
         try:
             started_at = datetime.now(UTC)
