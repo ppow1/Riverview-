@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.208"
+      "revision": "1.1.212"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -105,6 +105,12 @@
       "sha256": "14b3228cf25187960373551620cd4779bebe50bf70dbfe3c70ba32baf3bf87d2",
       "size_bytes": 17159
     },
+    "process_graphs/comms5/camrui-adapter.json": {
+      "path": "process_graphs/comms5/camrui-adapter.json",
+      "revision": "1.0.1",
+      "sha256": "de0fe8704a550bb17188eec838c41fa7128334f3e7a5d7f1f04f2bcdc7402ae1",
+      "size_bytes": 3816
+    },
     "process_graphs/event-processor/assignment-progression.json": {
       "path": "process_graphs/event-processor/assignment-progression.json",
       "revision": "1.0.4",
@@ -113,9 +119,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.159",
-      "sha256": "75916b8be278db2e2bbd53afc2fadba8479c75efea88b51886c2962988235bf4",
-      "size_bytes": 600621
+      "revision": "1.0.162",
+      "sha256": "e3573e9e267e62f061615ac337e264e4d470c9aecb3a910ffa3e7e4ca7d6385f",
+      "size_bytes": 605161
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -219,6 +225,12 @@
       "sha256": "e2e5911aae9b98d37c139995030103ebb8f29d891ea80c398411591a455f7b80",
       "size_bytes": 18530
     },
+    "src/riverview_core/comms5/tool_catalog.json": {
+      "path": "src/riverview_core/comms5/tool_catalog.json",
+      "revision": "1.0.0",
+      "sha256": "f6b082a4dbf70ca8acee093a372c3c6af1048389eda2d4231210120f8953d40d",
+      "size_bytes": 88499
+    },
     "src/riverview_core/status_dashboard/static/capabilities.json": {
       "path": "src/riverview_core/status_dashboard/static/capabilities.json",
       "revision": "1.0.1",
@@ -250,6 +262,6 @@
       "size_bytes": 1226
     }
   },
-  "manifest_revision": "1.1.208",
+  "manifest_revision": "1.1.212",
   "updated_at": null
 }
