@@ -2,17 +2,18 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_CAMRUI_MIGRATION.md
 Component: COMMS5-CAMRUI-ADAPTER
-File Revision: 1.0.0
+File Revision: 1.0.1
 Status: Source implementation and live deployment tracker
 Date: 2026-10-16
 History: New file; no predecessor existed.
+Changed: 2026-10-17 UTC | RV-COMMS5-TOOL-CATALOG-AUDIT-001 | Link exact preserved input schemas and record current loopback deployment state.
 -->
 
 # Comms5 Camrui migration matrix
 
 Historical contract source: `ppow1/Riverview` PR #15 head `048787f574d42ff073a9f94f571dc79943d60fa4`, `src/riverview/mcp/comms5_server.py`, with operation metadata from `src/riverview/mcp/comms5.py`. The checked-in catalog has 21 original tool names, exact descriptions, FastMCP-generated input schemas, original annotations, and the historical OAuth scope metadata. Camrui does not install or recreate the historical Windows-only tables.
 
-All tools remain discoverable. The five static contract/discovery operations are implemented without database access. Every other operation returns an MCP tool result with `isError=true`, `status=NOT_IMPLEMENTED`, and `executed=false`; these stubs do not write or claim success.
+Exact historical input schemas, annotations, authentication metadata, and captured response-description limits are recorded per tool in [`COMMS5_TOOL_CATALOG_AUDIT.md`](COMMS5_TOOL_CATALOG_AUDIT.md). All tools remain discoverable. The five static contract/discovery operations are implemented without database access. Every other operation returns an MCP tool result with `isError=true`, `status=NOT_IMPLEMENTED`, and `executed=false`; these stubs do not write or claim success.
 
 | Tool | Original purpose | Original authorization | Current implementation | Dependencies / remaining work |
 |---|---|---|---|
@@ -60,6 +61,9 @@ No production database migration is required for the five implemented discovery 
 ## Validation status
 
 - Source catalog: 21 tools compared against historical FastMCP tool discovery.
-- Current backend: no Comms5 service or listener was present before this migration.
-- Historical Comms5 database tables are absent on Camrui; no legacy migration is permitted or needed for this increment.
-- Live OAuth and ChatGPT tool invocation remain commissioning acceptance gates until tested after deployment.
+- Camrui adapter release `588aee804fc6ada3cdf78f4bfded2f8306c783ea` is active on loopback `127.0.0.1:11826`; `/healthz` returned HTTP 200 at 2026-10-17 00:18 EDT.
+- Ionoge OAuth source `048787f574d42ff073a9f94f571dc79943d60fa4` is active on loopback `127.0.0.1:11827`; local `/healthz` returned HTTP 200.
+- The reverse tunnel did not start: the Camrui systemd manager stopped answering D-Bus/systemctl queries during the authorized start attempt. The pinned known-hosts credential path defect has been identified and corrected in follow-up source, but that correction has not yet been integrated or deployed.
+- Caddy has not been changed or reloaded. Public `/comms5/mcp` still returns HTTP 401 and both OAuth discovery URLs return HTTP 404; no public OAuth or MCP path is accepted yet.
+- Historical Comms5 database tables are absent on Camrui; no legacy migration was installed or is required for this increment.
+- ChatGPT account connection and invocation remain unverified.
