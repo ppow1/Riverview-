@@ -1,9 +1,11 @@
 """Comms5 Camrui compatibility adapter tests.
 
-File Revision: 1.1.3
+File Revision: 1.1.5
 Component: COMMS5-CAMRUI-ADAPTER-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify authenticated internal operation routing for full objective status and submission listing.
+Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify transport probes return caller and dashboard correlation evidence and reject unauthenticated direct use.
+Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify the Steward queue request uses the attested dashboard operation bridge and preserves its truthful queued state.
 """
 
 import hashlib
@@ -116,6 +118,24 @@ class Comms5MCPTests(unittest.TestCase):
             self.assertEqual(value["implementation_status"], "IMPLEMENTED")
             operation.assert_called_once_with("comms5_objective_status", {"objective_id": "objective:test-1"})
 
+    def test_dashboard_backend_routes_queue_request_only_for_attested_steward(self):
+        with tempfile.TemporaryDirectory() as directory:
+            credential = Path(directory) / "dashboard-token"
+            credential.write_text("a" * 48)
+            credential.chmod(0o600)
+            backend = DashboardReadBackend(credential_file=credential)
+            request = {"objective_id": "objective:approved", "stage_id": "step:one",
+                       "authority_id": "grant:objective-submit", "explicit_steward_confirmation": True}
+            result = {"status": "queued_for_cme", "executed": True,
+                      "work_order_created": False, "dispatched": False}
+            with patch.object(backend, "_post_operation", return_value=result) as operation:
+                self.assertEqual(backend.call_authenticated("comms5_form_and_queue_work",
+                    request, principal="steward"), result)
+                operation.assert_called_once_with("comms5_form_and_queue_work", request)
+            with self.assertRaisesRegex(PermissionError, "Steward"):
+                backend.call_authenticated("comms5_form_and_queue_work", request,
+                                           principal="resident:grace")
+
     def test_objective_lookup_uses_exact_id_route_and_reports_missing_record(self):
         with tempfile.TemporaryDirectory() as directory:
             credential = Path(directory) / "dashboard-token"
@@ -156,18 +176,20 @@ class Comms5MCPTests(unittest.TestCase):
             credential.chmod(0o600)
             backend = DashboardReadBackend(credential_file=credential)
             application = Comms5Application("x" * 48, backend=backend)
-            with patch.object(backend, "_get", return_value={
+            with patch.object(backend, "_get_response", return_value=({
                 "projection_status": "healthy", "observed_at": "2026-10-17T00:00:00Z",
-            }):
+            }, "dash-probe-1")):
                 result = application.handle(rpc("tools/call", {
                     "name": "comms5_transport_probe", "arguments": {"probe_id": "probe:smoke-1"},
-                }))
+                }), principal="steward")
             value = result["result"]["structuredContent"]
             self.assertEqual(value["status"], "available")
             self.assertEqual(value["probe_id"], "probe:smoke-1")
-            self.assertTrue(value["correlation_id"])
-            self.assertEqual(value["verified_path"], ["comms5_adapter", "dashboard_loopback_read_api"])
-            self.assertIn("external_client_to_ionoge", value["unverified_path"])
+            self.assertEqual(value["correlation_id"], "probe:smoke-1")
+            self.assertEqual(value["dashboard_request_id"], "dash-probe-1")
+            self.assertEqual(value["implementation_status"], "IMPLEMENTED")
+            self.assertEqual(value["verified_path"], ["authenticated_comms5_request",
+                "camrui_comms5_adapter", "dashboard_loopback_read_api"])
 
     def test_dashboard_failure_is_visible_and_non_successful(self):
         class Backend:
@@ -203,7 +225,7 @@ class Comms5MCPTests(unittest.TestCase):
             self.assertEqual(statuses["comms5_cme_status"], "IMPLEMENTED")
             self.assertEqual(statuses["comms5_objective_status"], "IMPLEMENTED")
             self.assertEqual(statuses["comms5_recent_steward_submissions"], "IMPLEMENTED")
-            self.assertEqual(statuses["comms5_transport_probe"], "PARTIALLY_IMPLEMENTED")
+            self.assertEqual(statuses["comms5_transport_probe"], "IMPLEMENTED")
             self.assertEqual(statuses["comms5_seed_status"], "IMPLEMENTED")
             self.assertEqual(statuses["comms5_submit_steward_seed"], "IMPLEMENTED")
             self.assertEqual(statuses["comms5_confirm_and_promote_seed"], "IMPLEMENTED")
@@ -227,7 +249,8 @@ class Comms5MCPTests(unittest.TestCase):
     def test_dashboard_backend_sends_only_authenticated_fixed_read_request(self):
         class Response:
             status = 200
-            headers = type("Headers", (), {"get_content_type": lambda self: "application/json"})()
+            headers = type("Headers", (), {"get_content_type": lambda self: "application/json",
+                "get": lambda self, key: None})()
             def __enter__(self): return self
             def __exit__(self, *args): return False
             def read(self, size): return b'{"projection_status":"healthy","cme":{"status":"healthy"}}'
@@ -249,6 +272,46 @@ class Comms5MCPTests(unittest.TestCase):
             self.assertTrue(request.get_header("Authorization").startswith("Bearer "))
             self.assertEqual(backend.timeout, 3.0)
             self.assertEqual(result["cme"]["status"], "healthy")
+
+    def test_transport_probe_correlates_authenticated_mcp_to_dashboard_request(self):
+        class Headers:
+            def get_content_type(self): return "application/json"
+            def get(self, key): return "d1f00d12ab34" if key == "X-Request-ID" else None
+
+        class Response:
+            status = 200
+            headers = Headers()
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, size):
+                return b'{"projection_status":"healthy","observed_at":"2026-10-17T00:00:00Z"}'
+
+        with tempfile.TemporaryDirectory() as directory:
+            credential = Path(directory) / "dashboard-token"
+            credential.write_text("e" * 48)
+            credential.chmod(0o600)
+            backend = DashboardReadBackend(credential_file=credential)
+            captured = {}
+            def fake_open(request):
+                captured["request"] = request
+                return Response()
+            with patch.object(backend, "_open", fake_open):
+                result = backend.call_authenticated(
+                    "comms5_transport_probe", {"probe_id": "probe:accepted-1"},
+                    principal="steward")
+            self.assertEqual(captured["request"].full_url,
+                             "http://127.0.0.1:8767/api/v1/status")
+            self.assertEqual(result["status"], "available")
+            self.assertTrue(result["executed"])
+            self.assertEqual(result["implementation_status"], "IMPLEMENTED")
+            self.assertEqual(result["correlation_id"], "probe:accepted-1")
+            self.assertEqual(result["dashboard_request_id"], "d1f00d12ab34")
+            self.assertEqual(result["verified_path"], [
+                "authenticated_comms5_request", "camrui_comms5_adapter",
+                "dashboard_loopback_read_api"])
+            with self.assertRaisesRegex(PermissionError, "Steward"):
+                backend.call_authenticated("comms5_transport_probe",
+                    {"probe_id": "probe:unauthenticated"}, principal=None)
 
     def test_backend_accepts_only_caddy_attested_hop_and_exact_token(self):
         application = app()
