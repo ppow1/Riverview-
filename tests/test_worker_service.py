@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_service.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.9
+# Revision: 1.1.0
 # Purpose: Enforce service identity, package paths, credentials and unit boundaries
 # Execution Model: Local contract tests; PostgreSQL behavior is covered separately
 # Observability: Safe configuration failure codes and reviewed unit properties
@@ -58,6 +58,7 @@ class WorkerServiceContractTests(unittest.TestCase):
         self.assertIn("BindReadOnlyPaths=/home/admin1/.codex/auth.json:/var/lib/riverview-grace-owner-session/codex-home/auth.json", unit)
         self.assertNotIn("BindReadOnlyPaths=/home/admin1/.codex\n", unit)
         self.assertIn("LoadCredential=worker-token:/etc/riverview/worker/grace-executor.credential", unit)
+        self.assertIn("LoadCredential=dashboard-token:/home/admin1/.config/riverview/status-dashboard.token", unit)
         self.assertIn("LoadCredential=verifier-token:/etc/riverview/worker/grace-verifier.credential", unit)
         self.assertIn("StateDirectoryMode=0700", unit)
         self.assertIn("NoNewPrivileges=yes", unit)

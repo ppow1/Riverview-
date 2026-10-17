@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.31
+File Revision: 1.1.32
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -69,11 +69,23 @@ Grace's title, institutional identity, authority, or continuity.
 
 `resident_execution/operational_context.py` supplies the named read-only
 capability `grace.operations.snapshot.read.v1` by adapting the existing
-`DashboardProjection`; it is not a new database reader or model-selected tool
-interface. It includes bounded CME health, assignment/workflow identities,
-objective status and verification decision, worker readiness, Grace execution
-health, and Steward attention summaries. It excludes request and acceptance text, conversation
-bodies, payloads, artifact paths, and credentials. The snapshot labels
+`DashboardProjection`. The router also exposes the implemented Comms5 tool catalog
+to its 80B reasoning stage. A single explicit model-originated read call is
+validated and dispatched through the existing `Comms5Application` and
+`DashboardReadBackend`; this preserves the published schema, backend validation,
+authenticated dashboard credential, and structured result shape. The current
+backend operations are CME status, bounded objective status, recent Steward
+submissions, and the local transport probe. The catalog is filtered against the
+backend's implemented-tool registry, so later Comms5 operations become available
+when that registry and its shared catalog mark them implemented. Unimplemented
+historical write tools are not exposed. The follow-up 80B completion receives the structured result;
+the conversation event stores it in `internal_tool_results`. Tool failures are
+returned as sanitized structured errors. Tool calls are read-only and do not
+create authority or CME work. The snapshot includes bounded CME health,
+assignment/workflow identities, objective status and verification decision,
+worker readiness, Grace execution health, and Steward attention summaries. It
+excludes request and acceptance text, conversation bodies, payloads, artifact
+paths, and credentials. The snapshot labels
 projection status and observation timestamps, and the append-only conversation
 response event stores the bounded snapshot with its capability, status,
 timestamps, and canonical SHA-256 digest. The same metadata shape is retained
@@ -81,8 +93,8 @@ for deferred and failed requests when a snapshot was obtained, so later
 continuation can distinguish the original observation from a refreshed one.
 Unavailable or oversized context is labeled; it does not create authority or
 an action. Model-generated instructions inside values are not executable.
-Additional historical knowledge retrieval, richer resource readiness, and
-typed action tools remain future integration work.
+Additional historical knowledge retrieval, richer resource readiness, and typed
+mutation tools remain future integration work.
 
 **Status:** Isolated engineering implementation on the proposed M3.4 workstream. The roadmap's M3.4 sequencing proposal has not been formally accepted; this work does not claim roadmap acceptance, production commissioning, or full Component Definition of Done.
 

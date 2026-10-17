@@ -1,11 +1,12 @@
 # Riverview~ controlled unit
-# File Revision: 1.0.3
+# File Revision: 1.0.4
 # Task: RV-GRACE-OWNER-SESSION-EXECUTION-001
 # Purpose: Persistent bounded Grace Engineering worker using admin1's existing ChatGPT Codex login in place
 # Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Point resident credential at existing protected canonical file
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-OWNER-STATE-001 | Isolate writable Codex runtime state and read-only bind only the existing ChatGPT auth file
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-SYSTEMD-NETLINK-001 | Permit only AF_NETLINK in addition to the existing families for bubblewrap's isolated loopback setup
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-MDWE-001 | Allow the pinned Code Mode host's required executable-memory runtime while retaining bubblewrap workspace-write isolation and disabled network
+# Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-INTERNAL-TOOLS-001 | Supply the existing dashboard read credential for internal Comms5 operations
 [Unit]
 Description=Riverview Grace persistent Engineering execution (ChatGPT owner session)
 After=network.target postgresql.service riverview-event-processor.service
@@ -41,6 +42,7 @@ LoadCredential=dispatch-token:/etc/riverview/worker/grace-dispatch.credential
 LoadCredential=worker-token:/etc/riverview/worker/grace-executor.credential
 LoadCredential=verifier-token:/etc/riverview/worker/grace-verifier.credential
 LoadCredential=resident-token:/etc/riverview/grace/resident.credential
+LoadCredential=dashboard-token:/home/admin1/.config/riverview/status-dashboard.token
 RuntimeDirectory=riverview-grace-execution-owner-session
 RuntimeDirectoryMode=0700
 StateDirectory=riverview-grace-owner-session
