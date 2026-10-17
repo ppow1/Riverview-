@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_internal_tools.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.0
+# Revision: 1.0.1
+# Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Verify Grace current-status tool call policy.
 # Purpose: Verify Grace-originated bounded Comms5 tool calls return and retain structured results
 # Execution Model: Isolated provider and Comms5 backend HTTP contract fixture
 # Observability: Assertions over operation result envelopes and follow-up model consumption
@@ -90,7 +91,11 @@ class GraceInternalToolTests(unittest.TestCase):
                 "implementation_status": "IMPLEMENTED"}},))
         consumed = reasoning.calls[1]
         self.assertIn('"workers_enabled":2', " ".join(x["content"] for x in consumed))
-        self.assertIn("<rv-tool-call>", reasoning.calls[0][1]["content"])
+        system_messages = [item for item in reasoning.calls[0] if item["role"] == "system"]
+        self.assertEqual(len(system_messages), 1)
+        tool_instructions = system_messages[0]["content"]
+        self.assertIn("you MUST call the matching tool before answering", tool_instructions)
+        self.assertIn("<rv-tool-call>", tool_instructions)
 
     def test_unknown_tools_and_invalid_arguments_are_structured_errors(self):
         class Backend:

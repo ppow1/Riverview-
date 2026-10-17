@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.25
+# Revision: 1.0.26
+# Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Cover persistent proposal failure recording and retry limits.
 # Purpose: Exercise objective-to-authorized-worker-to-independent-verification pipeline
 # Execution Model: Isolated PostgreSQL schema, committed repository fixture, deterministic proposal
 # Observability: Durable objective/assignment events, worker attempt, artifact, verifier decision
@@ -149,6 +150,61 @@ def persistent_service_process(stop_event, dsn, schema, authority_schema, scope,
 
 
 class CodingWorkOrderContractTests(unittest.TestCase):
+    def test_persistent_reasoning_failures_are_recorded_and_rate_limited(self):
+        from contextlib import nullcontext
+        from types import SimpleNamespace
+        from riverview_core.resident_execution.service import GraceExecutionService
+        from riverview_core.resident_reasoning import ReasoningStatus
+
+        class Cursor:
+            def __init__(self, db):
+                self.db = db
+                self.row = None
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def execute(self, query, params):
+                if query.lstrip().startswith("SELECT count(*)"):
+                    self.row = {"failures": len(self.db.failures)}
+                else:
+                    self.db.failures.append(params[1])
+            def fetchone(self): return self.row
+
+        class DB:
+            def __init__(self): self.failures = []
+            def cursor(self): return Cursor(self)
+            def transaction(self): return nullcontext()
+
+        class Ledger:
+            def __init__(self): self.db = DB()
+            def _set_search_path(self, _cursor): pass
+
+        class Pipeline:
+            def __init__(self): self.ledger = Ledger()
+            def grounded_objectives(self, **_kwargs):
+                return [{"objective_id": "objective:bounded-test"}]
+
+        class Reasoner:
+            office_id = "office:grace"
+            providers = {"80B": object()}
+            calls = 0
+            def propose(self, *_args, **_kwargs):
+                self.calls += 1
+                return SimpleNamespace(status=ReasoningStatus.INVALID_PROPOSAL,
+                    detail_code="PROPOSAL_SCHEMA_OR_BUDGET",
+                    request_id=f"request-{self.calls}", proposal=None)
+
+        pipeline, reasoner = Pipeline(), Reasoner()
+        service = GraceExecutionService(pipeline, None, None,
+            dispatch_credential="dispatch", authority_ref="work-order:engineering",
+            verifier_id="verifier", verifier_credential="verify", artifact_root="/tmp/unused",
+            resident_reasoner=reasoner)
+        self.assertFalse(service.reason_one_grounded_objective())
+        self.assertFalse(service.reason_one_grounded_objective())
+        self.assertFalse(service.reason_one_grounded_objective())
+        self.assertFalse(service.reason_one_grounded_objective())
+        self.assertEqual(reasoner.calls, 3)
+        self.assertEqual(len(pipeline.ledger.db.failures), 3)
+
     def test_grace_proposal_budget_supports_bounded_multistep_plans(self):
         from riverview_core.resident_execution.service import GraceExecutionService
         service = GraceExecutionService(None, None, None, dispatch_credential="dispatch",

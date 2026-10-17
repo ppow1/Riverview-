@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.13
+# Revision: 1.0.14
+# Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Persist and rate-limit failed resident proposals.
 # Purpose: Reconcile durable Grace work orders through existing CME worker contracts
 # Execution Model: Persistent scheduled poll over PostgreSQL objective state
 # Observability: Objective events, worker attempts, verification records, dashboard projection
@@ -52,6 +53,9 @@ class GraceExecutionService:
     dispatch; worker leases and execution intents fence duplicate side effects.
     """
 
+    MAX_REASONING_FAILURES = 3
+    REASONING_FAILURE_WINDOW_SECONDS = 60
+
     def __init__(self, pipeline, adapter, worker, *, dispatch_credential,
                  authority_ref, verifier_id, verifier_credential, artifact_root,
                  max_dispatch_failures=3, verifier=None, resident_reasoner=None,
@@ -89,11 +93,13 @@ class GraceExecutionService:
         if self.resident_reasoner is None or not self.resident_reasoner.providers:
             return False
         from ..resident_reasoning import ReasoningStatus
-        rows = self.pipeline.grounded_objectives(scope_ref=self.authority_ref, limit=1,
+        rows = self.pipeline.grounded_objectives(scope_ref=self.authority_ref, limit=25,
                                                  objective_id=objective_id)
-        if not rows:
+        candidate = next((row for row in rows if self._reasoning_failure_count(
+            row["objective_id"]) < self.MAX_REASONING_FAILURES), None)
+        if candidate is None:
             return False
-        objective_id = rows[0]["objective_id"]
+        objective_id = candidate["objective_id"]
         try:
             result = self.resident_reasoner.propose(
                 objective_id, trigger="persistent_resident_cycle",
@@ -103,11 +109,47 @@ class GraceExecutionService:
                     objective_id, result.proposal,
                     actor_id="office:" + self.resident_reasoner.office_id)
                 return True
+            self._record_reasoning_failure(objective_id, result=result)
         except Exception as exc:
+            self._record_reasoning_failure(objective_id, failure_type=type(exc).__name__)
             LOG.warning(json.dumps({"event": "resident_reasoning_cycle_failed",
                 "objective_id": objective_id,
                 "failure_type": type(exc).__name__}, sort_keys=True))
         return False
+
+    def _reasoning_failure_count(self, objective_id):
+        with self.pipeline.ledger.db.cursor() as cur:
+            self.pipeline.ledger._set_search_path(cur)
+            cur.execute("""SELECT count(*) AS failures FROM grace_objective_events
+                WHERE objective_id=%s AND event_type='execution.reasoning_failed'
+                  AND occurred_at >= clock_timestamp()-make_interval(secs => %s)""",
+                (objective_id, self.REASONING_FAILURE_WINDOW_SECONDS))
+            return int(cur.fetchone()["failures"])
+
+    def _record_reasoning_failure(self, objective_id, *, result=None, failure_type=None):
+        status = getattr(getattr(result, "status", None), "value", None)
+        detail_code = getattr(result, "detail_code", None)
+        request_id = getattr(result, "request_id", None)
+        if not isinstance(request_id, str) or not request_id:
+            request_id = str(uuid4())
+        if not isinstance(status, str) or not re.fullmatch(r"[A-Z_]{1,48}", status):
+            status = "UNAVAILABLE"
+        if not isinstance(detail_code, str) or not re.fullmatch(r"[A-Z0-9_]{1,80}", detail_code):
+            detail_code = "REASONING_CYCLE_FAILED"
+        if not isinstance(failure_type, str) or not re.fullmatch(r"[A-Za-z0-9_]{1,80}", failure_type):
+            failure_type = None
+        key = f"grace-reasoning-failure:{objective_id}:{request_id}"
+        payload = {"status": status, "detail_code": detail_code,
+                   "failure_type": failure_type}
+        with self.pipeline.ledger.db.transaction():
+            with self.pipeline.ledger.db.cursor() as cur:
+                self.pipeline.ledger._set_search_path(cur)
+                cur.execute("""INSERT INTO grace_objective_events
+                    (objective_id,event_type,idempotency_key,actor_id,payload)
+                    VALUES (%s,'execution.reasoning_failed',%s,'service:grace-execution',%s::jsonb)
+                    ON CONFLICT (idempotency_key) DO NOTHING""",
+                    (objective_id, key, json.dumps(payload, sort_keys=True,
+                                                  separators=(",", ":"))))
 
     def revalidate_rejected_one(self, assignment_id=None):
         """Append a new verifier decision after a verifier revision correction.
