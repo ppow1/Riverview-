@@ -2,11 +2,12 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_CAMRUI_DEPLOYMENT.md
 Component: COMMS5-CAMRUI-ADAPTER
-File Revision: 1.0.5
+File Revision: 1.0.6
 Status: Deployment and recovery procedure
 Date: 2026-10-17
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-OAUTH-FORWARD-HEADERS-001 | Corrected trusted marker propagation and recorded live OAuth acceptance and Comms4 upstream status.
+Changed: 2026-10-17 UTC | RV-COMMS5-DASHBOARD-READ-DEPLOY-001 | Record the merged loopback dashboard bridge deployment and rollback point.
 Previous: 2026-10-17 UTC | RV-COMMS5-SSH-HOSTKEY-CREDENTIAL-001 | Pass the pinned known-hosts file through systemd credentials for the unprivileged tunnel user.
 -->
 
@@ -63,3 +64,7 @@ Preserve current Caddyfile, systemd units, authorized_keys, release pointer, and
 - **ChatGPT account acceptance:** The full OAuth/MCP protocol was exercised using a real HTTPS client harness and the actual services, not ChatGPT's UI. ChatGPT workspace connection and invocation remain unverified until a Steward completes the connector authorization in ChatGPT.
 
 See [`COMMS5_OAUTH_TROUBLESHOOTING.md`](COMMS5_OAUTH_TROUBLESHOOTING.md), [`COMMS5_CAMRUI_MIGRATION.md`](COMMS5_CAMRUI_MIGRATION.md), and the dated machine-connection runbook in `docs/operations/` for exact evidence and recovery.
+
+## Current deployment — 2026-10-17 22:16 UTC
+
+The active immutable release is `c18b283ae7263b6fa708b80dbf179b8199ec4b64` (package SHA-256 `c2a7c5681d0f94097bed27f124a3666e6f5cc0d3959ebf4573535573fcd65371`). The service remains enabled and active on loopback. Only the Camrui Comms5 service was restarted; the reverse tunnel, Caddy, OAuth, dashboard, and inference services were not changed. A protected rollback point and exact smoke-test evidence are recorded in [`COMMS5_CAMRUI_MIGRATION.md`](COMMS5_CAMRUI_MIGRATION.md).
