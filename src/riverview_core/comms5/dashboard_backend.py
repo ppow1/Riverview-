@@ -1,10 +1,12 @@
 # Riverview Controlled Source
 # File: src/riverview_core/comms5/dashboard_backend.py
 # Component: COMMS5-CAMRUI-ADAPTER
-# Revision: 1.0.4
+# Revision: 1.0.6
 # Purpose: Expose bounded current-runtime operations through Comms5
 # Authority: Existing dashboard credential plus ingress-attested Steward principal
 # Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Route proposal and complete bounded status operations through the fixed authenticated internal dashboard contract.
+# Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Correlate authenticated transport probes to the dashboard request and surface truthful resource-policy status.
+# Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Route durable work-order queue requests through the existing authenticated dashboard operation endpoint.
 # History: New file; no predecessor existed.
 """Narrow authenticated bridge to Riverview's existing dashboard API."""
 
@@ -17,7 +19,6 @@ import stat
 import time
 from pathlib import Path
 from urllib.parse import urlsplit
-from uuid import uuid4
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
@@ -34,6 +35,8 @@ _PROPOSAL_TOOLS = {
 }
 _INTERNAL_TOOLS = _PROPOSAL_TOOLS | {
     "comms5_objective_status", "comms5_recent_steward_submissions",
+    "comms5_resource_policy_status",
+    "comms5_form_and_queue_work",
 }
 
 
@@ -66,7 +69,9 @@ class DashboardReadBackend:
         "comms5_objective_status": "IMPLEMENTED",
         "comms5_cme_status": "IMPLEMENTED",
         "comms5_recent_steward_submissions": "IMPLEMENTED",
-        "comms5_transport_probe": "PARTIALLY_IMPLEMENTED",
+        "comms5_transport_probe": "IMPLEMENTED",
+        "comms5_resource_policy_status": "IMPLEMENTED",
+        "comms5_form_and_queue_work": "IMPLEMENTED",
         "comms5_submit_steward_seed": "IMPLEMENTED",
         "comms5_store_specification": "IMPLEMENTED",
         "comms5_seed_status": "IMPLEMENTED",
@@ -175,6 +180,8 @@ class DashboardReadBackend:
         return frozenset(_READ_TOOLS | _INTERNAL_TOOLS)
 
     def call_authenticated(self, name, arguments, *, principal=None):
+        if name == "comms5_transport_probe" and principal != "steward":
+            raise PermissionError("authenticated Steward ingress required")
         if name in _INTERNAL_TOOLS:
             if principal != "steward":
                 raise PermissionError("authenticated Steward ingress required")
@@ -182,6 +189,9 @@ class DashboardReadBackend:
         return self.call(name, arguments)
 
     def _get(self, path):
+        return self._get_response(path)[0]
+
+    def _get_response(self, path):
         if path not in {"/api/v1/status", "/api/v1/attention"}:
             raise DashboardBackendUnavailable("dashboard_path_not_allowlisted")
         request = Request(self._base_url + path, headers={
@@ -195,6 +205,7 @@ class DashboardReadBackend:
                 if response.headers.get_content_type() != "application/json":
                     raise DashboardBackendUnavailable("dashboard_content_type_invalid")
                 payload = response.read(1_048_577)
+                request_id = response.headers.get("X-Request-ID")
         except HTTPError as exc:
             raise DashboardBackendUnavailable("dashboard_http_status") from None
         except (URLError, TimeoutError, OSError):
@@ -207,7 +218,7 @@ class DashboardReadBackend:
             raise DashboardBackendUnavailable("dashboard_response_invalid") from None
         if not isinstance(value, dict):
             raise DashboardBackendUnavailable("dashboard_response_invalid")
-        return value
+        return value, request_id
 
     def call(self, name, arguments):
         if name not in _READ_TOOLS:
@@ -218,16 +229,21 @@ class DashboardReadBackend:
                     or not re.fullmatch(r"[A-Za-z0-9._:-]+", probe_id)):
                 raise ValueError("invalid_probe_id")
             started = time.perf_counter()
-            value = self._get("/api/v1/status")
+            value, dashboard_request_id = self._get_response("/api/v1/status")
+            if (not isinstance(dashboard_request_id, str) or
+                    not re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", dashboard_request_id)):
+                raise DashboardBackendUnavailable("dashboard_request_correlation_missing")
             elapsed = max(0.0, (time.perf_counter() - started) * 1000)
             return {"status": "available", "executed": True,
-                    "implementation_status": "PARTIALLY_IMPLEMENTED",
-                    "probe_id": probe_id, "correlation_id": str(uuid4()),
+                    "implementation_status": "IMPLEMENTED",
+                    "probe_id": probe_id, "correlation_id": probe_id,
+                    "dashboard_request_id": dashboard_request_id,
                     "observed_at": value.get("observed_at"),
                     "dashboard_projection_status": value.get("projection_status"),
                     "dashboard_round_trip_ms": round(elapsed, 3),
-                    "verified_path": ["comms5_adapter", "dashboard_loopback_read_api"],
-                    "unverified_path": ["external_client_to_ionoge", "ionoge_tunnel_to_camrui"]}
+                    "verified_path": ["authenticated_comms5_request",
+                                      "camrui_comms5_adapter",
+                                      "dashboard_loopback_read_api"]}
         if name == "comms5_cme_status":
             value = self._get("/api/v1/status")
             cme = value.get("cme")

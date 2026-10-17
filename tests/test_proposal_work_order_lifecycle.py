@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_proposal_work_order_lifecycle.py
 # Component: INSTITUTIONAL-PROPOSALS
-# Revision: 1.1.2
+# Revision: 1.1.3
 # Purpose: Verify revision approval and promotion into the existing objective pipeline
 # Execution Model: Pure command parser tests and disposable PostgreSQL integration
 # Observability: Proposal/objective events and correlation IDs are asserted
@@ -10,6 +10,7 @@
 # Authority: Unique disposable schema only; no production grants or records
 # Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Exercise current-runtime Comms5 objective and proposal projections against a disposable PostgreSQL schema.
 # Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Exercise the append-only supersede transition for a confirmed replacement draft.
+# Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Exercise idempotent Comms5 CME queue-intent persistence against isolated PostgreSQL and exact Steward grants.
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Initial lifecycle bridge coverage
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Compose authenticated API approval/intake with real disposable worker execution, independent verification, and proposal result linkage
 # =============================================================================
@@ -452,6 +453,43 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
         serialized = json.dumps(detail)
         self.assertNotIn("Private bounded test request", serialized)
         self.assertNotIn("Private acceptance criterion", serialized)
+
+    def test_comms5_queue_request_is_durable_idempotent_and_does_not_claim_dispatch(self):
+        from riverview_core.resident_reasoning import PlanProposal, PlanStep
+        from riverview_core.resident_execution.comms5_operations import Comms5Operations
+
+        record = self.ready_proposal()
+        proposal_id = record["proposal"]["proposal_id"]
+        self.approve(record)
+        promoted = self.lifecycle.promote(proposal_id, 1, actor_id="steward:authorized")
+        objective = promoted["objective_id"]
+        grounded = self.pipeline.get_objective(objective)
+        plan = PlanProposal("One bounded Engineering step", (PlanStep(
+            "report", "Write the approved bounded artifact",
+            tuple(grounded["acceptance_criteria"])),), 0)
+        self.pipeline.record_proposal(objective, plan)
+
+        operations = Comms5Operations(self.registry, self.lifecycle, self.pipeline)
+        args = {"objective_id": objective, "stage_id": "report",
+            "authority_id": "steward:authorized-objective.submit",
+            "idempotency_key": "comms5:queue:" + uuid4().hex,
+            "explicit_steward_confirmation": True, "client_id": "isolated-test",
+            "client_type": "test", "client_name": "Comms5 integration"}
+        first = operations.execute("comms5_form_and_queue_work", args,
+            principal_id="steward:authorized")
+        second = operations.execute("comms5_form_and_queue_work", args,
+            principal_id="steward:authorized")
+        self.assertEqual(first["status"], "queued_for_cme")
+        self.assertFalse(first["work_order_created"])
+        self.assertFalse(first["dispatched"])
+        self.assertEqual(second["status"], "already_queued_for_cme")
+        events = [item for item in self.pipeline.objective_events(objective)
+            if item["event_type"] == "work_order.dispatch_requested"]
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["payload"]["stage_id"], "report")
+        self.assertEqual(events[0]["payload"]["authority_id"],
+                         "steward:authorized-objective.submit")
+        self.assertIsNone(self.pipeline.get_objective(objective)["assignment_id"])
 
     def test_comms5_proposal_operations_use_durable_lifecycle_and_existing_objective_intake(self):
         from riverview_core.resident_execution.comms5_operations import Comms5Operations

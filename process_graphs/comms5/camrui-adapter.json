@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:comms5:camrui-adapter",
-  "graph_revision": "1.0.11",
+  "graph_revision": "1.0.13",
   "component_id": "COMMS5-CAMRUI-ADAPTER",
   "workflow_id": "comms5.camrui.compatibility.v1",
   "diagram_order": 91,
@@ -245,6 +245,55 @@
         "tests/test_comms5_current_runtime.py",
         "tests/test_proposal_work_order_lifecycle.py"
       ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:request-correlated-transport-probe",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Authenticated read-only transport probe returns its caller correlation ID and the live dashboard request ID",
+      "source_references": [
+        "src/riverview_core/comms5/dashboard_backend.py",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/COMMS5_CAMRUI_MIGRATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_comms5_mcp.py"
+      ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:resource-policy-status",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Resource policy status reports the current durable worker capability inventory and explicitly reports when no policy is configured",
+      "source_references": [
+        "src/riverview_core/resident_execution/comms5_operations.py",
+        "src/riverview_core/comms5/dashboard_backend.py"
+      ],
+      "documentation_references": [
+        "docs/components/COMMS5_CAMRUI_MIGRATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_comms5_current_runtime.py"
+      ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:steward-cme-queue-request",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Authenticated Steward confirms one dependency-ready objective step; exact objective.submit and supplied grant ID are revalidated before an idempotent queue-request event is persisted; assignment creation remains with the persistent Grace service and its separate assignment.create grant",
+      "source_references": [
+        "src/riverview_core/resident_execution/comms5_operations.py",
+        "src/riverview_core/resident_execution/service.py",
+        "src/riverview_core/resident_execution/pipeline.py"
+      ],
+      "documentation_references": [
+        "docs/components/COMMS5_CAMRUI_MIGRATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_comms5_current_runtime.py"
+      ]
     }
   ],
   "edges": [
@@ -312,6 +361,21 @@
       "from": "rv:comms5:camrui-adapter:current-runtime-operations",
       "to": "rv:comms5:camrui-adapter:current-runtime-operation-denial",
       "type": "diagnostic_branch"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:authenticated-dashboard-read",
+      "to": "rv:comms5:camrui-adapter:request-correlated-transport-probe",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:current-runtime-operations",
+      "to": "rv:comms5:camrui-adapter:resource-policy-status",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:current-runtime-operations",
+      "to": "rv:comms5:camrui-adapter:steward-cme-queue-request",
+      "type": "runtime_transition"
     }
   ]
 }

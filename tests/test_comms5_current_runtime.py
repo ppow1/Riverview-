@@ -1,9 +1,11 @@
 """Focused tests for Comms5 operations on current Riverview services.
 
-File Revision: 1.0.1
+File Revision: 1.0.3
 Component: COMMS5-CURRENT-RUNTIME-OPERATIONS-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify intent/authority projection and combined durable objective/proposal listing.
+Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify resource status reflects current worker records without inventing policy.
+Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify durable CME queue intent, exact grant, dependency readiness, and idempotent retries.
 """
 
 import unittest
@@ -63,6 +65,77 @@ class _Lifecycle:
         return {"status": "GROUNDED", "objective_id": "objective:proposal:fixture:r1",
                 "assignment_id": None, "work_order_dispatched": False,
                 "execution_state": "awaiting_grace_planning", "reused": False}
+
+
+class _QueueCursor:
+    def __init__(self, db):
+        self.db = db
+        self.rowcount = 0
+        self._one = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+    def execute(self, query, params=()):
+        if "FROM grace_objectives" in query:
+            self._one = {"status": "PROPOSED", "scope_ref": "work-order:engineering"}
+        elif "FROM grace_objective_steps" in query:
+            self._one = {"status": "pending", "assignment_id": None}
+        elif "FROM grace_objective_events" in query:
+            self._one = next((event for event in self.db.events
+                if event["idempotency_key"] == params[0]), None)
+        elif "INSERT INTO grace_objective_events" in query:
+            objective_id, event_type, idem, actor, payload = params
+            if not any(event["idempotency_key"] == idem for event in self.db.events):
+                self.db.events.append({"objective_id": objective_id,
+                    "event_type": event_type, "idempotency_key": idem,
+                    "actor_id": actor, "payload": json.loads(payload)})
+                self.rowcount = 1
+        else:
+            raise AssertionError(f"unexpected SQL in queue test: {query}")
+
+    def fetchone(self):
+        return self._one
+
+
+class _QueueDatabase:
+    def __init__(self):
+        self.events = []
+
+    def cursor(self):
+        return _QueueCursor(self)
+
+    def transaction(self):
+        from contextlib import nullcontext
+        return nullcontext()
+
+
+class _QueuePipeline:
+    def __init__(self, *, grant_id="grant:engineering-submit"):
+        self.db = _QueueDatabase()
+        self.ledger = SimpleNamespace(db=self.db,
+            _set_search_path=lambda cursor: None)
+        self.authorizer = MagicMock()
+        self.authorizer.require_principal.return_value = {"grant_id": grant_id}
+        self.objective = {"status": "PROPOSED", "scope_ref": "work-order:engineering",
+                          "revision": 3}
+        self.dispatchable = {"step_id": "step:one"}
+
+    def get_objective(self, _):
+        return self.objective
+
+    def dispatchable_step(self, _):
+        return self.dispatchable
+
+    def objective_events(self, objective_id):
+        return [event for event in self.db.events if event["objective_id"] == objective_id]
+
+    def _event(self, cursor, objective_id, event_type, idem, actor, payload):
+        cursor.execute("INSERT INTO grace_objective_events", (
+            objective_id, event_type, idem, actor, json.dumps(payload)))
 
 
 class Comms5CurrentRuntimeTests(unittest.TestCase):
@@ -226,6 +299,102 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
                          {"objective", "proposal"})
         self.assertNotIn("private proposal body", str(result))
 
+    def test_resource_policy_status_reports_real_workers_and_no_fabricated_policy(self):
+        now = datetime.now(timezone.utc)
+        pipeline = MagicMock()
+        cursor = MagicMock()
+        cursor.__enter__.return_value = cursor
+        cursor.fetchall.return_value = [{"worker_id": "worker:codex-test",
+            "capabilities": ["engineering.codex-cli-artifact.v1"],
+            "scope_ref": "work-order:engineering", "active": True,
+            "registered_at": now}]
+        pipeline.ledger.db.cursor.return_value = cursor
+        self.operations.pipeline = pipeline
+        result = self.operations.execute("comms5_resource_policy_status", {},
+                                         principal_id="steward:camrui")
+        self.assertEqual(result["status"], "available")
+        self.assertEqual(result["policy_state"], "not_configured")
+        self.assertIsNone(result["policy"])
+        self.assertFalse(result["policy_mutation_available"])
+        self.assertEqual(result["registered_workers"][0]["worker_id"], "worker:codex-test")
+        self.assertIn("worker_registry", cursor.execute.call_args.args[0])
+
+    def test_form_and_queue_work_persists_idempotent_cme_request_under_exact_grant(self):
+        pipeline = _QueuePipeline()
+        self.operations.pipeline = pipeline
+        arguments = {"objective_id": "objective:commissioning", "stage_id": "step:one",
+            "authority_id": "grant:engineering-submit", "idempotency_key": "queue-1",
+            "explicit_steward_confirmation": True, "client_id": "chatgpt",
+            "client_type": "chat", "client_name": "ChatGPT",
+            "correlation_id": "conversation:one"}
+        result = self.operations.execute("comms5_form_and_queue_work", arguments,
+                                         principal_id="steward:camrui")
+        self.assertEqual(result["status"], "queued_for_cme")
+        self.assertTrue(result["executed"])
+        self.assertFalse(result["work_order_created"])
+        self.assertFalse(result["dispatched"])
+        self.assertEqual(len(pipeline.db.events), 1)
+        event = pipeline.db.events[0]
+        self.assertEqual(event["event_type"], "work_order.dispatch_requested")
+        self.assertEqual(event["payload"]["stage_id"], "step:one")
+        self.assertEqual(event["payload"]["correlation_id"], "conversation:one")
+        self.assertEqual(event["payload"]["dispatch_authority"],
+                         "existing_grace_execution_service_grant")
+        self.assertEqual(pipeline.authorizer.require_principal.call_args.args[1:],
+                         ("steward:camrui", "objective.submit", "work-order:engineering"))
+
+        retry = self.operations.execute("comms5_form_and_queue_work", arguments,
+                                        principal_id="steward:camrui")
+        self.assertEqual(retry["status"], "already_queued_for_cme")
+        self.assertEqual(len(pipeline.db.events), 1)
+
+    def test_form_and_queue_work_rejects_mismatched_or_missing_authority(self):
+        pipeline = _QueuePipeline(grant_id="grant:other")
+        self.operations.pipeline = pipeline
+        arguments = {"objective_id": "objective:commissioning", "stage_id": "step:one",
+            "authority_id": "grant:engineering-submit", "idempotency_key": "queue-2",
+            "explicit_steward_confirmation": True, "client_id": "chatgpt",
+            "client_type": "chat", "client_name": "ChatGPT"}
+        with self.assertRaisesRegex(PermissionError, "does not match"):
+            self.operations.execute("comms5_form_and_queue_work", arguments,
+                                    principal_id="steward:camrui")
+        self.assertEqual(pipeline.db.events, [])
+
+        pipeline.authorizer.require_principal.side_effect = type("GrantDenied", (Exception,), {})()
+        with self.assertRaisesRegex(PermissionError, "not authorized"):
+            self.operations.execute("comms5_form_and_queue_work", arguments,
+                                    principal_id="steward:camrui")
+        self.assertEqual(pipeline.db.events, [])
+
+    def test_form_and_queue_work_rejects_non_ready_stage_without_event(self):
+        pipeline = _QueuePipeline()
+        pipeline.dispatchable = {"step_id": "step:other"}
+        self.operations.pipeline = pipeline
+        arguments = {"objective_id": "objective:commissioning", "stage_id": "step:one",
+            "authority_id": "grant:engineering-submit", "idempotency_key": "queue-3",
+            "explicit_steward_confirmation": True, "client_id": "chatgpt",
+            "client_type": "chat", "client_name": "ChatGPT"}
+        with self.assertRaisesRegex(ProposalConflict, "dependency-ready"):
+            self.operations.execute("comms5_form_and_queue_work", arguments,
+                                    principal_id="steward:camrui")
+        self.assertEqual(pipeline.db.events, [])
+
+    def test_form_and_queue_work_does_not_reuse_key_across_objectives(self):
+        pipeline = _QueuePipeline()
+        self.operations.pipeline = pipeline
+        arguments = {"objective_id": "objective:commissioning", "stage_id": "step:one",
+            "authority_id": "grant:engineering-submit", "idempotency_key": "queue-shared",
+            "explicit_steward_confirmation": True, "client_id": "chatgpt",
+            "client_type": "chat", "client_name": "ChatGPT"}
+        first = self.operations.execute("comms5_form_and_queue_work", arguments,
+                                       principal_id="steward:camrui")
+        self.assertEqual(first["status"], "queued_for_cme")
+        arguments["objective_id"] = "objective:different"
+        with self.assertRaisesRegex(ProposalConflict, "bound to different"):
+            self.operations.execute("comms5_form_and_queue_work", arguments,
+                                    principal_id="steward:camrui")
+        self.assertEqual(len(pipeline.db.events), 1)
+
     def test_mcp_uses_transport_attested_principal_not_argument_identity(self):
         class Backend:
             supported_tools = {"comms5_submit_steward_seed"}
@@ -240,7 +409,7 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
         self.assertEqual(response["result"]["structuredContent"]["principal"], "steward")
         self.assertEqual(response["result"]["structuredContent"]["argument_identity"], "resident:attacker")
 
-    def test_live_backend_status_counts_new_operations_without_marking_partial_complete(self):
+    def test_live_backend_status_counts_fully_implemented_operations(self):
         from riverview_core.comms5.dashboard_backend import DashboardReadBackend
         class Backend:
             supported_tools = DashboardReadBackend.supported_tools.fget(None)
@@ -248,9 +417,9 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
         application = Comms5Application("x" * 48, backend=Backend())
         status = {name: application.implementation_status(name)
                   for name in application.implemented_tools}
-        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 15)
-        self.assertEqual(sum(value == "PARTIALLY_IMPLEMENTED" for value in status.values()), 1)
-        self.assertEqual(21 - len(status), 5)
+        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 18)
+        self.assertEqual(sum(value == "PARTIALLY_IMPLEMENTED" for value in status.values()), 0)
+        self.assertEqual(21 - len(status), 3)
 
     def test_dashboard_internal_route_requires_service_token_and_comms5_attestation(self):
         from riverview_core.status_dashboard.server import _BoundedHTTPServer, make_handler
