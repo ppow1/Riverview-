@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.8
+# Revision: 1.2.9
 # Purpose: Adapt bounded Codex production and independent Markdown verification to CME
 # Execution Model: Existing leased worker action and independent verifier contract
 # Observability: Persisted artifact location, digest, criteria and verifier evidence
@@ -19,6 +19,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Bind approved multi-file step scope and verified predecessor patch chain to Codex worker and verifier
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Recover completed source patch artifacts after interrupted worker-result persistence
 # Changed: 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-OBJECTIVE-CONTEXT | Carry the accepted objective into each bounded source-change step without widening file scope
+# Changed: 2026-10-17 UTC | RV-GRACE-ACCEPTANCE-CRITERIA-001 | Verify Codex artifacts against criteria resolved from the durable dispatched objective step
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_codex_workflow.py
 # History: Git
@@ -266,8 +267,12 @@ class CodexMarkdownVerifier:
         return expected_path_count is None or len(path_items) == expected_path_count
     _NAME = re.compile(r"^codex-[0-9a-f]{64}\.md$")
 
-    def __init__(self, artifact_root: str | Path):
+    def __init__(self, artifact_root: str | Path, pipeline=None):
         self.artifact_root = Path(artifact_root)
+        if pipeline is not None and not callable(
+                getattr(pipeline, "proposal_step_for_assignment", None)):
+            raise ValueError("persisted objective-step criteria resolver is required")
+        self.pipeline = pipeline
 
     def verify(self, assignment, attempt, result):
         name = result.get("artifact_name") if isinstance(result, dict) else None
@@ -322,10 +327,17 @@ class CodexMarkdownVerifier:
                     criteria["markdown_deliverable_matches_objective"] = bool(
                         body.startswith("# ") and assignment.get("objective_ref") ==
                         result.get("objective_id") and body.strip())
+                    expected_criteria = result.get("acceptance_criteria")
+                    if self.pipeline is not None:
+                        step = self.pipeline.proposal_step_for_assignment(
+                            assignment.get("objective_ref"), assignment.get("id"))
+                        expected_criteria = (step.get("acceptance_criteria")
+                                             if isinstance(step, Mapping) else None)
                     criteria["acceptance_criteria_are_present"] = bool(
-                        isinstance(result.get("acceptance_criteria"), list) and
-                        result["acceptance_criteria"] and
-                        self._criteria_satisfied(result["acceptance_criteria"], body, result))
+                        isinstance(expected_criteria, (list, tuple)) and expected_criteria and
+                        all(isinstance(item, str) and item.strip()
+                            for item in expected_criteria) and
+                        self._criteria_satisfied(expected_criteria, body, result))
                     evidence += ("workspace://" + name,
                                  "sha256:" + result["artifact_sha256"])
             criteria["source_provenance_is_pinned"] = bool(

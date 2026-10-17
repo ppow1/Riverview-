@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.0
+# Revision: 1.2.1
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -24,6 +24,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-RESULT-RETURN-DIAGNOSTICS-001 | Default verified-result review to the supported bounded 512-token output budget
 # Changed: 2026-10-16 UTC | RV-PR62-SOURCE-CHANGE-MODE | Route the explicit Codex source-change mode through its registered adapter branch
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-REASONING-BUDGET-001 | Default persistent resident plans to a bounded 768-token completion budget
+# Changed: 2026-10-17 UTC | RV-GRACE-ACCEPTANCE-CRITERIA-001 | Bind independent Codex verification to persisted objective-step criteria
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Wire the separately scoped source-change capability through the existing leased worker and independent verifier
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Reconcile proposal records when registry migration exists without making it a prerequisite for older deployments
 # Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-INTERNAL-TOOLS-001 | Bind Grace's reasoning router to the existing Comms5 read backend
@@ -324,7 +325,7 @@ def main() -> int:
                 execution_action = CodexWorkAction(
                     pipeline, codex_adapter, repository_reference,
                     timeout_seconds=timeout_seconds)
-                outcome_verifier = CodexMarkdownVerifier(artifact_root)
+                outcome_verifier = CodexMarkdownVerifier(artifact_root, pipeline)
             else:
                 allowed_paths = source_change_path_allowlist(os.environ)
                 try:
