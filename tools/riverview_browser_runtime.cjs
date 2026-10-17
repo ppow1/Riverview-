@@ -1,5 +1,6 @@
 // RIVERVIEW~ CONTROLLED SOURCE
 // File: tools/riverview_browser_runtime.cjs
+// File Revision: 1.0.0
 // Component: CHATGPT-DOORBELL | Revision: 1.0.0
 // Purpose: Supervise only the configured Riverview Chrome profile on a user session
 // Execution Model: Persistent systemd user service or explicit local start

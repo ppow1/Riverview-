@@ -1,5 +1,6 @@
 // RIVERVIEW~ CONTROLLED SOURCE
 // File: tools/riverview_doorbell_bridge.cjs
+// File Revision: 1.0.0
 // Component: CHATGPT-DOORBELL | Revision: 1.0.1
 // Purpose: Submit one fixed wake to one exact configured ChatGPT conversation
 // Execution Model: Request-driven local CDP operation
