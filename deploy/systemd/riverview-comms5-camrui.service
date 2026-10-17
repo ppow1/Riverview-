@@ -1,7 +1,7 @@
 # Riverview Controlled Source
 # File: deploy/systemd/riverview-comms5-camrui.service
 # Component: COMMS5-CAMRUI-ADAPTER
-# Revision: 1.0.0
+# Revision: 1.0.1
 # History: New unit; no predecessor existed.
 [Unit]
 Description=Riverview Comms5 Camrui MCP compatibility service
@@ -15,6 +15,8 @@ Environment=PYTHONPATH=/opt/riverview-comms5-camrui/current/src
 Environment=RIVERVIEW_COMMS5_HOST=127.0.0.1
 Environment=RIVERVIEW_COMMS5_PORT=11826
 LoadCredential=backend-auth:/etc/riverview/comms5/backend-auth
+LoadCredential=dashboard-token:/home/admin1/.config/riverview/status-dashboard.token
+Environment=RIVERVIEW_COMMS5_DASHBOARD_URL=http://127.0.0.1:8767
 ExecStart=/usr/bin/python3 -m riverview_core.comms5.server
 Restart=on-failure
 RestartSec=2s

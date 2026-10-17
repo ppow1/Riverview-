@@ -1,7 +1,7 @@
 # Riverview Controlled Source
 # File: scripts/package_comms5_camrui.py
 # Component: COMMS5-CAMRUI-ADAPTER
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Create a deterministic immutable package from committed Comms5 files only
 # History: New file; no predecessor existed.
 """Build a source-commit-pinned Comms5 Camrui deployment archive."""
@@ -19,6 +19,7 @@ from pathlib import Path
 
 PACKAGE_FILES = (
     "src/riverview_core/comms5/server.py",
+    "src/riverview_core/comms5/dashboard_backend.py",
     "src/riverview_core/comms5/tool_catalog.json",
     "deploy/systemd/riverview-comms5-camrui.service",
     "deploy/systemd/riverview-comms5-tunnel.service",

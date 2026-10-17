@@ -1,6 +1,6 @@
 """Loopback Comms5 MCP compatibility endpoint.
 
-File Revision: 1.0.0
+File Revision: 1.1.0
 Component: COMMS5-CAMRUI-ADAPTER
 Authority: OAuth is validated at the Ionoge ingress; this service accepts only
            the Caddy-injected principal marker and a separate protected hop token.
@@ -30,6 +30,17 @@ _IMPLEMENTED = {
     "comms5_describe_operation",
     "comms5_examples",
 }
+
+
+def _tool_payload(request_id: Any, value: dict[str, Any], *, is_error: bool = False):
+    return {
+        "jsonrpc": "2.0", "id": request_id,
+        "result": {
+            "content": [{"type": "text", "text": json.dumps(value, separators=(",", ":"))}],
+            "structuredContent": value,
+            "isError": is_error,
+        },
+    }
 
 
 def _error(code: int, message: str) -> dict[str, Any]:
@@ -63,13 +74,25 @@ def _valid(schema: dict[str, Any], value: Any) -> bool:
 class Comms5Application:
     """Transport-neutral MCP request handler used by HTTP and isolated tests."""
 
-    def __init__(self, backend_token: str, *, protocol_versions: tuple[str, ...] = (
+    def __init__(self, backend_token: str, *, backend=None, protocol_versions: tuple[str, ...] = (
         "2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"
     )) -> None:
         if not backend_token or len(backend_token) < 32:
             raise ValueError("comms5_backend_token_invalid")
         self._backend_token = backend_token
+        self.backend = backend
         self.protocol_versions = protocol_versions
+
+    @property
+    def implemented_tools(self):
+        dynamic = getattr(self.backend, "supported_tools", ()) if self.backend else ()
+        return frozenset(_IMPLEMENTED | set(dynamic))
+
+    def implementation_status(self, name):
+        backend_status = getattr(self.backend, "IMPLEMENTATION_STATUS", {})
+        if name in backend_status and name in self.implemented_tools:
+            return backend_status[name]
+        return "IMPLEMENTED" if name in self.implemented_tools else "NOT_IMPLEMENTED"
 
     def authenticated(self, headers: Any) -> bool:
         marker = headers.get("X-Riverview-Comms5", "")
@@ -106,7 +129,7 @@ class Comms5Application:
                 "result": {
                     "protocolVersion": version,
                     "capabilities": {"tools": {"listChanged": False}},
-                    "serverInfo": {"name": "Riverview Comms5", "version": "5.0-camrui.1"},
+                    "serverInfo": {"name": "Riverview Comms5", "version": "5.0-camrui.2"},
                     "instructions": "Comms5 compatibility endpoint. Tool contracts are preserved; unsupported backend operations return NOT_IMPLEMENTED and do not execute.",
                 },
             }
@@ -120,7 +143,7 @@ class Comms5Application:
                 return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32602, "message": "Unknown tool"}}
             if not _valid(tool["inputSchema"], arguments):
                 return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32602, "message": "Arguments do not match the published tool schema"}}
-            if name not in _IMPLEMENTED:
+            if name not in self.implemented_tools:
                 result_value = {
                     "status": "NOT_IMPLEMENTED", "executed": False,
                     "tool": name,
@@ -134,6 +157,26 @@ class Comms5Application:
                         "isError": True,
                     },
                 }
+            if self.backend and name in getattr(self.backend, "supported_tools", ()):
+                try:
+                    value = self.backend.call(name, arguments)
+                except ValueError:
+                    return {"jsonrpc": "2.0", "id": request_id,
+                            "error": {"code": -32602, "message": "Arguments do not match the bounded operation contract"}}
+                except Exception as exc:
+                    from .dashboard_backend import DashboardBackendUnavailable
+                    error_value = {
+                        "status": ("BACKEND_UNAVAILABLE" if isinstance(exc, DashboardBackendUnavailable)
+                                   else "BACKEND_FAILURE"),
+                        "executed": False, "tool": name,
+                        "reason": (str(exc) if isinstance(exc, DashboardBackendUnavailable)
+                                   else "backend_internal_failure"),
+                    }
+                    if not isinstance(exc, DashboardBackendUnavailable):
+                        error_value["failure_type"] = type(exc).__name__
+                    return _tool_payload(request_id, error_value, is_error=True)
+                value = {**value, "implementation_status": self.implementation_status(name)}
+                return _tool_payload(request_id, value)
             if name == "comms5_describe_operation":
                 operation = arguments["operation"]
                 value = _PAYLOADS.get("describe:" + operation)
@@ -146,17 +189,20 @@ class Comms5Application:
                 for operation in value.get("operations", []):
                     tool_name = "comms5_" + operation.get("name", "")
                     operation["camrui_implementation_status"] = (
-                        "IMPLEMENTED" if tool_name in _IMPLEMENTED else "NOT_IMPLEMENTED"
+                    self.implementation_status(tool_name)
                     )
             elif name == "comms5_help":
                 value["camrui_migration_notice"] = {
-                    "implemented_tools": sorted(_IMPLEMENTED),
-                    "not_implemented_tool_count": len(_TOOLS) - len(_IMPLEMENTED),
+                    "implemented_tools": sorted(self.implemented_tools),
+                    "not_implemented_tool_count": len(_TOOLS) - len(self.implemented_tools),
+                    "partially_implemented_tools": sorted(
+                        name for name in self.implemented_tools
+                        if self.implementation_status(name) == "PARTIALLY_IMPLEMENTED"),
                     "stub_behavior": "MCP tool error; status NOT_IMPLEMENTED; executed false; no backend operation",
                 }
             elif name == "comms5_describe_operation" and "error" not in value:
                 value["camrui_implementation_status"] = (
-                    "IMPLEMENTED" if "comms5_" + operation in _IMPLEMENTED else "NOT_IMPLEMENTED"
+                    self.implementation_status("comms5_" + operation)
                 )
             elif name == "comms5_examples":
                 value["camrui_execution_note"] = (
@@ -289,11 +335,13 @@ def create_handler(app: Comms5Application) -> type[BaseHTTPRequestHandler]:
 
 def main() -> None:
     token = _load_backend_token()
+    from .dashboard_backend import DashboardReadBackend
+    backend = DashboardReadBackend()
     host = os.environ.get("RIVERVIEW_COMMS5_HOST", "127.0.0.1")
     port = int(os.environ.get("RIVERVIEW_COMMS5_PORT", "11826"))
     if host != "127.0.0.1":
         raise RuntimeError("comms5_listener_must_be_loopback")
-    server = ThreadingHTTPServer((host, port), create_handler(Comms5Application(token)))
+    server = ThreadingHTTPServer((host, port), create_handler(Comms5Application(token, backend=backend)))
     server.daemon_threads = True
     try:
         server.serve_forever(poll_interval=0.5)
