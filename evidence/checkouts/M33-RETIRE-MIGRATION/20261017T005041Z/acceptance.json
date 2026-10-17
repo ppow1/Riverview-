@@ -1,0 +1,24 @@
+{
+  "task": "RV-M33-RETIRE-MIGRATION-001-CI-DB-IDENTITY",
+  "production_state": "UNCHANGED",
+  "production_ledger_observation": "0000 through 0007; 0008 and 0009 absent, supplied by Steward",
+  "code_tests": {
+    "status": "PASS",
+    "count": 11,
+    "database": "riverview_test",
+    "engine": "disposable PostgreSQL 16"
+  },
+  "migration_source_sha256": "0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6",
+  "migration_dependency": "0009 declares 0001-0008 predecessors; runner refuses to skip missing 0008",
+  "graph_check": "PASS: 21 workflows / 524 nodes",
+  "graph_validation": "PASS: 21 workflows",
+  "revision_audit": "PASS: zero issues",
+  "compile": "PASS",
+  "git_diff_check": "PASS",
+  "previous_exact_head_ci": {
+    "run": "38987983617",
+    "head": "dda9d4f81c075bf930f165e5098b708f3317599d",
+    "result": "FAIL: disposable DB named riverview_test was rejected by hardcoded production database expectation"
+  },
+  "production_execution": "NOT AUTHORIZED/NOT READY: 0008 dependency decision required; no migration/helper applied"
+}

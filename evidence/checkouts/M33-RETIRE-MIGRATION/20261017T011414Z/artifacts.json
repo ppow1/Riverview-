@@ -1,0 +1,41 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "acceptance.json": {
+      "path": "acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "2b01d350b1c7091b127c24cffd78fe659cdea14d1d19985027d375360539d0c5",
+      "size_bytes": 2087
+    },
+    "focused-postgres-tests.log": {
+      "path": "focused-postgres-tests.log",
+      "revision": "1.0.0",
+      "sha256": "d64dfb808847f50e3fc0feca30f6d55c02eff1e6ca2ff42182453ad3d6907e63",
+      "size_bytes": 10443
+    },
+    "graph-check.json": {
+      "path": "graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "52bd17a971897a643b9725d03cdb40311082880b214561ca992980d814c22b64",
+      "size_bytes": 55
+    },
+    "graph-validation.json": {
+      "path": "graph-validation.json",
+      "revision": "1.0.0",
+      "sha256": "41ad2bbddaa645ddf079f62dbcaecd1d59cd050caa6658366d2639edaf9843d1",
+      "size_bytes": 39
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "source-checksums.txt": {
+      "path": "source-checksums.txt",
+      "revision": "1.0.0",
+      "sha256": "5f2aafa3150db9ad7101c035ada1389a6908e40601eced5ea0ffa129240c4120",
+      "size_bytes": 1016
+    }
+  }
+}

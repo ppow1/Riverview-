@@ -12238,7 +12238,7 @@
     },
     {
       "graph_id": "rv:worker-adapter:registration-retirement",
-      "graph_revision": "1.0.0",
+      "graph_revision": "1.0.3",
       "component_id": "WORKER-ADAPTER",
       "workflow_id": "registration-retirement.v1",
       "diagram_order": 9,
@@ -12247,7 +12247,10 @@
         "src/riverview_core/worker_adapter/retirement.py",
         "src/riverview_core/institutional_authority/migrations/0009_worker_registration_retirement_event.sql",
         "src/riverview_core/institutional_authority/registry.py",
-        "tests/test_worker_registration_retirement.py"
+        "src/riverview_core/institutional_authority/m33_retirement_migration.py",
+        "scripts/apply_m33_retirement_migration.py",
+        "tests/test_worker_registration_retirement.py",
+        "tests/test_m33_retirement_migration.py"
       ],
       "documentation_references": [
         "docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md",
@@ -12263,6 +12266,70 @@
           "label": "Steward-authorized operator requests retirement of the exact revoked M33 run",
           "source_references": [
             "scripts/retire_revoked_m33_worker_registrations.py"
+          ],
+          "documentation_references": [
+            "docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:registration-retirement:immutable-release",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Verify the reviewed source package and stage it as a new immutable release without changing the active core or M33 service pointer",
+          "source_references": [
+            "scripts/build_camrui_package.py",
+            "scripts/verify_camrui_package.py"
+          ],
+          "documentation_references": [
+            "docs/components/RUNTIME_BASELINE.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:worker-adapter:registration-retirement:migration-chain",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Read-only preflight requires exact authority migration checksums 0000 through 0008 and refuses missing or unrelated pending migrations",
+          "source_references": [
+            "src/riverview_core/institutional_authority/m33_retirement_migration.py",
+            "scripts/apply_m33_retirement_migration.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
+            "docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M33-RETIRE-MIGRATION/20261017T004446Z/acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:registration-retirement:apply-migration-0009",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "After protected backup and restore rehearsal, apply only checksum-pinned migration 0009 in one transaction; verify authority data and ACL preservation",
+          "source_references": [
+            "src/riverview_core/institutional_authority/m33_retirement_migration.py",
+            "src/riverview_core/institutional_authority/migrations/0009_worker_registration_retirement_event.sql",
+            "tests/test_m33_retirement_migration.py"
+          ],
+          "documentation_references": [
+            "docs/components/POSTGRES_LEDGER_COOKBOOK.md",
+            "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/M33-RETIRE-MIGRATION/20261017T004446Z/acceptance.json"
+          ]
+        },
+        {
+          "id": "rv:worker-adapter:registration-retirement:manager-update-check",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Verify the existing authority-manager role already has UPDATE on the worker registry; do not grant or substitute roles",
+          "source_references": [
+            "scripts/retire_revoked_m33_worker_registrations.py",
+            "src/riverview_core/worker_adapter/retirement.py"
           ],
           "documentation_references": [
             "docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md"
@@ -12354,8 +12421,42 @@
       "edges": [
         {
           "from": "rv:worker-adapter:registration-retirement:entry",
-          "to": "rv:worker-adapter:registration-retirement:run-state",
+          "to": "rv:worker-adapter:registration-retirement:immutable-release",
           "type": "prerequisite"
+        },
+        {
+          "from": "rv:worker-adapter:registration-retirement:immutable-release",
+          "to": "rv:worker-adapter:registration-retirement:migration-chain",
+          "type": "prerequisite"
+        },
+        {
+          "from": "rv:worker-adapter:registration-retirement:migration-chain",
+          "to": "rv:worker-adapter:registration-retirement:apply-migration-0009",
+          "type": "diagnostic_branch",
+          "label": "0000–0008 chain, checksums, backup and restore rehearsal all verified"
+        },
+        {
+          "from": "rv:worker-adapter:registration-retirement:migration-chain",
+          "to": "rv:worker-adapter:registration-retirement:abort",
+          "type": "diagnostic_branch",
+          "label": "a declared predecessor is missing, checksum differs, or another migration is pending"
+        },
+        {
+          "from": "rv:worker-adapter:registration-retirement:apply-migration-0009",
+          "to": "rv:worker-adapter:registration-retirement:manager-update-check",
+          "type": "prerequisite"
+        },
+        {
+          "from": "rv:worker-adapter:registration-retirement:manager-update-check",
+          "to": "rv:worker-adapter:registration-retirement:run-state",
+          "type": "diagnostic_branch",
+          "label": "migration recorded and existing UPDATE privilege confirmed"
+        },
+        {
+          "from": "rv:worker-adapter:registration-retirement:manager-update-check",
+          "to": "rv:worker-adapter:registration-retirement:abort",
+          "type": "diagnostic_branch",
+          "label": "manager UPDATE privilege missing; do not alter grants or switch roles"
         },
         {
           "from": "rv:worker-adapter:registration-retirement:run-state",
@@ -13373,7 +13474,11 @@
     "rv:worker-adapter:deterministic-attempt:verification-jump",
     "rv:worker-adapter:deterministic-attempt:verified-grounding-resume",
     "rv:worker-adapter:registration-retirement:abort",
+    "rv:worker-adapter:registration-retirement:apply-migration-0009",
     "rv:worker-adapter:registration-retirement:entry",
+    "rv:worker-adapter:registration-retirement:immutable-release",
+    "rv:worker-adapter:registration-retirement:manager-update-check",
+    "rv:worker-adapter:registration-retirement:migration-chain",
     "rv:worker-adapter:registration-retirement:postflight",
     "rv:worker-adapter:registration-retirement:retire-and-audit",
     "rv:worker-adapter:registration-retirement:run-state",

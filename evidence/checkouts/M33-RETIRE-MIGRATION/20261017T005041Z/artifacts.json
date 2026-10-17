@@ -1,0 +1,41 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "acceptance.json": {
+      "path": "acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "fdb3c93ed07b2353b4fc5fcdcabb537c9db18601f36a615cbfc750faafbc8b33",
+      "size_bytes": 1065
+    },
+    "focused-tests.log": {
+      "path": "focused-tests.log",
+      "revision": "1.0.0",
+      "sha256": "be0f55d26981f09b759db22ecc57939dd5098cc25e782d0623dfe53021b6485a",
+      "size_bytes": 2188
+    },
+    "graph-check.json": {
+      "path": "graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "52bd17a971897a643b9725d03cdb40311082880b214561ca992980d814c22b64",
+      "size_bytes": 55
+    },
+    "graph-validation.json": {
+      "path": "graph-validation.json",
+      "revision": "1.0.0",
+      "sha256": "41ad2bbddaa645ddf079f62dbcaecd1d59cd050caa6658366d2639edaf9843d1",
+      "size_bytes": 39
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "source-checksums.txt": {
+      "path": "source-checksums.txt",
+      "revision": "1.0.0",
+      "sha256": "979ea2970ee540bea9f08fa79da01c3cdf3403cf80abe7974c2bd7373048136c",
+      "size_bytes": 692
+    }
+  }
+}

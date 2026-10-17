@@ -1,0 +1,23 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "acceptance.json": {
+      "path": "acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "bc61caf05c8b58cb81fa429282268f700c44afdc25f5ca464064708953e98d2a",
+      "size_bytes": 425
+    },
+    "package-build.log": {
+      "path": "package-build.log",
+      "revision": "1.0.0",
+      "sha256": "f1c55e893c5ce376db25020b41cc68437255cbf0426974665e3fef90345b7ed9",
+      "size_bytes": 135
+    },
+    "package-verification.json": {
+      "path": "package-verification.json",
+      "revision": "1.0.0",
+      "sha256": "14465edbdbecc8c4bb225031d9b4d5813715cba6aa41c10fb012b7f20854d71f",
+      "size_bytes": 2139
+    }
+  }
+}

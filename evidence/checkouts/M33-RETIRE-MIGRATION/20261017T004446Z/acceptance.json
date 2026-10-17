@@ -1,0 +1,41 @@
+{
+  "captured_at_utc": "2026-10-17T00:44:46Z",
+  "cases": [
+    "read-only check; apply; existing authority data, counts, ownership and ACL preservation; idempotence",
+    "missing migration 0008 rejected",
+    "drifted prior checksum rejected",
+    "unrelated 0010 source file rejected",
+    "unrelated applied migration ledger entry rejected"
+  ],
+  "files": {
+    "source-checksums.txt": "0fc58b4089a912c098e8507846287d7acaca474f0a3253161e07cfa26685726a",
+    "verification.log": "b67ee06c2593ae493ce1e239ccaf71ef4781b1be774e7d3d683b4899f0ca8087"
+  },
+  "integration_tests": {
+    "failed": 0,
+    "passed": 5,
+    "result": "PASS",
+    "skipped": 0
+  },
+  "migration_sha256": "0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6",
+  "migration_version": "0009_worker_registration_retirement_event",
+  "process_graph": "PASS; 21 workflows / 524 nodes",
+  "production_ledger_observation_supplied_by_steward": {
+    "applied": "0000-0007",
+    "missing": "0008, 0009"
+  },
+  "production_result": "BLOCKED: 0009 declares 0008 as predecessor; production operations not run",
+  "python_compile": "PASS",
+  "runner": "scripts/apply_m33_retirement_migration.py",
+  "schema": "rv.m33-retirement-migration-verification.v1",
+  "scope": "disposable PostgreSQL 16.15 only; no Camrui connection or production mutation",
+  "source_checksums": [
+    "9c8c95cfc2e998e9a10bbc1eb2af0c7bd30a2efd2147058a30e0527aee2051e9  scripts/retire_revoked_m33_worker_registrations.py",
+    "e815894e0d9a138b45b510be088913f5474606d5cd7cbf927474bf7021c53f83  src/riverview_core/worker_adapter/retirement.py",
+    "0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6  src/riverview_core/institutional_authority/migrations/0009_worker_registration_retirement_event.sql",
+    "e84ce82bdf0e847d203874f8543cdac7d48515fa83dc6efb65cb99b37b974e6c  src/riverview_core/institutional_authority/m33_retirement_migration.py",
+    "cc87ef0e86373b3a1fc655461179994fbf6f94ea486a6e063d2aa7f6d1ba6718  scripts/apply_m33_retirement_migration.py",
+    "eac7f5a9f328a6d36424749b5757542dbea573877eb694a174d35a4b8f8172b2  tests/test_m33_retirement_migration.py"
+  ],
+  "task_id": "RV-M33-RETIRE-MIGRATION-001"
+}
