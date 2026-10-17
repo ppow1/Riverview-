@@ -2,10 +2,11 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_CAMRUI_DEPLOYMENT.md
 Component: COMMS5-CAMRUI-ADAPTER
-File Revision: 1.0.2
+File Revision: 1.0.3
 Status: Deployment and recovery procedure
 Date: 2026-10-16
 History: New file; no predecessor existed.
+Changed: 2026-10-17 UTC | RV-COMMS5-SSH-HOSTKEY-CREDENTIAL-001 | Pass the pinned known-hosts file through systemd credentials for the unprivileged tunnel user.
 -->
 
 # Comms5 Camrui adapter deployment
@@ -29,7 +30,7 @@ The adapter does not listen on a LAN address and does not connect to the databas
 2. Install the protected Camrui credential `/etc/riverview/comms5/backend-auth` with mode `0600`, root ownership. Its value must match only `RIVERVIEW_COMMS5_UPSTREAM_AUTH` already consumed by the Ionoge Comms5 route. It is not an OAuth access token.
 3. Install `riverview-comms5-camrui.service`; validate it using `systemd-analyze verify` before daemon reload/start.
 4. Confirm the service only binds `127.0.0.1:11826`, and verify unauthenticated requests receive 401.
-5. Install the dedicated restricted reverse-tunnel private key as a root-owned source credential at `/etc/riverview/comms5/ionoge-tunnel` and the pinned host-key file at `/etc/riverview/comms5/known_hosts`. The tunnel unit passes the private key using `LoadCredential` into its service credential directory so the `admin1` process never needs traverse access to root-private `/etc/riverview`. Configure the Ionoge `authorized_keys` line for remote listen `127.0.0.1:11826` only. Preserve the existing deployment key and all other authorized keys.
+5. Install the dedicated restricted reverse-tunnel private key as a root-owned source credential at `/etc/riverview/comms5/ionoge-tunnel` and the pinned host-key file at `/etc/riverview/comms5/known_hosts`. The tunnel unit passes both files using `LoadCredential` into its private service credential directory because the `admin1` process cannot traverse root-private `/etc/riverview`. SSH must read the verified host key from `%d/known-hosts` with `StrictHostKeyChecking=yes`. Configure the Ionoge `authorized_keys` line for remote listen `127.0.0.1:11826` only. Preserve the existing deployment key and all other authorized keys.
 6. Start the tunnel service, then test the Ionoge loopback path. Do not expose the service directly.
 7. Install the OAuth service from historical PR #15 at immutable commit `048787f574d42ff073a9f94f571dc79943d60fa4`, using its existing protected login/proxy credentials and dedicated SQLite state. Keep the OAuth service bound to Ionoge loopback `127.0.0.1:11827`.
 8. Replace only the existing Comms5 handler block inside the current Caddy site with `deploy/comms5/caddy-comms5-oauth-block.caddy`. The fragment retains the existing static Steward bearer path and adds OAuth discovery/forward-auth. Keep the existing Comms4 `/mcp` block byte-for-byte unchanged. Validate the full Caddyfile before reloading Caddy.
@@ -52,4 +53,4 @@ Preserve current Caddyfile, systemd units, authorized_keys, release pointer, and
 
 ## Current status
 
-This source document specifies the commissioned implementation. The live services and public route remain unverified until the recorded deployment procedure is executed. See `COMMS5_CAMRUI_MIGRATION.md` for per-tool status.
+This source document specifies the commissioned implementation. The service configuration and public route are not fully commissioned: the adapter and OAuth unit were activated, but the Camrui systemd manager stopped responding during the tunnel activation attempt, so tunnel and Caddy activation remain blocked. Do not report end-to-end connectivity until systemd recovers and the remaining verification gates pass. See `COMMS5_CAMRUI_MIGRATION.md` for per-tool status.
