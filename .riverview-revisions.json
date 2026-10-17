@@ -114,7 +114,7 @@
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
       "revision": "1.0.150",
-      "sha256": "6e157c08a770837355572a14e999af168913bbe37a1a1dc49fd6dd4060b0f233",
+      "sha256": "72aafd180f49fc42ddb52db53ec6996cbef4f8c430de55820ac7041262f91c5a",
       "size_bytes": 583817
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
