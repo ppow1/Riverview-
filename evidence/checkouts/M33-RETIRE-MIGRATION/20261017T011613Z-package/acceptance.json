@@ -1,0 +1,10 @@
+{
+  "source_commit": "7dec8a7ae542dd656e9dd7b34c8929836da7a80b",
+  "archive_file": "/tmp/riverview-m33-retirement-7dec8a7ae542dd656e9dd7b34c8929836da7a80b-verified.tar.gz",
+  "archive_sha256": "412d059c6cb36f0f8ed91e392c053c09778e354442221ab510feb0427c3eb2b3",
+  "package_manifest": "PASS",
+  "shell_compatibility": "PASS",
+  "source_commit_embedded": "PASS",
+  "installation": "NOT PERFORMED",
+  "production": "UNCHANGED"
+}

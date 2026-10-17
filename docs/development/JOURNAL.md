@@ -1,8 +1,9 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.165
+**Document Revision:** 1.0.166
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
+**Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009-PACKAGE | Verify immutable candidate package from the prepared migration-runner commit
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009-ONE-SHOT | Add exact 0008-only preflight/apply mode and record 53 focused disposable PostgreSQL tests
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009 | Record exact effects and disposable 0000–0009 chain verification
 **Changed:** 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001-FINAL-CI | Record passing exact-head controlled CI on corrected migration runner
@@ -2432,3 +2433,6 @@ Operational risk identified for any future execution: 0008 revokes `PUBLIC EXECU
 Prepared a fail-closed 0008-only mode in the existing fixed M33 migration utility, preserving the exact 0009 dependency. `--check-0008`/`--apply-0008` require the complete reviewed 0000–0009 source inventory, exact 0008 and 0009 hashes, exact 0000–0007 checksum ledger, and base event constraint. Apply runs only 0008 in one transaction. It verifies nine new relations and exact seed counts, six new functions, trigger and indexes; requires function search paths and revoked public API execution; rejects unexpected grants to new objects; and confirms all prior relation/function metadata, owners, ACLs and table counts unchanged except the single migration ledger row. Failure rolls back. The following 0009 read-only check is verified to return READY after the isolated 0008 apply.
 
 The complete 0000–0009 chain and the new single-0008 operation passed focused disposable PostgreSQL 16 integration coverage; combined permission-profile, authority, compatibility and worker-retirement suite passed 53/53 with zero skips. Graph check/validation passed at 21 workflows / 524 nodes; controlled revision audit has zero issues; Python compilation and `git diff --check` passed. Evidence: `evidence/checkouts/M33-RETIRE-MIGRATION/20261017T011414Z/`. Cookbook and M33 runbook record migration effects, exact immutable release path, backup/restore gates, ACL compatibility risk, and non-execution status. PR #76 remains open; production deployment, database changes, ACL provisioning, registration retirement and service restarts are not authorized by this preparation directive and were not performed. Before production 0008 execution, explicitly check the live active runtime code and required `evaluate_resident_permission` EXECUTE boundary; the migration revokes PUBLIC execute and grants no runtime role. Missing rights require a separate reviewed authority-change decision.
+
+
+The committed candidate package was built from `7dec8a7ae542dd656e9dd7b34c8929836da7a80b` and passed the existing Camrui package verifier (manifest PASS, source commit match, shell compatibility PASS). The verified archive SHA-256 is `412d059c6cb36f0f8ed91e392c053c09778e354442221ab510feb0427c3eb2b3`; package evidence is `evidence/checkouts/M33-RETIRE-MIGRATION/20261017T011613Z-package/`. It was not transferred or installed. The exact release remains gated on PR integration and explicit production execution authorization; the existing `/opt/riverview-core` pointer remains untouched.

@@ -1,0 +1,64 @@
+{
+  "archive_sha256": "412d059c6cb36f0f8ed91e392c053c09778e354442221ab510feb0427c3eb2b3",
+  "manifest": "PASS",
+  "projection_version": "rv.package-verification.v1",
+  "shell_compatibility": "PASS",
+  "shells": [
+    {
+      "compatible": true,
+      "cr_bytes": 0,
+      "crlf_pairs": 0,
+      "interpreter": "sh",
+      "line_15_hex": "736574202d65750a",
+      "nul_bytes": 0,
+      "path": "deploy/install_baseline.sh",
+      "sha256": "677f18ab4faeb8f24076c8956607ab7fe124fe9c3c5576130bc963429ec01e5b",
+      "utf8_bom": false
+    },
+    {
+      "compatible": true,
+      "cr_bytes": 0,
+      "crlf_pairs": 0,
+      "interpreter": "sh",
+      "line_15_hex": "736574202d65750a",
+      "nul_bytes": 0,
+      "path": "deploy/install_event_processor.sh",
+      "sha256": "c191cf11f400ea4eea1ab44f918b2de6cb4e3bb4fdbadbd8f4ee898c2ad2d1f2",
+      "utf8_bom": false
+    },
+    {
+      "compatible": true,
+      "cr_bytes": 0,
+      "crlf_pairs": 0,
+      "interpreter": "sh",
+      "line_15_hex": "736574202d65750a",
+      "nul_bytes": 0,
+      "path": "deploy/rollback_baseline.sh",
+      "sha256": "6500e6696934bca4c791056047a0b51f14ee79f9373447aecb4437fc7a67ccda",
+      "utf8_bom": false
+    },
+    {
+      "compatible": true,
+      "cr_bytes": 0,
+      "crlf_pairs": 0,
+      "interpreter": "sh",
+      "line_15_hex": "736574202d65750a",
+      "nul_bytes": 0,
+      "path": "deploy/rollback_event_processor.sh",
+      "sha256": "70f32eac3557b7412784d700723d9b217c56422d3c52ec68136ea52a6ef074e4",
+      "utf8_bom": false
+    },
+    {
+      "compatible": true,
+      "cr_bytes": 0,
+      "crlf_pairs": 0,
+      "interpreter": "bash",
+      "line_15_hex": "2320436f6e7472616374733a20646f63732f636f6d706f6e656e74732f47524143455f455845435554494f4e5f504950454c494e452e6d643b2070726f636573735f6772617068732f67726163652f6f7065726174696f6e616c2d696e746567726174696f6e2e6a736f6e0a",
+      "nul_bytes": 0,
+      "path": "scripts/run_supervised_grace_execution.sh",
+      "sha256": "6772128acf1a2f4bf5f807a5539ab24d6a5a905f2077098a0f7ccb2bf5cfbced",
+      "utf8_bom": false
+    }
+  ],
+  "source_commit": "7dec8a7ae542dd656e9dd7b34c8929836da7a80b"
+}
