@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.9
+# Revision: 1.2.0
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -26,6 +26,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-REASONING-BUDGET-001 | Default persistent resident plans to a bounded 768-token completion budget
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Wire the separately scoped source-change capability through the existing leased worker and independent verifier
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Reconcile proposal records when registry migration exists without making it a prerequisite for older deployments
+# Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-INTERNAL-TOOLS-001 | Bind Grace's reasoning router to the existing Comms5 read backend
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_runtime_provider_wiring.py; tests/test_grace_execution.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -71,6 +72,9 @@ from riverview_core.local_reasoning_provider import LocalReasoningProvider
 from riverview_core.resident_execution.model_router import GraceModelRouter
 from riverview_core.resident_execution.conversation import (
     ConversationStore, ResidentConversationService)
+from riverview_core.status_dashboard.projection import DashboardProjection
+from riverview_core.resident_execution.operational_context import GraceOperationalContext
+from riverview_core.resident_execution.internal_tools import GraceInternalTools
 
 
 def resident_reasoning_timeout(environ):
@@ -229,6 +233,13 @@ def main() -> int:
             proposal_lifecycle = ProposalLifecycle(proposal_registry, pipeline)
         reasoning_timeout = resident_reasoning_timeout(os.environ)
         providers, reasoning_model = configured_resident_providers(office)
+        dashboard_projection = DashboardProjection(dsn, schema=schema,
+            source_commit=commit, deployment_id=os.environ.get(
+                "RIVERVIEW_DEPLOYMENT_ID", "grace-runtime"))
+        internal_tools = GraceInternalTools()
+        for configured_provider in providers.values():
+            if isinstance(configured_provider, GraceModelRouter):
+                configured_provider.internal_tools = internal_tools
         resident_reasoner = ResidentReasoner(
             registry=authority_registry, office_id=office_id,
             resident_credential=resident_token, assignments=ObjectiveContextReader(pipeline),
@@ -239,7 +250,8 @@ def main() -> int:
             store=conversation_store, registry=authority_registry,
             authorizer=authorizer, office_id=office_id,
             resident_credential=resident_token, providers=providers,
-            max_response_tokens=resident_result_review_tokens(os.environ))
+            max_response_tokens=resident_result_review_tokens(os.environ),
+            operational_context=GraceOperationalContext(dashboard_projection))
         conversation_service.continuation_handler = lambda context, step: pipeline.propose_continuation(
             context["objective_id"], context["assignment_id"], step,
             actor_id="office:" + office_id)

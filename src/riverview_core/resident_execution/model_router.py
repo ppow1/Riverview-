@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.2.1
+# Revision: 1.2.3
+# Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Require tool-backed current-status answers.
 # Purpose: Prefer 80B for substantive turns, bound context and autonomic acknowledgments, and persist diagnostics
 # Execution Model: Request-driven; persisted deferred turns are resumed by the conversation owner
 # Observability: Selected stage and served model are returned as completion provenance
@@ -18,6 +19,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-CHAT-CONTEXT-BOUND-001 | Preserve required system context and latest user turn within provider message limits
 # Changed: 2026-10-15 UTC | RV-GRACE-AUTONOMIC-CONTEXT-BOUND-001 | Keep 0.6B acknowledgment prompts minimal while retaining full institutional context for substantive stages
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Route validated text deltas through the same capability and fallback policy
+# Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-INTERNAL-TOOLS-001 | Execute one bounded internal read tool and consume its structured result
 # =============================================================================
 """Small readiness-aware router for Grace's three existing model resources."""
 
@@ -90,9 +92,10 @@ class GraceModelRouter:
         "configured_model_missing", "provider_slot_occupied",
         "endpoint_http_503", "endpoint_http_502", "endpoint_http_504"})
 
-    def __init__(self, *, autonomic, vision, reasoning):
+    def __init__(self, *, autonomic, vision, reasoning, internal_tools=None):
         self.providers = {"autonomic": autonomic, "vision": vision,
                           "reasoning": reasoning}
+        self.internal_tools = internal_tools
         if any(provider is None for provider in self.providers.values()):
             raise ValueError("all three Grace reasoning providers must be configured")
         self.model = "grace-readiness-router"
@@ -190,8 +193,31 @@ class GraceModelRouter:
             raise
         system = self.STAGE_INSTRUCTIONS[stage]
         stage_max_tokens = self._stage_token_limit(stage, max_tokens)
+        provider_context = self._bound_provider_context(messages, stage=stage)
+        if stage == "reasoning" and self.internal_tools is not None:
+            while len(provider_context) > 13:
+                newest_user = max((i for i, item in enumerate(provider_context)
+                                   if item.get("role") == "user"), default=-1)
+                removable = next((i for i, item in enumerate(provider_context)
+                                  if item.get("role") != "system" and i != newest_user), None)
+                if removable is None:
+                    break
+                provider_context.pop(removable)
         routed = [{"role": "system", "content": system},
-                  *self._bound_provider_context(messages, stage=stage)]
+                  *provider_context]
+        if stage == "reasoning" and self.internal_tools is not None:
+            catalog = json.dumps(self.internal_tools.catalog(), sort_keys=True,
+                                 separators=(",", ":"), ensure_ascii=False)
+            routed[0]["content"] += "\n\n" + (
+                "For any user request that asks for current Riverview status, records, "
+                "inventory, or recent operations covered by an available tool, you MUST "
+                "call the matching tool before answering. Do not answer from memory or "
+                "from operational context when a tool covers the request. Emit exactly "
+                "<rv-tool-call>{\"name\":\"...\",\"arguments\":{...}}</rv-tool-call> "
+                "as your entire first response. The tool result will be supplied for you "
+                "to consume in a follow-up. Available internal tools: " + catalog + ". "
+                "Do not invent tool names or arguments, and do not provide a status answer "
+                "until the matching tool result is available.")
         attempts = []
         try:
             started_at = datetime.now(UTC)
@@ -259,8 +285,51 @@ class GraceModelRouter:
                 stage != "reasoning" or completion.provisional):
             raise LocalReasoningUnavailable("required_capability_not_satisfied",
                                             attempts=attempts)
+        tool_results = ()
+        if stage == "reasoning" and self.internal_tools is not None:
+            call = self._internal_tool_call(completion.content)
+            if call is not None:
+                tool_name, arguments = call
+                tool_result = self.internal_tools.call(tool_name, arguments)
+                tool_results = (tool_result,)
+                followup = [*routed,
+                    {"role": "assistant", "content": completion.content},
+                    {"role": "user", "content": "Internal tool result (JSON data): " +
+                     json.dumps(tool_result, sort_keys=True,
+                                separators=(",", ":"), ensure_ascii=False)},
+                    {"role": "system", "content": (
+                        "Use the structured tool result as evidence for the user's question. "
+                        "Describe errors clearly. Do not claim a successful action. "
+                        "Do not request or emit another tool call.")}]
+                final = provider.complete_chat(followup,
+                    max_tokens=self._stage_token_limit(stage, max_tokens),
+                    expected_revision=provider.model_sha256,
+                    timeout_seconds=self.TIMEOUTS[stage])
+                if self._internal_tool_call(final.content) is not None:
+                    final = replace(final, content=(
+                        "I could not complete the requested internal lookup because the "
+                        "response requested an additional tool call."))
+                completion = final
         return replace(completion, reasoning_stage=stage,
-                       provisional=(stage != "reasoning"), provider_attempts=tuple(attempts))
+                       provisional=(stage != "reasoning"), provider_attempts=tuple(attempts),
+                       internal_tool_results=tool_results)
+
+    @staticmethod
+    def _internal_tool_call(content):
+        """Accept exactly one explicit, bounded model-originated tool directive."""
+        match = re.fullmatch(r"\s*<rv-tool-call>(\{.{1,2048}\})</rv-tool-call>\s*",
+                             content or "", flags=re.DOTALL)
+        if match is None:
+            return None
+        try:
+            value = json.loads(match.group(1))
+        except (TypeError, json.JSONDecodeError):
+            return None
+        if (not isinstance(value, dict) or set(value) != {"name", "arguments"}
+                or not isinstance(value["name"], str)
+                or not isinstance(value["arguments"], dict)):
+            return None
+        return value["name"], value["arguments"]
 
     def stream_chat(self, messages, *, max_tokens, expected_revision, on_delta,
                     on_reset=lambda: None, timeout_seconds=120,

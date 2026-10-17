@@ -2578,7 +2578,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.46",
+      "graph_revision": "1.0.48",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -2615,7 +2615,10 @@
         "tests/test_grace_engineering_demo_provisioning.py",
         "src/riverview_core/resident_execution/codex_source_change.py",
         "src/riverview_core/resident_execution/migrations/0009_durable_objective_steps.sql",
-        "tests/test_codex_source_change.py"
+        "tests/test_codex_source_change.py",
+        "src/riverview_core/comms5/server.py",
+        "src/riverview_core/comms5/dashboard_backend.py",
+        "deploy/systemd/riverview-grace-execution.service"
       ],
       "documentation_references": [
         "docs/ROADMAP.md",
@@ -2636,7 +2639,8 @@
         "tests/test_resident_model_router.py",
         "tests/test_supervised_codex_dispatch.py",
         "tests/test_grace_engineering_demo_provisioning.py",
-        "tests/test_codex_source_change.py"
+        "tests/test_codex_source_change.py",
+        "tests/test_grace_internal_tools.py"
       ],
       "nodes": [
         {
@@ -3600,6 +3604,43 @@
             "tests/test_resident_conversation.py",
             "tests/test_grace_execution.py"
           ]
+        },
+        {
+          "id": "rv:grace:operational-integration:internal-tool-call",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "IMPLEMENTED — Grace 80B may emit one strict bounded read-tool request; Comms5Application dispatches it through the existing dashboard backend, preserving published schemas, validation, and result shaping",
+          "source_references": [
+            "src/riverview_core/resident_execution/model_router.py",
+            "src/riverview_core/resident_execution/internal_tools.py",
+            "src/riverview_core/comms5/server.py",
+            "src/riverview_core/comms5/dashboard_backend.py",
+            "deploy/systemd/riverview-grace-execution.service",
+            "deploy/systemd/riverview-grace-execution-owner-session.service"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md",
+            "docs/components/STATUS_DASHBOARD.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_internal_tools.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:internal-tool-consume",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "IMPLEMENTED — Grace receives the structured tool result in a bounded follow-up completion; the result is persisted with the assistant conversation event; malformed or failed calls return sanitized errors",
+          "source_references": [
+            "src/riverview_core/resident_execution/model_router.py",
+            "src/riverview_core/resident_execution/conversation.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_internal_tools.py"
+          ]
         }
       ],
       "edges": [
@@ -4096,6 +4137,24 @@
           "to": "rv:grace:operational-integration:verified-result-review-decision",
           "type": "recovery_route",
           "label": "Retry the same completion cycle idempotently after dependencies recover."
+        },
+        {
+          "from": "rv:grace:operational-integration:internal-tool-call",
+          "to": "rv:grace:operational-integration:internal-tool-consume",
+          "type": "runtime_transition",
+          "label": "Dispatch one registered read operation, return its structured result to Grace, and persist that result with the completed conversation turn"
+        },
+        {
+          "from": "rv:grace:operational-integration:internal-tool-call",
+          "to": "rv:grace:operational-integration:internal-tool-consume",
+          "type": "diagnostic_branch",
+          "label": "Unknown operation, invalid arguments, or projection failure returns a sanitized structured error for Grace to report"
+        },
+        {
+          "from": "rv:grace:operational-integration:internal-tool-consume",
+          "to": "rv:grace:operational-integration:internal-tool-call",
+          "type": "recovery_route",
+          "label": "A later lookup is a new model-originated request and is independently schema-validated"
         }
       ]
     },
@@ -13610,6 +13669,8 @@
     "rv:grace:operational-integration:evidence-review",
     "rv:grace:operational-integration:governed-objective-api",
     "rv:grace:operational-integration:independent-artifact-check",
+    "rv:grace:operational-integration:internal-tool-call",
+    "rv:grace:operational-integration:internal-tool-consume",
     "rv:grace:operational-integration:objective-check",
     "rv:grace:operational-integration:objective-complete",
     "rv:grace:operational-integration:objective-intake",
