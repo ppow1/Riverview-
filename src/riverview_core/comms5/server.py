@@ -64,7 +64,7 @@ class Comms5Application:
     """Transport-neutral MCP request handler used by HTTP and isolated tests."""
 
     def __init__(self, backend_token: str, *, protocol_versions: tuple[str, ...] = (
-        "2025-03-26", "2025-06-18", "2024-11-05"
+        "2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"
     )) -> None:
         if not backend_token or len(backend_token) < 32:
             raise ValueError("comms5_backend_token_invalid")
@@ -181,8 +181,20 @@ def create_handler(app: Comms5Application) -> type[BaseHTTPRequestHandler]:
                 self.wfile.write(body)
 
         def do_GET(self) -> None:
-            if urlsplit(self.path).path == "/healthz":
+            path = urlsplit(self.path).path
+            if path == "/healthz":
                 self._send(200, {"status": "ok", "service": "riverview-comms5-camrui"})
+            elif path == "/mcp":
+                if not app.authenticated(self.headers):
+                    self.send_response(401)
+                    self.send_header("WWW-Authenticate", 'Bearer realm="Riverview Comms5"')
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                else:
+                    self.send_response(405)
+                    self.send_header("Allow", "POST, OPTIONS")
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
             else:
                 self._send(404, {"error": "not_found"})
 
@@ -235,6 +247,12 @@ def create_handler(app: Comms5Application) -> type[BaseHTTPRequestHandler]:
         def do_OPTIONS(self) -> None:
             self.send_response(204)
             self.send_header("Allow", "GET, POST, OPTIONS")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def do_DELETE(self) -> None:
+            self.send_response(405)
+            self.send_header("Allow", "POST, OPTIONS")
             self.send_header("Content-Length", "0")
             self.end_headers()
 

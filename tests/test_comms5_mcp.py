@@ -76,6 +76,8 @@ def test_schema_validation_rejects_extra_and_missing_arguments():
 
 def test_initialization_versions_and_notifications():
     application = app()
+    current = application.handle(rpc("initialize", {"protocolVersion": "2025-11-25"}))
+    assert current["result"]["protocolVersion"] == "2025-11-25"
     init = application.handle(rpc("initialize", {"protocolVersion": "2025-03-26"}))
     assert init["result"]["serverInfo"]["name"] == "Riverview Comms5"
     assert application.handle(rpc("initialize", {"protocolVersion": "2099-01-01"}))["error"]["code"] == -32602
