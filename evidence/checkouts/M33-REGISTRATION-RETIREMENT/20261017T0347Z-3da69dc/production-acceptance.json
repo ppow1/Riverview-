@@ -1,0 +1,137 @@
+{
+  "task_id": "M33-REGISTRATION-RETIREMENT-AUTHORIZED",
+  "observed_at_utc": "2026-10-17T03:47:00Z",
+  "database": "riverview",
+  "source_head_at_documentation": "3da69dc7bffd68d5d0f8fe80928bc5cee9edf81b",
+  "helper_release": "/opt/riverview/releases/bac5495c4b7d61fd250d88f6af4beead3c79ccfb",
+  "helper_source_commit": "bac5495c4b7d61fd250d88f6af4beead3c79ccfb",
+  "helper_sha256": "9c8c95cfc2e998e9a10bbc1eb2af0c7bd30a2efd2147058a30e0527aee2051e9",
+  "retirement_module_sha256": "cc10025473cee8bd2e2f49b86bc8b913767f611ca2a108767234bb6a2395012f",
+  "authorization_scope": {
+    "commissioning_run_id": "e92ec51590b34cd3b04d05c000f3eab4",
+    "registration_ids": [
+      "worker:m33:executor:e92ec51590b34cd3",
+      "worker:m33:verifier:e92ec51590b34cd3"
+    ]
+  },
+  "temporary_permissions": {
+    "role": "riverview_authority_manager",
+    "schema_usage": [
+      "riverview_dev"
+    ],
+    "column_select": {
+      "riverview_dev.worker_registry": [
+        "worker_id",
+        "active",
+        "scope_ref"
+      ],
+      "riverview_dev.assignments": [
+        "authority_ref",
+        "state"
+      ],
+      "riverview_dev.assignment_leases": [
+        "worker_id",
+        "expires_at"
+      ]
+    },
+    "table_update": [
+      "riverview_dev.worker_registry"
+    ],
+    "row_security": {
+      "enabled_temporarily": [
+        "riverview_dev.worker_registry",
+        "riverview_dev.assignments",
+        "riverview_dev.assignment_leases"
+      ],
+      "not_forced": true,
+      "registry_update_policy_ids": [
+        "worker:m33:executor:e92ec51590b34cd3",
+        "worker:m33:verifier:e92ec51590b34cd3"
+      ],
+      "assignment_read_scope": "work-order:m33-live-e92ec51590b34cd3",
+      "lease_read_ids": [
+        "worker:m33:executor:e92ec51590b34cd3",
+        "worker:m33:verifier:e92ec51590b34cd3"
+      ]
+    },
+    "cleanup": "All four temporary policies dropped; row security disabled on the three tables; all temporary grants revoked; manager schema USAGE revoked. Verified no residual schema USAGE, table UPDATE, temporary policies, or RLS enablement.",
+    "manager_role_boundary": "Non-superuser, no CREATEROLE/CREATEDB/BYPASSRLS, NOINHERIT, no role memberships or core membership; no privilege escalation used."
+  },
+  "helper_result": {
+    "status": "RETIRED",
+    "exit_code": 0,
+    "retired_worker_ids": [
+      "worker:m33:executor:e92ec51590b34cd3",
+      "worker:m33:verifier:e92ec51590b34cd3"
+    ],
+    "remaining_active_worker_ids": [
+      "verifier:grace-engineering",
+      "worker:grace-engineering",
+      "worker:grace-engineering-source-change"
+    ],
+    "run_id": "e92ec51590b34cd3b04d05c000f3eab4"
+  },
+  "database_postflight": {
+    "registry_rows_total": 7,
+    "active_rows_total": 3,
+    "active_grace_ids": [
+      "verifier:grace-engineering",
+      "worker:grace-engineering",
+      "worker:grace-engineering-source-change"
+    ],
+    "m33_ids_inactive": true,
+    "m31_historical_rows_preserved_inactive": true,
+    "retirement_audit_events": [
+      {
+        "event_id": "8d4b092a-1863-4e19-acb5-269d60f160aa",
+        "event_type": "worker_registration_retired",
+        "actor_id": "steward:camrui",
+        "worker_id": "worker:m33:executor:e92ec51590b34cd3",
+        "recorded_at": "2026-10-16T23:46:08.957787-04:00"
+      },
+      {
+        "event_id": "4bce91d8-3dc5-4079-b0c4-df00b20ff2ef",
+        "event_type": "worker_registration_retired",
+        "actor_id": "steward:camrui",
+        "worker_id": "worker:m33:verifier:e92ec51590b34cd3",
+        "recorded_at": "2026-10-16T23:46:08.961644-04:00"
+      }
+    ],
+    "active_m33_leases": 0,
+    "executable_m33_assignments": 0,
+    "migration_ledger_changed": false,
+    "historical_m31_ids_inactive": [
+      "verifier:m31-commission:c65a654212364199a0b688d2b344b792",
+      "worker:m31-commission:2edf57119eef44fb8fa6f014cb4fca16"
+    ],
+    "migration_ledger": {
+      "rows": 10,
+      "versions": "0000\u20130009",
+      "0008_checksum": "570c7aeb16fca04c64c4e010f1534d0efebe92628ddacd8f05f6eb1eda12d339",
+      "0009_checksum": "0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6",
+      "unchanged_by_retirement": true
+    }
+  },
+  "services": {
+    "riverview-grace-cpu-inference.service": "active/running",
+    "riverview-grace-execution-owner-session.service": "active/running",
+    "riverview-cme-monitor.service": "active/running",
+    "riverview-status-dashboard.service": "active/running",
+    "riverview-event-processor.service": "active/running",
+    "riverview-notification-dispatcher.service": "active/running",
+    "riverview-assignment-intake.service": "inactive/dead; MainPID=0",
+    "riverview-m33-worker.service": "inactive/dead; MainPID=0",
+    "riverview-m33-verifier.service": "inactive/dead; MainPID=0"
+  },
+  "dashboard_tls_check": {
+    "url": "https://192.168.1.155/",
+    "http_status": 200,
+    "certificate_validation": "PASS using system CA bundle"
+  },
+  "backup_reused": {
+    "path": "/var/lib/postgresql/riverview-backup.m33-retire._mgw_b_2",
+    "archive_sha256": "f50f82fc72d3e3f482fb9004cbc0e8cb73c9d2b8ad11cee8077643d7e8cbc29e",
+    "verification": "Prior protected backup and snapshot-consistent disposable restore closeout PASS; captured after migrations 0008/0009 and before this retirement. No backup was removed or overwritten."
+  },
+  "result": "PASS"
+}
