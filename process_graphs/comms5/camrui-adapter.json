@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:comms5:camrui-adapter",
-  "graph_revision": "1.0.1",
+  "graph_revision": "1.0.4",
   "component_id": "COMMS5-CAMRUI-ADAPTER",
   "workflow_id": "comms5.camrui.compatibility.v1",
   "diagram_order": 91,
@@ -14,25 +14,30 @@
   ],
   "documentation_references": [
     "docs/components/COMMS5_CAMRUI_DEPLOYMENT.md",
-    "docs/components/COMMS5_CAMRUI_MIGRATION.md"
+    "docs/components/COMMS5_CAMRUI_MIGRATION.md",
+    "docs/components/COMMS5_OAUTH_TROUBLESHOOTING.md",
+    "docs/operations/RIVERVIEW_MACHINE_CONNECTIONS_AND_COMMS5_RECOVERY_2026-10-17.md"
   ],
   "verification_evidence": [
-    "tests/test_comms5_mcp.py"
+    "tests/test_comms5_mcp.py",
+    "tests/test_comms5_deployment.py"
   ],
   "nodes": [
     {
       "id": "rv:comms5:camrui-adapter:authenticated-ingress",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "entry",
-      "label": "Caddy OAuth validation injects the authenticated Steward hop identity",
+      "label": "Caddy validates OAuth or legacy authentication; OAuth principal is copied and the backend hop marker is set",
       "source_references": [
-        "deploy/systemd/riverview-comms5-camrui.service"
+        "deploy/comms5/caddy-comms5-oauth-block.caddy",
+        "deploy/systemd/riverview-comms5-oauth.service"
       ],
       "documentation_references": [
         "docs/components/COMMS5_CAMRUI_DEPLOYMENT.md"
       ],
       "verification_evidence": [
-        "tests/test_comms5_mcp.py"
+        "tests/test_comms5_deployment.py",
+        "docs/components/COMMS5_OAUTH_TROUBLESHOOTING.md"
       ]
     },
     {
