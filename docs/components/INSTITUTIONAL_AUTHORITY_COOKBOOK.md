@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.23
+File Revision: 1.0.24
 Purpose: Diagnose and safely recover institutional authority registry state
 Authority: Read-only diagnostics first; grant changes require authenticated Steward
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Keep evidence references as readable paths in safe dashboard renderer
@@ -24,6 +24,7 @@ Changed: 2026-10-11 UTC | RV-M3.3-ASSIGNMENT-INTAKE-COOKBOOK-LINK-FIX | Keep evi
 Changed: 2026-10-11 UTC | RV-M3.3-ASSIGNMENT-INTAKE-COOKBOOK | Record isolated exact assignment.create path and explicit live-route boundary
 Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-RECORDS | Record the post-bootstrap live migration baseline and isolated grant-check result
 Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Add profile migration/read-only diagnostics and fail-closed troubleshooting
+Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Document the single-migration runner, exact release layout, backup gate, and missing-0008 stop condition
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional authority registry cookbook
@@ -143,6 +144,116 @@ current office binding/state revisions, append-only event continuity, and the
 separate component service health. Resume only the denied action after a fresh
 `authorize()` check; a previous successful decision is not reused after a
 binding or grant change.
+
+## M33 retirement event migration 0009 (fixed scope)
+
+Camrui's active core path is `/opt/riverview-core`, a symlink directly to
+`/opt/riverview/releases/<source-commit>`; there is no `/opt/riverview-core/current`.
+Keep that active pointer and the separate `/opt/riverview-m33/current` pointer
+unchanged for the one-shot registration retirement. Install the approved
+committed package as a new root-owned directory under `/opt/riverview/releases/`
+using the immutable package procedure in `RUNTIME_BASELINE.md`; retain the old
+release and invoke the tools by their versioned release path. Reuse the existing
+interpreter `/opt/riverview-core/.venv/bin/python`. Do not run
+`deploy/install_baseline.sh`: it changes the baseline unit and starts a service.
+
+Migration `0009_worker_registration_retirement_event.sql` is checksum-pinned
+to `0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6` and its
+source declares dependencies `0001` through `0008`. The production runner
+`scripts/apply_m33_retirement_migration.py` is deliberately narrower than the
+generic migration sweep. It accepts no caller-selected database or schema,
+verifies exactly the source inventory and checksums for migrations `0000`–`0008`,
+requires the authority ledger to contain that exact ordered predecessor chain,
+and refuses missing, drifted, already-unexplained, or later migration rows. It
+applies only 0009 in one transaction. Before and after, it compares all
+authority schema/relation ownership and ACLs plus every authority table row
+count; the sole allowed data-count delta is the single migration-ledger row.
+The SQL itself only expands the authority-event `event_type` check constraint;
+it creates no role, grant, table, or worker registration change.
+
+Before an authorized shared-database apply, follow the PostgreSQL ledger
+cookbook: verify target identity and migration source hashes, create a new
+protected full custom-format backup outside the repository, verify its digest
+and `pg_restore --list`, restore it to a unique disposable database, and compare
+authority/Core counts and ACLs. Do not overwrite or remove prior backups. The
+exact code check/apply commands from a versioned release are:
+
+```sh
+sudo -n -u postgres env PYTHONPATH=/opt/riverview/releases/<approved-commit>/src \
+  /opt/riverview-core/.venv/bin/python \
+  /opt/riverview/releases/<approved-commit>/scripts/apply_m33_retirement_migration.py --check
+sudo -n -u postgres env PYTHONPATH=/opt/riverview/releases/<approved-commit>/src \
+  /opt/riverview-core/.venv/bin/python \
+  /opt/riverview/releases/<approved-commit>/scripts/apply_m33_retirement_migration.py --apply
+```
+
+`--check` is read-only. `--apply` requires OS user `postgres`, local peer access
+to only database `riverview`, fixed schema `riverview_authority`, the exact
+reviewed SQL checksum, the exact prior ledger, and no unrelated migration
+files. The runbook's current production ledger observation is `0000`–`0007`;
+because 0009 declares 0008 as a predecessor, the expected result is a
+fail-closed `prior_migrations_missing_or_unrelated_pending`. Migration 0008
+adds the resident-permission-profile subsystem, which is not needed for worker
+retirement; do not apply it implicitly or run a general migration loop. A
+Steward must separately decide whether to authorize that prerequisite or
+commission a reviewed migration design with an accurate dependency chain.
+Until then, do not apply 0009 and do not run the retirement helper.
+
+For the one-shot utility package, build only from a clean, reviewed, committed
+checkout with the existing package builder and verifier. Transfer the archive
+through the established Windows `camrui` SSH alias. On Camrui, verify the
+archive hash and package checksum manifest, then extract to a previously
+nonexistent `/opt/riverview/releases/<commit>` directory, owned by root and
+read-only to service accounts. Retain `/opt/riverview-core` at its existing
+direct symlink target and leave `/opt/riverview-m33/current` and all service
+units unchanged. Invoke the candidate's scripts by that exact versioned path;
+use the existing interpreter at `/opt/riverview-core/.venv/bin/python`. This
+installs the one-shot tool without activating new code for any running service.
+
+The controlled Windows packaging commands are:
+
+```powershell
+$commit = (git rev-parse HEAD).Trim()
+$archivePath = Join-Path $env:TEMP ("riverview-m33-retirement-" + $commit + ".tar.gz")
+python scripts/build_camrui_package.py $archivePath
+python scripts/verify_camrui_package.py $archivePath
+scp $archivePath ("camrui:/var/tmp/riverview-m33-retirement-" + $commit + ".tar.gz")
+```
+
+After the local verifier reports the intended committed source and the archive
+SHA-256 has been recorded, the authorized Camrui operator installs into a fresh
+versioned directory as follows. Substitute only the verified full commit and
+archive digest; do not change `current` or `/opt/riverview-core`:
+
+```sh
+commit=<verified-40-character-commit>
+archive="/var/tmp/riverview-m33-retirement-${commit}.tar.gz"
+release="/opt/riverview/releases/${commit}"
+expected_sha256=<verified-archive-sha256>
+test "$(sudo -n sha256sum "$archive" | cut -d' ' -f1)" = "$expected_sha256"
+sudo -n test ! -e "$release"
+sudo -n install -d -o root -g root -m 0755 /opt/riverview/releases
+stage=$(sudo -n mktemp -d /opt/riverview/releases/.m33-retirement-XXXXXXXX)
+sudo -n tar -xzf "$archive" --no-same-owner --no-same-permissions -C "$stage"
+sudo -n chown -R root:root "$stage"
+sudo -n chmod -R a+rX "$stage"
+sudo -n chmod -R go-w "$stage"
+sudo -n sh -c "cd '$stage' && sha256sum --check --strict PACKAGE_SHA256SUMS"
+test "$(sudo -n cat "$stage/SOURCE_COMMIT")" = "$commit"
+sudo -n mv "$stage" "$release"
+```
+
+The package and new release remain available for audit; the existing immutable
+release and active symlink remain unchanged. If any check fails, do not rename
+the staging directory into a release and do not run a candidate script.
+
+The confirmed production ledger is 0000–0007, so stop at read-only `--check`.
+Production apply and retirement are not authorized by this procedure until
+migration 0008's prerequisite is separately resolved. If a future live check
+confirms the exact 0000–0008 chain and checksums, first complete the protected
+backup/restore rehearsal and manager privilege precheck, then run `--apply` for
+0009 only. Repeat `--check` for `ALREADY_APPLIED` and verify the ledger checksum
+before invoking the retirement helper.
 
 
 ## Database privilege boundary preflight

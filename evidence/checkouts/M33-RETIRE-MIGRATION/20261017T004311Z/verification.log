@@ -1,0 +1,12 @@
+command=pg_virtualenv -t bash -c createdb riverview && PYTHONPATH=src RIVERVIEW_TEST_PG_DSN=dbname=riverview python3 -m unittest tests.test_m33_retirement_migration -v
+Creating new PostgreSQL cluster 16/regress ...
+test_check_is_read_only_and_apply_changes_only_constraint_and_ledger (tests.test_m33_retirement_migration.M33RetirementMigrationTests.test_check_is_read_only_and_apply_changes_only_constraint_and_ledger) ... ok
+test_refuses_missing_or_drifted_prior_migration (tests.test_m33_retirement_migration.M33RetirementMigrationTests.test_refuses_missing_or_drifted_prior_migration) ... ok
+test_refuses_unrelated_migration_file (tests.test_m33_retirement_migration.M33RetirementMigrationTests.test_refuses_unrelated_migration_file) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 2.113s
+
+OK
+Dropping cluster 16/regress ...
+test_exit=0

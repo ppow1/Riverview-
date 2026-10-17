@@ -2,12 +2,13 @@
 Riverview~ Controlled Document
 File: docs/development/M33-WORKER-REGISTRATION-RETIREMENT-20261016.md
 Component: WORKER-ADAPTER / INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.2
+File Revision: 1.0.3
 Purpose: Specify safe retirement of the two registrations for revoked M33 commissioning run e92ec515
 Authority: Steward-authorized fixed-ID operation; production execution remains pending controlled release and live preflight
 Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Document retirement controls, audit, recovery boundary, and operator procedure
 Changed: 2026-10-17 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Add exact read-only postflight and match systemd preflight states
 Changed: 2026-10-17 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Link the finalized controlled verification evidence
+Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Correct immutable release path and document the 0008 prerequisite blocker
 History: Git and evidence/checkouts/WORKER-REGISTRY-RETIREMENT/20261017T000450Z-e494478/
 -->
 # M33 worker registration retirement
@@ -54,14 +55,28 @@ Any mismatch aborts the transaction. The exact active-worker postcondition is th
 
 ## Controlled operator procedure
 
-Run from an integrated Camrui release after review and exact-head CI. First follow `docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md` to verify the migration source checksum, migration prerequisites, backup, and migration procedure. Apply only the reviewed authority migration 0009; do not run website or worker migrations. Confirm the recorded 0009 checksum matches the released file.
+Camrui's actual active core path is `/opt/riverview-core`, a symlink directly to `/opt/riverview/releases/<40-character-source-commit>`; it has no `current` child. The M33 services use the separate `/opt/riverview-m33/current` package and must not be switched for this one-shot retirement utility. Install the reviewed package as a new, root-owned immutable directory under `/opt/riverview/releases/<commit>`, preserving the existing release. The controlled operator command must invoke files from that exact versioned directory, using the established Python environment at `/opt/riverview-core/.venv/bin/python`; it need not change either release pointer or restart any service.
 
-The Steward or authorized Camrui operator then runs:
+The exact source hashes are: retirement command `scripts/retire_revoked_m33_worker_registrations.py` `9c8c95cfc2e998e9a10bbc1eb2af0c7bd30a2efd2147058a30e0527aee2051e9`; retirement module `src/riverview_core/worker_adapter/retirement.py` `e815894e0d9a138b45b510be088913f5474606d5cd7cbf927474bf7021c53f83`; migration `0009_worker_registration_retirement_event.sql` `0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6`.
+
+Migration 0009's reviewed header declares migrations 0001–0008 as dependencies. Camrui's confirmed authority ledger currently contains only 0000–0007. Migration 0008 (`0008_resident_permission_profiles.sql`) is therefore a required missing predecessor under the declared chain, even though it adds resident permission-profile tables unrelated to worker retirement. Do not apply 0009 alone, do not run a migration sweep, and do not apply 0008 as an incidental prerequisite. The fixed runner `scripts/apply_m33_retirement_migration.py` verifies the exact files, the entire 0000–0008 ledger/checksum chain, and rejects missing, drifted, or additional migration entries before 0009. Its deployment and check can be prepared, but its production `--check` must fail closed on the confirmed current ledger. A separate Steward decision is required either to authorize the specific 0008 dependency or to commission a reviewed migration design that removes the unnecessary dependency without rewriting the immutable 0009 migration.
+
+Build and verify the exact committed package with the controlled package builder and verifier. Install it into a new root-owned `/opt/riverview/releases/<commit>` directory without changing either `/opt/riverview-core` or `/opt/riverview-m33/current`; never overwrite `/opt/riverview/releases/64e8f14ad6d71102a864755739a1c8a61506235c`. Use the existing `/opt/riverview-core/.venv/bin/python` to run the candidate release's fixed migration preflight:
 
 ```sh
-sudo -n env PYTHONPATH=/opt/riverview-core/current/src \
+sudo -n -u postgres env PYTHONPATH=/opt/riverview/releases/<approved-commit>/src \
   /opt/riverview-core/.venv/bin/python \
-  /opt/riverview-core/current/scripts/retire_revoked_m33_worker_registrations.py --apply
+  /opt/riverview/releases/<approved-commit>/scripts/apply_m33_retirement_migration.py --check
+```
+
+Only if it reports `READY` may the authorized operator repeat it with `--apply`. The current confirmed 0000–0007 ledger cannot pass: the reviewed 0009 migration declares 0008 as a required predecessor. Do not apply 0009 alone, run a general migration sweep, or install 0008 incidentally. 0008 adds resident permission profile/catalog tables and seeded policy rows. The remaining action is a separate Steward decision to authorize that migration or a separately reviewed correction to the dependency design. Until resolved, do not run the retirement helper.
+
+After that dependency is resolved and every migration check passes, the Steward or authorized Camrui operator runs:
+
+```sh
+sudo -n env PYTHONPATH=/opt/riverview/releases/<approved-commit>/src:/opt/riverview/releases/<approved-commit>/scripts \
+  /opt/riverview-core/.venv/bin/python \
+  /opt/riverview/releases/<approved-commit>/scripts/retire_revoked_m33_worker_registrations.py --apply
 ```
 
 The helper prints only redacted JSON: status, exact retired IDs, fixed run ID, remaining three Grace IDs, and verified stopped-unit states. It never prints the Steward token, credential digests, or database password. Do not retry an ambiguous response until the authority events, active flags, and assignment/lease postconditions are queried read-only.

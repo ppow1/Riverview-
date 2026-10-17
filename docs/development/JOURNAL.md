@@ -1,8 +1,9 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.159
+**Document Revision:** 1.0.161
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
+**Changed:** 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Record fixed 0009 migration runner verification, actual release path correction, and 0008 production prerequisite blocker
 **Changed:** 2026-10-16 UTC | RV-M33-DECOMMISSION-001 | Record exact-run M33 decommission and preserve production acceptance evidence
 **Changed:** 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Record guarded M33 registration retirement, integration reconciliation, verification, and production execution boundary
 **Changed:** 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Investigate stale/unknown worker projection and distinguish lease activity from process liveness.
@@ -2393,3 +2394,14 @@ PR #69 was reconciled against the latest integration base `5221da72286aea73bed2f
 
 
 Integration reconciliation preserved the latest target-branch worker-health, Grace, proposal, and external-reasoning records while retaining this retirement operation. The merged process graph validates at 21 workflows / 520 nodes; focused retirement and worker regressions pass against disposable PostgreSQL. Production registry retirement remains unexecuted because this session has no authorized Windows SSH bridge.
+
+
+## 2026-10-17 UTC — RV-M33-RETIRE-MIGRATION-001 — Narrow migration runner
+
+Added a fixed-scope preflight/apply module and CLI for authority migration 0009. It pins the SQL SHA-256, requires the complete exact 0000–0008 source and ledger chain, rejects extra migration files/rows, and applies no migration other than 0009. In one transaction it verifies the new event check constraint and confirms that authority schema/relation ownership and ACLs plus all authority table row counts are unchanged except for the single expected migration-ledger row. Retirement remains exclusively in the existing guarded AuthorityRegistry helper.
+
+The first disposable PostgreSQL run exposed an overly strict row-count comparison: the expected checksum ledger row itself changed the snapshot. The comparison was corrected to allow precisely one additional `schema_migrations` row; all other counts, relation metadata, ownership, and ACLs must match. `pg_virtualenv` PostgreSQL 16.15 tests then passed 5/5, including read-only check, apply/idempotence/data/ACL preservation, rejection of a missing predecessor, drifted checksum, extra source migration, and unrelated applied ledger entry. Python compilation and process graph validation also passed. Evidence is `evidence/checkouts/M33-RETIRE-MIGRATION/20261017T004446Z/`. The live migration source hash is `0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6`; the PR #75 retirement helper and module hashes remain `9c8c95cfc2e998e9a10bbc1eb2af0c7bd30a2efd2147058a30e0527aee2051e9` and `e815894e0d9a138b45b510be088913f5474606d5cd7cbf927474bf7021c53f83`.
+
+Corrected the prior invalid `/opt/riverview-core/current` references. Camrui's active core path is `/opt/riverview-core`, a symlink directly to an immutable `/opt/riverview/releases/<commit>` directory; the separate `/opt/riverview-m33/current` pointer belongs to the M33 service package and is not changed by the one-shot retirement procedure. The candidate utility can be installed under a new versioned release and invoked by exact path with the existing interpreter, without changing either service pointer or restarting services.
+
+The Steward supplied current live ledger evidence: `riverview_authority.schema_migrations` is 0000–0007. The reviewed 0009 migration header declares 0001–0008 dependencies. The newly implemented runner correctly refuses to apply 0009 with 0008 missing. Migration 0008 creates resident permission profile/catalog tables and inserts default catalog/policy rows; it is unrelated to worker retirement and is not applied here. No Camrui migration, release, service, database, registry row, or grant was changed. Production retirement therefore remains blocked pending a separate Steward decision to authorize the 0008 prerequisite or commission a separately reviewed migration dependency correction.

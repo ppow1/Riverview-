@@ -1,0 +1,23 @@
+{
+  "artifacts": {
+    "acceptance.json": {
+      "path": "acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "f023b4426195185bc62666567e14300653f9ccd9f8d52eb848b16a0876c20bf6",
+      "size_bytes": 2052
+    },
+    "source-checksums.txt": {
+      "path": "source-checksums.txt",
+      "revision": "1.0.0",
+      "sha256": "0ba4a0d24f9a03b3c0b1291db6ee5ee979c70cd672f19ee3e9d47a8e5ecea16a",
+      "size_bytes": 642
+    },
+    "verification.log": {
+      "path": "verification.log",
+      "revision": "1.0.0",
+      "sha256": "95d12c125cd20a4f60761f7b0f1b3f64b7f7ff99e0d467deba22a5236101b1ee",
+      "size_bytes": 886
+    }
+  },
+  "manifest_revision": "1.0.0"
+}
