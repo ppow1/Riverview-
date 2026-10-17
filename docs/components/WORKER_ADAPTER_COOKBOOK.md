@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/WORKER_ADAPTER_COOKBOOK.md
 Component: WORKER-ADAPTER
-File Revision: 1.0.20
+File Revision: 1.0.21
 Purpose: Diagnose worker identity, attempts, verification and recovery; retire the exact M33 registrations safely
 Authority: Read-only diagnosis; retirement only through the fixed Steward-authorized M33 operation. Credential delivery and enrollment remain trusted control-plane operations.
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Add redacted worker and verification record queries with failure interpretation
@@ -20,11 +20,12 @@ Changed: 2026-10-17 UTC | M33-0009-SYSTEMD-PARSER-FIX | Parse named systemd prop
 Changed: 2026-10-11 UTC | RV-M3.3-WAITING-ISOLATION-LINK-CLARIFICATION | Present checkout evidence as a non-linked path in dashboard-served documentation
 Changed: 2026-10-17 UTC | M33-0009-PRODUCTION-CLOSEOUT | Record exact privilege blocker and preserve Grace/M31 registrations
 Changed: 2026-10-17 UTC | M33-0009-PRODUCTION-CLOSEOUT | Correct worker retirement guidance and revision history placement
+Changed: 2026-10-17 UTC | M33-REGISTRATION-RETIREMENT-AUTHORIZED | Record completed row-scoped permissions, exact retirement, and postflight
 History: Git and revision backup manifest
 -->
 # Riverview~ worker adapter cookbook
 
-**Document Revision:** 1.0.11
+**Document Revision:** 1.0.12
 **Component:** WORKER-ADAPTER
 **Task:** RV-M2.1-001
 **Status:** IN PROGRESS — disposable PostgreSQL only
@@ -381,6 +382,6 @@ network tools must declare `external_uncertain` until their contract proves
 otherwise.
 
 
-### Current M33 retirement status (2026-10-17)
+### Current M33 retirement status (2026-10-17 UTC)
 
-Authority migration 0009 is installed with its reviewed checksum. The exact helper invocation then returned `InsufficientPrivilege` and made no changes. The manager role has no schema `USAGE`, registry `SELECT`, or registry `UPDATE` on `riverview_dev.worker_registry`; these facts were verified through PostgreSQL catalogs. Both exact M33 registrations remain active, as do all three Grace registrations; the two historical M31 rows remain inactive. The M33 services remain stopped. Do not grant ad hoc privileges, use `postgres`/`riverview_core`, or retry until a separately reviewed narrow execution boundary is available. See the M33 runbook and production evidence directory for the detailed state and acceptance record.
+The two registrations for revoked run `e92ec51590b34cd3b04d05c000f3eab4` are retired. The authorized guarded helper ran from immutable release `bac5495c4b7d61fd250d88f6af4beead3c79ccfb` and appended one Steward audit event for each fixed M33 ID. A temporary manager access boundary used column-only reads and an exact-ID row-level UPDATE policy; all temporary grants and policies were removed immediately after the helper completed. Current catalog checks show no residual manager schema `USAGE`, registry `UPDATE`, temporary policy, or enabled RLS. Seven registration records remain: exactly three active Grace registrations, both M33 registrations inactive, and both historical M31 registrations inactive. M33 services remain stopped. Grace CPU inference/execution, CME, dashboard, event processor, and notification dispatcher are active; the dashboard strict-TLS GET returned HTTP 200. Evidence: `evidence/checkouts/M33-REGISTRATION-RETIREMENT/20261017T0347Z-3da69dc/production-acceptance.json`.

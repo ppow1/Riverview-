@@ -1,8 +1,9 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.171
+**Document Revision:** 1.0.172
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
+**Changed:** 2026-10-17 UTC | M33-REGISTRATION-RETIREMENT-AUTHORIZED | Record exact temporary database scope, guarded retirement, permission cleanup, and production acceptance
 **Changed:** 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Add OAuth resource-server validation and verify Secure MCP Tunnel path
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009-PACKAGE | Verify immutable candidate package from the prepared migration-runner commit
 **Changed:** 2026-10-17 UTC | M33-0008-ATOMIC-RUNTIME-ACL | Record atomic profile function boundary correction, live role evidence, final isolated tests, and corrected query defects
@@ -22,6 +23,33 @@
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record PR #65 integration reconciliation, full-inventory browser fixture package results, proposal readiness, and Windows CA findings
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record final exact-graph-set ZIP integrity and synthetic page-shell versus live-dashboard acceptance boundary
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Correct final archive byte count from independently inspected ZIP
+
+## 2026-10-17 UTC — M33-REGISTRATION-RETIREMENT-AUTHORIZED
+
+With the Steward's explicit narrow authorization, temporarily established the
+minimum manager access needed by the already reviewed guarded helper. Access was
+limited to app-schema USAGE, column reads needed for the fixed registry and M33
+precondition checks, and table UPDATE guarded by an RLS policy that allowed only
+the two exact M33 IDs. Assignment and lease reads were scoped to the revoked M33
+run and its two worker IDs. The non-superuser manager had no memberships or
+core-role membership. No PUBLIC permissions or privilege escalation were used.
+
+The immutable helper release `bac5495c4b7d61fd250d88f6af4beead3c79ccfb`
+returned `RETIRED` with exit code 0. The two M33 rows became inactive and two
+append-only Steward events were recorded. The three Grace rows remain active; the
+two historical M31 rows remain inactive; all seven rows are preserved. There are
+no active M33 leases or executable assignments. The M33 services remain stopped.
+
+Immediately revoked all temporary grants, dropped all four scoped policies, and
+disabled temporary RLS on the three app tables. Catalog postflight found no
+residual scope or policies. The authority migration ledger remains unchanged at
+0000–0009. Grace CPU inference and execution, CME monitor, dashboard, event
+processor, and notification dispatcher remained active. Strict-TLS dashboard GET
+returned HTTP 200. Existing protected backup/restore evidence was preserved and
+reused; no database migration, service restart, or release-pointer change
+occurred.
+
+Production evidence: `evidence/checkouts/M33-REGISTRATION-RETIREMENT/20261017T0347Z-3da69dc/production-acceptance.json`.
 
 ## 2026-10-17 UTC — M33-0008-ATOMIC-RUNTIME-ACL
 

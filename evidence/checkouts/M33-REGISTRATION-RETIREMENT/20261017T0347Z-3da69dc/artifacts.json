@@ -1,0 +1,17 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "production-acceptance.json": {
+      "path": "production-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "53f0e2301b8aa70e277b54d3a30545576a6a969e15b4ce99c1c79115aa7f2000",
+      "size_bytes": 5337
+    },
+    "revision-baseline.json": {
+      "path": "revision-baseline.json",
+      "revision": "1.0.0",
+      "sha256": "be704bc0ccdaaf285dfc6ecab0a3353078707ae02857ba3573cc0514ea6a59f7",
+      "size_bytes": 312380
+    }
+  }
+}
