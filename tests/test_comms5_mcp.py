@@ -43,10 +43,16 @@ def test_historical_catalog_is_complete_and_contract_metadata_works():
 def test_help_and_describe_are_real_read_only_operations():
     application = app()
     help_result = application.handle(rpc("tools/call", {"name": "comms5_help", "arguments": {}}))
-    assert json.loads(help_result["result"]["content"][0]["text"])["contract"]["contract"] == "riverview-comms-contract:5.0"
+    help_value = json.loads(help_result["result"]["content"][0]["text"])
+    assert help_value["contract"]["contract"] == "riverview-comms-contract:5.0"
+    assert help_value["camrui_migration_notice"]["not_implemented_tool_count"] == 16
+    capabilities = application.handle(rpc("tools/call", {"name": "comms5_capabilities", "arguments": {}}))
+    capability_value = json.loads(capabilities["result"]["content"][0]["text"])
+    assert sum(op["camrui_implementation_status"] == "IMPLEMENTED" for op in capability_value["operations"]) == 5
     describe = application.handle(rpc("tools/call", {"name": "comms5_describe_operation", "arguments": {"operation": "submit_steward_seed"}}))
     value = json.loads(describe["result"]["content"][0]["text"])
     assert value["authorization"] == "DRAFT_WRITE"
+    assert value["camrui_implementation_status"] == "NOT_IMPLEMENTED"
 
 
 def test_unimplemented_write_is_explicit_tool_error_and_no_executor_exists():

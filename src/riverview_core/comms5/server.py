@@ -139,6 +139,28 @@ class Comms5Application:
                     value = {"error": {"code": "RIV-COMMS5-0004", "reason": "operation is unknown"}}
             else:
                 value = _PAYLOADS[name]
+            value = json.loads(json.dumps(value))
+            if name == "comms5_capabilities":
+                for operation in value.get("operations", []):
+                    tool_name = "comms5_" + operation.get("name", "")
+                    operation["camrui_implementation_status"] = (
+                        "IMPLEMENTED" if tool_name in _IMPLEMENTED else "NOT_IMPLEMENTED"
+                    )
+            elif name == "comms5_help":
+                value["camrui_migration_notice"] = {
+                    "implemented_tools": sorted(_IMPLEMENTED),
+                    "not_implemented_tool_count": len(_TOOLS) - len(_IMPLEMENTED),
+                    "stub_behavior": "MCP tool error; status NOT_IMPLEMENTED; executed false; no backend operation",
+                }
+            elif name == "comms5_describe_operation" and "error" not in value:
+                value["camrui_implementation_status"] = (
+                    "IMPLEMENTED" if "comms5_" + operation in _IMPLEMENTED else "NOT_IMPLEMENTED"
+                )
+            elif name == "comms5_examples":
+                value["camrui_execution_note"] = (
+                    "Examples preserve the historical contract. An operation marked NOT_IMPLEMENTED "
+                    "in capabilities returns an MCP tool error and performs no action."
+                )
             return {
                 "jsonrpc": "2.0", "id": request_id,
                 "result": {"content": [{"type": "text", "text": json.dumps(value, separators=(",", ":"))}], "isError": False},
