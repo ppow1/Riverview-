@@ -1,10 +1,11 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.167
+**Document Revision:** 1.0.168
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Add OAuth resource-server validation and verify Secure MCP Tunnel path
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009-PACKAGE | Verify immutable candidate package from the prepared migration-runner commit
+**Changed:** 2026-10-17 UTC | M33-0008-ATOMIC-RUNTIME-ACL | Record atomic profile function boundary correction, live role evidence, final isolated tests, and corrected query defects
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009-ONE-SHOT | Add exact 0008-only preflight/apply mode and record 53 focused disposable PostgreSQL tests
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009 | Record exact effects and disposable 0000–0009 chain verification
 **Changed:** 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001-FINAL-CI | Record passing exact-head controlled CI on corrected migration runner
@@ -19,6 +20,48 @@
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record PR #65 integration reconciliation, full-inventory browser fixture package results, proposal readiness, and Windows CA findings
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record final exact-graph-set ZIP integrity and synthetic page-shell versus live-dashboard acceptance boundary
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Correct final archive byte count from independently inspected ZIP
+
+## 2026-10-17 UTC — M33-0008-ATOMIC-RUNTIME-ACL
+
+Read-only Camrui inspection showed the active Grace execution release is
+`af87c1a1b8ef4deeb8770c64da8bb4556bc85866` and the active dashboard release is
+`50e1e44b498927e5df67e5c08aec3cda8267dd72`. Both load the same
+`ExactGrantAuthorizer`; after finding the profile registry, it calls
+`evaluate_resident_permission`. The dashboard also wires `ResidentPermissionStore`
+to the profile list, save, approve, and revoke APIs. Therefore the runtime
+requires `EXECUTE` on all five profile functions. Migration 0008 explicitly
+revokes `PUBLIC EXECUTE` and does not provide these runtime grants.
+
+Read-only database checks in `riverview` confirmed schema `riverview_authority`
+is owned by `riverview_authority_schema_owner`; `riverview_core` and
+`riverview_authority_manager` have `USAGE` without `CREATE`; the protected
+owner has `USAGE` without `CREATE`; the three roles have no memberships. The
+nine existing authority tables are owned by `riverview_authority_owner`, with
+runtime table DML denied and manager DML scoped to those tables. Existing exact-
+grant functions are runtime-executable, manager-denied, and not executable by
+PUBLIC. Migration 0008 remains absent; no production writes, service changes,
+release activation, or grant changes occurred.
+
+Updated the existing 0008-only migration runner to call
+`provision_authority_boundary` inside its existing outer PostgreSQL transaction,
+then verify the five function ACLs, schema boundary, owner, profile-table access,
+seed state, ledger checksum, and pre-existing data before commit. The migration
+SQL bytes and checksum are unchanged. A failed grant prerequisite or
+postcondition aborts the entire transaction. Already-committed incomplete state
+is refused rather than silently repaired.
+
+Disposable PostgreSQL 16 final run passed 24/24 focused tests across migration,
+authorization compatibility, and boundary suites, including positive
+`riverview_core` evaluator invocation, PUBLIC-denial check, manager denial,
+schema/table boundary checks, and rollback of migration objects/ledger after a
+missing-manager prerequisite. The final run also exercised the full 0000–0009
+chain on a disposable PostgreSQL 16 cluster. Two earlier final-candidate runs
+exposed and corrected a namespace alias and PostgreSQL ACL argument type in
+the snapshot validator before this passing run. Evidence:
+`evidence/checkouts/M33-0008-ATOMIC-RUNTIME-ACL/20261017T023249Z-final/`.
+No migration was applied to production. The atomic correction still requires
+review, exact-head CI, and a new immutable release before any separately
+authorized execution; the protected backup closeout remains the prior PASS.
 **Changed:** 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Verify actual dashboard DOM and complete desktop/mobile snapshot package exports
 **Changed:** 2026-10-13 UTC | RV-GRACE-ROUTER-ACL-READINESS-001 | Correct router startup readiness for restricted authority-ledger ACLs and record regression evidence
 **Changed:** 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Recover website punch list and implement cross-workflow destination focus/return

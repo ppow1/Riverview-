@@ -1,0 +1,47 @@
+{
+  "artifacts": {
+    "graph-check.json": {
+      "path": "graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "450a63f2d1bc158fc58738268151afcab62c0269575d39ca3f31cc8c65236fdc",
+      "size_bytes": 55
+    },
+    "initdb.log": {
+      "path": "initdb.log",
+      "revision": "1.0.0",
+      "sha256": "21d15c756857f97a6e62edc6b55faed6727476208f163f8f1263374f26a9e6ed",
+      "size_bytes": 779
+    },
+    "pg-start.log": {
+      "path": "pg-start.log",
+      "revision": "1.0.0",
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "size_bytes": 52
+    },
+    "pg-stop.log": {
+      "path": "pg-stop.log",
+      "revision": "1.0.0",
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d",
+      "size_bytes": 56
+    },
+    "revision-check.json": {
+      "path": "revision-check.json",
+      "revision": "1.0.0",
+      "sha256": "e07bef476f5096070718a098283b5d5d842b6e9e86b619ab15234e0011da47d6",
+      "size_bytes": 768
+    },
+    "summary.txt": {
+      "path": "summary.txt",
+      "revision": "1.0.0",
+      "sha256": "856f85252dbc7f22bdce5999daf55de005ed6d163967bbb309eca7f3a0612e29",
+      "size_bytes": 121
+    },
+    "tests.log": {
+      "path": "tests.log",
+      "revision": "1.0.0",
+      "sha256": "4888f16c4afdb0bf13bb676f10abc447db244ee76ca693f96368b04372aa4464",
+      "size_bytes": 97166
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

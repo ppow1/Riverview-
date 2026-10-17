@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.25
+File Revision: 1.0.28
 Purpose: Diagnose and safely recover institutional authority registry state
 Authority: Read-only diagnostics first; grant changes require authenticated Steward
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Keep evidence references as readable paths in safe dashboard renderer
@@ -26,6 +26,9 @@ Changed: 2026-10-11 UTC | RV-M4.1-GRANT-ENFORCEMENT-RECORDS | Record the post-bo
 Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Add profile migration/read-only diagnostics and fail-closed troubleshooting
 Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Document the single-migration runner, exact release layout, backup gate, and missing-0008 stop condition
 Changed: 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009 | Record exact predecessor migration effects, isolated chain evidence, and gated release sequence
+Changed: 2026-10-17 UTC | M33-0008-ATOMIC-RUNTIME-ACL | Apply migration 0008 and the five-function runtime boundary atomically; document ACL checks and rollback
+Changed: 2026-10-17 UTC | M33-0008-ATOMIC-RUNTIME-ACL | Clarify post-commit restore coordination and data reconciliation
+Changed: 2026-10-17 UTC | M33-0008-ATOMIC-RUNTIME-ACL | Require the atomic runtime boundary runner and reuse valid backup closeout evidence
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional authority registry cookbook
@@ -189,10 +192,101 @@ sudo -n -u postgres env PYTHONPATH=/opt/riverview/releases/<approved-commit>/src
   /opt/riverview/releases/<approved-commit>/scripts/apply_m33_retirement_migration.py --apply-0008
 ```
 
-`--check-0008` is read-only. `--apply-0008` applies only 0008 and checks the
+`--check-0008` is read-only. `--apply-0008` applies only 0008 and, before the
+same outer transaction commits, invokes the established
+`provision_authority_boundary` operation and verifies its exact postconditions.
+The SQL bytes and migration checksum are unchanged. The transaction checks the
 exact 0000–0007 ledger, reviewed 0008 and dependent 0009 hashes, expected
-object/seed state, unchanged pre-existing rows/ACLs/owners, and no unexpected
-grants to new objects. Any failed postcondition rolls back the transaction.
+object/seed state, and pre-existing data/ownership; it transfers the new profile
+objects to `riverview_authority_owner`, retains the established manager DML
+boundary on allowlisted authority tables, preserves runtime schema `USAGE`
+without `CREATE`, and grants the runtime only the five reviewed permission
+functions. It revokes `PUBLIC` execution and denies function execution to the
+manager. Any failed role, ownership, ACL, object, seed, or ledger postcondition
+rolls the whole transaction back, including the ledger insert and grants. The
+idempotent check path for an already-applied 0008 refuses to proceed if the
+runtime boundary is missing or drifted; it does not repair a committed partial
+deployment.
+
+The active Grace execution source calls
+`riverview_authority.evaluate_resident_permission(TEXT,TEXT,TEXT,TEXT,TEXT,BOOLEAN)`
+after each exact-grant decision. The active dashboard additionally uses the
+profile list, save, approve, and revoke APIs. Therefore all five function
+signatures in `db_boundary.RUNTIME_PERMISSION_SIGNATURES` are required for the
+shared `riverview_core` role. Runtime table DML remains denied. The current
+production schema already has `USAGE` (not `CREATE`) for runtime, manager, and
+owner; `riverview_core`, manager, and owner have no role memberships; existing
+authority tables and exact-grant functions satisfy their established owner and
+function-only boundary. These are read-only production observations; the new
+function privileges have only been validated in isolated PostgreSQL.
+
+After installing the reviewed immutable release, the authorized execution
+sequence is:
+
+```sh
+release=/opt/riverview/releases/<approved-full-commit>
+sudo -n -u postgres env PYTHONPATH="$release/src" \
+  /opt/riverview-core/.venv/bin/python \
+  "$release/scripts/apply_m33_retirement_migration.py" --check-0008
+# Require READY, the exact approved checksum, and the protected backup gate.
+sudo -n -u postgres env PYTHONPATH="$release/src" \
+  /opt/riverview-core/.venv/bin/python \
+  "$release/scripts/apply_m33_retirement_migration.py" --apply-0008
+```
+
+The apply command performs migration SQL, checksum-ledger insert, object
+ownership transfer, ACL provisioning, and postflight within one transaction.
+No service restart is needed: before commit, active sessions see the legacy
+exact-grant-only path; after commit, every new profile object and its runtime
+function boundary become visible together. A lock, permission, or postcondition
+failure aborts the transaction; do not follow it with standalone `GRANT` SQL or
+an unrestricted migration runner.
+
+Read-only postflight (as the PostgreSQL administrator) must return five rows
+with owner `riverview_authority_owner`, runtime `EXECUTE=true`, manager
+`EXECUTE=false`, and `PUBLIC EXECUTE=false`; it also verifies the runtime can
+use but cannot create in the schema and cannot read profile tables:
+
+```sh
+sudo -n -u postgres psql -X -v ON_ERROR_STOP=1 -P pager=off -d riverview <<'SQL'
+BEGIN READ ONLY;
+SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS signature,
+       p.proowner::regrole::text AS owner,
+       has_function_privilege('riverview_core',p.oid,'EXECUTE') AS runtime_execute,
+       has_function_privilege('riverview_authority_manager',p.oid,'EXECUTE') AS manager_execute,
+       EXISTS (SELECT 1 FROM aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) a
+               WHERE a.grantee=0 AND a.privilege_type='EXECUTE') AS public_execute
+FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+WHERE n.nspname='riverview_authority'
+  AND p.proname IN ('list_resident_permission_profiles',
+    'save_resident_permission_profile','approve_resident_permission_profile',
+    'revoke_resident_permission_profile','evaluate_resident_permission')
+ORDER BY p.proname;
+SELECT has_schema_privilege('riverview_core','riverview_authority','USAGE') AS runtime_schema_usage,
+       has_schema_privilege('riverview_core','riverview_authority','CREATE') AS runtime_schema_create,
+       has_table_privilege('riverview_core','riverview_authority.resident_permission_profiles','SELECT') AS runtime_profile_table_select;
+SELECT version,checksum FROM riverview_authority.schema_migrations
+WHERE version='0008_resident_permission_profiles';
+ROLLBACK;
+SQL
+```
+
+Expected: the five rows exactly match the allowlist; runtime `USAGE=true`,
+`CREATE=false`, profile table `SELECT=false`, and the ledger checksum equals
+`570c7aeb16fca04c64c4e010f1534d0efebe92628ddacd8f05f6eb1eda12d339`.
+Do not treat a successful migration process exit alone as acceptance.
+
+If the runner fails before commit, PostgreSQL transaction rollback removes all
+0008 DDL, the checksum row, and ACL changes; retain the structured failure and
+do not rerun until its cause is corrected and a fresh exact preflight passes.
+After a successful commit, 0008 has no down migration. Do not drop objects or
+delete ledger rows. Prefer a separately reviewed forward correction for a
+post-commit integrity defect. Restoring the whole protected database backup is
+not an in-place rollback: it requires a separately authorized recovery window,
+service coordination, and reconciliation of all writes made after the backup
+snapshot. Do not restore automatically or claim a post-commit failure can be
+transactionally rolled back; use the incident recovery plan and preserve
+current evidence first.
 The exact code check/apply commands for 0009 from a versioned release are:
 
 ```sh
@@ -238,18 +332,19 @@ The five profile API functions revoke `PUBLIC` EXECUTE and pin their
 roles. `ExactGrantAuthorizer` detects the paired profile objects and calls
 `evaluate_resident_permission`; with no resident profile this returns the
 legacy exact-grant-only result, but only if the runtime has the required
-function EXECUTE privilege. Therefore before any future production apply, use
-read-only checks to identify the actual active runtime code and effective
-function ACLs. If the required function-only ACL is absent, stop; do not grant
-it ad hoc or run the broader authority-boundary provisioner without a separate
-approved, reviewed authority change. The manager's worker-registry UPDATE
-privilege is a separate retirement-helper precondition and is not granted by
-0008.
+function EXECUTE privilege. The corrected 0008 runner must invoke the existing
+`provision_authority_boundary` within the same transaction and verify its
+postconditions before commit. Use only that reviewed atomic path; never issue a
+standalone grant or apply the broader provisioner separately. If the corrected
+runner is not installed, its role/schema preflight fails, or any ACL check
+drifts, stop before commit. The manager's worker-registry UPDATE privilege is
+a separate retirement-helper precondition and is not granted by 0008.
 
 Only after explicit production-execution authorization, the sequence is:
 
-1. Merge PR #76 after its review and exact-head controlled CI. Build from its
-   exact integrated commit, verify the package manifest, and install to a new
+1. Merge the reviewed atomic-runtime-boundary correction after exact-head
+   controlled CI. Build from its exact integrated commit, verify the package
+   manifest, and install to a new
    root-owned immutable `/opt/riverview/releases/<full-commit>` directory.
    Camrui's `/opt/riverview-core` is a direct symlink to a release; preserve
    the existing 64e8 release and do not invent a `/current` subdirectory,
@@ -258,22 +353,26 @@ Only after explicit production-execution authorization, the sequence is:
 2. Verify host/database/schema identity; require the exact 0000–0007 ledger
    and source checksums; verify 0008 and 0009 source checksums and ensure no
    extra migration source or ledger entries exist.
-3. Create a new root-protected custom-format backup of `riverview` outside
-   the repository; record the digest, verify `pg_restore --list`, restore to a
-   unique disposable database, and compare authority/Core counts, relation
-   ownership, ACLs, and ledger checksums. Stop on any discrepancy.
-4. Apply only 0008 transactionally with the fixed
-   `apply_m33_retirement_migration.py --apply-0008` mode. It checks the exact
-   0000–0007 ledger and 0008/0009 checksums, records only the 0008 ledger
-   entry, validates expected new objects/seed counts, and proves existing
-   authority data, ownership, and ACLs are unchanged. Do not invoke a general
-   migration sweep. This preparation task does not authorize or execute DDL.
-5. Verify the 0000–0008 ledger and 0008 checksum; inspect every new object,
-   owner, default/effective privilege and policy seed; confirm profiles and
-   user-specific rules/events remain empty. Validate active-runtime
-   compatibility and the function-only ACL using the established boundary
-   contract; stop if it would change runtime behavior or require an
-   unapproved grant change.
+3. Verify the existing protected backup/restore closeout is for this same
+   production database and predates the migration, and confirm no database
+   writes or migration-state changes invalidate it. Reuse that evidence if it
+   remains applicable; otherwise create and verify a new protected backup and
+   disposable restore before proceeding. Stop on any discrepancy.
+4. Under separate execution authorization, apply only 0008 with the fixed
+   `apply_m33_retirement_migration.py --apply-0008` mode. In one transaction it
+   checks the exact 0000–0007 ledger and 0008/0009 checksums, applies 0008,
+   records only the 0008 checksum, and runs the established authority boundary
+   provisioner before commit. This transfers profile objects to the protected
+   owner, preserves manager DML scope, and grants runtime access to exactly the
+   five audited profile functions while denying PUBLIC execution and runtime
+   table DML. A failed ACL check rolls the migration back. Do not invoke a
+   general migration sweep.
+5. Verify the 0000–0008 ledger and checksum, all five owner/runtime/manager/
+   PUBLIC function ACLs, schema `USAGE`/no-`CREATE`, no runtime profile-table
+   access, expected seed counts, and empty resident profiles/drafts/rules/events.
+   The installed runtime and dashboard code have been checked for these
+   function dependencies; no service restart is required because DDL and ACL
+   become visible together at commit.
 6. Run `apply_m33_retirement_migration.py --check`; it must report `READY` on
    the exact 0000–0008 chain. Applying 0009 and retiring registrations each
    require their own explicit execution authorization and the existing
@@ -720,3 +819,6 @@ readiness/capacity condition, not an authorization decision. Resume only after
 rechecking both the exact grant and the current profile revision.
 
 - **1.0.23 — 2026-10-14:** Add source-only resident profile migration diagnostics and explicit runtime/manager function-only ACL expectations.
+- **1.0.26 — 2026-10-17:** Make authority 0008 DDL, owner transfer, five-profile-function runtime grants, and ACL postconditions atomic; document exact live role/schema baseline and recovery.
+- **1.0.27 — 2026-10-17:** Clarify whole-database restore after committed 0008 requires an authorized recovery window and reconciliation of post-backup writes.
+- **1.0.28 — 2026-10-17:** Require the corrected atomic runtime boundary in the 0008 runner and allow reuse of applicable verified backup evidence.

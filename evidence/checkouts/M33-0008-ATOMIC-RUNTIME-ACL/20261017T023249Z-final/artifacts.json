@@ -1,0 +1,35 @@
+{
+  "artifacts": {
+    "initdb.log": {
+      "path": "initdb.log",
+      "revision": "1.0.0",
+      "sha256": "2dda9e93113b517ccd9a7b9a9813ba052315f39dd0551549722ff2651ffbb399",
+      "size_bytes": 783
+    },
+    "pg-start.log": {
+      "path": "pg-start.log",
+      "revision": "1.0.0",
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "size_bytes": 52
+    },
+    "pg-stop.log": {
+      "path": "pg-stop.log",
+      "revision": "1.0.0",
+      "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d",
+      "size_bytes": 56
+    },
+    "summary.txt": {
+      "path": "summary.txt",
+      "revision": "1.0.0",
+      "sha256": "de91023fc5c6513207865082afdaed72a46c462a2d2cbe71b8c0d570fdc2501a",
+      "size_bytes": 434
+    },
+    "tests.log": {
+      "path": "tests.log",
+      "revision": "1.0.0",
+      "sha256": "42c5ea0caf5a463cba85f0d3eab99de4fd8de77344cfb0d99b333111105c39b7",
+      "size_bytes": 5329
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

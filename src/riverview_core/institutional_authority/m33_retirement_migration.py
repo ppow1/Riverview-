@@ -2,9 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/m33_retirement_migration.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.1.0
-# Purpose: Apply only the checksum-pinned M33 retirement migrations 0008 and 0009
-# Execution Model: Explicit DBA operation under the local PostgreSQL administrator
+# Revision: 1.2.0
+# Purpose: Apply M33 migrations with an atomic resident-profile runtime boundary
+# Execution Model: Explicit DBA transaction including migration and ACL postconditions
 # Observability: Redacted preflight/apply status; preserved rows and ACL snapshots
 # Dependencies: PostgreSQL 16; Psycopg 3; authority migrations 0000-0009
 # Authority: Fixed riverview_authority schema and migrations 0008/0009; no grants or registry writes
@@ -12,6 +12,7 @@
 # Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Allow only the single expected migration-ledger row count increase
 # Changed: 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Keep CLI target fixed while supporting CI's disposable database identity
 # Changed: 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009 | Add fail-closed single-migration 0008 prerequisite mode
+# Changed: 2026-10-17 UTC | M33-0008-ATOMIC-RUNTIME-ACL | Provision and verify the approved profile function boundary in the 0008 transaction
 # Tests: tests/test_m33_retirement_migration.py
 # History: .riverview-backups/manifest.jsonl and Git
 # =============================================================================
@@ -24,6 +25,7 @@ from pathlib import Path
 import re
 
 from psycopg import sql
+from .db_boundary import BoundaryPreflightError, provision_authority_boundary
 
 MIGRATION_VERSION = "0009_worker_registration_retirement_event"
 MIGRATION_FILE = MIGRATION_VERSION + ".sql"
@@ -36,6 +38,9 @@ EXPECTED_MIGRATION_SHA256 = (
     "0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6"
 )
 SCHEMA = "riverview_authority"
+RUNTIME_ROLE = "riverview_core"
+MANAGER_ROLE = "riverview_authority_manager"
+OWNER_ROLE = "riverview_authority_owner"
 EXPECTED_VERSIONS = tuple(
     ["0000_authority_migration_ledger"] +
     [f"000{i}_{name}" for i, name in (
@@ -120,7 +125,9 @@ def _event_types(cur, schema: str) -> frozenset[str]:
     return frozenset(value.replace("''", "'") for value in _EVENT_LITERAL.findall(definition))
 
 
-def _verify_0008_postcondition(cur, schema: str) -> None:
+def _verify_0008_postcondition(cur, schema: str, runtime_role: str = RUNTIME_ROLE,
+                              manager_role: str = MANAGER_ROLE,
+                              owner_role: str = OWNER_ROLE) -> None:
     """Reject partial or altered profile migration state without returning row data."""
     tables = set(PROFILE_TABLE_COUNTS) | {"schema_migrations"}
     cur.execute(
@@ -140,20 +147,73 @@ def _verify_0008_postcondition(cur, schema: str) -> None:
         if cur.fetchone()[0] != expected_count:
             raise RetirementMigrationError("resident_permission_seed_state_mismatch")
 
+    cur.execute("SELECT rolname,oid FROM pg_catalog.pg_roles WHERE rolname=ANY(%s)",
+                ([runtime_role, manager_role, owner_role],))
+    role_oids = {name: oid for name, oid in cur.fetchall()}
+    if set(role_oids) != {runtime_role, manager_role, owner_role}:
+        raise RetirementMigrationError("profile_boundary_roles_missing")
+
+    cur.execute(
+        """SELECT has_schema_privilege(%s::name,n.oid,'USAGE'),
+                  has_schema_privilege(%s::name,n.oid,'CREATE'),
+                  has_schema_privilege(%s::name,n.oid,'USAGE'),
+                  has_schema_privilege(%s::name,n.oid,'CREATE'),
+                  has_schema_privilege(%s::name,n.oid,'USAGE'),
+                  has_schema_privilege(%s::name,n.oid,'CREATE'),
+                  count(*) FILTER (WHERE a.grantee=0 OR
+                    a.grantee NOT IN (%s,%s,%s,n.nspowner) OR
+                    (a.grantee<>n.nspowner AND a.privilege_type<>'USAGE'))
+           FROM pg_catalog.pg_namespace n
+           LEFT JOIN LATERAL aclexplode(COALESCE(n.nspacl,acldefault('n',n.nspowner))) a ON true
+           WHERE n.nspname=%s
+           GROUP BY n.nspowner,n.oid""",
+        (runtime_role, runtime_role, manager_role, manager_role,
+         owner_role, owner_role, role_oids[runtime_role],
+         role_oids[manager_role], role_oids[owner_role], schema),
+    )
+    schema_boundary = cur.fetchone()
+    if (schema_boundary is None or not schema_boundary[0] or schema_boundary[1]
+            or not schema_boundary[2] or schema_boundary[3]
+            or not schema_boundary[4] or schema_boundary[5]
+            or schema_boundary[6]):
+        raise RetirementMigrationError("profile_schema_boundary_mismatch")
+
     cur.execute(
         """SELECT count(*) FROM pg_catalog.pg_class c
            JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
            CROSS JOIN LATERAL aclexplode(
              COALESCE(c.relacl,acldefault('r',c.relowner))) a
-           WHERE n.nspname=%s AND c.relname=ANY(%s) AND a.grantee<>c.relowner""",
-        (schema, list(PROFILE_TABLE_COUNTS)),
+           WHERE n.nspname=%s AND c.relname=ANY(%s) AND
+             (a.grantee=0 OR a.grantee NOT IN (%s,%s,c.relowner) OR
+              (a.grantee=%s AND a.privilege_type NOT IN ('SELECT','INSERT','UPDATE','DELETE')))
+        """,
+        (schema, list(PROFILE_TABLE_COUNTS), role_oids[manager_role],
+         role_oids[owner_role], role_oids[manager_role]),
     )
     if cur.fetchone()[0] != 0:
         raise RetirementMigrationError("resident_permission_table_acl_unexpected")
+    cur.execute(
+        """SELECT count(*) FROM pg_catalog.pg_class c
+           JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+           WHERE n.nspname=%s AND c.relname=ANY(%s) AND
+             (has_table_privilege(%s::name,c.oid,'SELECT') OR
+              has_table_privilege(%s::name,c.oid,'INSERT') OR
+              has_table_privilege(%s::name,c.oid,'UPDATE') OR
+              has_table_privilege(%s::name,c.oid,'DELETE') OR
+              NOT has_table_privilege(%s::name,c.oid,'SELECT') OR
+              NOT has_table_privilege(%s::name,c.oid,'INSERT') OR
+              NOT has_table_privilege(%s::name,c.oid,'UPDATE') OR
+              NOT has_table_privilege(%s::name,c.oid,'DELETE'))""",
+        (schema, list(PROFILE_TABLE_COUNTS), runtime_role, runtime_role,
+         runtime_role, runtime_role, manager_role, manager_role,
+         manager_role, manager_role),
+    )
+    if cur.fetchone()[0] != 0:
+        raise RetirementMigrationError("resident_permission_table_privilege_mismatch")
 
     cur.execute(
         """SELECT p.proname,pg_get_function_identity_arguments(p.oid),
-                  p.prosecdef,p.proconfig,
+                  pg_get_userbyid(p.proowner),p.prosecdef,p.proconfig,
                   EXISTS(SELECT 1 FROM aclexplode(
                       COALESCE(p.proacl,acldefault('f',p.proowner))) a
                          WHERE a.grantee=0 AND a.privilege_type='EXECUTE')
@@ -173,21 +233,30 @@ def _verify_0008_postcondition(cur, schema: str) -> None:
         rows = [row for row in functions if (row[0], row[1]) == (name, signature)]
         if len(rows) != 1:
             raise RetirementMigrationError("resident_permission_function_ambiguous")
-        _name, _arguments, security_definer, config, public_execute = rows[0]
+        _name, _arguments, function_owner, security_definer, config, public_execute = rows[0]
         expected_path = f"search_path={schema}, pg_catalog, pg_temp"
-        if not security_definer or not config or expected_path not in config or public_execute:
+        if (function_owner != owner_role or not security_definer or not config
+                or expected_path not in config or public_execute):
             raise RetirementMigrationError("resident_permission_function_boundary_mismatch")
-    cur.execute(
-        """SELECT count(*) FROM pg_catalog.pg_proc p
-           JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace
-           CROSS JOIN LATERAL aclexplode(
-             COALESCE(p.proacl,acldefault('f',p.proowner))) a
-           WHERE n.nspname=%s AND p.proname=ANY(%s) AND a.grantee<>p.proowner""",
-        (schema, list(PROFILE_FUNCTION_SIGNATURES)),
-    )
-    if cur.fetchone()[0] != 0:
-        raise RetirementMigrationError("resident_permission_function_acl_unexpected")
-
+        cur.execute(
+            """SELECT has_function_privilege(%s::name,p.oid,'EXECUTE'),
+                      has_function_privilege(%s::name,p.oid,'EXECUTE'),
+                      count(*) FILTER (WHERE a.grantee=0 OR
+                        a.grantee NOT IN (%s,%s,p.proowner) OR
+                        (a.grantee=%s AND a.privilege_type<>'EXECUTE'))
+               FROM pg_catalog.pg_proc p
+               JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace
+               LEFT JOIN LATERAL aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) a ON true
+               WHERE n.nspname=%s AND p.proname=%s
+                 AND pg_get_function_identity_arguments(p.oid)=%s
+               GROUP BY p.oid""",
+            (runtime_role, manager_role, role_oids[runtime_role],
+             role_oids[owner_role], role_oids[runtime_role], schema, name, signature),
+        )
+        function_acl = cur.fetchone()
+        if (function_acl is None or not function_acl[0] or function_acl[1]
+                or function_acl[2]):
+            raise RetirementMigrationError("resident_permission_function_acl_unexpected")
     cur.execute(
         """SELECT count(*) FROM pg_catalog.pg_trigger t
            JOIN pg_catalog.pg_class c ON c.oid=t.tgrelid
@@ -213,7 +282,9 @@ def _verify_0008_postcondition(cur, schema: str) -> None:
 
 
 def _preflight_0008(cur, directory: Path, schema: str,
-                    expected_database: str) -> tuple[Path, str, bool]:
+                    expected_database: str, runtime_role: str = RUNTIME_ROLE,
+                    manager_role: str = MANAGER_ROLE,
+                    owner_role: str = OWNER_ROLE) -> tuple[Path, str, bool]:
     files = _migration_files(directory)
     migration_path = files[PREREQUISITE_VERSION]
     try:
@@ -276,20 +347,24 @@ def _preflight_0008(cur, directory: Path, schema: str,
     if ledger == expected_after_0008:
         if _event_types(cur, schema) != BASE_EVENT_TYPES:
             raise RetirementMigrationError("prerequisite_event_constraint_mismatch")
-        _verify_0008_postcondition(cur, schema)
+        _verify_0008_postcondition(cur, schema, runtime_role, manager_role, owner_role)
         return migration_path, digest, True
     if ledger == expected_after_0009:
         if _event_types(cur, schema) != RETIRED_EVENT_TYPES:
             raise RetirementMigrationError("applied_migration_postcondition_mismatch")
-        _verify_0008_postcondition(cur, schema)
+        _verify_0008_postcondition(cur, schema, runtime_role, manager_role, owner_role)
         return migration_path, digest, True
     raise RetirementMigrationError("prior_migrations_missing_or_unrelated_pending")
 
 
 def _schema_snapshot(cur, schema: str) -> tuple[tuple, tuple, tuple]:
     cur.execute(
-        """SELECT nspowner,nspacl::text
-           FROM pg_catalog.pg_namespace WHERE nspname=%s""",
+        """SELECT nspowner,
+                  (SELECT string_agg(a.grantee::text||':'||a.privilege_type||':'||
+                                     a.is_grantable::text||':'||a.grantor::text,','
+                                     ORDER BY a.grantee,a.privilege_type,a.is_grantable,a.grantor)
+                   FROM aclexplode(COALESCE(n.nspacl,acldefault('n',n.nspowner))) a)
+           FROM pg_catalog.pg_namespace n WHERE n.nspname=%s""",
         (schema,),
     )
     namespace = cur.fetchone()
@@ -297,7 +372,13 @@ def _schema_snapshot(cur, schema: str) -> tuple[tuple, tuple, tuple]:
         raise RetirementMigrationError("authority_schema_missing")
 
     cur.execute(
-        """SELECT relname,relkind,pg_get_userbyid(relowner),relacl::text
+        """SELECT c.relname,c.relkind,pg_get_userbyid(c.relowner),
+                  (SELECT string_agg(a.grantee::text||':'||a.privilege_type||':'||
+                                     a.is_grantable::text||':'||a.grantor::text,','
+                                     ORDER BY a.grantee,a.privilege_type,a.is_grantable,a.grantor)
+                   FROM aclexplode(COALESCE(c.relacl,acldefault(
+                     CASE WHEN c.relkind='S' THEN 's'::"char" ELSE 'r'::"char" END,
+                     c.relowner))) a)
            FROM pg_catalog.pg_class c
            JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
            WHERE n.nspname=%s AND c.relkind IN ('r','p','S','v','m','f')
@@ -322,7 +403,11 @@ def _schema_snapshot(cur, schema: str) -> tuple[tuple, tuple, tuple]:
 def _function_snapshot(cur, schema: str) -> tuple[tuple, ...]:
     cur.execute(
         """SELECT p.proname,pg_get_function_identity_arguments(p.oid),p.proowner,
-                  p.proacl::text,p.proconfig,p.prosecdef,p.prorettype
+                  (SELECT string_agg(a.grantee::text||':'||a.privilege_type||':'||
+                                     a.is_grantable::text||':'||a.grantor::text,','
+                                     ORDER BY a.grantee,a.privilege_type,a.is_grantable,a.grantor)
+                   FROM aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) a),
+                  p.proconfig,p.prosecdef,p.prorettype
            FROM pg_catalog.pg_proc p
            JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace
            WHERE n.nspname=%s ORDER BY p.proname,2""",
@@ -339,10 +424,10 @@ def _validate_0008_changes(before, after, before_functions, after_functions,
     profile_tables = set(PROFILE_TABLE_COUNTS)
     old_relations = {row[0]: row for row in before_relations}
     new_relations = {row[0]: row for row in after_relations}
-    if before_namespace != after_namespace:
-        raise RetirementMigrationError("authority_schema_permissions_changed")
+    if before_namespace[0] != after_namespace[0]:
+        raise RetirementMigrationError("authority_schema_owner_changed")
     if any(new_relations.get(name) != row for name, row in old_relations.items()):
-        raise RetirementMigrationError("preexisting_relation_permissions_changed")
+        raise RetirementMigrationError("preexisting_relation_owner_or_acl_changed")
     added_relations = set(new_relations) - set(old_relations)
     if added_relations != profile_tables:
         raise RetirementMigrationError("unexpected_resident_permission_relations")
@@ -370,9 +455,32 @@ def _validate_0008_changes(before, after, before_functions, after_functions,
         raise RetirementMigrationError("resident_permission_function_owner_mismatch")
 
 
+def _profile_boundary(connection, *, schema: str, apply: bool,
+                      runtime_role: str = RUNTIME_ROLE,
+                      manager_role: str = MANAGER_ROLE,
+                      owner_role: str = OWNER_ROLE) -> dict:
+    """Apply or verify the established least-privilege boundary for 0008 objects."""
+    try:
+        report = provision_authority_boundary(
+            connection, schema=schema, runtime_role=runtime_role,
+            manager_role=manager_role, owner_role=owner_role, apply=apply,
+        )
+    except BoundaryPreflightError:
+        raise RetirementMigrationError("profile_runtime_boundary_prerequisite_failed") from None
+    if apply:
+        if report.get("status") != "APPLIED":
+            raise RetirementMigrationError("profile_runtime_boundary_apply_failed")
+    elif report.get("apply_required") is not False:
+        raise RetirementMigrationError("profile_runtime_boundary_not_ready")
+    return report
+
+
 def apply_m33_retirement_prerequisite(connection, migration_directory: Path,
                                       *, schema: str = SCHEMA,
-                                      expected_database: str = "riverview") -> dict:
+                                      expected_database: str = "riverview",
+                                      runtime_role: str = RUNTIME_ROLE,
+                                      manager_role: str = MANAGER_ROLE,
+                                      owner_role: str = OWNER_ROLE) -> dict:
     """Apply only 0008 after exact predecessor, source, and effect checks."""
     directory = Path(migration_directory)
     try:
@@ -381,24 +489,40 @@ def apply_m33_retirement_prerequisite(connection, migration_directory: Path,
                 cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))",
                             ("riverview-migrations:" + schema,))
                 migration_path, digest, is_applied = _preflight_0008(
-                    cur, directory, schema, expected_database
+                    cur, directory, schema, expected_database,
+                    runtime_role, manager_role, owner_role
                 )
                 if is_applied:
+                    _profile_boundary(connection, schema=schema, apply=False,
+                                      runtime_role=runtime_role, manager_role=manager_role,
+                                      owner_role=owner_role)
                     return {"status": "ALREADY_APPLIED",
                             "version": PREREQUISITE_VERSION, "checksum": digest}
 
                 before = _schema_snapshot(cur, schema)
                 before_functions = _function_snapshot(cur, schema)
-                cur.execute("SELECT current_user,oid FROM pg_catalog.pg_roles "
-                            "WHERE rolname=current_user")
-                owner, owner_oid = cur.fetchone()
                 cur.execute("SELECT set_config('search_path',%s,true)", (schema,))
                 cur.execute(migration_path.read_text(encoding="utf-8"), prepare=False)
                 cur.execute(
                     "INSERT INTO schema_migrations(version,checksum) VALUES(%s,%s)",
                     (PREREQUISITE_VERSION, digest),
                 )
-                _verify_0008_postcondition(cur, schema)
+                # Migration DDL, ledger insertion, ownership transfer and the
+                # exact runtime ACL become visible together at the outer commit.
+                _profile_boundary(connection, schema=schema, apply=True,
+                                  runtime_role=runtime_role, manager_role=manager_role,
+                                  owner_role=owner_role)
+                _profile_boundary(connection, schema=schema, apply=False,
+                                  runtime_role=runtime_role, manager_role=manager_role,
+                                  owner_role=owner_role)
+                cur.execute("SELECT oid FROM pg_catalog.pg_roles WHERE rolname=%s",
+                            (owner_role,))
+                owner_oid = cur.fetchone()
+                if owner_oid is None:
+                    raise RetirementMigrationError("authority_owner_role_missing")
+                owner_oid = owner_oid[0]
+                owner = owner_role
+                _verify_0008_postcondition(cur, schema, runtime_role, manager_role, owner_role)
                 if _event_types(cur, schema) != BASE_EVENT_TYPES:
                     raise RetirementMigrationError("prerequisite_event_constraint_changed")
                 after = _schema_snapshot(cur, schema)
@@ -410,7 +534,8 @@ def apply_m33_retirement_prerequisite(connection, migration_directory: Path,
         return {"status": "APPLIED", "version": PREREQUISITE_VERSION,
                 "checksum": EXPECTED_PREREQUISITE_SHA256,
                 "preexisting_authority_data_and_permissions": "PRESERVED",
-                "profile_records_created": 0}
+                "profile_records_created": 0,
+                "runtime_function_acl": "five profile functions only; PUBLIC denied"}
     except RetirementMigrationError:
         raise
     except Exception as exc:
@@ -419,15 +544,23 @@ def apply_m33_retirement_prerequisite(connection, migration_directory: Path,
 
 def check_m33_retirement_prerequisite(connection, migration_directory: Path,
                                       *, schema: str = SCHEMA,
-                                      expected_database: str = "riverview") -> dict:
+                                      expected_database: str = "riverview",
+                                      runtime_role: str = RUNTIME_ROLE,
+                                      manager_role: str = MANAGER_ROLE,
+                                      owner_role: str = OWNER_ROLE) -> dict:
     """Read-only preflight for 0008; no DDL, grants, or data writes."""
     try:
         with connection.transaction():
             with connection.cursor() as cur:
                 cur.execute("SET TRANSACTION READ ONLY")
                 _path, digest, is_applied = _preflight_0008(
-                    cur, Path(migration_directory), schema, expected_database
+                    cur, Path(migration_directory), schema, expected_database,
+                    runtime_role, manager_role, owner_role
                 )
+                if is_applied:
+                    _profile_boundary(connection, schema=schema, apply=False,
+                                      runtime_role=runtime_role, manager_role=manager_role,
+                                      owner_role=owner_role)
         return {"status": "ALREADY_APPLIED" if is_applied else "READY",
                 "version": PREREQUISITE_VERSION, "checksum": digest}
     except RetirementMigrationError:
@@ -494,7 +627,10 @@ def _preflight(cur, directory: Path, schema: str = SCHEMA,
 
 def apply_m33_retirement_migration(connection, migration_directory: Path,
                                    *, schema: str = SCHEMA,
-                                   expected_database: str = "riverview") -> dict:
+                                   expected_database: str = "riverview",
+                                   runtime_role: str = RUNTIME_ROLE,
+                                   manager_role: str = MANAGER_ROLE,
+                                   owner_role: str = OWNER_ROLE) -> dict:
     """Atomically apply only 0009 after exact source, chain, and schema checks."""
     directory = Path(migration_directory)
     try:
@@ -505,6 +641,9 @@ def apply_m33_retirement_migration(connection, migration_directory: Path,
                 migration_path, migration_hash, is_applied = _preflight(
                     cur, directory, schema, expected_database
                 )
+                _profile_boundary(connection, schema=schema, apply=False,
+                                  runtime_role=runtime_role, manager_role=manager_role,
+                                  owner_role=owner_role)
                 if is_applied:
                     return {"status": "ALREADY_APPLIED", "version": MIGRATION_VERSION,
                             "checksum": migration_hash}
@@ -548,7 +687,10 @@ def apply_m33_retirement_migration(connection, migration_directory: Path,
 
 def check_m33_retirement_migration(connection, migration_directory: Path,
                                    *, schema: str = SCHEMA,
-                                   expected_database: str = "riverview") -> dict:
+                                   expected_database: str = "riverview",
+                                   runtime_role: str = RUNTIME_ROLE,
+                                   manager_role: str = MANAGER_ROLE,
+                                   owner_role: str = OWNER_ROLE) -> dict:
     """Read-only prerequisite check; does not acquire a writer lock or apply DDL."""
     try:
         with connection.transaction():
@@ -557,6 +699,9 @@ def check_m33_retirement_migration(connection, migration_directory: Path,
                 _path, checksum, is_applied = _preflight(
                     cur, Path(migration_directory), schema, expected_database
                 )
+                _profile_boundary(connection, schema=schema, apply=False,
+                                  runtime_role=runtime_role, manager_role=manager_role,
+                                  owner_role=owner_role)
         return {"status": "READY" if not is_applied else "ALREADY_APPLIED",
                 "version": MIGRATION_VERSION, "checksum": checksum}
     except RetirementMigrationError:
