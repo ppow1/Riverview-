@@ -1,8 +1,9 @@
 """Comms5 deployment-unit safety regression tests.
 
-File Revision: 1.0.1
+File Revision: 1.0.3
 Component: COMMS5-CAMRUI-DEPLOYMENT-TESTS
 History: New file; no predecessor existed.
+Changed: 2026-10-17 UTC | RV-COMMS5-OAUTH-FORWARD-HEADERS-001 | Reject header deletion that strips the trusted Comms5 marker.
 """
 
 import unittest
@@ -10,6 +11,17 @@ from pathlib import Path
 
 
 class Comms5DeploymentTests(unittest.TestCase):
+    def test_oauth_principal_is_copied_from_successful_forward_auth(self):
+        fragment = (Path(__file__).parents[1] / "deploy/comms5/caddy-comms5-oauth-block.caddy").read_text()
+        oauth_path = fragment.split("\n\thandle {\n\t\tforward_auth", 1)[1]
+        self.assertIn("copy_headers X-Riverview-Comms5-Principal", oauth_path)
+        self.assertIn("header_up X-Riverview-Comms5 1", oauth_path)
+        self.assertNotIn("header_up -X-Riverview-Comms5\n", oauth_path)
+        self.assertNotIn("header_up -X-Riverview-Comms5-Principal", oauth_path)
+        self.assertNotIn("header_up X-Riverview-Comms5-Principal steward", oauth_path)
+        # The legacy compatibility route remains explicitly bound to the Steward identity.
+        self.assertEqual(fragment.count("header_up X-Riverview-Comms5-Principal steward"), 1)
+
     def test_reverse_tunnel_credential_is_passed_by_systemd(self):
         unit = (Path(__file__).parents[1] / "deploy/systemd/riverview-comms5-tunnel.service").read_text()
         self.assertIn("User=admin1", unit)

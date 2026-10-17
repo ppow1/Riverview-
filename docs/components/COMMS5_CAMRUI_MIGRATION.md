@@ -2,11 +2,12 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_CAMRUI_MIGRATION.md
 Component: COMMS5-CAMRUI-ADAPTER
-File Revision: 1.0.1
+File Revision: 1.0.2
 Status: Source implementation and live deployment tracker
 Date: 2026-10-16
 History: New file; no predecessor existed.
-Changed: 2026-10-17 UTC | RV-COMMS5-TOOL-CATALOG-AUDIT-001 | Link exact preserved input schemas and record current loopback deployment state.
+Changed: 2026-10-17 UTC | RV-COMMS5-OAUTH-FORWARD-HEADERS-001 | Record authenticated OAuth/MCP acceptance and identify the unchanged Comms4 upstream outage.
+Previous: 2026-10-17 UTC | RV-COMMS5-TOOL-CATALOG-AUDIT-001 | Link exact preserved input schemas and record current loopback deployment state.
 -->
 
 # Comms5 Camrui migration matrix
@@ -54,16 +55,16 @@ Exact historical input schemas, annotations, authentication metadata, and captur
 
 ## Runtime boundary
 
-Camrui adapter binds to `127.0.0.1:11826` only. It requires both Caddy-injected `X-Riverview-Comms5: 1` / `X-Riverview-Comms5-Principal: steward` and a distinct backend-hop bearer credential delivered by systemd credentials. OAuth validation is performed by the Ionoge Comms5 OAuth service through Caddy `forward_auth`; the old connector bearer route remains a separate compatibility path. The MCP process logs no request line, body, arguments, or bearer values.
+Camrui adapter binds to `127.0.0.1:11826` only. It requires both Caddy-injected `X-Riverview-Comms5: 1` / `X-Riverview-Comms5-Principal: steward` and a distinct backend-hop bearer credential delivered by systemd credentials. OAuth validation is performed by the Ionoge Comms5 OAuth service through Caddy `forward_auth`; that authenticated response supplies the `steward` principal, and Caddy sets the trusted hop marker on the backend request. The old connector bearer route remains a separate compatibility path. The MCP process logs no request line, body, arguments, or bearer values.
 
 No production database migration is required for the five implemented discovery operations or the stubs. No database connection is opened by the adapter. A future operation is not considered implemented until its Camrui dependency, exact authority action/scope, privacy projection, idempotency, and tests are documented and verified.
 
-## Validation status
+## Validation status — 2026-10-17 UTC
 
-- Source catalog: 21 tools compared against historical FastMCP tool discovery.
-- Camrui adapter release `588aee804fc6ada3cdf78f4bfded2f8306c783ea` is active on loopback `127.0.0.1:11826`; `/healthz` returned HTTP 200 at 2026-10-17 00:18 EDT.
-- Ionoge OAuth source `048787f574d42ff073a9f94f571dc79943d60fa4` is active on loopback `127.0.0.1:11827`; local `/healthz` returned HTTP 200.
-- The reverse tunnel did not start: the Camrui systemd manager stopped answering D-Bus/systemctl queries during the authorized start attempt. The pinned known-hosts credential path defect has been identified and corrected in follow-up source, but that correction has not yet been integrated or deployed.
-- Caddy has not been changed or reloaded. Public `/comms5/mcp` still returns HTTP 401 and both OAuth discovery URLs return HTTP 404; no public OAuth or MCP path is accepted yet.
-- Historical Comms5 database tables are absent on Camrui; no legacy migration was installed or is required for this increment.
-- ChatGPT account connection and invocation remain unverified.
+- Source catalog: 21 tools compared against historical FastMCP discovery; all 21 were returned through the authenticated production public route. Five static contract/discovery tools are implemented; the other sixteen remain explicit non-executing `NOT_IMPLEMENTED` errors.
+- Camrui adapter release `588aee804fc6ada3cdf78f4bfded2f8306c783ea` active at loopback `127.0.0.1:11826`; `/healthz` returned 200 before and after a controlled reverse-tunnel disconnect/reconnect. Reconnect elapsed 6 seconds.
+- Ionoge OAuth source `048787f574d42ff073a9f94f571dc79943d60fa4` active at loopback `127.0.0.1:11827`. A pre-restart dynamic client remained registered across an OAuth unit restart; after the loopback health endpoint returned 200, authorization and MCP exchange succeeded.
+- Public OAuth DCR, discovery, authorization-code + PKCE S256, callback state, resource-bound token exchange, MCP initialize, initialized notification, 21-tool discovery, `comms5_contract_info`, token-family revoke, and rejection of unauthenticated/revoked requests passed. Exact UTC-stage results and sanitized details are in the dated runbook/troubleshooting record.
+- The live Caddy Comms5 OAuth route now copies only the OAuth-validated `steward` principal, overwrites the backend marker, and no longer deletes that marker. Public OAuth discovery returns 200; unauthenticated Comms5 returns 401.
+- Comms4 route/config was not changed. Its unauthenticated endpoint returns 401, but authorized `ping` currently returns 502 because Ionoge has no listener on upstream `127.0.0.1:11825`; that upstream recovery is an unresolved separate issue.
+- No legacy Comms5 database tables were installed or needed. The ChatGPT Plus account UI itself has not yet been used; production protocol acceptance is not equivalent to ChatGPT application acceptance.

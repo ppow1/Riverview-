@@ -1,8 +1,10 @@
 # Riverview Controlled Source
 # File: deploy/comms5/caddy-comms5-oauth-block.caddy
 # Component: COMMS5-OAUTH-IONOGE
-# Revision: 1.0.0
+# Revision: 1.0.2
 # History: New configuration fragment; no predecessor existed.
+# Changed: 2026-10-17 UTC | RV-COMMS5-OAUTH-FORWARD-HEADERS-001 | Preserve the trusted marker by overwriting client input without a delete operation.
+# Prior change: 2026-10-17 UTC | RV-COMMS5-OAUTH-PRINCIPAL-FORWARD-001 | Copy OAuth-verified principal from forward-auth instead of hard-coding it.
 # Insert inside the existing riverview-comms.ionoge.com site block. Keep the
 # existing Comms4 /mcp handler unchanged and retain the static Comms5 bearer
 # branch before this OAuth forward-auth fallback.
@@ -44,6 +46,7 @@ handle @riverview_comms5_mcp {
 	handle {
 		forward_auth 127.0.0.1:11827 {
 			uri /oauth/verify
+			copy_headers X-Riverview-Comms5-Principal
 		}
 		uri replace /comms5/mcp /mcp
 		request_body {
@@ -51,10 +54,7 @@ handle @riverview_comms5_mcp {
 		}
 		reverse_proxy 127.0.0.1:11826 {
 			header_up Authorization "Bearer {env.RIVERVIEW_COMMS5_UPSTREAM_AUTH}"
-			header_up -X-Riverview-Comms5
-			header_up -X-Riverview-Comms5-Principal
 			header_up X-Riverview-Comms5 1
-			header_up X-Riverview-Comms5-Principal steward
 			header_up Host 127.0.0.1:11826
 			transport http {
 				read_timeout 20s

@@ -2,11 +2,12 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_CAMRUI_DEPLOYMENT.md
 Component: COMMS5-CAMRUI-ADAPTER
-File Revision: 1.0.3
+File Revision: 1.0.4
 Status: Deployment and recovery procedure
-Date: 2026-10-16
+Date: 2026-10-17
 History: New file; no predecessor existed.
-Changed: 2026-10-17 UTC | RV-COMMS5-SSH-HOSTKEY-CREDENTIAL-001 | Pass the pinned known-hosts file through systemd credentials for the unprivileged tunnel user.
+Changed: 2026-10-17 UTC | RV-COMMS5-OAUTH-FORWARD-HEADERS-001 | Corrected trusted marker propagation and recorded live OAuth acceptance and Comms4 upstream status.
+Previous: 2026-10-17 UTC | RV-COMMS5-SSH-HOSTKEY-CREDENTIAL-001 | Pass the pinned known-hosts file through systemd credentials for the unprivileged tunnel user.
 -->
 
 # Comms5 Camrui adapter deployment
@@ -17,12 +18,12 @@ Changed: 2026-10-17 UTC | RV-COMMS5-SSH-HOSTKEY-CREDENTIAL-001 | Pass the pinned
 ChatGPT OAuth client
   -> HTTPS Caddy on Ionoge (existing riverview-comms.ionoge.com)
   -> OAuth authorization service on Ionoge 127.0.0.1:11827
-  -> authenticated forward_auth; Caddy injects the trusted Steward marker
+  -> authenticated forward_auth; Caddy copies the token-validated principal and overwrites the trusted backend marker
   -> reverse SSH listener on Ionoge 127.0.0.1:11826
   -> Camrui 127.0.0.1:11826 (Comms5 adapter)
 ```
 
-The adapter does not listen on a LAN address and does not connect to the database. Its HTTP boundary requires the Caddy principal marker and the separate backend-hop bearer. OAuth access tokens are validated by the Ionoge OAuth service and are not forwarded as the backend credential. The original static-bearer path remains a separate compatibility route. Comms4 on `/mcp` and Comms5 on `/comms5/mcp` remain separate.
+The adapter does not listen on a LAN address and does not connect to the database. Its HTTP boundary requires the Caddy principal marker and the separate backend-hop bearer. OAuth access tokens are validated by the Ionoge OAuth service and are not forwarded as the backend credential. The OAuth fallback copies `X-Riverview-Comms5-Principal` only from a successful OAuth `/oauth/verify` response and sets `X-Riverview-Comms5: 1` on the backend hop. It must not delete that marker in the same `header_up` block: Caddy applies the delete after the set, causing backend authentication to fail. The original static-bearer path remains a separate compatibility route. Comms4 on `/mcp` and Comms5 on `/comms5/mcp` remain separate.
 
 ## Files and activation order
 
@@ -51,6 +52,13 @@ The adapter does not listen on a LAN address and does not connect to the databas
 
 Preserve current Caddyfile, systemd units, authorized_keys, release pointer, and credential-file metadata before mutation. On any failed gate: stop only `riverview-comms5-tunnel.service` and `riverview-comms5-camrui.service`; restore the prior Camrui `current` pointer and unit if changed; restore only the Comms5 site block and relevant Caddy environment entries from the preserved predecessor; run `caddy validate`; reload Caddy only after validation. Preserve SQLite OAuth state and historical Comms4/Comms5 records. Do not revert unrelated services or delete release/backup artifacts.
 
-## Current status
+## Verified commissioning record — 2026-10-17 UTC
 
-This source document specifies the commissioned implementation. The service configuration and public route are not fully commissioned: the adapter and OAuth unit were activated, but the Camrui systemd manager stopped responding during the tunnel activation attempt, so tunnel and Caddy activation remain blocked. Do not report end-to-end connectivity until systemd recovers and the remaining verification gates pass. See `COMMS5_CAMRUI_MIGRATION.md` for per-tool status.
+- Ionoge Caddy, OAuth, and Camrui Comms5 health were active. Public OAuth authorization-server and protected-resource discovery returned 200; public unauthenticated Comms4 and Comms5 MCP POSTs returned 401.
+- A real authorization-code + PKCE S256 test client completed DCR, credential login through HTTPS, callback state validation, resource-bound token exchange, MCP initialize, notifications/initialized, `tools/list` (21 original tools), and the implemented read-only `comms5_contract_info` call. The call returned contract `riverview-comms-contract:5.0`. Token-family revocation succeeded; both unauthenticated and revoked MCP requests returned 401. Test output did not include credentials, codes, or tokens.
+- A dedicated reverse-tunnel SSH session owning Ionoge `127.0.0.1:11826` was terminated for a bounded reconnect check; the listener and `/healthz` recovered in 6 seconds. The OAuth service was restarted; after its loopback listener was ready, an OAuth client registered before restart authorized and completed the MCP exchange, confirming SQLite-backed client persistence.
+- Caddy reload initially failed because a staging copy had mode `0640` and lost Caddy's read permission. The running Caddy process remained active (`NRestarts=0`, health 200). File ownership/mode were restored from the preserved predecessor (`root:root 0644`), the full file revalidated, and reload then succeeded. The production Caddyfile backup and SHA-256 are recorded in the dated connection runbook.
+- **Comms4 caveat:** The `/mcp` Caddy route and its authenticated routing block were preserved unchanged. The public unauthenticated request remains 401, but an authenticated `ping` returned 502 because Ionoge currently has no listener on `127.0.0.1:11825`. Comms4 backend operation is therefore not currently verified and needs its own existing upstream restored; no Comms4 config or service was modified.
+- **ChatGPT account acceptance:** The full OAuth/MCP protocol was exercised using a real HTTPS client harness and the actual services, not ChatGPT's UI. ChatGPT workspace connection and invocation remain unverified until a Steward completes the connector authorization in ChatGPT.
+
+See [`COMMS5_OAUTH_TROUBLESHOOTING.md`](COMMS5_OAUTH_TROUBLESHOOTING.md), [`COMMS5_CAMRUI_MIGRATION.md`](COMMS5_CAMRUI_MIGRATION.md), and the dated machine-connection runbook in `docs/operations/` for exact evidence and recovery.
