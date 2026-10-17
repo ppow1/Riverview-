@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.8
+# Revision: 1.3.9
 # Purpose: Adapt bounded resident proposals and conversation turns to local inference
 # Execution Model: Bounded loopback OpenAI-compatible request
 # Observability: Sanitized provider failures; no prompts or raw model output logged
@@ -34,6 +34,7 @@
 # =============================================================================
 # Changed: 2026-10-16 UTC | RV-GRACE-PROVIDER-PROVENANCE | Attach the configured provider ID to completed streamed and ordinary chat turns
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Pass external advice as unverified input, separate from institutional knowledge
+# Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-INTERNAL-TOOLS-001 | Carry structured internal tool result provenance on Grace chat completions
 """Provider adapter for the existing loopback local-inference contract."""
 
 from __future__ import annotations
@@ -82,6 +83,7 @@ class ChatCompletion:
     reasoning_stage: str = "primary"
     provisional: bool = False
     provider_attempts: tuple[dict, ...] = ()
+    internal_tool_results: tuple[dict, ...] = ()
 
 
 @dataclass(frozen=True)
