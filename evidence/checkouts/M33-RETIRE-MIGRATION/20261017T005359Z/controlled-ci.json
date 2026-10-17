@@ -1,0 +1,12 @@
+{
+  "run_id": "38988305516",
+  "run_url": "https://github.com/ppow1/Riverview-/actions/runs/38988305516",
+  "pr": 76,
+  "head_sha": "6b806ac45f046f2e0b2a6c237c8fdaf3c4504446",
+  "result": "SUCCESS",
+  "tests": "513 passed; 2 skipped",
+  "canonical_graphs": "21 workflows / 524 nodes; check and validation passed",
+  "revision_audit": "passed, zero issues",
+  "integration_target": "7780a780e8232d1e1b312c0f57d3b3df81c93bea is an ancestor of the PR head",
+  "production": "unchanged; separate missing-0008 Steward decision remains required"
+}

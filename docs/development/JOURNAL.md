@@ -1,9 +1,9 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.162
+**Document Revision:** 1.0.163
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
-**Changed:** 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001-CI-DB-IDENTITY | Record controlled-CI database identity correction and exact-head retry evidence
+**Changed:** 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001-FINAL-CI | Record passing exact-head controlled CI on corrected migration runner
 **Changed:** 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001 | Record fixed 0009 migration runner verification, actual release path correction, and 0008 production prerequisite blocker
 **Changed:** 2026-10-16 UTC | RV-M33-DECOMMISSION-001 | Record exact-run M33 decommission and preserve production acceptance evidence
 **Changed:** 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Record guarded M33 registration retirement, integration reconciliation, verification, and production execution boundary
@@ -2411,3 +2411,6 @@ The Steward supplied current live ledger evidence: `riverview_authority.schema_m
 ## 2026-10-17 UTC — RV-M33-RETIRE-MIGRATION-001 CI database identity correction
 
 Exact-head controlled CI run `38987983617` exposed that the migration runner's safety preflight fixed the database name to `riverview`, while the controlled test harness correctly provisions the disposable database as `riverview_test`. The runner now accepts an explicit expected database only at its library boundary; the production CLI supplies no override and remains hard-pinned to `riverview`. Focused tests pass 11/11 against a fresh PostgreSQL 16 disposable cluster named `riverview_test`, covering the 0009 transaction, idempotence, preservation checks, and fail-closed handling of missing 0008, checksum drift, extra source migrations, and unexplained ledger rows. Graph validation passes at 21 workflows / 524 nodes; controlled revision audit reports zero issues; changed Python compilation and `git diff --check` pass. Evidence: `evidence/checkouts/M33-RETIRE-MIGRATION/20261017T005041Z/`. Camrui's confirmed ledger remains 0000–0007. The runner intentionally refuses to skip required predecessor 0008, which introduces the separate resident permission-profile subsystem. No production database, release, service, registration, or grant was changed. Production execution remains blocked until the Steward separately authorizes the required 0008 prerequisite or commissions a reviewed migration correction; no operator apply/retirement script is safe to execute before that decision.
+
+
+Exact-head PR #76 CI retry passed at run `38988305516` on `6b806ac45f046f2e0b2a6c237c8fdaf3c4504446`: 513 tests passed, 2 skipped; graph check/validation passed at 21 workflows / 524 nodes; revision audit passed with zero issues. PR #76 remains open and mergeable. Evidence: `evidence/checkouts/M33-RETIRE-MIGRATION/20261017T005359Z/controlled-ci.json`. Production remains unchanged and blocked by the explicit 0008 dependency decision.
