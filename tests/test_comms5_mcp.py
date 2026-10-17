@@ -63,6 +63,7 @@ def test_unimplemented_write_is_explicit_tool_error_and_no_executor_exists():
     tool_result = result["result"]
     assert tool_result["isError"] is True
     value = json.loads(tool_result["content"][0]["text"])
+    assert tool_result["structuredContent"] == value
     assert value == {
         "status": "NOT_IMPLEMENTED", "executed": False,
         "tool": "comms5_submit_steward_seed",

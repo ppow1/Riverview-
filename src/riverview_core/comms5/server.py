@@ -121,14 +121,16 @@ class Comms5Application:
             if not _valid(tool["inputSchema"], arguments):
                 return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32602, "message": "Arguments do not match the published tool schema"}}
             if name not in _IMPLEMENTED:
+                result_value = {
+                    "status": "NOT_IMPLEMENTED", "executed": False,
+                    "tool": name,
+                    "reason": "Historical operation is retained in the MCP catalog but its current Camrui backend contract has not yet been verified.",
+                }
                 return {
                     "jsonrpc": "2.0", "id": request_id,
                     "result": {
-                        "content": [{"type": "text", "text": json.dumps({
-                            "status": "NOT_IMPLEMENTED", "executed": False,
-                            "tool": name,
-                            "reason": "Historical operation is retained in the MCP catalog but its current Camrui backend contract has not yet been verified.",
-                        }, separators=(",", ":"))}],
+                        "content": [{"type": "text", "text": json.dumps(result_value, separators=(",", ":"))}],
+                        "structuredContent": result_value,
                         "isError": True,
                     },
                 }
@@ -163,7 +165,11 @@ class Comms5Application:
                 )
             return {
                 "jsonrpc": "2.0", "id": request_id,
-                "result": {"content": [{"type": "text", "text": json.dumps(value, separators=(",", ":"))}], "isError": False},
+                "result": {
+                    "content": [{"type": "text", "text": json.dumps(value, separators=(",", ":"))}],
+                    "structuredContent": value,
+                    "isError": False,
+                },
             }
         return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32601, "message": "Method not found"}}
 
