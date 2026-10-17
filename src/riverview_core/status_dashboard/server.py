@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.18
+# Revision: 1.3.19
 # Purpose: Serve account-authenticated operational, proposal, capability and snapshot APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -41,6 +41,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
 # Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RECOVERY-001 | Ground against the active immutable release and make conversation intake recoverable/idempotent.
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Add authenticated revision decisions, explicit conversational commands, and existing-pipeline promotion API
+# Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-CHAT-WIRING | Attach the existing internal Comms5 read tools to the dashboard Grace router
 # =============================================================================
 """Loopback-only Steward dashboard with read projections and receipt-only writes."""
 
@@ -121,6 +122,15 @@ def _bounded_limit(value):
         return min(_MAX_PAGE, max(1, int(value)))
     except (TypeError, ValueError):
         return 25
+
+
+def _build_grace_model_router(*, autonomic, vision, reasoning, internal_tools=None):
+    """Build the same Grace router with its bounded internal operations surface."""
+    from riverview_core.resident_execution.internal_tools import GraceInternalTools
+    from riverview_core.resident_execution.model_router import GraceModelRouter
+    tools = GraceInternalTools() if internal_tools is None else internal_tools
+    return GraceModelRouter(autonomic=autonomic, vision=vision, reasoning=reasoning,
+                            internal_tools=tools)
 
 
 def _verify_grace_router_startup_readiness(connection, *, schema, registry,
@@ -1868,8 +1878,8 @@ def main():
                     "/mnt/model-storage/vision/Qwen3-VL-30B-A3B/Huihui-Qwen3-VL-30B-A3B-Instruct-abliterated.i1-IQ3_XS.gguf",
                     os.environ["RIVERVIEW_GRACE_30B_MODEL_SHA256"], timeout_seconds=25,
                     allow_approved_private_lan=True)
-                router = GraceModelRouter(autonomic=provider, vision=vision,
-                                          reasoning=reasoning)
+                router = _build_grace_model_router(autonomic=provider, vision=vision,
+                    reasoning=reasoning)
                 with psycopg.connect(dsn, connect_timeout=2) as migration_probe:
                     _verify_grace_router_startup_readiness(
                         migration_probe, schema=schema, registry=authority_registry,

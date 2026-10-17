@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.223"
+      "revision": "1.1.224"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -231,6 +231,12 @@
       "sha256": "f6b082a4dbf70ca8acee093a372c3c6af1048389eda2d4231210120f8953d40d",
       "size_bytes": 88499
     },
+    "src/riverview_core/status_dashboard/server.py": {
+      "path": "src/riverview_core/status_dashboard/server.py",
+      "revision": "1.3.19",
+      "sha256": "84d5aa64c3f5bc762440b7c87be8480751bbdbf4f613ede3c3a86c4f881d96bc",
+      "size_bytes": 123743
+    },
     "src/riverview_core/status_dashboard/static/capabilities.json": {
       "path": "src/riverview_core/status_dashboard/static/capabilities.json",
       "revision": "1.0.1",
@@ -260,8 +266,14 @@
       "revision": "1.0.0",
       "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
       "size_bytes": 1226
+    },
+    "tests/test_grace_dashboard_tool_wiring.py": {
+      "path": "tests/test_grace_dashboard_tool_wiring.py",
+      "revision": "1.0.0",
+      "sha256": "1f6ddc48f0b9e58a2aae718e64959b714a0ad111baaf59c8988662a5d4ed2ff5",
+      "size_bytes": 1702
     }
   },
-  "manifest_revision": "1.1.223",
-  "updated_at": null
+  "manifest_revision": "1.1.224",
+  "updated_at": "2026-10-17T22:48:21.716245Z"
 }
