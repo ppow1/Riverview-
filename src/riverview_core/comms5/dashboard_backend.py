@@ -1,12 +1,13 @@
 # Riverview Controlled Source
 # File: src/riverview_core/comms5/dashboard_backend.py
 # Component: COMMS5-CAMRUI-ADAPTER
-# Revision: 1.0.6
+# Revision: 1.0.7
 # Purpose: Expose bounded current-runtime operations through Comms5
 # Authority: Existing dashboard credential plus ingress-attested Steward principal
 # Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Route proposal and complete bounded status operations through the fixed authenticated internal dashboard contract.
 # Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Correlate authenticated transport probes to the dashboard request and surface truthful resource-policy status.
 # Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Route durable work-order queue requests through the existing authenticated dashboard operation endpoint.
+# Changed: 2026-10-17 UTC | RV-COMMS5-PR100-CORRELATION-HEADER-20261017 | Keep ordinary status reads compatible with responses lacking optional request-correlation headers.
 # History: New file; no predecessor existed.
 """Narrow authenticated bridge to Riverview's existing dashboard API."""
 
@@ -205,7 +206,8 @@ class DashboardReadBackend:
                 if response.headers.get_content_type() != "application/json":
                     raise DashboardBackendUnavailable("dashboard_content_type_invalid")
                 payload = response.read(1_048_577)
-                request_id = response.headers.get("X-Request-ID")
+                request_id = (response.headers.get("X-Request-ID")
+                              if callable(getattr(response.headers, "get", None)) else None)
         except HTTPError as exc:
             raise DashboardBackendUnavailable("dashboard_http_status") from None
         except (URLError, TimeoutError, OSError):
