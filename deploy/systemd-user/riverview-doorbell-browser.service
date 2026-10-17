@@ -1,0 +1,24 @@
+# Riverview~ controlled user unit
+# File Revision: 1.0.0
+# Task: RV-C3-DOORBELL-001
+# Purpose: Keep Riverview's dedicated ChatGPT browser profile available in admin1's graphical session
+[Unit]
+Description=Riverview fixed ChatGPT doorbell browser
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionPathExists=%h/.config/riverview/doorbell.json
+
+[Service]
+Type=simple
+Environment=HOME=%h
+Environment=RIVERVIEW_DOORBELL_CONFIG=%h/.config/riverview/doorbell.json
+Environment=RIVERVIEW_BROWSER_PROFILE=%h/.local/share/riverview/browser/profile
+Environment=RIVERVIEW_RUNTIME_ROOT=%h/.local/state/riverview
+ExecStart=/usr/bin/node /opt/riverview-core/current/tools/riverview_browser_runtime.cjs --serve
+Restart=on-failure
+RestartSec=5s
+KillMode=control-group
+UMask=0077
+
+[Install]
+WantedBy=graphical-session.target
