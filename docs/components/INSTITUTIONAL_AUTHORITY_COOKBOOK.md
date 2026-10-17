@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.28
+File Revision: 1.0.29
 Purpose: Diagnose and safely recover institutional authority registry state
 Authority: Read-only diagnostics first; grant changes require authenticated Steward
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Keep evidence references as readable paths in safe dashboard renderer
@@ -29,6 +29,7 @@ Changed: 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009 | Record exact predec
 Changed: 2026-10-17 UTC | M33-0008-ATOMIC-RUNTIME-ACL | Apply migration 0008 and the five-function runtime boundary atomically; document ACL checks and rollback
 Changed: 2026-10-17 UTC | M33-0008-ATOMIC-RUNTIME-ACL | Clarify post-commit restore coordination and data reconciliation
 Changed: 2026-10-17 UTC | M33-0008-ATOMIC-RUNTIME-ACL | Require the atomic runtime boundary runner and reuse valid backup closeout evidence
+Changed: 2026-10-17 UTC | M33-0008-PRODUCTION-ACCEPTANCE | Record installed immutable runner release, migration 0008, runtime ACLs and production checks
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional authority registry cookbook
@@ -818,7 +819,43 @@ re-review before saving. An offline, busy, degraded, or unknown resource is a
 readiness/capacity condition, not an authorization decision. Resume only after
 rechecking both the exact grant and the current profile revision.
 
+## M33 0008 production acceptance — 2026-10-17
+
+PR #78 merged the atomic runtime-ACL correction at integration commit
+`3f1b38ceb8460fa1fefa10094d2d04676e3b6f02`. The verified immutable runner
+release is installed at
+`/opt/riverview/releases/3f1b38ceb8460fa1fefa10094d2d04676e3b6f02` with
+package SHA-256
+`47f4d34b02e9d73ab35cd2cce3af56060753add37d189d243a00e84ff3b0d19c`.
+It was invoked from this versioned path; `/opt/riverview-core` remains pointed
+to the prior `64e8f14ad6d71102a864755739a1c8a61506235c` release and no service
+was restarted or release pointer switched.
+
+The preflight returned `READY`; `--apply-0008` returned `APPLIED`, and the
+postflight `--check-0008` returned `ALREADY_APPLIED` with the pinned checksum
+`570c7aeb16fca04c64c4e010f1534d0efebe92628ddacd8f05f6eb1eda12d339`. The
+ledger now contains 0000–0008; 0009 remains unapplied. All five profile API
+functions are owned by `riverview_authority_owner`, executable by
+`riverview_core`, and not executable by `PUBLIC` or the manager. Runtime schema
+USAGE is present without CREATE; profile table access remains denied to the
+runtime. Manager profile table SELECT/UPDATE remains scoped. All profile,
+draft, resident-rule, and profile-event tables are empty. A read-only evaluator
+call as `riverview_core` returned `legacy_exact_grant_only`.
+
+The Grace execution, dashboard, event processor, CME monitor, and notification
+dispatcher remained active. A strict-CA TLS GET of `https://192.168.1.155/`
+returned HTTP 200 with certificate verification result 0. The running core
+release pointer is unchanged. Production evidence is in
+`evidence/checkouts/M33-0008-PRODUCTION/20261017T025938Z/production-acceptance.json`.
+The protected backup closeout is PASS and its archive digest and `pg_restore`
+listing were verified. The earlier failed preliminary schema-comparison record
+remains preserved alongside the later PASS closeout; see the evidence's
+`backup-applicability.txt` for that discrepancy and chronology. Migration 0008
+has no down migration; do not restore a whole-database backup without separate
+recovery authorization and post-snapshot write reconciliation.
+
 - **1.0.23 — 2026-10-14:** Add source-only resident profile migration diagnostics and explicit runtime/manager function-only ACL expectations.
 - **1.0.26 — 2026-10-17:** Make authority 0008 DDL, owner transfer, five-profile-function runtime grants, and ACL postconditions atomic; document exact live role/schema baseline and recovery.
 - **1.0.27 — 2026-10-17:** Clarify whole-database restore after committed 0008 requires an authorized recovery window and reconciliation of post-backup writes.
 - **1.0.28 — 2026-10-17:** Require the corrected atomic runtime boundary in the 0008 runner and allow reuse of applicable verified backup evidence.
+- **1.0.29 — 2026-10-17:** Record Camrui migration 0008 production execution, function ACL postflight, service continuity, and the installed non-active release.

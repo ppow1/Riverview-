@@ -1,0 +1,47 @@
+{
+  "active_core_release_before_after": "/opt/riverview/releases/64e8f14ad6d71102a864755739a1c8a61506235c",
+  "backup_gate": "latest closeout PASS; archive hash and pg_restore list verified; see backup-applicability.txt for retained earlier failed-attempt discrepancy",
+  "capture_utc": "20261017T025938Z",
+  "dashboard_https": "https_status=200 tls_verify=0",
+  "migration_0008": {
+    "migration_0009": "not_applied",
+    "sha256": "570c7aeb16fca04c64c4e010f1534d0efebe92628ddacd8f05f6eb1eda12d339",
+    "status": "APPLIED",
+    "version": "0008_resident_permission_profiles"
+  },
+  "package_sha256": "47f4d34b02e9d73ab35cd2cce3af56060753add37d189d243a00e84ff3b0d19c",
+  "production_host": "192.168.1.155",
+  "production_mutations": "authority migration 0008 only",
+  "profile_state": {
+    "drafts": 0,
+    "events": 0,
+    "profile_records_created_by_migration": 0,
+    "profiles": 0,
+    "resident_rules": 0
+  },
+  "release_directory": "/opt/riverview/releases/3f1b38ceb8460fa1fefa10094d2d04676e3b6f02",
+  "release_state": "installed_root_owned_immutable_not_activated",
+  "runner_sha256": "e1d268805fc0fa084c2bac3298aebb80a6e393e7d701298a26f431e5dab1a64a",
+  "runtime_acl": {
+    "function_count": 5,
+    "manager_execute": "DENIED",
+    "manager_profile_table_select_update": "PASS",
+    "public_execute": "DENIED",
+    "riverview_core_execute": "PASS",
+    "runtime_profile_table_dml": "DENIED",
+    "schema_create": "DENIED",
+    "schema_usage": "PASS"
+  },
+  "runtime_evaluator_call": "legacy_exact_grant_only",
+  "schema_version": "riverview.m33-0008-production-acceptance.v1",
+  "service_restart": "none",
+  "services": {
+    "riverview-cme-monitor.service": "active",
+    "riverview-event-processor.service": "active",
+    "riverview-grace-execution-owner-session.service": "active",
+    "riverview-notification-dispatcher.service": "active",
+    "riverview-status-dashboard.service": "active"
+  },
+  "source_commit": "3f1b38ceb8460fa1fefa10094d2d04676e3b6f02",
+  "worker_registry_or_grants_changed": false
+}

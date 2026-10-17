@@ -1,0 +1,13 @@
+{
+  "command": "/opt/riverview/releases/3f1b38ceb8460fa1fefa10094d2d04676e3b6f02/scripts/apply_m33_retirement_migration.py --apply-0008",
+  "executed_as": "postgres",
+  "result": {
+    "checksum": "570c7aeb16fca04c64c4e010f1534d0efebe92628ddacd8f05f6eb1eda12d339",
+    "preexisting_authority_data_and_permissions": "PRESERVED",
+    "profile_records_created": 0,
+    "runtime_function_acl": "five profile functions only; PUBLIC denied",
+    "status": "APPLIED",
+    "version": "0008_resident_permission_profiles"
+  },
+  "source_commit": "3f1b38ceb8460fa1fefa10094d2d04676e3b6f02"
+}

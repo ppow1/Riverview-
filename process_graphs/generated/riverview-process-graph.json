@@ -4826,7 +4826,7 @@
     },
     {
       "graph_id": "rv:institutional-authority:resident-permission-profiles",
-      "graph_revision": "1.0.4",
+      "graph_revision": "1.0.5",
       "component_id": "RESIDENT-PERMISSION-PROFILES",
       "workflow_id": "resident-permission-profiles.v1",
       "diagram_order": 2,
@@ -4854,7 +4854,8 @@
         "tests/test_permission_profiles.py",
         "tests/test_authorizer_profile_legacy_compatibility.py",
         "tests/test_m33_retirement_migration.py",
-        "evidence/checkouts/M33-0008-ATOMIC-RUNTIME-ACL/20261017T023249Z-final/summary.txt"
+        "evidence/checkouts/M33-0008-ATOMIC-RUNTIME-ACL/20261017T023249Z-final/summary.txt",
+        "evidence/checkouts/M33-0008-PRODUCTION/20261017T025938Z/production-acceptance.json"
       ],
       "nodes": [
         {

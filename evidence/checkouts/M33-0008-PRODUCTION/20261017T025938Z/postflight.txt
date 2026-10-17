@@ -1,0 +1,37 @@
+BEGIN
+                 version                  |                             checksum
+------------------------------------------+------------------------------------------------------------------
+ 0000_authority_migration_ledger          | 8043b6f310f98e8e9613abbec71befcb4e3734d6fb374c36c6ccafe36b965fd6
+ 0001_institutional_authority             | 347e415b662675d492400a0af145edc9ca92e5122ee3e22886d9656b578fad36
+ 0002_exact_grant_authorization           | 84be0433c2e603875489a3e4311199f19b97eddc6a5ec55eef6dd47010cb091d
+ 0003_resident_office_state_api           | 6dc6702f959b77b18e5f959891979e49bbc10c1840c437de924c6c8187d74afb
+ 0004_exact_principal_grant_authorization | 8db42ab887bcb03e9e5e8814ae85ddf5a82c8410535c77a18876204f608b62fe
+ 0005_audited_model_rebinding             | 09df3913c85e0014f67824f4219f219aa7aa402a6a0ba596b463f5f5b0d9909c
+ 0006_authorized_implementation_successor | 05a0082a9f855ad57350e75c51c42abf7ae9eeeaf8de8c7167747e3f1a2e4ed7
+ 0007_audited_office_role_update          | d7ac90639c1496319a4a52306d0ed03af679186ca77a92a60a2db4c38cc49240
+ 0008_resident_permission_profiles        | 570c7aeb16fca04c64c4e010f1534d0efebe92628ddacd8f05f6eb1eda12d339
+(9 rows)
+
+               proname               |                                                   signature                                                   |           owner           | runtime_execute | manager_execute | public_execute
+-------------------------------------+---------------------------------------------------------------------------------------------------------------+---------------------------+-----------------+-----------------+----------------
+ approve_resident_permission_profile | p_actor text, p_resident text, p_expected_revision bigint                                                     | riverview_authority_owner | t               | f               | f
+ evaluate_resident_permission        | p_resident text, p_action text, p_resource text, p_access_level text, p_classification text, p_export boolean | riverview_authority_owner | t               | f               | f
+ list_resident_permission_profiles   | p_actor text                                                                                                  | riverview_authority_owner | t               | f               | f
+ revoke_resident_permission_profile  | p_actor text, p_resident text, p_expected_revision bigint                                                     | riverview_authority_owner | t               | f               | f
+ save_resident_permission_profile    | p_actor text, p_resident text, p_expected_revision bigint, p_profile jsonb                                    | riverview_authority_owner | t               | f               | f
+(5 rows)
+
+ runtime_schema_usage | runtime_schema_create | runtime_profile_select | runtime_profile_insert | manager_profile_select | manager_profile_update
+----------------------+-----------------------+------------------------+------------------------+------------------------+------------------------
+ t                    | f                     | f                      | f                      | t                      | t
+(1 row)
+
+               object               | count
+------------------------------------+-------
+ resident_permission_events         |     0
+ resident_permission_profile_drafts |     0
+ resident_permission_profiles       |     0
+ resident_permission_rules          |     0
+(4 rows)
+
+ROLLBACK

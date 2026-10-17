@@ -1,0 +1,71 @@
+{
+  "artifacts": {
+    "active-release.txt": {
+      "path": "active-release.txt",
+      "revision": "1.0.0",
+      "sha256": "3f6deb162e0a1717891c62df165c8a11d2f2ec863c141f56a5fb50dc930aa4b6",
+      "size_bytes": 65
+    },
+    "backup-applicability.txt": {
+      "path": "backup-applicability.txt",
+      "revision": "1.0.0",
+      "sha256": "6bf7a7a74575d579db4a3baba71c3d061f22e4301c4d3e95444a5acabe5dee67",
+      "size_bytes": 836
+    },
+    "backup-sha256.txt": {
+      "path": "backup-sha256.txt",
+      "revision": "1.0.0",
+      "sha256": "c1005cd40735549a4e41246adf28257f92b61001e3e597a15ac90e5833594791",
+      "size_bytes": 127
+    },
+    "dashboard-https.txt": {
+      "path": "dashboard-https.txt",
+      "revision": "1.0.0",
+      "sha256": "ed3ce0425cbaa4074d3d643f905d3ff47ae22995e997cc13a287a1cad661c737",
+      "size_bytes": 30
+    },
+    "migration-apply-result.json": {
+      "path": "migration-apply-result.json",
+      "revision": "1.0.0",
+      "sha256": "c659e85b5f30c91bc9eb4cd505f9f24afbb62c63eae01a2ba2306ba26c9c27b3",
+      "size_bytes": 581
+    },
+    "package-verification.json": {
+      "path": "package-verification.json",
+      "revision": "1.0.0",
+      "sha256": "03be5f2869a09b2f1cc9c7ac3b1f5d014bf26e91d7cbf9db02fc98583bb94483",
+      "size_bytes": 2139
+    },
+    "postflight.txt": {
+      "path": "postflight.txt",
+      "revision": "1.0.0",
+      "sha256": "264f528882ff9f0f64dc5e5140aff77b02cc61f64436f2d85145865aec50e167",
+      "size_bytes": 3455
+    },
+    "production-acceptance.json": {
+      "path": "production-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "97e65d8df62cd560554cce2586d35351cdb14fee38473dbd685dfe1760b122f9",
+      "size_bytes": 2022
+    },
+    "runner-check.txt": {
+      "path": "runner-check.txt",
+      "revision": "1.0.0",
+      "sha256": "86e3f100ffd2a6fc9a993cca6d65150b8735670d7fcde52f41be2044335854ae",
+      "size_bytes": 158
+    },
+    "runtime-evaluator.txt": {
+      "path": "runtime-evaluator.txt",
+      "revision": "1.0.0",
+      "sha256": "66e11fbfff937cf683f44e58d5923f1e0dc6f0115ccbce933cf532c3b87d065d",
+      "size_bytes": 99
+    },
+    "services.txt": {
+      "path": "services.txt",
+      "revision": "1.0.0",
+      "sha256": "f78105ef26723eeabe4236b703d474c2df3110172ed1686f46533e64e925cac3",
+      "size_bytes": 35
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

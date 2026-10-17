@@ -1,0 +1,8 @@
+BEGIN
+SET
+     evaluator_mode
+-------------------------
+ legacy_exact_grant_only
+(1 row)
+
+ROLLBACK
