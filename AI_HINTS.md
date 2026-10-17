@@ -1,8 +1,8 @@
 # Riverview~ AI Engineering Hints
 
-**Document Revision:** 1.0.3  
+**Document Revision:** 1.0.4  
 **Status:** Working agent guidance  
-**Date:** 2026-10-09  
+**Date:** 2026-10-16  
 **Component:** ENG-AGENT-GUIDANCE  
 **Purpose:** Startup instructions for any AI agent performing engineering work on Riverview~.  
 **Authority:** Guidance for work in this repository; subordinate to the user's explicit instructions and the governing engineering standards.
@@ -19,6 +19,11 @@
 8. Test affected behavior and relevant regressions. Record actual commands, exit codes, pass/fail/skip counts, environment, and limitations. Never report unexecuted tests as PASS.
 9. Review the diff, verify only intended files changed, and confirm predecessor restoration remains possible. Do not commit, push, deploy, or alter production data unless the task authorizes it.
 10. End with a precise handoff: files and revisions changed, predecessor locations, test evidence, commit/deployment status, outstanding problems, and next action.
+
+
+## Institutional proposal authoring
+
+If the task is to suggest, formalize, submit, review, or track a Riverview proposal, read `docs/development/PROPOSAL_AUTHORING_PLAYBOOK.md` and the institutional contract `docs/components/INSTITUTIONAL_PROPOSALS.md` (currently on PR #70's branch; verify availability on the working branch) before acting. A proposal draft is not execution authority. Use only the documented authenticated Steward conversation submission flow; never invent proposal IDs, API routes, or grants. Explicit Steward approval and separate authorized promotion are required before Engineering objective intake. If the contract or endpoint is unavailable, produce a submission-ready draft and mark it NOT SUBMITTED.
 
 ## Operational facts and boundaries
 
@@ -51,6 +56,8 @@
 Before editing, briefly report: repository/branch/HEAD, applicable standards, task scope, relevant code/dependencies, predecessor-preservation plan, and tests to run. If the task is purely informational, do not modify files.
 
 ## Revision history
+
+- **1.0.4 — 2026-10-16:** Link proposal authoring and submission playbook; clarify Steward authorization boundary. Predecessor: `docs/history/AI_HINTS_rev1.0.3.md`.
 
 - **1.0.3 — 2026-10-09:** Require all engineering agents to load the full Codex campaign and its observability, web visibility, flowchart, troubleshooting and DoD obligations. Predecessor: `docs/history/AI_HINTS_rev1.0.2.md`.
 
