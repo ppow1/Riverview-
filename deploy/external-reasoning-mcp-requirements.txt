@@ -1,0 +1,10 @@
+# Riverview~ controlled dependency pin
+# File Revision: 1.0.0
+# Component: EXTERNAL-REASONING-MCP-TRANSPORT
+# Task: RV-MCP-CHATGPT-OAUTH-RESOURCE-001
+# Purpose: OAuth JWT/JWKS verification dependency for the MCP resource server
+# Authority: Does not issue credentials or Riverview grants
+#
+# Install into the existing release virtual environment through the controlled
+# deployment procedure. `cryptography` is already pinned by the base runtime.
+PyJWT[crypto]==2.10.1

@@ -2,11 +2,11 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_mcp.py
 # Component: EXTERNAL-REASONING-MCP-TRANSPORT
-# Revision: 1.0.5
-# Purpose: Exercise MCP Streamable HTTP and bearer identity mapping independently
+# Revision: 1.0.7
+# Purpose: Exercise MCP Streamable HTTP and OAuth provider identity mapping independently
 # Execution Model: Local ephemeral HTTP server; stdlib client independent of adapter dispatch
 # Observability: HTTP status, protocol negotiation, tool names and sanitized denials
-# Dependencies: Python standard library; external_reasoning_mcp module
+# Dependencies: Python standard library; PyJWT; cryptography; external_reasoning_mcp module
 # Authority: Synthetic tokens and exchange fixture; no production database or route
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Initial protocol/client tests
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Include finite provider-token expiry in independent client fixtures
@@ -24,12 +24,17 @@ import http.client
 import json
 import socket
 import threading
+import time
 import unittest
 from types import SimpleNamespace
 
+import jwt
+from cryptography.hazmat.primitives.asymmetric import rsa
+
 from riverview_core.resident_execution.external_reasoning import DurableExternalReasoningExchange
 from riverview_core.resident_execution.external_reasoning_mcp import (
-    ExternalReasoningMCPAdapter, MCPConfigurationError, ProviderTokenMap,
+    ExternalReasoningMCPAdapter, MCPAuthenticationError, MCPConfigurationError,
+    OAuthProviderTokenMap, ProviderTokenMap,
     create_server,
 )
 
@@ -43,6 +48,18 @@ class _FixtureExchange(DurableExternalReasoningExchange):
     def __init__(self):
         self.router = SimpleNamespace(providers={PROVIDER: SimpleNamespace(provider_id=PROVIDER,
             exchange_principal_id=PRINCIPAL)})
+
+    def eligible_requests(self, provider_id, *, principal_id, limit):
+        return []
+
+
+class _JWKFixture:
+    def __init__(self, key):
+        self.key = key
+
+    def get_signing_key_from_jwt(self, token):
+        jwt.get_unverified_header(token)
+        return SimpleNamespace(key=self.key)
 
 
 class IndependentMCPClientTests(unittest.TestCase):
@@ -93,39 +110,48 @@ class IndependentMCPClientTests(unittest.TestCase):
         status, headers, body = self._request("initialize", {
             "jsonrpc": "2.0", "id": "init-1", "method": "initialize",
             "params": {"protocolVersion": "2025-11-25", "capabilities": {},
-                "clientInfo": {"name": "independent-stdlib-client", "version": "1.0"}}})
+                "clientInfo": {"name": "independent-stdlib-client", "version": "1.0"}}},
+            token=None)
         self.assertEqual(status, 200)
         self.assertEqual(body["result"]["protocolVersion"], "2025-11-25")
         self.assertEqual(body["result"]["serverInfo"]["name"],
                          "Riverview External Reasoning Exchange")
         status, _, body = self._request("notifications/initialized", {
             "jsonrpc": "2.0", "method": "notifications/initialized"},
-            protocol="2025-11-25")
+            protocol="2025-11-25", token=None)
         self.assertEqual(status, 202)
         status, _, body = self._request("tools/list", {
             "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
-            protocol="2025-11-25")
+            protocol="2025-11-25", token=None)
         self.assertEqual(status, 200)
         names = [tool["name"] for tool in body["result"]["tools"]]
         self.assertEqual(names, ["reasoning_exchange_list_requests",
             "reasoning_exchange_claim_request", "reasoning_exchange_submit_response",
             "reasoning_exchange_status"])
         self.assertNotIn("reasoning_exchange_consume", names)
+        self.assertTrue(all(tool["securitySchemes"] == [{"type": "oauth2",
+            "scopes": ["reasoning:exchange", "reasoning:exchange:confidential"]}]
+            for tool in body["result"]["tools"]))
         status, _, body = self._request("tools/list", {
             "jsonrpc": "2.0", "id": 4, "method": "tools/list", "params": {}},
             protocol=None)
         self.assertEqual(status, 200)
         self.assertEqual(body["id"], 4)
-        status, headers, body = self._request("tools/list", {
-            "jsonrpc": "2.0", "id": 3, "method": "tools/list", "params": {}},
-            token="x" * 48, protocol="2025-11-25")
+        status, _, body = self._request("tools/call", {
+            "jsonrpc": "2.0", "id": "unauth-call", "method": "tools/call",
+            "params": {"name": "reasoning_exchange_list_requests", "arguments": {}}},
+            token=None, protocol="2025-11-25")
         self.assertEqual(status, 401)
-        self.assertIn("resource_metadata=", headers["WWW-Authenticate"])
-        self.assertEqual(body["error"], "unauthorized")
+        result = body["result"]
+        self.assertTrue(result["isError"])
+        challenge = result["_meta"]["mcp/www_authenticate"][0]
+        self.assertIn("resource_metadata=", challenge)
+        self.assertIn('error="invalid_token"', challenge)
         connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=3)
         connection.request("GET", "/mcp", headers={"Host": "127.0.0.1"})
         response = connection.getresponse()
-        self.assertEqual(response.status, 401)
+        self.assertEqual(response.status, 405)
+        response.read()
         connection.close()
 
     def test_protected_resource_metadata_and_dns_rebinding_guards(self):
@@ -178,6 +204,146 @@ class IndependentMCPClientTests(unittest.TestCase):
                     "scopes": ["reasoning:exchange"],
                     "expires_at": "2099-01-01T00:00:00Z"}]})
             ExternalReasoningMCPAdapter(_FixtureExchange(), bad)
+
+
+class OAuthProviderTokenMapTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        cls.issuer = "https://identity.example.test/"
+        cls.audience = "https://mcp.example.test/mcp"
+        cls.subject = "steward-subject-01"
+        cls.client_id = "https://chatgpt.com/oauth/client.json"
+        cls.metadata = {"issuer": cls.issuer,
+            "authorization_endpoint": cls.issuer + "authorize",
+            "token_endpoint": cls.issuer + "token",
+            "jwks_uri": cls.issuer + "jwks",
+            "response_types_supported": ["code"],
+            "code_challenge_methods_supported": ["S256"],
+            "token_endpoint_auth_methods_supported": ["none"],
+            "client_id_metadata_document_supported": True}
+        cls.mapping = {"schema_version": OAuthProviderTokenMap.SCHEMA,
+            "providers": [{"provider_id": "test:oauth-provider",
+                "principal_id": "test:oauth-principal", "subjects": [cls.subject],
+                "client_ids": [cls.client_id], "scopes": ["reasoning:exchange"]}]}
+
+    def setUp(self):
+        self.auth = OAuthProviderTokenMap.from_document(self.mapping,
+            issuer=self.issuer, audience=self.audience, metadata=self.metadata,
+            jwks_client=_JWKFixture(self.private_key.public_key()))
+
+    def token(self, **overrides):
+        claims = {"iss": self.issuer, "aud": self.audience,
+            "sub": self.subject, "client_id": self.client_id,
+            "scope": "reasoning:exchange", "iat": int(time.time()),
+            "exp": int(time.time()) + 120}
+        claims.update(overrides)
+        return jwt.encode(claims, self.private_key, algorithm="RS256",
+                          headers={"kid": "fixture-key"})
+
+    def test_valid_signed_token_maps_to_fixed_advisory_provider(self):
+        principal = self.auth.resolve(self.token())
+        self.assertEqual(principal.provider_id, "test:oauth-provider")
+        self.assertEqual(principal.principal_id, "test:oauth-principal")
+        self.assertEqual(principal.scopes, frozenset({"reasoning:exchange"}))
+        self.assertEqual(len(principal.token_sha256), 64)
+
+    def test_wrong_issuer_audience_subject_client_scope_or_expiry_rejected(self):
+        for claims in (
+                {"iss": "https://attacker.example/"},
+                {"aud": "https://other.example/mcp"},
+                {"aud": [self.audience, "https://other.example/mcp"]},
+                {"sub": "unmapped-subject"},
+                {"client_id": "unregistered-client"},
+                {"exp": int(time.time()) - 1}):
+            with self.subTest(claims=sorted(claims)):
+                with self.assertRaises(MCPAuthenticationError):
+                    self.auth.resolve(self.token(**claims))
+        principal = self.auth.resolve(self.token(scope="profile"))
+        self.assertNotIn("reasoning:exchange", principal.scopes)
+
+    def test_bad_signature_and_missing_pkce_provider_metadata_fail_closed(self):
+        other = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        auth = OAuthProviderTokenMap.from_document(self.mapping,
+            issuer=self.issuer, audience=self.audience, metadata=self.metadata,
+            jwks_client=_JWKFixture(other.public_key()))
+        with self.assertRaises(MCPAuthenticationError):
+            auth.resolve(self.token())
+        metadata = dict(self.metadata)
+        metadata["code_challenge_methods_supported"] = ["plain"]
+        with self.assertRaises(MCPConfigurationError):
+            OAuthProviderTokenMap.from_document(self.mapping,
+                issuer=self.issuer, audience=self.audience, metadata=metadata,
+                jwks_client=_JWKFixture(self.private_key.public_key()))
+
+    def test_non_https_oauth_endpoint_and_incompatible_client_auth_method_rejected(self):
+        for metadata in (
+                {**self.metadata, "authorization_endpoint": "http://identity.example.test/authorize"},
+                {**self.metadata, "token_endpoint_auth_methods_supported": ["client_secret_basic"]}):
+            with self.subTest(metadata=metadata):
+                with self.assertRaises(MCPConfigurationError):
+                    OAuthProviderTokenMap.from_document(self.mapping,
+                        issuer=self.issuer, audience=self.audience, metadata=metadata,
+                        jwks_client=_JWKFixture(self.private_key.public_key()))
+
+    def test_valid_oauth_identity_passes_through_mcp_tool_auth_boundary(self):
+        exchange = _FixtureExchange()
+        exchange.router.providers = {provider_id: SimpleNamespace(provider_id=provider_id,
+            exchange_principal_id=principal_id)
+            for provider_id, principal_id in self.auth.registrations.items()}
+        adapter = ExternalReasoningMCPAdapter(exchange, self.auth)
+        principal = self.auth.resolve(self.token())
+        result = adapter.handle_rpc(principal, {
+            "jsonrpc": "2.0", "id": 7, "method": "tools/call",
+            "params": {"name": "reasoning_exchange_list_requests", "arguments": {}}},
+            "2025-11-25")
+        self.assertEqual(result["result"]["content"][0]["text"],
+                         '{"count":0,"requests":[]}')
+
+    def test_real_http_handler_accepts_signed_oauth_jwt_and_rejects_missing_token(self):
+        exchange = _FixtureExchange()
+        exchange.router.providers = {provider_id: SimpleNamespace(provider_id=provider_id,
+            exchange_principal_id=principal_id)
+            for provider_id, principal_id in self.auth.registrations.items()}
+        adapter = ExternalReasoningMCPAdapter(exchange, self.auth)
+        probe = socket.socket()
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+        probe.close()
+        server = create_server(adapter, host="127.0.0.1", port=port,
+            resource_url=self.audience, authorization_server_url=self.issuer)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            message = {"jsonrpc": "2.0", "id": "oauth-http", "method": "tools/call",
+                "params": {"name": "reasoning_exchange_list_requests", "arguments": {}}}
+            cases = ((None, 401), (self.token(), 200),
+                     (self.token(scope="profile"), 403))
+            for token, expected_status in cases:
+                connection = http.client.HTTPConnection("127.0.0.1", port, timeout=3)
+                headers = {"Host": "127.0.0.1",
+                    "Accept": "application/json, text/event-stream",
+                    "Content-Type": "application/json",
+                    "MCP-Protocol-Version": "2025-11-25"}
+                if token is not None:
+                    headers["Authorization"] = "Bearer " + token
+                connection.request("POST", "/mcp", body=json.dumps(message), headers=headers)
+                response = connection.getresponse()
+                payload = json.loads(response.read())
+                connection.close()
+                self.assertEqual(response.status, expected_status)
+                if expected_status == 200:
+                    self.assertFalse(payload["result"]["isError"])
+                    self.assertEqual(json.loads(payload["result"]["content"][0]["text"]),
+                                     {"count": 0, "requests": []})
+                else:
+                    self.assertTrue(payload["result"]["isError"])
+                    self.assertIn("mcp/www_authenticate", payload["result"]["_meta"])
+                    self.assertIn("WWW-Authenticate", response.headers)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
 
 
 if __name__ == "__main__":

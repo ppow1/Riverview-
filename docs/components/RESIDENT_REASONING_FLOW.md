@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_FLOW.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.11
+File Revision: 1.0.14
 Purpose: Generated focused process view for resident reasoning routing
 Authority: Graph-generated view; canonical source is JSON
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add graph-generated resident reasoning flow
@@ -50,7 +50,7 @@ flowchart LR
     g_rv_resident_reasoning_runtime_task_escalation_failure_96662c07[["Record denied, unavailable, expired, lease, retry, malformed-response and stale-context diagnostics without approving or dispatching work"]]
     g_rv_resident_reasoning_runtime_task_escalation_recovery_d0da7090["Keep the original assignment durable; retry only after explicit regrounding and current authority/provider readiness"]
     g_rv_resident_reasoning_runtime_exchange_outbox_7bebb762["Commit authorized request, context digest, origin and finite deadline before delivery; preserve stable idempotency and correlation IDs"]
-    g_rv_resident_reasoning_runtime_exchange_transport_readiness_c71cc220{"IMPLEMENTED IN SOURCE — Is the authenticated MCP adapter internally configured and tested? Public issuer, route and external-client access remain uncommissioned."}
+    g_rv_resident_reasoning_runtime_exchange_transport_readiness_c71cc220{"OAuth resource-server and Streamable HTTP adapter pass isolated verification; official Tunnel is suitable, but Camrui service, Platform tunnel, OAuth issuer and ChatGPT exchange are not commissioned"}
     g_rv_resident_reasoning_runtime_exchange_transport_blocked_482fc90e[["Preserve awaiting_delivery while production migration, issuer, public route or external-client verification remains incomplete; never fall through to historical Comms5."]]
     g_rv_resident_reasoning_runtime_exchange_delivery_lease_6cddd7c8["Claim a bounded delivery lease and fence; acknowledge or schedule bounded retry without blocking assignment processing"]
     g_rv_resident_reasoning_runtime_exchange_delivered_072adda5["Mark delivery acknowledged; wait for external claim without polling or holding a worker lease"]
@@ -62,8 +62,8 @@ flowchart LR
     g_rv_resident_reasoning_runtime_exchange_expired_124bcfc4[["Expire request on finite deadline; preserve one terminal event and reject late response"]]
     g_rv_resident_reasoning_runtime_exchange_recovery_4f7ee76d["Recover awaiting-delivery, expired claims or persisted response after restart with same correlation and fenced idempotency"]
     g_rv_resident_reasoning_runtime_exchange_resume_6e7253b1["Return correlated advisory to existing resident reasoning; proposal, assignment, execution and verification still use their current authority paths"]
-    g_rv_resident_reasoning_runtime_exchange_mcp_auth_89ac0223{"Resolve finite-lived bearer credential to one configured provider principal and exchange scope on every HTTP request"}
-    g_rv_resident_reasoning_runtime_exchange_mcp_auth_denied_eac5aa1a[["Reject missing, unknown, expired or out-of-scope bearer without revealing whether a provider exists"]]
+    g_rv_resident_reasoning_runtime_exchange_mcp_auth_89ac0223{"Validate OAuth JWT issuer, exact MCP audience, expiry and fixed subject/client mapping; return 401 for invalid tokens and 403 for missing scope"}
+    g_rv_resident_reasoning_runtime_exchange_mcp_auth_denied_eac5aa1a[["Reject missing or invalid OAuth tokens with HTTP 401/WWW-Authenticate; reject authenticated insufficient scope with HTTP 403; preserve challenge metadata"]]
     g_rv_resident_reasoning_runtime_exchange_mcp_initialize_602c72d5["Negotiate supported MCP protocol version over sessionless Streamable HTTP JSON-RPC POST"]
     g_rv_resident_reasoning_runtime_exchange_mcp_tools_856213a4["Discover the fixed provider-scoped list, claim, submit-advisory and status tool schemas"]
     g_rv_resident_reasoning_runtime_exchange_mcp_pull_9d19168a["Provider pulls bounded eligible request context; transport delivery lease and acknowledgement are durable"]

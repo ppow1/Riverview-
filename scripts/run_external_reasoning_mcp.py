@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_external_reasoning_mcp.py
 # Component: EXTERNAL-REASONING-MCP-TRANSPORT
-# Revision: 1.0.2
+# Revision: 1.1.0
 # Purpose: Start the loopback authenticated MCP adapter without applying migrations
 # Execution Model: systemd long-running bounded HTTP service
 # Observability: Sanitized startup failure codes and private health endpoint
@@ -11,7 +11,7 @@
 # Authority: Provider-scoped advisory exchange only; no schema or grant changes
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Initial service launcher
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Validate the systemd provider-token credential boundary
-# Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Align logged adapter version and sanitize unexpected startup failures
+# Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Require issuer-validated OAuth provider mappings at service startup
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # Tests: tests/test_external_reasoning_mcp.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -32,7 +32,7 @@ from riverview_core.reasoning_escalation import ReasoningEscalationRouter
 from riverview_core.resident_execution.external_reasoning import DurableExternalReasoningExchange
 from riverview_core.resident_execution.external_reasoning_mcp import (
     ExternalProviderRegistration, ExternalReasoningMCPAdapter,
-    MCPConfigurationError, ProviderTokenMap, create_server,
+    MCPConfigurationError, OAuthProviderTokenMap, create_server,
     exchange_runtime_readiness,
 )
 from runtime_baseline import (BaselineError, copy_systemd_credential,
@@ -63,31 +63,36 @@ def build_service(environ=None):
         raise MCPConfigurationError("service_configuration_incomplete")
     credential_root = Path(credential_dir)
     pgpass = credential_root / "pgpass"
-    token_map_path = credential_root / "provider-token-map"
+    provider_auth_path = credential_root / "provider-auth-map"
     systemd_credential_path(pgpass, service_unit=SERVICE_UNIT)
     expected_credential_root = Path("/run/credentials") / SERVICE_UNIT
     try:
         root_info = credential_root.lstat()
-        token_info = token_map_path.lstat()
+        auth_info = provider_auth_path.lstat()
     except OSError:
-        raise MCPConfigurationError("provider_token_credential_invalid") from None
+        raise MCPConfigurationError("provider_auth_credential_invalid") from None
     if (credential_root != expected_credential_root or
             not stat.S_ISDIR(root_info.st_mode) or root_info.st_uid != 0 or
             stat.S_IMODE(root_info.st_mode) != 0o550 or
-            not stat.S_ISREG(token_info.st_mode) or token_info.st_uid != 0 or
-            stat.S_IMODE(token_info.st_mode) != 0o440 or
-            token_map_path.resolve() != token_map_path.absolute()):
-        raise MCPConfigurationError("provider_token_credential_invalid")
-    systemd_credential_path(token_map_path, service_unit=SERVICE_UNIT)
+            not stat.S_ISREG(auth_info.st_mode) or auth_info.st_uid != 0 or
+            stat.S_IMODE(auth_info.st_mode) != 0o440 or
+            provider_auth_path.resolve() != provider_auth_path.absolute()):
+        raise MCPConfigurationError("provider_auth_credential_invalid")
+    systemd_credential_path(provider_auth_path, service_unit=SERVICE_UNIT)
     identity = pwd.getpwnam("riverview")
     if identity.pw_uid == 0 or os.geteuid() != identity.pw_uid:
         raise MCPConfigurationError("service_identity_mismatch")
     RUNTIME_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
     copy_systemd_credential(pgpass, RUNTIME_DIR / "pgpass", identity.pw_uid)
     os.environ["PGPASSFILE"] = str(RUNTIME_DIR / "pgpass")
-    token_map = ProviderTokenMap.load(token_map_path)
+    resource_url = environ.get("RIVERVIEW_MCP_RESOURCE_URL")
+    issuer_url = environ.get("RIVERVIEW_MCP_AUTHORIZATION_SERVER_URL")
+    if not resource_url or not issuer_url:
+        raise MCPConfigurationError("oauth_resource_metadata_required")
+    provider_map = OAuthProviderTokenMap.load(provider_auth_path,
+        issuer=issuer_url, audience=resource_url)
     registrations = {provider_id: ExternalProviderRegistration(provider_id, principal_id)
-        for provider_id, principal_id in token_map.registrations.items()}
+        for provider_id, principal_id in provider_map.registrations.items()}
     router = ReasoningEscalationRouter(registrations)
     ledger = PostgresLedger(dsn, schema=schema)
     try:
@@ -96,11 +101,7 @@ def build_service(environ=None):
             raise MCPConfigurationError(readiness["error_code"] or "exchange_runtime_unavailable")
         exchange = DurableExternalReasoningExchange(ledger, router,
             actor_id="service:external-reasoning-mcp")
-        adapter = ExternalReasoningMCPAdapter(exchange, token_map)
-        resource_url = environ.get("RIVERVIEW_MCP_RESOURCE_URL")
-        issuer_url = environ.get("RIVERVIEW_MCP_AUTHORIZATION_SERVER_URL")
-        if not resource_url or not issuer_url:
-            raise MCPConfigurationError("oauth_resource_metadata_required")
+        adapter = ExternalReasoningMCPAdapter(exchange, provider_map)
         host = environ.get("RIVERVIEW_MCP_LISTEN_HOST", "127.0.0.1")
         port = int(environ.get("RIVERVIEW_MCP_LISTEN_PORT", "11827"))
         server = create_server(adapter, host=host, port=port,
@@ -120,7 +121,7 @@ def main():
     try:
         server, ledger = build_service()
         print(json.dumps({"event": "external_reasoning_mcp_started",
-            "component_id": "external-reasoning-mcp", "component_version": "1.0.4",
+            "component_id": "external-reasoning-mcp", "component_version": "1.1.0",
             "host": server.server_address[0], "port": server.server_address[1],
             "transport": "streamable-http", "database_schema": ledger.schema}), flush=True)
         server.serve_forever(poll_interval=0.5)
