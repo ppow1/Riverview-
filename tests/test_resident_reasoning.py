@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.15
+# Revision: 1.0.16
+# Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Keep persistent reasoning rehydration tests on the durable event contract.
 # Purpose: Verify resident regrounding, bounded provider routing and durable resume
 # Execution Model: Isolated PostgreSQL authority registry integration tests
 # Observability: Assertions inspect persisted office state and provider outcomes
@@ -338,13 +339,25 @@ class ResidentReasoningTests(unittest.TestCase):
         from riverview_core.resident_execution.service import GraceExecutionService
         from riverview_core.institutional_authority import AuthorityDenied
         from riverview_core.resident_reasoning import ResidentReasoner
+        from contextlib import nullcontext
+        from types import SimpleNamespace
 
         class Pipeline:
             authority_ref = "work-order:test"
 
+            class FailureCursor:
+                def __enter__(self): return self
+                def __exit__(self, *_): return False
+                def execute(self, *_args): pass
+                def fetchone(self): return {"failures": 0}
+
             def __init__(self, assignment_id):
                 self.assignment_id = assignment_id
                 self.proposals = []
+                self.ledger = SimpleNamespace(db=SimpleNamespace(
+                    cursor=self.FailureCursor,
+                    transaction=lambda: nullcontext()),
+                    _set_search_path=lambda _cursor: None)
 
             def grounded_objectives(self, *, scope_ref, limit=25, objective_id=None):
                 if scope_ref != self.authority_ref:
