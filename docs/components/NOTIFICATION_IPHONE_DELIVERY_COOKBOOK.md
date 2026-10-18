@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.1.3
+File Revision: 1.1.5
 Purpose: Set up and troubleshoot ntfy/Pushover push delivery without exposing secrets
 Authority: Operational diagnosis and local setup only; no decision authority
 Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial push recovery cookbook
@@ -10,6 +10,8 @@ Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATION-COMMISSIONING-READINESS-001 | A
 Changed: 2026-10-18 UTC | RV-NOTIFICATION-QUEUE-RETRY-ACCEPTANCE-20261018 | Document disposable PostgreSQL queue/retry acceptance command
 Changed: 2026-10-18 UTC | RV-NOTIFICATION-LIFECYCLE-ACCEPTANCE-20261018 | Specify end-to-end isolated event-to-ack regression coverage
 Changed: 2026-10-18 UTC | RV-NOTIFICATION-OPT-IN-ACCEPTANCE-20261018 | Add operator opt-in checklist and provider secret prerequisites
+Changed: 2026-10-18 UTC | RV-NOTIFICATION-SELECTED-CREDENTIALS-20261018 | Document selected-provider credential loading, startup diagnostics, blocker register, and visibility limits
+Changed: 2026-10-18 UTC | RV-NOTIFICATION-BLOCKER-REGISTER-20261018 | Give each unresolved blocker an explicit field and truthful owner/alert state
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # iPhone push delivery setup and troubleshooting
@@ -37,8 +39,12 @@ service installation, or provider calls have been made.
 3. Create the protected JSON config from
    `deploy/notification-delivery.example.json`; replace the example URL/topic
    and severity routes. Do not commit the instance-specific config.
-4. Place ntfy access token, Pushover application token, and Pushover user key in
-   separate root-controlled files matching the names in the systemd template.
+4. Create `/etc/riverview/notification/` as a root-owned `0700` directory. Put
+   only selected provider credential files there using the protected prompt
+   below. The unit imports this directory as systemd credential namespace
+   `provider`; file `ntfy_token` becomes `provider_ntfy_token`, and Pushover
+   files become `provider_pushover_app_token` and
+   `provider_pushover_user_key`. The sample JSON refers to these imported names.
    Never put secret values in command arguments, source, or journal output.
 5. Build an immutable release containing the source and migration 0007. Apply
    migrations only through Riverview's backup, disposable-restore, and reviewed
@@ -49,11 +55,16 @@ service installation, or provider calls have been made.
    acceptance, iPhone display, headset announcement (if configured), and
    Pushover emergency acknowledgment as separate evidence.
 
-The systemd unit template expects credentials named `pgpass`, `ntfy_token`,
-`pushover_app_token`, and `pushover_user_key`. If a provider is intentionally
-not configured, remove only that provider's `LoadCredential` line and ensure no
-severity route selects it before enabling the unit. This source assignment does
-not install or activate the unit.
+The systemd unit separately requires its existing `pgpass` credential. Provider
+files are optional per route: systemd imports regular files present in the
+protected directory, and the launcher preflights only providers selected by the
+configured severity routes. An ntfy-only setup needs `ntfy_token`; a Pushover-
+only setup needs both `pushover_app_token` and `pushover_user_key`. The directory
+must exist before the service starts, even if empty. Missing, empty, unreadable,
+or symlinked selected credentials cause a sanitized startup error before the
+delivery manager is constructed; the launcher returns exit code 2. Unselected
+provider credentials are not required. This source assignment does not install
+or activate the unit.
 
 ## Opt-in end-to-end acceptance checklist
 
@@ -68,9 +79,10 @@ confirm:
   topic. Never use `ntfy.sh` or expose a new anonymous listener.
 - [ ] For Pushover, the operator has the application's API token and the target
   user's account key, and the Pushover iPhone app is signed into that account.
-- [ ] Only the selected providers' credential files exist under
-  `/etc/riverview/notification/`: `ntfy_token`, `pushover_app_token`, and/or
-  `pushover_user_key`. PostgreSQL access uses the existing protected `pgpass`.
+- [ ] Selected provider files exist under `/etc/riverview/notification/`:
+  ntfy requires `ntfy_token`; Pushover requires both `pushover_app_token` and
+  `pushover_user_key`. Files for unselected providers are unnecessary.
+  PostgreSQL access uses the existing protected `pgpass`.
   Secret contents are entered through the documented protected prompt, never
   placed in the JSON config, shell history, logs, or Git.
 - [ ] The selected app is installed on the iPhone, notification permission is
@@ -99,6 +111,25 @@ missing, stop before the corresponding live test. Do not replace that dependency
 with a mock and label production delivery successful. Mocked provider and
 disposable PostgreSQL behavior are verified by the automated tests; they do not
 send phone notifications.
+
+## Source-only blocker register and status limits
+
+This register describes the current source-only commissioning state. It is not
+a live operational alert feed.
+
+| `blocker_id` | `type` | `detection_signal` | `owning_office` | `authority_required` | `timeout` | `durable_state` | `alert_destination` | `retry_resume_trigger` | `test_evidence` |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `NOTIF-COMMISSIONING-001` | commissioning | Read-only preflight finds release/unit or required migration absent | Operations / Steward | Explicit production commissioning authorization | No runtime deadline while inactive; record the approved commissioning window before start | No production runtime row; blocker is recorded in the source acceptance record | No production alert route; GitHub issue #120 is remediation tracking only | Resume after authorized backup, migration, selected credentials, release and rollback preflight pass | No production activation or phone delivery in this remediation. |
+| `NOTIF-SELECTED-CREDENTIAL-001` | credential | Sanitized `notification_push_configuration_error.failure_code`; systemd may reach `start-limit-hit` | Operations | Provision only the secret for providers selected by route configuration; separate service activation approval still applies | Restart every 5 seconds; at most 3 starts within 60 seconds | systemd failure state and sanitized journal; no database row because preflight precedes manager construction | Local systemd journal only; push self-alert is unavailable before worker startup | Correct the selected file, verify root ownership/mode, then reset the unit failure and retry only in an authorized window | Focused ntfy-only, Pushover-only, selected-missing, PostgreSQL and systemd tests; no provider call. |
+| `NOTIF-HANDSET-ACCEPTANCE-001` | manual action / dependency | Provider accepts but there is no handset receipt; Pushover can report expiry; ntfy has no handset receipt contract | Phone owner / Steward | Phone-side app setup and a separately authorized live test; emergency acknowledgment requires the user to acknowledge in-app | No phone-display deadline is measurable; Pushover receipt expiry is separately configured | Provider queue state only; no Riverview proof of ntfy display, Bluetooth announcement, or Pushover app display | Provider iOS app is the intended endpoint; no server handset telemetry is configured | Resume after the phone owner enables notifications and is ready for a labeled test | Live iPhone, acknowledgment and Bluetooth outcome not tested. |
+| `NOTIF-STEWARD-VIEW-001` | dependency | No authenticated dashboard/API reads the delivery health projection | Steward-facing dashboard office; implementation owner not assigned in this C1 increment | A separately scoped read-only dashboard integration | N/A while no consumer/runtime view exists; no worker wait is active | PostgreSQL health projection and journal only; no external operational status record | None; no live alert destination is wired | Resume when an authorized dashboard consumer is assigned; it must age-check `last_heartbeat_at` and distinguish stale/unavailable | No dashboard/API acceptance test; status library behavior is documented, not exposed. |
+
+The persisted health projection contains heartbeat/cycle timestamps, aggregate
+counters, and a bounded last error code. When the worker stops, PostgreSQL keeps
+the last status and timestamp. Startup configuration errors are logged before
+the manager is created, so no health row or push alert can be written for that
+failure. The current status and recovery interfaces remain operator diagnostics;
+they do not satisfy live Steward visibility or operational-autonomy acceptance.
 
 ## Ordered Camrui commissioning procedure
 
@@ -264,9 +295,10 @@ sudoedit /etc/riverview/notification-delivery.json
 sudo -u riverview test -r /etc/riverview/notification-delivery.json
 ```
 
-Replace the `.example.invalid` endpoint and topic, remove unselected provider
-routes, and make `LoadCredential` entries match only selected providers. Keep
-the `pgpass` entry. Validate without displaying secrets:
+Replace the `.example.invalid` endpoint and topic and remove unselected
+provider routes. The unit imports files from the one provider directory and the
+launcher validates credentials only for providers remaining in the routes.
+Keep the separate `pgpass` credential. Validate without displaying secrets:
 
 ```bash
 sudo -u riverview env \
@@ -363,9 +395,10 @@ credential contents into this report.
 After approval, switch the dedicated release pointer atomically by creating a
 unique sibling symlink then renaming it with `mv -Tf`; install the unit
 `root:root 0644`; validate it; and daemon-reload. Confirm `systemd-analyze
-verify` and `systemctl show` before starting. Start only
-`riverview-notification-delivery.service` after confirming every configured
-`LoadCredential` source exists and is `root:root 0600`. Initially leave it
+verify` and `systemctl show` before starting. Ensure the provider directory
+exists as `root:root 0700` and selected provider files are `root:root 0600`;
+unselected provider files are not required. The unit imports present regular
+files under the `provider` namespace. Initially leave it
 disabled unless persistent boot activation is separately included in the
 Steward's commissioning approval. On startup, require a fresh healthy row in
 `notification_delivery_health`, not merely `systemd active`.

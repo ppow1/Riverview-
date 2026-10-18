@@ -15,11 +15,11 @@
   "ntfy": {
     "base_url": "https://ntfy.example.invalid",
     "topic": "replace-with-private-topic",
-    "credential": "ntfy_token"
+    "credential": "provider_ntfy_token"
   },
   "pushover": {
-    "app_credential": "pushover_app_token",
-    "user_credential": "pushover_user_key"
+    "app_credential": "provider_pushover_app_token",
+    "user_credential": "provider_pushover_user_key"
   },
   "retry_limit": 5,
   "lease_seconds": 60,

@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_IPHONE_DELIVERY_FLOW.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.0.1
+File Revision: 1.0.4
 Purpose: Show the durable provider push-delivery workflow
 Authority: Documentation only
 Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial canonical flow projection
+Changed: 2026-10-18 UTC | RV-NOTIFICATION-GRAPH-EVIDENCE-20261018 | Add selected-provider startup validation, failure, recovery, and evidence paths
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # iPhone notification delivery flow
@@ -28,6 +29,10 @@ flowchart LR
     g_rv_notification_delivery_iphone_push_pushover_receipt_553c4667["Poll eligible Pushover emergency receipt at a bounded interval"]
     g_rv_notification_delivery_iphone_push_ack_expire_83898705{"Persist provider-reported acknowledgment or expiry"}
     g_rv_notification_delivery_iphone_push_worker_restart_2f8ef297["Resume expired sending leases after worker restart"]
+    g_rv_notification_delivery_iphone_push_service_start_5b68bfaa(["Start worker with PostgreSQL and provider credential namespace available"])
+    g_rv_notification_delivery_iphone_push_credential_preflight_1c68cfda["Validate credentials for configured provider routes only"]
+    g_rv_notification_delivery_iphone_push_startup_blocked_e0a84c62[["Selected provider credential is missing or invalid; launcher exits before manager construction"]]
+    g_rv_notification_delivery_iphone_push_credential_repaired_e350166f["Provision only the selected provider credential, clear systemd start limit, then retry in authorized commissioning"]
   end
   g_rv_notification_delivery_iphone_push_attention_source_adb77d27 --> g_rv_notification_delivery_iphone_push_severity_route_6c2f49c9
   g_rv_notification_delivery_iphone_push_severity_route_6c2f49c9 -->|route configured| g_rv_notification_delivery_iphone_push_durable_outbox_1925b92d
@@ -42,5 +47,10 @@ flowchart LR
   g_rv_notification_delivery_iphone_push_pushover_receipt_553c4667 --> g_rv_notification_delivery_iphone_push_ack_expire_83898705
   g_rv_notification_delivery_iphone_push_accepted_state_3e20fd81 -->|recovery_route: process interruption| g_rv_notification_delivery_iphone_push_worker_restart_2f8ef297
   g_rv_notification_delivery_iphone_push_worker_restart_2f8ef297 -->|lease expires| g_rv_notification_delivery_iphone_push_lease_claim_55ef6166
+  g_rv_notification_delivery_iphone_push_service_start_5b68bfaa --> g_rv_notification_delivery_iphone_push_credential_preflight_1c68cfda
+  g_rv_notification_delivery_iphone_push_credential_preflight_1c68cfda -->|selected credentials available; worker begins reconciliation| g_rv_notification_delivery_iphone_push_attention_source_adb77d27
+  g_rv_notification_delivery_iphone_push_credential_preflight_1c68cfda -->|diagnostic_branch: selected credential missing, unreadable, empty, or symlinked| g_rv_notification_delivery_iphone_push_startup_blocked_e0a84c62
+  g_rv_notification_delivery_iphone_push_startup_blocked_e0a84c62 -->|recovery_route| g_rv_notification_delivery_iphone_push_credential_repaired_e350166f
+  g_rv_notification_delivery_iphone_push_credential_repaired_e350166f -->|recovery_route: operator retries after authorized correction| g_rv_notification_delivery_iphone_push_service_start_5b68bfaa
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

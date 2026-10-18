@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_notification_push.py
 # Component: NOTIFICATION-DELIVERY
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Verify provider routing, durable outbox recovery, retries, and ack semantics
 # Execution Model: Unit tests plus disposable PostgreSQL integration tests
 # Observability: Queue state, provider call evidence, append-only event ledger
 # Dependencies: Python 3.10+; Psycopg 3; optional disposable PostgreSQL 16
 # Authority: Test-only schema; no production credential or provider call
 # Changed: 2026-10-18 UTC | RV-NOTIFICATION-OPT-IN-ACCEPTANCE-20261018 | Verify provider failures redact credentials and response bodies
+# Changed: 2026-10-18 UTC | RV-NOTIFICATION-SELECTED-CREDENTIALS-20261018 | Cover selected-only credential startup preflight
 # Contracts: docs/components/NOTIFICATION_IPHONE_DELIVERY.md
 # Tests: pytest tests/test_notification_push.py
 # History: Git + .riverview-backups/manifest.jsonl
@@ -19,6 +20,7 @@ import json
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from uuid import uuid4
 from urllib.parse import parse_qs
@@ -32,6 +34,7 @@ from riverview_core.notifications.push import (
 )
 from riverview_core.notifications import NotificationDispatcher
 from riverview_core.postgres_migrations import apply_migrations
+import run_notification_delivery
 
 ROOT = Path(__file__).resolve().parents[1]
 DSN = os.environ.get("RIVERVIEW_TEST_PG_DSN")
@@ -85,6 +88,98 @@ class PushConfigTests(unittest.TestCase):
             with self.assertRaisesRegex(PushConfigurationError, "invalid_emergency_retry_window"):
                 PushConfig.load(path)
 
+    def _write_startup_config(self, directory, routes, *, ntfy=False):
+        config_path = Path(directory) / "notification.json"
+        value = {"routes": routes}
+        if ntfy:
+            value["ntfy"] = {"base_url": "https://ntfy.example.test", "topic": "rv-test"}
+        config_path.write_text(json.dumps(value), encoding="utf-8")
+        return config_path
+
+    def _write_credential(self, directory, name):
+        path = Path(directory) / name
+        path.write_text("test-only-value", encoding="utf-8")
+        path.chmod(0o400)
+
+    def _launch_with(self, config_path, credentials):
+        class StoppedEvent:
+            @staticmethod
+            def is_set():
+                return True
+
+            @staticmethod
+            def wait(_seconds):
+                return None
+
+        env = {
+            "RIVERVIEW_DATABASE_DSN": "host=localhost dbname=unused user=unused",
+            "RIVERVIEW_NOTIFICATION_PUSH_CONFIG": str(config_path),
+            "CREDENTIALS_DIRECTORY": str(credentials),
+        }
+        with patch.dict(os.environ, env), \
+             patch("run_notification_delivery.prepare_runtime_credential"), \
+             patch("run_notification_delivery.threading.Event", return_value=StoppedEvent()), \
+             patch("riverview_core.notifications.push.NotificationDeliveryManager") as manager, \
+             patch("run_notification_delivery.logging.error") as log_error:
+            result = run_notification_delivery.main()
+        log = "\n".join(str(call.args[0]) for call in log_error.call_args_list)
+        return result, manager, log
+
+    def test_ntfy_only_startup_needs_no_pushover_credentials(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = self._write_startup_config(
+                directory, {"info": ["ntfy"], "warning": ["ntfy"], "critical": ["ntfy"]},
+                ntfy=True)
+            credentials = Path(directory) / "credentials"
+            credentials.mkdir()
+            self._write_credential(credentials, "provider_ntfy_token")
+            result, manager, _log = self._launch_with(config_path, credentials)
+            self.assertEqual(result, 0)
+            manager.assert_called_once()
+
+    def test_pushover_only_startup_needs_no_ntfy_credential(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = self._write_startup_config(
+                directory, {"info": ["pushover"], "warning": ["pushover"],
+                            "critical": ["pushover"]})
+            credentials = Path(directory) / "credentials"
+            credentials.mkdir()
+            self._write_credential(credentials, "provider_pushover_app_token")
+            self._write_credential(credentials, "provider_pushover_user_key")
+            result, manager, _log = self._launch_with(config_path, credentials)
+            self.assertEqual(result, 0)
+            manager.assert_called_once()
+
+    def test_ntfy_startup_rejects_missing_selected_credential(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = self._write_startup_config(
+                directory, {"info": ["ntfy"]}, ntfy=True)
+            credentials = Path(directory) / "credentials"
+            credentials.mkdir()
+            result, manager, log = self._launch_with(config_path, credentials)
+            self.assertEqual(result, 2)
+            manager.assert_not_called()
+            self.assertIn('"failure_code": "credential_missing"', log)
+
+    def test_pushover_startup_rejects_missing_selected_credential(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = self._write_startup_config(
+                directory, {"critical": ["pushover"]})
+            credentials = Path(directory) / "credentials"
+            credentials.mkdir()
+            self._write_credential(credentials, "provider_pushover_app_token")
+            result, manager, log = self._launch_with(config_path, credentials)
+            self.assertEqual(result, 2)
+            manager.assert_not_called()
+            self.assertIn('"failure_code": "credential_missing"', log)
+
+    def test_systemd_unit_imports_optional_provider_files_as_a_namespace(self):
+        unit = (ROOT / "deploy/systemd/riverview-notification-delivery.service").read_text()
+        self.assertIn("LoadCredential=provider:/etc/riverview/notification/", unit)
+        self.assertNotIn("LoadCredential=ntfy_token:", unit)
+        self.assertNotIn("LoadCredential=pushover_app_token:", unit)
+        self.assertNotIn("LoadCredential=pushover_user_key:", unit)
+
     def test_provider_requests_keep_credentials_out_of_urls_and_support_emergency_receipts(self):
         class Response:
             status = 200
@@ -95,9 +190,9 @@ class PushConfigTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             credentials = Path(directory)
-            for name, value in (("ntfy_token", "ntfy-secret"),
-                                ("pushover_app_token", "app-secret"),
-                                ("pushover_user_key", "user-secret")):
+            for name, value in (("provider_ntfy_token", "ntfy-secret"),
+                                ("provider_pushover_app_token", "app-secret"),
+                                ("provider_pushover_user_key", "user-secret")):
                 path = credentials / name
                 path.write_text(value)
                 path.chmod(0o400)
@@ -133,7 +228,8 @@ class PushConfigTests(unittest.TestCase):
 
         secrets = ("ntfy-private-token", "pushover-private-app", "pushover-private-user")
         with tempfile.TemporaryDirectory() as directory:
-            for name, value in zip(("ntfy_token", "pushover_app_token", "pushover_user_key"),
+            for name, value in zip(("provider_ntfy_token", "provider_pushover_app_token",
+                                    "provider_pushover_user_key"),
                                    secrets):
                 path = Path(directory) / name
                 path.write_text(value)

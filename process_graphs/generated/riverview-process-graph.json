@@ -6425,7 +6425,7 @@
     },
     {
       "graph_id": "rv:notification-delivery:iphone-push",
-      "graph_revision": "1.0.0",
+      "graph_revision": "1.0.1",
       "component_id": "NOTIFICATION-DELIVERY",
       "workflow_id": "iphone-push.v1",
       "diagram_order": 2,
@@ -6445,7 +6445,9 @@
         "docs/components/NOTIFICATION_IPHONE_DELIVERY_FLOW.md",
         "process_graphs/README.md"
       ],
-      "verification_evidence": [],
+      "verification_evidence": [
+        "docs/development/RV-IPHONE-NOTIFICATIONS-001_REVISION_RECORD.md"
+      ],
       "nodes": [
         {
           "id": "rv:notification-delivery:iphone-push:attention-source",
@@ -6596,6 +6598,73 @@
             "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
           ],
           "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:service-start",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Start worker with PostgreSQL and provider credential namespace available",
+          "source_references": [
+            "deploy/systemd/riverview-notification-delivery.service",
+            "scripts/run_notification_delivery.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "docs/development/RV-IPHONE-NOTIFICATIONS-001_REVISION_RECORD.md"
+          ]
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:credential-preflight",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Validate credentials for configured provider routes only",
+          "source_references": [
+            "src/riverview_core/notifications/push.py",
+            "scripts/run_notification_delivery.py",
+            "deploy/systemd/riverview-notification-delivery.service"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY.md",
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "docs/development/RV-IPHONE-NOTIFICATIONS-001_REVISION_RECORD.md"
+          ]
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:startup-blocked",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Selected provider credential is missing or invalid; launcher exits before manager construction",
+          "source_references": [
+            "src/riverview_core/notifications/push.py",
+            "scripts/run_notification_delivery.py",
+            "deploy/systemd/riverview-notification-delivery.service"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "docs/development/RV-IPHONE-NOTIFICATIONS-001_REVISION_RECORD.md"
+          ]
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:credential-repaired",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Provision only the selected provider credential, clear systemd start limit, then retry in authorized commissioning",
+          "source_references": [
+            "scripts/run_notification_delivery.py",
+            "deploy/systemd/riverview-notification-delivery.service"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "docs/development/RV-IPHONE-NOTIFICATIONS-001_REVISION_RECORD.md"
+          ]
         }
       ],
       "edges": [
@@ -6672,6 +6741,34 @@
           "to": "rv:notification-delivery:iphone-push:lease-claim",
           "type": "runtime_transition",
           "label": "lease expires"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:service-start",
+          "to": "rv:notification-delivery:iphone-push:credential-preflight",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:credential-preflight",
+          "to": "rv:notification-delivery:iphone-push:attention-source",
+          "type": "runtime_transition",
+          "label": "selected credentials available; worker begins reconciliation"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:credential-preflight",
+          "to": "rv:notification-delivery:iphone-push:startup-blocked",
+          "type": "diagnostic_branch",
+          "label": "selected credential missing, unreadable, empty, or symlinked"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:startup-blocked",
+          "to": "rv:notification-delivery:iphone-push:credential-repaired",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:credential-repaired",
+          "to": "rv:notification-delivery:iphone-push:service-start",
+          "type": "recovery_route",
+          "label": "operator retries after authorized correction"
         }
       ]
     },
@@ -14463,12 +14560,16 @@
     "rv:notification-delivery:iphone-push:ack-expire",
     "rv:notification-delivery:iphone-push:attention-source",
     "rv:notification-delivery:iphone-push:bounded-retry",
+    "rv:notification-delivery:iphone-push:credential-preflight",
+    "rv:notification-delivery:iphone-push:credential-repaired",
     "rv:notification-delivery:iphone-push:durable-outbox",
     "rv:notification-delivery:iphone-push:lease-claim",
     "rv:notification-delivery:iphone-push:provider-send",
     "rv:notification-delivery:iphone-push:pushover-receipt",
     "rv:notification-delivery:iphone-push:secret-load",
+    "rv:notification-delivery:iphone-push:service-start",
     "rv:notification-delivery:iphone-push:severity-route",
+    "rv:notification-delivery:iphone-push:startup-blocked",
     "rv:notification-delivery:iphone-push:worker-restart",
     "rv:notification-delivery:visual-attention:ack-receipt",
     "rv:notification-delivery:visual-attention:cme-event",

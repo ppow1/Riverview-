@@ -2,7 +2,7 @@
   "files": {
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.238",
+      "revision": "1.1.242",
       "sha256": "db29799c026f20d431bbd748b3653235852fb32a503de7ac6bf8c05db8e78e04",
       "size_bytes": 13389
     },
@@ -128,9 +128,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.185",
-      "sha256": "e682858ab468f26b6a4d9b058b0511e764f7582dc60c2f458e0286f618fe6f50",
-      "size_bytes": 651088
+      "revision": "1.0.187",
+      "sha256": "950933bfddb0edab9134758119f3e24a7a6dc4fa2ccb6d605bff9b8926b08114",
+      "size_bytes": 655608
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -272,17 +272,17 @@
     },
     "process_graphs/notification-delivery/iphone-push.json": {
       "path": "process_graphs/notification-delivery/iphone-push.json",
-      "revision": "1.0.0",
-      "sha256": "faf22ca4e73b3ae9e5af9f8880b653db3ed6a46ce170eaf6956f5b1aacab44c9",
-      "size_bytes": 7543
+      "revision": "1.0.1",
+      "sha256": "b753a0565ed406938fe7b56dac542fc5562b436693fd8c1468edbb976692a995",
+      "size_bytes": 10752
     },
     "deploy/notification-delivery.example.json": {
       "path": "deploy/notification-delivery.example.json",
-      "revision": "1.0.0",
-      "sha256": "0c92bcfa4cf7806f288aa8746dff8541a39c1d6118c18b4442fc4b4febd91368",
-      "size_bytes": 767
+      "revision": "1.0.1",
+      "sha256": "9ea4fa1da48f0e7531de7c864796fa16f01870881dad8434eeefb7583166837d",
+      "size_bytes": 794
     }
   },
-  "manifest_revision": "1.1.238",
+  "manifest_revision": "1.1.242",
   "updated_at": null
 }

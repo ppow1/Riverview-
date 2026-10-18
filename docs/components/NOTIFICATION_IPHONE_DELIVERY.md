@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_IPHONE_DELIVERY.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Define local durable mobile push delivery using ntfy and Pushover
 Authority: Push transport only; no assignment, approval, or decision authority
 Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial mobile delivery contract
+Changed: 2026-10-18 UTC | RV-NOTIFICATION-SELECTED-CREDENTIALS-20261018 | Document selected-provider preflight and actual status visibility boundaries
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # iPhone notification delivery
@@ -76,12 +77,18 @@ headset or guarantee an audible announcement. See [Apple's setup requirements](h
 
 `deploy/notification-delivery.example.json` defines routes, severity mapping,
 retry limits, ntfy endpoint/topic, and credential *names*. It contains no
-secrets. The systemd template loads provider credentials through
-`LoadCredential`; files are provisioned outside source control with root-owned
-permissions under `/etc/riverview/notification/`. The worker never logs their
-values. Pushover app token and user key are separate. ntfy uses an access token
-for its private topic. Provider credentials are optional at development/test
-time and no live provider is called by automated tests.
+secrets. systemd imports the provider credential directory using the `provider`
+credential namespace. Each regular file under `/etc/riverview/notification/`
+becomes a credential named `provider_<filename>` (for example,
+`ntfy_token` becomes `provider_ntfy_token`); symlinks are ignored. The sample
+configuration uses these names. Startup validates only providers selected by
+the configured severity routes: ntfy requires its token; Pushover requires both
+its app token and user key. Unselected provider files are not required. A
+selected provider with a missing, unreadable, empty, or symlink credential
+causes a sanitized startup failure before the delivery manager is constructed.
+Pushover app token and user key are separate. ntfy uses an access token for its
+private topic. Automated tests use temporary credentials and never call a live
+provider.
 
 The service uses existing PostgreSQL `riverview_core` identity and existing
 notification data, plus the additive migration `0007_external_push_delivery`.
@@ -98,6 +105,20 @@ and Pushover acknowledgment persistence. Production commissioning remains
 unverified until the reviewed migration/package is installed, the intended
 providers and protected credentials are configured, and a handset test records
 provider acceptance separately from actual iPhone display/acknowledgment.
+
+## Runtime status and Steward visibility
+
+The worker records `notification_delivery_health` with `healthy` or `degraded`,
+heartbeat and cycle timestamps, a bounded error code, and aggregate counters.
+`NotificationDeliveryManager.status()` is a read-only library query and returns
+`not_initialized` when no health row exists. It does not calculate `stale` or
+`unavailable`; when the worker stops, the last status and timestamp remain in
+PostgreSQL. An observer must compare `last_heartbeat_at` with a freshness
+threshold. This increment does not expose an authenticated Steward-facing live
+status endpoint or dashboard panel. The database projection and systemd journal
+are operator diagnostics, not a live Steward view. Component Definition of Done
+is therefore **NOT DONE** until a real Steward view, unattended production
+recovery evidence, and handset acceptance exist.
 
 See `NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md` for setup, diagnostics, and
 recovery; `NOTIFICATION_IPHONE_DELIVERY_FLOW.md` is generated from the canonical

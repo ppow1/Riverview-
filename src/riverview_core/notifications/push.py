@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/notifications/push.py
 # Component: NOTIFICATION-DELIVERY
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Route durable institutional notices through ntfy and Pushover
 # Execution Model: Request-driven enqueue/reconcile and bounded delivery worker
 # Observability: PostgreSQL delivery queue, append-only events, worker result projection
 # Dependencies: PostgreSQL notification migrations 0006/0007; Python urllib
 # Authority: Sends fixed-summary attention notices only; never changes work or decisions
 # Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial Camrui push adapter
+# Changed: 2026-10-18 UTC | RV-NOTIFICATION-SELECTED-CREDENTIALS-20261018 | Validate only credentials selected by configured routes
 # Contracts: docs/components/NOTIFICATION_IPHONE_DELIVERY.md
 # Tests: tests/test_notification_push.py
 # History: Git + .riverview-backups/manifest.jsonl
@@ -78,9 +79,9 @@ class PushConfig:
     event_severity: dict[str, str]
     ntfy_base_url: str | None = None
     ntfy_topic: str | None = None
-    ntfy_credential: str = "ntfy_token"
-    pushover_app_credential: str = "pushover_app_token"
-    pushover_user_credential: str = "pushover_user_key"
+    ntfy_credential: str = "provider_ntfy_token"
+    pushover_app_credential: str = "provider_pushover_app_token"
+    pushover_user_credential: str = "provider_pushover_user_key"
     retry_limit: int = 5
     lease_seconds: int = 60
     retry_base_seconds: int = 5
@@ -120,9 +121,9 @@ class PushConfig:
             event_severity={**_EVENT_SEVERITY, **severity_raw},
             ntfy_base_url=ntfy_raw.get("base_url"),
             ntfy_topic=ntfy_raw.get("topic"),
-            ntfy_credential=ntfy_raw.get("credential", "ntfy_token"),
-            pushover_app_credential=pushover_raw.get("app_credential", "pushover_app_token"),
-            pushover_user_credential=pushover_raw.get("user_credential", "pushover_user_key"),
+            ntfy_credential=ntfy_raw.get("credential", "provider_ntfy_token"),
+            pushover_app_credential=pushover_raw.get("app_credential", "provider_pushover_app_token"),
+            pushover_user_credential=pushover_raw.get("user_credential", "provider_pushover_user_key"),
             retry_limit=int(raw.get("retry_limit", 5)),
             lease_seconds=int(raw.get("lease_seconds", 60)),
             retry_base_seconds=int(raw.get("retry_base_seconds", 5)),
@@ -174,6 +175,18 @@ def _credential(name: str, *, credentials_dir: str | None = None) -> str:
     if not value:
         raise PushConfigurationError("credential_empty")
     return value
+
+
+def validate_provider_credentials(config: PushConfig, *, credentials_dir: str | None = None) -> None:
+    """Fail startup only when a configured route selects a missing provider secret."""
+    selected = {provider for providers in config.routes.values() for provider in providers}
+    required: set[str] = set()
+    if "ntfy" in selected:
+        required.add(config.ntfy_credential)
+    if "pushover" in selected:
+        required.update((config.pushover_app_credential, config.pushover_user_credential))
+    for name in sorted(required):
+        _credential(name, credentials_dir=credentials_dir)
 
 
 class HttpPushTransport:

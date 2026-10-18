@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED CONFIGURATION
 # File: deploy/systemd/riverview-notification-delivery.service
 # Component: NOTIFICATION-DELIVERY
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Supervise provider delivery from the local durable notification outbox
 # Execution Model: Continuous bounded reconciliation, retry, and Pushover receipt polling
 # Observability: Sanitized journal and PostgreSQL delivery state/event ledger
 # Dependencies: PostgreSQL; migrations 0006/0007; protected systemd credentials
 # Authority: Notification delivery only; no assignment or decision state changes
 # Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial isolated systemd unit
+# Changed: 2026-10-18 UTC | RV-NOTIFICATION-SELECTED-CREDENTIALS-20261018 | Import present provider credentials from one directory; application validates selected routes
 # Contracts: docs/components/NOTIFICATION_IPHONE_DELIVERY.md
 # Tests: tests/test_notification_push.py
 # History: Git + .riverview-backups/manifest.jsonl
@@ -32,9 +33,7 @@ Environment=RIVERVIEW_NOTIFICATION_PUSH_POLL_SECONDS=15
 RuntimeDirectory=riverview-notification-delivery
 RuntimeDirectoryMode=0700
 LoadCredential=pgpass:/etc/riverview/pgpass
-LoadCredential=ntfy_token:/etc/riverview/notification/ntfy_token
-LoadCredential=pushover_app_token:/etc/riverview/notification/pushover_app_token
-LoadCredential=pushover_user_key:/etc/riverview/notification/pushover_user_key
+LoadCredential=provider:/etc/riverview/notification/
 ExecStart=/usr/bin/python3 /opt/riverview-notification-delivery/current/scripts/run_notification_delivery.py
 Restart=on-failure
 RestartSec=5s

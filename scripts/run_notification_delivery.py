@@ -3,13 +3,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_notification_delivery.py
 # Component: NOTIFICATION-DELIVERY
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Validate the systemd database credential and run the push delivery worker
 # Execution Model: Long-lived systemd-supervised process with bounded reconciliation
 # Observability: Sanitized journal, PostgreSQL queue and append-only delivery events
 # Dependencies: Psycopg 3; runtime_baseline credential validation; notifications 0007
 # Authority: Uses riverview_core only for notification-owned reads/writes
 # Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial worker launcher
+# Changed: 2026-10-18 UTC | RV-NOTIFICATION-SELECTED-CREDENTIALS-20261018 | Validate selected provider secrets before manager startup
 # Contracts: docs/components/NOTIFICATION_IPHONE_DELIVERY.md
 # Tests: tests/test_notification_push.py
 # History: Git + .riverview-backups/manifest.jsonl
@@ -26,6 +27,7 @@ import time
 from pathlib import Path
 
 import psycopg
+from riverview_core.notifications.push import PushConfigurationError
 
 from runtime_baseline import BaselineError, copy_systemd_credential, systemd_credential_path
 
@@ -51,16 +53,29 @@ def prepare_runtime_credential():
     os.environ["PGPASSFILE"] = str(PASSFILE)
 
 
+def load_push_config(config_path=None, credentials_dir=None):
+    """Load routing and preflight only the credentials used by configured routes."""
+    from riverview_core.notifications.push import PushConfig, validate_provider_credentials
+
+    path = config_path or os.environ["RIVERVIEW_NOTIFICATION_PUSH_CONFIG"]
+    config = PushConfig.load(path)
+    validate_provider_credentials(config, credentials_dir=credentials_dir)
+    return config
+
+
 def main():
     logging.basicConfig(level=os.environ.get("RIVERVIEW_LOG_LEVEL", "INFO"))
     try:
         prepare_runtime_credential()
-        from riverview_core.notifications.push import (
-            NotificationDeliveryManager, PushConfig)
-        config = PushConfig.load(os.environ["RIVERVIEW_NOTIFICATION_PUSH_CONFIG"])
+        from riverview_core.notifications.push import NotificationDeliveryManager
+        config = load_push_config()
         manager = NotificationDeliveryManager(
             os.environ["RIVERVIEW_DATABASE_DSN"], config,
             schema=os.environ.get("RIVERVIEW_NOTIFICATION_SCHEMA", "riverview_dev"))
+    except PushConfigurationError as exc:
+        logging.error(json.dumps({"event": "notification_push_configuration_error",
+                                  "failure_code": str(exc)}))
+        return 2
     except (BaselineError, KeyError, OSError, ValueError) as exc:
         logging.error(json.dumps({"event": "notification_push_configuration_error",
                                   "failure_type": type(exc).__name__}))
