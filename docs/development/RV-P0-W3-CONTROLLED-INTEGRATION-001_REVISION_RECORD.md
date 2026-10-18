@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md
 Component: P0-CONTROLLED-INTEGRATION
-Revision: 1.0.4
+Revision: 1.0.5
 Status: Offline integration evidence; no merge or deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record W3 branch assembly and isolated verification
@@ -122,3 +122,14 @@ record were captured and logged under task
 backup hashes. The next gate is a fresh exact-head W3 hosted run, followed by graph
 and revision checks on the published source. PR #139 remains draft; there was no
 production action, main merge, deployment, browser wake, or credential/grant change.
+
+
+## Revision-index integrity correction — 2026-10-18
+
+The PR #119 baseline audit on W3 head `c403553071bacdc9f6f57c85621c381659bfc844`
+found that merging the latest C2/W2 revision records changed `.riverview-revisions.json`
+without incrementing its self revision (1.1.241). The self revision is now 1.1.242.
+The exact predecessor sidecar and revision-record bytes were backed up under task
+`RV-P0-W3-REVISION-INDEX-001`; read-back SHA-256 verification and the subsequent
+baseline audit are required before publishing. No process graph or runtime behavior
+changed in this correction.
