@@ -2,11 +2,12 @@
 Riverview Controlled Document
 File: docs/operations/PR115_119_COMMISSIONING_OPERATOR_DECISION.md
 Component: GRACE-COMMISSIONING
-File Revision: 1.0.1
+File Revision: 1.0.2
 Task: RV-C4-PR115-119-READINESS-001
 Purpose: Record the read-only commissioning preflight and operator decision gates for PRs #115/#119
 Changed: 2026-10-18 UTC | RV-C4-PR115-119-READINESS-001 | Reconcile current PR/CI/package evidence with the recorded commissioning blockers
 Changed: 2026-10-18 UTC | RV-C4-PR115-119-READINESS-001-REMEDIATION | Add prospective file-control correction, structured blocker register, OAuth route comparison, and durable isolated evidence references
+Changed: 2026-10-18 UTC | RV-C4-PROVIDER-COMMISSIONING-DOSSIER-001 | Distinguish Comms5 ingress and external MCP OAuth identity/configuration; record decision options
 Authority: Read-only review; production activation requires a separately authorized change
 History: New file; no predecessor existed
 -->
@@ -124,20 +125,23 @@ The current source and deployment contracts were compared read-only:
 
 | Boundary | Comms5 authenticated inbound route | External reasoning provider exchange |
 |---|---|---|
-| Public/resource path | Caddy accepts /comms5/mcp and forwards to the Camrui adapter at 127.0.0.1:11826/mcp. | The external-reasoning MCP adapter serves /mcp; its unit defaults to 127.0.0.1:11827. |
-| OAuth role | Comms5 OAuth service is configured with issuer https://riverview-comms.ionoge.com and resource/audience https://riverview-comms.ionoge.com/comms5/mcp. Caddy forward-auth verifies the caller and forwards the authenticated Comms5 principal; a protected upstream token authenticates the local proxy hop. | The adapter is an OAuth resource server, not an issuer. It verifies issuer, exact audience, expiry, scope, subject and client ID, then maps the subject/client pair from a protected provider-auth-map to a fixed provider principal. The exact resource URL and issuer are separate settings. |
-| Identity and authority | Successful Comms5 forwarding supplies its own authenticated principal for Comms5 tools. Its static legacy bearer and proxy/upstream tokens are separate secrets and are not external-provider credentials. | Grace's durable exchange separately requires the provider-scoped resident.reasoning.escalate grant. The external token authorizes exchange operations only; advice cannot approve a proposal or authorize execution. |
-| Coexistence | The checked-in Comms5 OAuth service unit also defaults to 127.0.0.1:11827. | The external MCP unit defaults to the same address and port. Both cannot bind the same socket concurrently without an explicitly reviewed distinct listener/proxy arrangement. No such arrangement is verified here. |
+| Public/resource path | Caddy on Ionoge accepts `/comms5/mcp`; the documented path crosses the dedicated reverse SSH forward to the Camrui adapter at `127.0.0.1:11826/mcp`. | The external-reasoning MCP adapter serves `/mcp`; its Camrui unit defaults to `127.0.0.1:11827`, with public HTTPS routing left to a separately reviewed proxy. |
+| OAuth role | The Ionoge Comms5 OAuth service advertises issuer `https://riverview-comms.ionoge.com` and configured resource/audience `https://riverview-comms.ionoge.com/comms5/mcp`. Caddy forward-auth verifies the caller and forwards the Comms5 principal; a separate protected upstream token authenticates the proxy-to-Camrui hop. | The adapter is an OAuth resource server, not an issuer. `RIVERVIEW_MCP_AUTHORIZATION_SERVER_URL` selects issuer metadata and `RIVERVIEW_MCP_RESOURCE_URL` is the exact expected token audience and advertised protected resource. It validates issuer, audience, expiry, scope, subject and client ID, then maps the exact subject/client pair through the protected systemd `provider-auth-map` to a fixed provider and exchange principal. |
+| Identity and authority | Successful Comms5 forwarding supplies the Comms5 `steward` principal for Comms5 tools. Its legacy bearer, OAuth login credential, proxy trust key, and backend-hop token have distinct roles and are not an external-provider identity mapping. | OAuth subject/client IDs map to an external `provider_id` and exchange `principal_id` in the protected adapter credential. Grace separately loads `RIVERVIEW_EXTERNAL_REASONING_PROVIDER_MAP` as non-secret JSON mapping the same provider ID to its exchange principal; the launcher cross-checks those identities. Neither map grants authority. The active Grace resident still needs the exact `resident.reasoning.escalate` grant scoped to `provider:<provider_id>`. Advice cannot approve a proposal or authorize execution. |
+| Listener boundary | Comms5 OAuth unit defaults to loopback `127.0.0.1:11827` on its documented Ionoge host. | The external reasoning unit defaults to `127.0.0.1:11827` on Camrui. This is a bind collision only if the two units share a host/network namespace. The documented intended topology places them on separate hosts, but this assignment made no live topology inspection; verify host identity before activation. If co-located, select and configure distinct loopback ports and proxy routes. |
 
 **Reuse result: NOT VERIFIED.** The Comms5 issuer and OAuth implementation are
-candidate infrastructure only. The Comms5 resource audience is not the
-external-reasoning MCP resource, and its authenticated Steward principal is not
-the fixed provider principal expected by the external adapter. The historical
-Comms5 route and upstream/static bearer must not be reused as the external
-provider route or credential. Reuse of the authorization-server implementation
-would require proof it can issue an access token for the exact approved external
-MCP audience and required scope, plus a reviewed nonconflicting listener,
-approved issuer/subject/client mapping, and protected provider-auth-map.
+candidate infrastructure only. The currently configured Comms5 audience is
+`https://riverview-comms.ionoge.com/comms5/mcp`; the external adapter requires
+an exact separately chosen MCP resource audience. The Comms5 `steward` principal
+and its legacy/upstream proxy credentials are not the provider principal or
+provider-map credential. The checked-in external adapter validates issuer,
+audience and exact subject/client/scope, but the historical Comms5 OAuth server
+implementation is not present in this source tree; its deployed unit exposes one
+configured resource value. It is therefore **not verified** that the current
+Comms5 issuer can issue a second resource audience or register a separate
+ChatGPT MCP client. Reuse requires code/configuration evidence for both. Do not
+reuse the Comms5 route, principal, or credentials as-is.
 
 Still missing for ChatGPT: Steward-approved provider ID; issuer URL and issuer
 metadata; exact OAuth subject and client ID mapping; exact audience/resource
@@ -146,6 +150,31 @@ credential custody/renewal procedure; provider-auth-map credential; separate
 Grace provider identity reference; and the exact resident.reasoning.escalate
 grant scoped to provider:<approved-provider-id>. No value was guessed, read
 from a live secret store, or activated.
+
+### Verified separation options and minimum configuration decisions
+
+**Code-level contract:** the external adapter has independent resource-server settings: `RIVERVIEW_MCP_RESOURCE_URL`, `RIVERVIEW_MCP_AUTHORIZATION_SERVER_URL`, `RIVERVIEW_MCP_ALLOWED_HOSTS`, and `RIVERVIEW_MCP_ALLOWED_ORIGINS`; its listener uses `RIVERVIEW_MCP_LISTEN_HOST` / `RIVERVIEW_MCP_LISTEN_PORT` (defaults loopback `127.0.0.1:11827`). The checked-in example values are placeholders. The systemd unit delivers `provider-auth-map.json` using `LoadCredential`; the launcher requires the credential directory and protected file owner/mode, validates issuer metadata/JWKS, exact resource audience, subject, client ID and scope, and cross-checks provider/principal IDs against Grace's separate provider registry. The registered scopes are `reasoning:exchange` and `reasoning:exchange:confidential`; the latter is needed only for confidential exchange. The authorization server must provide HTTPS metadata, authorization code + PKCE S256, and a supported public-client registration method (CIMD or DCR). The repository contains no external public Caddy route or concrete provider values.
+
+| Choice | Verified contract / constraint | Minimum Steward/owner decision |
+|---|---|---|
+| A. Dedicated external issuer/client registration (separate identity boundary) | Supported by the adapter's independent issuer/resource configuration, subject/client allowlist, and provider map. No issuer, endpoint, or client is preselected. | Approve issuer and metadata URL; ChatGPT MCP client registration method and exact client ID; exact token subjects; provider ID and distinct provider exchange principal; required scope ceiling; credential custody/rotation owner. |
+| B. Reuse the Comms5 authorization service with a distinct MCP resource (conditional) | Comms5 currently advertises one configured resource `.../comms5/mcp`; its OAuth implementation source is external to this checkout. It must be proven to issue a token whose `aud` is the separately approved external `RIVERVIEW_MCP_RESOURCE_URL`, for the intended ChatGPT client and scope. The Comms5 `steward` principal cannot stand in for the provider principal. | Provide source/version evidence and a nonproduction issuer test proving discovery, PKCE/client registration, exact external audience, subject/client claims and scopes; approve a separate provider map and exact Grace registry match. If the issuer cannot satisfy these checks, select option A. |
+| C. Listener and public route | Both units default to loopback `127.0.0.1:11827`; documented Comms5 OAuth is on Ionoge and external MCP is packaged for Camrui, so the collision is conditional on co-location. The external unit has configurable host/port; public TLS proxy config is not checked in. | Verify deployment host/network namespace. If co-located, select distinct loopback ports and a reviewed proxy route. Select an approved HTTPS host/path, DNS/TLS owner, Host/Origin allowlists, and ensure RFC 9728 `resource` and token `aud` equal the exact resource URL. |
+| D. Identity and authority binding | External adapter credential maps exact JWT subject + client ID + scopes to `(provider_id, principal_id)`; Grace's `RIVERVIEW_EXTERNAL_REASONING_PROVIDER_MAP` independently maps that same pair. Durable request admission/consumption additionally checks the active resident's `resident.reasoning.escalate` grant on `provider:<provider_id>`. | Approve the same exact provider/principal pair across both maps; approve the separate provider-scoped resident grant through the authorized process. Never map to the Comms5 Steward identity. |
+
+The shortest safe technical path is: choose A or prove B; decide C after topology verification; define the exact URL/issuer/client/scope and paired identity mapping; validate those values in disposable fixtures; then request the distinct grant and provider credential through their owners. None of these steps activates a provider. Missing live identity, secret, grant, or Steward decision keeps commissioning blocked.
+
+### Exact Steward decision list
+
+1. Select dedicated issuer/client registration (A) or require evidence that Comms5 supports a separate external MCP audience and client (B).
+2. Approve the external MCP HTTPS resource URL, issuer URL, ChatGPT OAuth client-registration method, exact client ID/subject mapping, and allowed `reasoning:exchange` scope set.
+3. Approve a unique external `provider_id` and exchange `principal_id`, the protected `provider-auth-map` owner and renewal process, and the matching non-secret Grace provider-map entry. No value is currently known.
+4. Have operations verify whether the two listener units share a host/network namespace; if they do, approve distinct loopback ports and the corresponding TLS proxy route/Host/Origin allowlists.
+5. Separately authorize the exact `resident.reasoning.escalate` grant for the selected provider ID. Keep source-worker `worker.register` and `assignment.execute` grants separate.
+6. Approve or decline the pinned harmless Engineering objective, including repository, allowed artifact path, expected output, independent verifier and cleanup.
+7. Before deployment, require a protected production snapshot and restore proof, release-specific rollback/service plan, named operator, maintenance window, and separate change authorization.
+
+Items 5–7 are not implied by selecting OAuth settings. This dossier records the decisions needed; it grants none of them.
 
 ## Structured commissioning blocker register
 

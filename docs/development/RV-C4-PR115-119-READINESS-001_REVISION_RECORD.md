@@ -1,6 +1,6 @@
 # PR #115/#119 commissioning preflight revision record
 
-**Document Revision:** 1.0.1
+**Document Revision:** 1.0.2
 **Task:** RV-C4-PR115-119-READINESS-001
 **Component:** GRACE-COMMISSIONING
 **Candidate base:** PR #119, `97128626df967bc992696dca38eaa7116f3616e9`
@@ -79,3 +79,24 @@ The feature checkout carries branch-local AI_HINTS 1.0.5 / DoD 1.7 copies,
 while main has AI_HINTS 1.0.4 / active DoD 1.6. Neither copy was overwritten;
 the documented procedure follows the main authority revision specified by
 the assignment.
+
+
+## Provider and commissioning decision dossier — 2026-10-18
+
+Task: RV-C4-PROVIDER-COMMISSIONING-DOSSIER-001.
+
+Extended the operator record from revision 1.0.1 to 1.0.2 after preserving and
+hashing its exact predecessor. Corrected the distinction between the Grace-side
+`RIVERVIEW_EXTERNAL_REASONING_PROVIDER_MAP` identity registry and the external
+MCP systemd `provider-auth-map` credential. Recorded exact adapter settings,
+Comms5 ingress path/audience/principal, conditional listener collision based
+on host/network namespace, and the two supported issuer decision paths. Added
+the precise identity/scope, route, grant, objective, and deployment decisions
+needed from their respective authorities. No provider values were inferred;
+no source code, runtime, grant, credential, graph behavior, or production state
+was changed.
+
+The canonical graph remains unchanged because this is a documentation-only
+contract clarification; its existing preflight node already covers the
+read-only OAuth comparison and gated handoff. Graph validation is rerun to
+confirm generated projections remain synchronized.
