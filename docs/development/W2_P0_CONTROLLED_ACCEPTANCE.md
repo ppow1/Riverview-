@@ -2,11 +2,14 @@
 Riverview Controlled Document
 File: docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md
 Component: W2-P0-INTEGRATED-REVIEW-ACCEPTANCE
-File Revision: 1.0.1
+File Revision: 1.0.3
 Purpose: Specify isolated PostgreSQL acceptance for Grace exact-subject provider review
 Authority: Offline synthetic test only; no live provider, browser, production DB, credentials, or grants
 Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Initial test contract and recovery guidance
 Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Document integrated synthetic C2 wake and C3 receipt path
+Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Correct W1 event timestamp source and terminal proposal assertions
+Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Document C3 successor API and expiry terminal semantics
+Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Specify per-round owner attribution and retry-after-restart for successor recovery
 History: Git and docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md
 -->
 # W2 P0 controlled acceptance
@@ -79,6 +82,13 @@ the provider MCP claim and a second owner cycle is idle. No browser is contacted
   new subject, revision, request ID, and correlation ID.
 - A restart resumes the persisted response or admitted successor without
   reasoning twice; only the final matching revision becomes proposed.
+- The W1 trace input requires `doorbell_owner_id` inside each round. The
+  acceptance exporter emits that allowlisted identity alongside the actual
+  durable receipt metadata, not as bundle-level metadata.
+- After a simulated crash, restart and retry Grace consumption before checking
+  C3's `review_successor` lookup. This verifies the durable child is reconciled
+  into the parent revision event without another reasoning call; a further
+  restart must not duplicate the event.
 - An expired subject cannot accept a late response or finalize the objective.
 
 ## Troubleshooting and safe recovery
@@ -92,6 +102,7 @@ the provider MCP claim and a second owner cycle is idle. No browser is contacted
 | MCP import reports `ModuleNotFoundError: jwt` | Check the active Python environment and controlled CI dependency install | The controlled suite installs declared PyJWT test dependency | Run in the controlled checkout or a project test environment with declared dependencies; do not change runtime credentials or test import behavior. |
 | Test interrupted before teardown | Verify the exact DSN is disposable, then list schemas matching this run's unique `rvtest_<uuid>` value | Only the test fixture schema is present | Prefer normal fixture teardown. Any manual cleanup must target the exact schema created by this test run, never a wildcard or production database. |
 | Local PostgreSQL unavailable | `Get-Command docker` and inspect controlled GitHub Actions run | Disposable CI PostgreSQL is the evidence source | Report local DSN absence explicitly and rely only on the exact-head controlled run. |
+| Trace export fails on event timestamp | Inspect the `grace_objective_events` migration | Event time is `occurred_at` | Query the canonical timestamp column and keep payload fields allowlisted. |
 
 ## Rollback and limits
 

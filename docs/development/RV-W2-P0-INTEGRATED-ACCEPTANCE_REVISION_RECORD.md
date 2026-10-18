@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md
 Component: W2-P0-INTEGRATED-REVIEW-ACCEPTANCE
-File Revision: 1.0.5
+File Revision: 1.0.8
 Purpose: Preserve W2 integrated acceptance scope, source lineage, evidence and remaining gates
 Authority: Offline synthetic test only; no production or provider authority
 Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Record initial C3/C4 acceptance increment
@@ -11,6 +11,9 @@ Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Assert either 
 Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Import MCP privacy denial from its defining module after CI fixture failure
 Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Make tampered-subject assertion validate rejection, not internal error wording
 Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Add synthetic C2 owner-hook wake and C3 single-receipt acceptance
+Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Fix trace timestamp, expiry boundary assertion, and use C3 successor API
+Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Correct per-round trace attribution and retry durable successor recovery after restart
+Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Record local W2 correction verification and environment limits
 History: Git; no predecessor existed for the new W2 acceptance test or cookbook
 -->
 # RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE revision record
@@ -19,7 +22,7 @@ History: Git; no predecessor existed for the new W2 acceptance test or cookbook
 
 - Component: `W2-P0-INTEGRATED-REVIEW-ACCEPTANCE`
 - Owner: W2
-- Revision: 1.0.5
+- Revision: 1.0.6
 - Source branch: `codex/w2-p0-integrated-acceptance-20261018`
 - Integration base: W3 branch `codex/w3-p0-controlled-integration-20261018`, assembled head `f2de2061778f0a69aa7af38d7e60ae987f4b17f6` (C3 atomic receipt/owner loop plus C2 Grace runtime wiring)
 - Selected parent: PR #119 head `97128626df967bc992696dca38eaa7116f3616e9`
@@ -27,7 +30,7 @@ History: Git; no predecessor existed for the new W2 acceptance test or cookbook
 - New W2 files: `tests/test_w2_p0_integrated_review_acceptance.py`, `docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md`
 - Predecessor backups: initial new-file versions had no predecessor. Revision 1.0.0 of the test and this record are backed up before the 1.0.1 fixture correction at `.riverview-backups/20261018T202428968484Z/tests/test_w2_p0_integrated_review_acceptance.py` (SHA-256 `03d5ae2a28c091d2a3c6283da7a8cc79327c25e740e01440025e2da2d8cd8353`) and `.riverview-backups/20261018T202429080246Z/docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md` (SHA-256 `b01cd17ec28a172e9f33ab1f3832fee3eb28d10cfe7f7ecfda5363ab0f6a2b3d`). No owner source file was edited.
 
-## Evidence and status (revision 1.0.5)
+## Evidence and status (revision 1.0.8)
 
 This is a partial integrated acceptance increment, not component or system completion.
 
@@ -39,7 +42,15 @@ This is a partial integrated acceptance increment, not component or system compl
 - Local C3/C4 unit import: unavailable because `PyJWT` (`jwt`) is not installed
   in this Python environment; the controlled checkout installs the declared
   dependency.
-- Controlled PostgreSQL CI: run `39164195046` on W3's assembled C2/C3 head failed after **690 tests / 4 skips** with two W2 failures: C4 expiry mapping (`response_received` instead of `expired`) and missing successor row in the parent crash-recovery test. The new revision 1.0.5 now exercises C2's synthetic owner hook and C3's one-receipt claim before C4 provider processing, including on the revision path; exact-head rerun pending.
+- W2 fix verification: `py_compile` PASS; `tests.test_external_review_trace`
+  **22/22 PASS**; W2 PostgreSQL acceptance **3 cases discovered / 3 skipped**
+  because `RIVERVIEW_TEST_PG_DSN` is unset; `git diff --check` PASS; revision
+  sidecar hashes and captured predecessor backups PASS. Local process graph
+  check is unverified because this Windows `core.autocrlf=true` checkout
+  materializes CRLF bytes while the graph sidecar pins LF blob hashes. The
+  controlled Linux exact-head workflow must run graph/revision checks after the
+  PostgreSQL tests pass.
+- Controlled PostgreSQL CI on W2 merged head `06787a93` (run `39165000537`) executed **708 tests / 4 skips**, with 1 failure and 1 error. The snapshot exporter put `doorbell_owner_id` at bundle level although W1's schema requires it on each round. The successor test queried C3's recovery API before retrying consumption after the injected crash; it now mirrors the restart/retry recovery sequence in C3's existing test. Revision 1.0.7 corrects both W2-owned cases. The earlier integrated run's C2-owned failures were no longer present. Exact-head rerun pending.
 - First controlled run `39162955178`: **FAIL** after 690 tests / 4 skips, with 3 errors in W2 setUp. All three errors were `MCPConfigurationError(provider_not_registered)` because the negative-test provider token was not registered in the isolated exchange router. No W2 lifecycle assertion ran. Revision 1.0.1 registers that synthetic provider only in the disposable fixture; rerun pending.
 - Current test scope: Grace typed review subject → durable C3 exchange → C2
   synthetic owner-loop wake → one fenced C3 receipt → C4 provider MCP
@@ -48,11 +59,7 @@ This is a partial integrated acceptance increment, not component or system compl
   duplicate submission, deadline expiry, duplicate wake, and no-premature-
   finalization checks are included. The assembled exact-head PostgreSQL run
   determines acceptance.
-- Blocking C4 issue: the current C4 MCP wrapper reports `response_received` when the
-  durable exchange returns its `expired` sentinel. W2 reported this to C4 and
-  asserts that an expired response must return non-success without a response
-  digest. Issue #120 comment 6254755434 records the reproduced failure. C4-owned
-  correction and exact-head CI remain pending; W2 will not modify C4 source.
+- C4 expiry mapping was corrected in PR #130 commit `45807c642040ba3b48fdb51e6f5f3d1219e23a06` and integrated into W3's head. The W2 run verified `state=expired` and no response digest; the no-Grace-finalization assertion is now scoped to absence of reviewed/revised proposal events and a still-GROUNDED objective.
 - Process graph: no runtime source behavior was changed by this test harness;
   W3 owns registering the acceptance stages and generated view in the canonical
   integration graph.
