@@ -197,9 +197,9 @@
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "path": "process_graphs/resident-reasoning/runtime.json",
-      "revision": "1.0.26",
-      "sha256": "d2989bd879d5b2f8461a618a0cbe24a7124c55cf57da5dcf29ebc47320c8476e",
-      "size_bytes": 62529
+      "revision": "1.0.27",
+      "sha256": "16882fcbc5b27bbe2be626677372054da1d2e29be468b71f1639c20674334e8a",
+      "size_bytes": 62906
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -311,5 +311,5 @@
     }
   },
   "manifest_revision": "1.1.240",
-  "updated_at": "2026-10-18T20:23:13+00:00"
+  "updated_at": "2026-10-18T20:41:00+00:00"
 }
