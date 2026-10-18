@@ -2,11 +2,12 @@
 # RIVERVIEW~ CONTROLLED DOCUMENT
 # File: docs/components/WORK_REGISTRY.md
 # Component: UNIVERSAL-WORK-REGISTRY
-# File Revision: 1.1.0
+# File Revision: 1.1.1
 # Purpose: Specify the shared observational worker, session, and work-order registry
 # Authority: Registration is observability; existing schedulers and authority grants govern execution
 # Changed: 2026-10-18 UTC | RV-UNIVERSAL-WORK-REGISTRY-001 | Document schema, integrations, import, and limits
 # History: Git and revision/backup manifest
+# Changed: 2026-10-18 UTC | RV-W1-REGISTRY-PROCESS-CONCURRENCY-001 | Record subprocess-level concurrent writer verification and cross-host limit
 # =============================================================================
 # Universal Work Registry
 
@@ -80,3 +81,10 @@ For future sessions, use `scripts/Start-RiverviewCodexSession.ps1` / the Linux w
 ## Verification and limitations
 
 Automated tests cover parallel independent sessions and work orders, concurrent writes, stale and disconnected sessions, completed and blocked tasks, and local AI job records. Dashboard route and static UI tests check auth/read-only behavior, enumeration, and backward compatibility with the existing worker API. Cross-runtime compatibility is the shared JSON contract and filesystem behavior; a Linux host is still needed for a live Windows/Linux shared-filesystem acceptance run. Seven session imports are pending source records and an explicit mapping.
+
+The registry concurrency contract is also exercised by independent Python
+processes writing through separate `WorkRegistry` instances to one temporary
+file. This verifies process-local filesystem lock-directory coordination on
+the test OS. It does not establish cross-host lock correctness for an arbitrary
+network filesystem; Windows/Linux interoperability on the selected shared
+storage remains a separate acceptance gate.
