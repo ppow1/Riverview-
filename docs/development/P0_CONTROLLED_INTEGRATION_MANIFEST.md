@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/P0_CONTROLLED_INTEGRATION_MANIFEST.md
 Component: P0-CONTROLLED-INTEGRATION
-File Revision: 1.0.5
+File Revision: 1.0.6
 Status: Disposable integration manifest; no merge/deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record exact integration parent, published component heads, ownership, order and verification state for P0 Grace-to-ChatGPT review
@@ -251,3 +251,28 @@ body-free synthetic snapshot and passed the existing W1 projector: one round,
 consistency only; it is not a real external ChatGPT review. W3 will rerun hosted
 acceptance after publishing this latest combined head and will preserve PR #139 as
 draft until full acceptance evidence is available.
+
+
+## Final offline integration evidence — 2026-10-18
+
+Final current controlled branch head: `ce497440409bfa782ef55f3edd6be0ed54f6d870`
+(PR #139, still draft and based on the PR #119 branch). W2 exact PR #140 head
+`5df1705da353c7acc0ffc38c95b7a7f39c462954` is an ancestor of this branch; C2 fix
+`13d1730054628994daa8e2f46ee0bbe789ebd8f6` is also integrated. No main merge or
+production action occurred.
+
+Exact-head hosted controlled run
+[#39175326234](https://github.com/ppow1/Riverview-/actions/runs/39175326234)
+completed successfully: **708 tests, 4 skipped, 0 failures**. Canonical graph
+validation passed with 22 graphs / 573 nodes; revision/predecessor audit passed with
+zero issues. The separate PR #119-base revision audit also passed after correcting
+the revision-index self version to 1.1.242.
+
+The existing W1 projector was invoked on a body-free metadata snapshot emitted by
+this same hosted run. It returned exit 0, one round, `outcome=complete`, no blockers,
+`evidence_level=synthetic_metadata_only`, and `execution_kind_verified=false`. This
+is a synthetic PostgreSQL-backed flow and does not establish live ChatGPT review.
+W1 has independently verified the W2 DB-derived trace; C1's exact-head integrated
+readiness result is still pending. The PR remains draft pending C1 handoff and final
+review; no live browser/provider wake, credential/grant change, deployment or main
+merge is authorized or claimed.

@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md
 Component: P0-CONTROLLED-INTEGRATION
-Revision: 1.0.5
+Revision: 1.0.6
 Status: Offline integration evidence; no merge or deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record W3 branch assembly and isolated verification
@@ -133,3 +133,27 @@ The exact predecessor sidecar and revision-record bytes were backed up under tas
 `RV-P0-W3-REVISION-INDEX-001`; read-back SHA-256 verification and the subsequent
 baseline audit are required before publishing. No process graph or runtime behavior
 changed in this correction.
+
+
+## Final exact-head verification — 2026-10-18
+
+At W3 head `ce497440409bfa782ef55f3edd6be0ed54f6d870`, hosted run
+[#39175326234](https://github.com/ppow1/Riverview-/actions/runs/39175326234)
+passed **708 tests / 4 skips / 0 failures**. Graph validation passed (22 / 573);
+revision/predecessor audit passed with zero issues. Local focused selection passed
+75 tests and skipped 22 PostgreSQL cases without a local DSN. The exact PR #119
+baseline audit passed after incrementing `.riverview-revisions.json` self revision
+from 1.1.241 to 1.1.242 and preserving its predecessor.
+
+The exact hosted run emitted a body-free synthetic trace snapshot. The W1 projector
+returned complete for one round, no blockers, `synthetic_metadata_only`, and
+`execution_kind_verified=false`. W1 independently verified the W2 database-derived
+trace at issue comment 6256193503. C1 exact-head integrated readiness remains
+pending. Therefore W3's controlled integration/hosted acceptance is verified, while
+overall offline readiness handoff remains incomplete and PR #139 stays draft. No
+real ChatGPT review, browser wake, production change, credential/grant change, main
+merge or deployment occurred.
+
+Before this evidence edit, predecessor bytes for both controlled documents were
+backed up under task `RV-P0-W3-INTEGRATION-FINAL-EVIDENCE-001`; verify the entries
+and hashes in `.riverview-backups/manifest.jsonl`.
