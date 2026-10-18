@@ -2,14 +2,14 @@
 Riverview~ Controlled Document
 File: docs/operations/LINUX_BROWSER_ACCEPTANCE.md
 Component: LINUX-BROWSER-ACCEPTANCE
-File Revision: 1.0.1
+File Revision: 1.0.2
 Purpose: Operate the bounded Linux Chromium acceptance harness and request it in Engineering work orders
 Authority: Read-only browser verification; production writes and authenticated sessions are out of scope
 Changed: 2026-10-18 UTC | RV-LINUX-BROWSER-ACCEPTANCE-001 | Initial Camrui browser acceptance procedure
 -->
 # Linux browser acceptance on Camrui
 
-This harness uses Python Playwright with its pinned Chromium build. It is a separate Linux check; Windows browser results do not establish Linux behavior. Riverview's existing Firefox/GeckoDriver verification scripts remain available for their focused checks. The CueMastery C212 reference is a documentation-only workflow smoke, and its current tree has no Playwright test harness. Estate's existing browser integration is a persistent authenticated Chrome DevTools Protocol adapter; it is intentionally not reused as a test runner or supplied with a browser profile.
+This harness uses Python Playwright with its pinned Chromium build. It is a separate Linux check; Windows browser results do not establish Linux behavior. Riverview's existing Firefox/GeckoDriver verification scripts remain available for their focused checks. The [CueMastery C212 smoke](https://github.com/ppow1/CueMastery/blob/main/docs/c212_prairie_estate_mcp_smoke_test.md) is documentation-only, its current tree has no Playwright test harness, and its [persona audit](https://github.com/ppow1/CueMastery/blob/main/docs/runbooks/cuemastery_test_persona_audit.md) explicitly defers HTTP/browser verification. The [seeded persona runbook](https://github.com/ppow1/CueMastery/blob/main/docs/runbooks/cuemastery_seeded_test_personas.md) describes durable test accounts, so this smoke uses a disposable static fixture instead of creating identities. Estate's [browser adapter](https://github.com/ppow1/theestate/blob/main/tools/chatgpt_mailbox_worker_browser.cjs) is a persistent authenticated Chrome DevTools Protocol integration; its [acceptance report](https://github.com/ppow1/theestate/blob/main/collaboration/workstreams/WP-4233/browser_acceptance_report.md) distinguishes direct tool invocation from browser evidence. Neither is reused as a test runner or supplied with a browser profile.
 
 ## Install the isolated runner
 
