@@ -2,7 +2,7 @@
   "files": {
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.235",
+      "revision": "1.1.239",
       "sha256": "db29799c026f20d431bbd748b3653235852fb32a503de7ac6bf8c05db8e78e04",
       "size_bytes": 13389
     },
@@ -128,9 +128,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.182",
-      "sha256": "246e31ce265495299ae30651d6b1fb21852e3c1e09669d0537a5261d24cdbf4c",
-      "size_bytes": 639145
+      "revision": "1.0.185",
+      "sha256": "1b6a1f6052b3025867e71d2a172b9d84617ae8c5bd2551dabd487e9124f37d99",
+      "size_bytes": 646817
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -269,8 +269,26 @@
       "revision": "1.0.0",
       "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
       "size_bytes": 1226
+    },
+    "process_graphs/work-registry/observational-registry.json": {
+      "revision": "1.0.4",
+      "path": "process_graphs/work-registry/observational-registry.json",
+      "sha256": "ec5e400efb1d7cee5e5e724873b59032e4c48f2e4e159cc3d5d6edb521beefce",
+      "size_bytes": 5334
+    },
+    "docs/components/WORK_REGISTRY.schema.json": {
+      "revision": "1.0.0",
+      "path": "docs/components/WORK_REGISTRY.schema.json",
+      "sha256": "c45f8c597ff9c1efa6dea13ff8cb2170a344911f09090be2ee861d361a44f3e0",
+      "size_bytes": 6611
+    },
+    "docs/operations/ISSUE_120_INITIAL_WORK_INVENTORY.json": {
+      "revision": "1.0.0",
+      "path": "docs/operations/ISSUE_120_INITIAL_WORK_INVENTORY.json",
+      "sha256": "c83c171117be4d3044687f93016bd8f54b294a5abeb98b57527a90e8ca937e32",
+      "size_bytes": 6186
     }
   },
-  "manifest_revision": "1.1.235",
+  "manifest_revision": "1.1.239",
   "updated_at": null
 }
