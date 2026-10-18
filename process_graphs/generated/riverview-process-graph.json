@@ -3764,6 +3764,318 @@
       ]
     },
     {
+      "graph_id": "rv:resident-learning:lifecycle",
+      "graph_revision": "1.0.2",
+      "component_id": "RESIDENT-LEARNING-GOVERNANCE",
+      "workflow_id": "resident.learning.lifecycle.v1",
+      "diagram_order": 18,
+      "source_references": [
+        "src/riverview_core/resident_execution/resident_learning.py",
+        "src/riverview_core/resident_execution/migrations/0014_resident_learning.sql"
+      ],
+      "documentation_references": [
+        "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md",
+        "docs/components/RESIDENT_LEARNING_FLOW.md",
+        "docs/components/RESIDENT_LEARNING_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_learning.py",
+        "tests/test_resident_learning_postgres.py"
+      ],
+      "nodes": [
+        {
+          "id": "rv:resident-learning:lifecycle:binding",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Refresh authenticated office binding and require a current resident principal",
+          "source_references": [
+            "src/riverview_core/resident_execution/resident_learning.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_learning.py"
+          ]
+        },
+        {
+          "id": "rv:resident-learning:lifecycle:candidate",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Accept evidence-bearing candidate only after exact authorization",
+          "source_references": [
+            "src/riverview_core/resident_execution/resident_learning.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_learning.py"
+          ]
+        },
+        {
+          "id": "rv:resident-learning:lifecycle:validate",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Independent reviewer records supported, contradicted, or insufficient result",
+          "source_references": [
+            "src/riverview_core/resident_execution/resident_learning.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_learning.py"
+          ]
+        },
+        {
+          "id": "rv:resident-learning:lifecycle:approve",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Require resident confirmation for private retention or Steward approval for institutional sharing",
+          "source_references": [
+            "src/riverview_core/resident_execution/resident_learning.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_learning.py"
+          ]
+        },
+        {
+          "id": "rv:resident-learning:lifecycle:retrieve",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Return only approved knowledge in the exact authorized scope",
+          "source_references": [
+            "src/riverview_core/resident_execution/resident_learning.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_learning.py"
+          ]
+        },
+        {
+          "id": "rv:resident-learning:lifecycle:correct",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Append correction, supersession, or fresh-evidence rollback events",
+          "source_references": [
+            "src/riverview_core/resident_execution/resident_learning.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_learning.py"
+          ]
+        },
+        {
+          "id": "rv:resident-learning:lifecycle:denied",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Deny when identity, exact scope authority, or evidence is absent or stale",
+          "source_references": [
+            "src/riverview_core/resident_execution/resident_learning.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md",
+            "docs/components/RESIDENT_LEARNING_FLOW.md",
+            "docs/components/RESIDENT_LEARNING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_learning.py",
+            "tests/test_resident_learning_contract.py"
+          ]
+        },
+        {
+          "id": "rv:resident-learning:lifecycle:reject",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Reject or defer unsupported candidates; keep them out of retrieval",
+          "source_references": [
+            "src/riverview_core/resident_execution/resident_learning.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md",
+            "docs/components/RESIDENT_LEARNING_FLOW.md",
+            "docs/components/RESIDENT_LEARNING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_learning.py",
+            "tests/test_resident_learning_contract.py"
+          ]
+        },
+        {
+          "id": "rv:resident-learning:lifecycle:unavailable",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Authority or store unavailable; preserve pending state and fail closed",
+          "source_references": [
+            "src/riverview_core/resident_execution/resident_learning.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md",
+            "docs/components/RESIDENT_LEARNING_FLOW.md",
+            "docs/components/RESIDENT_LEARNING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_learning.py",
+            "tests/test_resident_learning_contract.py"
+          ]
+        },
+        {
+          "id": "rv:resident-learning:lifecycle:diagnose",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Read-only diagnosis checks event history, scope, evidence, and store health",
+          "source_references": [
+            "src/riverview_core/resident_execution/resident_learning.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md",
+            "docs/components/RESIDENT_LEARNING_FLOW.md",
+            "docs/components/RESIDENT_LEARNING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_learning.py",
+            "tests/test_resident_learning_contract.py"
+          ]
+        },
+        {
+          "id": "rv:resident-learning:lifecycle:recover",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Resume only after dependency recovery and recheck current authority and idempotency",
+          "source_references": [
+            "src/riverview_core/resident_execution/resident_learning.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md",
+            "docs/components/RESIDENT_LEARNING_FLOW.md",
+            "docs/components/RESIDENT_LEARNING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_learning.py",
+            "tests/test_resident_learning_contract.py"
+          ]
+        },
+        {
+          "id": "rv:resident-learning:lifecycle:rollback-check",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Require fresh evidence and current approval before restoring a prior revision",
+          "source_references": [
+            "src/riverview_core/resident_execution/resident_learning.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md",
+            "docs/components/RESIDENT_LEARNING_FLOW.md",
+            "docs/components/RESIDENT_LEARNING_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_learning.py",
+            "tests/test_resident_learning_contract.py"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:resident-learning:lifecycle:binding",
+          "to": "rv:resident-learning:lifecycle:candidate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:candidate",
+          "to": "rv:resident-learning:lifecycle:validate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:validate",
+          "to": "rv:resident-learning:lifecycle:approve",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:approve",
+          "to": "rv:resident-learning:lifecycle:retrieve",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:retrieve",
+          "to": "rv:resident-learning:lifecycle:correct",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:correct",
+          "to": "rv:resident-learning:lifecycle:validate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:binding",
+          "to": "rv:resident-learning:lifecycle:denied",
+          "type": "diagnostic_branch",
+          "label": "unknown or stale identity"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:candidate",
+          "to": "rv:resident-learning:lifecycle:denied",
+          "type": "diagnostic_branch",
+          "label": "exact write grant or evidence missing"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:validate",
+          "to": "rv:resident-learning:lifecycle:reject",
+          "type": "diagnostic_branch",
+          "label": "contradicted or insufficient evidence"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:reject",
+          "to": "rv:resident-learning:lifecycle:retrieve",
+          "type": "verification",
+          "label": "candidate remains excluded"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:approve",
+          "to": "rv:resident-learning:lifecycle:unavailable",
+          "type": "diagnostic_branch",
+          "label": "authority/store unavailable"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:unavailable",
+          "to": "rv:resident-learning:lifecycle:diagnose",
+          "type": "recovery_route",
+          "label": "read-only checks only"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:diagnose",
+          "to": "rv:resident-learning:lifecycle:recover",
+          "type": "recovery_route",
+          "label": "dependency restored"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:recover",
+          "to": "rv:resident-learning:lifecycle:binding",
+          "type": "verification",
+          "label": "refresh identity and exact authorization"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:correct",
+          "to": "rv:resident-learning:lifecycle:rollback-check",
+          "type": "diagnostic_branch",
+          "label": "proposed rollback"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:rollback-check",
+          "to": "rv:resident-learning:lifecycle:validate",
+          "type": "recovery_route",
+          "label": "prior revision re-enters current validation"
+        }
+      ]
+    },
+    {
       "graph_id": "rv:runtime-baseline:commissioning",
       "graph_revision": "1.0.1",
       "component_id": "RUNTIME-BASELINE",
@@ -6063,6 +6375,18 @@
     "rv:postgres-ledger:migration:stop",
     "rv:postgres-ledger:migration:transaction",
     "rv:postgres-ledger:migration:update",
+    "rv:resident-learning:lifecycle:approve",
+    "rv:resident-learning:lifecycle:binding",
+    "rv:resident-learning:lifecycle:candidate",
+    "rv:resident-learning:lifecycle:correct",
+    "rv:resident-learning:lifecycle:denied",
+    "rv:resident-learning:lifecycle:diagnose",
+    "rv:resident-learning:lifecycle:recover",
+    "rv:resident-learning:lifecycle:reject",
+    "rv:resident-learning:lifecycle:retrieve",
+    "rv:resident-learning:lifecycle:rollback-check",
+    "rv:resident-learning:lifecycle:unavailable",
+    "rv:resident-learning:lifecycle:validate",
     "rv:runtime-baseline:commissioning:accept-decision",
     "rv:runtime-baseline:commissioning:accept-hold",
     "rv:runtime-baseline:commissioning:acceptance",

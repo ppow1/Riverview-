@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_revision_control.py
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.2.3
+# Revision: 1.2.4
 # Purpose: Regression tests for revision validation and predecessor preservation
 # Execution Model: Request-driven tests
 # Observability: unittest results and exit code
 # Dependencies: Python 3.10+, Git
 # Authority: Temporary repositories only
 # Changed: 2026-10-10 UTC | RV-ENG-REV-003 | Cover native evidence headers and reject malformed sidecar revisions
+# Changed: 2026-10-18 UTC | RV-W2-RESIDENT-LEARNING-DOD-REMEDIATION-001 | Verify backup next-revision, source-commit, and restoration metadata
 # Contracts: docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md
 # Tests: This file
 # History: Git and revision backup manifest
@@ -32,6 +33,9 @@ class RevisionTests(unittest.TestCase):
         self.file=self.root/'sample.py'
         self.file.write_text('# Revision: 1.0.0\nprint(1)\n')
         subprocess.run(['git','-C',str(self.root),'add','sample.py'],check=True)
+        subprocess.run(['git','-C',str(self.root),'-c','user.name=Revision Test',
+            '-c','user.email=revision-test@example.invalid','commit','--allow-empty',
+            '-m','fixture baseline'],check=True,capture_output=True)
         self.base=self.root/'baseline.json'
         self.base.write_text(json.dumps({'files':rev.inventory(self.root)}))
     def issues(self):
@@ -64,9 +68,23 @@ class RevisionTests(unittest.TestCase):
         self.assertIn('predecessor_backup_missing_or_invalid',self.issues())
     def test_backup_exact_and_logged(self):
         old=self.file.read_bytes()
-        result=rev.backup(self.root,'sample.py','TASK-1')
+        result=rev.backup(self.root,'sample.py','TASK-1','1.0.1')
         self.assertEqual((self.root/result['backup']).read_bytes(),old)
         self.assertEqual(len((self.root/'.riverview-backups/manifest.jsonl').read_text().splitlines()),1)
+        self.assertEqual(result['new_revision'],'1.0.1')
+        self.assertEqual(result['source_commit'],rev.git(self.root,'rev-parse','HEAD').decode().strip())
+        self.assertEqual(result['restore_instructions']['target_path'],'sample.py')
+        self.assertEqual(result['restore_instructions']['expected_sha256'],rev.sha(old))
+
+    def test_backup_rejects_nonmonotonic_new_revision(self):
+        with self.assertRaises(ValueError):
+            rev.backup(self.root,'sample.py','TASK-1','1.0.0')
+
+    def test_backup_without_new_revision_marks_it_unspecified(self):
+        result=rev.backup(self.root,'sample.py','TASK-1')
+        self.assertIsNone(result['new_revision'])
+        self.assertEqual(result['source_commit'],rev.git(self.root,'rev-parse','HEAD').decode().strip())
+        self.assertIn('verify the restored SHA-256',result['restore_instructions']['steps'][2])
     def test_backup_rejects_traversal(self):
         with self.assertRaises(ValueError): rev.backup(self.root,'../bad','TASK-1')
 

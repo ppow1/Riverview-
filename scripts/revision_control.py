@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/revision_control.py
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.2.3
-# Purpose: Inventory file revisions and verify preserved predecessor backups
+# Revision: 1.2.4
+# Purpose: Inventory revisions and capture verifiable predecessor and restoration metadata
 # Execution Model: Request-driven CLI; suitable for unattended CI and Camrui
 # Observability: JSON stdout and exit codes
 # Dependencies: Python 3.10+, Git
 # Authority: Local checkout only; never edits source or remote
 # Changed: 2026-10-10 UTC | RV-ENG-REV-003 | Validate revision syntax and use native headers in evidence records
+# Changed: 2026-10-18 UTC | RV-W2-RESIDENT-LEARNING-DOD-REMEDIATION-001 | Record next revision, source commit, and explicit restoration procedure in new backups
 # Contracts: docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md
 # Tests: tests/test_revision_control.py
 # History: Git and revision backup manifest
@@ -104,13 +105,19 @@ def inventory(root):
             rows.append({'path':rel,'revision':revision(root,rel),'sha256':sha(p.read_bytes())})
     return rows
 
-def backup(root, rel, task):
+def backup(root, rel, task, new_revision=None):
     if rel.startswith('/') or '..' in Path(rel).parts or rel.startswith('.riverview-backups/'):
         raise ValueError('Invalid path')
     path=root/rel
     if not path.is_file() or path.is_symlink():
         raise ValueError('Only existing regular files can be backed up')
     old=path.read_bytes()
+    old_revision=revision(root,rel)
+    if new_revision is not None:
+        if not valid_revision(new_revision):
+            raise ValueError('Invalid new revision')
+        if old_revision is not None and not inc(old_revision,new_revision):
+            raise ValueError('New revision must increase the current revision')
     digest=sha(old)
     stamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
     location=root/'.riverview-backups'/stamp/rel
@@ -119,7 +126,21 @@ def backup(root, rel, task):
         stream.write(old)
     if location.read_bytes()!=old:
         raise RuntimeError('Backup verification failed')
-    record={'path':rel,'revision':revision(root,rel),'sha256':digest,'backup':str(location.relative_to(root)),'task_id':task,'timestamp_utc':stamp}
+    backup_rel=str(location.relative_to(root)).replace('\\','/')
+    try:
+        source_commit=git(root,'rev-parse','HEAD').decode('utf-8').strip()
+    except subprocess.CalledProcessError:
+        source_commit=None
+    record={'path':rel,'revision':old_revision,'new_revision':new_revision,
+        'sha256':digest,'backup':backup_rel,'task_id':task,'source_commit':source_commit,
+        'timestamp_utc':stamp,
+        'restore_instructions':{
+            'method':'copy_exact_backup_then_verify_sha256','backup_path':backup_rel,
+            'target_path':rel,'expected_sha256':digest,
+            'steps':['preserve and hash the current target first',
+                'copy the saved backup bytes to the target path',
+                'verify the restored SHA-256 equals expected_sha256',
+                'rerun the relevant revision and tests']}}
     log=root/'.riverview-backups'/'manifest.jsonl'
     with log.open('a',encoding='utf-8') as stream:
         stream.write(json.dumps(record,sort_keys=True)+'\n')
@@ -165,12 +186,13 @@ def main():
     sub=p.add_subparsers(dest='cmd',required=True)
     sub.add_parser('inventory')
     b=sub.add_parser('backup'); b.add_argument('path'); b.add_argument('--task',required=True)
+    b.add_argument('--new-revision')
     c=sub.add_parser('check'); c.add_argument('--baseline',required=True)
     a=p.parse_args()
     root=Path(a.root).resolve()
     try:
         if a.cmd=='inventory': result={'files':inventory(root)}
-        elif a.cmd=='backup': result=backup(root,a.path,a.task)
+        elif a.cmd=='backup': result=backup(root,a.path,a.task,a.new_revision)
         else:
             issues=check(root,Path(a.baseline));result={'passed':not issues,'issues':issues}
         print(json.dumps(result,indent=2))

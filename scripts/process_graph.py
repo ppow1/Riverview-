@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/process_graph.py
 # Component: RV-PROCESS-GRAPH
-# Revision: 1.0.5
+# Revision: 1.0.7
 # Purpose: Validate canonical workflow graphs and generate synchronized views
 # Execution Model: Request-driven developer utility and CI check
 # Observability: Structured validation errors and generated graph inventory
@@ -10,6 +10,8 @@
 # Authority: Reads repository graph data; writes only registered generated views
 # Changed: 2026-10-10 UTC | RV-M2.3-001 | Avoid trailing whitespace in generated graph heading
 # Changed: 2026-10-11 UTC | RV-GRAPH-FILE-REVISION-FIX | Increment generated File Revision metadata as well as Document Revision headings
+# Changed: 2026-10-18 UTC | RV-W2-DOD-001 | Record prospective revision and exact restore procedure for generated-file backups
+# Changed: 2026-10-18 UTC | RV-W2-DOD-002 | Validate repository blob checksums across Windows CRLF checkouts
 # Contracts: process_graphs/README.md; process_graphs/schema/riverview-process-graph.schema.json
 # Tests: tests/test_process_graph.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -55,6 +57,10 @@ def validate_sidecar_entry(rel, data, manifest):
     if not isinstance(entry, dict) or not re.fullmatch(r"\d+\.\d+\.\d+", str(entry.get("revision", ""))):
         raise GraphError(f"JSON file revision sidecar is missing or invalid: {rel}")
     import hashlib
+    # Sidecars describe repository blobs. Git may check them out with CRLF on
+    # Windows, so normalize only checkout line endings before comparing blob
+    # identity; backup hashes remain byte-exact for restoration.
+    data = data.replace(b"\r\n", b"\n")
     if entry.get("sha256") != hashlib.sha256(data).hexdigest() or entry.get("size_bytes") != len(data):
         raise GraphError(f"JSON file revision sidecar checksum mismatch: {rel}")
 
@@ -229,10 +235,10 @@ def bump(value):
     return f"{major}.{minor}.{patch + 1}"
 
 
-def revision_backup(path, task):
+def revision_backup(path, task, new_revision=None):
     sys.path.insert(0, str(ROOT / "scripts"))
     import revision_control
-    revision_control.backup(ROOT, path.relative_to(ROOT).as_posix(), task)
+    revision_control.backup(ROOT, path.relative_to(ROOT).as_posix(), task, new_revision=new_revision)
 
 
 def write_json_output(path, data, manifest):
@@ -242,8 +248,9 @@ def write_json_output(path, data, manifest):
     if previous == content:
         return False
     if previous is not None:
-        revision_backup(path, "RV-GRAPH-GENERATE")
-        manifest["files"][rel]["revision"] = bump(manifest["files"][rel]["revision"])
+        next_revision = bump(manifest["files"][rel]["revision"])
+        revision_backup(path, "RV-GRAPH-GENERATE", next_revision)
+        manifest["files"][rel]["revision"] = next_revision
     else:
         manifest["files"][rel] = {"revision": "1.0.0"}
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -258,7 +265,6 @@ def write_markdown_output(path, content, task="RV-GRAPH-GENERATE"):
         old = path.read_text(encoding="utf-8")
         if old == content:
             return False
-        revision_backup(path, task)
         def header_revision(text):
             # Controlled source files commonly carry File Revision in an HTML
             # metadata block and may also contain a separate document revision
@@ -277,10 +283,12 @@ def write_markdown_output(path, content, task="RV-GRAPH-GENERATE"):
 
         match = header_revision(content)
         old_match = header_revision(old)
+        next_revision = bump(old_match.group(2)) if old_match and match else None
         if old_match and match:
-            content = content[:match.start(2)] + bump(old_match.group(2)) + content[match.end(2):]
+            content = content[:match.start(2)] + next_revision + content[match.end(2):]
         elif old_match:
             raise GraphError(f"cannot increment document revision: {path.relative_to(ROOT)}")
+        revision_backup(path, task, next_revision)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     return True
@@ -356,7 +364,7 @@ def generate(check=False):
         rel = path.relative_to(ROOT).as_posix()
         if rel not in manifest["files"]:
             manifest["files"][rel] = {"revision": "1.0.0"}
-        content = path.read_bytes()
+        content = path.read_bytes().replace(b"\r\n", b"\n")
         manifest["files"][rel].update({"path": rel, "sha256": __import__("hashlib").sha256(content).hexdigest(),
                                         "size_bytes": len(content)})
     if ".riverview-revisions.json" not in manifest["files"]:
@@ -366,8 +374,9 @@ def generate(check=False):
     if REVISION_MANIFEST.exists():
         existing = read_json(REVISION_MANIFEST)
         if existing != manifest:
-            revision_backup(REVISION_MANIFEST, "RV-GRAPH-GENERATE")
-            manifest["manifest_revision"] = bump(existing["manifest_revision"])
+            next_revision = bump(existing["manifest_revision"])
+            revision_backup(REVISION_MANIFEST, "RV-GRAPH-GENERATE", next_revision)
+            manifest["manifest_revision"] = next_revision
             manifest["files"][".riverview-revisions.json"]["revision"] = manifest["manifest_revision"]
     REVISION_MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     return {"graphs": len(graphs), "nodes": len(aggregate_data["node_registry"]), "changed": changed, "status": "GENERATED"}

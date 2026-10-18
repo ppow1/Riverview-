@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.64",
+  "manifest_revision": "1.1.65",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.41",
+      "revision": "1.0.42",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "9c8408aa1c4fae7f26b7b9eac67c15b27e6071f660ffff634f787f391262acb8",
-      "size_bytes": 247565
+      "sha256": "fffb961df7141e65d14b82efd270890a8665e9b61b20e70763e27f2162576955",
+      "size_bytes": 260270
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 27724
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.64"
+      "revision": "1.1.65"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -195,6 +195,18 @@
       "path": "docs/components/CHATGPT_DOORBELL_STATUS.schema.json",
       "sha256": "17f1d1db5fec74663cb89c425c37781a3fce23bb7751db8cb4683742976a427e",
       "size_bytes": 6987
+    },
+    "process_graphs/resident-learning/lifecycle.json": {
+      "revision": "1.0.2",
+      "path": "process_graphs/resident-learning/lifecycle.json",
+      "sha256": "2d03b66c52354d58a33c987d84be09bc5b482eb8713ed482dded065c2a3f6d25",
+      "size_bytes": 10890
+    },
+    "docs/schemas/resident-learning-record.schema.json": {
+      "revision": "1.0.0",
+      "path": "docs/schemas/resident-learning-record.schema.json",
+      "sha256": "0ce0d5aa47f4ccbdb489295d99ae8d564467d31ef6dd5a6810a030e630da81dc",
+      "size_bytes": 10142
     }
   }
 }

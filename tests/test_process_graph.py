@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_process_graph.py
 # Component: RV-PROCESS-GRAPH
-# Revision: 1.0.4
+# Revision: 1.0.6
 # Purpose: Verify global identity, references, typed edges, schema and synchronized views
 # Execution Model: Request-driven unittest suite
 # Observability: Assertion failures identify violated process graph contract
@@ -10,6 +10,8 @@
 # Authority: Test-only graph fixtures; no database or service access
 # Changed: 2026-10-10 UTC | RV-GRAPH-001 | Initial graph validation regression suite
 # Changed: 2026-10-11 UTC | RV-GRAPH-FILE-REVISION-FIX | Verify generation increments file headers without changing body revisions
+# Changed: 2026-10-18 UTC | RV-W2-DOD-001 | Verify generated-file backup carries its prospective revision
+# Changed: 2026-10-18 UTC | RV-W2-DOD-002 | Verify sidecar checksum is stable across Windows checkout line endings
 # Contracts: process_graphs/README.md; process_graphs/schema/riverview-process-graph.schema.json
 # Tests: python3 -m unittest tests.test_process_graph -v
 # History: Git and .riverview-backups/manifest.jsonl
@@ -17,12 +19,15 @@
 """Regression tests for canonical process graph validation and generated views."""
 
 import copy
+import hashlib
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
 import scripts.process_graph as process_graph
+import scripts.revision_control as revision_control
 
 
 class ProcessGraphTests(unittest.TestCase):
@@ -39,6 +44,20 @@ class ProcessGraphTests(unittest.TestCase):
         self.assertGreaterEqual(len(graphs), 4)
         self.assertIn("rv:runtime-baseline:commissioning", {graph["graph_id"] for _, graph in graphs})
         self.assertIn("rv:postgres-ledger:migration", {graph["graph_id"] for _, graph in graphs})
+
+    def test_revision_backup_forwards_prospective_revision(self):
+        with patch.dict(sys.modules, {"revision_control": revision_control}), patch.object(revision_control, "backup") as backup:
+            process_graph.revision_backup(Path(process_graph.ROOT / "docs/example.md"), "TEST", "1.0.1")
+        backup.assert_called_once_with(process_graph.ROOT, "docs/example.md", "TEST", new_revision="1.0.1")
+
+    def test_sidecar_checksum_accepts_windows_checkout_line_endings(self):
+        original = b'{\n  "ok": true\n}\n'
+        windows = original.replace(b"\n", b"\r\n")
+        manifest = {"files": {"fixture.json": {
+            "revision": "1.0.0", "sha256": hashlib.sha256(original).hexdigest(),
+            "size_bytes": len(original),
+        }}}
+        process_graph.validate_sidecar_entry("fixture.json", windows, manifest)
 
     def test_duplicate_global_node_identity_fails(self):
         graphs = self.changed_graphs()
