@@ -1,6 +1,6 @@
 # Riverview aggregate process graph
 
-**Document Revision:** 1.0.23
+**Document Revision:** 1.0.24
 **Generated from:** canonical workflow JSON; do not edit this projection by hand.  
 **Source:** `python3 scripts/process_graph.py generate`  
 
@@ -14,6 +14,7 @@ flowchart LR
   g_rv_cme_progress_and_recovery_402efffa[["CME<br/>progress-and-recovery.v1<br/>rv:cme:progress-and-recovery"]]
   g_rv_comms5_camrui_adapter_00856725[["COMMS5-CAMRUI-ADAPTER<br/>comms5.camrui.compatibility.v1<br/>rv:comms5:camrui-adapter"]]
   g_rv_event_processor_assignment_progression_fa10db2d[["EVENT-PROCESSOR<br/>assignment-progression.v1<br/>rv:event-processor:assignment-progression"]]
+  g_rv_grace_commissioning_pr115_119_181c163c[["GRACE-COMMISSIONING<br/>grace-commissioning-readiness.v1<br/>rv:grace:commissioning-pr115-119"]]
   g_rv_grace_institutional_proposal_lifecycle_0d2c6d4e[["INSTITUTIONAL-PROPOSALS<br/>institutional-proposal.v1<br/>rv:grace:institutional-proposal-lifecycle"]]
   g_rv_grace_operational_integration_9989f0be[["RESIDENT-ORCHESTRATION<br/>grace-engineering-objective.v1<br/>rv:grace:operational-integration"]]
   g_rv_institutional_authority_identity_and_grants_05fdf0c5[["INSTITUTIONAL-AUTHORITY<br/>identity-and-grants.v1<br/>rv:institutional-authority:identity-and-grants"]]

@@ -1,0 +1,43 @@
+{
+  "record_type": "evidence_artifact_inventory",
+  "candidate_commit": "e38368e4acba0e24820f3ba64e5ec0d69f683a94",
+  "artifacts": {
+    "acceptance.json": {
+      "path": "acceptance.json",
+      "size_bytes": 1820,
+      "sha256": "5f57251c845fdbd3d274068d6f1fe93597b9917be31c832c9b06a51e3993e9af",
+      "revision": "1.0.0"
+    },
+    "package-migrations-acl.log": {
+      "path": "package-migrations-acl.log",
+      "size_bytes": 451,
+      "sha256": "bbb6c19d1fc432591f79a65a0274732d5807d2f26e5c7d6dbcba1dd0267b2cf9",
+      "revision": "1.0.0"
+    },
+    "rollback-pointer.log": {
+      "path": "rollback-pointer.log",
+      "size_bytes": 788,
+      "sha256": "f8f62000ec61b64a4c7e749c9e8326e5631070d45c4ee23c6be6454afe088efd",
+      "revision": "1.0.0"
+    },
+    "service-lifecycle.log": {
+      "path": "service-lifecycle.log",
+      "size_bytes": 313,
+      "sha256": "5e3c936b34a545cd106093e1cedb2b722c997202cd966e93de6a6cd32d00761e",
+      "revision": "1.0.0"
+    },
+    "test.log": {
+      "path": "test.log",
+      "size_bytes": 690,
+      "sha256": "b6487373764697c8e499fbefd2f34887d49e34f318ad0f85810de690d24f57bd",
+      "revision": "1.0.0"
+    },
+    "worker-tests.log": {
+      "path": "worker-tests.log",
+      "size_bytes": 12080,
+      "sha256": "598832140c2c05eb2da85333bc5979ec7c63a5f4e603d0ff1fca3d12844a3d27",
+      "revision": "1.0.0"
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

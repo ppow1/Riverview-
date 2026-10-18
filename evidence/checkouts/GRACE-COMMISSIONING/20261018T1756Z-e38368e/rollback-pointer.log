@@ -1,0 +1,10 @@
+Synthetic isolated release-pointer rollback rehearsal
+Environment: disposable temporary directory only; no production path, systemd, database, secret, or live service.
+PREDECESSOR=/tmp/rv-c4-pointer-rehearsal/predecessor
+CANDIDATE=/tmp/rv-c4-pointer-rehearsal/candidate
+1. Created immutable predecessor and candidate fixture directories. PASS
+2. Created temporary symlink to predecessor. PASS
+3. Atomically replaced current symlink with candidate pointer. PASS; resolved target=candidate
+4. Atomically restored predecessor pointer. PASS; resolved target=predecessor
+5. Verified fixture contents unchanged and removed temporary fixtures. PASS
+Result: PASS (synthetic pointer mechanics only; does not verify production release, database compatibility, services, or rollback authorization).
