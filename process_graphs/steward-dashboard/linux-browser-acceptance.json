@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:steward-dashboard:linux-browser-acceptance",
-  "graph_revision": "1.0.6",
+  "graph_revision": "1.0.7",
   "component_id": "STEWARD-DASHBOARD",
   "workflow_id": "linux-browser-acceptance.v1",
   "diagram_order": 20,
@@ -15,12 +15,16 @@
     "browser-tests/fixtures/smoke.html",
     "browser-tests/test_grace_staging_network_guard.py",
     "tests/test_grace_staging_browser_fixture.py",
-    "scripts/browser_error_safety.py"
+    "scripts/browser_error_safety.py",
+    "scripts/browser_status_projection.py",
+    "tests/test_browser_status_projection.py"
   ],
   "documentation_references": [
     "docs/operations/LINUX_BROWSER_ACCEPTANCE.md",
     "process_graphs/README.md",
-    "docs/operations/LINUX_BROWSER_ACCEPTANCE_FLOW.md"
+    "docs/operations/LINUX_BROWSER_ACCEPTANCE_FLOW.md",
+    "docs/components/LINUX_BROWSER_ACCEPTANCE_STATUS.md",
+    "docs/components/LINUX_BROWSER_ACCEPTANCE_STATUS.schema.json"
   ],
   "verification_evidence": [],
   "nodes": [
@@ -237,6 +241,36 @@
         "docs/operations/LINUX_BROWSER_ACCEPTANCE_FLOW.md"
       ],
       "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:linux-browser-acceptance:project-run-status",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Project safe local run identity, bounded counts, freshness, closed failure category, and fixed diagnostic reference",
+      "source_references": [
+        "scripts/browser_status_projection.py"
+      ],
+      "documentation_references": [
+        "docs/components/LINUX_BROWSER_ACCEPTANCE_STATUS.md",
+        "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+      ],
+      "verification_evidence": [
+        "tests/test_browser_status_projection.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:linux-browser-acceptance:dashboard-consumer-handoff",
+      "node_revision": "1.0.0",
+      "type": "escalation",
+      "label": "Status JSON remains local until the dashboard owner adds a read-only allowlisted consumer; no live Steward view is claimed",
+      "source_references": [
+        "scripts/browser_status_projection.py"
+      ],
+      "documentation_references": [
+        "docs/components/LINUX_BROWSER_ACCEPTANCE_STATUS.md",
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": []
     }
   ],
   "edges": [
@@ -350,6 +384,18 @@
       "to": "rv:steward-dashboard:linux-browser-acceptance:retain-reviewed-evidence",
       "type": "recovery_route",
       "label": "retain while review or incident is open"
+    },
+    {
+      "from": "rv:steward-dashboard:linux-browser-acceptance:safe-error-report",
+      "to": "rv:steward-dashboard:linux-browser-acceptance:project-run-status",
+      "type": "runtime_transition",
+      "label": "read local safe report fields only"
+    },
+    {
+      "from": "rv:steward-dashboard:linux-browser-acceptance:project-run-status",
+      "to": "rv:steward-dashboard:linux-browser-acceptance:dashboard-consumer-handoff",
+      "type": "escalation",
+      "label": "requires separately owned dashboard integration"
     }
   ]
 }

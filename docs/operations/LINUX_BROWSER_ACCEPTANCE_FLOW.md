@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/operations/LINUX_BROWSER_ACCEPTANCE_FLOW.md
 Component: LINUX-BROWSER-ACCEPTANCE
-File Revision: 1.0.1
+File Revision: 1.0.2
 Purpose: Show the guarded Linux browser acceptance and evidence recovery workflow
 Execution Model: Request-driven operator workflow
 Observability: Local runner summary and private per-test error reports; no live dashboard consumer
@@ -35,6 +35,8 @@ flowchart LR
     g_rv_steward_dashboard_linux_browser_acceptance_safe_error_report_dcceffa4["Record fixed error categories only; remove arbitrary exception text and all request URLs"]
     g_rv_steward_dashboard_linux_browser_acceptance_diagnose_private_run_97956923["Diagnose with safe error kind, assertion, exit status, and private local output; never copy raw authenticated content"]
     g_rv_steward_dashboard_linux_browser_acceptance_retain_reviewed_evidence_58f848ea["Keep private evidence through review and incident closure; delete only after required redacted evidence is linked"]
+    g_rv_steward_dashboard_linux_browser_acceptance_project_run_status_0bf53979["Project safe local run identity, bounded counts, freshness, closed failure category, and fixed diagnostic reference"]
+    g_rv_steward_dashboard_linux_browser_acceptance_dashboard_consumer_handoff_81025df3[["Status JSON remains local until the dashboard owner adds a read-only allowlisted consumer; no live Steward view is claimed"]]
   end
   g_rv_steward_dashboard_linux_browser_acceptance_request_e7d2fbf9 --> g_rv_steward_dashboard_linux_browser_acceptance_target_allowed_1d2f1b8a
   g_rv_steward_dashboard_linux_browser_acceptance_target_allowed_1d2f1b8a -->|valid target| g_rv_steward_dashboard_linux_browser_acceptance_run_chromium_e45c2c83
@@ -55,5 +57,7 @@ flowchart LR
   g_rv_steward_dashboard_linux_browser_acceptance_fail_closed_896e3fb4 -->|recovery_route: inspect local safe diagnostics| g_rv_steward_dashboard_linux_browser_acceptance_diagnose_private_run_97956923
   g_rv_steward_dashboard_linux_browser_acceptance_accept_864f151f -->|record evidence location and commit| g_rv_steward_dashboard_linux_browser_acceptance_retain_reviewed_evidence_58f848ea
   g_rv_steward_dashboard_linux_browser_acceptance_diagnose_private_run_97956923 -->|recovery_route: retain while review or incident is open| g_rv_steward_dashboard_linux_browser_acceptance_retain_reviewed_evidence_58f848ea
+  g_rv_steward_dashboard_linux_browser_acceptance_safe_error_report_dcceffa4 -->|read local safe report fields only| g_rv_steward_dashboard_linux_browser_acceptance_project_run_status_0bf53979
+  g_rv_steward_dashboard_linux_browser_acceptance_project_run_status_0bf53979 -->|escalation: requires separately owned dashboard integration| g_rv_steward_dashboard_linux_browser_acceptance_dashboard_consumer_handoff_81025df3
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

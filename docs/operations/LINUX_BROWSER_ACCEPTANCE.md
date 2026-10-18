@@ -2,12 +2,16 @@
 Riverview~ Controlled Document
 File: docs/operations/LINUX_BROWSER_ACCEPTANCE.md
 Component: LINUX-BROWSER-ACCEPTANCE
-File Revision: 1.0.9
+File Revision: 1.0.11
 Purpose: Operate the bounded Linux Chromium acceptance harness and request it in Engineering work orders
 Authority: Read-only browser verification; production writes and authenticated sessions are out of scope
-Changed: 2026-10-18 UTC | RV-C2-DOD-REMEDIATION-001 | Document safe error evidence, recovery, retention, observability, and failure handling
+Changed: 2026-10-18 UTC | RV-C2-BROWSER-STATUS-001 | Require a pre-created private output directory for status artifacts
 -->
 # Linux browser acceptance on Camrui
+
+Before writing a projected status artifact, create the chosen output directory
+with mode `0700`. The projector will reject shared or symlinked output
+directories and will not change permissions on existing paths.
 
 This harness uses Python Playwright with its pinned Chromium build. It is a separate Linux check; Windows browser results do not establish Linux behavior. Riverview's existing Firefox/GeckoDriver verification scripts remain available for their focused checks. The [CueMastery C212 smoke](https://github.com/ppow1/CueMastery/blob/main/docs/c212_prairie_estate_mcp_smoke_test.md) is documentation-only, its current tree has no Playwright test harness, and its [persona audit](https://github.com/ppow1/CueMastery/blob/main/docs/runbooks/cuemastery_test_persona_audit.md) explicitly defers HTTP/browser verification. The [seeded persona runbook](https://github.com/ppow1/CueMastery/blob/main/docs/runbooks/cuemastery_seeded_test_personas.md) describes durable test accounts, so this smoke uses a disposable static fixture instead of creating identities. Estate's [browser adapter](https://github.com/ppow1/theestate/blob/main/tools/chatgpt_mailbox_worker_browser.cjs) is a persistent authenticated Chrome DevTools Protocol integration; its [acceptance report](https://github.com/ppow1/theestate/blob/main/collaboration/workstreams/WP-4233/browser_acceptance_report.md) distinguishes direct tool invocation from browser evidence. Neither is reused as a test runner or supplied with a browser profile.
 
@@ -144,5 +148,11 @@ The earlier audit identified two historical control gaps. Commit `9b98f1f1` chan
 The diagram is generated from the canonical graph at `process_graphs/steward-dashboard/linux-browser-acceptance.json`. A safe report describes failure class and counts while dropping arbitrary browser strings and all request URL components.
 
 See [Linux browser acceptance flow](LINUX_BROWSER_ACCEPTANCE_FLOW.md) for the complete generated workflow.
+
+## Read-only run-status projection
+
+For local loopback runs, an operator can project the private runner evidence into a small, lossy `browser-status.json` using `scripts/browser_status_projection.py`. The contract carries run identity, source commit, observed time, current/stale freshness, pass/fail/blocked/staging-not-available state, a closed failure-category enum, counts, and a fixed component-document diagnostic reference. It strips target origin, host, paths, run directory, console/page text, and arbitrary report values. It reads local files only and does not call the dashboard or any application API.
+
+See [`LINUX_BROWSER_ACCEPTANCE_STATUS.md`](../components/LINUX_BROWSER_ACCEPTANCE_STATUS.md) for the schema, state semantics, command and consumer boundary. The current status dashboard API does not ingest this artifact. A dashboard owner must add and test a separate read-only allowlisted consumer before any Steward view can display it; the local projection alone is not a live status view or acceptance of Grace staging.
 
 The test process starts no application server and restarts no service. The disposable static fixture command above binds only to `127.0.0.1`; interrupt it with Ctrl-C after the run.
