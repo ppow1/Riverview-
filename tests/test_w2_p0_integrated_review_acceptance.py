@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_w2_p0_integrated_review_acceptance.py
 # Component: W2-P0-INTEGRATED-REVIEW-ACCEPTANCE
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Verify typed Grace review subjects survive durable C3 exchange and C4 MCP round trips
 # Execution Model: Isolated PostgreSQL schema, unittest, deterministic synthetic provider only
 # Observability: Subject/revision digests, provider identity, exchange state, objective events
@@ -16,6 +16,7 @@
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Exercise C2 synthetic wake through C3 fenced receipt and Grace owner hook
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Use canonical timestamps and successor API; assert expiry does not evaluate proposal
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Put owner attribution in each trace round and verify successor recovery after restart retry
+# Changed: 2026-10-18 UTC | RV-W2-P0-SUCCESSOR-RECOVERY-001 | Preserve configured provider target after restart and assert stable review lineage ID
 # Contracts: docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md; issue #120 comment 6254574126
 # History: Git and .riverview-revisions.json
 # =============================================================================
@@ -338,7 +339,7 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
         self.assertEqual(status["response_sha256"], submitted["response_sha256"])
         self.assertEqual(status["review_subject_sha256"], subject["sha256"])
 
-        grace = fx._grace_service(fx.exchange)
+        grace = fx._grace_service(fx.exchange, targets=(PROVIDER,))
         self.assertEqual(grace.consume_external_reasoning(), 1)
         self.assertEqual(grace.pipeline.get_objective(fx.objective)["status"], "PROPOSED")
         events = grace.pipeline.objective_events(fx.objective)
@@ -403,7 +404,7 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
         # Restart with a durable response, then simulate failure after the successor is
         # admitted but before the parent's revision event is committed.
         self._restart_exchange()
-        grace = fx._grace_service(fx.exchange)
+        grace = fx._grace_service(fx.exchange, targets=(PROVIDER,))
         record_decision = grace.pipeline.record_external_review_decision
 
         def fail_after_successor(*_args, **_kwargs):
@@ -423,8 +424,8 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
         child = fx.exchange.review_successor(first_id, first_correlation)
         self.assertIsNotNone(child)
         self.assertEqual(child["review_subject"]["revision"], 2)
-        self.assertNotEqual(child["review_subject"]["subject_id"],
-                            first_subject["subject_id"])
+        self.assertEqual(child["review_subject"]["subject_id"],
+                         first_subject["subject_id"])
         self.assertNotEqual(child["review_subject"]["sha256"], first_subject["sha256"])
         self.assertFalse(fx.exchange.has_terminal_review_for_objective(fx.objective))
 

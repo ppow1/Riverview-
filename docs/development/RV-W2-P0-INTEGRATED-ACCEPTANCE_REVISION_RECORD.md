@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md
 Component: W2-P0-INTEGRATED-REVIEW-ACCEPTANCE
-File Revision: 1.0.10
+File Revision: 1.0.11
 Purpose: Preserve W2 integrated acceptance scope, source lineage, evidence and remaining gates
 Authority: Offline synthetic test only; no production or provider authority
 Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Record initial C3/C4 acceptance increment
@@ -16,6 +16,7 @@ Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Correct per-ro
 Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Record local W2 correction verification and environment limits
 Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Record exact-head combined run, W1 trace handoff, and C2/C3 dependencies
 Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Refresh combined-head evidence after C2 correction was integrated
+Changed: 2026-10-18 UTC | RV-W2-P0-SUCCESSOR-RECOVERY-001 | Correct target fixture and stable subject-lineage assertion from C3 reproduction
 History: Git; no predecessor existed for the new W2 acceptance test or cookbook
 -->
 # RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE revision record
@@ -32,7 +33,7 @@ History: Git; no predecessor existed for the new W2 acceptance test or cookbook
 - New W2 files: `tests/test_w2_p0_integrated_review_acceptance.py`, `docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md`
 - Predecessor backups: initial new-file versions had no predecessor. Revision 1.0.0 of the test and this record are backed up before the 1.0.1 fixture correction at `.riverview-backups/20261018T202428968484Z/tests/test_w2_p0_integrated_review_acceptance.py` (SHA-256 `03d5ae2a28c091d2a3c6283da7a8cc79327c25e740e01440025e2da2d8cd8353`) and `.riverview-backups/20261018T202429080246Z/docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md` (SHA-256 `b01cd17ec28a172e9f33ab1f3832fee3eb28d10cfe7f7ecfda5363ab0f6a2b3d`). No owner source file was edited.
 
-## Evidence and status (revision 1.0.10)
+## Evidence and status (revision 1.0.11)
 
 This is a partial integrated acceptance increment, not component or system completion.
 
@@ -53,7 +54,7 @@ This is a partial integrated acceptance increment, not component or system compl
   controlled Linux exact-head workflow must run graph/revision checks after the
   PostgreSQL tests pass.
 - Earlier W2-head disposable PostgreSQL CI `39173980276` on `37093dc5` ran 708 tests / 4 skips with 14 failures: 13 stale C2 dispatcher fixtures and the W2/C3 cross-restart recovery assertion. W2 emitted the real one-round `rv.external-review-trace-input.v1` JSON. The clean body-free bundle is in issue #120 comment `6256193503`; W3 separately ran its projector on that exact runner output and got exit 0, `outcome=complete`, one round, and no blockers (issue comment `6256235574`).
-- W3 integrated exact C2 `13d17300` and W2 `37093dc5` at head `48f06544` and ran the combined disposable PostgreSQL suite `39174307337`: **708 tests / 4 skips / 1 failure**. The 13 C2 failures are resolved. W2 finish, expiry, and trace export pass. The sole failure is the retained no-duplicate-reasoning assertion after a synthetic crash immediately after successor admission, followed by a fresh exchange/Grace restart: provider request count is 3 instead of 2, showing C3's successor recovery was not found at that restart boundary. C3 acknowledged the cross-owner finding and is reproducing/patching C3-owned exchange code; W3 will integrate only an exact C3 owner commit and rerun full hosted checks. W2 has not modified C2/C3 runtime code. Graph/revision checks were skipped after the one remaining test failure. PR #140 remains draft and W2 status is blocked on C3/W3-owned correction.
+- W3 combined head `48f06544` / run `39174307337` executed **708 tests / 4 skips / 1 failure** after integrating C2 and W2. C3 then independently ran its disposable PostgreSQL exchange suite **21/21 PASS** and confirmed that the failure was in W2's resumed test fixture, not C3 runtime: the restarted Grace service lacked `targets=(PROVIDER,)`, so it hit the no-target block before creating a child; the test also incorrectly expected a new subject ID, while the C3 contract keeps lineage ID stable and changes revision/digest. Revision 1.0.8 restores the exact test target and stable-ID expectation while preserving the injected post-admission crash, restart, no-extra-reasoning, durable successor, and final-review assertions. Exact W2 rerun on W3's assembled head remains pending. Graph/revision acceptance is still pending a passing full test step.
 - First controlled run `39162955178`: **FAIL** after 690 tests / 4 skips, with 3 errors in W2 setUp. All three errors were `MCPConfigurationError(provider_not_registered)` because the negative-test provider token was not registered in the isolated exchange router. No W2 lifecycle assertion ran. Revision 1.0.1 registers that synthetic provider only in the disposable fixture; rerun pending.
 - Current test scope: Grace typed review subject → durable C3 exchange → C2
   synthetic owner-loop wake → one fenced C3 receipt → C4 provider MCP
