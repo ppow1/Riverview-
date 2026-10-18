@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED DOCUMENT
 # File: docs/components/CHATGPT_DOORBELL_DISPATCH.md
 # Component: CHATGPT-DOORBELL
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Contract for waking the provider-scoped external review mailbox
 # Authority: No production activation or live ChatGPT send is authorized by this document
 
@@ -14,10 +14,18 @@ one cycle; this module creates no resident, mailbox, scheduler, or service.
 For each cycle it calls the exchange's provider-scoped
 `claim_next_doorbell_request(provider_id, owner_id, lease_seconds)`. An empty
 claim returns `idle`. A claim must carry request and correlation UUIDs, the exact
-provider ID, attempt ID, lease token, and positive fence. Missing or mismatched
+provider ID, attempt ID, lease token, positive fence, and timezone-aware
+`lease_until`. Missing, mismatched, expired, or too-short
 metadata is rejected before browser invocation; the durable exchange lease is
 left to expire. The adapter does not request or inspect `request_payload`,
 `review_subject`, or any response body.
+
+The bridge subprocess can run for `timeout_seconds + 5`; the default requested
+exchange lease is 90 seconds for a 60-second wake. Configuration requires at
+least ten seconds between the bounded bridge timeout and requested lease, while
+the returned lease must still have more than `timeout_seconds + 5` remaining
+before the worker rings. A request deadline that shortens the lease therefore
+fails closed without starting a wake.
 
 For a valid claim, the adapter calls the existing
 `BrowserBridgeRunner.ring(DoorbellRequest, designated_conversation_id)`. The

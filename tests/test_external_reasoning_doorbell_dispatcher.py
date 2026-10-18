@@ -1,12 +1,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_doorbell_dispatcher.py
 # Component: CHATGPT-DOORBELL
-# Revision: 1.0.1
+# Revision: 1.0.3
 # Purpose: Verify the durable exchange to fixed browser wake adapter
 # Execution Model: Isolated fake exchange and bridge; no browser or provider access
 # Authority: Synthetic identities only; never sends a live wake
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 import unittest
 from uuid import UUID
 
@@ -28,6 +29,9 @@ class Claim:
     attempt_id: str = "attempt-1"
     lease_token: str = "opaque-test-lease"
     fence: int = 1
+    lease_until: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc) + timedelta(seconds=80)
+    )
 
 
 @dataclass(frozen=True)
@@ -84,7 +88,7 @@ class DoorbellDispatcherTests(unittest.TestCase):
         self.assertEqual(result.trigger_status, "ready")
         self.assertEqual(result.outcome, "submitted")
         self.assertTrue(result.receipt_recorded)
-        self.assertEqual(exchange.claim_calls, [(PROVIDER_ID, OWNER_ID, 30)])
+        self.assertEqual(exchange.claim_calls, [(PROVIDER_ID, OWNER_ID, 90)])
         request, target = bridge.calls[0]
         self.assertEqual(request.request_id, UUID(REQUEST_ID))
         self.assertEqual(request.correlation_id, UUID(CORRELATION_ID))
@@ -115,6 +119,20 @@ class DoorbellDispatcherTests(unittest.TestCase):
         self.assertEqual(result.safe_error_code, "claim_metadata_invalid")
         self.assertFalse(bridge.calls)
         self.assertFalse(exchange.receipts)
+
+    def test_claim_with_expired_or_insufficient_lease_never_rings(self):
+        for expiry in (
+            datetime.now(timezone.utc) - timedelta(seconds=1),
+            datetime.now(timezone.utc) + timedelta(seconds=20),
+        ):
+            with self.subTest(expiry=expiry):
+                worker, exchange, bridge = make_worker(
+                    FakeExchange(claim=Claim(lease_until=expiry))
+                )
+                result = worker.run_once()
+                self.assertEqual(result.status, "invalid_claim")
+                self.assertFalse(bridge.calls)
+                self.assertFalse(exchange.receipts)
 
     def test_known_pre_send_failures_are_reported_for_bounded_exchange_backoff(self):
         for code in ("RIV-PLY-0007", "RIV-PLY-0013", "RIV-PLY-0015"):
@@ -191,6 +209,8 @@ class DoorbellDispatcherTests(unittest.TestCase):
             {"provider_id": PROVIDER_ID, "owner_id": OWNER_ID, "designated_conversation_id": "bad"},
             {"provider_id": PROVIDER_ID, "owner_id": OWNER_ID,
              "designated_conversation_id": CONVERSATION_ID, "lease_seconds": True},
+            {"provider_id": PROVIDER_ID, "owner_id": OWNER_ID,
+             "designated_conversation_id": CONVERSATION_ID, "lease_seconds": 60},
         )
         for kwargs in cases:
             with self.subTest(kwargs=kwargs):
