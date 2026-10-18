@@ -15,7 +15,9 @@
 """W2 integration scenarios across the existing Grace exchange and provider MCP."""
 
 import hashlib
+import importlib.util
 import os
+from pathlib import Path
 import unittest
 
 DSN = os.environ.get("RIVERVIEW_TEST_PG_DSN")
@@ -31,9 +33,12 @@ class W2P0ReviewRecoveryTests(unittest.TestCase):
     """Run one disposable exchange through duplicate wake, delay and process recovery."""
 
     def setUp(self):
-        from tests.test_external_reasoning_exchange import (
-            ExternalReasoningExchangePostgresTests,
-        )
+        fixture_path = Path(__file__).with_name("test_external_reasoning_exchange.py")
+        spec = importlib.util.spec_from_file_location("w2_exchange_fixture", fixture_path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError("existing external reasoning test fixture is unavailable")
+        fixture_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fixture_module)
         from riverview_core.resident_execution.external_reasoning_mcp import (
             ExternalReasoningMCPAdapter,
             ProviderTokenMap,
@@ -41,7 +46,7 @@ class W2P0ReviewRecoveryTests(unittest.TestCase):
 
         # Reuse the repository's established disposable-schema fixture rather
         # than creating a second schema/migration/authority path in W2 tests.
-        self.fixture = ExternalReasoningExchangePostgresTests()
+        self.fixture = fixture_module.ExternalReasoningExchangePostgresTests()
         self.fixture.setUp()
         self.addCleanup(self.fixture.tearDown)
         self.tokens = ProviderTokenMap.from_document({
