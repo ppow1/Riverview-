@@ -2,13 +2,15 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_external_review_readiness.py
 # Component: EXTERNAL-REVIEW-READINESS
-# Revision: 1.0.6
+# Revision: 1.0.8
 # Purpose: Verify privacy, expiry, stale evidence, and fail-closed readiness projection
 # Execution Model: Isolated unit tests; no network, browser, database, or provider access
 # Observability: unittest assertions over bounded projection schema
 # Dependencies: Python standard library; riverview_core.external_review_readiness
 # Authority: Synthetic metadata only; no external action is performed
 # Changed: 2026-10-18 UTC | RV-C1-EXTERNAL-REVIEW-READINESS-001 | Verify review-subject body and digest redaction
+# Changed: 2026-10-18 UTC | RV-C1-P0-READINESS-INTEGRATION-001 | Verify C3/C4 status contract and digest/lineage binding
+# Changed: 2026-10-18 UTC | RV-C1-P0-INTEGRATION-CLOSURE-002 | Assert an expired exchange cannot project green from a false provider success
 # Contracts: docs/components/EXTERNAL_REVIEW_READINESS.md
 # History: Git
 # =============================================================================
@@ -40,6 +42,8 @@ def exchange(state="awaiting_delivery", **updates):
             "sha256": "f" * 64,
             "proposal": {"summary": "private proposal fixture", "steps": []},
         },
+        "review_subject_sha256": "f" * 64,
+        "response_sha256": "a" * 64 if state == "response_received" else None,
         # This must never escape into an operator status projection.
         "request_payload": {"secret_proposal_body": "private proposal fixture"},
     }
@@ -110,6 +114,9 @@ class ExternalReviewReadinessTests(unittest.TestCase):
         missing = self.project(trigger_status="not_configured")
         self.assertEqual(missing["state"], "doorbell_not_configured")
         self.assertNotEqual(missing["readiness"], "ready")
+        blocked = self.project(trigger_status="blocked")
+        self.assertEqual(blocked["state"], "doorbell_trigger_unverified")
+        self.assertNotEqual(blocked["readiness"], "ready")
 
     def test_missing_exchange_is_reported_without_identifiers(self):
         result = self.project(exchange_status=None)
@@ -148,6 +155,26 @@ class ExternalReviewReadinessTests(unittest.TestCase):
         self.assertEqual(consumed["state"], "grace_consumed")
         self.assertEqual(consumed["next_action"], "inspect_grace_decision")
 
+    def test_expired_exchange_never_turns_green_from_expired_sentinel_mapping(self):
+        expired = exchange("expired")
+        result = self.project(exchange_status=expired, provider_submission={
+            # Reproduces the C4 mapping defect under investigation: an expired
+            # sentinel was mislabeled as a successful response result.
+            "state": "response_received",
+            "response_sha256": "expired",
+        })
+        self.assertEqual(result["readiness"], "blocked")
+        self.assertEqual(result["state"], "review_expired")
+        self.assertNotEqual(result["readiness"], "ready")
+
+    def test_expired_sentinel_cannot_match_a_durable_response(self):
+        response = exchange("response_received")
+        result = self.project(exchange_status=response, provider_submission={
+            "state": "response_received", "response_sha256": "expired",
+        })
+        self.assertEqual(result["state"], "provider_status_mismatch")
+        self.assertNotEqual(result["readiness"], "ready")
+
     def test_response_ready_for_grace_consumption(self):
         late_but_durable = exchange("response_received",
             deadline_at=(NOW - timedelta(seconds=1)).isoformat())
@@ -156,6 +183,60 @@ class ExternalReviewReadinessTests(unittest.TestCase):
         self.assertEqual(result["next_action"], "grace_consume_and_evaluate")
         self.assertIsNone(result["deadline_seconds_remaining"])
         self.assertNotIn("request_payload", result)
+
+    def test_actual_c4_provider_status_is_correlated_and_digest_bound(self):
+        status = exchange("response_received")
+        provider_status = {
+            "request_id": status["request_id"],
+            "correlation_id": status["correlation_id"],
+            "provider_id": "provider-fixture",
+            "delivery_state": "response_received",
+            "response_sha256": status["response_sha256"],
+            "review_subject_sha256": status["review_subject_sha256"],
+        }
+        status["provider_id"] = "provider-fixture"
+        result = self.project(exchange_status=status, provider_submission=provider_status)
+        self.assertEqual(result["state"], "response_received")
+        for private_value in (status["request_id"], status["correlation_id"],
+                              status["response_sha256"], status["review_subject_sha256"]):
+            self.assertNotIn(private_value, repr(result))
+
+    def test_c4_submit_result_uses_response_digest_in_correlated_call(self):
+        status = exchange("response_received")
+        result = self.project(exchange_status=status, provider_submission={
+            "state": "response_received",
+            "response_sha256": status["response_sha256"],
+        })
+        self.assertEqual(result["state"], "response_received")
+
+    def test_c4_status_rejects_stale_exchange_identity_or_digest(self):
+        status = exchange("response_received")
+        provider_status = {
+            "request_id": status["request_id"],
+            "correlation_id": status["correlation_id"],
+            "provider_id": "provider-fixture",
+            "delivery_state": "response_received",
+            "response_sha256": status["response_sha256"],
+            "review_subject_sha256": status["review_subject_sha256"],
+        }
+        for field, value in (
+            ("request_id", "d462ce45-c387-4cda-838d-97f2a102ade7"),
+            ("response_sha256", "b" * 64),
+            ("review_subject_sha256", "c" * 64),
+        ):
+            candidate = dict(provider_status)
+            candidate[field] = value
+            result = self.project(exchange_status=status, provider_submission=candidate)
+            self.assertEqual(result["state"], "provider_status_mismatch", field)
+            self.assertNotIn(value, repr(result))
+
+    def test_malformed_c3_digests_fail_closed(self):
+        malformed_subject = self.project(exchange_status=exchange(
+            review_subject_sha256="not-a-digest"))
+        self.assertEqual(malformed_subject["failure_code"], "malformed_exchange_status")
+        malformed_response = self.project(exchange_status=exchange(
+            "response_received", response_sha256="not-a-digest"))
+        self.assertEqual(malformed_response["failure_code"], "malformed_exchange_status")
 
     def test_provider_rejection_is_visible_only_as_stable_code(self):
         result = self.project(
