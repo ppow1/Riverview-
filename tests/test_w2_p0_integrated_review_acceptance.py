@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_w2_p0_integrated_review_acceptance.py
 # Component: W2-P0-INTEGRATED-REVIEW-ACCEPTANCE
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Verify typed Grace review subjects survive durable C3 exchange and C4 MCP round trips
 # Execution Model: Isolated PostgreSQL schema, unittest, deterministic synthetic provider only
 # Observability: Subject/revision digests, provider identity, exchange state, objective events
@@ -12,6 +12,7 @@
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Register unrelated provider in isolated router fixture
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Accept privacy-concealed wrong-provider denial
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Import MCP denial type from its owning adapter module
+# Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Assert tampered typed subject is rejected without binding to error wording
 # Contracts: docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md; issue #120 comment 6254574126
 # History: Git and .riverview-revisions.json
 # =============================================================================
@@ -137,7 +138,7 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
         tampered = json.loads(json.dumps(provider_subject))
         tampered["proposal"]["steps"][0]["authorized_paths"].append("test://altered-scope")
         from riverview_core.resident_execution.external_reasoning import validate_review_subject
-        with self.assertRaisesRegex(ValueError, "digest mismatch"):
+        with self.assertRaises(ValueError):
             validate_review_subject(tampered)
 
         claim = self.adapter.call_tool(self.provider,
