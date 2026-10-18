@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md
 Component: P0-CONTROLLED-INTEGRATION
-Revision: 1.0.3
+Revision: 1.0.4
 Status: Offline integration evidence; no merge or deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record W3 branch assembly and isolated verification
@@ -96,3 +96,29 @@ verified from a successful combined database run.
 Pending validation after push: exact-head CI/PostgreSQL, graph check, revision and
 predecessor audit against PR #119, and LF `git diff --check`. PR #139 remains draft;
 no main merge, deployment, live browser wake, credential or grant changes occurred.
+
+
+## W2 restart fixture and acceptance correction — 2026-10-18
+
+Integrated W2 PR #140 exact head `5df1705da353c7acc0ffc38c95b7a7f39c462954` at W3
+merge commit `92db8078e08c3bff105e4659332f44c363ba3fbc`. The updated W2 fixture
+restores the provider target on every reconstructed Grace instance and asserts the
+stable subject ID, increased revision, changed digest, and no extra reasoning after
+restart. C3 verified its durable successor lookup with this configuration and found
+no C3 source correction needed (isolated PG16 exchange tests 21/21 PASS).
+
+W3 local focused combined selection after import: 97 tests, 75 passed, 22 PostgreSQL
+cases skipped without a local DSN. Exact combined W3 hosted PG acceptance after the
+latest W2 fix remains pending. Prior W3 run #39174307337 on head `48f06544` was
+708/4 skips/1 failure; C3's isolated diagnosis established that failure came from
+the W2 restart helper omitting provider targets and asserting a new subject ID. The
+existing W1 projector result from that run was `complete` for one synthetic round,
+zero blockers, with `execution_kind_verified=false`; it is not live provider
+evidence.
+
+Before this documentation edit, predecessor bytes for the manifest and revision
+record were captured and logged under task
+`RV-P0-W3-INTEGRATION-CLOSURE-003`; verify the corresponding manifest entries and
+backup hashes. The next gate is a fresh exact-head W3 hosted run, followed by graph
+and revision checks on the published source. PR #139 remains draft; there was no
+production action, main merge, deployment, browser wake, or credential/grant change.

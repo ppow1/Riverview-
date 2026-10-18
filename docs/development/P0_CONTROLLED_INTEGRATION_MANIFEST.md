@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/P0_CONTROLLED_INTEGRATION_MANIFEST.md
 Component: P0-CONTROLLED-INTEGRATION
-File Revision: 1.0.4
+File Revision: 1.0.5
 Status: Disposable integration manifest; no merge/deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record exact integration parent, published component heads, ownership, order and verification state for P0 Grace-to-ChatGPT review
@@ -223,3 +223,31 @@ SHA-256; the document content itself was not changed.
 The prior LF validation checkout reported graph 22/573 PASS, revision check PASS
 against PR #119, and `git diff --check` PASS. Re-run the checks against this updated
 combined head after publishing. No production or live browser action occurred.
+
+
+## W2 restart-fixture correction checkpoint — 2026-10-18
+
+W3 integrated the latest W2 PR #140 head `5df1705da353c7acc0ffc38c95b7a7f39c462954`
+with merge commit `92db8078e08c3bff105e4659332f44c363ba3fbc`. This W2 head includes
+the corrected acceptance test and updated W2 evidence docs. The W2 test now restores
+the registered provider target on each recreated Grace service and checks the
+contractually stable `subject_id`, revision 2, changed subject digest, and no extra
+reasoner request after the injected post-admission crash. C3's isolated PG16
+reproduction found no C3 source change was warranted; its exchange suite passed
+21/21 when provider configuration was preserved across restarts.
+
+After importing the corrected W2 source, W3's focused combined local suite ran 97
+tests: 75 passed and 22 PostgreSQL-backed tests skipped because this Windows W3
+environment has no `RIVERVIEW_TEST_PG_DSN`. A new combined-head hosted PostgreSQL run
+is required; the previous W3 run #39174307337 at head `48f06544` predates this W2
+test correction and failed only the incorrectly configured restart test (708 tests,
+4 skips, 1 failure). W2 exact-head CI #39175011841 targets W2 head `5df1705`; it
+does not include the C2 fixture correction, so it is not a substitute for the
+combined W3 run.
+
+The completed trace from the previous combined hosted run was extracted as a
+body-free synthetic snapshot and passed the existing W1 projector: one round,
+`complete`, no blockers, `execution_kind_verified=false`. This records metadata
+consistency only; it is not a real external ChatGPT review. W3 will rerun hosted
+acceptance after publishing this latest combined head and will preserve PR #139 as
+draft until full acceptance evidence is available.
