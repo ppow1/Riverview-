@@ -311,21 +311,21 @@
     },
     "tests/test_w2_p0_integrated_review_acceptance.py": {
       "path": "tests/test_w2_p0_integrated_review_acceptance.py",
-      "revision": "1.0.7",
-      "sha256": "4cab5c1f97f2bf5bdb628b16ca161f40ab5252a4b8f556b8639281bd4869cc06",
-      "size_bytes": 25890
+      "revision": "1.0.8",
+      "sha256": "0936a13d5f1b454f5b60fef71b8c257ad335a268da36b6783e673bf9be4d02cf",
+      "size_bytes": 26074
     },
     "docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md": {
       "path": "docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md",
-      "revision": "1.0.3",
-      "sha256": "acc819f59b0456e3fe800e95bb50293252bbea4e4325b13fed0185184c440660",
-      "size_bytes": 7778
+      "revision": "1.0.4",
+      "sha256": "122d6085fd54b5f1211706d08c918b21628fc586d7a61a3f84b77358e2167454",
+      "size_bytes": 8219
     },
     "docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md": {
       "path": "docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md",
-      "revision": "1.0.8",
-      "sha256": "d2171dd53e93395c7489bfc332c4dc892bfe756545cddabdb37fbf525f0c3672",
-      "size_bytes": 7517
+      "revision": "1.0.11",
+      "sha256": "3f3160f8d3fb6dbef61f81ea1afd239b9a4b1aee9b2ded0ffc2785ce4698e245",
+      "size_bytes": 8705
     }
   }
 }
