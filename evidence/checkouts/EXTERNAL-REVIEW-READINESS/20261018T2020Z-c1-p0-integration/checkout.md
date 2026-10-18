@@ -2,10 +2,11 @@
 Riverview~ Controlled Evidence
 File: evidence/checkouts/EXTERNAL-REVIEW-READINESS/20261018T2020Z-c1-p0-integration/checkout.md
 Component: EXTERNAL-REVIEW-READINESS
-File Revision: 1.0.3
+File Revision: 1.0.4
 Changed: 2026-10-18 UTC | RV-C1-P0-READINESS-INTEGRATION-001 | Correct evidence capture timestamp
 Changed: 2026-10-18 UTC | RV-C1-P0-INTEGRATION-CLOSURE-002 | Record integrated-head readiness and expired-sentinel regression evidence
 Changed: 2026-10-18 UTC | RV-C1-P0-INTEGRATION-CLOSURE-002 | Verify latest W3 C4 fix and exact integrated expiry result shape
+Changed: 2026-10-18 UTC | RV-C1-P0-INTEGRATION-CLOSURE-002 | Capture W3 current head and failed combined PostgreSQL acceptance boundary
 Task: RV-C1-P0-READINESS-INTEGRATION-001
 History: Git and issue #120
 -->
@@ -76,3 +77,34 @@ this capture; C1 has not yet inspected its resulting trace. Therefore the
 readiness projection contract is **PASS**, while complete offline integrated
 acceptance remains **NO-GO** pending that disposable PostgreSQL result/trace.
 No live ChatGPT/browser operation is claimed.
+
+
+## Final closure checkpoint — 2026-10-18 20:48 UTC
+
+W3's latest published head is `b6d475a468b57c4743b9bd60b0f24e6843d45e76`.
+It includes C2/C3/C4, W2's integrated acceptance changes, and C1 readiness.
+On that exact head in a detached checkout, C1 readiness tests passed 19/19,
+compileall passed, `git diff --check` passed, and graph validation passed (22
+graphs / 573 nodes). This validates the projection against the assembled
+source, not a successful production or complete acceptance trace.
+
+C1 PR #133 latest head `85adf1af377d03e9b0e2cab1cabbf2ad883522ad` exact CI
+39164795472 passed: 643 tests, 4 skipped; graphs 22/565; revision/predecessor
+audit had zero findings. Earlier code-bearing PR #133 head `d9a83320` also
+passed exact-head CI 39164359352 with the same counts.
+
+W2's combined disposable-PostgreSQL CI 39164629198 on W3 merge head
+`d138e35269252d5bab0d0ee99be4fd3ec1c5cfc6` failed (702 tests, 15 failures, 1
+error, 4 skipped). The observed failures include C2 doorbell dispatcher results
+returning `invalid_claim`/missing outcomes; a W2 expiry assertion that treated a
+terminal expired exchange as absence of any terminal review; a typed revision
+assertion with no successor; and the W1 trace exporter selecting nonexistent
+`created_at` from the exchange event table (the table uses `occurred_at`). No
+`W2_TRACE_SNAPSHOT_JSON` was emitted. W2 and C2/W3 are correcting their owned
+failures and must rerun on a new combined head.
+
+C1 readiness status: **PASS** (redacted fail-closed projection and corrected
+C4 expiry shape). Complete offline integration: **NO-GO** until the corrected
+combined PostgreSQL run passes and emits the trace for C1/W1 verification.
+Live ChatGPT/browser and production readiness remain untested; no live wake,
+provider action, credential/grant change, merge to main, or deployment occurred.
