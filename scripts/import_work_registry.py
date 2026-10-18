@@ -2,10 +2,11 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/import_work_registry.py
 # Component: UNIVERSAL-WORK-REGISTRY
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Changed: 2026-10-18 UTC | RV-UNIVERSAL-WORK-REGISTRY-001 | Add explicit identity-mapped, read-only import for legacy session status JSON.
 # Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-CONTROL-BOARD-001 | Add dry-run and newer-report reconciliation for local and SSH v4 sources.
 # Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-CONTROL-BOARD-001 | Validate mapped hosts, reject symlink sources, and bound SSH source reads.
+# Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-CONTROL-BOARD-001 | Deduplicate evidence while reconciling repeated v4 reports.
 # Purpose: Import supplied session records without inventing identities or changing source files
 # Execution Model: One-shot request-driven migration tool
 # Observability: Safe summary of imported counts and explicit unknown status
@@ -57,7 +58,7 @@ def _parsed_time(value):
         return None
     try:
         stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        return stamp.astimezone(timezone.utc) if stamp.tzinfo else None
+        return stamp.astimezone(timezone.utc).replace(microsecond=0) if stamp.tzinfo else None
     except ValueError:
         return None
 
@@ -188,6 +189,7 @@ def import_map(mapping_path: Path, registry_path: Path, *, dry_run=False):
         source_ref = entry.get("source_evidence")
         if source_ref:
             evidence.append(_clean_text(source_ref, limit=256, nullable=False))
+        evidence = list(dict.fromkeys(evidence))
         updated_at = source.get("updated_at") or None
         imported_at = _now()
         stable_key = str(entry["source"]) + "#" + session_id
@@ -224,7 +226,8 @@ def import_map(mapping_path: Path, registry_path: Path, *, dry_run=False):
             event = f"v4 status transition: {existing['status']} -> {status} at {updated_at}"
             new_evidence = list(existing["evidence"])
             new_evidence.extend(item for item in evidence if item not in new_evidence)
-            new_evidence.append(_clean_text(event, limit=256, nullable=False))
+            if event not in new_evidence:
+                new_evidence.append(_clean_text(event, limit=256, nullable=False))
             fields = {key: value for key, value in work.items()
                       if key not in {"work_order_id", "created_at", "updated_at"}}
             fields["evidence"] = new_evidence[-64:]

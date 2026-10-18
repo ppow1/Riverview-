@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_work_registry.py
 # Component: UNIVERSAL-WORK-REGISTRY
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Verify durable dynamic worker/session/work lifecycle and import safety
 # Execution Model: Temporary file registry; concurrent writers; no services
 # Observability: Assert persisted snapshots, explicit unknown/stale state, and privacy allowlist
@@ -235,7 +235,8 @@ class WorkRegistryTests(unittest.TestCase):
         source = Path(self.temp.name) / "v4.json"
         source.write_text(json.dumps({"task":"Previous assignment", "status":"COMPLETE",
             "updated_at":"2026-10-18T10:00:00-04:00", "milestone":2,
-            "milestones_total":2, "evidence":"PR delivered"}), encoding="utf-8")
+            "milestones_total":2,
+            "evidence":["PR delivered", "legacy v4 source: w1.json"]}), encoding="utf-8")
         mapping = Path(self.temp.name) / "mapping-unverified.json"
         mapping.write_text(json.dumps({"schema_version":"rv.work-registry.import-map.v1",
             "records":[{"source":str(source), "worker_id":"W1", "session_id":"W1",
@@ -274,6 +275,12 @@ class WorkRegistryTests(unittest.TestCase):
         self.assertIsNone(work["completed_at"])
         self.assertTrue(any("completed -> active" in item for item in work["evidence"]))
 
+        source.write_text(json.dumps({"task":"Previous assignment", "status":"RUNNING",
+            "updated_at":"2026-10-18T11:00:00.9516467-04:00", "milestone":3,
+            "milestones_total":3}), encoding="utf-8")
+        same_second = module.import_map(mapping, self.registry.path)
+        self.assertEqual(same_second["work_orders_updated"], 0)
+
         mapping_doc = json.loads(mapping.read_text(encoding="utf-8"))
         mapping_doc["records"][0]["assignment_title"] = "Later assignment"
         mapping.write_text(json.dumps(mapping_doc), encoding="utf-8")
@@ -285,6 +292,7 @@ class WorkRegistryTests(unittest.TestCase):
                   if item["session_id"] == "W1"]
         self.assertEqual({item["title"] for item in orders},
                          {"Previous assignment", "Later assignment"})
+        self.assertEqual(module.import_map(mapping, self.registry.path)["work_orders_updated"], 0)
 
     def test_previous_v1_session_without_identity_state_remains_compatible(self):
         self.register()
