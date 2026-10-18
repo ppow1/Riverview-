@@ -2,10 +2,11 @@
 Riverview Controlled Document
 File: docs/development/RV-GRACE-CHATGPT-P0-C4-MCP_REVISION_RECORD.md
 Component: EXTERNAL-REASONING-MCP-TRANSPORT
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Record C4 exact-proposal MCP integration, isolated verification, and live gates
 Authority: Existing provider-scoped MCP identity and resident.reasoning.escalate grant only
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-MCP | Initial implementation record
+Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-MCP | Record exact-head CI and complete PostgreSQL suite result
 History: Git; source predecessors retained in .riverview-backups/manifest.jsonl
 -->
 # RV-GRACE-CHATGPT-P0-C4-MCP — provider MCP exact-review binding
@@ -63,8 +64,14 @@ recorded SHA-256 before rebuilding the package.
 - `python3 -m py_compile src/riverview_core/resident_execution/external_reasoning_mcp.py scripts/run_external_reasoning_mcp.py tests/test_external_reasoning_mcp.py`: **PASS**.
 - `git diff --check`: **PASS**.
 - Full disposable PostgreSQL cross-component chain, process graph regeneration,
-  exact-head CI, and final controlled revision inventory remain pending C2/C3/W3
-  integration. No live MCP client or ChatGPT request was made.
+  C2/C3 cross-window exact-proposal lifecycle, and final combined integration
+  acceptance remain pending their owner branches. No live MCP client or
+  ChatGPT request was made.
+- Exact-head GitHub Actions run
+  [39160770015](https://github.com/ppow1/Riverview-/actions/runs/39160770015)
+  passed at implementation commit `ca7b1f999ecfee4bb00544e4be5658f962bf40ec`:
+  **627 passed, 0 failed, 4 skipped** in the full suite; process graphs
+  **22 / 565 PASS**; controlled predecessor check **PASS, zero issues**.
 
 ## Readiness and remaining gates
 
