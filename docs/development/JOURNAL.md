@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.174
+**Document Revision:** 1.0.175
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-17 UTC | M33-REGISTRATION-RETIREMENT-AUTHORIZED | Record exact temporary database scope, guarded retirement, permission cleanup, and production acceptance
@@ -10,6 +10,7 @@
 **Changed:** 2026-10-17 UTC | M33-0008-ATOMIC-RUNTIME-ACL | Record atomic profile function boundary correction, live role evidence, final isolated tests, and corrected query defects
 **Changed:** 2026-10-17 UTC | M33-0008-PRODUCTION-ACCEPTANCE | Record PR #78, immutable release installation, production migration and postflight
 **Changed:** 2026-10-17 UTC | M33-0009-SYSTEMD-PARSER-FIX | Correct property-order bug; record 0009 application and retirement authorization blocker
+**Changed:** 2026-10-18 UTC | RV-NOTIFICATION-STATUS-PROJECTION-20261018 | Add a redacted, read-only provider queue projection to the existing authenticated notifications API
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009-ONE-SHOT | Add exact 0008-only preflight/apply mode and record 53 focused disposable PostgreSQL tests
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009 | Record exact effects and disposable 0000–0009 chain verification
 **Changed:** 2026-10-17 UTC | RV-M33-RETIRE-MIGRATION-001-FINAL-CI | Record passing exact-head controlled CI on corrected migration runner
@@ -2578,3 +2579,21 @@ Disposable PostgreSQL tests using the real `AuthorityRegistry` cover active prin
 Built and independently verified the full Camrui immutable package from source commit `3e0cb2c98e0308bdda3458715622d57953082c58`. Archive: `/tmp/riverview-camrui-followup-3e0cb2c9.tar.gz`, 34,097,690 bytes, SHA-256 `ecead4fb3d7673b461572012df5184c2a961dc17f29436a7b1a5156fbc4095cb`. Package manifest and shell compatibility passed; direct member inspection confirmed Grace, external exchange/MCP, Comms5 resource policy, and migrations 0011 and 0012 are included. The package is local validation output only; it was not transferred, installed, or activated.
 
 No production database, migration, credential, grant, service, or release was changed. PR #109 remains unchanged and open. This follow-up is isolated on `codex/comms5-principal-escalation-20261018`; it is not merged. Production requires review/integration, a fresh protected backup and restore verification, migration 0012 and exact provider identity/grant commissioning under Steward authority, complete multi-component immutable release staging, and controlled service activation followed by external exchange and Grace-consumption acceptance.
+
+## 2026-10-18 UTC — RV-NOTIFICATION-STATUS-PROJECTION-20261018
+
+Added a redacted read-only `push_delivery` projection to the existing authenticated
+`GET /api/v1/notifications` response through notification-owned `NotificationService`.
+The projection reads only migration 0007 queue states and health metadata; it reports
+freshness, bounded error class, retries, expired leases, recovery state, and aggregate
+counters. It excludes delivery IDs, message/title content, receipts, provider URLs,
+credentials, and worker identity. An unavailable or incomplete provider status does not
+claim health. The API field is optional in the page schema to preserve the dashboard's
+existing service-not-initialized fallback.
+
+The existing Dashboard server route already returns the notification service's page,
+so no second endpoint or control path was added. Shared Dashboard server/static files
+remain owned by its separate engineering window and were not changed. C1 published the
+schema and sanitized fixtures and requested that owner render the distinct states and add
+the matching fallback object. This is an API integration seam, not a live Steward UI
+panel and not full Component DoD acceptance.

@@ -6774,7 +6774,7 @@
     },
     {
       "graph_id": "rv:notification-delivery:visual-attention",
-      "graph_revision": "1.0.0",
+      "graph_revision": "1.0.1",
       "component_id": "NOTIFICATION-DELIVERY",
       "workflow_id": "visual-attention.v1",
       "diagram_order": 1,
@@ -6786,7 +6786,9 @@
         "src/riverview_core/status_dashboard/static/app.js",
         "deploy/systemd/riverview-notification-dispatcher.service",
         "scripts/run_notification_dispatcher.py",
-        "tests/test_notifications.py"
+        "tests/test_notifications.py",
+        "docs/components/NOTIFICATION_DELIVERY_API.schema.json",
+        "tests/fixtures/notification_delivery_status_examples.json"
       ],
       "documentation_references": [
         "docs/components/NOTIFICATION_DELIVERY.md",
@@ -6974,6 +6976,84 @@
             "docs/components/STATUS_DASHBOARD.md"
           ],
           "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:push-status-request",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Authenticated caller requests the bounded notification API page",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:push-status-project",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Read aggregate provider queue and health without notice content",
+          "source_references": [
+            "src/riverview_core/notifications/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:push-status-classify",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Classify provider health, freshness, and durable recovery state",
+          "source_references": [
+            "src/riverview_core/notifications/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY_API.schema.json"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:push-status-response",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "Return redacted push status alongside visual notices",
+          "source_references": [
+            "src/riverview_core/notifications/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:push-status-unavailable",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Report unavailable provider status without claiming delivery",
+          "source_references": [
+            "src/riverview_core/notifications/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:push-status-retry",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Refresh the read-only status after the source dependency recovers",
+          "source_references": [
+            "src/riverview_core/notifications/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
         }
       ],
       "edges": [
@@ -7063,6 +7143,45 @@
           "from": "rv:notification-delivery:visual-attention:jump-dashboard",
           "to": "rv:steward-dashboard:status:ingest",
           "type": "jump"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:push-status-request",
+          "to": "rv:notification-delivery:visual-attention:push-status-project",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:push-status-project",
+          "to": "rv:notification-delivery:visual-attention:push-status-classify",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:push-status-classify",
+          "to": "rv:notification-delivery:visual-attention:push-status-response",
+          "type": "runtime_transition",
+          "label": "health and queue projection available"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:push-status-classify",
+          "to": "rv:notification-delivery:visual-attention:push-status-unavailable",
+          "type": "diagnostic_branch",
+          "label": "incomplete schema or status query unavailable"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:push-status-unavailable",
+          "to": "rv:notification-delivery:visual-attention:push-status-retry",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:push-status-retry",
+          "to": "rv:notification-delivery:visual-attention:push-status-request",
+          "type": "runtime_transition",
+          "label": "subsequent authenticated read"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:push-status-response",
+          "to": "rv:notification-delivery:visual-attention:jump-dashboard",
+          "type": "documentation",
+          "label": "API consumer integration seam; dashboard rendering not included"
         }
       ]
     },
@@ -14579,6 +14698,12 @@
     "rv:notification-delivery:visual-attention:jump-dashboard",
     "rv:notification-delivery:visual-attention:no-authority-effect",
     "rv:notification-delivery:visual-attention:pending-request",
+    "rv:notification-delivery:visual-attention:push-status-classify",
+    "rv:notification-delivery:visual-attention:push-status-project",
+    "rv:notification-delivery:visual-attention:push-status-request",
+    "rv:notification-delivery:visual-attention:push-status-response",
+    "rv:notification-delivery:visual-attention:push-status-retry",
+    "rv:notification-delivery:visual-attention:push-status-unavailable",
     "rv:notification-delivery:visual-attention:queue-notice",
     "rv:notification-delivery:visual-attention:render",
     "rv:notification-delivery:visual-attention:retry",

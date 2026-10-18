@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_DELIVERY_COOKBOOK.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.0.0
-Purpose: Diagnose and safely recover notification projection and visual receipts
+File Revision: 1.0.1
+Purpose: Diagnose notification projection, visual receipts, and provider queue status
 Authority: Read-only diagnosis; receipt API records client receipt and no decision
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Initial operational procedure
+Changed: 2026-10-18 UTC | RV-NOTIFICATION-STATUS-PROJECTION-20261018 | Document provider status API and state interpretation
 History: Git and revision/backup manifest
 -->
 # Notification delivery troubleshooting cookbook
@@ -27,12 +28,26 @@ content. Apply migration only using the backup/preflight procedure in the
 | Symptom | Meaning | Initial checks |
 | --- | --- | --- |
 | API returns `not_initialized` | PostgreSQL is reachable, but migration 0006 is absent from this schema. | Check the selected schema and migration ledger read-only. |
+| `push_delivery.status` is `not_initialized` | Migration 0007 or a worker health row is absent. | Check the configured schema and migration ledger read-only; do not apply a migration from the dashboard. |
+| `push_delivery.status` is `stale` | Last recorded healthy heartbeat is older than 15 seconds. | Inspect only the notification delivery unit state and sanitized journal. |
+| `push_delivery.status` is `degraded` | Worker recorded a failed cycle. | Use its bounded failure code and unit journal; the projection omits provider response bodies and secrets. |
+| `push_delivery.status` is `unavailable` | Push status tables are inconsistent or its read failed; visual notice state may remain available. | Check migration 0007 and runtime SELECT grants read-only. |
+| `push_delivery.recovery.state` is `retry_pending` or `lease_recovery_pending` | Durable retry or expired lease work exists. | Preserve queue rows; after the worker recovers it resumes using its lease and idempotency rules. |
 | Notice stays `queued` | The persisted CME event was projected; no visible browser rendering receipt has been stored. | Open Notifications view; inspect browser error ring and dashboard journal. |
 | Notice is `delivered` | An authenticated client reported successful visible rendering. This says nothing about human identity or decision. | Confirm the durable notification event exists. |
 | Notice is `acknowledged` | An authenticated dashboard client recorded receipt acknowledgment. The linked request must remain pending. | Check both notice and request status. |
 | Dispatcher health `degraded` or stale | Last reconciliation failed or last successful heartbeat is older than 15 seconds. | Check unit state and sanitized journal before restarting only this service. |
 | `/api/v1/notifications` returns 503 | Database query failed; no new delivery is claimed. | Check dashboard and database health; do not mark rows delivered manually. |
 | POST returns 401/405/409/404 | Missing bearer, unsupported operation, invalid order, or unknown notice. | Preserve response code and request ID; verify the exact allowed route. |
+
+The provider projection is returned by the authenticated, read-only
+`GET /api/v1/notifications?limit=1` response in `push_delivery`. Example
+responses for healthy, stale, degraded, not-initialized and unavailable states
+are in `../../tests/fixtures/notification_delivery_status_examples.json`.
+It reports aggregate counts only. `accepted` means the provider accepted an
+HTTP submission; it does not prove iPhone display. The API contract is not a
+dashboard panel, and no Steward-facing UI integration is claimed by this
+notification-owned increment.
 
 ## Exact read-only diagnostics
 

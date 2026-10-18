@@ -2,12 +2,13 @@
 Riverview~ Controlled Document
 File: docs/development/RV-IPHONE-NOTIFICATIONS-001_REVISION_RECORD.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.0.2
+File Revision: 1.0.3
 Purpose: Record implementation scope and reproducible validation for iPhone push delivery
 Authority: Development evidence only; no production commissioning claim
 Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial implementation record
 Changed: 2026-10-18 UTC | RV-NOTIFICATION-SELECTED-CREDENTIALS-20261018 | Record reviewed C1 remediation and scoped acceptance evidence
 Changed: 2026-10-18 UTC | RV-NOTIFICATION-SELECTED-CREDENTIALS-20261018 | Append full isolated suite result: 640 passed
+Changed: 2026-10-18 UTC | RV-NOTIFICATION-STATUS-PROJECTION-20261018 | Record read-only Steward API status projection and isolated verification
 History: Git + .riverview-backups/manifest.jsonl
 -->
 # RV-IPHONE-NOTIFICATIONS-001 — implementation record
@@ -157,3 +158,39 @@ not change either standard.
 No production service, database, migration, credential, provider, phone, or
 Bluetooth headset was changed or exercised by this remediation. No merge or
 deployment was performed.
+
+## C1 status projection increment — 2026-10-18
+
+**Task:** `RV-NOTIFICATION-STATUS-PROJECTION-20261018` (issue #120 comment
+6253533433). **Branch:** `codex/iphone-notification-manager-20261018`.
+
+`NotificationService.list_notifications()` now adds an optional `push_delivery`
+object conforming to `rv.notification_push_status.v2`, returned by the existing
+authenticated `GET /api/v1/notifications` API. It is computed from read-only
+aggregate queue and health queries; status/freshness distinguishes healthy,
+stale, degraded, not initialized, unavailable and unknown. Queue states, due
+retries, expired leases, bounded failure code, recovery status and aggregate
+counters are exposed. Titles, message bodies, notification/delivery identifiers,
+provider receipt values, URLs, credentials and worker identity are excluded.
+Future-dated heartbeats report unknown freshness with a null age. A missing push
+migration or unavailable status read does not imply delivery success.
+
+The existing dashboard server and its static UI belong to a different engineering
+window and were not changed. The schema field is optional to retain the existing
+service-uninitialized response; issue #120 comment 6253673706 requests the
+dashboard owner render its states and add a matching not-initialized fallback.
+This is an API integration seam, not a live Steward panel. The component remains
+**NOT DONE** under active main Component DoD Rev 1.6 until UI and production
+acceptance exist.
+
+| Verification | Result |
+| --- | --- |
+| `RIVERVIEW_TEST_PG_DSN=<temporary socket-only PostgreSQL 16> PYTHONPATH=.:src:scripts python3 -m unittest tests.test_notifications tests.test_notification_push -v` | 26 passed in 29.125 seconds; disposable schema fixtures, no provider call. |
+| `RIVERVIEW_TEST_PG_DSN=<temporary socket-only PostgreSQL 16> PYTHONPATH=.:src:scripts python3 -m unittest discover -s tests -v` | 642 passed in 612.859 seconds; isolated PostgreSQL 16 cluster, no production connection. |
+| `python3 scripts/process_graph.py check` | PASS; 23 graphs, 586 nodes. |
+| `python3 -m py_compile src/riverview_core/notifications/service.py tests/test_notifications.py` | PASS. |
+| `jsonschema` validation of `tests/fixtures/notification_delivery_status_examples.json` | 6 sanitized states valid against the versioned API schema. |
+| `git diff --check` | PASS before final record update. |
+
+No production data, migration, credential, grant, provider, service or handset
+was changed or accessed. No merge or deployment is authorized by this assignment.

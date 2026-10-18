@@ -2,11 +2,12 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_IPHONE_DELIVERY.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.0.1
+File Revision: 1.0.2
 Purpose: Define local durable mobile push delivery using ntfy and Pushover
 Authority: Push transport only; no assignment, approval, or decision authority
 Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial mobile delivery contract
 Changed: 2026-10-18 UTC | RV-NOTIFICATION-SELECTED-CREDENTIALS-20261018 | Document selected-provider preflight and actual status visibility boundaries
+Changed: 2026-10-18 UTC | RV-NOTIFICATION-STATUS-PROJECTION-20261018 | Link provider health to authenticated status API contract
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # iPhone notification delivery
@@ -110,15 +111,18 @@ provider acceptance separately from actual iPhone display/acknowledgment.
 
 The worker records `notification_delivery_health` with `healthy` or `degraded`,
 heartbeat and cycle timestamps, a bounded error code, and aggregate counters.
-`NotificationDeliveryManager.status()` is a read-only library query and returns
-`not_initialized` when no health row exists. It does not calculate `stale` or
-`unavailable`; when the worker stops, the last status and timestamp remain in
-PostgreSQL. An observer must compare `last_heartbeat_at` with a freshness
-threshold. This increment does not expose an authenticated Steward-facing live
-status endpoint or dashboard panel. The database projection and systemd journal
-are operator diagnostics, not a live Steward view. Component Definition of Done
-is therefore **NOT DONE** until a real Steward view, unattended production
-recovery evidence, and handset acceptance exist.
+`NotificationDeliveryManager.status()` remains an internal read-only library
+query. The authenticated `/api/v1/notifications` response now includes a
+separate `push_delivery` projection that classifies `healthy`, `stale`,
+`degraded`, `not_initialized`, `unavailable`, and `unknown`, plus aggregate
+queue/retry/expired-lease counts and bounded failure metadata. It never returns
+notification bodies, provider receipts, IDs, URLs, or credentials. The matching
+schema and sanitized fixtures are documented in
+`NOTIFICATION_DELIVERY.md`. This exposes a machine-readable API contract, but
+the dashboard UI has not yet been changed to render it; that integration belongs
+to the dashboard owner. The component remains **NOT DONE** under the active
+main DoD Rev 1.6: no production Steward view, unattended production recovery,
+or handset acceptance is claimed.
 
 See `NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md` for setup, diagnostics, and
 recovery; `NOTIFICATION_IPHONE_DELIVERY_FLOW.md` is generated from the canonical

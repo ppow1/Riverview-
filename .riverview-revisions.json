@@ -2,7 +2,7 @@
   "files": {
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.242",
+      "revision": "1.1.246",
       "sha256": "db29799c026f20d431bbd748b3653235852fb32a503de7ac6bf8c05db8e78e04",
       "size_bytes": 13389
     },
@@ -14,9 +14,9 @@
     },
     "docs/components/NOTIFICATION_DELIVERY_API.schema.json": {
       "path": "docs/components/NOTIFICATION_DELIVERY_API.schema.json",
-      "revision": "1.0.0",
-      "sha256": "2e4d7446b1d64b13a76b3d0ce037465df182ca1c209b692c69cce881c5b28b7a",
-      "size_bytes": 2957
+      "revision": "1.0.2",
+      "sha256": "9f63d1f1c15072b65265f06b500df9d733b095229db09723867a40e0bcb88af8",
+      "size_bytes": 10807
     },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
@@ -26,9 +26,9 @@
     },
     "docs/development/JOURNAL.md": {
       "path": "docs/development/JOURNAL.md",
-      "revision": "1.0.174",
-      "sha256": "5348dd19d8e114f5fc025a5ac4e9b8e648e972564658604f1ba2b304aecb2f81",
-      "size_bytes": 226833
+      "revision": "1.0.175",
+      "sha256": "4cb984c7ea54301624293fca92e5539593a2924e2243cf703d59e1f281e78953",
+      "size_bytes": 228200
     },
     "docs/development/RV-COMMS5-ESCALATION-INITIATION-001_REVISION_RECORD.md": {
       "path": "docs/development/RV-COMMS5-ESCALATION-INITIATION-001_REVISION_RECORD.md",
@@ -128,9 +128,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.187",
-      "sha256": "950933bfddb0edab9134758119f3e24a7a6dc4fa2ccb6d605bff9b8926b08114",
-      "size_bytes": 655608
+      "revision": "1.0.188",
+      "sha256": "a25137ef9297f74ef4566d71449e6c590d1ecf250fdf66a49aabbecc5d2eefb2",
+      "size_bytes": 661028
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -164,9 +164,9 @@
     },
     "process_graphs/notification-delivery/visual-attention.json": {
       "path": "process_graphs/notification-delivery/visual-attention.json",
-      "revision": "1.0.0",
-      "sha256": "dfe1f15fb91fd7450abfda77ce1976a64ed1d7d3a391011ae24e8f432f352bc7",
-      "size_bytes": 8560
+      "revision": "1.0.1",
+      "sha256": "b6dc281c6dd44fd170dbdb61086fc699c87a89ab968900270a706d0d8b97c661",
+      "size_bytes": 14894
     },
     "process_graphs/outcome-verifier/independent-result.json": {
       "path": "process_graphs/outcome-verifier/independent-result.json",
@@ -281,8 +281,14 @@
       "revision": "1.0.1",
       "sha256": "9ea4fa1da48f0e7531de7c864796fa16f01870881dad8434eeefb7583166837d",
       "size_bytes": 794
+    },
+    "tests/fixtures/notification_delivery_status_examples.json": {
+      "path": "tests/fixtures/notification_delivery_status_examples.json",
+      "revision": "1.0.2",
+      "sha256": "e4066c5b0eccabdd756c75244f8933938f4d5257d52e3805c9f0fca57e3d8808",
+      "size_bytes": 6309
     }
   },
-  "manifest_revision": "1.1.242",
+  "manifest_revision": "1.1.246",
   "updated_at": null
 }

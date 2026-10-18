@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.1.6
+File Revision: 1.1.7
 Purpose: Set up and troubleshoot ntfy/Pushover push delivery without exposing secrets
 Authority: Operational diagnosis and local setup only; no decision authority
 Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial push recovery cookbook
@@ -13,6 +13,7 @@ Changed: 2026-10-18 UTC | RV-NOTIFICATION-OPT-IN-ACCEPTANCE-20261018 | Add opera
 Changed: 2026-10-18 UTC | RV-NOTIFICATION-SELECTED-CREDENTIALS-20261018 | Document selected-provider credential loading, startup diagnostics, blocker register, and visibility limits
 Changed: 2026-10-18 UTC | RV-NOTIFICATION-BLOCKER-REGISTER-20261018 | Give each unresolved blocker an explicit field and truthful owner/alert state
 Changed: 2026-10-18 UTC | RV-NOTIFICATION-BLOCKER-REGISTER-20261018 | Use the single defined manual-action blocker type
+Changed: 2026-10-18 UTC | RV-NOTIFICATION-STATUS-PROJECTION-20261018 | Record API projection and remaining dashboard consumer integration
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # iPhone push delivery setup and troubleshooting
@@ -123,14 +124,16 @@ a live operational alert feed.
 | `NOTIF-COMMISSIONING-001` | commissioning | Read-only preflight finds release/unit or required migration absent | Operations / Steward | Explicit production commissioning authorization | No runtime deadline while inactive; record the approved commissioning window before start | No production runtime row; blocker is recorded in the source acceptance record | No production alert route; GitHub issue #120 is remediation tracking only | Resume after authorized backup, migration, selected credentials, release and rollback preflight pass | No production activation or phone delivery in this remediation. |
 | `NOTIF-SELECTED-CREDENTIAL-001` | credential | Sanitized `notification_push_configuration_error.failure_code`; systemd may reach `start-limit-hit` | Operations | Provision only the secret for providers selected by route configuration; separate service activation approval still applies | Restart every 5 seconds; at most 3 starts within 60 seconds | systemd failure state and sanitized journal; no database row because preflight precedes manager construction | Local systemd journal only; push self-alert is unavailable before worker startup | Correct the selected file, verify root ownership/mode, then reset the unit failure and retry only in an authorized window | Focused ntfy-only, Pushover-only, selected-missing, PostgreSQL and systemd tests; no provider call. |
 | `NOTIF-HANDSET-ACCEPTANCE-001` | manual action | Provider accepts but there is no handset receipt; Pushover can report expiry; ntfy has no handset receipt contract | Phone owner / Steward | Phone-side app setup and a separately authorized live test; emergency acknowledgment requires the user to acknowledge in-app | No phone-display deadline is measurable; Pushover receipt expiry is separately configured | Provider queue state only; no Riverview proof of ntfy display, Bluetooth announcement, or Pushover app display | Provider iOS app is the intended endpoint; no server handset telemetry is configured | Resume after the phone owner enables notifications and is ready for a labeled test | Live iPhone, acknowledgment and Bluetooth outcome not tested. |
-| `NOTIF-STEWARD-VIEW-001` | dependency | No authenticated dashboard/API reads the delivery health projection | Steward-facing dashboard office; implementation owner not assigned in this C1 increment | A separately scoped read-only dashboard integration | N/A while no consumer/runtime view exists; no worker wait is active | PostgreSQL health projection and journal only; no external operational status record | None; no live alert destination is wired | Resume when an authorized dashboard consumer is assigned; it must age-check `last_heartbeat_at` and distinguish stale/unavailable | No dashboard/API acceptance test; status library behavior is documented, not exposed. |
+| `NOTIF-STEWARD-VIEW-001` | dependency | Dashboard UI does not render `push_delivery`; service-none fallback omits it | Steward-facing dashboard owner; C2 integration requested on issue #120 | Existing authenticated API, read-only only; no new grant or production authority | No runtime wait exists because there is no UI consumer | Provider queue/health remain durable in PostgreSQL; the projection is computed on each authenticated GET and is not stored separately | No production alert route; issue #120 tracks source integration only | Resume when C2 integrates the contract, renders every status distinctly, and supplies the `not_initialized` fallback; production use still requires normal release authorization | C1 disposable PostgreSQL/API tests cover fresh, stale, degraded, retry, expired-lease recovery, unavailable and secret redaction; no browser panel or production acceptance. |
 
 The persisted health projection contains heartbeat/cycle timestamps, aggregate
 counters, and a bounded last error code. When the worker stops, PostgreSQL keeps
 the last status and timestamp. Startup configuration errors are logged before
 the manager is created, so no health row or push alert can be written for that
-failure. The current status and recovery interfaces remain operator diagnostics;
-they do not satisfy live Steward visibility or operational-autonomy acceptance.
+failure. C1 now exposes a redacted aggregate status object at
+`GET /api/v1/notifications` when the notification service is initialized; the
+dashboard UI still needs its assigned consumer integration. Until then the
+contract is API-visible but not a live Steward status panel.
 
 ## Ordered Camrui commissioning procedure
 
