@@ -82,6 +82,8 @@ class GraceFixtureHandler(BaseHTTPRequestHandler):
 
 
 class GraceStagingBrowserFixtureTests(unittest.TestCase):
+    @unittest.skipUnless((ROOT / ".venv/bin/python").is_file(),
+                         "requires the optional local Playwright .venv; run the documented focused command")
     def test_authenticated_staging_bridge_is_scoped_read_only_and_redacted(self):
         GraceFixtureHandler.requests_seen.clear()
         server = ThreadingHTTPServer(("127.0.0.1", 0), GraceFixtureHandler)

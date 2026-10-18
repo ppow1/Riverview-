@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/operations/LINUX_BROWSER_ACCEPTANCE.md
 Component: LINUX-BROWSER-ACCEPTANCE
-File Revision: 1.0.7
+File Revision: 1.0.8
 Purpose: Operate the bounded Linux Chromium acceptance harness and request it in Engineering work orders
 Authority: Read-only browser verification; production writes and authenticated sessions are out of scope
-Changed: 2026-10-18 UTC | RV-C2-STAGING-GRACE-BROWSER-004 | Prove staging bridge with disposable authenticated loopback fixture
+Changed: 2026-10-18 UTC | RV-C2-STAGING-GRACE-BROWSER-004 | Document optional browser environment behavior in test discovery
 -->
 # Linux browser acceptance on Camrui
 
@@ -91,6 +91,8 @@ Run the disposable authenticated fixture test on Camrui after installing the pin
 This test starts a temporary HTTP server bound only to `127.0.0.1`. The server requires a synthetic cookie created inside a private temporary directory and accepts only the empty session-initialization request. It invokes the same browser runner and staging UI test as the operator path, verifies the synthetic account and pre-seeded conversation, opens and closes the exact-grant work-order dialog without submitting it, and reads the objective permission note. A second browser scenario attempts a harmless synthetic work-order POST and a cross-origin GET; both must be blocked before reaching the fixture server. The integration test checks that the synthetic cookie and page contents do not appear in JSON evidence, the screenshot is mode `0600` and taken after visible-content redaction, traces are absent, and result counts include the staging-only skip. All temporary state and evidence are deleted when the test exits.
 
 This proves the browser harness's cookie plumbing and safety guards against a local fixture. It is not a Grace login, Steward identity, real staging acceptance, proposal approval, work-order submission, CME dispatch, or execution. The test cookie is generated for the fixture only and must never be copied into staging or production.
+
+The fixture integration test skips during generic `unittest discover` when the repository-local Playwright `.venv` is absent. Its dedicated pytest command above requires the documented pinned Playwright dependencies and Chromium and runs the complete scenario.
 
 ## Request browser verification in an Engineering work order
 
