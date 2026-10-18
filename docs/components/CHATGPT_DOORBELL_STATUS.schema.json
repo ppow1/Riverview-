@@ -1,0 +1,339 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:riverview:chatgpt-doorbell-status:1.0.0",
+  "title": "Riverview ChatGPT Doorbell Status",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "component_id",
+    "component_version",
+    "status",
+    "ready",
+    "local_browser_ready",
+    "observed_at",
+    "freshness",
+    "browser_health",
+    "browser_runtime",
+    "browser_session",
+    "cdp",
+    "authentication_status",
+    "target_resolution",
+    "fixed_action_available",
+    "last_trigger",
+    "last_error",
+    "blockers",
+    "external_dependencies",
+    "workflow_position",
+    "workflow_position_reason",
+    "browser_process",
+    "profile_lock_present"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "rv.chatgpt-doorbell.status.v1"
+    },
+    "component_id": {
+      "const": "CHATGPT-DOORBELL"
+    },
+    "component_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "status": {
+      "enum": [
+        "healthy",
+        "degraded",
+        "stale",
+        "blocked",
+        "failed",
+        "unavailable",
+        "not_initialized"
+      ]
+    },
+    "ready": {
+      "type": "boolean"
+    },
+    "local_browser_ready": {
+      "type": "boolean"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "freshness": {
+      "type": "object",
+      "required": [
+        "state",
+        "stale_after_seconds"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "fresh",
+            "stale",
+            "unknown"
+          ]
+        },
+        "stale_after_seconds": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "browser_health": {
+      "enum": [
+        "healthy",
+        "degraded",
+        "unavailable",
+        "unknown"
+      ]
+    },
+    "browser_runtime": {
+      "type": "boolean"
+    },
+    "browser_session": {
+      "enum": [
+        "running",
+        "not_running",
+        "unknown"
+      ]
+    },
+    "cdp": {
+      "type": "object",
+      "required": [
+        "status",
+        "address",
+        "port"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "connected",
+            "unavailable",
+            "unknown"
+          ]
+        },
+        "address": {
+          "const": "127.0.0.1"
+        },
+        "port": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 9225,
+          "maximum": 9325
+        }
+      },
+      "additionalProperties": false
+    },
+    "authentication_status": {
+      "enum": [
+        "composer_ready",
+        "login_required",
+        "unknown"
+      ]
+    },
+    "target_resolution": {
+      "enum": [
+        "exact_match",
+        "unresolved",
+        "unknown"
+      ]
+    },
+    "fixed_action_available": {
+      "type": "boolean"
+    },
+    "last_trigger": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": [
+            "attempt_id",
+            "request_id",
+            "correlation_id",
+            "occurred_at",
+            "status",
+            "failure_class",
+            "submit_verified"
+          ],
+          "properties": {
+            "attempt_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "request_id": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            },
+            "correlation_id": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            },
+            "occurred_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "status": {
+              "enum": [
+                "succeeded",
+                "failed"
+              ]
+            },
+            "failure_class": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^RIV-PLY-[0-9]{4}$"
+            },
+            "submit_verified": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "last_error": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "occurred_at"
+          ],
+          "properties": {
+            "code": {
+              "type": "string",
+              "pattern": "^RIV-PLY-[0-9]{4}$"
+            },
+            "occurred_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "code",
+          "owner"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "external_dependencies": {
+      "type": "object",
+      "required": [
+        "comms5_mailbox",
+        "grace_result_consumer"
+      ],
+      "properties": {
+        "comms5_mailbox": {
+          "$ref": "#/$defs/externalDependency"
+        },
+        "grace_result_consumer": {
+          "$ref": "#/$defs/externalDependency"
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflow_position": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "workflow_position_reason": {
+      "type": "string"
+    },
+    "browser_process": {
+      "type": "object",
+      "required": [
+        "state",
+        "started_at"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "running",
+            "not_running",
+            "stale",
+            "unknown"
+          ]
+        },
+        "started_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    },
+    "profile_lock_present": {
+      "type": "boolean"
+    }
+  },
+  "$defs": {
+    "externalDependency": {
+      "type": "object",
+      "required": [
+        "owner",
+        "state",
+        "contract_reference"
+      ],
+      "properties": {
+        "owner": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "not_integrated",
+            "available",
+            "blocked",
+            "unknown"
+          ]
+        },
+        "contract_reference": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

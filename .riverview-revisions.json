@@ -2,7 +2,7 @@
   "files": {
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.236",
+      "revision": "1.1.237",
       "sha256": "db29799c026f20d431bbd748b3653235852fb32a503de7ac6bf8c05db8e78e04",
       "size_bytes": 13389
     },
@@ -11,6 +11,12 @@
       "revision": "1.0.0",
       "sha256": "a5f35c86cfb649eb7259829879f3375bf832c482b4ec8db67bd160f35176fce3",
       "size_bytes": 19479
+    },
+    "docs/components/CHATGPT_DOORBELL_STATUS.schema.json": {
+      "path": "docs/components/CHATGPT_DOORBELL_STATUS.schema.json",
+      "revision": "1.0.0",
+      "sha256": "17f1d1db5fec74663cb89c425c37781a3fce23bb7751db8cb4683742976a427e",
+      "size_bytes": 6987
     },
     "docs/components/NOTIFICATION_DELIVERY_API.schema.json": {
       "path": "docs/components/NOTIFICATION_DELIVERY_API.schema.json",
