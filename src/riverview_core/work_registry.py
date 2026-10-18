@@ -2,8 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/work_registry.py
 # Component: UNIVERSAL-WORK-REGISTRY
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Changed: 2026-10-18 UTC | RV-UNIVERSAL-WORK-REGISTRY-001 | Add one observational file-backed registry for workers, sessions, and work orders.
+# Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-CONTROL-BOARD-001 | Track verified and unverified session identities without breaking v1 snapshots.
 # Purpose: Persist cross-runtime work observations without dispatching or authorizing execution
 # Execution Model: Request-driven library with process-safe file locking
 # Observability: Versioned JSON snapshot consumed by the authenticated status dashboard
@@ -248,6 +249,8 @@ class WorkRegistry:
             raise ValueError("session lifecycle is unsupported")
         if session.get("activity_state") not in _ACTIVITY:
             raise ValueError("session activity_state is unsupported")
+        if session.get("identity_state", "verified") not in {"verified", "unverified"}:
+            raise ValueError("session identity_state is unsupported")
         for key, maximum in (("hostname", 255), ("os", 64), ("repository", 512),
                              ("branch", 256), ("pull_request", 512),
                              ("model_identity", 256), ("endpoint_ref", 512)):
@@ -260,9 +263,15 @@ class WorkRegistry:
         _id(session.get("session_id"), "session_id")
         if set(session) != {"session_id", "worker_id", "hostname", "os", "repository",
                 "branch", "pull_request", "model_identity", "endpoint_ref", "lifecycle",
-                "activity_state", "current_work_order_id", "started_at",
+                "activity_state", "identity_state", "current_work_order_id", "started_at",
                 "last_heartbeat_at", "last_activity_at", "ended_at"}:
-            raise ValueError("session record contains unsupported fields")
+            # v1 snapshots written before identity verification was added remain readable.
+            legacy_keys = {"session_id", "worker_id", "hostname", "os", "repository",
+                "branch", "pull_request", "model_identity", "endpoint_ref", "lifecycle",
+                "activity_state", "current_work_order_id", "started_at",
+                "last_heartbeat_at", "last_activity_at", "ended_at"}
+            if set(session) != legacy_keys:
+                raise ValueError("session record contains unsupported fields")
         if session["current_work_order_id"] is not None:
             _id(session["current_work_order_id"], "current_work_order_id")
 
@@ -358,7 +367,8 @@ class WorkRegistry:
 
     def start_session(self, worker_id, *, session_id=None, hostname=None, os_name=None,
                        repository=None, branch=None, pull_request=None,
-                       model_identity=None, endpoint_ref=None, started_at=None):
+                       model_identity=None, endpoint_ref=None, started_at=None,
+                       identity_state="verified"):
         worker_id = _id(worker_id, "worker_id")
         session_id = _id(session_id or f"session:{uuid4().hex}", "session_id")
         started = _stamp(started_at)
@@ -367,6 +377,7 @@ class WorkRegistry:
             "branch": branch, "pull_request": pull_request,
             "model_identity": model_identity, "endpoint_ref": endpoint_ref,
             "lifecycle": "running", "activity_state": "unknown",
+            "identity_state": identity_state,
             "current_work_order_id": None, "started_at": started,
             "last_heartbeat_at": started, "last_activity_at": None, "ended_at": None}
         self._validate_session(session)
@@ -501,7 +512,8 @@ class WorkRegistry:
         allowed = {"title", "detail", "status", "milestone", "milestones_total", "milestones",
                    "dependencies", "blocker", "next_action", "evidence", "outcome",
                    "repository", "branch", "pull_request", "deliverable", "local_ai_job",
-                   "worker_id", "owner_label", "ownership_state", "session_id"}
+                   "worker_id", "owner_label", "ownership_state", "session_id",
+                   "started_at", "completed_at"}
         if set(changes) - allowed:
             raise ValueError("unsupported work-order update field")
         with self._lock():
@@ -517,9 +529,11 @@ class WorkRegistry:
                     value = list(value)
                 work[key] = value
             work["updated_at"] = instant
-            if work.get("status") == "active" and work.get("started_at") is None:
+            if (work.get("status") == "active" and work.get("started_at") is None
+                    and "started_at" not in changes):
                 work["started_at"] = instant
-            if work.get("status") in {"completed", "failed", "cancelled"}:
+            if (work.get("status") in {"completed", "failed", "cancelled"}
+                    and "completed_at" not in changes):
                 work["completed_at"] = work.get("completed_at") or instant
             self._validate_work_order(work)
             if work["worker_id"] is not None and work["worker_id"] not in document["workers"]:
@@ -589,6 +603,7 @@ class WorkRegistry:
         sessions = []
         for source in document["sessions"].values():
             session = dict(source)
+            session.setdefault("identity_state", "verified")
             heartbeat = _parse_time(session["last_heartbeat_at"])
             if session["lifecycle"] != "running":
                 session["status"] = session["lifecycle"]

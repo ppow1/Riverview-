@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://riverview.invalid/contracts/work-registry/v1.schema.json",
+  "title": "Riverview Universal Work Registry v1",
+  "description": "Observational workers, sessions, work orders and local AI jobs. It grants no execution authorization and excludes prompts, credentials, and reasoning traces.",
+  "type": "object",
+  "required": ["schema_version", "workers", "sessions", "work_orders"],
+  "properties": {
+    "schema_version": {"const": "rv.work-registry.v1"},
+    "workers": {"type": "object", "additionalProperties": {"$ref": "#/$defs/worker"}},
+    "sessions": {"type": "object", "additionalProperties": {"$ref": "#/$defs/session"}},
+    "work_orders": {"type": "object", "additionalProperties": {"$ref": "#/$defs/work_order"}}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"},
+    "nullableString": {"type": ["string", "null"], "maxLength": 2000},
+    "reference": {"type": ["string", "null"], "maxLength": 512, "pattern": "^[A-Za-z0-9._:/#?=&%+@-]*$"},
+    "timestamp": {"type": ["string", "null"], "format": "date-time"},
+    "stringList": {"type": "array", "maxItems": 64, "items": {"type": "string", "maxLength": 256}},
+    "worker": {
+      "type": "object",
+      "required": ["worker_id", "worker_type", "hostname", "os", "capabilities", "model_identity", "endpoint_ref", "registered_at"],
+      "properties": {
+        "worker_id": {"$ref": "#/$defs/id"},
+        "worker_type": {"enum": ["codex", "local_ai", "resident", "engineering", "browser_test", "verification", "service", "other"]},
+        "hostname": {"type": "string", "maxLength": 255},
+        "os": {"type": "string", "maxLength": 64},
+        "capabilities": {"$ref": "#/$defs/stringList"},
+        "model_identity": {"type": ["string", "null"], "maxLength": 256},
+        "endpoint_ref": {"$ref": "#/$defs/reference"},
+        "registered_at": {"type": "string", "format": "date-time"}
+      },
+      "additionalProperties": false
+    },
+    "session": {
+      "type": "object",
+      "required": ["session_id", "worker_id", "hostname", "os", "repository", "branch", "pull_request", "model_identity", "endpoint_ref", "lifecycle", "activity_state", "current_work_order_id", "started_at", "last_heartbeat_at", "last_activity_at", "ended_at"],
+      "properties": {
+        "session_id": {"$ref": "#/$defs/id"},
+        "worker_id": {"$ref": "#/$defs/id"},
+        "hostname": {"type": ["string", "null"], "maxLength": 255},
+        "os": {"type": ["string", "null"], "maxLength": 64},
+        "repository": {"type": ["string", "null"], "maxLength": 512},
+        "branch": {"type": ["string", "null"], "maxLength": 256},
+        "pull_request": {"$ref": "#/$defs/reference"},
+        "model_identity": {"type": ["string", "null"], "maxLength": 256},
+        "endpoint_ref": {"$ref": "#/$defs/reference"},
+        "lifecycle": {"enum": ["unknown", "running", "completed", "disconnected"]},
+        "activity_state": {"enum": ["unknown", "idle", "working", "waiting"]},
+        "current_work_order_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+        "started_at": {"$ref": "#/$defs/timestamp"},
+        "last_heartbeat_at": {"$ref": "#/$defs/timestamp"},
+        "last_activity_at": {"$ref": "#/$defs/timestamp"},
+        "ended_at": {"$ref": "#/$defs/timestamp"}
+      },
+      "additionalProperties": false
+    },
+    "milestone": {
+      "type": "object", "required": ["milestone_id", "title", "status"],
+      "properties": {
+        "milestone_id": {"$ref": "#/$defs/id"},
+        "title": {"type": "string", "maxLength": 160},
+        "status": {"enum": ["pending", "active", "blocked", "completed"]}
+      },
+      "additionalProperties": false
+    },
+    "localAiJob": {
+      "type": "object",
+      "required": ["model_identity", "endpoint_ref", "slot", "queue_status", "task_correlation_id", "started_at", "completed_at"],
+      "properties": {
+        "model_identity": {"type": ["string", "null"], "maxLength": 256},
+        "endpoint_ref": {"$ref": "#/$defs/reference"},
+        "slot": {"$ref": "#/$defs/reference"},
+        "queue_status": {"enum": ["unknown", "queued", "dequeued", "running", "completed", "failed"]},
+        "task_correlation_id": {"$ref": "#/$defs/reference"},
+        "started_at": {"$ref": "#/$defs/timestamp"},
+        "completed_at": {"$ref": "#/$defs/timestamp"}
+      },
+      "additionalProperties": false
+    },
+    "work_order": {
+      "type": "object",
+      "required": ["work_order_id", "session_id", "worker_id", "owner_label", "ownership_state", "title", "detail", "status", "milestone", "milestones_total", "milestones", "dependencies", "blocker", "next_action", "evidence", "outcome", "repository", "branch", "pull_request", "deliverable", "local_ai_job", "created_at", "updated_at", "started_at", "completed_at"],
+      "properties": {
+        "work_order_id": {"$ref": "#/$defs/id"}, "session_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]}, "worker_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+        "owner_label": {"type": ["string", "null"], "maxLength": 255}, "ownership_state": {"enum": ["unassigned", "proposed", "assigned", "acknowledged"]},
+        "title": {"type": "string", "minLength": 1, "maxLength": 160}, "detail": {"$ref": "#/$defs/nullableString"},
+        "status": {"enum": ["unknown", "queued", "active", "blocked", "completed", "failed", "cancelled"]},
+        "milestone": {"type": ["integer", "null"], "minimum": 0}, "milestones_total": {"type": ["integer", "null"], "minimum": 1},
+        "milestones": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/milestone"}},
+        "dependencies": {"$ref": "#/$defs/stringList"}, "blocker": {"$ref": "#/$defs/nullableString"}, "next_action": {"type": ["string", "null"], "maxLength": 1000},
+        "evidence": {"$ref": "#/$defs/stringList"}, "outcome": {"$ref": "#/$defs/nullableString"},
+        "repository": {"type": ["string", "null"], "maxLength": 512}, "branch": {"type": ["string", "null"], "maxLength": 256},
+        "pull_request": {"$ref": "#/$defs/reference"}, "deliverable": {"$ref": "#/$defs/reference"}, "local_ai_job": {"oneOf": [{"$ref": "#/$defs/localAiJob"}, {"type": "null"}]},
+        "created_at": {"type": "string", "format": "date-time"}, "updated_at": {"type": "string", "format": "date-time"},
+        "started_at": {"$ref": "#/$defs/timestamp"}, "completed_at": {"$ref": "#/$defs/timestamp"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

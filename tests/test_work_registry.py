@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_work_registry.py
 # Component: UNIVERSAL-WORK-REGISTRY
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify durable dynamic worker/session/work lifecycle and import safety
 # Execution Model: Temporary file registry; concurrent writers; no services
 # Observability: Assert persisted snapshots, explicit unknown/stale state, and privacy allowlist
@@ -226,6 +226,74 @@ class WorkRegistryTests(unittest.TestCase):
         self.assertIsNone(session["last_heartbeat_at"])
         self.assertIsNone(session["last_activity_at"])
         self.assertEqual(session["started_at"], None)
+
+    def test_v4_import_keeps_legacy_alias_explicitly_unverified_and_preserves_assignment_only(self):
+        script = Path(__file__).parents[1] / "scripts/import_work_registry.py"
+        spec = importlib.util.spec_from_file_location("legacy_import_unverified", script)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        source = Path(self.temp.name) / "v4.json"
+        source.write_text(json.dumps({"task":"Previous assignment", "status":"COMPLETE",
+            "updated_at":"2026-10-18T10:00:00-04:00", "milestone":2,
+            "milestones_total":2, "evidence":"PR delivered"}), encoding="utf-8")
+        mapping = Path(self.temp.name) / "mapping-unverified.json"
+        mapping.write_text(json.dumps({"schema_version":"rv.work-registry.import-map.v1",
+            "records":[{"source":str(source), "worker_id":"W1", "session_id":"W1",
+                "hostname":"windows-host", "os":"Windows", "lifecycle":"unknown",
+                "identity_state":"unverified", "assignment_title":"Previous assignment",
+                "owner_label":"W1 legacy alias; session identity UNVERIFIED",
+                "ownership_state":"assigned", "source_evidence":"legacy v4 source: w1.json"}]}),
+            encoding="utf-8")
+        module.import_map(mapping, self.registry.path)
+        snapshot = self.registry.snapshot()
+        session = snapshot["sessions"][0]
+        work = snapshot["work_orders"][0]
+        self.assertEqual(session["session_id"], "W1")
+        self.assertEqual(session["identity_state"], "unverified")
+        self.assertEqual(session["status"], "unknown")
+        self.assertEqual(session["activity_state"], "unknown")
+        self.assertIsNone(session["last_heartbeat_at"])
+        self.assertIsNone(session["last_activity_at"])
+        self.assertEqual(work["status"], "completed")
+        self.assertIsNone(work["completed_at"])
+        self.assertIn("legacy v4 source: w1.json", work["evidence"])
+
+        source.write_text(json.dumps({"task":"Previous assignment", "status":"RUNNING",
+            "updated_at":"2026-10-18T11:00:00-04:00", "milestone":3,
+            "milestones_total":3}), encoding="utf-8")
+        refreshed = module.import_map(mapping, self.registry.path)
+        self.assertEqual(refreshed["work_orders_updated"], 1)
+        session = next(item for item in self.registry.snapshot()["sessions"]
+                       if item["session_id"] == "W1")
+        self.assertEqual(session["identity_state"], "unverified")
+        self.assertIsNone(session["last_heartbeat_at"])
+        work = next(item for item in self.registry.snapshot()["work_orders"]
+                    if item["session_id"] == "W1")
+        self.assertEqual(work["status"], "active")
+        self.assertIsNone(work["started_at"])
+        self.assertIsNone(work["completed_at"])
+        self.assertTrue(any("completed -> active" in item for item in work["evidence"]))
+
+        mapping_doc = json.loads(mapping.read_text(encoding="utf-8"))
+        mapping_doc["records"][0]["assignment_title"] = "Later assignment"
+        mapping.write_text(json.dumps(mapping_doc), encoding="utf-8")
+        source.write_text(json.dumps({"status":"RUNNING",
+            "updated_at":"2026-10-18T12:00:00-04:00"}), encoding="utf-8")
+        added = module.import_map(mapping, self.registry.path)
+        self.assertEqual(added["work_orders_added"], 1)
+        orders = [item for item in self.registry.snapshot()["work_orders"]
+                  if item["session_id"] == "W1"]
+        self.assertEqual({item["title"] for item in orders},
+                         {"Previous assignment", "Later assignment"})
+
+    def test_previous_v1_session_without_identity_state_remains_compatible(self):
+        self.register()
+        self.registry.start_session("worker:one", session_id="session:old")
+        old = self.registry._read_unlocked()
+        old["sessions"]["session:old"].pop("identity_state")
+        migrated = WorkRegistry(Path(self.temp.name) / "old-snapshot.json")
+        migrated.import_document(old)
+        self.assertEqual(migrated.snapshot()["sessions"][0]["identity_state"], "verified")
 
 
 if __name__ == "__main__":

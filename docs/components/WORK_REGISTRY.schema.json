@@ -48,6 +48,7 @@
         "endpoint_ref": {"$ref": "#/$defs/reference"},
         "lifecycle": {"enum": ["unknown", "running", "completed", "disconnected"]},
         "activity_state": {"enum": ["unknown", "idle", "working", "waiting"]},
+        "identity_state": {"enum": ["verified", "unverified"], "default": "verified", "description": "Optional in v1 for backward compatibility. Legacy imports without process-mapped identity must set unverified."},
         "current_work_order_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
         "started_at": {"$ref": "#/$defs/timestamp"},
         "last_heartbeat_at": {"$ref": "#/$defs/timestamp"},
