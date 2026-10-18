@@ -2,9 +2,9 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_work_registry.py
 # Component: UNIVERSAL-WORK-REGISTRY
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Verify durable dynamic worker/session/work lifecycle and import safety
-# Execution Model: Temporary file registry; concurrent writers; no services
+# Execution Model: Temporary file registry; thread and subprocess writers; no services
 # Observability: Assert persisted snapshots, explicit unknown/stale state, and privacy allowlist
 # Authority: Registration and reporting provide no execution authorization
 # Contracts: src/riverview_core/work_registry.py; docs/components/WORK_REGISTRY.schema.json
@@ -16,6 +16,8 @@ from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import importlib.util
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -76,6 +78,46 @@ class WorkRegistryTests(unittest.TestCase):
         self.assertEqual(len(set(work_ids)), 36)
         self.assertEqual(json.loads(self.registry.path.read_text(encoding="utf-8"))["schema_version"],
                          SCHEMA_VERSION)
+
+    def test_independent_process_writers_preserve_every_record(self):
+        source_root = Path(__file__).resolve().parents[1] / "src"
+        writer = r"""
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from riverview_core.work_registry import WorkRegistry
+path, index = Path(sys.argv[2]), sys.argv[3]
+registry = WorkRegistry(path)
+worker_id, session_id = f"process-worker:{index}", f"process-session:{index}"
+registry.register_worker(worker_id=worker_id, worker_type="codex",
+    hostname=f"process-host:{index}", os_name="Windows", capabilities=["test"])
+registry.start_session(worker_id, session_id=session_id)
+registry.create_work_order(session_id, work_order_id=f"process-work:{index}",
+    title=f"Process writer {index}")
+"""
+        processes = [subprocess.Popen([sys.executable, "-c", writer,
+            str(source_root), str(self.registry.path), str(index)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            for index in range(8)]
+        try:
+            results = [process.communicate(timeout=30) for process in processes]
+        except subprocess.TimeoutExpired:
+            for process in processes:
+                if process.poll() is None:
+                    process.kill()
+            for process in processes:
+                process.communicate()
+            raise
+        failures = [(process.returncode, stdout, stderr)
+                    for process, (stdout, stderr) in zip(processes, results)
+                    if process.returncode != 0]
+        self.assertEqual(failures, [])
+        snapshot = self.registry.snapshot()
+        self.assertEqual(len(snapshot["workers"]), 8)
+        self.assertEqual(len(snapshot["sessions"]), 8)
+        self.assertEqual(len(snapshot["work_orders"]), 8)
+        self.assertEqual({item["work_order_id"] for item in snapshot["work_orders"]},
+                         {f"process-work:{index}" for index in range(8)})
 
     def test_unknown_stale_disconnected_and_completed_are_distinct(self):
         self.register()
