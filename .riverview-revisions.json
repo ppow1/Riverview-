@@ -1,7 +1,10 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.232"
+      "path": ".riverview-revisions.json",
+      "revision": "1.1.233",
+      "sha256": "db29799c026f20d431bbd748b3653235852fb32a503de7ac6bf8c05db8e78e04",
+      "size_bytes": 13389
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -26,6 +29,12 @@
       "revision": "1.0.174",
       "sha256": "5348dd19d8e114f5fc025a5ac4e9b8e648e972564658604f1ba2b304aecb2f81",
       "size_bytes": 226833
+    },
+    "docs/development/RV-COMMS5-ESCALATION-INITIATION-001_REVISION_RECORD.md": {
+      "path": "docs/development/RV-COMMS5-ESCALATION-INITIATION-001_REVISION_RECORD.md",
+      "revision": "1.0.1",
+      "sha256": "7bab5488953be1fc1694e90228214696fe433cf23fd487d72779f9abdba148ca",
+      "size_bytes": 5306
     },
     "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md": {
       "path": "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md",
@@ -120,8 +129,8 @@
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
       "revision": "1.0.180",
-      "sha256": "a43183dffe0896749c708eb76503e41c89421c6a38471f2ede4c6158a532ed4d",
-      "size_bytes": 629722
+      "sha256": "78ea48d808b96fbb70143d3db196872a858ed78497ae2d12cc139faf213d21a4",
+      "size_bytes": 633615
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -180,8 +189,8 @@
     "process_graphs/resident-conversation/browser-chat.json": {
       "path": "process_graphs/resident-conversation/browser-chat.json",
       "revision": "1.0.21",
-      "sha256": "d342d74a7b7e4d3a903edc71c1fb17aeddfe45b2cb7307168cff3f91060ddee1",
-      "size_bytes": 51458
+      "sha256": "d3f27daff71dea011cc32caad2a97c06a2463d172e590a252771d201782cdc4d",
+      "size_bytes": 54861
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "path": "process_graphs/resident-reasoning/runtime.json",
@@ -260,14 +269,8 @@
       "revision": "1.0.0",
       "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
       "size_bytes": 1226
-    },
-    "docs/development/RV-COMMS5-ESCALATION-INITIATION-001_REVISION_RECORD.md": {
-      "path": "docs/development/RV-COMMS5-ESCALATION-INITIATION-001_REVISION_RECORD.md",
-      "revision": "1.0.1",
-      "sha256": "7bab5488953be1fc1694e90228214696fe433cf23fd487d72779f9abdba148ca",
-      "size_bytes": 5306
     }
   },
-  "manifest_revision": "1.1.232",
+  "manifest_revision": "1.1.233",
   "updated_at": null
 }

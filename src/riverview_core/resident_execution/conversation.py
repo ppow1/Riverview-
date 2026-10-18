@@ -2,8 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.2.13
+# Revision: 1.2.15
 # Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Preserve prompt_too_large as a safe deferred-resume diagnostic.
+# Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Persist capped deferred retries, terminalize deterministic provider errors, and distinguish terminal auth/input failures.
 # Changed: 2026-10-18 UTC | RV-GRACE-DEFERRED-STREAM-COMPLETION | Start the durable stream generation before non-streaming tool-router resumption.
 # Purpose: Persist and serve office-bound, authorized Grace conversations
 # Execution Model: Authenticated request-driven completion with durable event history
@@ -78,15 +79,80 @@ _SAFE_DIAGNOSTIC_CODES = frozenset({"endpoint_busy", "endpoint_timeout",
     "request_contract_invalid", "endpoint_status_invalid", "readiness_timeout",
     "health_status_invalid", "model_list_invalid", "configured_model_missing",
     "provider_slot_occupied", "all_models_unavailable", "prompt_too_large",
-    "required_capability_not_satisfied"})
+    "required_capability_not_satisfied", "authorization_denied"})
+_DEFERRED_RETRY_MAX_ATTEMPTS = 5
+_DEFERRED_RETRY_BASE_SECONDS = 5
+_DEFERRED_RETRY_MAX_SECONDS = 60
+_DETERMINISTIC_PROVIDER_ERRORS = frozenset({
+    "prompt_too_large", "request_contract_invalid", "response_contract_invalid",
+    "required_capability_not_satisfied",
+    "configured_model_missing", "router_binding_mismatch",
+})
+_TRANSIENT_HTTP_STATUSES = frozenset({408, 409, 425, 429, 500, 502, 503, 504})
+
+
+def _deferred_retry_delay(attempt_count):
+    """Return capped exponential backoff, or None once automatic retries are spent."""
+    if type(attempt_count) is not int or attempt_count < 1:
+        raise ValueError("attempt_count must be a positive integer")
+    if attempt_count >= _DEFERRED_RETRY_MAX_ATTEMPTS:
+        return None
+    return min(_DEFERRED_RETRY_BASE_SECONDS * (2 ** (attempt_count - 1)),
+               _DEFERRED_RETRY_MAX_SECONDS)
+
+
+def _deferred_provider_error(exc):
+    """Return a sanitized provider code from a deferred completion failure."""
+    if (type(exc).__name__ == "ReasoningDeferred"
+            and getattr(exc, "state", None) == "UNSUPPORTED_CAPABILITY"):
+        return "required_capability_not_satisfied"
+    code = getattr(exc, "code", None)
+    if isinstance(code, str) and code in _SAFE_DIAGNOSTIC_CODES:
+        return code
+    attempts = getattr(exc, "attempts", ())
+    if attempts:
+        candidate = attempts[-1].get("error_code") if isinstance(attempts[-1], dict) else None
+        if isinstance(candidate, str) and (candidate in _SAFE_DIAGNOSTIC_CODES
+                or re.fullmatch(r"endpoint_http_[45][0-9]{2}", candidate)):
+            return candidate
+    if isinstance(code, str) and re.fullmatch(r"endpoint_http_[45][0-9]{2}", code):
+        return code
+    return "endpoint_unavailable"
+
+
+def _deferred_failure_disposition(exc):
+    """Classify a failed resume without exposing provider response contents."""
+    code = _deferred_provider_error(exc)
+    if code in _DETERMINISTIC_PROVIDER_ERRORS:
+        return "terminal", ("context_too_large" if code == "prompt_too_large"
+                            else "model_response_invalid")
+    match = re.fullmatch(r"endpoint_http_([45][0-9]{2})", code)
+    if match:
+        status = int(match.group(1))
+        if status in _TRANSIENT_HTTP_STATUSES or 500 <= status < 600:
+            return "retry", None
+        if 400 <= status < 500:
+            terminal_code = ({401: "authorization_denied", 403: "authorization_denied",
+                413: "context_too_large", 400: "model_response_invalid",
+                422: "model_response_invalid"}.get(status, "model_unavailable"))
+            return "terminal", terminal_code
+        return "retry", None
+    if type(exc).__name__ == "ReasoningDeferred":
+        return "retry", None
+    if code in {"endpoint_timeout", "endpoint_unavailable", "endpoint_loading",
+                "endpoint_busy", "provider_slot_occupied", "readiness_timeout"}:
+        return "retry", None
+    # Unknown adapter errors are bounded by retry policy; do not label them outages.
+    return "retry", None
 _SAFE_RESPONSE_CODES = frozenset({"model_provider_unavailable","model_binding_mismatch",
     "context_too_large","office_model_binding_changed","model_timeout",
     "model_unavailable","model_response_incomplete","model_response_invalid",
-    "service_restarted","reasoning_model_not_ready"})
+    "service_restarted","reasoning_model_not_ready","authorization_denied"})
 
 
 def _log_deferred_attempt(request_id, required_capability, exc, *,
-                          event="grace_deferred_resume_attempt"):
+                          event="grace_deferred_resume_attempt", attempt_count=None,
+                          recovery_action=None, final_disposition=None):
     """Write retry diagnostics without conversation text or raw provider errors."""
     attempts = []
     for attempt in getattr(exc, "attempts", ()):
@@ -108,7 +174,9 @@ def _log_deferred_attempt(request_id, required_capability, exc, *,
                             and exc.args and exc.args[0] in {
                                 "READY", "MODEL_BUSY", "MODEL_LOADING", "UNAVAILABLE",
                                 "TIMEOUT", "ERROR", "UNSUPPORTED_CAPABILITY"} else None),
-        "provider_attempts": attempts}, sort_keys=True))
+        "provider_attempts": attempts, "attempt_count": attempt_count,
+        "recovery_action": recovery_action,
+        "final_disposition": final_disposition}, sort_keys=True))
 
 
 class ConversationDenied(RuntimeError):
@@ -507,9 +575,11 @@ class ConversationStore:
             deferred = next((event for event in reversed(events)
                              if event["event_type"] == "response_deferred"), None)
             if deferred:
+                recovery = self.deferred_retry_status(request_id)
                 return {"schema_version": "rv.resident.response.v1", "status": "deferred",
                     "request_id": str(request_id), "error_code": deferred["error_code"],
-                    "required_capability": (deferred["metadata"] or {}).get("required_capability")}
+                    "required_capability": (deferred["metadata"] or {}).get("required_capability"),
+                    "recovery": recovery}
             return {"schema_version": "rv.resident.response.v1", "status": "pending",
                     "request_id": str(request_id)}
         if final["event_type"] == "assistant_message":
@@ -759,7 +829,79 @@ class ConversationStore:
                   WHERE resident_deferred_execution_claims.claim_until<=clock_timestamp()
                 RETURNING request_id""", (UUID(str(request_id)), UUID(str(claim_token)),
                                                lease_seconds))
-            return cur.fetchone() is not None
+            if cur.fetchone() is None:
+                return False
+            cur.execute("""INSERT INTO resident_deferred_retry_state
+                (request_id,attempt_count,next_attempt_at)
+                VALUES (%s,1,clock_timestamp())
+                ON CONFLICT (request_id) DO UPDATE SET
+                    attempt_count=resident_deferred_retry_state.attempt_count+1,
+                    next_attempt_at=clock_timestamp(),updated_at=clock_timestamp()
+                WHERE resident_deferred_retry_state.blocked_at IS NULL
+                  AND (resident_deferred_retry_state.next_attempt_at IS NULL
+                    OR resident_deferred_retry_state.next_attempt_at<=clock_timestamp())
+                RETURNING attempt_count""", (UUID(str(request_id)),))
+            if cur.fetchone() is None:
+                cur.execute("""DELETE FROM resident_deferred_execution_claims
+                    WHERE request_id=%s AND claim_token=%s""",
+                    (UUID(str(request_id)), UUID(str(claim_token))))
+                return False
+            return True
+
+    @_serialized_store_operation
+    def record_deferred_retry(self, request_id, claim_token, error_code, *, permanent=False):
+        """Persist the next bounded retry or leave the durable request visibly blocked."""
+        safe_code = (error_code if isinstance(error_code, str) and
+            (error_code in _SAFE_DIAGNOSTIC_CODES or
+             re.fullmatch(r"endpoint_http_[45][0-9]{2}", error_code)) else "provider_error")
+        with self.db.transaction(), self.db.cursor() as cur:
+            self._path(cur)
+            cur.execute("""SELECT state.attempt_count
+                FROM resident_deferred_retry_state state
+                JOIN resident_deferred_execution_claims claim USING (request_id)
+                WHERE state.request_id=%s AND claim.claim_token=%s FOR UPDATE OF state""",
+                (UUID(str(request_id)), UUID(str(claim_token))))
+            row = cur.fetchone()
+            if row is None:
+                return None
+            attempts = row["attempt_count"]
+            blocked = permanent or attempts >= _DEFERRED_RETRY_MAX_ATTEMPTS
+            delay = None if blocked else _deferred_retry_delay(attempts)
+            cur.execute("""UPDATE resident_deferred_retry_state
+                SET last_error_code=%s,
+                    next_attempt_at=CASE WHEN %s THEN NULL
+                        ELSE clock_timestamp() + (%s * interval '1 second') END,
+                    blocked_at=CASE WHEN %s THEN clock_timestamp() ELSE NULL END,
+                    updated_at=clock_timestamp()
+                WHERE request_id=%s RETURNING attempt_count,next_attempt_at,blocked_at""",
+                (safe_code, blocked, delay or 0, blocked, UUID(str(request_id))))
+            updated = cur.fetchone()
+            return {"attempt_count": updated["attempt_count"],
+                "next_attempt_at": (updated["next_attempt_at"].isoformat()
+                    if updated["next_attempt_at"] else None),
+                "blocked": updated["blocked_at"] is not None,
+                "delay_seconds": delay, "last_error_code": safe_code}
+
+    @_serialized_store_operation
+    def deferred_retry_status(self, request_id):
+        """Expose retry schedule without conversation text or provider payloads."""
+        with self.db.cursor() as cur:
+            self._path(cur)
+            cur.execute("""SELECT attempt_count,next_attempt_at,last_error_code,blocked_at
+                FROM resident_deferred_retry_state WHERE request_id=%s""",
+                (UUID(str(request_id)),))
+            row = cur.fetchone()
+            if row is None:
+                return {"attempt_count": 0, "next_attempt_at": None,
+                        "last_error_code": None, "blocked": False}
+            code = row["last_error_code"]
+            safe_code = code if code in _SAFE_DIAGNOSTIC_CODES or (
+                isinstance(code, str) and re.fullmatch(r"endpoint_http_[45][0-9]{2}", code)) else "provider_error"
+            return {"attempt_count": row["attempt_count"],
+                "next_attempt_at": row["next_attempt_at"].isoformat()
+                    if row["next_attempt_at"] else None,
+                "last_error_code": safe_code,
+                "blocked": row["blocked_at"] is not None}
 
     @_serialized_store_operation
     def release_deferred_claim(self, request_id, claim_token):
@@ -775,12 +917,17 @@ class ConversationStore:
             self._path(cur)
             cur.execute("""SELECT DISTINCT ON (u.request_id) u.conversation_id,u.request_id,
                 u.actor_id AS principal_id,u.body,u.sequence,u.metadata AS user_metadata,d.metadata,u.occupant_id,
-                u.implementation_id,u.implementation_revision,u.provider_ref,u.model_id
+                u.implementation_id,u.implementation_revision,u.provider_ref,u.model_id,
+                COALESCE(retry.attempt_count,0) AS attempt_count,
+                retry.next_attempt_at,retry.last_error_code
                 FROM resident_conversation_events d
                 JOIN resident_conversation_events u USING (request_id)
                 JOIN resident_conversations c ON c.conversation_id=u.conversation_id
+                LEFT JOIN resident_deferred_retry_state retry ON retry.request_id=u.request_id
                 WHERE d.event_type='response_deferred' AND u.event_type='user_message'
                   AND c.owner_principal_id=u.actor_id
+                  AND (retry.request_id IS NULL OR (retry.blocked_at IS NULL
+                    AND (retry.next_attempt_at IS NULL OR retry.next_attempt_at<=clock_timestamp())))
                   AND NOT EXISTS (SELECT 1 FROM resident_conversation_events f
                     WHERE f.request_id=u.request_id AND f.event_type IN
                     ('assistant_message','response_failed','response_interrupted'))
@@ -1243,9 +1390,12 @@ class ResidentConversationService:
             else:
                 code=getattr(exc,"code",None)
                 safe_code=code if code in _SAFE_RESPONSE_CODES else {
+                    "prompt_too_large":"context_too_large",
+                    "endpoint_http_413":"context_too_large",
                     "endpoint_timeout":"model_timeout",
                     "response_incomplete":"model_response_incomplete",
                     "response_contract_invalid":"model_response_invalid",
+                    "request_contract_invalid":"model_response_invalid",
                     "response_too_large":"model_response_incomplete"}.get(
                         code,"model_unavailable")
                 try:
@@ -1253,6 +1403,9 @@ class ResidentConversationService:
                     binding=self._authorize_office_binding()
                     failure_metadata={
                             "provider_attempts":list(getattr(exc,"attempts",())),
+                            "provider_error_code": (code if isinstance(code, str) and
+                                (code in _SAFE_DIAGNOSTIC_CODES or re.fullmatch(
+                                    r"endpoint_http_[45][0-9]{2}",code)) else "provider_error"),
                             "final_served_provider":None}
                     self.store.finish_streamed_turn(conversation_id,request_id,
                         occupant=binding,
@@ -1687,15 +1840,22 @@ class ResidentConversationService:
             provider_code = getattr(exc, "code", "")
             if provider_code == "endpoint_timeout" or isinstance(exc, TimeoutError):
                 code = "model_timeout"
+            elif provider_code in {"prompt_too_large", "endpoint_http_413"}:
+                code = "context_too_large"
             elif provider_code == "response_incomplete":
                 code = "model_response_incomplete"
-            elif provider_code == "response_contract_invalid":
+            elif provider_code in {"response_contract_invalid", "request_contract_invalid"}:
                 code = "model_response_invalid"
             else:
                 code = "model_unavailable"
             return self._failed(conversation_id, request_id, binding, implementation,
                                 provider_ref, code, metadata={
                                     **self._context_metadata(operational_snapshot),
+                                    "provider_error_code": (provider_code if
+                                        provider_code in _SAFE_DIAGNOSTIC_CODES or
+                                        (isinstance(provider_code, str) and re.fullmatch(
+                                            r"endpoint_http_[45][0-9]{2}",provider_code))
+                                        else "provider_error"),
                                     "provider_attempts": list(getattr(exc, "attempts", ())),
                                     "final_served_provider": None})
 
@@ -1707,6 +1867,31 @@ class ResidentConversationService:
             provider_ref=provider.provider_id, model_id=provider.model,
             reasoning_stage="reasoning")
 
+    def _finish_deferred_failure(self, row, current, exc, error_code):
+        """Persist one correlated terminal failure for a non-retryable resume."""
+        implementation = {"office_id": self.office_id,
+            "implementation_id": current["implementation_id"],
+            "implementation_revision": current["implementation_revision"]}
+        provider_code = _deferred_provider_error(exc)
+        metadata = {"required_capability": "grace.reasoning.80b",
+            "provider_error_code": provider_code,
+            "provider_attempts": list(getattr(exc, "attempts", ())),
+            "recovery_action": "terminal_failure", "final_disposition": "failed"}
+        if self.store.has_stream(row["request_id"]):
+            self.store.finish_streamed_turn(row["conversation_id"], row["request_id"],
+                occupant={"occupant_id": row["occupant_id"]},
+                implementation=implementation, provider_ref=row["provider_ref"],
+                model_id=row["model_id"], body=None, metadata=metadata,
+                stream_metadata={"error_code": error_code,
+                    "final_disposition": "failed"},
+                event_type="response_failed", error_code=error_code)
+        else:
+            self.store.finish_turn(row["conversation_id"], row["request_id"],
+                event_type="response_failed",
+                occupant={"occupant_id": row["occupant_id"]},
+                implementation=implementation, provider_ref=row["provider_ref"],
+                model_id=row["model_id"], error_code=error_code, metadata=metadata)
+
     def resume_deferred(self, *, limit=20):
         """Resume durable turns after exact authorization and audited direct-upgrade checks."""
         resumed = 0
@@ -1714,6 +1899,7 @@ class ResidentConversationService:
             claim_token = str(uuid4())
             if not self.store.claim_deferred_request(row["request_id"], claim_token):
                 continue
+            attempt_count = int(row.get("attempt_count", 0)) + 1
             try:
                 principal = InstitutionalPrincipal(row["principal_id"])
                 current_grant = self._authorize(principal, self.SEND_ACTION)
@@ -1724,10 +1910,14 @@ class ResidentConversationService:
                         or current.get("occupant_id") != row["occupant_id"]
                         or current.get("implementation_kind") != "model"
                         or current.get("provider_ref") != row["provider_ref"]):
+                    self.store.record_deferred_retry(row["request_id"], claim_token,
+                        "required_capability_not_satisfied", permanent=True)
                     continue
                 router = self.providers.get(row["provider_ref"])
                 if (router is None or not getattr(router, "supports_capability",
                         lambda _cap: False)(required_capability)):
+                    self.store.record_deferred_retry(row["request_id"], claim_token,
+                        "configured_model_missing", permanent=True)
                     continue
                 same_implementation = (
                     current.get("implementation_id") == row["implementation_id"]
@@ -1739,6 +1929,8 @@ class ResidentConversationService:
                         successor_id=current["implementation_id"],
                         successor_revision=current["implementation_revision"],
                         required_capability=required_capability):
+                    self.store.record_deferred_retry(row["request_id"], claim_token,
+                        "required_capability_not_satisfied", permanent=True)
                     continue
                 current_grant = self._authorize(principal, self.SEND_ACTION)
                 history = self.store.history(row["conversation_id"], self.office_id,
@@ -1803,6 +1995,11 @@ class ResidentConversationService:
                     raise LocalReasoningUnavailable("required_capability_not_satisfied",
                         attempts=getattr(completion, "provider_attempts", ()))
                 if not completion.content.strip():
+                    failure = LocalReasoningUnavailable("response_contract_invalid")
+                    self.store.record_deferred_retry(row["request_id"], claim_token,
+                        "response_contract_invalid", permanent=True)
+                    self._finish_deferred_failure(row, current, failure,
+                        "model_response_invalid")
                     continue
                 implementation = {"office_id": self.office_id,
                     "implementation_id": current["implementation_id"],
@@ -1856,21 +2053,52 @@ class ResidentConversationService:
                 resumed += 1
             except ConversationDenied:
                 # A revoked exact grant pauses work without exposing chat content.
+                try:
+                    retry_state = self.store.record_deferred_retry(row["request_id"],
+                        claim_token, "authorization_denied", permanent=True)
+                    _log_deferred_attempt(row["request_id"], required_capability,
+                        LocalReasoningUnavailable("authorization_denied"),
+                        attempt_count=attempt_count, recovery_action="blocked_authorization",
+                        final_disposition="blocked" if retry_state else "blocked")
+                except Exception:
+                    pass
                 continue
             except Exception as exc:
                 from .model_router import ReasoningDeferred
                 if isinstance(exc, ReasoningDeferred) or isinstance(exc, LocalReasoningUnavailable):
-                    _log_deferred_attempt(row["request_id"], required_capability, exc)
-                    if self.store.has_stream(row["request_id"]):
+                    disposition, terminal_code = _deferred_failure_disposition(exc)
+                    provider_code = _deferred_provider_error(exc)
+                    if disposition == "terminal":
                         try:
-                            self.store.finish_stream(row["request_id"],"deferred",metadata={
-                                "required_capability":required_capability,
-                                "error_code":getattr(exc,"code","reasoning_unavailable")})
-                        except Exception:
-                            pass
+                            self.store.record_deferred_retry(row["request_id"], claim_token,
+                                provider_code, permanent=True)
+                            self._finish_deferred_failure(row, current, exc, terminal_code)
+                        except Exception as persist_exc:
+                            _LOG.warning("Grace terminal deferred failure persistence stopped (%s)",
+                                type(persist_exc).__name__)
+                        _log_deferred_attempt(row["request_id"], required_capability, exc,
+                            attempt_count=attempt_count, recovery_action="terminal_failure",
+                            final_disposition="failed")
+                    else:
+                        retry_state = self.store.record_deferred_retry(row["request_id"],
+                            claim_token, provider_code)
+                        action = "blocked_after_retry_limit" if retry_state and retry_state["blocked"] else "retry_scheduled"
+                        _log_deferred_attempt(row["request_id"], required_capability, exc,
+                            attempt_count=attempt_count, recovery_action=action,
+                            final_disposition="blocked" if retry_state and retry_state["blocked"] else "deferred")
+                        if self.store.has_stream(row["request_id"]):
+                            self.store.finish_stream(row["request_id"], "deferred", metadata={
+                                "required_capability": required_capability,
+                                "error_code": provider_code,
+                                "attempt_count": attempt_count,
+                                "recovery_action": action})
                     continue
-                # Keep durable work deferred on transient failures; retry after readiness changes.
-                _LOG.warning("Grace deferred request remains queued (%s)", type(exc).__name__)
+                # Keep unexpected failures durable but subject them to the same bounded backoff.
+                retry_state = self.store.record_deferred_retry(row["request_id"],
+                    claim_token, "endpoint_unavailable")
+                action = "blocked_after_retry_limit" if retry_state and retry_state["blocked"] else "retry_scheduled"
+                _LOG.warning("Grace deferred request recovery scheduled (%s, attempt=%s, action=%s)",
+                    type(exc).__name__, attempt_count, action)
                 continue
             finally:
                 self.store.release_deferred_claim(row["request_id"], claim_token)

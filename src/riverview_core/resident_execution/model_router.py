@@ -2,8 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.2.5
+# Revision: 1.2.6
 # Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Trim oldest conversational context to the provider byte limit while preserving system instructions and the active turn.
+# Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Preserve sanitized HTTP failure classes for bounded deferred recovery.
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Require tool-backed current-status answers.
 # Purpose: Prefer 80B for substantive turns, bound context and autonomic acknowledgments, and persist diagnostics
 # Execution Model: Request-driven; persisted deferred turns are resumed by the conversation owner
@@ -165,6 +166,8 @@ class GraceModelRouter:
                     error_code = detail
                 attempt = self._attempt("reasoning", provider, started_at, started,
                     outcome="deferred", error_code=error_code)
+                if not self._retryable_provider_error(error_code):
+                    raise LocalReasoningUnavailable(error_code, attempts=(attempt,))
                 raise ReasoningDeferred(state.state, attempts=(attempt,))
             return "reasoning", provider
         states = self.readiness()
@@ -241,7 +244,9 @@ class GraceModelRouter:
                 completion_tokens=getattr(exc, "completion_tokens", None),
                 completion_token_limit=getattr(exc, "completion_token_limit", None)))
             if stage == "reasoning":
-                code = getattr(exc, "code", "endpoint_unavailable")
+                code = self._safe_error(exc)
+                if not self._retryable_provider_error(code):
+                    raise LocalReasoningUnavailable(code, attempts=attempts) from None
                 state = "MODEL_BUSY" if code == "endpoint_busy" else (
                     "MODEL_BUSY" if code == "endpoint_http_503" else "UNAVAILABLE")
                 raise ReasoningDeferred(state, attempts=attempts) from None
@@ -467,8 +472,11 @@ class GraceModelRouter:
             completion = invoke(stage, provider, routed, stage_limit)
         except LocalReasoningUnavailable as exc:
             if stage == "reasoning":
+                code = self._safe_error(exc)
+                if not self._retryable_provider_error(code):
+                    raise LocalReasoningUnavailable(code, attempts=attempts) from None
                 raise ReasoningDeferred(
-                    "MODEL_BUSY" if self._safe_error(exc) in {"endpoint_busy", "endpoint_http_503"}
+                    "MODEL_BUSY" if code in {"endpoint_busy", "endpoint_http_503"}
                     else "UNAVAILABLE", attempts=attempts) from None
             if stage != "interim_30b":
                 raise LocalReasoningUnavailable(self._safe_error(exc), attempts=attempts) from None
@@ -598,7 +606,22 @@ class GraceModelRouter:
     @classmethod
     def _safe_error(cls, exc):
         code = getattr(exc, "code", "")
-        return code if code in cls._SAFE_ERRORS else "provider_error"
+        return code if code in cls._SAFE_ERRORS or (
+            isinstance(code, str) and re.fullmatch(r"endpoint_http_[45][0-9]{2}", code)) else "provider_error"
+
+    @staticmethod
+    def _retryable_provider_error(code):
+        """Only readiness/transport/server-busy outcomes may enter deferred retry."""
+        if code in {"endpoint_busy", "endpoint_timeout", "endpoint_unavailable",
+                    "endpoint_loading", "readiness_timeout", "provider_slot_occupied",
+                    "all_models_unavailable", "response_incomplete"}:
+            return True
+        match = re.fullmatch(r"endpoint_http_([45][0-9]{2})", code or "")
+        if not match:
+            return False
+        status = int(match.group(1))
+        return (status in {408, 409, 425, 429}
+                or 500 <= status < 600)
 
     @staticmethod
     def _attempt(stage, provider, started_at, started, *, outcome,

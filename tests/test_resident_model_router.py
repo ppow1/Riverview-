@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.15
+# Revision: 1.0.16
 # Purpose: Verify primary 80B routing, capability-pinned recovery, bounded fallback and diagnostics
 # Execution Model: Deterministic provider doubles; no database or model endpoint
 # Observability: Assert selected provider and served-model provenance
@@ -16,6 +16,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-AUTONOMIC-CONTEXT-BOUND-001 | Verify minimal autonomic identity prompt and full substantive context without changing durable input
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
 # Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Regress byte-bounded prompt trimming and safe irreducible-context reporting.
+# Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Prove legacy over-limit failure and independent three-capability readiness.
 # =============================================================================
 """Focused tests for Grace's readiness-aware three-stage router."""
 
@@ -211,6 +212,19 @@ class GraceModelRouterTests(unittest.TestCase):
         original = json.dumps(messages, ensure_ascii=False)
         self.reasoner.chat_prefix = "/no_think\\n"
 
+        legacy_complete = self.reasoner.complete_chat
+        def provider_limit(messages, **kwargs):
+            if len(json.dumps(messages, ensure_ascii=False,
+                               separators=(",", ":")).encode("utf-8")) > LocalReasoningProvider.MAX_PROMPT_BYTES:
+                raise LocalReasoningUnavailable("prompt_too_large")
+            return legacy_complete(messages, **kwargs)
+        self.reasoner.complete_chat = provider_limit
+        with self.assertRaises(LocalReasoningUnavailable) as legacy_failure:
+            self.reasoner.complete_chat(messages, max_tokens=128,
+                expected_revision=self.reasoner.model_sha256)
+        self.assertEqual(legacy_failure.exception.code, "prompt_too_large")
+        self.assertEqual(self.reasoner.calls, [])
+
         self.router.complete_chat(messages, max_tokens=128,
             expected_revision=self.router.model_sha256,
             required_capability="grace.reasoning.80b")
@@ -243,6 +257,34 @@ class GraceModelRouterTests(unittest.TestCase):
                 required_capability="grace.reasoning.80b")
         self.assertEqual(raised.exception.code, "prompt_too_large")
         self.assertEqual(self.reasoner.calls, [])
+
+    def test_one_capability_readiness_failure_does_not_change_the_other_two(self):
+        self.vision.state = "UNAVAILABLE"
+        state = self.router.readiness()
+        self.assertEqual(state["autonomic"].state, "READY")
+        self.assertEqual(state["vision"].state, "UNAVAILABLE")
+        self.assertEqual(state["reasoning"].state, "READY")
+        answer = self.router.complete_chat([{"role": "user", "content": "Hello."}],
+            max_tokens=32, expected_revision=self.router.model_sha256)
+        self.assertTrue(answer.provisional)
+        self.assertEqual(answer.served_model, self.cpu.model)
+        self.assertEqual(self.vision.calls, [])
+        self.assertEqual(self.reasoner.calls, [])
+
+    def test_deterministic_completion_errors_are_not_reported_as_unavailable_readiness(self):
+        for code in ("prompt_too_large", "response_contract_invalid", "endpoint_http_401",
+                     "endpoint_http_403", "endpoint_http_413", "endpoint_http_404"):
+            with self.subTest(code=code):
+                self.reasoner.failure = code
+                with self.assertRaises(LocalReasoningUnavailable) as caught:
+                    self.router.complete_chat([{"role": "user", "content": "Analyze this."}],
+                        max_tokens=64, expected_revision=self.router.model_sha256,
+                        required_capability="grace.reasoning.80b")
+                self.assertEqual(caught.exception.code, code)
+                self.reasoner.failure = None
+        self.assertTrue(self.router._retryable_provider_error("endpoint_timeout"))
+        self.assertTrue(self.router._retryable_provider_error("endpoint_http_503"))
+        self.assertFalse(self.router._retryable_provider_error("endpoint_http_401"))
 
     def test_prompt_too_large_survives_deferred_log_sanitization(self):
         from riverview_core.resident_execution.conversation import _log_deferred_attempt
