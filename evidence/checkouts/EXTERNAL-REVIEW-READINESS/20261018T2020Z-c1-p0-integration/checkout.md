@@ -2,9 +2,10 @@
 Riverview~ Controlled Evidence
 File: evidence/checkouts/EXTERNAL-REVIEW-READINESS/20261018T2020Z-c1-p0-integration/checkout.md
 Component: EXTERNAL-REVIEW-READINESS
-File Revision: 1.0.2
+File Revision: 1.0.3
 Changed: 2026-10-18 UTC | RV-C1-P0-READINESS-INTEGRATION-001 | Correct evidence capture timestamp
 Changed: 2026-10-18 UTC | RV-C1-P0-INTEGRATION-CLOSURE-002 | Record integrated-head readiness and expired-sentinel regression evidence
+Changed: 2026-10-18 UTC | RV-C1-P0-INTEGRATION-CLOSURE-002 | Verify latest W3 C4 fix and exact integrated expiry result shape
 Task: RV-C1-P0-READINESS-INTEGRATION-001
 History: Git and issue #120
 -->
@@ -42,28 +43,36 @@ doorbell receipt exercise.
 
 ## Integration closure addendum
 
-The current published W3 integration head inspected for this closure is
-`f2de2061778f0a69aa7af38d7e60ae987f4b17f6`. It contains C2 owner-session
+The latest published W3 integration head inspected for this closure is
+`5e7f9b77ffa8f4bff760714733d872863e72cd38`. It contains C2 owner-session
 composition, C3 atomic exchange claim/receipt and Grace owner-loop wiring, and
-the C1 readiness projection. C1's readiness projection accepts C2's actual
-`trigger_status` field and checks C3/C4 request/response identity and digest
-contracts without copying private values into its output.
+C4's corrected expiry mapping (integrated commit `dafde93f`). The C2
+`DoorbellCycleResult.trigger_status` contract was checked in source: `ready` is
+returned for idle/no claim and a submitted receipt, `blocked` for invalid or
+failed receipt, and `unavailable` for claim/receipt failures. C3 status carries
+correlation/provider identity, durable delivery state, digests, and deadline.
+The C1 projection compares those fields without copying private values to its
+output.
 
-Two additional fail-closed regressions cover the observed C4 defect shape:
-an expired C3 exchange accompanied by a provider result incorrectly mapped to
-`response_received` remains `blocked/review_expired`; an `expired` sentinel
-cannot be treated as a durable response digest. These tests ran on C1's branch
-(19 tests passed) and were applied to a detached W3 checkout (19 tests passed).
-The W3 checkout also passed `compileall` and process-graph validation (22
-graphs / 573 nodes). It is a disposable verification checkout, not a published
-W3 integration commit.
+The expired exchange regression remains fail-closed when presented with C4's
+prior incorrect `response_received`/`expired` sentinel mapping. It also rejects
+an `expired` sentinel as a response digest. These tests ran on C1's branch (19
+passed) and on a disposable overlay of W3 `5e7f9b77` plus C1 commits
+`b370ef3c`, `42863b56`, and `d9a83320` (19 passed). The overlay source compiled
+and graph validation passed (22 graphs / 573 nodes); it is not a published W3
+commit. The corrected C4 result shape `{"state":"expired","accepted":false}`
+with no digest was also projected against C3 `delivery_state=expired`: the
+result was `blocked/review_expired`, `next_action=record_expiry`, with no
+identifiers or response data emitted.
 
-C4 published the correction in PR #130 head
-`45807c642040ba3b48fdb51e6f5f3d1219e23a06` after the W3 head above was
-published. The correction returns an explicit non-success `expired` result and
-omits `response_sha256`. Its integration and exact-head CI were pending at the
-time of this evidence capture. Therefore C1's offline projection is safe
-against the regression, but the combined integrated behavior is **NO-GO** until
-W3 includes the C4 correction and W2 exercises the actual doorbell receipt
-chain with a disposable PostgreSQL trace export. No actual DB trace export was
-available to C1 at capture time. No live ChatGPT/browser operation is claimed.
+PR #133 exact head `d9a8332006d59c443473ea7ef8b1b45e0271bbb6` CI run
+39164359352 passed: 643 tests, 4 skipped; graph validation 22 graphs / 565
+nodes; revision/predecessor audit passed with zero findings. This is C1 branch
+CI, distinct from W3 integration testing. W2's updated PR #136 commit
+`8b4dcd0f9291f2c7c61bf47047063c8f33ffbea1` exercises the integrated C2 worker,
+durable C3 receipt, provider MCP and Grace, and emits a sanitized trace
+snapshot. Its controlled PostgreSQL run 39164555744 was still in progress at
+this capture; C1 has not yet inspected its resulting trace. Therefore the
+readiness projection contract is **PASS**, while complete offline integrated
+acceptance remains **NO-GO** pending that disposable PostgreSQL result/trace.
+No live ChatGPT/browser operation is claimed.
