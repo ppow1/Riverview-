@@ -2,7 +2,7 @@
   "files": {
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.246",
+      "revision": "1.1.247",
       "sha256": "db29799c026f20d431bbd748b3653235852fb32a503de7ac6bf8c05db8e78e04",
       "size_bytes": 13389
     },
@@ -278,9 +278,9 @@
     },
     "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md": {
       "path": "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md",
-      "revision": "1.3.0",
-      "sha256": "7de189283d488cfb631b94345fa4a9a571c1511ae411673e9cdfa071b5216ad6",
-      "size_bytes": 16746
+      "revision": "1.4.0",
+      "sha256": "cd1727ea9c5737ecb428e6af277cfb86e6e491d2c3977eb6f8fbb98d6113b405",
+      "size_bytes": 17165
     },
     "docs/schemas/resident-learning-record.schema.json": {
       "path": "docs/schemas/resident-learning-record.schema.json",
@@ -331,6 +331,6 @@
       "size_bytes": 2906
     }
   },
-  "manifest_revision": "1.1.246",
+  "manifest_revision": "1.1.247",
   "updated_at": null
 }
