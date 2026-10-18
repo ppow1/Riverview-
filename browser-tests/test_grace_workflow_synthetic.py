@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: browser-tests/test_grace_workflow_synthetic.py
 # Component: LINUX-BROWSER-ACCEPTANCE
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Browser-check the visible Grace proposal and approval boundary in an isolated synthetic fixture
 # Execution Model: Playwright test with in-memory API interception
 # Observability: Pytest result, screenshot, error JSON, and failure trace
@@ -18,7 +18,15 @@
 import json
 from urllib.parse import urlsplit
 
+import os
+import pytest
+
 from playwright.sync_api import Page, expect
+
+pytestmark = pytest.mark.skipif(
+    os.environ.get("RIVERVIEW_GRACE_STAGING_MODE") == "1",
+    reason="synthetic fixture is not used in authenticated staging mode",
+)
 
 
 def test_synthetic_grace_request_stops_at_real_execution_authorization(

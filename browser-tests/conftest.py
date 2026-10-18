@@ -2,15 +2,15 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: browser-tests/conftest.py
 # Component: LINUX-BROWSER-ACCEPTANCE
-# Revision: 1.0.2
-# Purpose: Capture bounded browser errors and an isolated run summary
+# Revision: 1.0.4
+# Purpose: Capture bounded errors and safely provision optional host-scoped staging browser state
 # Execution Model: Pytest fixture and lifecycle hooks
 # Observability: Private JSON reports; Playwright plugin stores screenshots and failure traces
 # Dependencies: pytest-playwright; Python 3.10+
-# Authority: Never loads an authenticated profile; network mutations are blocked in tests
-# Changed: 2026-10-18 UTC | RV-LINUX-BROWSER-ACCEPTANCE-001 | Add redacted browser evidence capture
+# Authority: Loads only explicitly supplied exact-host cookie state in staging mode; all mutations remain blocked
+# Changed: 2026-10-18 UTC | RV-C2-STAGING-GRACE-BROWSER-003 | Add opt-in staging cookie state and exact session gate
 # Contracts: docs/operations/LINUX_BROWSER_ACCEPTANCE.md
-# Tests: tests/browser/test_read_only_smoke.py
+# Tests: browser-tests/test_grace_staging_readonly.py; browser-tests/test_read_only_smoke.py
 # History: Git
 # =============================================================================
 """Shared safe evidence capture for Linux browser acceptance tests."""
@@ -24,6 +24,8 @@ import re
 from urllib.parse import urlsplit, urlunsplit
 
 import pytest
+
+from scripts.grace_staging_browser import validate_storage_state
 
 
 def _output_dir() -> Path:
@@ -52,6 +54,19 @@ def _safe_url(value: str) -> str:
         return "[url-redacted]"
 
 
+@pytest.fixture(scope="session")
+def browser_context_args(browser_context_args):
+    """Load host-bound cookie state only when the guarded staging runner enables it."""
+    if os.environ.get("RIVERVIEW_GRACE_STAGING_MODE") != "1":
+        return browser_context_args
+    origin = os.environ.get("RIVERVIEW_BROWSER_TARGET_ORIGIN", "")
+    host = urlsplit(origin).hostname or ""
+    state = validate_storage_state(
+        os.environ.get("RIVERVIEW_GRACE_STAGING_STORAGE_STATE", ""), expected_host=host
+    )
+    return {**browser_context_args, "storage_state": str(state)}
+
+
 @pytest.fixture
 def browser_error_log(page, request):
     """Collect errors without recording request bodies, headers, or query strings."""
@@ -70,11 +85,28 @@ def browser_error_log(page, request):
                        "method": browser_request.method})
 
     def block_non_get(route):
-        method = route.request.method.upper()
-        if method != "GET":
+        request = route.request
+        method = request.method.upper()
+        parsed = urlsplit(request.url)
+        same_origin = (parsed.scheme + "://" + parsed.netloc).rstrip("/") == os.environ.get(
+            "RIVERVIEW_BROWSER_TARGET_ORIGIN", ""
+        )
+        safe_session_init = (
+            os.environ.get("RIVERVIEW_GRACE_STAGING_MODE") == "1"
+            and same_origin
+            and method == "POST"
+            and parsed.path == "/api/v1/resident/conversation-session"
+            and not parsed.query and not parsed.fragment
+            and request.post_data in (None, "")
+        )
+        if method not in {"GET", "HEAD"} and not safe_session_init:
             blocked_methods.append(method)
             errors.append({"kind": "blocked_non_get", "method": method,
-                           "url": _safe_url(route.request.url)})
+                           "url": _safe_url(request.url)})
+            return route.abort("blockedbyclient")
+        if os.environ.get("RIVERVIEW_GRACE_STAGING_MODE") == "1" and not same_origin:
+            errors.append({"kind": "blocked_cross_origin", "method": method,
+                           "url": _safe_url(request.url)})
             return route.abort("blockedbyclient")
         return route.continue_()
 

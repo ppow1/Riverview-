@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.70",
+  "manifest_revision": "1.1.72",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.44",
+      "revision": "1.0.45",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "7abd93d36fde5462c96582c387091d5f5ee8975b5d23d7c401369a1d72ea8aad",
-      "size_bytes": 256220
+      "sha256": "1288d68d39597aac2caba61dadd5c3e3f92a72d9f439d4e939f0dc2f14b0c4f4",
+      "size_bytes": 258556
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 27724
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.70"
+      "revision": "1.1.72"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -197,10 +197,10 @@
       "size_bytes": 6987
     },
     "process_graphs/steward-dashboard/linux-browser-acceptance.json": {
-      "revision": "1.0.2",
+      "revision": "1.0.3",
       "path": "process_graphs/steward-dashboard/linux-browser-acceptance.json",
-      "sha256": "e75465ae5e431fd75954b8ab88bc386fb2c4e344893f1ad104c80f3e377fcfa3",
-      "size_bytes": 6662
+      "sha256": "9f070d4e4a3a8582ff5961157beaf904a4584ddb8a07c8192ebbccb20cda4bda",
+      "size_bytes": 8482
     }
   }
 }

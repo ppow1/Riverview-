@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:steward-dashboard:linux-browser-acceptance",
-  "graph_revision": "1.0.2",
+  "graph_revision": "1.0.3",
   "component_id": "STEWARD-DASHBOARD",
   "workflow_id": "linux-browser-acceptance.v1",
   "diagram_order": 20,
@@ -9,7 +9,9 @@
     "browser-tests/conftest.py",
     "browser-tests/test_read_only_smoke.py",
     "browser-tests/test_grace_workflow_synthetic.py",
+    "browser-tests/test_grace_staging_readonly.py",
     "browser-tests/fixtures/grace-workflow.html",
+    "scripts/grace_staging_browser.py",
     "browser-tests/fixtures/smoke.html"
   ],
   "documentation_references": [
@@ -98,6 +100,24 @@
       "source_references": ["browser-tests/test_grace_workflow_synthetic.py"],
       "documentation_references": ["docs/operations/LINUX_BROWSER_ACCEPTANCE.md"],
       "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:linux-browser-acceptance:staging-scope-check",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Opt-in staged origin, exact-host private cookie state, test account, and seeded conversation pass fail-closed validation",
+      "source_references": ["scripts/grace_staging_browser.py", "scripts/run_linux_browser_acceptance.py"],
+      "documentation_references": ["docs/operations/LINUX_BROWSER_ACCEPTANCE.md"],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:linux-browser-acceptance:staging-boundary-inspection",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Read seeded Grace conversation, inspect exact-grant work-order dialog, read objective status, and stop before mutation",
+      "source_references": ["browser-tests/test_grace_staging_readonly.py", "browser-tests/conftest.py"],
+      "documentation_references": ["docs/operations/LINUX_BROWSER_ACCEPTANCE.md"],
+      "verification_evidence": []
     }
   ],
   "edges": [
@@ -109,6 +129,9 @@
     {"from": "rv:steward-dashboard:linux-browser-acceptance:collect-evidence", "to": "rv:steward-dashboard:linux-browser-acceptance:fail-closed", "type": "diagnostic_branch", "label": "browser error or failed assertion"},
     {"from": "rv:steward-dashboard:linux-browser-acceptance:request", "to": "rv:steward-dashboard:linux-browser-acceptance:synthetic-proposal", "type": "runtime_transition", "label": "isolated fixture test only"},
     {"from": "rv:steward-dashboard:linux-browser-acceptance:synthetic-proposal", "to": "rv:steward-dashboard:linux-browser-acceptance:synthetic-approval-boundary", "type": "runtime_transition"},
-    {"from": "rv:steward-dashboard:linux-browser-acceptance:synthetic-approval-boundary", "to": "rv:steward-dashboard:linux-browser-acceptance:synthetic-work-order-status", "type": "runtime_transition", "label": "test-only synthetic approval; no actual authority"}
+    {"from": "rv:steward-dashboard:linux-browser-acceptance:synthetic-approval-boundary", "to": "rv:steward-dashboard:linux-browser-acceptance:synthetic-work-order-status", "type": "runtime_transition", "label": "test-only synthetic approval; no actual authority"},
+    {"from": "rv:steward-dashboard:linux-browser-acceptance:request", "to": "rv:steward-dashboard:linux-browser-acceptance:staging-scope-check", "type": "runtime_transition", "label": "optional actual staging UI only"},
+    {"from": "rv:steward-dashboard:linux-browser-acceptance:staging-scope-check", "to": "rv:steward-dashboard:linux-browser-acceptance:staging-boundary-inspection", "type": "runtime_transition", "label": "all scoped prerequisites pass"},
+    {"from": "rv:steward-dashboard:linux-browser-acceptance:staging-scope-check", "to": "rv:steward-dashboard:linux-browser-acceptance:fail-closed", "type": "diagnostic_branch", "label": "missing or unsafe staging precondition"}
   ]
 }

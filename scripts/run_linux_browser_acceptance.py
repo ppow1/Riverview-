@@ -3,13 +3,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_linux_browser_acceptance.py
 # Component: LINUX-BROWSER-ACCEPTANCE
-# Revision: 1.0.3
-# Purpose: Run bounded, read-only browser smoke checks with private evidence output
+# Revision: 1.0.7
+# Purpose: Run bounded browser smoke checks and explicitly opt-in read-only Grace staging verification
 # Execution Model: Request-driven local test runner
 # Observability: Pytest summary, sanitized error JSON, screenshots, failure traces
 # Dependencies: Python 3.10+, .venv with browser-tests/requirements.txt, Chromium
-# Authority: Loopback target by default; remote targets require explicit read-only opt-in
-# Changed: 2026-10-18 UTC | RV-LINUX-BROWSER-ACCEPTANCE-001 | Add Linux Playwright runner
+# Authority: Loopback target by default; staging mode requires scoped test state and blocks all mutations
+# Changed: 2026-10-18 UTC | RV-C2-STAGING-GRACE-BROWSER-003 | Add guarded Grace staging mode
 # Contracts: docs/operations/LINUX_BROWSER_ACCEPTANCE.md
 # Tests: tests/test_linux_browser_runner.py; tests/browser/test_read_only_smoke.py
 # History: Git
@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
-import ipaddress
 import json
 import os
 from pathlib import Path
@@ -28,35 +27,17 @@ import re
 import shlex
 import subprocess
 import sys
-from urllib.parse import urlsplit
 from uuid import uuid4
+
+try:
+    from scripts.grace_staging_browser import validate_grace_staging_config, validate_target
+except ModuleNotFoundError as error:
+    if error.name != "scripts":
+        raise
+    from grace_staging_browser import validate_grace_staging_config, validate_target
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BASE_URL = "http://127.0.0.1:8766"
-
-
-def validate_target(base_url: str, allow_remote: bool) -> tuple[str, str]:
-    """Return a sanitized origin and require explicit approval for non-loopback."""
-    parsed = urlsplit(base_url)
-    if (parsed.scheme not in {"http", "https"} or not parsed.hostname
-            or parsed.username is not None or parsed.password is not None
-            or parsed.query or parsed.fragment or parsed.path not in {"", "/"}):
-        raise ValueError("target_must_be_http_origin_without_credentials_path_or_query")
-    host = parsed.hostname.rstrip(".").lower()
-    is_loopback = host == "localhost"
-    try:
-        is_loopback = is_loopback or ipaddress.ip_address(host).is_loopback
-    except ValueError:
-        pass
-    if not is_loopback and not allow_remote:
-        raise ValueError("non_loopback_target_requires_readonly_opt_in")
-    try:
-        port = parsed.port
-    except ValueError:
-        raise ValueError("target_port_invalid") from None
-    origin_host = f"[{host}]" if ":" in host else host
-    origin = f"{parsed.scheme}://{origin_host}" + (f":{port}" if port else "")
-    return origin, host
 
 
 def validate_smoke_path(path: str) -> str:
@@ -74,7 +55,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--smoke-path", default="/", help="Read-only GET path under the selected origin")
     parser.add_argument("--expect-heading", help="Require this visible heading on the smoke page")
     parser.add_argument("--allow-remote-readonly", action="store_true",
-                        help="Permit a non-loopback target; tests still block all non-GET requests")
+                        help="Permit a non-loopback target; default tests still block all non-GET requests")
+    parser.add_argument("--grace-staging-readonly", action="store_true",
+                        help="Run the opt-in authenticated Grace staging inspection; sends no message or objective")
     parser.add_argument("--output", type=Path,
                         help="New evidence directory (default: private user state directory)")
     return parser.parse_args()
@@ -85,6 +68,18 @@ def main() -> int:
     try:
         origin, host = validate_target(args.base_url, args.allow_remote_readonly)
         smoke_path = validate_smoke_path(args.smoke_path)
+        staging_state = None
+        if args.grace_staging_readonly:
+            origin, host, staging_state = validate_grace_staging_config(
+                base_url=args.base_url,
+                configured_origin=os.environ.get("RIVERVIEW_GRACE_STAGING_ORIGIN", ""),
+                storage_state=os.environ.get("RIVERVIEW_GRACE_STAGING_STORAGE_STATE", ""),
+                test_account_label=os.environ.get("RIVERVIEW_GRACE_STAGING_TEST_ACCOUNT_LABEL", ""),
+                conversation_id=os.environ.get("RIVERVIEW_GRACE_STAGING_CONVERSATION_ID", ""),
+                seed_message_text=os.environ.get("RIVERVIEW_GRACE_STAGING_SEED_MESSAGE_TEXT", ""),
+                confirmation=os.environ.get("RIVERVIEW_GRACE_STAGING_CONFIRMATION", ""),
+                allow_remote=args.allow_remote_readonly,
+            )
     except ValueError as error:
         print(f"browser_target_rejected: {error}", file=sys.stderr)
         return 2
@@ -111,22 +106,41 @@ def main() -> int:
     env["RIVERVIEW_BROWSER_OUTPUT_DIR"] = str(output)
     env["RIVERVIEW_BROWSER_SMOKE_PATH"] = smoke_path
     env["RIVERVIEW_BROWSER_TARGET_ORIGIN"] = origin
+    if staging_state is not None:
+        env["RIVERVIEW_GRACE_STAGING_MODE"] = "1"
+        env["RIVERVIEW_GRACE_STAGING_STORAGE_STATE"] = str(staging_state)
+        env["RIVERVIEW_GRACE_STAGING_TEST_ACCOUNT_LABEL"] = os.environ["RIVERVIEW_GRACE_STAGING_TEST_ACCOUNT_LABEL"]
+        env["RIVERVIEW_GRACE_STAGING_CONVERSATION_ID"] = os.environ["RIVERVIEW_GRACE_STAGING_CONVERSATION_ID"]
+        env["RIVERVIEW_GRACE_STAGING_SEED_MESSAGE_TEXT"] = os.environ["RIVERVIEW_GRACE_STAGING_SEED_MESSAGE_TEXT"]
+        env["RIVERVIEW_GRACE_STAGING_ALLOW_REMOTE"] = "1" if args.allow_remote_readonly else "0"
+    else:
+        for key in ("RIVERVIEW_GRACE_STAGING_MODE", "RIVERVIEW_GRACE_STAGING_STORAGE_STATE",
+                    "RIVERVIEW_GRACE_STAGING_TEST_ACCOUNT_LABEL", "RIVERVIEW_GRACE_STAGING_CONVERSATION_ID",
+                    "RIVERVIEW_GRACE_STAGING_SEED_MESSAGE_TEXT",
+                    "RIVERVIEW_GRACE_STAGING_ALLOW_REMOTE"):
+            env.pop(key, None)
     if args.expect_heading:
         env["RIVERVIEW_BROWSER_EXPECT_HEADING"] = args.expect_heading
     else:
         env.pop("RIVERVIEW_BROWSER_EXPECT_HEADING", None)
 
+    tracing = "off" if staging_state is not None else "retain-on-failure"
+    screenshot = "off" if staging_state is not None else "on"
     command = [str(venv_python), "-m", "pytest", "-q", "browser-tests",
                "--browser", "chromium", "--base-url", origin,
-               "--output", str(playwright_output), "--tracing", "retain-on-failure",
-               "--screenshot", "on", "--full-page-screenshot"]
+               "--output", str(playwright_output), "--tracing", tracing,
+               "--screenshot", screenshot]
+    if staging_state is None:
+        command.append("--full-page-screenshot")
     summary = {
         "schema": "riverview.linux-browser-acceptance-run.v1",
         "target_origin": origin,
         "target_host": host,
         "smoke_path": smoke_path,
-        "http_methods_allowed": ["GET"],
+        "http_methods_allowed": (["GET", "HEAD", "POST /api/v1/resident/conversation-session (empty body)"]
+                                 if staging_state is not None else ["GET"]),
         "browser": "Playwright Chromium headless",
+        "mode": "grace-staging-readonly" if staging_state is not None else "read-only-smoke",
         "command": shlex.join(command),
         "started_at": datetime.now(timezone.utc).isoformat(),
         "evidence_directory": str(output),

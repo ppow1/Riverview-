@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/operations/LINUX_BROWSER_ACCEPTANCE.md
 Component: LINUX-BROWSER-ACCEPTANCE
-File Revision: 1.0.3
+File Revision: 1.0.6
 Purpose: Operate the bounded Linux Chromium acceptance harness and request it in Engineering work orders
 Authority: Read-only browser verification; production writes and authenticated sessions are out of scope
-Changed: 2026-10-18 UTC | RV-C2-GRACE-WORKFLOW-BROWSER-002 | Add isolated synthetic Grace workflow browser test
+Changed: 2026-10-18 UTC | RV-C2-STAGING-GRACE-BROWSER-003 | Add authenticated read-only Grace staging bridge
 -->
 # Linux browser acceptance on Camrui
 
@@ -59,6 +59,27 @@ scripts/run_linux_browser_acceptance.py \
 
 The synthetic test-only “Steward” control demonstrates a UI gate, not institutional authority. It is not a real Steward identity or approval. This test proves the fixture interaction and browser harness only. Actual Grace conversation persistence, proposal API behavior, authenticated Steward approval/promotion, Engineering objective or work-order persistence, status from CME, and execution require a deployed or isolated application stack with its real contracts and a disposable database. Production endpoints, live credentials, real approvals, and live execution are not used or implied. Keep tests that use the static smoke runner read-only; the synthetic workflow test’s narrowly intercepted requests are fulfilled in memory and never reach a server.
 
+## Optional authenticated Grace staging inspection
+
+`--grace-staging-readonly` connects the harness to the actual dashboard UI only when the operator explicitly supplies an isolated target, an exact-host cookie-only Playwright state, the displayed test-account label, and the UUID of an already-seeded harmless conversation. No credential is created or inferred. The browser state must be a regular file owned by the current user, mode `0600` or stricter, at most 1 MiB, with cookies scoped to the exact target host and no local-storage entries. Never use a production or personal Steward browser state.
+
+For remote targets use HTTPS, a hostname explicitly labeled `staging` (or a reserved `.test` host), and `--allow-remote-readonly`. For loopback use a disposable local dashboard and set `RIVERVIEW_GRACE_STAGING_CONFIRMATION=I_CONFIRM_DISPOSABLE_GRACE_STAGING`. In either case `RIVERVIEW_GRACE_STAGING_ORIGIN` must exactly match `--base-url`. `RIVERVIEW_GRACE_STAGING_TEST_ACCOUNT_LABEL` must match the staged dashboard's displayed Steward test account, `RIVERVIEW_GRACE_STAGING_CONVERSATION_ID` must identify a pre-existing seeded conversation, and `RIVERVIEW_GRACE_STAGING_SEED_MESSAGE_TEXT` must exactly match a harmless user message in it. The account must already have the existing conversation access required to read it; this procedure provisions no role or grant.
+
+```bash
+export RIVERVIEW_GRACE_STAGING_ORIGIN='https://<operator-designated-staging-host>'
+export RIVERVIEW_GRACE_STAGING_STORAGE_STATE='/secure/path/staging-cookie-state.json'
+export RIVERVIEW_GRACE_STAGING_TEST_ACCOUNT_LABEL='<exact displayed test account label>'
+export RIVERVIEW_GRACE_STAGING_CONVERSATION_ID='<pre-seeded conversation UUID>'
+export RIVERVIEW_GRACE_STAGING_SEED_MESSAGE_TEXT='<exact harmless seeded message text>'
+scripts/run_linux_browser_acceptance.py \
+  --grace-staging-readonly --allow-remote-readonly \
+  --base-url "$RIVERVIEW_GRACE_STAGING_ORIGIN" --smoke-path /
+```
+
+The staging test opens the preselected conversation and acts only on the exact configured harmless message, opens its **Create Engineering work order** dialog, checks the exact-grant and “does not approve execution” explanation, closes the dialog without submitting, then reads the existing objective/status projection. It never sends a chat message, approves/promotes a proposal, submits an objective, dispatches CME work, or executes an assignment. During this mode all cross-origin requests and all non-GET/HEAD requests are blocked except the same-origin, empty-body `POST /api/v1/resident/conversation-session` needed to establish the existing authenticated browser session. Playwright tracing and automatic screenshots are disabled for staging. On a successful run the test emits one screenshot after redacting the account label, conversation, message and objective details. If the test fails, no staging screenshot or trace is retained. JSON evidence remains private in the mode-0700 evidence directory.
+
+This bridge can verify the actual UI, existing seeded conversation, rendered approval boundary, and read-only status when supplied with an isolated staged dashboard and test session. It does **not** prove a newly submitted request, proposal persistence, real Steward approval, work-order creation, CME status for that new work, or execution. Those require separately authorized nonproduction fixtures and the existing exact authority contracts. No staging URL, cookie state, test-account label, or seeded conversation was configured during this task, so the authenticated browser stage remains unexecuted.
+
 ## Request browser verification in an Engineering work order
 
 Add explicit, persisted acceptance criteria to the authorized Engineering work order. For example:
@@ -80,6 +101,8 @@ The Engineering executor must treat the URL and assertion as bounded test inputs
 - `browser_venv_missing`: create `.venv` and install the pinned requirements above.
 - `Executable doesn't exist`: run `.venv/bin/python -m playwright install chromium` for this exact Playwright version.
 - A failing synthetic workflow test: confirm it targets `/grace-workflow.html`; all `/__synthetic__/` calls must be intercepted and fulfilled in the test. An unhandled endpoint is a test failure, not a reason to point the fixture at production.
+- `browser_target_rejected` in `--grace-staging-readonly` mode: verify the exact staging origin, staging hostname or loopback confirmation, host-bound cookie-only state file permissions, displayed test-account label, and pre-seeded conversation UUID. Never resolve this error by supplying a production profile or broader cookie domain.
+- Staging Grace test skipped: staging mode was not explicitly configured. This is the default; do not remove the opt-in gate.
 - Missing shared library: inspect the Playwright launch error, then use the controlled OS dependency procedure; do not install packages from inside the test runner.
 - `non_loopback_target_requires_readonly_opt_in`: use loopback for a local checkout, or provide `--allow-remote-readonly` only for an approved staging target.
 - `target_must_be_http_origin_without_credentials_path_or_query`: pass only the base origin; use `--smoke-path` for the page path.
