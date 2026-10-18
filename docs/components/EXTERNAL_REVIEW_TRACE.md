@@ -53,13 +53,16 @@ Each round contains:
 - `grace`: either normalized evaluation fields or bounded objective `events`
   named `resident.reasoning.external_proposal_reviewed`,
   `resident.reasoning.external_proposal_revised`, and
-  `resident.reasoning.external_proposal_review_blocked`. The event mapper
-  expects `payload.request_id`, `correlation_id`, `subject_revision`,
-  `subject_sha256`, and `decision`; a revision event additionally maps
-  `successor_revision`, `successor_sha256`, `successor_request_id`, and
-  `successor_correlation_id`. Durable `grace_consumed` time is taken from the
-  correlated exchange event. These are the W1 snapshot adapter keys; C3 must
-  confirm them against its emitted event records before runtime use.
+  `resident.reasoning.external_proposal_review_blocked`. Per C3's issue #120
+  contract, the event actor is `office:<active Grace office_id>` and payload
+  includes `request_id`, `correlation_id`, `subject_id`, `revision`,
+  `subject_sha256`, `response_sha256`, `proposal_sha256`, and `decision`
+  (`finish`, `revise`, or `blocked`). Revision events also carry
+  `successor_request_id` and `successor_correlation_id`; W1 maps the result
+  `proposal_sha256` to the next subject digest and increments the current
+  revision by one. Durable `grace_consumed` time is taken from the correlated
+  exchange event. The W1 fixture tests this mapping; event actor and owner ID
+  are still unverified against a live runtime.
 
 The W1 projector accepts only these metadata fields. Future owner adapters must
 map their authoritative records to this shape without weakening correlation or

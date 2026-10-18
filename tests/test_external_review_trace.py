@@ -190,8 +190,9 @@ class ExternalReviewTraceTests(unittest.TestCase):
             "event_type": "resident.reasoning.external_proposal_reviewed",
             "occurred_at": "2026-10-18T15:00:04-04:00",
             "payload": {"request_id": REQUEST, "correlation_id": CORRELATION,
-                        "subject_revision": 1, "subject_sha256": HASH,
-                        "response_sha256": RESPONSE_HASH, "decision": "accept"},
+                        "subject_id": "proposal-review:synthetic-1", "revision": 1,
+                        "subject_sha256": HASH, "response_sha256": RESPONSE_HASH,
+                        "decision": "finish"},
         }]}
         record["exchange"]["events"].append({
             "event_type": "grace_consumed", "occurred_at": "2026-10-18T15:00:05-04:00",
@@ -207,12 +208,36 @@ class ExternalReviewTraceTests(unittest.TestCase):
             "event_type": "resident.reasoning.external_proposal_review_blocked",
             "occurred_at": "2026-10-18T15:00:04-04:00",
             "payload": {"request_id": REQUEST, "correlation_id": CORRELATION,
-                        "subject_revision": 1, "subject_sha256": HASH,
+                        "subject_id": "proposal-review:synthetic-1", "revision": 1,
+                        "subject_sha256": HASH,
                         "decision": "accept"},
         }]}
         report = build_report(bundle(record))
         self.assertEqual(report["outcome"], "blocked")
         self.assertIn("grace_blocked", report["rounds"][0]["blockers"])
+
+    def test_c3_revision_event_maps_result_digest_and_successor_ids(self):
+        record = round_record(decision="revise")
+        record["grace"] = {"events": [{
+            "event_type": "resident.reasoning.external_proposal_revised",
+            "occurred_at": "2026-10-18T15:00:04-04:00",
+            "payload": {"request_id": REQUEST, "correlation_id": CORRELATION,
+                        "subject_id": "proposal-review:synthetic-1", "revision": 1,
+                        "subject_sha256": HASH, "response_sha256": RESPONSE_HASH,
+                        "proposal_sha256": "c" * 64, "decision": "revise",
+                        "successor_request_id": "c44d68af-1d9c-458f-829d-9e2fced39894",
+                        "successor_correlation_id": "99339a0a-bc79-463d-abd8-c8b2e0f8fe91"},
+        }]}
+        record["exchange"]["events"].append({
+            "event_type": "grace_consumed", "occurred_at": "2026-10-18T15:00:05-04:00",
+            "request_id": REQUEST, "correlation_id": CORRELATION, "payload": {},
+        })
+        report = build_report(bundle(record))
+        self.assertEqual(report["outcome"], "review_required")
+        self.assertEqual(report["rounds"][0]["revised_version"], 2)
+        self.assertEqual(report["rounds"][0]["revised_sha256"], "c" * 64)
+        self.assertEqual(report["rounds"][0]["successor_request_id"],
+                         "c44d68af-1d9c-458f-829d-9e2fced39894")
 
     def test_request_or_correlation_mismatch_fails_closed(self):
         record = round_record()

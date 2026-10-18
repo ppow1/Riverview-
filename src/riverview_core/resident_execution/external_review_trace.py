@@ -234,7 +234,7 @@ def _doorbell_from_exchange_events(exchange: dict[str, Any], request_id: str,
 
 
 def _grace_event_metadata(grace: dict[str, Any], exchange: dict[str, Any],
-                          request_id: str, correlation_id: str):
+                          request_id: str, correlation_id: str, subject_id: str):
     """Map C3's allowlisted Grace events and exchange consumption event."""
     result = dict(grace)
     events = grace.get("events", [])
@@ -253,18 +253,20 @@ def _grace_event_metadata(grace: dict[str, Any], exchange: dict[str, Any],
             raise TraceInputError("invalid_grace_event_payload")
         if payload.get("request_id") != request_id or payload.get("correlation_id") != correlation_id:
             continue
-        revision = payload.get("subject_revision")
+        if payload.get("subject_id") is not None and payload.get("subject_id") != subject_id:
+            result["event_subject_mismatch"] = True
+        revision = payload.get("revision")
         subject_hash = payload.get("subject_sha256")
         if revision is not None:
             result["reviewed_revision"] = revision
         if subject_hash is not None:
             result["review_sha256"] = subject_hash
         result["evaluated_at"] = event.get("occurred_at")
-        result["decision"] = ("blocked" if event["event_type"].endswith("review_blocked")
-                              else payload.get("decision"))
+        decision = "blocked" if event["event_type"].endswith("review_blocked") else payload.get("decision")
+        result["decision"] = "accept" if decision == "finish" else decision
         if event["event_type"].endswith("revised"):
-            result["revised_version"] = payload.get("successor_revision")
-            result["revised_sha256"] = payload.get("successor_sha256")
+            result["revised_version"] = revision + 1 if type(revision) is int else None
+            result["revised_sha256"] = payload.get("proposal_sha256")
             result["successor_request_id"] = payload.get("successor_request_id")
             result["successor_correlation_id"] = payload.get("successor_correlation_id")
     exchange_events = exchange.get("events", [])
@@ -296,7 +298,7 @@ def _round(item: Any, index: int):
     request_id = _uuid(exchange.get("request_id"), "request_id")
     correlation_id = _uuid(exchange.get("correlation_id"), "correlation_id")
     exchange_state = _state(exchange.get("state", exchange.get("delivery_state")), "exchange")
-    grace = _grace_event_metadata(grace, exchange, request_id, correlation_id)
+    grace = _grace_event_metadata(grace, exchange, request_id, correlation_id, review_id)
     doorbell_owner_id = _text(item.get("doorbell_owner_id"), "doorbell_owner_id",
                               required=True, max_length=160)
     doorbell = item.get("doorbell")
@@ -360,6 +362,8 @@ def _round(item: Any, index: int):
         blockers.append("grace_review_subject_mismatch")
     if reviewed_revision is not None and reviewed_revision != version:
         blockers.append("grace_review_revision_mismatch")
+    if grace.get("event_subject_mismatch") is True:
+        blockers.append("grace_review_subject_id_mismatch")
 
     evaluated_at = _timestamp(grace.get("evaluated_at"), "evaluated_at")
     consumed_at = _timestamp(grace.get("consumed_at"), "consumed_at")
