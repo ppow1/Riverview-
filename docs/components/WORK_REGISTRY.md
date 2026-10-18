@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED DOCUMENT
 # File: docs/components/WORK_REGISTRY.md
 # Component: UNIVERSAL-WORK-REGISTRY
-# File Revision: 1.1.0
+# File Revision: 1.1.1
 # Purpose: Specify the shared observational worker, session, and work-order registry
 # Authority: Registration is observability; existing schedulers and authority grants govern execution
 # Changed: 2026-10-18 UTC | RV-UNIVERSAL-WORK-REGISTRY-001 | Document schema, integrations, import, and limits
@@ -11,6 +11,7 @@
 # Universal Work Registry
 
 Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-CONTROL-BOARD-001 | Reconcile Control Board v4 aliases and provide a dynamic Windows registry board.
+Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-STATUS-ACCURACY-001 | Separate terminal work-order results from current assignment and runtime status.
 
 ## Purpose and boundary
 
@@ -72,6 +73,8 @@ A:\AI\Riverview-Development\Start-RiverviewControlBoard-Registry.ps1 -Detailed
 ```
 
 It enumerates registry worker/session/work-order collections each refresh and displays unmatched Windows and Camrui v4 JSON reports separately as legacy/unverified rows. Use `-Detailed` for long blockers and evidence. The existing `A:\AI\Riverview-Development\Start-RiverviewControlBoard-v4.ps1` remains unchanged as rollback/fallback. Rollback is to remove only the new `Start-RiverviewControlBoard-Registry.ps1` launcher and continue using v4; no live Codex session needs restarting. The existing seven-source mapping is specific to migration; neither registration nor the monitor has a fixed live worker count.
+
+Session rows select a current assignment from an explicit nonterminal session work-order reference or a linked queued, active, or blocked order. The newest linked blocked, completed, failed, or cancelled work order is shown separately as `latest_result`; completed, failed, and cancelled orders are retained as results and are not displayed as current assignments. Queued or active work is not labeled a result. Availability, activity, and heartbeat age continue to come from session state. A blocked work order does not set session activity or availability, and the board does not infer whether a session can accept more work from assignment completion or blockage.
 
 For future sessions, use `scripts/Start-RiverviewCodexSession.ps1` / the Linux wrapper with `RIVERVIEW_WORK_REGISTRY_PATH` set to the canonical registry file. Startup registers a worker/session; an existing assignment is linked when its canonical work-order ID is passed. A dispatcher that delivers a later assignment to a running session must create/update the canonical work order and invoke the documented `acknowledge-work-order` callback automatically; this callback is observational and does not replace scheduler authorization. The current user-directed Codex chat assignment path has no durable dispatch callback to integrate, and Windows↔Camrui currently has no verified common filesystem path. Until those integration points are supplied, subsequent chat assignments and cross-host live registrations must use the registry client explicitly; they must not be inferred from process activity or by editing status JSON.
 
