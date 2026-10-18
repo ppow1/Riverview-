@@ -1,10 +1,10 @@
 {
   "files": {
     ".riverview-revisions.json": {
+      "revision": "1.1.244",
       "path": ".riverview-revisions.json",
-      "revision": "1.1.239",
-      "sha256": "db29799c026f20d431bbd748b3653235852fb32a503de7ac6bf8c05db8e78e04",
-      "size_bytes": 13389
+      "sha256": "722e29f05c24f74e96a2e94946ac1b305fe682b7769b9279185b41b43a935f90",
+      "size_bytes": 15947
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -277,18 +277,66 @@
       "size_bytes": 5334
     },
     "docs/components/WORK_REGISTRY.schema.json": {
-      "revision": "1.0.0",
+      "revision": "1.0.1",
       "path": "docs/components/WORK_REGISTRY.schema.json",
-      "sha256": "c45f8c597ff9c1efa6dea13ff8cb2170a344911f09090be2ee861d361a44f3e0",
-      "size_bytes": 6611
+      "sha256": "3fdd35b1e6e82df92e8aa0e682416d765361279e1002baf184d326fa6e28abfd",
+      "size_bytes": 6827
     },
     "docs/operations/ISSUE_120_INITIAL_WORK_INVENTORY.json": {
       "revision": "1.0.0",
       "path": "docs/operations/ISSUE_120_INITIAL_WORK_INVENTORY.json",
       "sha256": "c83c171117be4d3044687f93016bd8f54b294a5abeb98b57527a90e8ca937e32",
       "size_bytes": 6186
+    },
+    "docs/components/WORK_REGISTRY.md": {
+      "revision": "1.1.0",
+      "path": "docs/components/WORK_REGISTRY.md",
+      "sha256": "9b26743ee2a37b2d6b17e8695e217157dbadda846286b56e5ee15b0498e96fc6",
+      "size_bytes": 13677
+    },
+    "docs/operations/CONTROL_BOARD_V4_IMPORT_MAP.json": {
+      "revision": "1.0.0",
+      "path": "docs/operations/CONTROL_BOARD_V4_IMPORT_MAP.json",
+      "sha256": "9f42166d1b548212e3b0974b4fbc6828011478abace40faefaf858714e6910d0",
+      "size_bytes": 4614
+    },
+    "scripts/Start-RiverviewControlBoard-Registry.Launcher.ps1": {
+      "revision": "1.0.0",
+      "path": "scripts/Start-RiverviewControlBoard-Registry.Launcher.ps1",
+      "sha256": "1c5cd5bd648421d3e10fc5d19f4891bfa79e80c659ff9795ddf96b312fa508b4",
+      "size_bytes": 1724
+    },
+    "scripts/Start-RiverviewControlBoard-Registry.ps1": {
+      "revision": "1.0.0",
+      "path": "scripts/Start-RiverviewControlBoard-Registry.ps1",
+      "sha256": "9727ce5ad02da73823d362a376e6445483e7697ef1a04700f5ab5663be4c20e1",
+      "size_bytes": 14179
+    },
+    "scripts/import_work_registry.py": {
+      "revision": "1.0.3",
+      "path": "scripts/import_work_registry.py",
+      "sha256": "4b6718db1a0884946ec66f6998ed9751f9862ef6c0198e7f874ff2c033baa388",
+      "size_bytes": 14633
+    },
+    "src/riverview_core/work_registry.py": {
+      "revision": "1.0.1",
+      "path": "src/riverview_core/work_registry.py",
+      "sha256": "ec580fd84522a182d92e237c09f2f0ac2d9f32965844cd8c93a79df8cd27943a",
+      "size_bytes": 35043
+    },
+    "tests/test_work_registry.py": {
+      "revision": "1.0.2",
+      "path": "tests/test_work_registry.py",
+      "sha256": "c135f44859400ad626d372ae80350ec45f3de08973bcc3ff6905c931fa30eb44",
+      "size_bytes": 18681
+    },
+    "tests/test_work_registry_monitor.py": {
+      "revision": "1.0.0",
+      "path": "tests/test_work_registry_monitor.py",
+      "sha256": "14aaa351044768b2065a569583d41685ff6a9f5e2078b1a85ea1cdf47d7543c1",
+      "size_bytes": 4973
     }
   },
-  "manifest_revision": "1.1.239",
-  "updated_at": null
+  "manifest_revision": "1.1.244",
+  "updated_at": "2026-10-18T15:52:28+00:00"
 }
