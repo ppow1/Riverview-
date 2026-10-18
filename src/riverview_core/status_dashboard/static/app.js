@@ -1,6 +1,7 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
 // Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record bounded same-origin request and SSE response metadata without bodies or auth headers.
-// Revision: 1.4.20
+// Revision: 1.4.21
+// Changed: 2026-10-18 UTC | RV-UNIVERSAL-WORK-REGISTRY-001 | Render dynamically discovered observational workers, sessions and work orders.
 // Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Label assignment-lease freshness separately from worker process liveness.
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
 // Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Use linked Steward account session for exact-grant Grace connection
@@ -36,7 +37,7 @@
   setRailCollapsed(railPreference === null ? window.innerWidth <= 920 : railPreference === "true", false);
   const state = {token: sessionStorage.getItem("rv.dashboard.token") || "", accountIdentity: null, status: null,
     assignments: [], events: [], attention: [], attentionStatus: "unknown", workers: [], assignmentCursor: null,
-    workerCursor: null, eventCursor: 0, olderEventCursor: null, notifications: [], notificationStatus: "unknown", activeView: "overview",
+    workerCursor: null, eventCursor: 0, olderEventCursor: null, notifications: [], notificationStatus: "unknown", activeView: "overview", workRegistry: null,
     objectives: [], documentationCatalog: [], documentationCatalogLoaded: false, documentationCatalogLoading: false,
     recentErrors: [], navSamples: [], lastFetch: 0, timer: null, workOrderSourceSequence: null,
     chatConversationId: localStorage.getItem("rv.grace.conversation") || "", chatEvents: [], chatMeta: null, selectedEventId: null, chatInFlight: false, chatDialogReturnFocus: null, chatAuthRejected:false, chatLoading:false,
@@ -161,7 +162,7 @@
         state.attention = attention.items || []; state.attentionStatus = attention.status || "available";
       }
       renderStatus(result);
-      loadWorkers();
+      loadWorkers(); loadWorkRegistry();
       $("request-state").textContent = "Projection current";
       if (result.projection_status === "unavailable") recordUiError("source_unavailable", "/api/v1/status");
     } catch (error) { $("request-state").textContent = `Refresh failed: ${error.message}`; $("freshness").textContent = "Source unavailable · last-known data not marked current"; }
@@ -337,6 +338,36 @@
       $("worker-page-note").textContent = "Unavailable"; $("more-workers").hidden = true;
     }
   }
+  async function loadWorkRegistry() {
+    if (!state.token && !state.accountIdentity) return;
+    try {
+      const snapshot = await api("/api/v1/work-registry");
+      state.workRegistry = snapshot;
+      const workers = snapshot.workers || [];
+      const sessions = snapshot.sessions || [];
+      const orders = snapshot.work_orders || [];
+      const workerFor = (id) => workers.find((worker) => worker.worker_id === id) || {};
+      const sessionFor = (id) => sessions.find((session) => session.session_id === id) || {};
+      const age = (seconds) => seconds === null || seconds === undefined ? "unknown" : `${esc(Math.round(seconds))}s ago`;
+      $("work-registry-state").textContent = snapshot.status === "not_initialized" ? "Not configured" : `${workers.length} workers · ${sessions.length} sessions · ${orders.length} work orders`;
+      const sessionRows = sessions.map((session) => {
+        const worker = workerFor(session.worker_id);
+        const assignment = orders.find((order) => order.work_order_id === session.current_work_order_id);
+        const identity = worker.worker_id || session.worker_id;
+        const model = session.model_identity || worker.model_identity;
+        return `<article class="row"><div><strong>${esc(identity)} / ${esc(session.session_id)}</strong><div class="row-meta">${esc(worker.worker_type || "worker type unknown")} · ${esc(session.hostname || worker.hostname || "host unknown")} · ${esc(session.os || worker.os || "OS unknown")}${model ? ` · ${esc(model)}` : ""} · ${esc(session.repository || "repository unknown")} · ${esc(session.branch || "branch unknown")}</div></div><span class="pill ${stateClass(session.status || session.lifecycle)}">${esc(human(session.status || session.lifecycle))}</span><span class="row-meta">Current assignment: ${esc(assignment?.title || "none reported")} · ${esc(assignment?.status || "unknown")}</span><span class="row-meta">Activity: ${esc(session.activity_state || "unknown")} (reported; reasoning not inferred)</span><span class="row-meta">Heartbeat ${age(session.heartbeat_age_seconds)} · activity ${age(session.activity_age_seconds)}</span></article>`;
+      });
+      const idle = workers.filter((worker) => !sessions.some((session) => session.worker_id === worker.worker_id)).map((worker) => `<article class="row"><div><strong>${esc(worker.worker_id)}</strong><div class="row-meta">${esc(worker.hostname)} · ${esc(worker.os)} · ${esc(worker.worker_type)}${worker.model_identity ? ` · ${esc(worker.model_identity)}` : ""}</div></div><span class="pill">No session reported</span><span class="row-meta">Execution activity: unknown · heartbeat/activity: unknown</span></article>`);
+      const workRows = orders.map((order) => {
+        const worker = order.worker_id ? workerFor(order.worker_id) : {};
+        const session = order.session_id ? sessionFor(order.session_id) : {};
+        const owner = order.owner_label || worker.worker_id || "No owner reported";
+        const execution = order.session_id ? `${session.session_id} · activity ${session.activity_state || "unknown"} · heartbeat ${age(session.heartbeat_age_seconds)} · activity ${age(session.activity_age_seconds)}` : "No session observed · activity unknown · heartbeat/activity unknown";
+        return `<article class="row"><div><strong>${esc(order.title)}</strong><div class="row-meta">${esc(owner)} · ${esc(order.ownership_state)} · ${esc(worker.hostname || session.hostname || "host unknown")} · ${esc(session.repository || order.repository || "repository unknown")} · ${esc(session.branch || order.branch || "branch unknown")}</div></div><span class="pill ${stateClass(order.status)}">${esc(human(order.status))}</span><span class="row-meta">Execution: ${esc(execution)} · milestone ${esc(order.milestone ?? "unknown")}/${esc(order.milestones_total ?? "unknown")}</span><span class="row-meta">Blocker/dependency: ${esc(order.blocker || order.dependencies?.join(", ") || "none reported")} · PR/deliverable: ${esc(order.pull_request || order.deliverable || session.pull_request || "none reported")}</span>${order.local_ai_job ? `<span class="row-meta">Model ${esc(order.local_ai_job.model_identity || "unknown")} · slot ${esc(order.local_ai_job.slot || "unknown")} · queue ${esc(order.local_ai_job.queue_status)} · task ${esc(order.local_ai_job.task_correlation_id || "unknown")}</span>` : ""}<details><summary>Work details and evidence</summary><p>${esc(order.detail || "No detail reported")}</p><p>Next action: ${esc(order.next_action || "none reported")}</p><p>Evidence: ${esc((order.evidence || []).join(" · ") || "none reported")}</p><p>Outcome: ${esc(order.outcome || "not reported")}</p></details></article>`;
+      });
+      $("work-registry-list").innerHTML = sessionRows.concat(idle, workRows).join("") || noData(snapshot.status === "not_initialized" ? "Set RIVERVIEW_WORK_REGISTRY_PATH to expose the shared observational registry." : "No registered workers, sessions, or work orders.");
+    } catch (error) { $("work-registry-state").textContent = "Unavailable"; $("work-registry-list").innerHTML = noData(`Registry unavailable (${error.message}).`); }
+  }
   async function loadOlderEvents() {
     if (!state.olderEventCursor) return;
     try {
@@ -456,12 +487,12 @@
   }
   function navigate(name) {
     const start = performance.now();
-    const view = ["overview","assignments","objectives","institutional-proposals","grace-chat","activity","workflows","notifications","documentation","account","resident-permissions"].includes(name) ? name : "overview";
+    const view = ["overview","assignments","work-registry","objectives","institutional-proposals","grace-chat","activity","workflows","notifications","documentation","account","resident-permissions"].includes(name) ? name : "overview";
     if (["account","resident-permissions","institutional-proposals"].includes(view) && !state.accountIdentity?.roles?.includes("steward")) { navigate("overview"); return; }
     state.activeView = view;
     document.querySelectorAll(".view").forEach((node) => { const active = node.id === `view-${view}`; node.hidden = !active; node.classList.toggle("active", active); });
     document.querySelectorAll(".nav-item").forEach((node) => node.classList.toggle("selected", node.dataset.view === view));
-    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",objectives:"Grace objectives","institutional-proposals":"Institutional proposals","grace-chat":"Talk with Grace",activity:"Activity",workflows:"Process workflows",notifications:"Notifications",documentation:"Documentation and diagnostics",account:"Account access","resident-permissions":"Resident permissions"})[view];
+    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments","work-registry":"Work registry",objectives:"Grace objectives","institutional-proposals":"Institutional proposals","grace-chat":"Talk with Grace",activity:"Activity",workflows:"Process workflows",notifications:"Notifications",documentation:"Documentation and diagnostics",account:"Account access","resident-permissions":"Resident permissions"})[view];
     history.replaceState(null,"",`#${view}`);
     const duration = performance.now() - start;
     state.navSamples.push({view,ms:duration}); state.navSamples=state.navSamples.slice(-100);
@@ -533,13 +564,14 @@
     catch (error) { toast(`Sign out could not be confirmed (${error.message}).`); }
     sessionStorage.removeItem("rv.dashboard.token"); location.reload();
   });
-  $("refresh").addEventListener("click", () => { refreshStatus(); loadAssignments(); loadEvents(); loadWorkers(); loadObjectives(); });
+  $("refresh").addEventListener("click", () => { refreshStatus(); loadAssignments(); loadEvents(); loadWorkers(); loadWorkRegistry(); loadObjectives(); });
   $("auth-open").addEventListener("click", () => { sessionStorage.removeItem("rv.dashboard.token"); state.token=""; if(state.timer)clearInterval(state.timer); $("workspace").hidden=true; $("login").hidden=false; $("token").focus(); });
   $("more-assignments").addEventListener("click", () => loadAssignments(true));
   $("more-events").addEventListener("click", () => loadOlderEvents());
   $("newer-events").addEventListener("click", () => loadEvents(true));
   $("more-workers").addEventListener("click", () => loadWorkers(true));
   $("refresh-notifications").addEventListener("click", loadNotifications);
+  $("refresh-work-registry").addEventListener("click", loadWorkRegistry);
   $("refresh-objectives").addEventListener("click", loadObjectives);
   function chatAuthority() { return $("chat-authority").value.trim(); }
   const chatTime = (value) => {

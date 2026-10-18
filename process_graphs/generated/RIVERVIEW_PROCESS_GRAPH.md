@@ -1,6 +1,6 @@
 # Riverview aggregate process graph
 
-**Document Revision:** 1.0.23
+**Document Revision:** 1.0.24
 **Generated from:** canonical workflow JSON; do not edit this projection by hand.  
 **Source:** `python3 scripts/process_graph.py generate`  
 
@@ -27,6 +27,7 @@ flowchart LR
   g_rv_resident_reasoning_runtime_49854a10[["RESIDENT-REASONING<br/>resident.reasoning.v1<br/>rv:resident-reasoning:runtime"]]
   g_rv_runtime_baseline_commissioning_46ff1ccf[["RUNTIME-BASELINE<br/>runtime-baseline.v1<br/>rv:runtime-baseline:commissioning"]]
   g_rv_steward_dashboard_status_75f7c259[["STEWARD-DASHBOARD<br/>status-projection.v1<br/>rv:steward-dashboard:status"]]
+  g_rv_work_registry_observational_registry_21b6727a[["UNIVERSAL-WORK-REGISTRY<br/>observational-registry.v1<br/>rv:work-registry:observational-registry"]]
   g_rv_worker_adapter_deterministic_attempt_15d59b6f[["WORKER-ADAPTER<br/>deterministic-attempt.v1<br/>rv:worker-adapter:deterministic-attempt"]]
   g_rv_worker_adapter_registration_retirement_6a7a90c3[["WORKER-ADAPTER<br/>registration-retirement.v1<br/>rv:worker-adapter:registration-retirement"]]
   g_rv_worker_adapter_supervised_services_d9ea8d99[["WORKER-ADAPTER<br/>supervised-services.v1<br/>rv:worker-adapter:supervised-services"]]
@@ -51,6 +52,7 @@ flowchart LR
   g_rv_steward_dashboard_status_75f7c259 -->|jump| g_rv_postgres_ledger_assignment_lifecycle_a9a01b67
   g_rv_steward_dashboard_status_75f7c259 -->|jump| g_rv_cme_progress_and_recovery_402efffa
   g_rv_steward_dashboard_status_75f7c259 -->|jump: Account enrollment or sign-in| g_rv_website_account_auth_account_lifecycle_68396cbf
+  g_rv_work_registry_observational_registry_21b6727a -->|jump| g_rv_grace_operational_integration_9989f0be
   g_rv_worker_adapter_deterministic_attempt_15d59b6f -->|jump: Follow current M1.4 lease validation| g_rv_assignment_scheduler_independent_claims_88bd80c4
   g_rv_worker_adapter_deterministic_attempt_15d59b6f -->|prerequisite: M1.4 lease table/token contract; not a runtime call| g_rv_assignment_scheduler_independent_claims_88bd80c4
   g_rv_worker_adapter_deterministic_attempt_15d59b6f -->|jump: independent evidence gate| g_rv_outcome_verifier_independent_result_1d5c0875

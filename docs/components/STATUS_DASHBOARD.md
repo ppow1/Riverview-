@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.7
+File Revision: 1.1.8
 Purpose: Specify operational projections and exact-grant Grace objective and conversation interfaces
 Authority: Reads require dashboard authentication; objective and resident conversation operations require exact institutional grants
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
@@ -19,6 +19,7 @@ Changed: 2026-10-15 UTC | RV-WEBSITE-PL012 | Document event provenance fields an
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL014 | Document refresh cache policy and projection status meanings
 Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Document bounded authenticated conversation streaming writes and migration dependency
 Changed: 2026-10-15 UTC | RV-WEBSITE-PL027 | Document focused cross-workflow jump navigation and return behavior
+Changed: 2026-10-18 UTC | RV-UNIVERSAL-WORK-REGISTRY-001 | Add authenticated read-only dynamic worker/session/work-order inventory
 History: Git and revision/backup manifest
 -->
 # Steward status dashboard
@@ -275,3 +276,15 @@ requires Steward-visible installed unattended operation, independent external
 observer, full console/chat/command and later M3 features as applicable, blocker
 clearance, operational fault/recovery and explicit Steward acceptance. This
 document does not claim those future obligations complete.
+
+## Universal work registry projection
+
+When `RIVERVIEW_WORK_REGISTRY_PATH` is configured, the dashboard adds a separate
+authenticated read-only `GET /api/v1/work-registry` projection and Work registry
+view. The route returns the versioned file-backed worker/session/work-order
+snapshot; it does not write registration events or replace the existing
+PostgreSQL worker/assignment views. The browser enumerates each returned worker,
+session, and work order on every normal dashboard refresh, so the inventory has
+no session-count assumption. Proposed owner labels remain distinct from
+registered workers and acknowledged assignments. See
+`docs/components/WORK_REGISTRY.md` for lifecycle and privacy limits.

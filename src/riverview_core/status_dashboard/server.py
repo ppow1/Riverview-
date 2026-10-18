@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.25
+# Revision: 1.3.26
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Accept typed repository target provenance in source-change proposal intake.
 # Purpose: Serve account-authenticated operational, proposal, capability and snapshot APIs
 # Execution Model: Request-driven, independent of CME assignment execution
@@ -11,6 +11,7 @@
 # Authority: Dashboard credential protects views; objective API also requires exact objective.submit grant
 # Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Add capability registry and canonical workflow inventory APIs while preserving PR #65 proposal routes
 # Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Route authenticated current-runtime Comms5 proposal/status operations through the existing service layer.
+# Changed: 2026-10-18 UTC | RV-UNIVERSAL-WORK-REGISTRY-001 | Expose the configured observational registry through an authenticated read-only endpoint.
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-ERROR-SEMANTICS | Preserve conflict/dependency failure distinction
 # Changed: 2026-10-11 UTC | RV-M3.2-001 | Enforce the notification-specific maximum page size
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Add exact-grant resident conversation API and restart reconciliation
@@ -233,7 +234,7 @@ class _BoundedHTTPServer(HTTPServer):
 
     def __init__(self, address, handler, *, token, projection, notification_service,
                  objective_pipeline, conversation_service, account_auth_service,
-                 permission_store, static_dir, proposal_registry):
+                 permission_store, static_dir, proposal_registry, work_registry=None):
         self._token = token
         self._projection = projection
         self._notification_service = notification_service
@@ -242,6 +243,7 @@ class _BoundedHTTPServer(HTTPServer):
         self._account_auth_service = account_auth_service
         self._permission_store = permission_store
         self._proposal_registry = proposal_registry
+        self._work_registry = work_registry
         self._proposal_lifecycle = None
         if proposal_registry is not None and objective_pipeline is not None:
             from riverview_core.resident_execution.proposal_lifecycle import ProposalLifecycle
@@ -926,6 +928,13 @@ def make_handler():
                         after=query.get("after", [None])[0],
                         limit=_bounded_limit(query.get("limit", [25])[0]))
                     self._json(200, page, request_id)
+                elif parsed.path == "/api/v1/work-registry":
+                    if self.server._work_registry is None:
+                        self._json(200, {"schema_version":"rv.work-registry.v1",
+                                         "status":"not_initialized",
+                                         "workers":[],"sessions":[],"work_orders":[]}, request_id)
+                    else:
+                        self._json(200, self.server._work_registry.snapshot(), request_id)
                 elif parsed.path == "/api/v1/events":
                     after_seq = query.get("after_seq", [None])[0]
                     before_seq = query.get("before_seq", [None])[0]
@@ -1724,7 +1733,7 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                  projection: DashboardProjection, static_dir: str | Path | None = None,
                  notification_service=None, objective_pipeline=None,
                  conversation_service=None, account_auth_service=None,
-                 permission_store=None, proposal_registry=None):
+                 permission_store=None, proposal_registry=None, work_registry=None):
         if host not in {"127.0.0.1", "::1"}:
             raise ValueError("dashboard bind host must be a loopback IP literal")
         if not isinstance(port, int) or not 8700 <= port <= 8799:
@@ -1738,7 +1747,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                          conversation_service=conversation_service,
                          account_auth_service=account_auth_service,
                          permission_store=permission_store,
-                         static_dir=static_dir, proposal_registry=proposal_registry)
+                         static_dir=static_dir, proposal_registry=proposal_registry,
+                         work_registry=work_registry)
 
 
 def _release_commit() -> str:
@@ -1970,13 +1980,20 @@ def main():
             conversation_service = None
     host = os.environ.get("RIVERVIEW_DASHBOARD_HOST", "127.0.0.1")
     port = int(os.environ.get("RIVERVIEW_DASHBOARD_PORT", "8766"))
+    work_registry = None
+    registry_path = os.environ.get("RIVERVIEW_WORK_REGISTRY_PATH")
+    if registry_path:
+        from riverview_core.work_registry import WorkRegistry
+        work_registry = WorkRegistry(registry_path, stale_after_seconds=int(
+            os.environ.get("RIVERVIEW_WORK_REGISTRY_STALE_AFTER_SECONDS", "90")))
     server = DashboardHTTPServer(host, port, token_path, projection,
                                  notification_service=notification_service,
                                  objective_pipeline=objective_pipeline,
                                  conversation_service=conversation_service,
                                  account_auth_service=account_auth_service,
                                  permission_store=permission_store,
-                                 proposal_registry=proposal_registry)
+                                 proposal_registry=proposal_registry,
+                                 work_registry=work_registry)
     print(json.dumps({"event": "dashboard_started", "host": host, "port": port,
                       "source_commit": projection.source_commit,
                       "deployment_id": projection.deployment_id}), flush=True)
