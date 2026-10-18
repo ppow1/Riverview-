@@ -2,7 +2,7 @@
   "files": {
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.243",
+      "revision": "1.1.245",
       "sha256": "db29799c026f20d431bbd748b3653235852fb32a503de7ac6bf8c05db8e78e04",
       "size_bytes": 13389
     },
@@ -128,9 +128,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.183",
-      "sha256": "225eae8a93519ea1c2c2db8e1bd6713da72221c9b0e2f11398b55b18433f0e47",
-      "size_bytes": 643856
+      "revision": "1.0.184",
+      "sha256": "a5d8f15bed2f27910da87bed35651638884e22fed996a3bae21d448f78ce01db",
+      "size_bytes": 644662
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -278,9 +278,9 @@
     },
     "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md": {
       "path": "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md",
-      "revision": "1.1.0",
-      "sha256": "8eb702239863cc13ef0e3cfa47eac02d1064885aa37f768280a4172da7583892",
-      "size_bytes": 14316
+      "revision": "1.2.0",
+      "sha256": "3e977c883f1145dcab82edd10722694fe37dbbe9c25b678afa1f5f67773e435b",
+      "size_bytes": 15852
     },
     "docs/schemas/resident-learning-record.schema.json": {
       "path": "docs/schemas/resident-learning-record.schema.json",
@@ -296,15 +296,15 @@
     },
     "process_graphs/resident-learning/lifecycle.json": {
       "path": "process_graphs/resident-learning/lifecycle.json",
-      "revision": "1.0.0",
-      "sha256": "0115c46c074ee566a2584b997be95017377d02ec7d234204994d1f860fde7bf3",
-      "size_bytes": 3603
+      "revision": "1.0.1",
+      "sha256": "42b1624bcf8c1d380ea3fd2d23646629468f3f1994666b52d0b1ea57f857efbf",
+      "size_bytes": 4206
     },
     "src/riverview_core/resident_execution/resident_learning.py": {
       "path": "src/riverview_core/resident_execution/resident_learning.py",
-      "revision": "1.0.0",
-      "sha256": "93af93223f4b8d5de9086c69b464d56ad22618ba24c644122aabaa25d7ceda6e",
-      "size_bytes": 32545
+      "revision": "1.1.0",
+      "sha256": "168f9a9ca063661b1e37a6c9d57799b859563fa8d1fe5736254c396d6f1e8ffb",
+      "size_bytes": 35295
     },
     "src/riverview_core/resident_execution/migrations/0014_resident_learning.sql": {
       "path": "src/riverview_core/resident_execution/migrations/0014_resident_learning.sql",
@@ -314,17 +314,17 @@
     },
     "tests/test_resident_learning.py": {
       "path": "tests/test_resident_learning.py",
-      "revision": "1.0.0",
-      "sha256": "b29cb5a1c9817da087c70fed91b1bb4b80c4a3c8eded7fa20c20f7fcc69246a3",
-      "size_bytes": 11993
+      "revision": "1.0.1",
+      "sha256": "a3f4b07a5a96c7980fc978a85ca3405dfe7221f091b9e28fdc07df1650af79b0",
+      "size_bytes": 15031
     },
     "tests/test_resident_learning_postgres.py": {
       "path": "tests/test_resident_learning_postgres.py",
-      "revision": "1.0.1",
-      "sha256": "31810c787d9a22f80a8265f667e97dc19734577aef27eee827392772a942bb03",
-      "size_bytes": 6414
+      "revision": "1.1.0",
+      "sha256": "912b23071d161c5458a61b58549d20e72164ba852f0c699d3c340840520f8839",
+      "size_bytes": 6839
     }
   },
-  "manifest_revision": "1.1.243",
+  "manifest_revision": "1.1.245",
   "updated_at": null
 }

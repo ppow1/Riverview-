@@ -1,7 +1,7 @@
 <!-- Riverview~ Controlled Document
 File: docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md
 Component: RESIDENT-LEARNING-GOVERNANCE
-Document Revision: 1.1.0
+Document Revision: 1.2.0
 Purpose: Define resident-wide learning retention, evidence, authority, sharing, correction, and rollback rules
 Execution Model: Dormant request-driven library and additive schema; no runtime route or grants commissioned
 Observability: Versioned records and append-only decision/correction event references when implemented
@@ -10,6 +10,7 @@ Authority: Grants no permission; all access remains subject to existing exact gr
 Changed: 2026-10-18 UTC | RV-RESIDENT-LEARNING-GOVERNANCE-001 | Initial resident-wide governance contract
 Changed: 2026-10-18 UTC | RV-RESIDENT-LEARNING-GOVERNANCE-001 | Clarify schema authority limits and prohibit local-only institutional sharing
 Changed: 2026-10-18 UTC | RV-RESIDENT-LEARNING-IMPLEMENTATION-001 | Document dormant lifecycle API, authorization adapter, storage schema, and rollback
+Changed: 2026-10-18 UTC | RV-W2-LEARNING-ADAPTER-001 | Document the dormant resident binding adapter and exact identity handoff
 Contracts: docs/components/RESIDENT_PERMISSION_PROFILES.md; docs/components/RESIDENT_REASONING.md; docs/components/INSTITUTIONAL_PROPOSALS.md
 Tests: tests/test_resident_learning_contract.py
 History: Git; new file
@@ -95,14 +96,18 @@ The JSON Schema at `docs/schemas/resident-learning-record.schema.json` describes
 
 The library takes evidence references from its caller and never treats generated text as verified evidence. Candidate and validation evidence must reference existing source or observation records; observations remain owned by their existing components. Request-local context is not persisted by this library. A separate retention/purge operation has not been implemented; bounded retention is recorded but enforcement requires an owner-approved retention service before deployment.
 
-Example construction (the authorization adapter is mandatory and must be supplied by the integrating authority owner):
+The dormant `ResidentLearningAdapter` is the boundary for a resident-facing caller. Its binding callback must perform the existing authenticated office lookup for each call (for Grace this is `AuthorityRegistry.authorize_office_state`); the adapter validates resident principal kind, principal ID, occupant, and binding revision. It derives the principal from that snapshot instead of accepting a principal string from a model or request body. It exposes candidate creation in the caller's own private scope or institutional candidate scope, and approved retrieval in those same scopes. It has no validation or approval method. The `ResidentLearningService` still checks exact operation/scope authorization through its injected port, and no action-to-grant map is bundled.
+
+Example construction (both the exact authorization adapter and current binding callback are mandatory and supplied by the integrating authority owner):
 
 ```python
 store = PostgresResidentLearningStore(dsn, schema="isolated_learning_test")
 learning = ResidentLearningService(store, existing_exact_grant_adapter)
-candidate = learning.create_candidate(
-    authenticated_resident_id,
-    scope_ref=authenticated_resident_id,
+resident_learning = ResidentLearningAdapter(
+    learning,
+    lambda: authority_registry.authorize_office_state(resident_credential, office_id),
+)
+candidate = resident_learning.create_candidate(
     content=content,
     evidence=evidence_references,
     provenance=provenance,
@@ -110,8 +115,11 @@ candidate = learning.create_candidate(
     retention="bounded_durable",
     idempotency_key=request_id,
 )
+approved_knowledge = resident_learning.retrieve()
 ```
+
+The example is an integration contract only. No runner, conversation server, Grace reasoning provider, or resident service constructs this adapter in the current change. A later caller must provide the current registry binding and exact-grant authorization callback, then receive its own runtime and authority review before wiring.
 
 Rollback is an append-only decision, not deletion. In an isolated test schema, close the store, preserve the audit evidence, then drop only the uniquely named test schema created by that test. Do not run the learning migration against production or delete learning rows to simulate rollback. For an already commissioned store, use the authorized rollback API with the exact record/replacement IDs, expected revision, fresh independent evidence, and current authority; the prior fact becomes retrievable only if this decision succeeds. Data purge remains subject to the separate retention owner and policy.
 
-Unit tests cover isolation, denied writes/sharing, validation, approval, rejection, provenance, correction, rollback, and service resumption using an in-memory store. A PostgreSQL integration test creates and drops a unique schema only when `RIVERVIEW_TEST_PG_DSN` points to an explicitly disposable database. Without that variable, PostgreSQL persistence and trigger behavior remain unverified. No runtime use is commissioned by these tests.
+Unit tests cover adapter identity/provenance rejection, scope isolation, denied writes/sharing, validation, approval, rejection, correction, rollback, and service resumption using an in-memory store. The PostgreSQL integration test creates and drops a unique schema only when `RIVERVIEW_TEST_PG_DSN` points to an explicitly disposable database. It passed against a fresh local PostgreSQL 18 cluster, including restart retrieval, scope filtering, and append-only trigger checks. PostgreSQL 16 CI compatibility remains unverified. No runtime use is commissioned by these tests.

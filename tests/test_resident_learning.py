@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_learning.py
 # Component: RESIDENT-LEARNING-GOVERNANCE
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Test learning lifecycle, scope isolation, authorization denial, correction, rollback, and resumption
 # Execution Model: Isolated unit tests with in-memory test double
 # Observability: Lifecycle states, events, provenance, and authorization calls
 # Dependencies: Python 3.10+; resident_learning module
 # Authority: Synthetic principals and local records only; no real grants or database
 # Changed: 2026-10-18 UTC | RV-RESIDENT-LEARNING-IMPLEMENTATION-001 | Add lifecycle service tests
+# Changed: 2026-10-18 UTC | RV-W2-LEARNING-ADAPTER-001 | Cover authenticated resident adapter binding and scope boundaries
 # Contracts: docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -19,7 +20,7 @@ from uuid import uuid4
 
 from riverview_core.resident_execution.resident_learning import (
     AuthorizationDenied, LearningConflict, LearningValidationError,
-    ResidentLearningService,
+    ResidentLearningAdapter, ResidentLearningService,
 )
 
 NOW = "2026-10-18T15:00:00Z"
@@ -136,6 +137,58 @@ class ResidentLearningTests(unittest.TestCase):
         return self.service.approve_shared("steward:test", record["record_id"],
             expected_revision=record["revision"], approved_purpose="isolated test",
             authority_event_ref="steward-event:test", idempotency_key="approve:"+uuid4().hex)
+
+    @staticmethod
+    def binding(principal_id="resident:grace"):
+        return {"principal_kind":"resident", "principal_id":principal_id,
+            "occupant_id":"fixture-occupant", "binding_revision":1}
+
+    def adapter(self, binding=None):
+        current = self.binding() if binding is None else binding
+        return ResidentLearningAdapter(self.service, lambda: current)
+
+    def test_resident_adapter_uses_current_binding_and_checks_provenance(self):
+        adapter = self.adapter()
+        record = adapter.create_candidate(scope_ref="resident:grace",
+            content="Adapter candidate", evidence=EVIDENCE, provenance=PROVENANCE,
+            classification="confidential", retention="bounded_durable",
+            idempotency_key="adapter:"+uuid4().hex)
+        self.assertEqual(record["originating_resident_id"], "resident:grace")
+        self.assertEqual(self.auth.calls[-1],
+            ("resident:grace", "candidate_write", "resident:grace"))
+        with self.assertRaises(LearningValidationError):
+            adapter.create_candidate(scope_ref="resident:grace",
+                content="Wrong recorder", evidence=EVIDENCE,
+                provenance={**PROVENANCE,"recorder_id":"resident:other"},
+                classification="confidential", retention="bounded_durable",
+                idempotency_key="adapter:"+uuid4().hex)
+
+    def test_resident_adapter_rejects_invalid_identity_before_authorization(self):
+        for binding in ({}, {**self.binding(), "principal_kind":"steward"},
+                        {**self.binding(), "binding_revision":0},
+                        {**self.binding(), "occupant_id":""}):
+            with self.subTest(binding=binding):
+                adapter = self.adapter(binding)
+                call_count = len(self.auth.calls)
+                with self.assertRaises(AuthorizationDenied):
+                    adapter.retrieve()
+                self.assertEqual(len(self.auth.calls), call_count)
+        with self.assertRaises(AuthorizationDenied):
+            self.adapter().retrieve(scope_ref="resident:evelyn")
+        self.assertEqual(self.store.records, {})
+
+    def test_resident_adapter_only_returns_approved_shared_knowledge(self):
+        adapter = self.adapter()
+        record = adapter.create_candidate(scope_ref="institution:riverview",
+            content="Shared adapter candidate", evidence=EVIDENCE, provenance=PROVENANCE,
+            classification="internal", retention="bounded_durable",
+            idempotency_key="adapter:"+uuid4().hex)
+        self.assertEqual(adapter.retrieve(scope_ref="institution:riverview"), [])
+        validated = self.validate(record)
+        self.approve_shared(validated)
+        shared = adapter.retrieve(scope_ref="institution:riverview")
+        self.assertEqual([item["record_id"] for item in shared], [record["record_id"]])
+        self.assertEqual(adapter.retrieve(), [])
 
     def test_private_candidate_validation_confirmation_and_retrieval(self):
         record = self.create()

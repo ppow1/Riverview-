@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-learning:lifecycle",
-  "graph_revision": "1.0.0",
+  "graph_revision": "1.0.1",
   "component_id": "RESIDENT-LEARNING-GOVERNANCE",
   "workflow_id": "resident.learning.lifecycle.v1",
   "diagram_order": 18,
@@ -16,6 +16,15 @@
     "tests/test_resident_learning_postgres.py"
   ],
   "nodes": [
+    {
+      "id": "rv:resident-learning:lifecycle:binding",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Refresh authenticated office binding and require a current resident principal",
+      "source_references": ["src/riverview_core/resident_execution/resident_learning.py"],
+      "documentation_references": ["docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md"],
+      "verification_evidence": ["tests/test_resident_learning.py"]
+    },
     {
       "id": "rv:resident-learning:lifecycle:candidate",
       "node_revision": "1.0.0",
@@ -63,6 +72,7 @@
     }
   ],
   "edges": [
+    {"from":"rv:resident-learning:lifecycle:binding","to":"rv:resident-learning:lifecycle:candidate","type":"runtime_transition"},
     {"from":"rv:resident-learning:lifecycle:candidate","to":"rv:resident-learning:lifecycle:validate","type":"runtime_transition"},
     {"from":"rv:resident-learning:lifecycle:validate","to":"rv:resident-learning:lifecycle:approve","type":"runtime_transition"},
     {"from":"rv:resident-learning:lifecycle:approve","to":"rv:resident-learning:lifecycle:retrieve","type":"runtime_transition"},

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_learning_postgres.py
 # Component: RESIDENT-LEARNING-GOVERNANCE
-# Revision: 1.0.1
+# Revision: 1.1.0
 # Purpose: Verify append-only learning persistence and restart retrieval in isolated PostgreSQL
 # Execution Model: Unique disposable schema; skipped unless RIVERVIEW_TEST_PG_DSN is set
 # Observability: Persisted records, evidence, events, and authorization receipts
@@ -10,6 +10,7 @@
 # Authority: Synthetic test principals; unique disposable schema only
 # Changed: 2026-10-18 UTC | RV-RESIDENT-LEARNING-IMPLEMENTATION-001 | Add isolated PostgreSQL persistence test
 # Changed: 2026-10-18 UTC | RV-W2-PR117-POSTGRES-001 | Verify scope filtering and database append-only triggers
+# Changed: 2026-10-18 UTC | RV-W2-LEARNING-ADAPTER-001 | Exercise the identity-bound adapter across PostgreSQL store resumption
 # Contracts: docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -46,7 +47,7 @@ class ResidentLearningPostgresTests(unittest.TestCase):
 
     def test_persist_and_resume_approved_shared_record(self):
         from riverview_core.resident_execution.resident_learning import (
-            PostgresResidentLearningStore, ResidentLearningService)
+            PostgresResidentLearningStore, ResidentLearningAdapter, ResidentLearningService)
 
         class Allow:
             def require(self, principal_id, operation, scope_ref):
@@ -54,11 +55,14 @@ class ResidentLearningPostgresTests(unittest.TestCase):
                         "authority_reference": "fixture-authority:" + operation}
 
         service = ResidentLearningService(PostgresResidentLearningStore(DSN, schema=self.schema), Allow())
+        binding = {"principal_kind":"resident", "principal_id":"resident:fixture",
+            "occupant_id":"fixture-occupant", "binding_revision":1}
+        adapter = ResidentLearningAdapter(service, lambda: binding)
         try:
             evidence = [{"source_ref":"fixture://source/1", "source_kind":"external_source",
                 "captured_at":"2026-10-18T12:00:00Z", "source_revision":"v1",
                 "source_sha256":"a" * 64}]
-            candidate = service.create_candidate("resident:fixture", scope_ref="institution:riverview",
+            candidate = adapter.create_candidate(scope_ref="institution:riverview",
                 content="fixture knowledge", evidence=evidence,
                 provenance={"recorder_id":"resident:fixture", "method":"fixture",
                     "implementation_revision":"test", "interpretation":"imported_source"},
@@ -75,7 +79,8 @@ class ResidentLearningPostgresTests(unittest.TestCase):
             resumed_store = PostgresResidentLearningStore(DSN, schema=self.schema)
             try:
                 resumed = ResidentLearningService(resumed_store, Allow())
-                result = resumed.retrieve("steward:fixture", scope_ref="institution:riverview")
+                resumed_adapter = ResidentLearningAdapter(resumed, lambda: binding)
+                result = resumed_adapter.retrieve(scope_ref="institution:riverview")
                 self.assertEqual(len(result), 1)
                 self.assertEqual(result[0]["record_id"], approved["record_id"])
                 self.assertEqual(result[0]["evidence"][0]["source_sha256"], "a" * 64)

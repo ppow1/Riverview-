@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/resident_learning.py
 # Component: RESIDENT-LEARNING-GOVERNANCE
-# Revision: 1.0.0
+# Revision: 1.1.0
 # Purpose: Persist evidence-backed resident learning candidates behind an injected authorization boundary
 # Execution Model: Request-driven library; no startup or background registration
 # Observability: Immutable evidence revisions and append-only lifecycle events
 # Dependencies: Python 3.10+; Psycopg 3; resident_execution migration 0014
 # Authority: No default grants; each operation requires an injected fail-closed authorization port
 # Changed: 2026-10-18 UTC | RV-RESIDENT-LEARNING-IMPLEMENTATION-001 | Add dormant common learning lifecycle service
+# Changed: 2026-10-18 UTC | RV-W2-LEARNING-ADAPTER-001 | Add identity-bound resident candidate and retrieval adapter
 # Contracts: docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md
 # Tests: tests/test_resident_learning.py; tests/test_resident_learning_postgres.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -45,6 +46,11 @@ class AuthorizationDenied(LearningError, PermissionError): pass
 class AuthorizationPort(Protocol):
     """Adapter to existing owner-approved exact-grant checks; no mappings are supplied here."""
     def require(self, principal_id: str, operation: str, scope_ref: str) -> dict[str, Any]: ...
+
+
+class ResidentBindingProvider(Protocol):
+    """Callable backed by the existing authenticated office-binding lookup."""
+    def __call__(self) -> dict[str, Any]: ...
 
 
 class LearningStore(Protocol):
@@ -376,6 +382,49 @@ class ResidentLearningService:
         return self.store.rollback(record_id, replacement_id, expected_revision,
             actor_id=principal_id, idempotency_key=_text(idempotency_key, "idempotency key", 240),
             payload=payload)
+
+
+class ResidentLearningAdapter:
+    """Dormant resident-facing candidate/read adapter bound to a current office identity.
+
+    ``current_binding`` must call the existing authenticated AuthorityRegistry lookup
+    on each operation. This adapter exposes no approval path and carries no grants.
+    """
+    def __init__(self, service: ResidentLearningService,
+                 current_binding: ResidentBindingProvider):
+        if not isinstance(service, ResidentLearningService) or not callable(current_binding):
+            raise TypeError("learning service and current resident binding provider are required")
+        self.service = service
+        self.current_binding = current_binding
+
+    def _principal(self) -> str:
+        try:
+            binding = self.current_binding()
+        except Exception:
+            raise AuthorizationDenied("current resident binding is unavailable") from None
+        if (not isinstance(binding, dict) or binding.get("principal_kind") != "resident"
+                or not isinstance(binding.get("principal_id"), str)
+                or not _RESIDENT.fullmatch(binding["principal_id"])
+                or not isinstance(binding.get("occupant_id"), str)
+                or not binding["occupant_id"].strip()
+                or type(binding.get("binding_revision")) is not int
+                or binding["binding_revision"] < 1):
+            raise AuthorizationDenied("current authenticated resident binding is invalid")
+        return binding["principal_id"]
+
+    def create_candidate(self, *, scope_ref: str | None = None, **candidate) -> dict:
+        principal_id = self._principal()
+        scope_ref = principal_id if scope_ref is None else scope_ref
+        if not isinstance(scope_ref, str) or scope_ref not in {principal_id, INSTITUTION_SCOPE}:
+            raise AuthorizationDenied("resident adapter cannot submit into another resident's scope")
+        return self.service.create_candidate(principal_id, scope_ref=scope_ref, **candidate)
+
+    def retrieve(self, *, scope_ref: str | None = None, limit: int = 50) -> list[dict]:
+        principal_id = self._principal()
+        scope_ref = principal_id if scope_ref is None else scope_ref
+        if not isinstance(scope_ref, str) or scope_ref not in {principal_id, INSTITUTION_SCOPE}:
+            raise AuthorizationDenied("resident adapter cannot retrieve another resident's scope")
+        return self.service.retrieve(principal_id, scope_ref=scope_ref, limit=limit)
 
 
 class PostgresResidentLearningStore:
