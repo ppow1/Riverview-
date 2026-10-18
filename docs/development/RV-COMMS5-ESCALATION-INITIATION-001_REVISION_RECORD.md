@@ -2,10 +2,11 @@
 Riverview Controlled Development Record
 File: docs/development/RV-COMMS5-ESCALATION-INITIATION-001_REVISION_RECORD.md
 Component: RESIDENT-REASONING / EXTERNAL-REASONING
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Record active-principal authorization, Grace exchange initiation, isolated lifecycle validation, and production boundary
 Authority: Development and disposable test environments only; no production migration, grant, credential, service, or deployment authority
 Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Connect active office principal authorization to durable Grace external-reasoning initiation
+Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001-PACKAGE | Record immutable full Camrui package integrity and component/migration membership
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # RV-COMMS5-ESCALATION-INITIATION-001 — implementation and validation
@@ -36,6 +37,12 @@ RIVERVIEW_TEST_PG_DSN=<temporary PostgreSQL 16 DSN> PYTHONPATH=.:src python3 -m 
 PYTHONPATH=src python3 -m unittest tests.test_runtime_baseline.RuntimeBaselineTests.test_package_exact_commit_checksums_and_no_overwrite tests.test_runtime_baseline.RuntimeBaselineTests.test_full_camrui_package_includes_grace_exchange_and_comms5_policy_components
   2 passed
 
+python3 scripts/build_camrui_package.py /tmp/riverview-camrui-followup-3e0cb2c9.tar.gz
+python3 scripts/verify_camrui_package.py /tmp/riverview-camrui-followup-3e0cb2c9.tar.gz
+  source commit 3e0cb2c98e0308bdda3458715622d57953082c58; manifest PASS; shell compatibility PASS
+  archive size 34,097,690 bytes; SHA-256 ecead4fb3d7673b461572012df5184c2a961dc17f29436a7b1a5156fbc4095cb
+  direct archive inspection confirmed Grace, external exchange/MCP, Comms5 resource policy, and migration 0011/0012 members
+
 python3 -m compileall -q src/riverview_core scripts tests
 python3 scripts/process_graph.py validate
 python3 scripts/process_graph.py check
@@ -44,7 +51,7 @@ git diff --check
   all passed; 22 graphs / 557 nodes
 ```
 
-The one full-suite skip is the existing dashboard runtime-role ACL integration fixture; the disposable cluster does not provision that named runtime role. PostgreSQL integration tests in the changed exchange, scheduler, and policy components ran against the disposable cluster. Tests do not use production credentials, invoke external providers, or mutate production.
+The one full-suite skip is the existing dashboard runtime-role ACL integration fixture; the disposable cluster does not provision that named runtime role. PostgreSQL integration tests in the changed exchange, scheduler, and policy components ran against the disposable cluster. Tests do not use production credentials, invoke external providers, or mutate production. The verified archive remains in local `/tmp` validation storage and was not staged or deployed.
 
 ## Status and production boundary
 

@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.173
+**Document Revision:** 1.0.174
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-17 UTC | M33-REGISTRATION-RETIREMENT-AUTHORIZED | Record exact temporary database scope, guarded retirement, permission cleanup, and production acceptance
@@ -2574,5 +2574,7 @@ Resolved the Grace external-reasoning identity mismatch by resolving the current
 Connected the existing persistent Grace reasoning cycle to the existing durable external-reasoning exchange. A strict typed model intent chooses only a configured advisory provider and is admitted with objective/message correlation, a deterministic request/idempotency identity, finite deadline, current exact authorization, and restricted classification. The cycle checks for an active exchange before re-initiating and leaves execution/approval/verification authority unchanged. The existing provider-scoped MCP list/claim/submit/status operations remain the transport; Grace consumes and acknowledges through the existing exchange and reasoning context.
 
 Disposable PostgreSQL tests using the real `AuthorityRegistry` cover active principal and exact grant acceptance, mismatched and unauthorized principals, absent grants, wrong provider scope, durable initiation, response correlation, Grace consumption/acknowledgment, and restart before consumption. The focused PostgreSQL suite covering exchange, resident reasoning, concurrent assignment scheduler, and Comms5 resource policy/rework passed **36 tests**. The complete suite passed **598 tests, 1 skipped, 0 failures** on a temporary PostgreSQL 16 cluster. The skip is the existing dashboard runtime-role ACL fixture, which requires a role absent from the disposable cluster. Package regression verifies the full Camrui package contains the Grace exchange, Comms5 policy, and related migration sources; the Comms5-only package remains scoped. Graph validation/check, revision audit, Python compilation, and whitespace checks are recorded in the follow-up revision record.
+
+Built and independently verified the full Camrui immutable package from source commit `3e0cb2c98e0308bdda3458715622d57953082c58`. Archive: `/tmp/riverview-camrui-followup-3e0cb2c9.tar.gz`, 34,097,690 bytes, SHA-256 `ecead4fb3d7673b461572012df5184c2a961dc17f29436a7b1a5156fbc4095cb`. Package manifest and shell compatibility passed; direct member inspection confirmed Grace, external exchange/MCP, Comms5 resource policy, and migrations 0011 and 0012 are included. The package is local validation output only; it was not transferred, installed, or activated.
 
 No production database, migration, credential, grant, service, or release was changed. PR #109 remains unchanged and open. This follow-up is isolated on `codex/comms5-principal-escalation-20261018`; it is not merged. Production requires review/integration, a fresh protected backup and restore verification, migration 0012 and exact provider identity/grant commissioning under Steward authority, complete multi-component immutable release staging, and controlled service activation followed by external exchange and Grace-consumption acceptance.

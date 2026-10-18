@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.231"
+      "revision": "1.1.232"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -23,9 +23,9 @@
     },
     "docs/development/JOURNAL.md": {
       "path": "docs/development/JOURNAL.md",
-      "revision": "1.0.173",
-      "sha256": "aa27c29a8929401fec8b12d956584912df70e1ebb8cb825896c46677da836b84",
-      "size_bytes": 226274
+      "revision": "1.0.174",
+      "sha256": "5348dd19d8e114f5fc025a5ac4e9b8e648e972564658604f1ba2b304aecb2f81",
+      "size_bytes": 226833
     },
     "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md": {
       "path": "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md",
@@ -263,11 +263,11 @@
     },
     "docs/development/RV-COMMS5-ESCALATION-INITIATION-001_REVISION_RECORD.md": {
       "path": "docs/development/RV-COMMS5-ESCALATION-INITIATION-001_REVISION_RECORD.md",
-      "revision": "1.0.0",
-      "sha256": "d7d5f41ad12750860e59650622a49b6bd0a1b1ec4eb7fb7523638f1e3cc2141b",
-      "size_bytes": 4552
+      "revision": "1.0.1",
+      "sha256": "7bab5488953be1fc1694e90228214696fe433cf23fd487d72779f9abdba148ca",
+      "size_bytes": 5306
     }
   },
-  "manifest_revision": "1.1.231",
+  "manifest_revision": "1.1.232",
   "updated_at": null
 }
