@@ -2,10 +2,11 @@
 Riverview Controlled Document
 File: docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md
 Component: W2-P0-INTEGRATED-REVIEW-ACCEPTANCE
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Preserve W2 integrated acceptance scope, source lineage, evidence and remaining gates
 Authority: Offline synthetic test only; no production or provider authority
 Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Record initial C3/C4 acceptance increment
+Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Correct isolated provider registration after first CI fixture failure
 History: Git; no predecessor existed for the new W2 acceptance test or cookbook
 -->
 # RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE revision record
@@ -20,7 +21,7 @@ History: Git; no predecessor existed for the new W2 acceptance test or cookbook
 - Selected parent: PR #119 head `97128626df967bc992696dca38eaa7116f3616e9`
 - Imported components in base: C3 `5c4a00512e5acd6f72aa766ea866a8828184b151`; C4 typed subject fix `49f5dcfb674d67416a68e43f1d756230c7372e46`; prior W2 recovery test `ab87e2fba4c2ca592ffebe991ec783ee23e673b0`
 - New W2 files: `tests/test_w2_p0_integrated_review_acceptance.py`, `docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md`
-- Predecessor backups: not applicable; these paths did not exist before this W2 increment. No existing source or owner file was edited.
+- Predecessor backups: initial new-file versions had no predecessor. Revision 1.0.0 of the test and this record are backed up before the 1.0.1 fixture correction at `.riverview-backups/20261018T202428968484Z/tests/test_w2_p0_integrated_review_acceptance.py` (SHA-256 `03d5ae2a28c091d2a3c6283da7a8cc79327c25e740e01440025e2da2d8cd8353`) and `.riverview-backups/20261018T202429080246Z/docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md` (SHA-256 `b01cd17ec28a172e9f33ab1f3832fee3eb28d10cfe7f7ecfda5363ab0f6a2b3d`). No owner source file was edited.
 
 ## Evidence and status
 
@@ -35,6 +36,7 @@ This is a partial integrated acceptance increment, not component or system compl
   in this Python environment; the controlled checkout installs the declared
   dependency.
 - Controlled PostgreSQL CI: pending for this W2 branch.
+- First controlled run `39162955178`: **FAIL** after 690 tests / 4 skips, with 3 errors in W2 setUp. All three errors were `MCPConfigurationError(provider_not_registered)` because the negative-test provider token was not registered in the isolated exchange router. No W2 lifecycle assertion ran. Revision 1.0.1 registers that synthetic provider only in the disposable fixture; rerun pending.
 - Current test scope: Grace typed review subject → durable C3 exchange → C4
   provider MCP list/claim/digest-bound submit → Grace finish or bounded successor
   → restart/recovery; wrong provider, typed-step tampering, wrong/missing digest,

@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_w2_p0_integrated_review_acceptance.py
 # Component: W2-P0-INTEGRATED-REVIEW-ACCEPTANCE
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify typed Grace review subjects survive durable C3 exchange and C4 MCP round trips
 # Execution Model: Isolated PostgreSQL schema, unittest, deterministic synthetic provider only
 # Observability: Subject/revision digests, provider identity, exchange state, objective events
 # Dependencies: RIVERVIEW_TEST_PG_DSN; C3 exact-subject exchange; C4 typed-subject MCP
 # Authority: W2 acceptance only; no browser, external provider, production DB, or grants
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Initial C3/C4 integrated tests
+# Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Register unrelated provider in isolated router fixture
 # Contracts: docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md; issue #120 comment 6254574126
 # History: Git and .riverview-revisions.json
 # =============================================================================
@@ -43,6 +44,7 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
         spec.loader.exec_module(fixture_module)
         self.fixture_module = fixture_module
         from riverview_core.resident_execution.external_reasoning_mcp import (
+            ExternalProviderRegistration,
             ExternalReasoningMCPAdapter,
             ProviderTokenMap,
         )
@@ -50,6 +52,11 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
         self.fixture = fixture_module.ExternalReasoningExchangePostgresTests()
         self.fixture.setUp()
         self.addCleanup(self.fixture.tearDown)
+        # C4 validates every configured token-map provider against the durable
+        # exchange router. Register the negative-test provider only in this
+        # disposable fixture; it has no production identity or grant.
+        self.fixture.router.providers[OTHER_PROVIDER] = ExternalProviderRegistration(
+            OTHER_PROVIDER, OTHER_PROVIDER)
         self.mcp_adapter_type = ExternalReasoningMCPAdapter
         self.token_map = ProviderTokenMap.from_document({
             "schema_version": ProviderTokenMap.SCHEMA,
