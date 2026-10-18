@@ -1,10 +1,11 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.172
+**Document Revision:** 1.0.174
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-17 UTC | M33-REGISTRATION-RETIREMENT-AUTHORIZED | Record exact temporary database scope, guarded retirement, permission cleanup, and production acceptance
 **Changed:** 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Add OAuth resource-server validation and verify Secure MCP Tunnel path
+**Changed:** 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Resolve resident principal from the active office binding and connect typed external escalation to durable exchange
 **Changed:** 2026-10-17 UTC | RV-M33-MIGRATION-CHAIN-0008-0009-PACKAGE | Verify immutable candidate package from the prepared migration-runner commit
 **Changed:** 2026-10-17 UTC | M33-0008-ATOMIC-RUNTIME-ACL | Record atomic profile function boundary correction, live role evidence, final isolated tests, and corrected query defects
 **Changed:** 2026-10-17 UTC | M33-0008-PRODUCTION-ACCEPTANCE | Record PR #78, immutable release installation, production migration and postflight
@@ -2565,3 +2566,15 @@ Migration 0009 was applied through the checksum-pinned runner from the immutable
 The M33 retirement helper ran against its fixed target and failed closed before any write with `InsufficientPrivilege`. Read-only catalog inspection confirmed `riverview_authority_manager` lacks `USAGE` on `riverview_dev`, `SELECT` on the worker registry, and table/column `UPDATE`. The two M33 registrations remain active; the three Grace registrations remain active; the two historical M31 registrations remain inactive. No retirement events were written. The helper was not retried with a substitute role or ad hoc grants.
 
 Postflight: all three M33 units are inactive/dead, PID 0. Grace, dashboard, CME, notification dispatcher, and event processor are active; Grace and CME health report healthy, the event cursor is present, and the production HTTPS dashboard returned 200 with certificate verification. Evidence directory: `evidence/checkouts/M33-0009-PRODUCTION/20261017T032139Z/`. Migration is complete; registration retirement requires a separately reviewed least-privilege execution boundary.
+
+## 2026-10-18 UTC — RV-COMMS5-ESCALATION-INITIATION-001
+
+Resolved the Grace external-reasoning identity mismatch by resolving the current resident principal from the authorized `AuthorityRegistry.authorize_office_state()` snapshot, validating its occupant and binding revision, and then requiring the exact provider-scoped grant through the existing `ExactGrantAuthorizer`. The active binding is re-read at authorization time; missing, malformed, replaced, or mismatched identities fail closed. No office identifier is treated as a resident principal and no grant was added.
+
+Connected the existing persistent Grace reasoning cycle to the existing durable external-reasoning exchange. A strict typed model intent chooses only a configured advisory provider and is admitted with objective/message correlation, a deterministic request/idempotency identity, finite deadline, current exact authorization, and restricted classification. The cycle checks for an active exchange before re-initiating and leaves execution/approval/verification authority unchanged. The existing provider-scoped MCP list/claim/submit/status operations remain the transport; Grace consumes and acknowledges through the existing exchange and reasoning context.
+
+Disposable PostgreSQL tests using the real `AuthorityRegistry` cover active principal and exact grant acceptance, mismatched and unauthorized principals, absent grants, wrong provider scope, durable initiation, response correlation, Grace consumption/acknowledgment, and restart before consumption. The focused PostgreSQL suite covering exchange, resident reasoning, concurrent assignment scheduler, and Comms5 resource policy/rework passed **36 tests**. The complete suite passed **598 tests, 1 skipped, 0 failures** on a temporary PostgreSQL 16 cluster. The skip is the existing dashboard runtime-role ACL fixture, which requires a role absent from the disposable cluster. Package regression verifies the full Camrui package contains the Grace exchange, Comms5 policy, and related migration sources; the Comms5-only package remains scoped. Graph validation/check, revision audit, Python compilation, and whitespace checks are recorded in the follow-up revision record.
+
+Built and independently verified the full Camrui immutable package from source commit `3e0cb2c98e0308bdda3458715622d57953082c58`. Archive: `/tmp/riverview-camrui-followup-3e0cb2c9.tar.gz`, 34,097,690 bytes, SHA-256 `ecead4fb3d7673b461572012df5184c2a961dc17f29436a7b1a5156fbc4095cb`. Package manifest and shell compatibility passed; direct member inspection confirmed Grace, external exchange/MCP, Comms5 resource policy, and migrations 0011 and 0012 are included. The package is local validation output only; it was not transferred, installed, or activated.
+
+No production database, migration, credential, grant, service, or release was changed. PR #109 remains unchanged and open. This follow-up is isolated on `codex/comms5-principal-escalation-20261018`; it is not merged. Production requires review/integration, a fresh protected backup and restore verification, migration 0012 and exact provider identity/grant commissioning under Steward authority, complete multi-component immutable release staging, and controlled service activation followed by external exchange and Grace-consumption acceptance.

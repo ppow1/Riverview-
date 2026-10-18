@@ -8961,7 +8961,7 @@
     },
     {
       "graph_id": "rv:resident-reasoning:runtime",
-      "graph_revision": "1.2.9",
+      "graph_revision": "1.2.10",
       "component_id": "RESIDENT-REASONING",
       "workflow_id": "resident.reasoning.v1",
       "diagram_order": 13,
@@ -9874,6 +9874,25 @@
             "tests/test_external_reasoning_mcp.py",
             "tests/test_external_reasoning_exchange.py"
           ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:external-escalation-intent",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Did the bound model return a typed advisory intent for a configured provider?",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py",
+            "src/riverview_core/local_reasoning_provider.py",
+            "src/riverview_core/resident_execution/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_external_reasoning_exchange.py",
+            "tests/test_local_reasoning_provider.py"
+          ]
         }
       ],
       "edges": [
@@ -9997,12 +10016,6 @@
           "from": "rv:resident-reasoning:runtime:persist-plan",
           "to": "rv:resident-reasoning:runtime:persistence-gate",
           "type": "runtime_transition"
-        },
-        {
-          "from": "rv:resident-reasoning:runtime:persistence-gate",
-          "to": "rv:resident-reasoning:runtime:proposal-only",
-          "type": "runtime_transition",
-          "label": "durable write committed"
         },
         {
           "from": "rv:resident-reasoning:runtime:persistence-gate",
@@ -10231,6 +10244,24 @@
           "to": "rv:resident-reasoning:runtime:exchange-grace-consumption",
           "type": "runtime_transition",
           "label": "status is observational; Grace consumes only through its existing authorized workflow"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:persistence-gate",
+          "to": "rv:resident-reasoning:runtime:external-escalation-intent",
+          "type": "runtime_transition",
+          "label": "durable typed plan returned"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:external-escalation-intent",
+          "to": "rv:resident-reasoning:runtime:task-escalation-contract",
+          "type": "runtime_transition",
+          "label": "intent targets an explicitly configured provider"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:external-escalation-intent",
+          "to": "rv:resident-reasoning:runtime:proposal-only",
+          "type": "runtime_transition",
+          "label": "no escalation intent; proposal remains unapproved"
         }
       ]
     },
@@ -14126,6 +14157,7 @@
     "rv:resident-reasoning:runtime:exchange-resume",
     "rv:resident-reasoning:runtime:exchange-transport-blocked",
     "rv:resident-reasoning:runtime:exchange-transport-readiness",
+    "rv:resident-reasoning:runtime:external-escalation-intent",
     "rv:resident-reasoning:runtime:fallback",
     "rv:resident-reasoning:runtime:fallback-gate",
     "rv:resident-reasoning:runtime:freshness-gate",

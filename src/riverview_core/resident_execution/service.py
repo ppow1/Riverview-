@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.16
+# Revision: 1.0.17
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Persist and rate-limit failed resident proposals.
 # Purpose: Reconcile durable Grace work orders through existing CME worker contracts
 # Execution Model: Persistent scheduled poll over PostgreSQL objective state
@@ -24,6 +24,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-REASONING-BUDGET-001 | Raise bounded resident proposal default to fit typed dependency plans and source scopes
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Reconcile existing assignments, execution state and verifier evidence to proposal revisions
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Consume correlated durable external advisory responses in Grace's persistent cycle
+# Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Resolve current resident principal and admit typed model-selected advisory requests from grounded reasoning
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -37,7 +38,8 @@ import json
 import logging
 import re
 import time
-from uuid import uuid4
+from datetime import datetime, timedelta, timezone
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from ..worker_adapter.resident_knowledge import TaskRelevantRepositoryKnowledgeProvider
 from .verifier import BoundedArtifactVerifier
@@ -95,8 +97,12 @@ class GraceExecutionService:
             raise ValueError("external reasoning authorizer must be callable")
         self.external_reasoning_exchange = external_reasoning_exchange
         self.external_reasoning_authorize = external_reasoning_authorize
-        self.external_reasoning_principal = external_reasoning_principal or getattr(
-            resident_reasoner, "office_id", "")
+        self.external_reasoning_principal = external_reasoning_principal
+        if (external_reasoning_exchange is not None and
+                (not isinstance(external_reasoning_principal, str) or
+                 not external_reasoning_principal or
+                 external_reasoning_principal == getattr(resident_reasoner, "office_id", None))):
+            raise ValueError("external reasoning requires the principal from the active office binding")
         self.instance_id = uuid4()
 
     def reason_one_grounded_objective(self, objective_id=None):
@@ -111,11 +117,54 @@ class GraceExecutionService:
         if candidate is None:
             return False
         objective_id = candidate["objective_id"]
+        if (self.external_reasoning_exchange is not None and
+                self.external_reasoning_exchange.has_active_for_objective(objective_id)):
+            return False
         try:
             result = self.resident_reasoner.propose(
                 objective_id, trigger="persistent_resident_cycle",
                 token_budget=self.resident_token_budget)
             if result.status is ReasoningStatus.PROPOSED and result.proposal is not None:
+                if result.proposal.external_escalation is not None:
+                    if result.reasoning_request is None:
+                        raise RuntimeError("external_escalation_context_missing")
+                    from ..reasoning_escalation import EscalationRequest
+                    intent = result.proposal.external_escalation
+                    escalation_id = str(uuid5(NAMESPACE_URL,
+                        "rv-external-escalation:" + result.reasoning_request.request_id + ":" +
+                        intent.target_provider_id))
+                    envelope = EscalationRequest.create(result.reasoning_request,
+                        reason=intent.reason, target_provider_id=intent.target_provider_id,
+                        max_tokens=min(512, self.resident_token_budget), timeout_seconds=30,
+                        escalation_id=escalation_id)
+                    received = next((event for event in
+                        self.pipeline.objective_events(objective_id)
+                        if event.get("event_type") == "objective.received"), None)
+                    origin = (received or {}).get("payload", {}).get("origin")
+                    if not isinstance(origin, dict):
+                        raise RuntimeError("external_escalation_conversation_origin_missing")
+                    proposal_ref = (received or {}).get("payload", {}).get("proposal_reference")
+                    classification = "institutional"
+                    proposal_id = proposal_revision = None
+                    if isinstance(proposal_ref, dict):
+                        classification = proposal_ref.get("privacy_classification", "institutional")
+                        proposal_id = proposal_ref.get("proposal_id")
+                        proposal_revision = proposal_ref.get("revision")
+                    if classification not in {"institutional", "confidential"}:
+                        raise RuntimeError("external_escalation_classification_not_permitted")
+                    references = tuple(dict.fromkeys(
+                        ref for item in result.reasoning_request.verified_knowledge
+                        for ref in item.get("source_references", ())))[:32]
+                    self.request_external_reasoning(envelope, result.reasoning_request,
+                        conversation_id=origin["conversation_id"],
+                        message_sequence=origin["source_sequence"],
+                        idempotency_key=("grace-escalation:" +
+                            result.reasoning_request.request_id + ":" +
+                            intent.target_provider_id),
+                        deadline_at=datetime.now(timezone.utc) + timedelta(minutes=30),
+                        classification=classification, proposal_id=proposal_id,
+                        proposal_revision=proposal_revision, source_references=references)
+                    return True
                 self.pipeline.record_proposal(
                     objective_id, result.proposal,
                     actor_id="office:" + self.resident_reasoner.office_id)
@@ -479,7 +528,8 @@ class GraceExecutionService:
             raise RuntimeError("external_reasoning_exchange_unavailable")
         principal = self.external_reasoning_principal
         if (not isinstance(principal, str) or
-                getattr(original_request, "office_id", None) != principal):
+                getattr(original_request, "office_id", None) !=
+                getattr(self.resident_reasoner, "office_id", None)):
             raise PermissionError("Grace exchange principal does not match the original request")
         return self.external_reasoning_exchange.submit(envelope, original_request,
             principal_id=principal, authorize=self.external_reasoning_authorize,

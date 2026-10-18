@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.2
+# Revision: 1.2.3
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -28,6 +28,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Wire the separately scoped source-change capability through the existing leased worker and independent verifier
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Reconcile proposal records when registry migration exists without making it a prerequisite for older deployments
 # Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-INTERNAL-TOOLS-001 | Bind Grace's reasoning router to the existing Comms5 read backend
+# Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Resolve external-reasoning authority through the active institutional office snapshot
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Attach the persistent Grace cycle to existing provider-scoped external reasoning exchanges
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_runtime_provider_wiring.py; tests/test_grace_execution.py
@@ -103,6 +104,20 @@ def resident_result_review_tokens(environ):
     return tokens
 
 
+def active_resident_principal(office_snapshot):
+    """Resolve the current occupant's principal from AuthorityRegistry's authorized snapshot."""
+    if (not isinstance(office_snapshot, dict)
+            or office_snapshot.get("principal_kind") != "resident"
+            or not isinstance(office_snapshot.get("principal_id"), str)
+            or not office_snapshot["principal_id"]
+            or not isinstance(office_snapshot.get("occupant_id"), str)
+            or not office_snapshot["occupant_id"]
+            or type(office_snapshot.get("binding_revision")) is not int
+            or office_snapshot["binding_revision"] < 1):
+        raise WorkerServiceConfigurationError("resident_office_principal_unavailable")
+    return office_snapshot["principal_id"]
+
+
 class _ExternalExchangeProvider:
     """Identity marker for an MCP provider; inference remains externally pulled."""
 
@@ -111,7 +126,8 @@ class _ExternalExchangeProvider:
         self.exchange_principal_id = exchange_principal_id
 
 
-def external_exchange_configuration(environ, *, ledger, authorizer, office_id):
+def external_exchange_configuration(environ, *, ledger, authorizer, authority_registry,
+                                    resident_credential, office_id, principal_id):
     """Build the existing durable exchange only from an explicit provider map."""
     raw = environ.get("RIVERVIEW_EXTERNAL_REASONING_PROVIDER_MAP", "")
     if not raw:
@@ -127,6 +143,8 @@ def external_exchange_configuration(environ, *, ledger, authorizer, office_id):
                     r"[A-Za-z0-9._:-]{1,256}", principal)
                 for provider, principal in mapping.items())):
         raise WorkerServiceConfigurationError("external_reasoning_provider_map_invalid")
+    if (not isinstance(principal_id, str) or not principal_id or principal_id == office_id):
+        raise WorkerServiceConfigurationError("external_reasoning_active_resident_principal_required")
     providers = {provider: _ExternalExchangeProvider(provider, principal)
         for provider, principal in mapping.items()}
     router = ReasoningEscalationRouter(providers)
@@ -134,10 +152,16 @@ def external_exchange_configuration(environ, *, ledger, authorizer, office_id):
         actor_id="office:" + office_id)
 
     def authorize(principal_id, action, scope_ref):
+        from riverview_core.institutional_authority import GrantDenied
+        if principal_id != active_resident_principal(
+                authority_registry.authorize_office_state(resident_credential, office_id)):
+            raise GrantDenied("exchange principal is no longer the active office occupant")
         with ledger.db.transaction():
             with ledger.db.cursor() as cur:
                 ledger._set_search_path(cur)
-                authorizer.require_principal(cur, principal_id, action, scope_ref)
+                decision = authorizer.require(cur, resident_credential, action, scope_ref)
+                if decision.get("principal_id") != principal_id:
+                    raise GrantDenied("exact grant principal does not match the active office occupant")
         return True
 
     return exchange, authorize
@@ -284,10 +308,18 @@ def main() -> int:
         for configured_provider in providers.values():
             if isinstance(configured_provider, GraceModelRouter):
                 configured_provider.internal_tools = internal_tools
+        resident_principal_id = active_resident_principal(office)
+        external_exchange, external_authorize = external_exchange_configuration(
+            os.environ, ledger=ledger, authorizer=authorizer,
+            authority_registry=authority_registry, resident_credential=resident_token,
+            office_id=office_id,
+            principal_id=resident_principal_id)
         resident_reasoner = ResidentReasoner(
             registry=authority_registry, office_id=office_id,
             resident_credential=resident_token, assignments=ObjectiveContextReader(pipeline),
             knowledge=resident_knowledge, providers=providers,
+            external_reasoning_targets=tuple(external_exchange.router.providers)
+                if external_exchange is not None else (),
             timeout_seconds=reasoning_timeout)
         conversation_store = ConversationStore(dsn, schema=schema)
         conversation_service = ResidentConversationService(
@@ -299,8 +331,6 @@ def main() -> int:
         conversation_service.continuation_handler = lambda context, step: pipeline.propose_continuation(
             context["objective_id"], context["assignment_id"], step,
             actor_id="office:" + office_id)
-        external_exchange, external_authorize = external_exchange_configuration(
-            os.environ, ledger=ledger, authorizer=authorizer, office_id=office_id)
         adapter_mode = os.environ.get("RIVERVIEW_ENGINEERING_ADAPTER", "bounded-artifact")
         execution_capability = "engineering.bounded-artifact.v1"
         execution_action = BoundedLocalCodingWorker(pipeline, artifact_root)
@@ -431,7 +461,7 @@ def main() -> int:
             proposal_lifecycle=proposal_lifecycle,
             external_reasoning_exchange=external_exchange,
             external_reasoning_authorize=external_authorize,
-            external_reasoning_principal=office_id)
+            external_reasoning_principal=resident_principal_id)
         if codex_auth_mode == "supervised-chatgpt":
             if not re.search(r"80b", (reasoning_model or "").lower()) or not providers:
                 raise WorkerServiceConfigurationError("supervised_mode_requires_configured_80b_reasoner")

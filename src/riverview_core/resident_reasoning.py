@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.16
+# Revision: 1.0.17
 # Purpose: Regound institutional resident requests and route bounded plan proposals
 # Execution Model: Request-driven in-process runtime with replaceable reasoning providers
 # Observability: Office-scoped durable state stores grounding and provider outcomes
@@ -24,6 +24,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Restrict source-change test targets to tests paths
 # Changed: 2026-10-15 UTC | RV-GRACE-AUTHORIZED-SNAPSHOT-001 | Revalidate office through the restricted runtime function after inference
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Accept bounded advisory input separately from verified knowledge
+# Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Add typed model-selected external advisory intent at the existing reasoning boundary
 # Contracts: docs/components/RESIDENT_REASONING.md
 # Tests: tests/test_resident_reasoning.py
 # History: .riverview-backups/manifest.jsonl
@@ -46,7 +47,7 @@ import re
 import threading
 import time
 from typing import Any, Mapping, Protocol
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from .worker_adapter.knowledge import KnowledgeProvider, KnowledgeResult, KnowledgeStatus
 from .institutional_authority import AuthorityDenied, IdentityConflict, RegistryUnavailable
@@ -94,6 +95,20 @@ class PlanStep:
 
 
 @dataclass(frozen=True)
+class ExternalEscalationIntent:
+    """Explicit model decision to request bounded, advisory external reasoning."""
+
+    reason: str
+    target_provider_id: str
+
+    def __post_init__(self):
+        if (self.reason not in {"task_complexity", "capability_gap", "low_confidence"}
+                or not isinstance(self.target_provider_id, str)
+                or not self.target_provider_id or len(self.target_provider_id) > 160):
+            raise ValueError("external escalation intent is invalid")
+
+
+@dataclass(frozen=True)
 class PlanProposal:
     summary: str
     steps: tuple[PlanStep, ...]
@@ -102,6 +117,7 @@ class PlanProposal:
     served_model: str | None = None
     model_revision: str | None = None
     reasoning_stage: str | None = None
+    external_escalation: ExternalEscalationIntent | None = None
 
     def __post_init__(self):
         if not isinstance(self.summary, str) or not self.summary.strip() or len(self.summary) > 4000:
@@ -148,6 +164,7 @@ class ReasoningRequest:
     verified_knowledge: tuple[Mapping[str, Any], ...]
     prior_plan: Mapping[str, Any] | None
     external_advisory: Mapping[str, Any] | None = None
+    external_reasoning_targets: tuple[str, ...] = ()
 
 
 class AssignmentContextReader(Protocol):
@@ -168,6 +185,7 @@ class ReasoningResult:
     provider_id: str | None = None
     state_revision: int | None = None
     proposal: PlanProposal | None = None
+    reasoning_request: ReasoningRequest | None = None
 
 
 class _TimedCall:
@@ -209,6 +227,7 @@ class ResidentReasoner:
                  assignments: AssignmentContextReader, knowledge: KnowledgeProvider,
                  providers: Mapping[str, ReasoningProvider],
                  fallback_routes: Mapping[str, tuple[str, ...]] | None = None,
+                 external_reasoning_targets: tuple[str, ...] = (),
                  timeout_seconds: float = 5.0):
         if not office_id or not resident_credential or timeout_seconds <= 0:
             raise ValueError("office, credential, and positive timeout are required")
@@ -218,6 +237,13 @@ class ResidentReasoner:
         self.assignments = assignments
         self.knowledge = knowledge
         self.providers = dict(providers)
+        if (not isinstance(external_reasoning_targets, tuple)
+                or len(external_reasoning_targets) > 8
+                or len(set(external_reasoning_targets)) != len(external_reasoning_targets)
+                or any(not isinstance(item, str) or not item or len(item) > 160
+                       for item in external_reasoning_targets)):
+            raise ValueError("external reasoning target registry is invalid")
+        self.external_reasoning_targets = external_reasoning_targets
         self.fallback_routes = {key: tuple(value) for key, value in (fallback_routes or {}).items()}
         if (len(self.providers) > 8 or not 0 < timeout_seconds <= 60
                 or any(not isinstance(key, str) or not key or len(route) > 2
@@ -438,6 +464,11 @@ class ResidentReasoner:
             return self._result_after_record(revision, ReasoningStatus.INVALID_PROPOSAL,
                                              request_id, "BUDGET_TOO_SMALL_FOR_ROUTE")
 
+        # Stable for the same office binding and assignment revision. A restart or
+        # duplicate CME cycle therefore reuses the same external-exchange key.
+        request_id = str(uuid5(NAMESPACE_URL, "rv-resident-reasoning:" + ":".join((
+            self.office_id, assignment_id, str(assignment["revision"]),
+            str(snapshot["binding_revision"]), str(implementation_revision), trigger))))
         prior_runtime = snapshot["state"].get(self.STATE_KEY, {})
         prior_plan = prior_runtime.get("plans", {}).get(assignment_id)
         per_attempt_budget = token_budget // len(route)
@@ -450,7 +481,8 @@ class ResidentReasoner:
             verified_knowledge=(
                 {"value": grounded.value, **self._knowledge_record(grounded)},
                 {"value": regrounded.value, **self._knowledge_record(regrounded)}),
-            prior_plan=prior_plan, external_advisory=external_advisory)
+            prior_plan=prior_plan, external_advisory=external_advisory,
+            external_reasoning_targets=self.external_reasoning_targets)
 
         for provider_id in route:
             provider = self.providers[provider_id]
@@ -508,8 +540,12 @@ class ResidentReasoner:
                                               request_id, "PROPOSAL_ONLY", provider_id)
             if final.status is not ReasoningStatus.PROPOSED:
                 return final
+            if (result.external_escalation is not None and
+                    result.external_escalation.target_provider_id not in self.external_reasoning_targets):
+                return ReasoningResult(ReasoningStatus.INVALID_PROPOSAL, request_id,
+                    "EXTERNAL_PROVIDER_NOT_CONFIGURED", provider_id, final.state_revision)
             return ReasoningResult(final.status, final.request_id, final.detail_code,
-                                  final.provider_id, final.state_revision, result)
+                                  final.provider_id, final.state_revision, result, request)
         return ReasoningResult(ReasoningStatus.UNAVAILABLE, request_id, "PROVIDER_UNAVAILABLE")
 
 

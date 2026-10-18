@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 Component: RESIDENT-REASONING
-File Revision: 1.1.3
+File Revision: 1.1.4
 Purpose: Define the durable transport-neutral external reasoning exchange contract
 Authority: Existing resident.reasoning.escalate exact grant; advisory-only result
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial phase-one contract
@@ -14,6 +14,7 @@ Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Add OAuth resource
 Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Record Tunnel transport suitability and OAuth issuer boundary
 Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Return standard HTTP OAuth challenges for missing/invalid tokens and insufficient scope
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Bind durable provider responses to Grace's existing persistent reasoner and idempotent proposal/event acknowledgement.
+Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Connect the existing reasoning decision to principal-resolved durable exchange admission.
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Durable external reasoning exchange
@@ -28,7 +29,15 @@ Grace's objective, proposal, assignment, CME, and verification records remain au
 An external response is typed **advice** only. It cannot approve a proposal,
 create an assignment, invoke a tool, or mark work verified.
 
-The persistent Grace execution service is the consumer. It scans bounded IDs in
+The persistent Grace execution service both initiates and consumes exchanges.
+At the existing `ResidentReasoner` decision boundary, the local provider may
+return a typed optional external escalation intent limited to explicitly
+configured provider IDs. `reason_one_grounded_objective()` reads the original
+objective event for conversation/message provenance, resolves any exact
+proposal revision reference, then submits through
+`request_external_reasoning()`. It does not wait for a provider and it does
+not create a work order. A pending exchange suppresses duplicate reasoning
+initiation for that objective. The service also scans bounded IDs in
 `response_received`, then calls the existing fenced `consume` operation under
 Grace's configured principal and exact `resident.reasoning.escalate` grant.
 The response is provided as `external_advisory`, separate from verified
@@ -40,19 +49,26 @@ does not duplicate the proposal. The acknowledgement uses the exchange's
 consumption token/fence. A transient failure leaves the exchange recoverable.
 
 Grace's `request_external_reasoning()` service method persists a request through
-the same exchange object without waiting for delivery. It verifies that the
-source `ReasoningRequest.office_id` equals the configured Grace principal; the
-exchange still validates the context fingerprint, provider registration,
-request lineage, finite deadline, and exact escalation grant. Provider-map
-configuration is opt-in and contains identity references only, never credential
-material. No current reasoning provider is automatically substituted for or
-authorized by an external response.
+the same exchange object without waiting for delivery. It checks that the
+source `ReasoningRequest.office_id` equals the active reasoner's office. The
+runner separately resolves the current resident principal from
+`AuthorityRegistry.authorize_office_state()` and supplies it as the exchange
+principal. The exchange still validates context fingerprint, provider
+registration, request lineage, finite deadline, and exact escalation grant.
+Provider-map configuration is opt-in and contains identity references only,
+never credential material. No current reasoning provider is automatically
+substituted for or authorized by an external response.
 
 The adapter calls `authorize_for_durable_exchange` before it inserts an exchange.
 That method reuses the router's configured provider identity, context
 fingerprint, and exact `resident.reasoning.escalate` authorization for
-`provider:<provider_id>`. A denial or unavailable authority service creates no
-row. The request is durably committed before any delivery lease can be taken.
+`provider:<provider_id>`. The production runner re-resolves the active office
+occupant for each check, authenticates that resident's existing credential
+through `ExactGrantAuthorizer.require()`, and confirms the returned grant
+principal still matches the snapshot. It does not use `require_principal()` or
+derive a resident identity from the office ID. A denial or unavailable
+authority service creates no row. The request is durably committed before any
+delivery lease can be taken.
 
 ## Durable contract
 

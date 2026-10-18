@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md
 Component: RESIDENT-REASONING
-File Revision: 1.1.4
+File Revision: 1.1.5
 Purpose: Diagnose durable external reasoning exchange transitions safely
 Authority: Read-only diagnostics first; no production migration or transport operation
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial troubleshooting guide
@@ -14,9 +14,31 @@ Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Record official Tu
 Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Document HTTP 401/403 OAuth challenges from the MCP handler
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Document Grace's live durable response consumer, idempotent acknowledgement and restart diagnostics.
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Record the owner-session unit name and isolated full-round-trip acceptance boundary.
+Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Add initiation, active-principal, and exact-grant recovery diagnostics.
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # External reasoning exchange troubleshooting
+
+## Grace initiation checks (2026-10-18)
+
+The existing persistent Grace cycle initiates an exchange only when the bound
+reasoning provider returns a typed `external_escalation` intent for one of the
+explicitly configured provider IDs. No objective proposal, assignment, or
+work-order write is implied by that intent. If no exchange row appears, inspect
+the sanitized `resident_reasoning_cycle_failed` event/log for a failure type,
+then check objective-origin provenance, provider-map registration, and the
+current exact grant. Do not create a request manually to simulate Grace's
+decision.
+
+The production authorization callback resolves the active occupant through
+`AuthorityRegistry.authorize_office_state()` and uses that occupant's existing
+credential with `ExactGrantAuthorizer.require()` for the exact action
+`resident.reasoning.escalate` and scope `provider:<configured-provider-id>`.
+An office ID is not a resident principal. A changed occupant, missing exact
+grant, wrong provider scope, or unavailable authority database must fail
+closed before the exchange is persisted. The persisted exchange remains
+idempotent by its request/idempotency identifiers; an active exchange
+suppresses another reasoning attempt for the same objective.
 
 ## Grace consumer checks (2026-10-18)
 
