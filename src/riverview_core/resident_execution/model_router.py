@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.2.4
+# Revision: 1.2.5
+# Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Trim oldest conversational context to the provider byte limit while preserving system instructions and the active turn.
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Require tool-backed current-status answers.
 # Purpose: Prefer 80B for substantive turns, bound context and autonomic acknowledgments, and persist diagnostics
 # Execution Model: Request-driven; persisted deferred turns are resumed by the conversation owner
@@ -89,7 +90,7 @@ class GraceModelRouter:
         "response_too_large", "request_contract_invalid", "endpoint_status_invalid",
         "all_models_unavailable", "required_capability_not_satisfied",
         "readiness_timeout", "health_status_invalid", "model_list_invalid",
-        "configured_model_missing", "provider_slot_occupied",
+        "configured_model_missing", "provider_slot_occupied", "prompt_too_large",
         "endpoint_http_503", "endpoint_http_502", "endpoint_http_504"})
 
     def __init__(self, *, autonomic, vision, reasoning, internal_tools=None):
@@ -221,6 +222,7 @@ class GraceModelRouter:
                 "to consume in a follow-up. Available internal tools: " + catalog + ". "
                 "Do not invent tool names or arguments, and do not provide a status answer "
                 "until the matching tool result is available.")
+        routed = self._bound_provider_bytes(routed, provider=provider)
         attempts = []
         try:
             started_at = datetime.now(UTC)
@@ -304,6 +306,8 @@ class GraceModelRouter:
                     "\",\"arguments\":{...}}</rv-tool-call>. Do not answer in prose."
                 )
                 retry_messages = [*routed, {"role": "system", "content": retry_prompt}]
+                retry_messages = self._bound_provider_bytes(
+                    retry_messages, provider=provider)
                 retry_started_at = datetime.now(UTC)
                 retry_started = monotonic()
                 try:
@@ -359,6 +363,7 @@ class GraceModelRouter:
                         "Use the structured tool result as evidence for the user's question. "
                         "Describe errors clearly. Do not claim a successful action. "
                         "Do not request or emit another tool call.")}]
+                followup = self._bound_provider_bytes(followup, provider=provider)
                 final = provider.complete_chat(followup,
                     max_tokens=self._stage_token_limit(stage, max_tokens),
                     expected_revision=provider.model_sha256,
@@ -425,6 +430,7 @@ class GraceModelRouter:
         stage_limit = self._stage_token_limit(stage, max_tokens)
         routed = [{"role": "system", "content": self.STAGE_INSTRUCTIONS[stage]},
                   *self._bound_provider_context(messages, stage=stage)]
+        routed = self._bound_provider_bytes(routed, provider=provider)
         attempts = []
         emitted = False
 
@@ -476,6 +482,7 @@ class GraceModelRouter:
             routed[0] = {"role": "system", "content": self.STAGE_INSTRUCTIONS["autonomic"]}
             fallback_messages = self._bound_provider_context(messages, stage="autonomic")
             routed = [routed[0], *fallback_messages]
+            routed = self._bound_provider_bytes(routed, provider=fallback)
             try:
                 completion = invoke("autonomic", fallback, routed,
                     self._stage_token_limit("autonomic", max_tokens),
@@ -542,6 +549,51 @@ class GraceModelRouter:
         return [message for message in messages
                 if id(message) in retained_system_ids
                 or id(message) in retained_conversation_ids]
+
+    @classmethod
+    def _bound_provider_bytes(cls, messages, *, provider):
+        """Trim oldest non-system context until the exact provider payload fits.
+
+        This mirrors LocalReasoningProvider's JSON serialization and optional chat
+        prefix. System instructions and the latest user turn are never removed;
+        durable history is untouched. If those protected messages alone exceed the
+        provider contract, fail with the specific bounded diagnostic.
+        """
+        if (not isinstance(messages, list)
+                or any(not isinstance(item, dict)
+                       or set(item) != {"role", "content"}
+                       or item.get("role") not in {"system", "user", "assistant"}
+                       or not isinstance(item.get("content"), str)
+                       for item in messages)):
+            raise LocalReasoningUnavailable("request_contract_invalid")
+        latest_user = next((item for item in reversed(messages)
+                            if item["role"] == "user"), None)
+        if latest_user is None:
+            raise LocalReasoningUnavailable("request_contract_invalid")
+        prefix = getattr(provider, "chat_prefix", "")
+
+        def encoded_size(items):
+            candidate = [dict(item) for item in items]
+            if prefix:
+                user_index = next((index for index in range(len(candidate) - 1, -1, -1)
+                                   if candidate[index]["role"] == "user"), None)
+                if user_index is None:
+                    raise LocalReasoningUnavailable("request_contract_invalid")
+                candidate[user_index]["content"] = prefix + candidate[user_index]["content"]
+            return len(json.dumps(candidate, ensure_ascii=False,
+                                  separators=(",", ":")).encode("utf-8"))
+
+        bounded = list(messages)
+        while encoded_size(bounded) > LocalReasoningProvider.MAX_PROMPT_BYTES:
+            latest_index = max(index for index, item in enumerate(bounded)
+                               if item is latest_user)
+            removable = next((index for index, item in enumerate(bounded)
+                              if index < latest_index
+                              and item["role"] in {"user", "assistant"}), None)
+            if removable is None:
+                raise LocalReasoningUnavailable("prompt_too_large")
+            bounded.pop(removable)
+        return bounded
 
     @classmethod
     def _safe_error(cls, exc):

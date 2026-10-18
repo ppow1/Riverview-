@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.2.12
+# Revision: 1.2.13
+# Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Preserve prompt_too_large as a safe deferred-resume diagnostic.
+# Changed: 2026-10-18 UTC | RV-GRACE-DEFERRED-STREAM-COMPLETION | Start the durable stream generation before non-streaming tool-router resumption.
 # Purpose: Persist and serve office-bound, authorized Grace conversations
 # Execution Model: Authenticated request-driven completion with durable event history
 # Observability: Redacted response status and append-only PostgreSQL conversation events
@@ -75,7 +77,7 @@ _SAFE_DIAGNOSTIC_CODES = frozenset({"endpoint_busy", "endpoint_timeout",
     "response_incomplete", "response_contract_invalid", "response_too_large",
     "request_contract_invalid", "endpoint_status_invalid", "readiness_timeout",
     "health_status_invalid", "model_list_invalid", "configured_model_missing",
-    "provider_slot_occupied", "all_models_unavailable",
+    "provider_slot_occupied", "all_models_unavailable", "prompt_too_large",
     "required_capability_not_satisfied"})
 _SAFE_RESPONSE_CODES = frozenset({"model_provider_unavailable","model_binding_mismatch",
     "context_too_large","office_model_binding_changed","model_timeout",
@@ -1697,6 +1699,14 @@ class ResidentConversationService:
                                     "provider_attempts": list(getattr(exc, "attempts", ())),
                                     "final_served_provider": None})
 
+    @staticmethod
+    def _start_deferred_stream_generation(store, request_id, router):
+        """Mark an existing streamed deferred turn generating before non-stream inference."""
+        provider = router.providers["reasoning"]
+        store.stream_generation_started(request_id,
+            provider_ref=provider.provider_id, model_id=provider.model,
+            reasoning_stage="reasoning")
+
     def resume_deferred(self, *, limit=20):
         """Resume durable turns after exact authorization and audited direct-upgrade checks."""
         resumed = 0
@@ -1777,6 +1787,13 @@ class ResidentConversationService:
                         on_reset=on_reset,timeout_seconds=120,
                         required_capability=required_capability,selected_route=selected_route)
                 else:
+                    if stream_enabled:
+                        # Tool-enabled routers use the non-streaming completion
+                        # contract. Move the existing stream row out of deferred
+                        # before finish_streamed_turn attempts its atomic terminal
+                        # update, even though this generation emits no deltas.
+                        self._start_deferred_stream_generation(
+                            self.store, row["request_id"], router)
                     completion = router.complete_chat(messages,
                         max_tokens=self.max_response_tokens,
                         expected_revision=current["implementation_revision"],

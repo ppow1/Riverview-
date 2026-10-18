@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.31
+# Revision: 1.0.32
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -38,6 +38,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-GUIDANCE-001 | Assert user-facing Engineering proposal guidance reaches the actual inference prompt and retain a stable context-limit boundary case.
 # Changed: 2026-10-16 UTC | RV-INSTITUTIONAL-PROPOSAL-LIFECYCLE-001 | Exercise 80B proposal drafting without objective, assignment, repository-write, or CME authority.
 # Changed: 2026-10-16 UTC | RV-INSTITUTIONAL-PROPOSAL-LIFECYCLE-001 | Verify authenticated proposal draft/search API and idempotent replay without objective creation; retain safe HTTP failure code in assertion.
+# Changed: 2026-10-18 UTC | RV-GRACE-DEFERRED-STREAM-COMPLETION | Regress tool-router resumption from deferred stream state through durable terminal persistence.
 # =============================================================================
 """Isolated PostgreSQL and authority tests for Grace's persistent conversation path."""
 
@@ -100,6 +101,76 @@ class _FailingStreamingChatProvider(_ChatProvider):
                     on_reset=lambda:None,timeout_seconds=120):
         from riverview_core.local_reasoning_provider import LocalReasoningUnavailable
         raise LocalReasoningUnavailable("endpoint_unavailable")
+
+
+class DeferredStreamResumeTests(unittest.TestCase):
+    def test_tool_router_marks_deferred_stream_generating_before_terminal_commit(self):
+        from types import SimpleNamespace
+        from riverview_core.resident_execution.conversation import ResidentConversationService
+
+        class Store:
+            def __init__(self):
+                self.started = []
+                self.terminal = None
+
+            def deferred_turns(self, *, limit):
+                return [{"conversation_id": "00000000-0000-0000-0000-000000000001",
+                    "request_id": "00000000-0000-0000-0000-000000000002",
+                    "principal_id": "steward:test", "body": "Resume this saved turn.",
+                    "sequence": 7, "user_metadata": {"principal_id": "steward:test"},
+                    "metadata": {"required_capability": "grace.reasoning.80b"},
+                    "occupant_id": "occupant:grace:test", "implementation_id": "impl:test",
+                    "implementation_revision": "a" * 64, "provider_ref": "grace.router:test",
+                    "model_id": "grace-router"}]
+
+            def claim_deferred_request(self, request_id, claim_token):
+                return True
+
+            def history(self, *args, **kwargs):
+                return {"events": []}
+
+            def has_stream(self, request_id):
+                return True
+
+            def stream_generation_started(self, request_id, **kwargs):
+                self.started.append((request_id, kwargs))
+
+            def finish_streamed_turn(self, *args, **kwargs):
+                self.terminal = kwargs
+
+            def release_deferred_claim(self, request_id, claim_token):
+                pass
+
+        store = Store()
+        provider = SimpleNamespace(provider_id="local.inference.v1", model="qwen-80b")
+        router = SimpleNamespace(provider_id="grace.router:test", model=provider.model, providers={"reasoning": provider},
+            internal_tools=object(), supports_capability=lambda capability: True,
+            complete_chat=lambda *args, **kwargs: SimpleNamespace(content="Grace result.",
+                reasoning_stage="reasoning", provisional=False, served_model="qwen-80b",
+                finish_reason="stop", prompt_tokens=12, completion_tokens=3,
+                provider_attempts=(), internal_tool_results=()))
+        service = ResidentConversationService.__new__(ResidentConversationService)
+        service.store = store
+        service.registry = SimpleNamespace()
+        service.authorizer = SimpleNamespace()
+        service.office_id = "office:grace"
+        service._resident_credential = "resident:test"
+        service.providers = {router.provider_id: router}
+        service.max_response_tokens = 512
+        service.operational_context = None
+        service._authorize = lambda credential, action: {"grant_id": "grant:test"}
+        service._authorize_office_binding = lambda: {
+            "occupant_id": "occupant:grace:test", "implementation_kind": "model",
+            "implementation_id": "impl:test", "implementation_revision": "a" * 64,
+            "provider_ref": router.provider_id, "model_id": router.model}
+        service._operational_context_snapshot = lambda: None
+
+        self.assertEqual(service.resume_deferred(limit=1), 1)
+        self.assertEqual(store.started, [("00000000-0000-0000-0000-000000000002", {
+            "provider_ref": "local.inference.v1", "model_id": "qwen-80b",
+            "reasoning_stage": "reasoning"})])
+        self.assertEqual(store.terminal["body"], "Grace result.")
+        self.assertEqual(store.terminal["stream_metadata"]["reasoning_stage"], "reasoning")
 
 
 @unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")

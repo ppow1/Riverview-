@@ -1,0 +1,1240 @@
+{
+  "graph_id": "rv:resident-conversation:browser-chat",
+  "graph_revision": "1.0.19",
+  "component_id": "RESIDENT-CONVERSATION",
+  "workflow_id": "resident.conversation.v1",
+  "diagram_order": 14,
+  "source_references": [
+    "scripts/verify_grace_conversation_browser.py",
+    "src/riverview_core/account_auth/__init__.py",
+    "src/riverview_core/institutional_authority/db_boundary.py",
+    "src/riverview_core/institutional_authority/grants.py",
+    "src/riverview_core/institutional_authority/migrations/0004_exact_principal_grant_authorization.sql",
+    "src/riverview_core/institutional_authority/migrations/0006_authorized_implementation_successor.sql",
+    "src/riverview_core/local_reasoning_provider.py",
+    "src/riverview_core/resident_execution/conversation.py",
+    "src/riverview_core/resident_execution/grace_role_context.py",
+    "src/riverview_core/resident_execution/migrations/0003_resident_conversation.sql",
+    "src/riverview_core/resident_execution/migrations/0004_deferred_conversation_responses.sql",
+    "src/riverview_core/resident_execution/migrations/0006_deferred_execution_claims.sql",
+    "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql",
+    "src/riverview_core/resident_execution/model_router.py",
+    "src/riverview_core/resident_execution/operational_context.py",
+    "src/riverview_core/status_dashboard/server.py",
+    "src/riverview_core/status_dashboard/static/app.css",
+    "src/riverview_core/status_dashboard/static/app.js",
+    "src/riverview_core/status_dashboard/static/index.html",
+    "tests/test_grace_operational_context.py",
+    "tests/test_grace_role_context.py",
+    "tests/test_grace_router_readiness.py",
+    "tests/test_resident_conversation.py"
+  ],
+  "documentation_references": [
+    "docs/components/RESIDENT_CONVERSATION.md",
+    "docs/components/RESIDENT_CONVERSATION_FLOW.md",
+    "docs/components/STATUS_DASHBOARD.md"
+  ],
+  "verification_evidence": [
+    "evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/browser-commissioning.json",
+    "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json",
+    "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-live-0382ce1/commissioning-summary.json",
+    "scripts/verify_grace_conversation_browser.py",
+    "tests/test_local_reasoning_provider.py",
+    "tests/test_resident_conversation.py",
+    "tests/test_resident_model_router.py",
+    "tests/test_status_dashboard.py"
+  ],
+  "nodes": [
+    {
+      "id": "rv:resident-conversation:browser-chat:browser-submit",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Authenticated browser submits a bounded conversation turn",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:dashboard-auth",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Require existing dashboard bearer before resident API access",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:exact-grant",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Does the human principal hold the exact office conversation grant?",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:deny",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject request without persisting or invoking a model",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:office-binding",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Read current bound occupant and model implementation through AuthorityRegistry",
+      "source_references": [
+        "src/riverview_core/institutional_authority/registry.py"
+      ],
+      "documentation_references": [
+        "docs/components/INSTITUTIONAL_AUTHORITY.md",
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:provider-match",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Does the registered provider match the exact implementation revision?",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/local_reasoning_provider.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "tests/test_local_reasoning_provider.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:model-readiness-diagnostic",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Optional read-only readiness probe verifies health and exact served model; HTTP unavailability does not identify host power state",
+      "source_references": [
+        "src/riverview_core/local_reasoning_provider.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_local_reasoning_provider.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:persist-user",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Append user event and idempotency key before inference",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/resident_execution/migrations/0003_resident_conversation.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:context-bound",
+      "node_revision": "1.0.1",
+      "type": "verification",
+      "label": "Assemble recent history; retain every system instruction and the active user turn, trim oldest conversational context to the exact serialized 32 KiB provider limit",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:stage-context-policy",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "For 0.6B acknowledgments use concise Director of Operations identity context and current user turn; retain full canonical context for substantive stages",
+      "source_references": [
+        "src/riverview_core/resident_execution/model_router.py",
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_model_router.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:inference",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Call the office-bound local model adapter; only loopback or explicitly allowlisted OCTO1 routes are accepted, with served-model and binding checks",
+      "source_references": [
+        "src/riverview_core/local_reasoning_provider.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_local_reasoning_provider.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:provider-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Persist a sanitized unavailable or incomplete response outcome",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:binding-recheck",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Reject a result if the office implementation changed during inference",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:persist-response",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Append one terminal response with actual served model and original plus executing implementation provenance",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/resident_execution/migrations/0003_resident_conversation.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:restart-recovery",
+      "node_revision": "1.0.1",
+      "type": "recovery",
+      "label": "After service restart mark unfinished request interrupted without automatic duplicate inference",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/browser-commissioning.json"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:browser-history",
+      "node_revision": "1.0.2",
+      "type": "exit",
+      "label": "Return durable response/status and refresh the active conversation for later verified Engineering results",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md",
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py",
+        "tests/test_resident_conversation.py",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261011T-committed-source-browser-verified/browser-commissioning.json",
+        "scripts/verify_grace_conversation_browser.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:future-objective-jump",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "Future explicit authorization remains a separate objective submission path",
+      "jump_target_id": "rv:grace:operational-integration:objective-intake",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md",
+        "docs/components/GRACE_EXECUTION_PIPELINE.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:browser-render",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render complete persisted messages with role, status, timestamp and provenance",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/index.html",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/static/app.css"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_grace_conversation_browser.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:composer",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Keep an editable local draft; Enter submits and Shift+Enter inserts a line break",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/index.html",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/static/app.css"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_grace_conversation_browser.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:chat-details",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Show persisted conversation metadata with local and UTC timestamps",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/index.html",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/static/app.css"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_grace_conversation_browser.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:message-actions",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Allow local copy and detail inspection without forwarding private content",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/index.html",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/static/app.css"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_grace_conversation_browser.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:responsive-a11y",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Keep message text and controls accessible on narrow and desktop viewports",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/index.html",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/static/app.css"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_grace_conversation_browser.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:session-present",
+      "node_revision": "1.0.1",
+      "type": "decision",
+      "label": "Does this browser have an authenticated linked Steward session or a legacy conversation cookie?",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/account_auth/__init__.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "tests/test_status_dashboard.py",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-live-0382ce1/commissioning-summary.json"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:session-connect",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Validate both exact grants through the linked Steward principal or retained legacy credential",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/institutional_authority/grants.py",
+        "src/riverview_core/institutional_authority/migrations/0004_exact_principal_grant_authorization.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-live-0382ce1/commissioning-summary.json"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:session-cookie",
+      "node_revision": "1.0.1",
+      "type": "verification",
+      "label": "Revalidate linked account session and exact grants on every request; legacy cookie also remains supported",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/account_auth/__init__.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-live-0382ce1/commissioning-summary.json"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:auth-denial-latch",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Pause automatic history requests after 403 until explicit reconnect",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-browser-isolated-1/browser-commissioning.json",
+        "evidence/checkouts/RESIDENT-CONVERSATION/20261012T-auth-session-live-0382ce1/commissioning-summary.json"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:readiness-route",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Route substantive turns to 80B; exact acknowledgments to 0.6B; narrow simple facts to provisional 30B",
+      "source_references": [
+        "src/riverview_core/resident_execution/model_router.py",
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_model_router.py",
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:attempt-diagnostics",
+      "node_revision": "1.0.1",
+      "type": "verification",
+      "label": "Emit sanitized provider attempts with bounded timing and error codes; never include conversation text",
+      "source_references": [
+        "src/riverview_core/resident_execution/model_router.py",
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/local_reasoning_provider.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_model_router.py",
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:defer-reasoning",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Persist complex turn and required capability when 80B is unavailable or busy",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/resident_execution/migrations/0004_deferred_conversation_responses.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_model_router.py",
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:resume-reasoning",
+      "node_revision": "1.0.2",
+      "type": "recovery",
+      "label": "Poll durable deferred turns, acquire a cross-process lease, and rebuild context only through the original request",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_model_router.py",
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:reasoning-router-failure",
+      "node_revision": "1.0.1",
+      "type": "failure",
+      "label": "Keep the request pending when the required 80B capability is unavailable; emit sanitized provider attempt diagnostics",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_model_router.py",
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:resume-auth-recheck",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Revalidate the original sender exact grant and current Grace occupant",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "tests/test_grace_router_readiness.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:upgrade-continuity",
+      "node_revision": "1.0.1",
+      "type": "decision",
+      "label": "Does the current binding match or follow the explicitly authorized direct router transition for the persisted capability?",
+      "source_references": [
+        "src/riverview_core/institutional_authority/migrations/0006_authorized_implementation_successor.sql",
+        "src/riverview_core/institutional_authority/registry.py",
+        "src/riverview_core/resident_execution/conversation.py",
+        "tests/test_grace_router_readiness.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:upgrade-rejected",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Keep the request deferred when grant, capability, successor, or audited transition is invalid",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/institutional_authority/registry.py",
+        "src/riverview_core/institutional_authority/migrations/0006_authorized_implementation_successor.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:resume-capability-pin",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Constrain the resumed turn to its persisted required capability; a deferred 80B turn uses only 80B regardless of later conversation turns",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/resident_execution/model_router.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_model_router.py",
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:grace-role-context",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Inject shared canonical Director of Operations identity, responsibilities and no-permission boundary into ordinary and resumed turns",
+      "source_references": [
+        "src/riverview_core/resident_execution/grace_role_context.py",
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/architecture/GRACE_DIRECTOR_OF_OPERATIONS_RECONCILIATION.md",
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_grace_role_context.py",
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:operations-snapshot",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Attach a bounded read-only CME, assignment, objective, worker and attention snapshot with freshness and redaction provenance",
+      "source_references": [
+        "src/riverview_core/resident_execution/operational_context.py",
+        "src/riverview_core/status_dashboard/projection.py",
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md",
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": [
+        "tests/test_grace_operational_context.py",
+        "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:stream-capability-check",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Does this browser support authenticated fetch streaming?",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "tests/test_status_dashboard.py",
+        "tests/test_local_reasoning_provider.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:stream-submit",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Persist the user turn and idempotency key, then return queued status without waiting for inference.",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "tests/test_status_dashboard.py",
+        "tests/test_local_reasoning_provider.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:stream-events",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Persist bounded provider text deltas and sanitized queued/generating/completed/failed state.",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "tests/test_status_dashboard.py",
+        "tests/test_local_reasoning_provider.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:stream-authorized-sse",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Replay durable response events over same-origin authenticated SSE after a monotonic sequence cursor.",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "tests/test_status_dashboard.py",
+        "tests/test_local_reasoning_provider.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:stream-render",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render arriving text safely in the original conversation and measure first-text and delivery latency.",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "tests/test_status_dashboard.py",
+        "tests/test_local_reasoning_provider.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:stream-reconnect",
+      "node_revision": "1.0.2",
+      "type": "recovery",
+      "label": "Reconnect from the monotonic cursor; clear superseded partial generations and deferred text without duplicating terminal history.",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "tests/test_status_dashboard.py",
+        "tests/test_local_reasoning_provider.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:stream-history-verify",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Load the canonical completed response from history after reload; stream and conversation terminal state commit atomically.",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "tests/test_status_dashboard.py",
+        "tests/test_local_reasoning_provider.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:stream-nonstream-fallback",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Use the existing bounded synchronous conversation route when browser streaming is unavailable.",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "tests/test_status_dashboard.py",
+        "tests/test_local_reasoning_provider.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:stream-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Retain the user turn and one sanitized terminal failure; do not expose prompts, output logs, or credentials.",
+      "source_references": [
+        "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_conversation.py",
+        "tests/test_status_dashboard.py",
+        "tests/test_local_reasoning_provider.py"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:resident-conversation:browser-chat:browser-submit",
+      "to": "rv:resident-conversation:browser-chat:dashboard-auth",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:dashboard-auth",
+      "to": "rv:resident-conversation:browser-chat:exact-grant",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:exact-grant",
+      "to": "rv:resident-conversation:browser-chat:deny",
+      "type": "diagnostic_branch",
+      "label": "No exact active read/send grant"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:exact-grant",
+      "to": "rv:resident-conversation:browser-chat:office-binding",
+      "type": "runtime_transition",
+      "label": "Authorized"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:office-binding",
+      "to": "rv:resident-conversation:browser-chat:provider-match",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:provider-match",
+      "to": "rv:resident-conversation:browser-chat:deny",
+      "type": "diagnostic_branch",
+      "label": "Provider or model revision unavailable"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:provider-match",
+      "to": "rv:resident-conversation:browser-chat:persist-user",
+      "type": "runtime_transition",
+      "label": "Current implementation matched"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:provider-match",
+      "to": "rv:resident-conversation:browser-chat:model-readiness-diagnostic",
+      "type": "documentation",
+      "label": "Read-only readiness probe is available for diagnostics; chat currently requires no probe preflight"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:persist-user",
+      "to": "rv:resident-conversation:browser-chat:context-bound",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:context-bound",
+      "to": "rv:resident-conversation:browser-chat:provider-failure",
+      "type": "diagnostic_branch",
+      "label": "Protected system context plus active user turn still exceeds 32 KiB; provider is not called"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:inference",
+      "to": "rv:resident-conversation:browser-chat:provider-failure",
+      "type": "diagnostic_branch",
+      "label": "Timeout, unavailable or incomplete response"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:inference",
+      "to": "rv:resident-conversation:browser-chat:binding-recheck",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:binding-recheck",
+      "to": "rv:resident-conversation:browser-chat:provider-failure",
+      "type": "diagnostic_branch",
+      "label": "Office binding changed during inference"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:binding-recheck",
+      "to": "rv:resident-conversation:browser-chat:persist-response",
+      "type": "runtime_transition",
+      "label": "Same current binding"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:persist-response",
+      "to": "rv:resident-conversation:browser-chat:browser-history",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:provider-failure",
+      "to": "rv:resident-conversation:browser-chat:browser-history",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:restart-recovery",
+      "to": "rv:resident-conversation:browser-chat:browser-history",
+      "type": "recovery_route"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:browser-history",
+      "to": "rv:resident-conversation:browser-chat:future-objective-jump",
+      "type": "documentation",
+      "label": "Conversation does not promote work"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:future-objective-jump",
+      "to": "rv:grace:operational-integration:objective-intake",
+      "type": "jump",
+      "label": "Separate explicit objective path; no conversation-triggered call"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:browser-history",
+      "to": "rv:resident-conversation:browser-chat:browser-render",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:browser-render",
+      "to": "rv:resident-conversation:browser-chat:composer",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:browser-render",
+      "to": "rv:resident-conversation:browser-chat:chat-details",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:browser-render",
+      "to": "rv:resident-conversation:browser-chat:message-actions",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:browser-render",
+      "to": "rv:resident-conversation:browser-chat:responsive-a11y",
+      "type": "verification"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:dashboard-auth",
+      "to": "rv:resident-conversation:browser-chat:session-present",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:session-present",
+      "to": "rv:resident-conversation:browser-chat:session-cookie",
+      "type": "runtime_transition",
+      "label": "Cookie present"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:session-present",
+      "to": "rv:resident-conversation:browser-chat:session-connect",
+      "type": "diagnostic_branch",
+      "label": "No linked Steward session or legacy cookie; explicit legacy Connect remains available"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:session-cookie",
+      "to": "rv:resident-conversation:browser-chat:exact-grant",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:session-connect",
+      "to": "rv:resident-conversation:browser-chat:exact-grant",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:deny",
+      "to": "rv:resident-conversation:browser-chat:auth-denial-latch",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:auth-denial-latch",
+      "to": "rv:resident-conversation:browser-chat:session-connect",
+      "type": "recovery_route",
+      "label": "User reconnects with an authorized credential"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:inference",
+      "to": "rv:resident-conversation:browser-chat:readiness-route",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:readiness-route",
+      "to": "rv:resident-conversation:browser-chat:attempt-diagnostics",
+      "type": "runtime_transition",
+      "label": "Provider selected; begin bounded inference attempt"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:attempt-diagnostics",
+      "to": "rv:resident-conversation:browser-chat:persist-response",
+      "type": "runtime_transition",
+      "label": "Success or authorized interim fallback; persist served provider and attempts"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:attempt-diagnostics",
+      "to": "rv:resident-conversation:browser-chat:defer-reasoning",
+      "type": "diagnostic_branch",
+      "label": "Required provider failed or is unavailable; keep request durable"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:readiness-route",
+      "to": "rv:resident-conversation:browser-chat:persist-response",
+      "type": "runtime_transition",
+      "label": "80B ready or bounded provisional path selected"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:readiness-route",
+      "to": "rv:resident-conversation:browser-chat:defer-reasoning",
+      "type": "diagnostic_branch",
+      "label": "Substantive turn requires unavailable or busy 80B"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:defer-reasoning",
+      "to": "rv:resident-conversation:browser-chat:resume-reasoning",
+      "type": "recovery_route",
+      "label": "Automatic readiness polling; durable request retained"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:resume-reasoning",
+      "to": "rv:resident-conversation:browser-chat:reasoning-router-failure",
+      "type": "diagnostic_branch",
+      "label": "Capability or provider remains unavailable"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:reasoning-router-failure",
+      "to": "rv:resident-conversation:browser-chat:resume-reasoning",
+      "type": "recovery_route",
+      "label": "Retry persisted request when readiness changes"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:resume-reasoning",
+      "to": "rv:resident-conversation:browser-chat:resume-auth-recheck",
+      "type": "runtime_transition",
+      "label": "Lease acquired; inspect original principal and deferred capability"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:resume-auth-recheck",
+      "to": "rv:resident-conversation:browser-chat:upgrade-rejected",
+      "type": "diagnostic_branch",
+      "label": "Original exact grant revoked or current occupant differs"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:resume-auth-recheck",
+      "to": "rv:resident-conversation:browser-chat:upgrade-continuity",
+      "type": "runtime_transition",
+      "label": "Exact grant and occupant revalidated"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:upgrade-continuity",
+      "to": "rv:resident-conversation:browser-chat:upgrade-rejected",
+      "type": "diagnostic_branch",
+      "label": "No exact binding or explicit direct-upgrade compatibility"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:upgrade-continuity",
+      "to": "rv:resident-conversation:browser-chat:resume-capability-pin",
+      "type": "runtime_transition",
+      "label": "Authorized implementation continuity passed; enforce the original deferred capability"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:upgrade-rejected",
+      "to": "rv:resident-conversation:browser-chat:reasoning-router-failure",
+      "type": "recovery_route",
+      "label": "Leave deferred request durable; resume only after an authorized correction"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:resume-capability-pin",
+      "to": "rv:resident-conversation:browser-chat:reasoning-router-failure",
+      "type": "diagnostic_branch",
+      "label": "Required 80B unavailable or provider failed; leave pending without 30B or 0.6B substitution"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:resume-capability-pin",
+      "to": "rv:resident-conversation:browser-chat:persist-response",
+      "type": "verification",
+      "label": "80B inference accepted and actual served-model provenance persisted under the original request"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:context-bound",
+      "to": "rv:resident-conversation:browser-chat:grace-role-context",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:grace-role-context",
+      "to": "rv:resident-conversation:browser-chat:operations-snapshot",
+      "type": "runtime_transition",
+      "label": "Use existing read-only institutional projections; do not expose direct database or action tools"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:operations-snapshot",
+      "to": "rv:resident-conversation:browser-chat:stage-context-policy",
+      "type": "runtime_transition",
+      "label": "Router applies the selected capability's bounded context policy before provider invocation"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stage-context-policy",
+      "to": "rv:resident-conversation:browser-chat:inference",
+      "type": "runtime_transition",
+      "label": "Use concise identity context for autonomic acknowledgments; retain full supplied context for substantive stages"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stage-context-policy",
+      "to": "rv:resident-conversation:browser-chat:provider-failure",
+      "type": "diagnostic_branch",
+      "label": "Malformed context or no current user turn; reject before inference"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:browser-submit",
+      "to": "rv:resident-conversation:browser-chat:stream-capability-check",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stream-capability-check",
+      "to": "rv:resident-conversation:browser-chat:stream-submit",
+      "type": "runtime_transition",
+      "label": "Streaming available; authenticated POST preserves original conversation and request IDs"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stream-capability-check",
+      "to": "rv:resident-conversation:browser-chat:stream-nonstream-fallback",
+      "type": "runtime_transition",
+      "label": "No stream support; use existing bounded response API"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stream-submit",
+      "to": "rv:resident-conversation:browser-chat:persist-user",
+      "type": "runtime_transition",
+      "label": "Idempotently persist before returning queued"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:persist-user",
+      "to": "rv:resident-conversation:browser-chat:stream-events",
+      "type": "runtime_transition",
+      "label": "Background generation uses the same authorization and routing checks"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stream-events",
+      "to": "rv:resident-conversation:browser-chat:inference",
+      "type": "runtime_transition",
+      "label": "0.6B, provisional 30B, or 80B selected by existing router; image upload is not part of this route"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stream-events",
+      "to": "rv:resident-conversation:browser-chat:stream-failure",
+      "type": "diagnostic_branch",
+      "label": "Provider, authorization, or persistence failure"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stream-events",
+      "to": "rv:resident-conversation:browser-chat:persist-response",
+      "type": "runtime_transition",
+      "label": "Atomic durable response and stream completion"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stream-authorized-sse",
+      "to": "rv:resident-conversation:browser-chat:stream-events",
+      "type": "runtime_transition",
+      "label": "Read authorized durable cursor events only"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stream-authorized-sse",
+      "to": "rv:resident-conversation:browser-chat:stream-reconnect",
+      "type": "recovery_route",
+      "label": "Disconnect or bounded 180-second stream closure"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stream-reconnect",
+      "to": "rv:resident-conversation:browser-chat:stream-authorized-sse",
+      "type": "runtime_transition",
+      "label": "Resume after last consumed sequence"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stream-authorized-sse",
+      "to": "rv:resident-conversation:browser-chat:stream-render",
+      "type": "runtime_transition",
+      "label": "Sanitized text chunks and status state"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stream-render",
+      "to": "rv:resident-conversation:browser-chat:browser-render",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:browser-history",
+      "to": "rv:resident-conversation:browser-chat:stream-history-verify",
+      "type": "verification",
+      "label": "Reload canonical persisted response; no preview duplicates"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stream-nonstream-fallback",
+      "to": "rv:resident-conversation:browser-chat:context-bound",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stream-failure",
+      "to": "rv:resident-conversation:browser-chat:browser-history",
+      "type": "runtime_transition"
+    }
+  ]
+}
