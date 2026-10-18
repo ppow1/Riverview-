@@ -2,9 +2,9 @@
 Riverview~ Controlled Document
 File: docs/development/RV-C3-DOORBELL-DOD-001.md
 Component: CHATGPT-DOORBELL
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Evidence-based eight-gate component DoD assessment and blocker register
-Changed: 2026-10-18 UTC | RV-C3-DOORBELL-DOD-001 | Record component acceptance state without overstating commissioning
+Changed: 2026-10-18 UTC | RV-C3-DOORBELL-DOD-001 | Record PR #99 source integration and remaining live commissioning blockers
 Owner: Codex 3 / New-Core
 Execution Model: Request-driven acceptance record
 Observability: Versioned checkout evidence and canonical process graph
@@ -19,7 +19,9 @@ History: Git and .riverview-backups/manifest.jsonl
 # RV-C3-DOORBELL-DOD-001 — Component acceptance record
 
 **Component:** `CHATGPT-DOORBELL` · **DoD standard:** Rev 1.6 · **Status:** **NOT DONE**  
-**Environment:** Camrui Ubuntu, isolated PR #99 checkout; no production service deployment and no live wake performed.  
+**Source integration:** COMPLETE — PR [#99](https://github.com/ppow1/Riverview-/pull/99) merged to `main` at `d209ce33c3b863e9d21b9421f62100a5493a093f` (head `7f59d2a7915670593caa50d02c8942533c341651`; both required controlled-checkout checks passed).
+**Operational commissioning:** BLOCKED — dedicated browser authentication/MFA, current exact-conversation verification, Comms5 mailbox lifecycle availability, and full Comms5-to-Grace acceptance remain outstanding.
+**Environment:** Camrui Ubuntu qualification only; no production service deployment and no live wake performed.
 **Current interface evidence:** Comms5 capability catalog lacks mailbox lifecycle operations; Codex 1 is coordinating the contract in [issue #96](https://github.com/ppow1/Riverview-/issues/96).
 
 ## Eight-gate assessment
@@ -60,3 +62,4 @@ No production service or live ChatGPT wake was invoked for this task. The six un
 | Revision | Date | Change |
 |---|---|---|
 | 1.0.0 | 2026-10-18 | Initial evidence-based DoD assessment and blocker register for RV-C3-DOORBELL-DOD-001 |
+| 1.0.1 | 2026-10-18 | Record PR #99 merge and distinguish completed source integration from blocked live commissioning |
