@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.5
+# Revision: 1.1.7
+# Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Persist immutable source-target binding with each authorized dispatch and preserve target identity across dependent steps.
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
 # Execution Model: Request-driven orchestration over existing PostgreSQL authority and ledger
 # Observability: Append-only objective events linked to assignment and evidence provenance
@@ -277,13 +278,18 @@ class GraceExecutionPipeline:
         # a second, operator-configured ceiling.
         approved_source_scope = [objective["request"], *objective["acceptance_criteria"]]
         for step in proposal.steps:
-            if (step.execution_capability == "engineering.codex-cli-source-change.v1" and
-                    any(not any(re.search(r"(?<![A-Za-z0-9._/-])" + re.escape(path) +
-                                          r"(?![A-Za-z0-9._/-])", text)
+            if step.execution_capability == "engineering.codex-cli-source-change.v1":
+                target_values = (step.repository_reference, step.repository_revision)
+                if any(not any(value in text for text in approved_source_scope)
+                       for value in target_values):
+                    raise ObjectiveStateError(
+                        "source-change target identity and commit must be Steward-authorized")
+                if (any(not any(re.search(r"(?<![A-Za-z0-9._/-])" + re.escape(path) +
+                                          r"(?![A-Za-z0-9_/-]|\.(?=[A-Za-z0-9._/-]))", text)
                                     for text in approved_source_scope)
                         for path in step.authorized_paths)):
-                raise ObjectiveStateError(
-                    "source-change path is absent from the Steward-approved objective scope")
+                    raise ObjectiveStateError(
+                        "source-change path is absent from the Steward-approved objective scope")
         document = asdict(proposal)
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
@@ -332,7 +338,16 @@ class GraceExecutionPipeline:
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
             cur.execute("""SELECT s.step_id,s.step_objective,s.acceptance_criteria,s.depends_on,
-                    o.proposal FROM grace_objective_steps s JOIN grace_objectives o USING(objective_id)
+                    o.proposal,d.payload AS dispatch_payload
+                FROM grace_objective_steps s JOIN grace_objectives o USING(objective_id)
+                LEFT JOIN LATERAL (
+                    SELECT payload FROM grace_objective_events e
+                    WHERE e.objective_id=s.objective_id
+                      AND e.event_type='work_order.dispatched'
+                      AND e.payload->>'assignment_id'=s.assignment_id
+                      AND e.payload->>'workflow_step'=s.step_id
+                    ORDER BY e.sequence DESC LIMIT 1
+                ) d ON true
                 WHERE s.objective_id=%s AND s.assignment_id=%s""",
                 (objective_id, assignment_id))
             row = cur.fetchone()
@@ -347,7 +362,48 @@ class GraceExecutionPipeline:
                 "execution_capability": raw_step.get(
                     "execution_capability", "engineering.codex-cli-artifact.v1"),
                 "authorized_paths": raw_step.get("authorized_paths", []),
-                "test_targets": raw_step.get("test_targets", [])}
+                "test_targets": raw_step.get("test_targets", []),
+                "repository_reference": raw_step.get("repository_reference"),
+                "repository_revision": raw_step.get("repository_revision"),
+                "source_target_binding": (row["dispatch_payload"].get("source_target_binding")
+                    if isinstance(row["dispatch_payload"], dict) else None)}
+
+    @staticmethod
+    def _source_target_binding(objective, step, assignment_id):
+        """Snapshot a typed source target into the append-only dispatch event."""
+        proposal = objective.get("proposal") if isinstance(objective, dict) else None
+        raw_steps = proposal.get("steps", []) if isinstance(proposal, dict) else []
+        raw_step = next((item for item in raw_steps if isinstance(item, dict) and
+                         item.get("step_id") == step["step_id"]), None)
+        if not isinstance(raw_step, dict):
+            raise ObjectiveStateError("persisted proposal step is unavailable at dispatch")
+        if raw_step.get("execution_capability") != "engineering.codex-cli-source-change.v1":
+            return {}
+        if (raw_step.get("step_id") != step["step_id"] or
+                raw_step.get("objective") != step.get("step_objective") or
+                tuple(raw_step.get("acceptance_criteria", ())) != tuple(
+                    step.get("acceptance_criteria", ()))):
+            raise ObjectiveStateError("source proposal changed before assignment dispatch")
+        repository_reference = raw_step.get("repository_reference")
+        repository_revision = raw_step.get("repository_revision")
+        if (not isinstance(repository_reference, str) or
+                not re.fullmatch(r"repo://[A-Za-z0-9._/-]{1,240}", repository_reference) or
+                not isinstance(repository_revision, str) or
+                not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", repository_revision)):
+            raise ObjectiveStateError("source target binding is incomplete")
+        return {"source_target_binding": {
+            "version": "grace.source-target-binding.v1",
+            "objective_id": objective["objective_id"],
+            "assignment_id": assignment_id,
+            "step_id": step["step_id"],
+            "capability": raw_step["execution_capability"],
+            "repository_reference": repository_reference,
+            "repository_revision": repository_revision,
+            "authorized_paths": raw_step.get("authorized_paths"),
+            "test_targets": raw_step.get("test_targets"),
+            "proposal_step_sha256": hashlib.sha256(
+                _json(raw_step).encode("utf-8")).hexdigest(),
+        }}
 
     def verified_source_change_predecessor(self, objective_id, step):
         """Return the latest independently verified patch and scope for a linear dependent step."""
@@ -384,7 +440,9 @@ class GraceExecutionPipeline:
                          if isinstance(item, dict) and item.get("step_id") == predecessor_id), {})
         return {"prior_patches": ((result["patch_path"], result["patch_sha256"]),),
                 "authorized_paths": tuple(raw_step.get("authorized_paths", ())),
-                "test_targets": tuple(raw_step.get("test_targets", ()))}
+                "test_targets": tuple(raw_step.get("test_targets", ())),
+                "repository_reference": result.get("repository_reference"),
+                "repository_revision": result.get("repository_revision")}
 
     def authorize_and_dispatch(self, objective_id, assignment_id, *, credential,
                                authority_ref, idempotency_key, step_id=None):
@@ -404,12 +462,14 @@ class GraceExecutionPipeline:
             with self.ledger.db.transaction():
                 with self.ledger.db.cursor() as cur:
                     self.ledger._set_search_path(cur)
-                    cur.execute("""SELECT status FROM grace_objectives
+                    cur.execute("""SELECT status,proposal FROM grace_objectives
                         WHERE objective_id=%s FOR UPDATE""", (objective_id,))
                     locked_objective = cur.fetchone()
                     if not locked_objective or locked_objective["status"] not in {
                             "PROPOSED", "WORK_ORDER_CREATED"}:
                         raise ObjectiveStateError("objective changed before step dispatch")
+                    if _json(locked_objective["proposal"]) != _json(objective["proposal"]):
+                        raise ObjectiveStateError("proposal changed before assignment dispatch")
                     assignment = self.assignment_intake.create(
                         assignment_id, "engineering", idempotency_key,
                         credential=credential, authority_ref=authority_ref,
@@ -436,11 +496,14 @@ class GraceExecutionPipeline:
                         (assignment_id, objective_id))
                     if cur.rowcount != 1:
                         raise ObjectiveStateError("objective assignment link conflicts with existing state")
+                    binding_objective = dict(objective)
+                    binding_objective["proposal"] = locked_objective["proposal"]
                     self._event(cur, objective_id, "work_order.dispatched",
                                 f"grace-work-order-dispatched:{objective_id}:{step['step_id']}",
                                 created_event["actor_id"],
-                                {"assignment_id": assignment_id,
-                                 "workflow_step": step["step_id"]})
+                        {"assignment_id": assignment_id,
+                         "workflow_step": step["step_id"],
+                         **self._source_target_binding(binding_objective, step, assignment_id)})
         except AssignmentIntakeDenied:
             raise ObjectiveNotAuthorized("assignment.create is not authorized") from None
         return assignment
@@ -497,7 +560,8 @@ class GraceExecutionPipeline:
         if isinstance(artifact, dict):
             allowed_evidence = ("artifact_name", "artifact_path", "artifact_sha256",
                 "artifact_bytes", "capability", "changed_files", "patch_sha256",
-                "patch_bytes", "test_status", "repository_revision")
+                "patch_bytes", "test_status", "repository_reference",
+                "repository_revision")
             payload["artifact"] = {key: artifact[key] for key in allowed_evidence
                                     if key in artifact}
         with self.ledger.db.transaction():
@@ -726,7 +790,9 @@ class GraceExecutionPipeline:
                 tuple(raw.get("depends_on", ())) == tuple(step.depends_on) and
                 raw.get("execution_capability", "engineering.codex-cli-artifact.v1") == step.execution_capability and
                 tuple(raw.get("authorized_paths", ())) == tuple(step.authorized_paths) and
-                tuple(raw.get("test_targets", ())) == tuple(step.test_targets))
+                tuple(raw.get("test_targets", ())) == tuple(step.test_targets) and
+                raw.get("repository_reference") == step.repository_reference and
+                raw.get("repository_revision") == step.repository_revision)
             if (link and exact and link["parent_status"] == "verified" and
                     link["target_status"] == "pending" and
                     link["parent_step"] in tuple(link["depends_on"]) and
@@ -750,6 +816,8 @@ class GraceExecutionPipeline:
                             actor_id, {"parent_assignment_id": parent_assignment_id,
                                 "step_id": step.step_id,"step_order": link["step_order"],
                                 "acceptance_criteria": list(step.acceptance_criteria),
+                                "repository_reference": step.repository_reference,
+                                "repository_revision": step.repository_revision,
                                 "authorization": "original_scope_exact_grant_rechecked_at_dispatch",
                                 "review_type": "verified_predecessor_result"})
                 return self.get_objective(objective_id)
@@ -767,7 +835,9 @@ class GraceExecutionPipeline:
                     tuple(prior["depends_on"]) == tuple(step.depends_on) and
                     any(event["event_type"] == "work_order.continuation_proposed" and
                         event["payload"].get("parent_assignment_id") == parent_assignment_id and
-                        event["payload"].get("step_id") == step.step_id
+                        event["payload"].get("step_id") == step.step_id and
+                        event["payload"].get("repository_reference") == step.repository_reference and
+                        event["payload"].get("repository_revision") == step.repository_revision
                         for event in self.objective_events(objective_id))):
                 return objective
         if (not isinstance(step, PlanStep) or objective is None or
@@ -786,11 +856,17 @@ class GraceExecutionPipeline:
                             for path in item.get("authorized_paths", ())}
         if step.execution_capability == "engineering.codex-cli-source-change.v1" and (
                 not set(step.authorized_paths) <= authorized_paths or
-                not set(step.test_targets) <= set(step.authorized_paths)):
+                not set(step.test_targets) <= set(step.authorized_paths) or
+                not any(item.get("execution_capability") ==
+                        "engineering.codex-cli-source-change.v1" and
+                        item.get("repository_reference") == step.repository_reference and
+                        item.get("repository_revision") == step.repository_revision
+                        for item in prior_steps if isinstance(item, dict))):
             raise ObjectiveStateError("continuation exceeds the originally approved file scope")
         continuation = PlanStep(step.step_id, step.objective, tuple(step.acceptance_criteria),
                                 tuple(step.depends_on), step.execution_capability,
-                                tuple(step.authorized_paths), tuple(step.test_targets))
+                                tuple(step.authorized_paths), tuple(step.test_targets),
+                                step.repository_reference, step.repository_revision)
         merged = dict(objective["proposal"])
         merged["steps"] = [*prior_steps, asdict(continuation)]
         # Reuse the public typed contract to validate unique IDs and acyclic
@@ -800,7 +876,8 @@ class GraceExecutionPipeline:
                      tuple(item["acceptance_criteria"]), tuple(item.get("depends_on", ())),
                      item.get("execution_capability", "engineering.codex-cli-artifact.v1"),
                      tuple(item.get("authorized_paths", ())),
-                     tuple(item.get("test_targets", ())))
+                     tuple(item.get("test_targets", ())),
+                     item.get("repository_reference"), item.get("repository_revision"))
             for item in merged["steps"]), 0)
         step_order = len(prior_steps) + 1
         with self.ledger.db.transaction():

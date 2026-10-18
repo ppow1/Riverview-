@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.32
+# Revision: 1.0.33
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -545,12 +545,16 @@ class ResidentConversationTests(unittest.TestCase):
             "acceptance_criteria":["Addition handles integer inputs"], "depends_on":[],
             "execution_capability":"engineering.codex-cli-source-change.v1",
             "authorized_paths":["src/calc.py", "tests/test_calc.py"],
-            "test_targets":["tests/test_calc.py"]}
+            "test_targets":["tests/test_calc.py"],
+            "repository_reference":"repo://riverview/pr62-disposable-acceptance",
+            "repository_revision":"5885c8d9395dde43898f7a47a37a15cfc849299a"}
         second={"step_id":"format", "objective":"Implement the result formatter",
             "acceptance_criteria":["Formatting helper is tested"], "depends_on":["add"],
             "execution_capability":"engineering.codex-cli-source-change.v1",
             "authorized_paths":["src/result.py", "tests/test_calc.py"],
-            "test_targets":["tests/test_calc.py"]}
+            "test_targets":["tests/test_calc.py"],
+            "repository_reference":"repo://riverview/pr62-disposable-acceptance",
+            "repository_revision":"5885c8d9395dde43898f7a47a37a15cfc849299a"}
         context={"objective_id":"objective:intermediate-review",
             "assignment_id":"assignment:step-1", "request":"Change only " + ", ".join(paths),
             "acceptance_criteria":["Addition handles integer inputs", "Formatting helper is tested"],
@@ -593,13 +597,17 @@ class ResidentConversationTests(unittest.TestCase):
             "acceptance_criteria":["Addition handles signed inputs"], "depends_on":[],
             "execution_capability":"engineering.codex-cli-source-change.v1",
             "authorized_paths":["src/calc.py", "tests/test_calc.py"],
-            "test_targets":["tests/test_calc.py"]}
+            "test_targets":["tests/test_calc.py"],
+            "repository_reference":"repo://riverview/pr62-disposable-acceptance",
+            "repository_revision":"5885c8d9395dde43898f7a47a37a15cfc849299a"}
         second = {"step_id":"format", "objective":"Add the formatter",
             "acceptance_criteria":["Formatter returns the exact requested label",
                 "Formatter is covered by tests"], "depends_on":["add"],
             "execution_capability":"engineering.codex-cli-source-change.v1",
             "authorized_paths":["src/result.py", "tests/test_calc.py"],
-            "test_targets":["tests/test_calc.py"]}
+            "test_targets":["tests/test_calc.py"],
+            "repository_reference":"repo://riverview/pr62-disposable-acceptance",
+            "repository_revision":"5885c8d9395dde43898f7a47a37a15cfc849299a"}
         context = {"objective_id":"objective:canonical-continuation",
             "assignment_id":"assignment:canonical-step-1",
             "request":"Implement addition and the exact Result: label formatter; change only listed files.",
@@ -623,7 +631,9 @@ class ResidentConversationTests(unittest.TestCase):
                 "acceptance_criteria":["Expanded criteria"], "depends_on":[],
                 "execution_capability":"engineering.codex-cli-source-change.v1",
                 "authorized_paths":["src/unauthorized.py"],
-                "test_targets":["tests/test_calc.py"]}})
+                "test_targets":["tests/test_calc.py"],
+            "repository_reference":"repo://riverview/pr62-disposable-acceptance",
+            "repository_revision":"5885c8d9395dde43898f7a47a37a15cfc849299a"}})
         captured=[]
         self.service.continuation_handler=lambda ctx, step: captured.append((ctx["assignment_id"],step))
         result=self.service.review_verified_work_order(context)

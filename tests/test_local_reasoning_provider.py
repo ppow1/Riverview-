@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.11
+# Revision: 1.1.13
+# Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Verify the provider emits explicit immutable source target fields.
 # Purpose: Verify local reasoning provider contract and fail-closed response handling
 # Execution Model: Bounded HTTP contract double; no credentials, database or model required
 # Observability: Typed proposals and sanitized unavailable/schema outcomes
@@ -169,6 +170,20 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertIsNone(self.provider.propose(self.request))
         system_prompt = self.requests[0]["messages"][0]["content"]
         self.assertIn("MUST include non-empty authorized_paths and test_targets", system_prompt)
+        self.assertIn("repository_reference", system_prompt)
+        self.assertIn("repository_revision", system_prompt)
+        self.response_body = self._response(text=json.dumps({"summary": "Scoped source change", "steps": [{
+            "step_id": "edit", "objective": "Edit scoped files",
+            "acceptance_criteria": ["Tests pass"], "depends_on": [],
+            "execution_capability": "engineering.codex-cli-source-change.v1",
+            "authorized_paths": ["src/status.py", "tests/test_status.py"],
+            "test_targets": ["tests/test_status.py"],
+            "repository_reference": "repo://riverview/pr62-disposable-acceptance",
+            "repository_revision": "a" * 40}]}))
+        proposal = self.provider.propose(self.request)
+        self.assertEqual(proposal.steps[0].repository_reference,
+                         "repo://riverview/pr62-disposable-acceptance")
+        self.assertEqual(proposal.steps[0].repository_revision, "a" * 40)
 
     def test_stream_chat_emits_text_before_terminal_chunk_and_validates_provenance(self):
         chunks = [

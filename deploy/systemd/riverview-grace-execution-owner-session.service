@@ -1,12 +1,14 @@
 # Riverview~ controlled unit
-# File Revision: 1.0.4
-# Task: RV-GRACE-OWNER-SESSION-EXECUTION-001
+# File Revision: 1.0.6
+# Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Keep source-change worker disabled in the base owner-session unit.
+# Task: RV-GRACE-DUAL-CAPABILITY-001
 # Purpose: Persistent bounded Grace Engineering worker using admin1's existing ChatGPT Codex login in place
 # Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PROVISIONER-001 | Point resident credential at existing protected canonical file
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-OWNER-STATE-001 | Isolate writable Codex runtime state and read-only bind only the existing ChatGPT auth file
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-SYSTEMD-NETLINK-001 | Permit only AF_NETLINK in addition to the existing families for bubblewrap's isolated loopback setup
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-MDWE-001 | Allow the pinned Code Mode host's required executable-memory runtime while retaining bubblewrap workspace-write isolation and disabled network
 # Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-INTERNAL-TOOLS-001 | Supply the existing dashboard read credential for internal Comms5 operations
+# Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Add optional isolated source-worker credential binding; artifact remains default
 [Unit]
 Description=Riverview Grace persistent Engineering execution (ChatGPT owner session)
 After=network.target postgresql.service riverview-event-processor.service
@@ -28,6 +30,7 @@ Environment=RIVERVIEW_CODEX_STATE_DIR=/var/lib/riverview-grace-owner-session
 Environment=RIVERVIEW_CODEX_HOME=/var/lib/riverview-grace-owner-session/codex-home
 Environment=RIVERVIEW_CODEX_AUTH_MODE=chatgpt-owner-session
 Environment=RIVERVIEW_ENGINEERING_ADAPTER=codex-cli
+Environment=RIVERVIEW_SOURCE_WORKER_ENABLED=0
 Environment=RIVERVIEW_CODEX_EXECUTABLE=/opt/riverview-codex/bin/codex
 Environment=RIVERVIEW_CODEX_WORKSPACE_DIR=/var/lib/riverview-grace-owner-session/workspaces
 Environment=RIVERVIEW_CODEX_REPOSITORY_PATH=/opt/riverview-engineering-source

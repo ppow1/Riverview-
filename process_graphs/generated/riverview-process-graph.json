@@ -2239,7 +2239,7 @@
     },
     {
       "graph_id": "rv:grace:institutional-proposal-lifecycle",
-      "graph_revision": "1.1.0",
+      "graph_revision": "1.1.1",
       "component_id": "INSTITUTIONAL-PROPOSALS",
       "workflow_id": "institutional-proposal.v1",
       "diagram_order": 1,
@@ -2527,14 +2527,25 @@
           "verification_evidence": [
             "tests/test_proposal_work_order_lifecycle.py"
           ]
+        },
+        {
+          "id": "rv:grace:institutional-proposal-lifecycle:steward-website-ui",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Steward dashboard exposes proposal drafting, revision review, exact-revision decision, and promotion controls through authenticated existing API routes; proposal approval and objective submission remain separate grants",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/resident_execution/conversation.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_PROPOSALS.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py"
+          ]
         }
       ],
       "edges": [
-        {
-          "from": "rv:grace:institutional-proposal-lifecycle:steward-source",
-          "to": "rv:grace:institutional-proposal-lifecycle:authorize-and-bind",
-          "type": "runtime_transition"
-        },
         {
           "from": "rv:grace:institutional-proposal-lifecycle:authorize-and-bind",
           "to": "rv:grace:institutional-proposal-lifecycle:reason-or-clarify",
@@ -2637,12 +2648,22 @@
           "to": "rv:grace:institutional-proposal-lifecycle:objective-intake",
           "type": "recovery_route",
           "label": "idempotent recovery after exact authority recheck"
+        },
+        {
+          "from": "rv:grace:institutional-proposal-lifecycle:steward-website-ui",
+          "to": "rv:grace:institutional-proposal-lifecycle:authorize-and-bind",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:institutional-proposal-lifecycle:steward-source",
+          "to": "rv:grace:institutional-proposal-lifecycle:steward-website-ui",
+          "type": "runtime_transition"
         }
       ]
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.49",
+      "graph_revision": "1.0.50",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -3724,6 +3745,62 @@
           "verification_evidence": [
             "tests/test_codex_cli_adapter.py"
           ]
+        },
+        {
+          "id": "rv:grace:operational-integration:source-target-dispatch-binding",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "ISOLATED IMPLEMENTATION — dispatch snapshots an explicitly Steward-authorized repository reference, immutable commit, paths, tests and proposal-step digest; resident grounding revision remains separate",
+          "source_references": [
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/codex_workflow.py",
+            "src/riverview_core/resident_execution/codex_source_change.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_execution.py",
+            "tests/test_codex_source_change.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:dual-capability-owner-loops",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "ISOLATED IMPLEMENTATION — owner-session retains its artifact worker and optionally runs a distinct source worker; claims and verifier routing use persisted attempt capability",
+          "source_references": [
+            "scripts/run_grace_execution_service.py",
+            "src/riverview_core/resident_execution/service.py",
+            "deploy/systemd/riverview-grace-execution-owner-session.service",
+            "deploy/systemd/riverview-grace-execution-owner-session-source-worker.conf"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_execution.py",
+            "tests/test_grace_runtime_provider_wiring.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:source-enrollment-fail-closed",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Source capability stays unavailable when separate credential, exact grants, registration, allowlist, repository mapping or pinned checkout is missing; artifact worker continues",
+          "source_references": [
+            "scripts/run_grace_execution_service.py",
+            "deploy/systemd/riverview-grace-execution-owner-session-source-worker.conf"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_runtime_provider_wiring.py",
+            "tests/test_grace_execution.py"
+          ]
         }
       ],
       "edges": [
@@ -4244,6 +4321,30 @@
           "to": "rv:grace:operational-integration:codex-artifact-verification",
           "type": "verification",
           "label": "Criteria contract is present and is evaluated independently against the artifact"
+        },
+        {
+          "from": "rv:grace:operational-integration:codex-source-change",
+          "to": "rv:grace:operational-integration:source-target-dispatch-binding",
+          "type": "verification",
+          "label": "The exact target repository and immutable commit are snapshotted at authorized dispatch; resident knowledge provenance is not substituted"
+        },
+        {
+          "from": "rv:grace:operational-integration:source-target-dispatch-binding",
+          "to": "rv:grace:operational-integration:dual-capability-owner-loops",
+          "type": "runtime_transition",
+          "label": "A source assignment is eligible only for the separately registered and credentialed source worker"
+        },
+        {
+          "from": "rv:grace:operational-integration:dual-capability-owner-loops",
+          "to": "rv:grace:operational-integration:source-enrollment-fail-closed",
+          "type": "diagnostic_branch",
+          "label": "Source enrollment is incomplete; source work remains undispatched while the artifact worker continues"
+        },
+        {
+          "from": "rv:grace:operational-integration:source-enrollment-fail-closed",
+          "to": "rv:grace:operational-integration:dual-capability-owner-loops",
+          "type": "recovery_route",
+          "label": "Resume only after separate credential, exact grants, registration, approved paths and pinned target configuration are verified"
         }
       ]
     },
@@ -13735,6 +13836,7 @@
     "rv:grace:institutional-proposal-lifecycle:search-revise-review",
     "rv:grace:institutional-proposal-lifecycle:steward-decision",
     "rv:grace:institutional-proposal-lifecycle:steward-source",
+    "rv:grace:institutional-proposal-lifecycle:steward-website-ui",
     "rv:grace:institutional-proposal-lifecycle:verified-result",
     "rv:grace:operational-integration:assignment-fanout",
     "rv:grace:operational-integration:authority-check",
@@ -13757,6 +13859,7 @@
     "rv:grace:operational-integration:dashboard-objective-projection",
     "rv:grace:operational-integration:dependency-ready-dispatch",
     "rv:grace:operational-integration:dispatch-retry-limit",
+    "rv:grace:operational-integration:dual-capability-owner-loops",
     "rv:grace:operational-integration:durable-plan",
     "rv:grace:operational-integration:engineering-resource-request",
     "rv:grace:operational-integration:evidence-review",
@@ -13778,6 +13881,8 @@
     "rv:grace:operational-integration:reason-decompose",
     "rv:grace:operational-integration:replan",
     "rv:grace:operational-integration:router-backed-grace-proposal",
+    "rv:grace:operational-integration:source-enrollment-fail-closed",
+    "rv:grace:operational-integration:source-target-dispatch-binding",
     "rv:grace:operational-integration:stale-resident-denied",
     "rv:grace:operational-integration:steward-escalation",
     "rv:grace:operational-integration:typed-proposal-api",

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.16
+# Revision: 1.0.17
+# Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Add pinned repository target fields to source-change plan steps while keeping resident grounding provenance separate.
 # Purpose: Regound institutional resident requests and route bounded plan proposals
 # Execution Model: Request-driven in-process runtime with replaceable reasoning providers
 # Observability: Office-scoped durable state stores grounding and provider outcomes
@@ -71,6 +72,8 @@ class PlanStep:
     execution_capability: str = "engineering.codex-cli-artifact.v1"
     authorized_paths: tuple[str, ...] = ()
     test_targets: tuple[str, ...] = ()
+    repository_reference: str | None = None
+    repository_revision: str | None = None
 
     def __post_init__(self):
         if self.execution_capability not in {
@@ -85,12 +88,16 @@ class PlanStep:
                             r"(?:src|tests|docs)/[A-Za-z0-9._/-]{1,240}", path) and
                         ".." not in path.split("/") and ".git" not in path.split("/")
                         for path in values))
-            if (not safe(self.authorized_paths) or not safe(self.test_targets) or
+            if (not isinstance(self.repository_reference, str) or
+                    not re.fullmatch(r"repo://[A-Za-z0-9._/-]{1,240}", self.repository_reference) or
+                    not isinstance(self.repository_revision, str) or
+                    not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", self.repository_revision) or
+                    not safe(self.authorized_paths) or not safe(self.test_targets) or
                     any(not path.startswith("tests/") for path in self.test_targets) or
                     not set(self.test_targets) <= set(self.authorized_paths)):
-                raise ValueError("source-change plan step requires bounded paths and test targets")
-        elif self.authorized_paths or self.test_targets:
-            raise ValueError("bounded artifact steps cannot carry repository file scope")
+                raise ValueError("source-change plan step requires a pinned repository and bounded paths and test targets")
+        elif self.authorized_paths or self.test_targets or self.repository_reference is not None or self.repository_revision is not None:
+            raise ValueError("bounded artifact steps cannot carry source-change target scope")
 
 
 @dataclass(frozen=True)

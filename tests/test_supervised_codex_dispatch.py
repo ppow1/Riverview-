@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_supervised_codex_dispatch.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Verify the supervised Codex cycle remains pinned to one proposed objective
 # Execution Model: In-memory contract fixtures; no database or account credentials
 # Observability: Assertions inspect objective, assignment, verifier, and completion calls

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.14
+# Revision: 1.0.16
+# Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Run capability-fenced worker loops concurrently and route verification by persisted attempt capability.
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Persist and rate-limit failed resident proposals.
 # Purpose: Reconcile durable Grace work orders through existing CME worker contracts
 # Execution Model: Persistent scheduled poll over PostgreSQL objective state
@@ -36,6 +37,8 @@ import json
 import logging
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
+from collections.abc import Mapping
 from uuid import uuid4
 
 from ..worker_adapter.resident_knowledge import TaskRelevantRepositoryKnowledgeProvider
@@ -60,7 +63,8 @@ class GraceExecutionService:
                  authority_ref, verifier_id, verifier_credential, artifact_root,
                  max_dispatch_failures=3, verifier=None, resident_reasoner=None,
                  resident_token_budget=768, execution_capability=CAPABILITY,
-                 conversation_result_publisher=None, proposal_lifecycle=None):
+                 conversation_result_publisher=None, proposal_lifecycle=None,
+                 execution_workers=None, verifiers=None):
         if not 1 <= max_dispatch_failures <= 10:
             raise ValueError("dispatch failure limit must be between 1 and 10")
         if type(resident_token_budget) is not int or not 1 <= resident_token_budget <= 4096:
@@ -79,6 +83,26 @@ class GraceExecutionService:
         if not isinstance(execution_capability, str) or not execution_capability:
             raise ValueError("a registered execution capability is required")
         self.execution_capability = execution_capability
+        if execution_workers is None:
+            self.execution_workers = {execution_capability: worker}
+        elif (not isinstance(execution_workers, Mapping) or not execution_workers or
+              len(execution_workers) > 4 or any(not isinstance(key, str) or not key
+                                                 for key in execution_workers)):
+            raise ValueError("bounded execution workers keyed by capability are required")
+        else:
+            self.execution_workers = dict(execution_workers)
+        if any(item is not None and not callable(getattr(item, "run_once", None))
+               for item in self.execution_workers.values()):
+            raise ValueError("each execution capability requires a worker loop")
+        self.execution_capabilities = tuple(self.execution_workers)
+        self.verifiers = dict(verifiers or {execution_capability: self.verifier})
+        if (set(self.verifiers) != set(self.execution_capabilities) or
+                any(not callable(getattr(item, "verify", None))
+                    for item in self.verifiers.values())):
+            raise ValueError("each enabled capability requires its independent verifier")
+        self.source_target_validators = {
+            capability: getattr(getattr(item, "action", None), "validate_proposal_target", None)
+            for capability, item in self.execution_workers.items()}
         if conversation_result_publisher is not None and not callable(conversation_result_publisher):
             raise ValueError("conversation result publisher must be callable")
         self.conversation_result_publisher = conversation_result_publisher
@@ -87,6 +111,30 @@ class GraceExecutionService:
             raise ValueError("proposal lifecycle reconciliation contract is invalid")
         self.proposal_lifecycle = proposal_lifecycle
         self.instance_id = uuid4()
+
+    def _proposal_worker_capability(self, step):
+        """Resolve legacy artifact plan labels to the sole configured artifact loop.
+
+        Source-change plans always require an exact capability match. Older
+        bounded artifact runtimes used a different registry label from the
+        default Codex artifact label stored in typed plans.
+        """
+        if not isinstance(step, Mapping):
+            requested = "engineering.codex-cli-artifact.v1"
+        else:
+            requested = step.get("execution_capability", "engineering.codex-cli-artifact.v1")
+        source = "engineering.codex-cli-source-change.v1"
+        if requested == source:
+            return source if source in self.execution_workers else None
+        artifact_caps = {"engineering.codex-cli-artifact.v1",
+                         "engineering.bounded-artifact.v1"}
+        if requested not in artifact_caps:
+            return None
+        configured = [capability for capability in self.execution_capabilities
+                      if capability in artifact_caps]
+        if requested in configured:
+            return requested
+        return configured[0] if len(configured) == 1 else None
 
     def reason_one_grounded_objective(self, objective_id=None):
         """Propose for one verified objective; office authority never dispatches work."""
@@ -158,13 +206,19 @@ class GraceExecutionService:
         successful attempt may be reconsidered, and verify_attempt rechecks the
         current exact verifier grant plus the previous decision and revision.
         """
-        verifier_revision = getattr(self.verifier, "REVISION", None)
-        if not isinstance(verifier_revision, str) or not verifier_revision:
+        available = {capability: verifier for capability, verifier in self.verifiers.items()
+                     if isinstance(getattr(verifier, "REVISION", None), str) and
+                     getattr(verifier, "REVISION", None)}
+        if not available:
             return False
         with self.adapter.ledger.db.cursor() as cur:
             self.adapter.ledger._set_search_path(cur)
-            cur.execute("""SELECT a.id AS assignment_id,wa.attempt_id,
-                    latest.verifier_revision
+            cur.execute("""SELECT a.id AS assignment_id,wa.attempt_id,wa.capability,
+                    latest.decision,latest.verifier_revision,
+                    EXISTS (SELECT 1 FROM verification_records previous
+                        WHERE previous.attempt_id=wa.attempt_id
+                          AND previous.verifier_id=%s AND previous.decision='REJECTED'
+                          AND previous.verifier_revision<>latest.verifier_revision) AS prior_rejection
                 FROM assignments a
                 JOIN worker_attempts wa ON wa.assignment_id=a.id
                 JOIN LATERAL (
@@ -173,25 +227,30 @@ class GraceExecutionService:
                     ORDER BY recorded_at DESC,verification_id DESC LIMIT 1
                 ) latest ON true
                 WHERE a.state='rework_required' AND wa.status='succeeded'
-                  AND wa.capability=%s AND latest.verifier_id=%s
-                  AND (
-                    (latest.decision='REJECTED' AND latest.verifier_revision<>%s)
-                    OR (latest.decision='ACCEPTED' AND latest.verifier_revision=%s
-                        AND EXISTS (SELECT 1 FROM verification_records previous
-                            WHERE previous.attempt_id=wa.attempt_id
-                              AND previous.verifier_id=%s AND previous.decision='REJECTED'
-                              AND previous.verifier_revision<>latest.verifier_revision))
-                  )
+                  AND wa.capability=ANY(%s) AND latest.verifier_id=%s
+                  AND latest.decision IN ('REJECTED','ACCEPTED')
                   AND (%s::text IS NULL OR a.id=%s)
                 ORDER BY a.updated_at,wa.started_at,wa.attempt_id LIMIT 10""",
-                (self.execution_capability, self.verifier_id, verifier_revision,
-                 verifier_revision, self.verifier_id, assignment_id, assignment_id))
+                (self.verifier_id, list(available), self.verifier_id,
+                 assignment_id, assignment_id))
             candidates = cur.fetchall()
         for candidate in candidates:
+            capability = candidate.get("capability")
+            selected_verifier = available.get(capability)
+            if selected_verifier is None:
+                continue
+            verifier_revision = selected_verifier.REVISION
+            if (candidate["decision"] == "REJECTED" and
+                    candidate["verifier_revision"] == verifier_revision):
+                continue
+            if (candidate["decision"] == "ACCEPTED" and
+                    (candidate["verifier_revision"] != verifier_revision or
+                     not candidate["prior_rejection"])):
+                continue
             key = (f"grace-verifier-revalidation:{candidate['attempt_id']}:{verifier_revision}")
             try:
                 self.adapter.verify_attempt(candidate["assignment_id"], candidate["attempt_id"],
-                    self.verifier_id, self.verifier_credential, self.verifier,
+                    self.verifier_id, self.verifier_credential, selected_verifier,
                     idempotency_key=key)
                 return True
             except Exception as exc:
@@ -260,6 +319,23 @@ class GraceExecutionService:
             step = self.pipeline.dispatchable_step(objective_id)
             if not step:
                 continue
+            objective = self.pipeline.get_objective(objective_id)
+            proposal_steps = (objective.get("proposal", {}).get("steps", [])
+                              if isinstance(objective, dict) else [])
+            proposal_step = next((item for item in proposal_steps if isinstance(item, dict)
+                                  and item.get("step_id") == step["step_id"]), None)
+            selected_capability = self._proposal_worker_capability(proposal_step)
+            if selected_capability is None:
+                continue
+            if (proposal_step and proposal_step.get("execution_capability") ==
+                    "engineering.codex-cli-source-change.v1" and
+                    (not callable(self.source_target_validators.get(
+                         "engineering.codex-cli-source-change.v1")) or
+                     not self.source_target_validators[
+                         "engineering.codex-cli-source-change.v1"](proposal_step))):
+                # No assignment is created until the configured source repository,
+                # immutable commit, and path ceiling all match the Steward plan.
+                continue
             failures = self._dispatch_failure_count(objective_id)
             if failures >= self.max_dispatch_failures:
                 continue
@@ -284,26 +360,30 @@ class GraceExecutionService:
         return dispatched
 
     def verify_one(self, assignment_id=None):
+        capabilities = list(self.execution_capabilities)
         with self.adapter.ledger.db.cursor() as cur:
             self.adapter.ledger._set_search_path(cur)
-            cur.execute("""SELECT a.id AS assignment_id,wa.attempt_id
+            cur.execute("""SELECT a.id AS assignment_id,wa.attempt_id,wa.capability
                 ,a.objective_ref
                 FROM assignments a JOIN worker_attempts wa ON wa.assignment_id=a.id
                 JOIN worker_results wr USING(attempt_id)
                 WHERE a.state='awaiting_verification' AND wa.status='succeeded'
-                  AND wa.capability=%s
+                  AND wa.capability=ANY(%s)
                   AND (%s::text IS NULL OR a.id=%s)
                 ORDER BY a.updated_at,wa.started_at,wa.attempt_id LIMIT 25""",
-                (self.execution_capability, assignment_id, assignment_id))
+                (capabilities, assignment_id, assignment_id))
             candidates = cur.fetchall()
         for candidate in candidates:
             attempt_id = str(candidate["attempt_id"])
+            verifier = self.verifiers.get(candidate["capability"])
+            if verifier is None:
+                continue
             failure_count = self._verification_failure_count(candidate["objective_ref"], attempt_id)
             if failure_count >= 3:
                 continue
             try:
                 self.adapter.verify_attempt(candidate["assignment_id"], candidate["attempt_id"],
-                    self.verifier_id, self.verifier_credential, self.verifier,
+                    self.verifier_id, self.verifier_credential, verifier,
                     idempotency_key=f"grace-verification:{attempt_id}")
                 return True
             except Exception as exc:
@@ -402,18 +482,43 @@ class GraceExecutionService:
         try:
             reasoned = self.reason_one_grounded_objective()
             dispatched = self.dispatch_proposed()
-            worker_result = self.worker.run_once()
+            worker_result = self._run_workers()
             verified = self.verify_one()
             completed = self.reconcile_completions()
             returned = self.publish_conversation_results()
             proposal_updates = self.reconcile_proposal_lifecycle()
-            self._heartbeat("healthy")
+            worker_failures = (worker_result.get("status") == "FAILED" or
+                (isinstance(worker_result.get("capabilities"), dict) and any(
+                    item.get("status") == "FAILED"
+                    for item in worker_result["capabilities"].values())))
+            self._heartbeat("degraded" if worker_failures else "healthy",
+                            "WorkerCycleFailure" if worker_failures else None)
             return {"reasoned": reasoned, "dispatched": dispatched, "worker": worker_result,
                     "verified": verified, "completed": completed, "returned": returned,
                     "proposal_updates": proposal_updates}
         except Exception as exc:
             self._heartbeat("degraded", type(exc).__name__)
             raise
+
+    def _run_workers(self, assignment_id=None):
+        """Poll each capability independently; a failed worker cannot starve its peer."""
+        def poll(item):
+            capability, worker = item
+            try:
+                return capability, worker.run_once(assignment_id=assignment_id)
+            except Exception as exc:
+                LOG.warning(json.dumps({"event": "grace_capability_worker_failed",
+                    "capability": capability, "failure_type": type(exc).__name__},
+                    sort_keys=True))
+                return capability, {"status": "FAILED", "failure_type": type(exc).__name__}
+        items = tuple(self.execution_workers.items())
+        if len(items) == 1:
+            return poll(items[0])[1]
+        with ThreadPoolExecutor(max_workers=len(items),
+                                thread_name_prefix="grace-capability") as pool:
+            results = dict(pool.map(poll, items))
+        failed = any(result.get("status") == "FAILED" for result in results.values())
+        return {"status": "FAILED" if failed else "POLLED", "capabilities": results}
 
     def execute_supervised_objective(self, objective_id):
         """Execute only one already proposed objective from an operator TTY run."""
@@ -433,10 +538,24 @@ class GraceExecutionService:
             if (objective is None or objective.get("assignment_id") != assignment_id):
                 return {"status": "DISPATCH_NOT_AUTHORIZED", "objective_id": objective_id}
             assignment = self.pipeline.ledger.get(assignment_id)
+            if not assignment:
+                return {"status": "NOT_READY", "objective_id": objective_id,
+                        "assignment_id": assignment_id}
+            worker_capability = getattr(self, "execution_capability", CAPABILITY)
+            objective_proposal = objective.get("proposal") or {}
+            proposal_step = next((item for item in objective_proposal.get("steps", [])
+                                  if item.get("step_id") == assignment.get("workflow_step")), None)
+            if proposal_step:
+                worker_capability = self._proposal_worker_capability(proposal_step)
+            workers = getattr(self, "execution_workers", {worker_capability: self.worker})
+            selected_worker = workers.get(worker_capability)
+            if selected_worker is None:
+                return {"status": "CAPABILITY_UNAVAILABLE", "objective_id": objective_id,
+                        "assignment_id": assignment_id, "capability": worker_capability}
             worker_result = {"status": "ALREADY_COMPLETED" if assignment and
                              assignment["state"] == "completed" else "NOT_READY"}
             if assignment and assignment["state"] in {"ready", "queued"}:
-                worker_result = self.worker.run_once(assignment_id=assignment_id)
+                worker_result = selected_worker.run_once(assignment_id=assignment_id)
             verified = self.verify_one(assignment_id)
             completed = self.reconcile_completions(objective_id=objective_id)
             self._heartbeat("healthy")
@@ -454,7 +573,16 @@ class GraceExecutionService:
         while not shutdown_requested():
             try:
                 result = self.run_once()
-                if (not result["reasoned"] and not result["dispatched"] and result["worker"].get("status") == "IDLE"
+                workers_idle = (result["worker"].get("status") == "IDLE" or
+                    (result["worker"].get("status") == "POLLED" and
+                     all(item.get("status") == "IDLE" for item in
+                         result["worker"].get("capabilities", {}).values())))
+                worker_failed = (result["worker"].get("status") == "FAILED" or
+                    (isinstance(result["worker"].get("capabilities"), dict) and any(
+                        item.get("status") == "FAILED" for item in
+                        result["worker"]["capabilities"].values())))
+                if (not result["reasoned"] and not result["dispatched"] and
+                        (workers_idle or worker_failed)
                         and not result["verified"] and not result["completed"]
                         and not result["returned"]):
                     sleep(poll_seconds)

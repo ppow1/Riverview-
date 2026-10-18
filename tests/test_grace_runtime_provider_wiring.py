@@ -1,7 +1,8 @@
 # Riverview~ controlled test
 # File: tests/test_grace_runtime_provider_wiring.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.7
+# Revision: 1.0.9
+# Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Verify source-change execution requires separate capability configuration.
 # Purpose: Verify persistent Grace reasoning follows the authorized office binding
 # Execution Model: Deterministic provider factory; no database or inference service
 # Observability: Assert provider identities and router model digest
@@ -12,7 +13,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Require authenticated-scope context for startup recovery
 # Changed: 2026-10-16 UTC | RV-GRACE-RESULT-RETURN-DIAGNOSTICS-001 | Require default 512-token review budget and reject invalid overrides
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Parse an explicit owner-configured source-change path ceiling fail-closed
-# Changed: 2026-10-16 UTC | RV-PR62-SOURCE-CHANGE-MODE | Reproduce source-change mode being rejected before adapter setup
+# Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Require source changes to join the codex-cli artifact runtime as a separate worker
 """Tests for the persistent executor's model-provider wiring."""
 
 import unittest
@@ -54,9 +55,9 @@ def make_router(environ):
 
 
 class GraceRuntimeProviderWiringTests(unittest.TestCase):
-    def test_source_change_mode_enters_registered_codex_adapter_path(self):
+    def test_source_change_uses_separate_worker_inside_codex_cli_runtime(self):
         self.assertTrue(is_codex_adapter_mode("codex-cli"))
-        self.assertTrue(is_codex_adapter_mode("codex-source-change"))
+        self.assertFalse(is_codex_adapter_mode("codex-source-change"))
         self.assertFalse(is_codex_adapter_mode("bounded-artifact"))
         self.assertFalse(is_codex_adapter_mode("unexpected"))
 
