@@ -2,7 +2,11 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.5
+# Revision: 1.0.9
+# Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Accept sanitized C2 bridge exception codes as terminal ambiguous receipts.
+# Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Bind duplicate receipt replay to a one-way lease-token digest.
+# Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Import namespace UUID function for stable doorbell attempt identity.
+# Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Wrap doorbell claims and receipts in existing fenced exchange lifecycle.
 # Purpose: Persist and resume authorized external reasoning exchanges
 # Execution Model: Request-driven PostgreSQL outbox, bounded leases, no polling loop
 # Observability: Correlated state and sanitized append-only transition diagnostics
@@ -34,7 +38,7 @@ import hashlib
 import json
 import re
 from typing import Any, Mapping
-from uuid import UUID, uuid4
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from ..reasoning_escalation import (
     EscalationRequest, EscalationStatus, ReasoningEscalationRouter,
@@ -96,8 +100,27 @@ class ExchangeConsumption:
     review_subject: Mapping[str, Any] | None = None
 
 
+@dataclass(frozen=True)
+class DoorbellDeliveryClaim:
+    """Body-free fenced wake claim returned to the local browser dispatcher."""
+    request_id: str
+    correlation_id: str
+    provider_id: str
+    attempt_id: str
+    lease_token: str
+    fence: int
+    lease_until: datetime
+    deadline_at: datetime
+
+
 _ALLOWED_CLASSIFICATIONS = {"institutional", "confidential"}
 _SAFE_CODE = re.compile(r"^[a-z0-9_]{1,80}$")
+_DOORBELL_ERROR = re.compile(r"^(?:RIV-PLY-\d{4}|doorbell_(?:failure|exception))$")
+_DOORBELL_RETRYABLE = frozenset({
+    "RIV-PLY-0002", "RIV-PLY-0005", "RIV-PLY-0006", "RIV-PLY-0007",
+    "RIV-PLY-0008", "RIV-PLY-0010", "RIV-PLY-0011", "RIV-PLY-0012",
+    "RIV-PLY-0013", "RIV-PLY-0015", "RIV-PLY-0016",
+})
 _MAX_CONTEXT_BYTES = 32 * 1024
 _MAX_RESPONSE_BYTES = 16 * 1024
 _MAX_DELIVERY_ATTEMPTS = 5
@@ -464,6 +487,105 @@ class DurableExternalReasoningExchange:
                     {"state": row["delivery_state"], "fence": fence})
                 return ExchangeClaim(str(row["request_id"]), str(row["correlation_id"]),
                     str(token), fence, lease_until)
+
+    def claim_next_doorbell_request(self, provider_id: str, owner_id: str,
+                                    lease_seconds: int) -> DoorbellDeliveryClaim | None:
+        """Claim one due wake using existing exchange leases; return metadata only."""
+        if type(lease_seconds) is not int or not 1 <= lease_seconds <= 120:
+            raise ValueError("doorbell delivery lease is out of range")
+        if not isinstance(owner_id, str) or not owner_id or len(owner_id) > 256:
+            raise ValueError("doorbell delivery owner is invalid")
+        provider = self.router.providers.get(provider_id)
+        if provider is None or getattr(provider, "provider_id", None) != provider_id:
+            raise ExchangeUnauthorized("provider_mismatch")
+        now = _utc(self.clock())
+        with self.ledger.db.cursor() as cur:
+            self._set_path(cur)
+            cur.execute("""SELECT request_id::text AS request_id,
+                    correlation_id::text AS correlation_id,deadline_at
+                FROM external_reasoning_exchanges
+                WHERE provider_id=%s AND delivery_state='awaiting_delivery'
+                  AND deadline_at>%s AND next_delivery_at<=%s
+                  AND (delivery_lease_until IS NULL OR delivery_lease_until<=%s)
+                ORDER BY requested_at,request_id LIMIT 1""", (provider_id, now, now, now))
+            candidate = cur.fetchone()
+        if candidate is None:
+            return None
+        claim = self.begin_delivery(candidate["request_id"], provider_id,
+                                    owner_id=owner_id, lease_seconds=lease_seconds)
+        if claim is None:
+            return None
+        attempt_id = str(uuid5(NAMESPACE_URL,
+            f"riverview-doorbell:{claim.request_id}:{claim.fence}"))
+        return DoorbellDeliveryClaim(claim.request_id, claim.correlation_id,
+            provider_id, attempt_id, claim.claim_token, claim.fence,
+            claim.lease_until, candidate["deadline_at"])
+
+    def record_doorbell_receipt(self, request_id: str, correlation_id: str,
+            provider_id: str, owner_id: str, attempt_id: str, lease_token: str,
+            fence: int, outcome: str, safe_error_code: str | None) -> str:
+        """Atomically record a wake result and advance the same durable exchange."""
+        if outcome not in {"submitted", "failed", "ambiguous"}:
+            raise ValueError("doorbell outcome is invalid")
+        if (outcome == "submitted") != (safe_error_code is None):
+            raise ValueError("doorbell receipt error code does not match outcome")
+        if safe_error_code is not None and not _DOORBELL_ERROR.fullmatch(safe_error_code):
+            raise ValueError("doorbell diagnostic must be a recognized safe code")
+        expected_attempt = str(uuid5(NAMESPACE_URL,
+            f"riverview-doorbell:{request_id}:{fence}"))
+        if (attempt_id != expected_attempt or type(fence) is not int or fence < 1
+                or not isinstance(owner_id, str) or not owner_id or len(owner_id) > 256
+                or not isinstance(lease_token, str) or not lease_token):
+            raise ExchangeConflict("doorbell receipt identity is invalid")
+        now = _utc(self.clock())
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self._set_path(cur)
+                row = self._lock(cur, request_id, correlation_id)
+                if row["provider_id"] != provider_id:
+                    raise ExchangeUnauthorized("provider_mismatch")
+                event_key = f"external-reasoning:{row['request_id']}:doorbell-receipt:{attempt_id}"
+                cur.execute("""SELECT actor_id,payload FROM external_reasoning_exchange_events
+                    WHERE idempotency_key=%s""", (event_key,))
+                prior = cur.fetchone()
+                if prior is not None:
+                    payload = prior["payload"]
+                    if (prior["actor_id"] != owner_id or payload.get("outcome") != outcome
+                            or payload.get("safe_error_code") != safe_error_code
+                            or payload.get("fence") != fence
+                            or payload.get("lease_token_sha256") != hashlib.sha256(
+                                lease_token.encode("utf-8")).hexdigest()):
+                        raise ExchangeConflict("doorbell receipt conflicts with prior attempt")
+                    return payload["state"]
+                self._require_delivery_lease(row, provider_id, owner_id, lease_token, fence, now)
+                if row["delivery_state"] != "awaiting_delivery":
+                    raise ExchangeConflict("doorbell request is no longer awaiting delivery")
+                if outcome == "submitted":
+                    state = "awaiting_external_claim"
+                    cur.execute("""UPDATE external_reasoning_exchanges SET delivery_state=%s,
+                        delivery_owner=NULL,delivery_token=NULL,delivery_lease_until=NULL,
+                        updated_at=%s WHERE request_id=%s""", (state, now, row["request_id"]))
+                else:
+                    retryable = outcome == "failed" and safe_error_code in _DOORBELL_RETRYABLE
+                    terminal = (not retryable or row["delivery_attempts"] >= _MAX_DELIVERY_ATTEMPTS
+                                or row["deadline_at"] <= now)
+                    state = "expired" if row["deadline_at"] <= now else (
+                        "failed" if terminal else "awaiting_delivery")
+                    delay = min(300, 2 ** min(row["delivery_attempts"], 8))
+                    cur.execute("""UPDATE external_reasoning_exchanges SET delivery_state=%s,
+                        next_delivery_at=%s,delivery_owner=NULL,delivery_token=NULL,
+                        delivery_lease_until=NULL,last_error_code=%s,updated_at=%s
+                        WHERE request_id=%s""", (state, now + timedelta(seconds=delay),
+                        safe_error_code.lower().replace("-", "_"), now, row["request_id"]))
+                row.update(delivery_state=state)
+                payload = {"state": state, "provider_id": provider_id,
+                    "attempt_id": attempt_id, "fence": fence, "outcome": outcome,
+                    "lease_token_sha256": hashlib.sha256(lease_token.encode("utf-8")).hexdigest(),
+                    "safe_error_code": safe_error_code,
+                    "retryable": outcome == "failed" and safe_error_code in _DOORBELL_RETRYABLE}
+                self._event(cur, row, "doorbell_receipt", f"doorbell-receipt:{attempt_id}",
+                            owner_id, payload)
+                return state
 
     def mark_delivered(self, request_id: str, correlation_id: str, provider_id: str, *,
                        owner_id: str, delivery_token: str, fence: int) -> str:

@@ -1,0 +1,104 @@
+{
+  "component_id": "RESIDENT-REASONING",
+  "manifest_revision": "1.1.1",
+  "source_commit": "5c4a00512e5acd6f72aa766ea866a8828184b151",
+  "task_id": "RV-C3-CHATGPT-EXACT-REVIEW-001",
+  "artifacts": {
+    "attempts/failed-debug-attempts.md": {
+      "path": "attempts/failed-debug-attempts.md",
+      "revision": "1.0.0",
+      "sha256": "70622fb913331bce9ea74841d797d2719d3c0d89da2c97b12d36a1463b0b27a0",
+      "size_bytes": 2124
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "177ddd2a616d6281118b89bc088bae1489e01544f7c65ff29a39350e7f85d48c",
+      "size_bytes": 5246
+    },
+    "compileall.log": {
+      "path": "compileall.log",
+      "revision": "1.0.0",
+      "sha256": "b010446fdb5384d2d87f07993fa863a293085f7db509caa536cb43339734f1dd",
+      "size_bytes": 66
+    },
+    "diff-check.log": {
+      "path": "diff-check.log",
+      "revision": "1.0.0",
+      "sha256": "8f08d4522f69bcfaf64af822f5ba379a3186e130e228a58e764aac379599883d",
+      "size_bytes": 50
+    },
+    "doorbell-receipt-tests.log": {
+      "path": "doorbell-receipt-tests.log",
+      "revision": "1.0.0",
+      "sha256": "a03ba399b4ad4be5f461e83609e4990f1764c23af0c8bec97999f66fc88f7d1f",
+      "size_bytes": 8290
+    },
+    "exchange-and-resident-postgres.log": {
+      "path": "exchange-and-resident-postgres.log",
+      "revision": "1.0.0",
+      "sha256": "dbb17f718238d8befd126d9c4ace692f5e9638e507181514c65e7b50d52e43f5",
+      "size_bytes": 7480
+    },
+    "final-exchange-and-resident-postgres.log": {
+      "path": "final-exchange-and-resident-postgres.log",
+      "revision": "1.0.0",
+      "sha256": "75a38cb49c38b734c49298449170660850e186f3c03c8afc7976e8d892f255f5",
+      "size_bytes": 8497
+    },
+    "followup-compileall.log": {
+      "path": "followup-compileall.log",
+      "revision": "1.0.0",
+      "sha256": "19eaf43821a7660ec323a87c8457bf74823beb296c39f5e01aa8a683aa50f061",
+      "size_bytes": 7
+    },
+    "followup-diff-check.log": {
+      "path": "followup-diff-check.log",
+      "revision": "1.0.0",
+      "sha256": "19eaf43821a7660ec323a87c8457bf74823beb296c39f5e01aa8a683aa50f061",
+      "size_bytes": 7
+    },
+    "followup-predecessor-verification.log": {
+      "path": "followup-predecessor-verification.log",
+      "revision": "1.0.0",
+      "sha256": "a2ed89555b9d6b9c639b4ef6fe1fe2f1dc5d3bc7f221a744ba3b564ba6207b7e",
+      "size_bytes": 78
+    },
+    "followup-revision-check.log": {
+      "path": "followup-revision-check.log",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "local-provider-tests.log": {
+      "path": "local-provider-tests.log",
+      "revision": "1.0.0",
+      "sha256": "fb42bcaee1a78034413bdfe3c62ae3f8b963cae4cce8c2da168173c41088c00f",
+      "size_bytes": 6102
+    },
+    "pre-edit-revision-baseline.json": {
+      "path": "pre-edit-revision-baseline.json",
+      "revision": "1.0.0",
+      "sha256": "8674c45e12e016c21050a84617a805d6566da9056a2b6e755e4723aaf23dae23",
+      "size_bytes": 320805
+    },
+    "predecessor-verification.log": {
+      "path": "predecessor-verification.log",
+      "revision": "1.0.0",
+      "sha256": "3a680d101e66cd544e5cd62c478d7bf6f9a27db555d22cc8ce6813b21dc3e698",
+      "size_bytes": 1545
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "versions.log": {
+      "path": "versions.log",
+      "revision": "1.0.0",
+      "sha256": "b6322f377828a66c198d61c0b0d4ab970072e566cae340b8b68e932e44d78d73",
+      "size_bytes": 165
+    }
+  }
+}

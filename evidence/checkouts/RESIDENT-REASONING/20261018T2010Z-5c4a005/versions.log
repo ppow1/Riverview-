@@ -1,0 +1,4 @@
+Host: Camrui Ubuntu 24.04
+Python: Python 3.12.3
+PostgreSQL: psql (PostgreSQL) 16.15
+Test database: pg_virtualenv disposable 16/regress cluster, destroyed after test
