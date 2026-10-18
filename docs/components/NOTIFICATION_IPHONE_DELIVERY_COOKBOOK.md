@@ -2,13 +2,14 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.1.2
+File Revision: 1.1.3
 Purpose: Set up and troubleshoot ntfy/Pushover push delivery without exposing secrets
 Authority: Operational diagnosis and local setup only; no decision authority
 Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial push recovery cookbook
 Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATION-COMMISSIONING-READINESS-001 | Add checksum-pinned operator commissioning and phone acceptance steps
 Changed: 2026-10-18 UTC | RV-NOTIFICATION-QUEUE-RETRY-ACCEPTANCE-20261018 | Document disposable PostgreSQL queue/retry acceptance command
 Changed: 2026-10-18 UTC | RV-NOTIFICATION-LIFECYCLE-ACCEPTANCE-20261018 | Specify end-to-end isolated event-to-ack regression coverage
+Changed: 2026-10-18 UTC | RV-NOTIFICATION-OPT-IN-ACCEPTANCE-20261018 | Add operator opt-in checklist and provider secret prerequisites
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # iPhone push delivery setup and troubleshooting
@@ -53,6 +54,51 @@ The systemd unit template expects credentials named `pgpass`, `ntfy_token`,
 not configured, remove only that provider's `LoadCredential` line and ensure no
 severity route selects it before enabling the unit. This source assignment does
 not install or activate the unit.
+
+## Opt-in end-to-end acceptance checklist
+
+Run this only after the Steward authorizes the notification commissioning
+window and the phone owner is ready. Select the providers in the reviewed
+configuration; do not configure an unused provider. Before sending a live test,
+confirm:
+
+- [ ] The selected ntfy endpoint is self-hosted, reachable through an already
+  authorized private or TLS route, configured with default-deny access, and
+  grants Camrui publish access plus the iPhone read access only to the chosen
+  topic. Never use `ntfy.sh` or expose a new anonymous listener.
+- [ ] For Pushover, the operator has the application's API token and the target
+  user's account key, and the Pushover iPhone app is signed into that account.
+- [ ] Only the selected providers' credential files exist under
+  `/etc/riverview/notification/`: `ntfy_token`, `pushover_app_token`, and/or
+  `pushover_user_key`. PostgreSQL access uses the existing protected `pgpass`.
+  Secret contents are entered through the documented protected prompt, never
+  placed in the JSON config, shell history, logs, or Git.
+- [ ] The selected app is installed on the iPhone, notification permission is
+  enabled, and it is subscribed to the exact private ntfy topic or signed into
+  the selected Pushover account.
+- [ ] If headset audio is in scope, the headset is paired and iOS **Settings →
+  Siri (or Apple Intelligence & Siri) → Announce Notifications** is enabled for
+  the app. Verify announcement on the actual phone; server acceptance cannot
+  verify Bluetooth audio.
+- [ ] Start with a uniquely labeled non-emergency `info` notice. Confirm its
+  source event, projected notice, deduplicated provider row and provider result
+  by ID while avoiding message bodies and receipt values in diagnostic output.
+  Confirm display in the app on the phone.
+- [ ] If `warning` routing selects two providers, confirm each has one durable
+  row and the phone receives the intended duplicate alerts.
+- [ ] Run a `critical` Pushover emergency receipt test only with the operator
+  ready to acknowledge it. Confirm the provider receipt and durable
+  `acknowledged` transition after acknowledgment in the iPhone app. Do not use
+  emergency delivery as a routine health check.
+- [ ] Record separately: provider HTTP acceptance, visible phone notification,
+  headset announcement if tested, and Pushover user acknowledgment. These are
+  distinct outcomes. A provider response alone is not phone-delivery evidence.
+
+If the selected provider credential, authorized route, or phone-side setup is
+missing, stop before the corresponding live test. Do not replace that dependency
+with a mock and label production delivery successful. Mocked provider and
+disposable PostgreSQL behavior are verified by the automated tests; they do not
+send phone notifications.
 
 ## Ordered Camrui commissioning procedure
 

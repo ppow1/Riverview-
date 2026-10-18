@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_notification_push.py
 # Component: NOTIFICATION-DELIVERY
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Verify provider routing, durable outbox recovery, retries, and ack semantics
 # Execution Model: Unit tests plus disposable PostgreSQL integration tests
 # Observability: Queue state, provider call evidence, append-only event ledger
 # Dependencies: Python 3.10+; Psycopg 3; optional disposable PostgreSQL 16
 # Authority: Test-only schema; no production credential or provider call
-# Changed: 2026-10-18 UTC | RV-NOTIFICATION-LIFECYCLE-ACCEPTANCE-20261018 | Cover CME event projection through severity-routed durable push and acknowledgment
+# Changed: 2026-10-18 UTC | RV-NOTIFICATION-OPT-IN-ACCEPTANCE-20261018 | Verify provider failures redact credentials and response bodies
 # Contracts: docs/components/NOTIFICATION_IPHONE_DELIVERY.md
 # Tests: pytest tests/test_notification_push.py
 # History: Git + .riverview-backups/manifest.jsonl
@@ -122,6 +122,39 @@ class PushConfigTests(unittest.TestCase):
             transport.send("ntfy", "warning", "title", "body", "stable-key")
             self.assertEqual(requests[2][0].get_header("Authorization"), "Bearer ntfy-secret")
             self.assertEqual(requests[2][0].full_url, "https://ntfy.example.test/riverview_test")
+
+    def test_provider_failure_diagnostics_do_not_disclose_credentials_or_response_body(self):
+        class Response:
+            status = 401
+            def __init__(self, body): self.body = body
+            def read(self, _limit): return self.body
+            def __enter__(self): return self
+            def __exit__(self, *_args): return False
+
+        secrets = ("ntfy-private-token", "pushover-private-app", "pushover-private-user")
+        with tempfile.TemporaryDirectory() as directory:
+            for name, value in zip(("ntfy_token", "pushover_app_token", "pushover_user_key"),
+                                   secrets):
+                path = Path(directory) / name
+                path.write_text(value)
+                path.chmod(0o400)
+            requests = []
+            body = ("provider rejected credentials: " + " ".join(secrets)).encode()
+            def opener(request, timeout):
+                requests.append(request)
+                return Response(body)
+
+            transport = HttpPushTransport(config(), credentials_dir=directory, opener=opener)
+            for provider in ("ntfy", "pushover"):
+                with self.subTest(provider=provider):
+                    with self.assertRaises(PushProviderError) as raised:
+                        transport.send(provider, "warning", "safe title", "safe message", "test-key")
+                    self.assertEqual(str(raised.exception), "provider_http_401")
+                    for secret in secrets:
+                        self.assertNotIn(secret, str(raised.exception))
+            self.assertEqual(len(requests), 2)
+            self.assertTrue(all(secret not in request.full_url
+                                for request in requests for secret in secrets))
 
 
 @unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")
