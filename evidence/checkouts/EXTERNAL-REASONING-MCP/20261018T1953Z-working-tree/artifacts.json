@@ -1,0 +1,29 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "checkout.md": {
+      "path": "evidence/checkouts/EXTERNAL-REASONING-MCP/20261018T1953Z-working-tree/checkout.md",
+      "revision": "1.0.0",
+      "sha256": "aa82de087c3500358f9dfe86b7cfc559f37e23d249dce7a4e536059a2dafb1fc",
+      "size_bytes": 1315
+    },
+    "diff-check.log": {
+      "path": "evidence/checkouts/EXTERNAL-REASONING-MCP/20261018T1953Z-working-tree/diff-check.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "focused-tests.log": {
+      "path": "evidence/checkouts/EXTERNAL-REASONING-MCP/20261018T1953Z-working-tree/focused-tests.log",
+      "revision": "1.0.0",
+      "sha256": "33edc7fd5b4c9ada60a4cd9948a130d92ffa304ed51848682fb0a23e02348b76",
+      "size_bytes": 99
+    },
+    "py_compile.log": {
+      "path": "evidence/checkouts/EXTERNAL-REASONING-MCP/20261018T1953Z-working-tree/py_compile.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    }
+  }
+}
