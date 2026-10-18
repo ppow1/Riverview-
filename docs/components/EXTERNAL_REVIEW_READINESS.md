@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REVIEW_READINESS.md
 Component: EXTERNAL-REVIEW-READINESS
-File Revision: 1.0.4
+File Revision: 1.0.5
 Purpose: Define C1's privacy-safe readiness projection for the Grace external review flow
 Authority: Read-only projection; owning services retain all lifecycle and decision authority
 Changed: 2026-10-18 UTC | RV-C1-EXTERNAL-REVIEW-READINESS-001 | Initial component contract
@@ -10,6 +10,7 @@ Changed: 2026-10-18 UTC | RV-C1-EXTERNAL-REVIEW-READINESS-001 | Record timeout p
 Changed: 2026-10-18 UTC | RV-C1-EXTERNAL-REVIEW-READINESS-001 | Distinguish durable Grace consumption from an evaluated decision
 Changed: 2026-10-18 UTC | RV-C1-EXTERNAL-REVIEW-READINESS-001 | Document unverified wake submission recovery
 Changed: 2026-10-18 UTC | RV-C1-P0-READINESS-INTEGRATION-001 | Bind readiness to actual C2 trigger result and C3/C4 status digests
+Changed: 2026-10-18 UTC | RV-C1-P0-INTEGRATION-CLOSURE-002 | Record expired-response fail-closed acceptance
 History: Git
 -->
 # Grace External Review Readiness Projection
@@ -101,6 +102,11 @@ Failure values are generated from constants; untrusted error text is not
 returned. Correlation mismatch is terminal for this projection and routed to
 the owning exchange operator; it never attempts to repair or rewrite the
 lineage.
+
+An expired C3 exchange always projects `review_expired`, even when a caller
+supplies a malformed C4 submit result that labels the expiry sentinel as a
+response. A malformed provider response digest against a persisted C3 response
+is rejected as `provider_status_mismatch`.
 
 ## Recovery and limitations
 

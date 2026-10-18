@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_external_review_readiness.py
 # Component: EXTERNAL-REVIEW-READINESS
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Verify privacy, expiry, stale evidence, and fail-closed readiness projection
 # Execution Model: Isolated unit tests; no network, browser, database, or provider access
 # Observability: unittest assertions over bounded projection schema
@@ -10,6 +10,7 @@
 # Authority: Synthetic metadata only; no external action is performed
 # Changed: 2026-10-18 UTC | RV-C1-EXTERNAL-REVIEW-READINESS-001 | Verify review-subject body and digest redaction
 # Changed: 2026-10-18 UTC | RV-C1-P0-READINESS-INTEGRATION-001 | Verify C3/C4 status contract and digest/lineage binding
+# Changed: 2026-10-18 UTC | RV-C1-P0-INTEGRATION-CLOSURE-002 | Assert an expired exchange cannot project green from a false provider success
 # Contracts: docs/components/EXTERNAL_REVIEW_READINESS.md
 # History: Git
 # =============================================================================
@@ -153,6 +154,26 @@ class ExternalReviewReadinessTests(unittest.TestCase):
         consumed = self.project(exchange_status=exchange("grace_consumed"))
         self.assertEqual(consumed["state"], "grace_consumed")
         self.assertEqual(consumed["next_action"], "inspect_grace_decision")
+
+    def test_expired_exchange_never_turns_green_from_expired_sentinel_mapping(self):
+        expired = exchange("expired")
+        result = self.project(exchange_status=expired, provider_submission={
+            # Reproduces the C4 mapping defect under investigation: an expired
+            # sentinel was mislabeled as a successful response result.
+            "state": "response_received",
+            "response_sha256": "expired",
+        })
+        self.assertEqual(result["readiness"], "blocked")
+        self.assertEqual(result["state"], "review_expired")
+        self.assertNotEqual(result["readiness"], "ready")
+
+    def test_expired_sentinel_cannot_match_a_durable_response(self):
+        response = exchange("response_received")
+        result = self.project(exchange_status=response, provider_submission={
+            "state": "response_received", "response_sha256": "expired",
+        })
+        self.assertEqual(result["state"], "provider_status_mismatch")
+        self.assertNotEqual(result["readiness"], "ready")
 
     def test_response_ready_for_grace_consumption(self):
         late_but_durable = exchange("response_received",
