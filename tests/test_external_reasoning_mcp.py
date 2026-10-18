@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_mcp.py
 # Component: EXTERNAL-REASONING-MCP-TRANSPORT
-# Revision: 1.0.9
+# Revision: 1.1.0
 # Purpose: Exercise MCP Streamable HTTP and OAuth provider identity mapping independently
 # Execution Model: Local ephemeral HTTP server; stdlib client independent of adapter dispatch
 # Observability: HTTP status, protocol negotiation, tool names and sanitized denials
@@ -16,6 +16,7 @@
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Verify quality-value denial and consume response on host rejection
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-MCP | Verify bounded exact-proposal exposure and digest-bound provider response submission
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-TYPED-REVIEW-SUBJECT | Verify C3 typed proposal shape, source provenance preservation, and structural rejection
+# Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-EXPIRED-RESPONSE-MCP | Verify expired submit is explicitly non-success without a response digest
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -61,6 +62,7 @@ class _ReviewFixtureExchange(_FixtureExchange):
         super().__init__()
         self.subject = subject
         self.submitted = []
+        self.submit_result = "b" * 64
         self.request_id = "00000000-0000-4000-8000-000000000101"
         self.correlation_id = "00000000-0000-4000-8000-000000000102"
 
@@ -89,7 +91,7 @@ class _ReviewFixtureExchange(_FixtureExchange):
 
     def submit_response(self, request_id, correlation_id, **kwargs):
         self.submitted.append((request_id, correlation_id, kwargs))
-        return "b" * 64
+        return self.submit_result
 
 
 def _review_subject():
@@ -322,6 +324,24 @@ class IndependentMCPClientTests(unittest.TestCase):
         malformed["revision"] = 4
         with self.assertRaisesRegex(ValueError, "review_subject_invalid"):
             adapter._review_subject({"review_subject": malformed}, {})
+
+    def test_expired_provider_response_is_non_success_and_has_no_response_digest(self):
+        exchange = _ReviewFixtureExchange(None)
+        exchange.submit_result = "expired"
+        adapter = ExternalReasoningMCPAdapter(exchange, self.tokens)
+        identity = self.tokens.resolve(TOKEN)
+        arguments = {"request_id": exchange.request_id,
+            "correlation_id": exchange.correlation_id, "claim_token": "c" * 36,
+            "fence": 1, "idempotency_key": "expired-response-1",
+            "response": {"advisory": "late"}}
+
+        result = adapter.call_tool(identity, "reasoning_exchange_submit_response", arguments)
+
+        self.assertEqual(result, {"state": "expired", "accepted": False})
+        self.assertNotIn("response_sha256", result)
+        self.assertNotEqual(result.get("state"), "response_received")
+        self.assertEqual(len(exchange.submitted), 1)
+
     def test_legacy_advisory_submission_does_not_require_subject_digest(self):
         exchange = _ReviewFixtureExchange(None)
         adapter = ExternalReasoningMCPAdapter(exchange, self.tokens)

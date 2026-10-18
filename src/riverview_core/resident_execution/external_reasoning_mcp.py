@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning_mcp.py
 # Component: EXTERNAL-REASONING-MCP-TRANSPORT
-# Revision: 1.1.4
+# Revision: 1.1.5
 # Purpose: Expose the durable advisory exchange through authenticated MCP Streamable HTTP
 # Execution Model: Request-driven, sessionless HTTP JSON-RPC adapter
 # Observability: Sanitized request outcomes; authoritative exchange state remains PostgreSQL
@@ -16,6 +16,7 @@
 # Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Add OAuth JWT resource-server validation and OpenAI mixed-auth tool metadata
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-MCP | Expose bounded immutable review subjects and require correlated subject digest on provider replies
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-TYPED-REVIEW-SUBJECT | Validate and preserve the complete typed PlanProposal/PlanStep subject
+# Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-EXPIRED-RESPONSE-MCP | Map durable expiration to an explicit non-success MCP result
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # Tests: tests/test_external_reasoning_mcp.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -641,6 +642,8 @@ class ExternalReasoningMCPAdapter:
                 principal_id=principal.principal_id, claim_token=arguments["claim_token"],
                 fence=arguments["fence"], idempotency_key=arguments["idempotency_key"],
                 response=arguments["response"], **submit_kwargs)
+            if digest == "expired":
+                return {"state": "expired", "accepted": False}
             return {"response_sha256": digest, "state": "response_received"}
         if name == "reasoning_exchange_status":
             self._exact_keys(arguments, {"request_id", "correlation_id"})
