@@ -2,12 +2,13 @@
 # RIVERVIEW~ CONTROLLED DOCUMENT
 # File: docs/components/INSTITUTIONAL_PROPOSALS_FLOW.md
 # Component: INSTITUTIONAL-PROPOSALS
-# Revision: 1.1.0
+# Revision: 1.1.1
 # Purpose: Troubleshoot proposal formalization, persistence, search, and review flow
 # Status: Development contract; production acceptance not performed
 # Authority: Steward retains proposal decision and execution authorization
 # Dependencies: PostgreSQL proposal registry; authenticated Grace conversation
 # Changed: 2026-10-16 UTC | RV-INSTITUTIONAL-PROPOSAL-LIFECYCLE-001 | Initial proposal flow
+# Changed: 2026-10-18 UTC | RV-PROPOSAL-WEBSITE-UI-001 | Document the Steward dashboard proposal lifecycle UI and authenticated API boundary
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Extend proposal decisions into existing authorized Engineering lifecycle
 # Source: process_graphs/grace/institutional-proposal-lifecycle.json
 # Verification: python3 scripts/process_graph.py check; tests/test_institutional_proposals.py; tests/test_proposal_work_order_lifecycle.py
@@ -35,8 +36,8 @@ flowchart LR
     g_rv_grace_institutional_proposal_lifecycle_missing_authority_0d73e08c[["Missing objective.submit prevents promotion; missing assignment.create is surfaced from dispatch diagnostics while approval remains durable"]]
     g_rv_grace_institutional_proposal_lifecycle_promotion_retry_6a2109e7["Retry deterministic objective intake after service restart only after validating actor, proposal digest, criteria, grant, source and approval event; do not duplicate objective or assignment"]
     g_rv_grace_institutional_proposal_lifecycle_verified_result_5a07306c(["Worker, verification, artifacts and outcomes are durably linked to the exact approved proposal revision; verification is not Steward acceptance"])
+    g_rv_grace_institutional_proposal_lifecycle_steward_website_ui_e4e19bf8["Steward dashboard exposes proposal drafting, revision review, exact-revision decision, and promotion controls through authenticated existing API routes; proposal approval and objective submission remain separate grants"]
   end
-  g_rv_grace_institutional_proposal_lifecycle_steward_source_2126342a --> g_rv_grace_institutional_proposal_lifecycle_authorize_and_bind_335cfb84
   g_rv_grace_institutional_proposal_lifecycle_authorize_and_bind_335cfb84 --> g_rv_grace_institutional_proposal_lifecycle_reason_or_clarify_951aa869
   g_rv_grace_institutional_proposal_lifecycle_reason_or_clarify_951aa869 -->|typed proposal| g_rv_grace_institutional_proposal_lifecycle_persist_draft_1089ff46
   g_rv_grace_institutional_proposal_lifecycle_persist_draft_1089ff46 --> g_rv_grace_institutional_proposal_lifecycle_search_revise_review_a47d8d46
@@ -55,6 +56,8 @@ flowchart LR
   g_rv_grace_institutional_proposal_lifecycle_dispatch_verification_125e3873 -->|escalation: assignment.create denied; approval and proposal history remain unchanged| g_rv_grace_institutional_proposal_lifecycle_missing_authority_0d73e08c
   g_rv_grace_institutional_proposal_lifecycle_objective_intake_e519020e -->|diagnostic_branch: interrupted intake or evidence grounding| g_rv_grace_institutional_proposal_lifecycle_promotion_retry_6a2109e7
   g_rv_grace_institutional_proposal_lifecycle_promotion_retry_6a2109e7 -->|recovery_route: idempotent recovery after exact authority recheck| g_rv_grace_institutional_proposal_lifecycle_objective_intake_e519020e
+  g_rv_grace_institutional_proposal_lifecycle_steward_website_ui_e4e19bf8 --> g_rv_grace_institutional_proposal_lifecycle_authorize_and_bind_335cfb84
+  g_rv_grace_institutional_proposal_lifecycle_steward_source_2126342a --> g_rv_grace_institutional_proposal_lifecycle_steward_website_ui_e4e19bf8
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

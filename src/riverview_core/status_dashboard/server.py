@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.23
+# Revision: 1.3.25
+# Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Accept typed repository target provenance in source-change proposal intake.
 # Purpose: Serve account-authenticated operational, proposal, capability and snapshot APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -582,7 +583,8 @@ def make_handler():
                 except OSError:
                     self._error(503, "ui_unavailable", request_id)
                 return
-            if parsed.path in {"/assets/app.js", "/assets/app.css", "/assets/workflow.js", "/assets/resident-permissions.js", "/assets/diagnostic-snapshot.js"}:
+            if parsed.path in {"/assets/app.js", "/assets/app.css", "/assets/workflow.js", "/assets/resident-permissions.js", "/assets/diagnostic-snapshot.js",
+                               "/assets/institutional-proposals.js"}:
                 name = parsed.path.rsplit("/", 1)[-1]
                 kind = "text/javascript" if name.endswith(".js") else "text/css"
                 try:
@@ -1378,7 +1380,8 @@ def make_handler():
                             steps = []
                             for step in data["steps"]:
                                 required = {"step_id", "objective", "acceptance_criteria", "depends_on"}
-                                allowed = required | {"execution_capability", "authorized_paths", "test_targets"}
+                                allowed = required | {"execution_capability", "authorized_paths", "test_targets",
+                                                     "repository_reference", "repository_revision"}
                                 if (not isinstance(step, dict) or not required <= set(step) or
                                         not set(step) <= allowed):
                                     raise ValueError("invalid proposal step")
@@ -1387,7 +1390,9 @@ def make_handler():
                                     step.get("execution_capability",
                                         "engineering.codex-cli-artifact.v1"),
                                     tuple(step.get("authorized_paths", ())),
-                                    tuple(step.get("test_targets", ()))))
+                                    tuple(step.get("test_targets", ())),
+                                    step.get("repository_reference"),
+                                    step.get("repository_revision")))
                             proposal = PlanProposal(data["summary"], tuple(steps), data["tokens_used"])
                             objective = pipeline.get_objective(objective_id)
                             if objective is None:

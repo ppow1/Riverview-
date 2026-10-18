@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.12
+File Revision: 1.1.13
+Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Document source-worker enrollment, diagnostics, and reversible disablement.
 Purpose: Diagnose and safely resume the persistent Grace execution service
 Authority: Read-only diagnosis first; exact grants required for every mutation
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Add service operations and recovery procedures
@@ -147,3 +148,58 @@ The per-executable AppArmor profile trial is active and the global user-namespac
 ## Destructive-operation warning
 
 Never delete or reset the schema, objective/event rows, assignment ledger, leases, attempts, worker results, verification records, artifact workspace, or credentials as a recovery shortcut. Preserve the relevant DB backup and evidence before any separately authorized migration rollback or data repair. This work order did not authorize live commissioning or production changes.
+
+## Optional source-change worker commissioning checklist
+
+Source-change execution is source-only in this increment. Do not apply the
+optional systemd drop-in or provision credentials/grants without a separate
+Steward commissioning approval.
+
+Before enrollment, review the approved repository mapping, exact immutable
+target commit, bounded file ceiling and fixed offline test runner. Confirm the
+Steward-approved objective itself names the target repository, commit and every
+authorized path. The resident grounding `source_revision` is knowledge
+provenance and must never be reused as the source target commit.
+
+For an approved commissioning window:
+
+1. Enroll a distinct source worker principal and protected credential through
+   the existing authority/worker registration procedure. Do not change the
+   artifact principal, token, registry row or grants. Keep the credential in
+   `/etc/riverview/worker/grace-source-change.credential`, root-controlled and
+   readable only through the matching systemd credential binding.
+2. Grant only `worker.register` and `assignment.execute` to that source identity
+   in the existing `work-order:engineering` scope. Keep the existing independent
+   verifier identity and exact `assignment.verify` grant. Confirm source and
+   artifact worker IDs and credential digests are distinct without printing
+   credential contents.
+3. Configure the exact repository reference, checkout path and approved
+   `RIVERVIEW_CODEX_SOURCE_ALLOWED_PATHS` JSON list. Check that the checkout HEAD
+   equals the approved objective target commit. Do not use a branch name or
+   resident grounding revision as the commit pin.
+4. Stage the source worker drop-in as
+   `/etc/systemd/system/riverview-grace-execution-owner-session.service.d/20-source-worker.conf`
+   only after its identity, credential file and grants exist. Validate the
+   combined unit with `systemd-analyze verify`; the base unit remains
+   artifact-compatible with `RIVERVIEW_SOURCE_WORKER_ENABLED=0`.
+5. In the approved window, apply the controlled config backup/release procedure
+   and restart only `riverview-grace-execution-owner-session.service`. Confirm
+   healthy Grace heartbeat, separate registered capability identities,
+   source worker polling, CME assignment state, independent verification, and
+   durable result/reconciliation events. Use only a bounded disposable target.
+
+If source startup is incomplete, inspect only sanitized failure class, source
+worker ID, capability registry, grant state, configured path ceiling, and
+checkout HEAD. Never print credentials or full process environment. Missing
+source token/ID/registration/grant/allowlist disables source execution; artifact
+execution remains available. A mismatch leaves source work undispatched rather
+than routing it through the artifact loop.
+
+Rollback preserves the artifact worker and all CME state: remove only the
+source-worker drop-in, run `systemctl daemon-reload`, and restart the owner
+session only within the approved maintenance window. Leave the source worker
+registration, credential and durable attempts unchanged until separately
+authorized retirement. Verify source steps remain pending, artifact polling
+continues, and no assignment, result, or conversation publication was
+duplicated. Never replay a dispatched source assignment merely to test the
+rollback.

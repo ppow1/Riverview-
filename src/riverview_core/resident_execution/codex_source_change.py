@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_source_change.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.3
+# Revision: 1.0.4
+# Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Return repository identity in source-change results and reject target provenance mismatches.
 # Purpose: Execute explicitly scoped multi-file Engineering changes in a pinned disposable clone
 # Execution Model: Leased worker action followed by independent patch and test verification
 # Observability: Changed-file list, patch digest, base revision, test status and verifier evidence
@@ -108,6 +109,7 @@ class CodexSourceChangeResult:
     capability: str
     assignment_id: str
     objective_id: str
+    repository_reference: str
     repository_revision: str
     changed_files: tuple[str, ...]
     patch_path: str | None
@@ -270,7 +272,8 @@ class CodexSourceChangeAdapter:
                     return self._result(assignment, "INVALID_RESULT", "requested_tests_failed", started=started)
                 self.base._write_artifact(patch_path, patch.stdout)
                 return CodexSourceChangeResult("PATCH_PRODUCED", CAPABILITY,
-                    assignment.assignment_id, assignment.objective_id, revision, changed,
+                    assignment.assignment_id, assignment.objective_id,
+                    assignment.repository_reference, revision, changed,
                     str(patch_path), hashlib.sha256(patch.stdout).hexdigest(), len(patch.stdout),
                     "passed", "independent_verification_required", started)
         except CodexAdapterError as exc:
@@ -281,7 +284,8 @@ class CodexSourceChangeAdapter:
     @staticmethod
     def _result(assignment, status, code, *, started=False):
         return CodexSourceChangeResult(status, CAPABILITY, assignment.assignment_id,
-            assignment.objective_id, assignment.repository_revision, (), None, None, None,
+            assignment.objective_id, assignment.repository_reference,
+            assignment.repository_revision, (), None, None, None,
             "not_run", code, started)
 
     def _verified_prior_patch(self, path_value, expected_sha256):
@@ -352,7 +356,8 @@ class CodexSourceChangeAdapter:
                 if not _run_tests(repo, assignment.test_targets, assignment.timeout_seconds):
                     return self._result(assignment, "BLOCKED", "existing_patch_tests_failed")
             return CodexSourceChangeResult("PATCH_PRODUCED", CAPABILITY,
-                assignment.assignment_id, assignment.objective_id, revision, changed,
+                assignment.assignment_id, assignment.objective_id,
+                assignment.repository_reference, revision, changed,
                 str(patch_path), hashlib.sha256(patch).hexdigest(), len(patch),
                 "passed", "recovered_existing_patch", False)
         except (OSError, ValueError, subprocess.SubprocessError, CodexAdapterError):
@@ -374,6 +379,7 @@ class CodexSourceChangeVerifier:
                 result.status != "PATCH_PRODUCED" or result.capability != CAPABILITY or
                 result.assignment_id != assignment.assignment_id or
                 result.objective_id != assignment.objective_id or
+                result.repository_reference != assignment.repository_reference or
                 result.repository_revision != assignment.repository_revision or
                 result.test_status != "passed" or
                 not set(assignment.authorized_paths) <= set(self.authorized_paths) or

@@ -1,0 +1,597 @@
+# =============================================================================
+# RIVERVIEW~ CONTROLLED SOURCE
+# File: src/riverview_core/resident_execution/service.py
+# Component: RESIDENT-ORCHESTRATION
+# Revision: 1.0.15
+# Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Run capability-fenced worker loops concurrently and route verification by persisted attempt capability.
+# Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Persist and rate-limit failed resident proposals.
+# Purpose: Reconcile durable Grace work orders through existing CME worker contracts
+# Execution Model: Persistent scheduled poll over PostgreSQL objective state
+# Observability: Objective events, worker attempts, verification records, dashboard projection
+# Dependencies: GraceExecutionPipeline; ContinuousWorker; PostgresWorkerAdapter
+# Authority: Exact assignment.create and assignment.verify grants; bounded capability only
+# Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Initial persistent reconciler
+# Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-ISOLATION | Persist verifier errors and avoid per-cycle candidate starvation
+# Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-TEST-SEAM | Keep verifier replaceable behind existing result contract
+# Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-RUNTIME | Bind optional resident reasoning to durable grounded objectives and office-scoped state
+# Changed: 2026-10-11 UTC | RV-M4.1-RESIDENT-FAIR-CYCLE | Attempt at most one grounded objective before continuing CME work
+# Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Add a targeted operator-supervised objective execution cycle
+# Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Select registered execution capability for worker and verification queries
+# Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Retry durable verified-result returns to the originating Grace conversation
+# Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Dispatch only dependency-ready verified steps through existing worker leases
+# Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Persist cycle-specific result receipts and resume only idempotent same-objective continuations
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Re-evaluate preserved rejected results only when the verifier implementation revision changes
+# Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Resume append-only verifier decisions after a correction, including interrupted completion transition
+# Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-REASONING-BUDGET-001 | Raise bounded resident proposal default to fit typed dependency plans and source scopes
+# Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Reconcile existing assignments, execution state and verifier evidence to proposal revisions
+# Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
+# Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
+# History: Git and .riverview-backups/manifest.jsonl
+# =============================================================================
+"""Persistent, idempotent orchestration over the existing assignment ledger."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import logging
+import re
+import time
+from concurrent.futures import ThreadPoolExecutor
+from collections.abc import Mapping
+from uuid import uuid4
+
+from ..worker_adapter.resident_knowledge import TaskRelevantRepositoryKnowledgeProvider
+from .verifier import BoundedArtifactVerifier
+from .worker import CAPABILITY, BoundedLocalCodingWorker
+
+LOG = logging.getLogger("riverview.grace_execution")
+
+
+class GraceExecutionService:
+    """Dispatch authorized proposals, execute one leased action, verify and reconcile.
+
+    Scheduler/event-processor state transitions remain owned by CME. Repeated calls
+    are safe: objective state and the stable assignment idempotency key fence duplicate
+    dispatch; worker leases and execution intents fence duplicate side effects.
+    """
+
+    MAX_REASONING_FAILURES = 3
+    REASONING_FAILURE_WINDOW_SECONDS = 60
+
+    def __init__(self, pipeline, adapter, worker, *, dispatch_credential,
+                 authority_ref, verifier_id, verifier_credential, artifact_root,
+                 max_dispatch_failures=3, verifier=None, resident_reasoner=None,
+                 resident_token_budget=768, execution_capability=CAPABILITY,
+                 conversation_result_publisher=None, proposal_lifecycle=None,
+                 execution_workers=None, verifiers=None):
+        if not 1 <= max_dispatch_failures <= 10:
+            raise ValueError("dispatch failure limit must be between 1 and 10")
+        if type(resident_token_budget) is not int or not 1 <= resident_token_budget <= 4096:
+            raise ValueError("resident reasoning token budget must be bounded")
+        self.pipeline = pipeline
+        self.adapter = adapter
+        self.worker = worker
+        self.dispatch_credential = dispatch_credential
+        self.authority_ref = authority_ref
+        self.verifier_id = verifier_id
+        self.verifier_credential = verifier_credential
+        self.verifier = verifier or BoundedArtifactVerifier(artifact_root)
+        self.max_dispatch_failures = max_dispatch_failures
+        self.resident_reasoner = resident_reasoner
+        self.resident_token_budget = resident_token_budget
+        if not isinstance(execution_capability, str) or not execution_capability:
+            raise ValueError("a registered execution capability is required")
+        self.execution_capability = execution_capability
+        if execution_workers is None:
+            self.execution_workers = {execution_capability: worker}
+        elif (not isinstance(execution_workers, Mapping) or not execution_workers or
+              len(execution_workers) > 4 or any(not isinstance(key, str) or not key
+                                                 for key in execution_workers)):
+            raise ValueError("bounded execution workers keyed by capability are required")
+        else:
+            self.execution_workers = dict(execution_workers)
+        if any(item is not None and not callable(getattr(item, "run_once", None))
+               for item in self.execution_workers.values()):
+            raise ValueError("each execution capability requires a worker loop")
+        self.execution_capabilities = tuple(self.execution_workers)
+        self.verifiers = dict(verifiers or {execution_capability: self.verifier})
+        if (set(self.verifiers) != set(self.execution_capabilities) or
+                any(not callable(getattr(item, "verify", None))
+                    for item in self.verifiers.values())):
+            raise ValueError("each enabled capability requires its independent verifier")
+        self.source_target_validators = {
+            capability: getattr(getattr(item, "action", None), "validate_proposal_target", None)
+            for capability, item in self.execution_workers.items()}
+        if conversation_result_publisher is not None and not callable(conversation_result_publisher):
+            raise ValueError("conversation result publisher must be callable")
+        self.conversation_result_publisher = conversation_result_publisher
+        if proposal_lifecycle is not None and not callable(
+                getattr(proposal_lifecycle, "reconcile_links", None)):
+            raise ValueError("proposal lifecycle reconciliation contract is invalid")
+        self.proposal_lifecycle = proposal_lifecycle
+        self.instance_id = uuid4()
+
+    def _proposal_worker_capability(self, step):
+        """Resolve legacy artifact plan labels to the sole configured artifact loop.
+
+        Source-change plans always require an exact capability match. Older
+        bounded artifact runtimes used a different registry label from the
+        default Codex artifact label stored in typed plans.
+        """
+        if not isinstance(step, Mapping):
+            requested = "engineering.codex-cli-artifact.v1"
+        else:
+            requested = step.get("execution_capability", "engineering.codex-cli-artifact.v1")
+        source = "engineering.codex-cli-source-change.v1"
+        if requested == source:
+            return source if source in self.execution_workers else None
+        artifact_caps = {"engineering.codex-cli-artifact.v1",
+                         "engineering.bounded-artifact.v1"}
+        if requested not in artifact_caps:
+            return None
+        configured = [capability for capability in self.execution_capabilities
+                      if capability in artifact_caps]
+        if requested in configured:
+            return requested
+        return configured[0] if len(configured) == 1 else None
+
+    def reason_one_grounded_objective(self, objective_id=None):
+        """Propose for one verified objective; office authority never dispatches work."""
+        if self.resident_reasoner is None or not self.resident_reasoner.providers:
+            return False
+        from ..resident_reasoning import ReasoningStatus
+        rows = self.pipeline.grounded_objectives(scope_ref=self.authority_ref, limit=25,
+                                                 objective_id=objective_id)
+        candidate = next((row for row in rows if self._reasoning_failure_count(
+            row["objective_id"]) < self.MAX_REASONING_FAILURES), None)
+        if candidate is None:
+            return False
+        objective_id = candidate["objective_id"]
+        try:
+            result = self.resident_reasoner.propose(
+                objective_id, trigger="persistent_resident_cycle",
+                token_budget=self.resident_token_budget)
+            if result.status is ReasoningStatus.PROPOSED and result.proposal is not None:
+                self.pipeline.record_proposal(
+                    objective_id, result.proposal,
+                    actor_id="office:" + self.resident_reasoner.office_id)
+                return True
+            self._record_reasoning_failure(objective_id, result=result)
+        except Exception as exc:
+            self._record_reasoning_failure(objective_id, failure_type=type(exc).__name__)
+            LOG.warning(json.dumps({"event": "resident_reasoning_cycle_failed",
+                "objective_id": objective_id,
+                "failure_type": type(exc).__name__}, sort_keys=True))
+        return False
+
+    def _reasoning_failure_count(self, objective_id):
+        with self.pipeline.ledger.db.cursor() as cur:
+            self.pipeline.ledger._set_search_path(cur)
+            cur.execute("""SELECT count(*) AS failures FROM grace_objective_events
+                WHERE objective_id=%s AND event_type='execution.reasoning_failed'
+                  AND occurred_at >= clock_timestamp()-make_interval(secs => %s)""",
+                (objective_id, self.REASONING_FAILURE_WINDOW_SECONDS))
+            return int(cur.fetchone()["failures"])
+
+    def _record_reasoning_failure(self, objective_id, *, result=None, failure_type=None):
+        status = getattr(getattr(result, "status", None), "value", None)
+        detail_code = getattr(result, "detail_code", None)
+        request_id = getattr(result, "request_id", None)
+        if not isinstance(request_id, str) or not request_id:
+            request_id = str(uuid4())
+        if not isinstance(status, str) or not re.fullmatch(r"[A-Z_]{1,48}", status):
+            status = "UNAVAILABLE"
+        if not isinstance(detail_code, str) or not re.fullmatch(r"[A-Z0-9_]{1,80}", detail_code):
+            detail_code = "REASONING_CYCLE_FAILED"
+        if not isinstance(failure_type, str) or not re.fullmatch(r"[A-Za-z0-9_]{1,80}", failure_type):
+            failure_type = None
+        key = f"grace-reasoning-failure:{objective_id}:{request_id}"
+        payload = {"status": status, "detail_code": detail_code,
+                   "failure_type": failure_type}
+        with self.pipeline.ledger.db.transaction():
+            with self.pipeline.ledger.db.cursor() as cur:
+                self.pipeline.ledger._set_search_path(cur)
+                cur.execute("""INSERT INTO grace_objective_events
+                    (objective_id,event_type,idempotency_key,actor_id,payload)
+                    VALUES (%s,'execution.reasoning_failed',%s,'service:grace-execution',%s::jsonb)
+                    ON CONFLICT (idempotency_key) DO NOTHING""",
+                    (objective_id, key, json.dumps(payload, sort_keys=True,
+                                                  separators=(",", ":"))))
+
+    def revalidate_rejected_one(self, assignment_id=None):
+        """Append a new verifier decision after a verifier revision correction.
+
+        The original rejection and result remain immutable. Only the same
+        successful attempt may be reconsidered, and verify_attempt rechecks the
+        current exact verifier grant plus the previous decision and revision.
+        """
+        available = {capability: verifier for capability, verifier in self.verifiers.items()
+                     if isinstance(getattr(verifier, "REVISION", None), str) and
+                     getattr(verifier, "REVISION", None)}
+        if not available:
+            return False
+        with self.adapter.ledger.db.cursor() as cur:
+            self.adapter.ledger._set_search_path(cur)
+            cur.execute("""SELECT a.id AS assignment_id,wa.attempt_id,wa.capability,
+                    latest.decision,latest.verifier_revision,
+                    EXISTS (SELECT 1 FROM verification_records previous
+                        WHERE previous.attempt_id=wa.attempt_id
+                          AND previous.verifier_id=%s AND previous.decision='REJECTED'
+                          AND previous.verifier_revision<>latest.verifier_revision) AS prior_rejection
+                FROM assignments a
+                JOIN worker_attempts wa ON wa.assignment_id=a.id
+                JOIN LATERAL (
+                    SELECT decision,verifier_id,verifier_revision
+                    FROM verification_records vr WHERE vr.attempt_id=wa.attempt_id
+                    ORDER BY recorded_at DESC,verification_id DESC LIMIT 1
+                ) latest ON true
+                WHERE a.state='rework_required' AND wa.status='succeeded'
+                  AND wa.capability=ANY(%s) AND latest.verifier_id=%s
+                  AND latest.decision IN ('REJECTED','ACCEPTED')
+                  AND (%s::text IS NULL OR a.id=%s)
+                ORDER BY a.updated_at,wa.started_at,wa.attempt_id LIMIT 10""",
+                (self.verifier_id, list(available), self.verifier_id,
+                 assignment_id, assignment_id))
+            candidates = cur.fetchall()
+        for candidate in candidates:
+            capability = candidate.get("capability")
+            selected_verifier = available.get(capability)
+            if selected_verifier is None:
+                continue
+            verifier_revision = selected_verifier.REVISION
+            if (candidate["decision"] == "REJECTED" and
+                    candidate["verifier_revision"] == verifier_revision):
+                continue
+            if (candidate["decision"] == "ACCEPTED" and
+                    (candidate["verifier_revision"] != verifier_revision or
+                     not candidate["prior_rejection"])):
+                continue
+            key = (f"grace-verifier-revalidation:{candidate['attempt_id']}:{verifier_revision}")
+            try:
+                self.adapter.verify_attempt(candidate["assignment_id"], candidate["attempt_id"],
+                    self.verifier_id, self.verifier_credential, selected_verifier,
+                    idempotency_key=key)
+                return True
+            except Exception as exc:
+                LOG.warning(json.dumps({"event": "grace_verifier_revalidation_failed",
+                    "assignment_id": candidate["assignment_id"],
+                    "failure_type": type(exc).__name__}, sort_keys=True))
+        return False
+
+    def _heartbeat(self, status, error_type=None):
+        """Update the durable external health projection; never logs request content."""
+        try:
+            with self.pipeline.ledger.db.transaction():
+                with self.pipeline.ledger.db.cursor() as cur:
+                    self.pipeline.ledger._set_search_path(cur)
+                    cur.execute("""INSERT INTO grace_execution_health
+                        (service_id,instance_id,status,last_heartbeat_at,last_cycle_at,
+                         last_error_type,cycles_completed)
+                        VALUES ('grace.execution.v1',%s,%s,clock_timestamp(),clock_timestamp(),%s,
+                          CASE WHEN %s IN ('healthy','degraded') THEN 1 ELSE 0 END)
+                        ON CONFLICT (service_id) DO UPDATE SET instance_id=EXCLUDED.instance_id,
+                          status=EXCLUDED.status,last_heartbeat_at=clock_timestamp(),
+                          last_cycle_at=clock_timestamp(),last_error_type=EXCLUDED.last_error_type,
+                          cycles_completed=grace_execution_health.cycles_completed+
+                            CASE WHEN EXCLUDED.status IN ('healthy','degraded') THEN 1 ELSE 0 END""",
+                        (self.instance_id, status, error_type, status))
+        except Exception as exc:
+            LOG.warning(json.dumps({"event": "grace_heartbeat_write_failed",
+                                    "failure_type": type(exc).__name__}, sort_keys=True))
+
+    def _proposed(self, limit=25, objective_id=None):
+        with self.pipeline.ledger.db.cursor() as cur:
+            self.pipeline.ledger._set_search_path(cur)
+            cur.execute("""SELECT objective_id,scope_ref FROM grace_objectives
+                WHERE status IN ('PROPOSED','WORK_ORDER_CREATED') AND scope_ref=%s
+                  AND (%s::text IS NULL OR objective_id=%s)
+                ORDER BY created_at,objective_id LIMIT %s""",
+                (self.authority_ref, objective_id, objective_id, limit))
+            return cur.fetchall()
+
+    def _dispatch_failure_count(self, objective_id):
+        with self.pipeline.ledger.db.cursor() as cur:
+            self.pipeline.ledger._set_search_path(cur)
+            cur.execute("""SELECT count(*) AS failures FROM grace_objective_events
+                WHERE objective_id=%s AND event_type='execution.dispatch_failed'""",
+                (objective_id,))
+            return int(cur.fetchone()["failures"])
+
+    def _record_dispatch_failure(self, objective_id, error_type, ordinal):
+        key = f"grace-dispatch-failure:{objective_id}:{ordinal}"
+        with self.pipeline.ledger.db.transaction():
+            with self.pipeline.ledger.db.cursor() as cur:
+                self.pipeline.ledger._set_search_path(cur)
+                cur.execute("""INSERT INTO grace_objective_events
+                    (objective_id,event_type,idempotency_key,actor_id,payload)
+                    VALUES (%s,'execution.dispatch_failed',%s,'service:grace-execution',%s::jsonb)
+                    ON CONFLICT (idempotency_key) DO NOTHING""",
+                    (objective_id, key, json.dumps({"failure_type": error_type,
+                     "retry": ordinal, "retry_limit": self.max_dispatch_failures},
+                     sort_keys=True, separators=(",", ":"))))
+
+    def dispatch_proposed(self, objective_id=None):
+        dispatched = 0
+        for row in self._proposed(limit=1 if objective_id else 25,
+                                  objective_id=objective_id):
+            objective_id = row["objective_id"]
+            step = self.pipeline.dispatchable_step(objective_id)
+            if not step:
+                continue
+            objective = self.pipeline.get_objective(objective_id)
+            proposal_steps = (objective.get("proposal", {}).get("steps", [])
+                              if isinstance(objective, dict) else [])
+            proposal_step = next((item for item in proposal_steps if isinstance(item, dict)
+                                  and item.get("step_id") == step["step_id"]), None)
+            selected_capability = self._proposal_worker_capability(proposal_step)
+            if selected_capability is None:
+                continue
+            if (proposal_step and proposal_step.get("execution_capability") ==
+                    "engineering.codex-cli-source-change.v1" and
+                    (not callable(self.source_target_validators.get(
+                         "engineering.codex-cli-source-change.v1")) or
+                     not self.source_target_validators[
+                         "engineering.codex-cli-source-change.v1"](proposal_step))):
+                # No assignment is created until the configured source repository,
+                # immutable commit, and path ceiling all match the Steward plan.
+                continue
+            failures = self._dispatch_failure_count(objective_id)
+            if failures >= self.max_dispatch_failures:
+                continue
+            base = hashlib.sha256(objective_id.encode("utf-8")).hexdigest()[:40]
+            assignment_id = "assignment:grace:" + base
+            idempotency_key = f"grace-assignment:{objective_id}"
+            if step["step_order"] > 1:
+                suffix = hashlib.sha256(step["step_id"].encode("utf-8")).hexdigest()[:16]
+                assignment_id += ":step:" + suffix
+                idempotency_key += ":step:" + step["step_id"]
+            try:
+                self.pipeline.authorize_and_dispatch(
+                    objective_id, assignment_id, credential=self.dispatch_credential,
+                    authority_ref=self.authority_ref,
+                    idempotency_key=idempotency_key, step_id=step["step_id"])
+                dispatched += 1
+            except Exception as exc:
+                self._record_dispatch_failure(objective_id, type(exc).__name__, failures + 1)
+                LOG.warning(json.dumps({"event": "grace_dispatch_failed",
+                    "objective_id": objective_id, "failure_type": type(exc).__name__,
+                    "retry": failures + 1}, sort_keys=True))
+        return dispatched
+
+    def verify_one(self, assignment_id=None):
+        capabilities = list(self.execution_capabilities)
+        with self.adapter.ledger.db.cursor() as cur:
+            self.adapter.ledger._set_search_path(cur)
+            cur.execute("""SELECT a.id AS assignment_id,wa.attempt_id,wa.capability
+                ,a.objective_ref
+                FROM assignments a JOIN worker_attempts wa ON wa.assignment_id=a.id
+                JOIN worker_results wr USING(attempt_id)
+                WHERE a.state='awaiting_verification' AND wa.status='succeeded'
+                  AND wa.capability=ANY(%s)
+                  AND (%s::text IS NULL OR a.id=%s)
+                ORDER BY a.updated_at,wa.started_at,wa.attempt_id LIMIT 25""",
+                (capabilities, assignment_id, assignment_id))
+            candidates = cur.fetchall()
+        for candidate in candidates:
+            attempt_id = str(candidate["attempt_id"])
+            verifier = self.verifiers.get(candidate["capability"])
+            if verifier is None:
+                continue
+            failure_count = self._verification_failure_count(candidate["objective_ref"], attempt_id)
+            if failure_count >= 3:
+                continue
+            try:
+                self.adapter.verify_attempt(candidate["assignment_id"], candidate["attempt_id"],
+                    self.verifier_id, self.verifier_credential, verifier,
+                    idempotency_key=f"grace-verification:{attempt_id}")
+                return True
+            except Exception as exc:
+                self._record_verification_failure(candidate["objective_ref"], attempt_id,
+                                                  type(exc).__name__, failure_count + 1)
+                LOG.warning(json.dumps({"event": "grace_verification_failed",
+                    "assignment_id": candidate["assignment_id"], "attempt_id": attempt_id,
+                    "failure_type": type(exc).__name__, "retry": failure_count + 1}, sort_keys=True))
+        if self.revalidate_rejected_one(assignment_id=assignment_id):
+            return True
+        return False
+
+    def _verification_failure_count(self, objective_id, attempt_id):
+        if not objective_id:
+            return 0
+        with self.pipeline.ledger.db.cursor() as cur:
+            self.pipeline.ledger._set_search_path(cur)
+            cur.execute("""SELECT count(*) AS failures FROM grace_objective_events
+                WHERE objective_id=%s AND event_type='execution.verification_failed'
+                  AND payload->>'attempt_id'=%s""", (objective_id, attempt_id))
+            return int(cur.fetchone()["failures"])
+
+    def _record_verification_failure(self, objective_id, attempt_id, error_type, ordinal):
+        if not objective_id:
+            return
+        key = f"grace-verification-failure:{attempt_id}:{ordinal}"
+        with self.pipeline.ledger.db.transaction():
+            with self.pipeline.ledger.db.cursor() as cur:
+                self.pipeline.ledger._set_search_path(cur)
+                cur.execute("""INSERT INTO grace_objective_events
+                    (objective_id,event_type,idempotency_key,actor_id,payload)
+                    VALUES (%s,'execution.verification_failed',%s,'service:grace-execution',%s::jsonb)
+                    ON CONFLICT (idempotency_key) DO NOTHING""",
+                    (objective_id, key, json.dumps({"attempt_id": attempt_id,
+                     "failure_type": error_type, "retry": ordinal, "retry_limit": 3},
+                     sort_keys=True, separators=(",", ":"))))
+
+    def reconcile_completions(self, limit=25, objective_id=None):
+        with self.pipeline.ledger.db.cursor() as cur:
+            self.pipeline.ledger._set_search_path(cur)
+            cur.execute("""SELECT objective_id,assignment_id FROM grace_objectives
+                WHERE status='WORK_ORDER_CREATED' AND assignment_id IS NOT NULL
+                  AND (%s::text IS NULL OR objective_id=%s)
+                ORDER BY updated_at LIMIT %s""", (objective_id, objective_id, limit))
+            rows = cur.fetchall()
+        completed = 0
+        for row in rows:
+            assignment = self.pipeline.ledger.get(row["assignment_id"])
+            if assignment and assignment["state"] == "completed":
+                try:
+                    self.pipeline.record_verified_completion(row["objective_id"],
+                                                             row["assignment_id"])
+                    completed += 1
+                except Exception as exc:
+                    LOG.warning(json.dumps({"event": "grace_completion_reconcile_failed",
+                        "objective_id": row["objective_id"],
+                        "failure_type": type(exc).__name__}, sort_keys=True))
+        return completed
+
+    def publish_conversation_results(self, limit=10):
+        """Retry post-verification chat delivery from a durable objective outbox."""
+        if self.conversation_result_publisher is None:
+            return 0
+        published = 0
+        for context in self.pipeline.pending_conversation_results(limit=limit):
+            try:
+                receipt = self.conversation_result_publisher(context)
+                if (not isinstance(receipt, dict)
+                        or receipt.get("status") not in {"published", "already_published"}):
+                    continue
+                durable_receipt = {key: receipt.get(key) for key in
+                    ("request_id", "provider_id", "served_model", "implementation_id",
+                     "completion_cycle")}
+                self.pipeline.record_conversation_result_published(
+                    context["objective_id"], durable_receipt)
+                published += 1
+            except Exception as exc:
+                LOG.warning(json.dumps({"event": "grace_conversation_result_return_failed",
+                    "objective_id": context.get("objective_id"),
+                    "failure_type": type(exc).__name__}, sort_keys=True))
+        return published
+
+    def reconcile_proposal_lifecycle(self):
+        """Recover proposal links and execution evidence through durable existing records."""
+        if self.proposal_lifecycle is None:
+            return 0
+        try:
+            return self.proposal_lifecycle.reconcile_links()
+        except Exception as exc:
+            LOG.warning(json.dumps({"event": "proposal_execution_reconciliation_failed",
+                "failure_type": type(exc).__name__}, sort_keys=True))
+            return 0
+
+    def run_once(self):
+        """Run bounded dispatch, one existing leased worker poll and verification."""
+        try:
+            reasoned = self.reason_one_grounded_objective()
+            dispatched = self.dispatch_proposed()
+            worker_result = self._run_workers()
+            verified = self.verify_one()
+            completed = self.reconcile_completions()
+            returned = self.publish_conversation_results()
+            proposal_updates = self.reconcile_proposal_lifecycle()
+            worker_failures = (worker_result.get("status") == "FAILED" or
+                (isinstance(worker_result.get("capabilities"), dict) and any(
+                    item.get("status") == "FAILED"
+                    for item in worker_result["capabilities"].values())))
+            self._heartbeat("degraded" if worker_failures else "healthy",
+                            "WorkerCycleFailure" if worker_failures else None)
+            return {"reasoned": reasoned, "dispatched": dispatched, "worker": worker_result,
+                    "verified": verified, "completed": completed, "returned": returned,
+                    "proposal_updates": proposal_updates}
+        except Exception as exc:
+            self._heartbeat("degraded", type(exc).__name__)
+            raise
+
+    def _run_workers(self, assignment_id=None):
+        """Poll each capability independently; a failed worker cannot starve its peer."""
+        def poll(item):
+            capability, worker = item
+            try:
+                return capability, worker.run_once(assignment_id=assignment_id)
+            except Exception as exc:
+                LOG.warning(json.dumps({"event": "grace_capability_worker_failed",
+                    "capability": capability, "failure_type": type(exc).__name__},
+                    sort_keys=True))
+                return capability, {"status": "FAILED", "failure_type": type(exc).__name__}
+        items = tuple(self.execution_workers.items())
+        if len(items) == 1:
+            return poll(items[0])[1]
+        with ThreadPoolExecutor(max_workers=len(items),
+                                thread_name_prefix="grace-capability") as pool:
+            results = dict(pool.map(poll, items))
+        failed = any(result.get("status") == "FAILED" for result in results.values())
+        return {"status": "FAILED" if failed else "POLLED", "capabilities": results}
+
+    def execute_supervised_objective(self, objective_id):
+        """Execute only one already proposed objective from an operator TTY run."""
+        if (not isinstance(objective_id, str) or not re.fullmatch(
+                r"objective:[A-Za-z0-9._:-]{1,120}", objective_id)):
+            raise ValueError("a bounded objective identity is required")
+        try:
+            objective = self.pipeline.get_objective(objective_id)
+            if (objective is None or objective["scope_ref"] != self.authority_ref or
+                    objective["status"] not in {"PROPOSED", "WORK_ORDER_CREATED"}):
+                return {"status": "WAITING_FOR_PROPOSAL", "objective_id": objective_id}
+            assignment_id = "assignment:grace:" + hashlib.sha256(
+                objective_id.encode("utf-8")).hexdigest()[:40]
+            if objective["status"] == "PROPOSED":
+                self.dispatch_proposed(objective_id)
+                objective = self.pipeline.get_objective(objective_id)
+            if (objective is None or objective.get("assignment_id") != assignment_id):
+                return {"status": "DISPATCH_NOT_AUTHORIZED", "objective_id": objective_id}
+            assignment = self.pipeline.ledger.get(assignment_id)
+            if not assignment:
+                return {"status": "NOT_READY", "objective_id": objective_id,
+                        "assignment_id": assignment_id}
+            worker_capability = getattr(self, "execution_capability", CAPABILITY)
+            objective_proposal = objective.get("proposal") or {}
+            proposal_step = next((item for item in objective_proposal.get("steps", [])
+                                  if item.get("step_id") == assignment.get("workflow_step")), None)
+            if proposal_step:
+                worker_capability = self._proposal_worker_capability(proposal_step)
+            workers = getattr(self, "execution_workers", {worker_capability: self.worker})
+            selected_worker = workers.get(worker_capability)
+            if selected_worker is None:
+                return {"status": "CAPABILITY_UNAVAILABLE", "objective_id": objective_id,
+                        "assignment_id": assignment_id, "capability": worker_capability}
+            worker_result = {"status": "ALREADY_COMPLETED" if assignment and
+                             assignment["state"] == "completed" else "NOT_READY"}
+            if assignment and assignment["state"] in {"ready", "queued"}:
+                worker_result = selected_worker.run_once(assignment_id=assignment_id)
+            verified = self.verify_one(assignment_id)
+            completed = self.reconcile_completions(objective_id=objective_id)
+            self._heartbeat("healthy")
+            return {"status": "COMPLETED" if completed else worker_result.get("status", "PENDING"),
+                    "objective_id": objective_id, "assignment_id": assignment_id,
+                    "worker": worker_result, "verified": verified, "completed": completed}
+        except Exception as exc:
+            self._heartbeat("degraded", type(exc).__name__)
+            raise
+
+    def run_forever(self, *, shutdown_requested, poll_seconds=1.0, sleep=time.sleep):
+        if not callable(shutdown_requested) or not 0.1 <= poll_seconds <= 30:
+            raise ValueError("explicit shutdown callback and bounded poll interval required")
+        self._heartbeat("starting")
+        while not shutdown_requested():
+            try:
+                result = self.run_once()
+                workers_idle = (result["worker"].get("status") == "IDLE" or
+                    (result["worker"].get("status") == "POLLED" and
+                     all(item.get("status") == "IDLE" for item in
+                         result["worker"].get("capabilities", {}).values())))
+                worker_failed = (result["worker"].get("status") == "FAILED" or
+                    (isinstance(result["worker"].get("capabilities"), dict) and any(
+                        item.get("status") == "FAILED" for item in
+                        result["worker"]["capabilities"].values())))
+                if (not result["reasoned"] and not result["dispatched"] and
+                        (workers_idle or worker_failed)
+                        and not result["verified"] and not result["completed"]
+                        and not result["returned"]):
+                    sleep(poll_seconds)
+            except Exception as exc:
+                LOG.error(json.dumps({"event": "grace_execution_cycle_failed",
+                    "failure_type": type(exc).__name__}, sort_keys=True))
+                sleep(poll_seconds)
+        self._heartbeat("stopping")
+
+
+__all__ = ["GraceExecutionService", "TaskRelevantRepositoryKnowledgeProvider",
+           "BoundedLocalCodingWorker"]

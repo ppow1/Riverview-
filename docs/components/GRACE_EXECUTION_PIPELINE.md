@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.17
+File Revision: 1.1.18
+Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Define immutable source-target provenance and capability-fenced concurrent owner-session execution.
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
 Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Document corrected acceptance interpretation and append-only same-attempt verifier recovery
 Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Connect human-approved source scope to source-change dispatch, safe retry recovery, durable dependent steps, and model-reviewed continuation
@@ -296,3 +297,40 @@ The generated workflow below is a projection of process_graphs/grace/operational
 For a multi-step proposal, the existing Grace result-review publisher now receives each independently verified step through the durable objective-event outbox. The currently bound 80B reasons over the verified step result and the original accepted scope. A later proposal step is dispatchable only after Grace records a matching continuation decision for that exact pre-proposed step. CME then rechecks the existing `assignment.create` grant and records the continuation event before dispatch. The model cannot add file paths, acceptance criteria, capabilities, or dependencies beyond the original proposal. The final objective completion and final result review remain idempotent by completion cycle.
 
 The review context also includes the objective's authoritative status and ordered persisted step statuses. Grace must use that state to distinguish an intermediate verified step from a fully completed objective. A model cannot infer that a planned step remains pending when the ledger records it as verified; context validation rejects inconsistent `COMPLETED` state unless every persisted step is verified.
+
+### Resident grounding and source-target provenance
+
+`grace_objectives.source_revision` and `source_sha256` identify the resident's
+verified knowledge grounding only. They do not identify a Codex checkout. Each
+new source-change plan step carries the Steward-authorized
+`repository_reference` and immutable `repository_revision`; both must appear in
+the original objective request or its accepted criteria. The dispatch event
+stores a versioned source binding containing objective/assignment/step,
+capability, repository identity, commit, authorized paths, test targets and the
+canonical proposal-step digest. The runner compares this snapshot to the
+proposal and exact configured repository checkout before execution. The
+structured result and independent verifier must match the same binding and
+replay the patch against that commit. No database migration is needed because
+the binding is immutable payload on the existing `work_order.dispatched` event.
+Unbound historical source attempts remain readable but cannot be executed or
+silently mapped to a target commit; artifact objectives retain their former
+grounding and dispatch behavior.
+
+### Concurrent capability loops
+
+The owner-session process can run its existing artifact worker plus one
+separately credentialed source-change worker. The executor identity and grant
+remain distinct, each adapter claims only its registered attempt capability,
+and independent verifier dispatch uses the persisted attempt capability. The
+worker cycle catches errors per capability; a failed or unavailable source
+worker does not stop artifact polling. Source work remains undispatched when
+its enrollment, target mapping, exact scope, path ceiling or immutable checkout
+pin is missing. The installed base unit remains artifact-only until an
+approved operator stages the separate source-worker drop-in.
+
+Institutional proposals use a distinct Steward-only dashboard view and
+message-menu draft action. Draft/revise/approve/promotion call the existing
+proposal API and lifecycle. Approval applies to one revision and purpose;
+promotion separately calls the existing pipeline under exact `objective.submit`.
+The existing “Create Engineering work order” conversation action remains a
+direct authenticated objective intake path and is not a proposal approval.
