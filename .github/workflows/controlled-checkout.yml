@@ -2,14 +2,15 @@
 # RIVERVIEW~ CONTROLLED CONFIGURATION
 # File: .github/workflows/controlled-checkout.yml
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Enforce full tests and file revision/backup checkout on GitHub changes
-# Execution Model: Event-driven on pull_request and push
+# Execution Model: Manual dispatch or event-driven on pull_request and push
 # Observability: GitHub Actions job result and test output
 # Dependencies: GitHub-hosted Ubuntu; Python 3.12; PostgreSQL 16 service
 # Authority: Read-only repository checkout; ephemeral test database only
 # Changed: 2026-10-10 UTC | RV-GRAPH-001 | Install graph schema validator and enforce generated graph synchronization
 # Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Install pinned PyJWT support for OAuth MCP resource-token validation
+# Changed: 2026-10-18 UTC | RV-W2-PG16-QUALIFICATION-001 | Permit manual read-only controlled checkout on a selected ref for PostgreSQL 16 qualification
 # Contracts: docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md
 # Tests: Full unittest discovery and revision-control checkout
 # History: Git and .riverview-backups/manifest.jsonl
@@ -17,6 +18,7 @@
 name: Controlled checkout
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [main]
   push:

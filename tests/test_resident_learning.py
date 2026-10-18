@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_learning.py
 # Component: RESIDENT-LEARNING-GOVERNANCE
-# Revision: 1.0.1
+# Revision: 1.2.0
 # Purpose: Test learning lifecycle, scope isolation, authorization denial, correction, rollback, and resumption
 # Execution Model: Isolated unit tests with in-memory test double
 # Observability: Lifecycle states, events, provenance, and authorization calls
@@ -10,6 +10,7 @@
 # Authority: Synthetic principals and local records only; no real grants or database
 # Changed: 2026-10-18 UTC | RV-RESIDENT-LEARNING-IMPLEMENTATION-001 | Add lifecycle service tests
 # Changed: 2026-10-18 UTC | RV-W2-LEARNING-ADAPTER-001 | Cover authenticated resident adapter binding and scope boundaries
+# Changed: 2026-10-18 UTC | RV-W2-PG16-QUALIFICATION-001 | Regress mismatched authorization receipt and resident Steward denial
 # Contracts: docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -189,6 +190,31 @@ class ResidentLearningTests(unittest.TestCase):
         shared = adapter.retrieve(scope_ref="institution:riverview")
         self.assertEqual([item["record_id"] for item in shared], [record["record_id"]])
         self.assertEqual(adapter.retrieve(), [])
+
+    def test_authorization_receipt_must_match_the_authenticated_resident(self):
+        class WrongPrincipalAuthorizer:
+            @staticmethod
+            def require(principal_id, operation, scope_ref):
+                return {"principal_id":"resident:other", "grant_id":"fixture-only",
+                    "authority_reference":"fixture-authority"}
+
+        service = ResidentLearningService(self.store, WrongPrincipalAuthorizer())
+        adapter = ResidentLearningAdapter(service, lambda: self.binding())
+        with self.assertRaises(AuthorizationDenied):
+            adapter.create_candidate(scope_ref="resident:grace", content="must not persist",
+                evidence=EVIDENCE, provenance=PROVENANCE, classification="confidential",
+                retention="bounded_durable", idempotency_key="wrong-principal:"+uuid4().hex)
+        self.assertEqual(self.store.records, {})
+
+    def test_resident_cannot_approve_institutional_learning(self):
+        candidate = self.create(scope="institution:riverview")
+        validated = self.validate(candidate)
+        with self.assertRaises(AuthorizationDenied):
+            self.service.approve_shared("resident:grace", candidate["record_id"],
+                expected_revision=validated["revision"], approved_purpose="must be steward",
+                authority_event_ref="resident-approval-attempt:test",
+                idempotency_key="resident-approval:"+uuid4().hex)
+        self.assertEqual(self.store.get(candidate["record_id"])["status"], "validated")
 
     def test_private_candidate_validation_confirmation_and_retrieval(self):
         record = self.create()

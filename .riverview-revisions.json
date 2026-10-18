@@ -2,7 +2,7 @@
   "files": {
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.245",
+      "revision": "1.1.246",
       "sha256": "db29799c026f20d431bbd748b3653235852fb32a503de7ac6bf8c05db8e78e04",
       "size_bytes": 13389
     },
@@ -278,9 +278,9 @@
     },
     "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md": {
       "path": "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md",
-      "revision": "1.2.0",
-      "sha256": "3e977c883f1145dcab82edd10722694fe37dbbe9c25b678afa1f5f67773e435b",
-      "size_bytes": 15852
+      "revision": "1.3.0",
+      "sha256": "7de189283d488cfb631b94345fa4a9a571c1511ae411673e9cdfa071b5216ad6",
+      "size_bytes": 16746
     },
     "docs/schemas/resident-learning-record.schema.json": {
       "path": "docs/schemas/resident-learning-record.schema.json",
@@ -314,17 +314,23 @@
     },
     "tests/test_resident_learning.py": {
       "path": "tests/test_resident_learning.py",
-      "revision": "1.0.1",
-      "sha256": "a3f4b07a5a96c7980fc978a85ca3405dfe7221f091b9e28fdc07df1650af79b0",
-      "size_bytes": 15031
+      "revision": "1.1.0",
+      "sha256": "fe0fe481aee1eb57279aa7fccf21c89329be8b2632af6319615dd385f00b6c9f",
+      "size_bytes": 16677
     },
     "tests/test_resident_learning_postgres.py": {
       "path": "tests/test_resident_learning_postgres.py",
       "revision": "1.1.0",
       "sha256": "912b23071d161c5458a61b58549d20e72164ba852f0c699d3c340840520f8839",
       "size_bytes": 6839
+    },
+    ".github/workflows/controlled-checkout.yml": {
+      "path": ".github/workflows/controlled-checkout.yml",
+      "revision": "1.0.6",
+      "sha256": "35b6a0b0353e03246a25a7abdd1ed95b9b1633689d8a65c71ebee688425ea124",
+      "size_bytes": 2906
     }
   },
-  "manifest_revision": "1.1.245",
+  "manifest_revision": "1.1.246",
   "updated_at": null
 }

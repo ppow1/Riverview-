@@ -1,7 +1,7 @@
 <!-- Riverview~ Controlled Document
 File: docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md
 Component: RESIDENT-LEARNING-GOVERNANCE
-Document Revision: 1.2.0
+Document Revision: 1.3.0
 Purpose: Define resident-wide learning retention, evidence, authority, sharing, correction, and rollback rules
 Execution Model: Dormant request-driven library and additive schema; no runtime route or grants commissioned
 Observability: Versioned records and append-only decision/correction event references when implemented
@@ -11,6 +11,7 @@ Changed: 2026-10-18 UTC | RV-RESIDENT-LEARNING-GOVERNANCE-001 | Initial resident
 Changed: 2026-10-18 UTC | RV-RESIDENT-LEARNING-GOVERNANCE-001 | Clarify schema authority limits and prohibit local-only institutional sharing
 Changed: 2026-10-18 UTC | RV-RESIDENT-LEARNING-IMPLEMENTATION-001 | Document dormant lifecycle API, authorization adapter, storage schema, and rollback
 Changed: 2026-10-18 UTC | RV-W2-LEARNING-ADAPTER-001 | Document the dormant resident binding adapter and exact identity handoff
+Changed: 2026-10-18 UTC | RV-W2-PG16-QUALIFICATION-001 | Record focused scope/authority regression coverage and reproducible PostgreSQL 16 CI proposal
 Contracts: docs/components/RESIDENT_PERMISSION_PROFILES.md; docs/components/RESIDENT_REASONING.md; docs/components/INSTITUTIONAL_PROPOSALS.md
 Tests: tests/test_resident_learning_contract.py
 History: Git; new file
@@ -122,4 +123,6 @@ The example is an integration contract only. No runner, conversation server, Gra
 
 Rollback is an append-only decision, not deletion. In an isolated test schema, close the store, preserve the audit evidence, then drop only the uniquely named test schema created by that test. Do not run the learning migration against production or delete learning rows to simulate rollback. For an already commissioned store, use the authorized rollback API with the exact record/replacement IDs, expected revision, fresh independent evidence, and current authority; the prior fact becomes retrievable only if this decision succeeds. Data purge remains subject to the separate retention owner and policy.
 
-Unit tests cover adapter identity/provenance rejection, scope isolation, denied writes/sharing, validation, approval, rejection, correction, rollback, and service resumption using an in-memory store. The PostgreSQL integration test creates and drops a unique schema only when `RIVERVIEW_TEST_PG_DSN` points to an explicitly disposable database. It passed against a fresh local PostgreSQL 18 cluster, including restart retrieval, scope filtering, and append-only trigger checks. PostgreSQL 16 CI compatibility remains unverified. No runtime use is commissioned by these tests.
+Unit tests cover adapter identity/provenance rejection, mismatched authorization receipts, resident denial at the Steward approval boundary, scope isolation, denied writes/sharing, validation, rejection, correction, rollback, and service resumption using an in-memory store. The PostgreSQL integration test creates and drops a unique schema only when `RIVERVIEW_TEST_PG_DSN` points to an explicitly disposable database. It passed against a fresh local PostgreSQL 18 cluster, including restart retrieval, scope filtering, and append-only trigger checks.
+
+**PostgreSQL 16 compatibility: NOT_TESTED.** This Windows host has only PostgreSQL 18, and no disposable PostgreSQL 16 DSN or active PR checks were available. Reproducible CI proposal: run the existing `Controlled checkout` workflow, whose PostgreSQL 16 service sets `RIVERVIEW_TEST_PG_DSN=postgresql://riverview_test@127.0.0.1:5432/riverview_test` and invokes `python -m unittest discover -s tests -v`. That suite discovers `tests.test_resident_learning_postgres`; to run only the learning persistence test in the same job, use `PYTHONPATH=src python -m unittest tests.test_resident_learning_postgres -v`. The workflow is read-only and uses its ephemeral service database. No successful PostgreSQL 16 run is claimed. No runtime use is commissioned by these tests.
