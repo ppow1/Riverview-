@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.9
+# Revision: 1.3.10
 # Purpose: Adapt bounded resident proposals and conversation turns to local inference
 # Execution Model: Bounded loopback OpenAI-compatible request
 # Observability: Sanitized provider failures; no prompts or raw model output logged
@@ -35,6 +35,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-PROVIDER-PROVENANCE | Attach the configured provider ID to completed streamed and ordinary chat turns
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Pass external advice as unverified input, separate from institutional knowledge
 # Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-INTERNAL-TOOLS-001 | Carry structured internal tool result provenance on Grace chat completions
+# Changed: 2026-10-18 UTC | RV-REASONING-ADAPTER-COMPAT-AUDIT-001 | Normalize ordered text blocks and reject mixed tool/refusal outputs without dropping semantics
 """Provider adapter for the existing loopback local-inference contract."""
 
 from __future__ import annotations
@@ -460,11 +461,14 @@ class LocalReasoningProvider:
                         if not isinstance(choice, dict):
                             raise ValueError
                         delta = choice.get("delta", {})
-                        if not isinstance(delta, dict) or any(key in delta for key in ("tool_calls", "function_call")):
+                        if (not isinstance(delta, dict)
+                                or any(key in delta for key in ("tool_calls", "function_call", "refusal"))):
                             raise LocalReasoningUnavailable("response_contract_invalid")
                         text = delta.get("content", "")
                         if text:
-                            if not isinstance(text, str):
+                            try:
+                                text = self._normalize_chat_content(text)
+                            except ValueError:
                                 raise ValueError
                             output_bytes += len(text.encode("utf-8"))
                             if output_bytes > 8192:
@@ -504,6 +508,21 @@ class LocalReasoningProvider:
         return ChatCompletion(text, served_model, prompt_tokens, completion_tokens,
                               finish_reason, provider_id=self.provider_id,
                               reasoning_stage="primary")
+
+    @staticmethod
+    def _normalize_chat_content(content):
+        """Normalize text or ordered text blocks without discarding other content."""
+        if isinstance(content, str):
+            return content
+        if not isinstance(content, list):
+            raise ValueError("unsupported chat content")
+        parts = []
+        for block in content:
+            if (not isinstance(block, dict) or block.get("type") != "text"
+                    or not isinstance(block.get("text"), str)):
+                raise ValueError("unsupported chat content block")
+            parts.append(block["text"])
+        return "".join(parts)
 
     def _complete_chat(self, messages, *, max_tokens: int,
                        expected_revision: str, timeout_seconds: float) -> ChatCompletion:
@@ -561,10 +580,14 @@ class LocalReasoningProvider:
             document = json.loads(raw)
             choice = document["choices"][0]
             message = choice["message"]
+            if (not isinstance(message, dict)
+                    or any(key in message for key in ("tool_calls", "function_call"))
+                    or (message.get("refusal") and message.get("content"))):
+                raise ValueError("unsupported message semantics")
             finish_reason = choice["finish_reason"]
             usage = document["usage"]
             served_model = document["model"]
-            text = message["content"]
+            text = self._normalize_chat_content(message["content"])
             prompt_tokens = usage["prompt_tokens"]
             completion_tokens = usage["completion_tokens"]
             if finish_reason != "stop":

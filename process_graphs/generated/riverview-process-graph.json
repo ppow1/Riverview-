@@ -8856,7 +8856,7 @@
     },
     {
       "graph_id": "rv:resident-reasoning:runtime",
-      "graph_revision": "1.2.8",
+      "graph_revision": "1.2.9",
       "component_id": "RESIDENT-REASONING",
       "workflow_id": "resident.reasoning.v1",
       "diagram_order": 13,
@@ -8888,7 +8888,8 @@
         "docs/components/RESIDENT_REASONING_FLOW.md",
         "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
         "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md",
-        "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md"
+        "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md",
+        "docs/components/REASONING_ADAPTER_COMPATIBILITY.md"
       ],
       "verification_evidence": [
         "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md",
@@ -9164,6 +9165,24 @@
           ],
           "verification_evidence": [
             "tests/test_local_reasoning_provider.py"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:response-normalization",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Normalize ordered text blocks; reject tool calls, mixed refusal, unsupported content and incomplete provider results without granting authority",
+          "source_references": [
+            "src/riverview_core/local_reasoning_provider.py",
+            "src/riverview_core/resident_execution/conversation.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/REASONING_ADAPTER_COMPATIBILITY.md"
+          ],
+          "verification_evidence": [
+            "tests/test_local_reasoning_provider.py",
+            "tests/test_resident_conversation.py"
           ]
         },
         {
@@ -9841,8 +9860,15 @@
         },
         {
           "from": "rv:resident-reasoning:runtime:provider-call",
+          "to": "rv:resident-reasoning:runtime:response-normalization",
+          "type": "runtime_transition",
+          "label": "provider response or sanitized failure"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:response-normalization",
           "to": "rv:resident-reasoning:runtime:fallback-gate",
-          "type": "runtime_transition"
+          "type": "runtime_transition",
+          "label": "normalized response or bounded failure classification"
         },
         {
           "from": "rv:resident-reasoning:runtime:fallback-gate",
@@ -14030,6 +14056,7 @@
     "rv:resident-reasoning:runtime:provider-call",
     "rv:resident-reasoning:runtime:reground",
     "rv:resident-reasoning:runtime:request",
+    "rv:resident-reasoning:runtime:response-normalization",
     "rv:resident-reasoning:runtime:route-gate",
     "rv:resident-reasoning:runtime:route-unavailable",
     "rv:resident-reasoning:runtime:select-provider",
