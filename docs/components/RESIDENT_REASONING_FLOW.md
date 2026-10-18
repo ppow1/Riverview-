@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_FLOW.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.15
+File Revision: 1.0.16
 Purpose: Generated focused process view for resident reasoning routing
 Authority: Graph-generated view; canonical source is JSON
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add graph-generated resident reasoning flow
@@ -68,6 +68,7 @@ flowchart LR
     g_rv_resident_reasoning_runtime_exchange_mcp_tools_856213a4["Discover the fixed provider-scoped list, claim, submit-advisory and status tool schemas"]
     g_rv_resident_reasoning_runtime_exchange_mcp_pull_9d19168a["Provider pulls bounded eligible request context; transport delivery lease and acknowledgement are durable"]
     g_rv_resident_reasoning_runtime_exchange_mcp_status_6c99e3ba["Expose provider-owned body-free state, digest, provenance and sanitized diagnostic projection"]
+    g_rv_resident_reasoning_runtime_external_escalation_intent_8882f798{"Did the bound model return a typed advisory intent for a configured provider?"}
   end
   g_rv_worker_adapter_deterministic_attempt_ground_c2193741["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_institutional_authority_identity_and_grants_office_state_e5a8ca22["Registered target<br/>rv:institutional-authority:identity-and-grants"]
@@ -93,7 +94,6 @@ flowchart LR
   g_rv_resident_reasoning_runtime_freshness_gate_bef2dc13 -->|binding and assignment revisions unchanged| g_rv_resident_reasoning_runtime_persist_plan_66486e35
   g_rv_resident_reasoning_runtime_freshness_gate_bef2dc13 -->|diagnostic_branch: revision changed| g_rv_resident_reasoning_runtime_stale_context_20ce95a2
   g_rv_resident_reasoning_runtime_persist_plan_66486e35 --> g_rv_resident_reasoning_runtime_persistence_gate_d9f96702
-  g_rv_resident_reasoning_runtime_persistence_gate_d9f96702 -->|durable write committed| g_rv_resident_reasoning_runtime_proposal_only_27f4e7fa
   g_rv_resident_reasoning_runtime_persistence_gate_d9f96702 -->|diagnostic_branch: denial/conflict/unavailable/size limit| g_rv_resident_reasoning_runtime_state_conflict_0acad65d
   g_rv_resident_reasoning_runtime_route_gate_56e9828c -->|route is exact, registered and bounded| g_rv_resident_reasoning_runtime_budget_gate_362686a9
   g_rv_resident_reasoning_runtime_budget_gate_362686a9 -->|Budget fits; apply office-specific canonical context before provider call| g_rv_resident_reasoning_runtime_grace_role_context_8af6db52
@@ -132,5 +132,8 @@ flowchart LR
   g_rv_resident_reasoning_runtime_exchange_external_claim_bb5aa89e -->|MCP submit tool supplies structured advisory and claim fence| g_rv_resident_reasoning_runtime_exchange_response_gate_87bf6800
   g_rv_resident_reasoning_runtime_exchange_response_persisted_74d2abca -->|provider may inspect body-free persisted outcome| g_rv_resident_reasoning_runtime_exchange_mcp_status_6c99e3ba
   g_rv_resident_reasoning_runtime_exchange_mcp_status_6c99e3ba -->|status is observational; Grace consumes only through its existing authorized workflow| g_rv_resident_reasoning_runtime_exchange_grace_consumption_0b864d8c
+  g_rv_resident_reasoning_runtime_persistence_gate_d9f96702 -->|durable typed plan returned| g_rv_resident_reasoning_runtime_external_escalation_intent_8882f798
+  g_rv_resident_reasoning_runtime_external_escalation_intent_8882f798 -->|intent targets an explicitly configured provider| g_rv_resident_reasoning_runtime_task_escalation_contract_dec2e604
+  g_rv_resident_reasoning_runtime_external_escalation_intent_8882f798 -->|no escalation intent; proposal remains unapproved| g_rv_resident_reasoning_runtime_proposal_only_27f4e7fa
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

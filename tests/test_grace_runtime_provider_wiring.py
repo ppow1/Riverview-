@@ -1,7 +1,7 @@
 # Riverview~ controlled test
 # File: tests/test_grace_runtime_provider_wiring.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.8
+# Revision: 1.0.9
 # Purpose: Verify persistent Grace reasoning follows the authorized office binding
 # Execution Model: Deterministic provider factory; no database or inference service
 # Observability: Assert provider identities and router model digest
@@ -14,6 +14,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Parse an explicit owner-configured source-change path ceiling fail-closed
 # Changed: 2026-10-16 UTC | RV-PR62-SOURCE-CHANGE-MODE | Reproduce source-change mode being rejected before adapter setup
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Verify the persistent Grace runtime maps configured provider identities through the existing exact escalation grant.
+# Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Verify active resident principal resolution and credential-backed exact grant checks.
 """Tests for the persistent executor's model-provider wiring."""
 
 import unittest
@@ -21,7 +22,7 @@ from contextlib import nullcontext
 
 from scripts.run_grace_execution_service import (
     configured_resident_providers, is_codex_adapter_mode, persistent_owner_codex_home,
-    external_exchange_configuration, reconcile_codex_startup_recovery, resident_result_review_tokens,
+    active_resident_principal, external_exchange_configuration, reconcile_codex_startup_recovery, resident_result_review_tokens,
     source_change_path_allowlist,
 )
 from riverview_core.local_reasoning_provider import LocalReasoningProvider
@@ -73,14 +74,22 @@ class GraceRuntimeProviderWiringTests(unittest.TestCase):
 
         class Authorizer:
             @staticmethod
-            def require_principal(_cur, principal, action, scope):
-                calls.append((principal, action, scope))
-                return {"grant_id": "grant:exact-escalation-test"}
+            def require(_cur, credential, action, scope):
+                calls.append((credential, action, scope))
+                return {"principal_id": "resident:grace", "grant_id": "grant:exact-escalation-test"}
+
+        class Registry:
+            @staticmethod
+            def authorize_office_state(_credential, _office):
+                return {"principal_id": "resident:grace", "principal_kind": "resident",
+                    "occupant_id": "occupant:grace", "binding_revision": 2}
 
         exchange, authorize = external_exchange_configuration({
             "RIVERVIEW_EXTERNAL_REASONING_PROVIDER_MAP":
                 '{"chatgpt:plus":"provider:chatgpt:plus"}'},
-            ledger=Ledger(), authorizer=Authorizer(), office_id="office:grace")
+            ledger=Ledger(), authorizer=Authorizer(), authority_registry=Registry(),
+            resident_credential="resident-secret", office_id="office:grace",
+            principal_id="resident:grace")
         self.assertIsNotNone(exchange)
         original = ReasoningRequest("request:test", "office:grace", "objective:test",
             "2", 9, "a" * 64, "low_confidence", 128,
@@ -88,10 +97,20 @@ class GraceRuntimeProviderWiringTests(unittest.TestCase):
         envelope = EscalationRequest.create(original, reason="low_confidence",
             target_provider_id="chatgpt:plus", max_tokens=64)
         result = exchange.router.authorize_for_durable_exchange(envelope, original,
-            principal_id="office:grace", authorize=authorize)
+            principal_id="resident:grace", authorize=authorize)
         self.assertEqual(result.status, EscalationStatus.AUTHORIZED_FOR_EXCHANGE)
-        self.assertEqual(calls, [("office:grace", "resident.reasoning.escalate",
+        self.assertEqual(calls, [("resident-secret", "resident.reasoning.escalate",
                                   "provider:chatgpt:plus")])
+
+    def test_office_principal_resolution_requires_current_resident_binding(self):
+        snapshot = {"principal_id": "resident:some-office", "principal_kind": "resident",
+                    "occupant_id": "occupant:current", "binding_revision": 3}
+        self.assertEqual(active_resident_principal(snapshot), "resident:some-office")
+        for invalid in ({}, {**snapshot, "principal_kind": "steward"},
+                        {**snapshot, "occupant_id": None}):
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(
+                    WorkerServiceConfigurationError, "resident_office_principal_unavailable"):
+                active_resident_principal(invalid)
 
     def test_external_exchange_configuration_is_optional_but_invalid_maps_fail_closed(self):
         class Ledger:
@@ -99,12 +118,15 @@ class GraceRuntimeProviderWiringTests(unittest.TestCase):
         class Authorizer:
             pass
         self.assertEqual(external_exchange_configuration({}, ledger=Ledger(),
-            authorizer=Authorizer(), office_id="office:grace"), (None, None))
+            authorizer=Authorizer(), authority_registry=object(), resident_credential="x",
+            office_id="office:grace", principal_id="resident:grace"), (None, None))
         for raw in ("[]", "{}", '{"bad provider id":"provider:test"}', "invalid-json"):
             with self.subTest(raw=raw), self.assertRaisesRegex(
                     WorkerServiceConfigurationError, "external_reasoning_provider_map_invalid"):
                 external_exchange_configuration({"RIVERVIEW_EXTERNAL_REASONING_PROVIDER_MAP": raw},
-                    ledger=Ledger(), authorizer=Authorizer(), office_id="office:grace")
+                    ledger=Ledger(), authorizer=Authorizer(), authority_registry=object(),
+                    resident_credential="x", office_id="office:grace",
+                    principal_id="resident:grace")
 
     def test_source_change_mode_enters_registered_codex_adapter_path(self):
         self.assertTrue(is_codex_adapter_mode("codex-cli"))

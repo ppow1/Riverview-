@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.229"
+      "revision": "1.1.231"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -23,9 +23,9 @@
     },
     "docs/development/JOURNAL.md": {
       "path": "docs/development/JOURNAL.md",
-      "revision": "1.0.160",
-      "sha256": "8d095760c734ac25f37629b3d3d6a94ca04876fd1ce860e4a62bef4ebb3fe5e2",
-      "size_bytes": 202581
+      "revision": "1.0.173",
+      "sha256": "aa27c29a8929401fec8b12d956584912df70e1ebb8cb825896c46677da836b84",
+      "size_bytes": 226274
     },
     "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md": {
       "path": "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md",
@@ -119,9 +119,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.179",
-      "sha256": "bed3fe0a3eb4cde51867b4cbe85e9705e773ca2017a023fb0f662cff29fd230f",
-      "size_bytes": 628269
+      "revision": "1.0.180",
+      "sha256": "a43183dffe0896749c708eb76503e41c89421c6a38471f2ede4c6158a532ed4d",
+      "size_bytes": 629722
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -185,9 +185,9 @@
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "path": "process_graphs/resident-reasoning/runtime.json",
-      "revision": "1.0.23",
-      "sha256": "7bc27392e49ad77ad2802762b1b6769ac02744f43da5e189633a1f9aa34c4c21",
-      "size_bytes": 50804
+      "revision": "1.0.24",
+      "sha256": "23c171cea772a107ba52a4d8048b247ad8d423584427c6ed8eee8b6195a5fbe6",
+      "size_bytes": 52081
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -260,8 +260,14 @@
       "revision": "1.0.0",
       "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
       "size_bytes": 1226
+    },
+    "docs/development/RV-COMMS5-ESCALATION-INITIATION-001_REVISION_RECORD.md": {
+      "path": "docs/development/RV-COMMS5-ESCALATION-INITIATION-001_REVISION_RECORD.md",
+      "revision": "1.0.0",
+      "sha256": "d7d5f41ad12750860e59650622a49b6bd0a1b1ec4eb7fb7523638f1e3cc2141b",
+      "size_bytes": 4552
     }
   },
-  "manifest_revision": "1.1.229",
+  "manifest_revision": "1.1.231",
   "updated_at": null
 }
