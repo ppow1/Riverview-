@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_w2_p0_integrated_review_acceptance.py
 # Component: W2-P0-INTEGRATED-REVIEW-ACCEPTANCE
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Verify typed Grace review subjects survive durable C3 exchange and C4 MCP round trips
 # Execution Model: Isolated PostgreSQL schema, unittest, deterministic synthetic provider only
 # Observability: Subject/revision digests, provider identity, exchange state, objective events
@@ -11,6 +11,7 @@
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Initial C3/C4 integrated tests
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Register unrelated provider in isolated router fixture
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Accept privacy-concealed wrong-provider denial
+# Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Import MCP denial type from its owning adapter module
 # Contracts: docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md; issue #120 comment 6254574126
 # History: Git and .riverview-revisions.json
 # =============================================================================
@@ -45,6 +46,7 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
         spec.loader.exec_module(fixture_module)
         self.fixture_module = fixture_module
         from riverview_core.resident_execution.external_reasoning_mcp import (
+            ExchangeNotFound,
             ExternalProviderRegistration,
             ExternalReasoningMCPAdapter,
             ProviderTokenMap,
@@ -59,6 +61,7 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
         self.fixture.router.providers[OTHER_PROVIDER] = ExternalProviderRegistration(
             OTHER_PROVIDER, OTHER_PROVIDER)
         self.mcp_adapter_type = ExternalReasoningMCPAdapter
+        self.exchange_not_found = ExchangeNotFound
         self.token_map = ProviderTokenMap.from_document({
             "schema_version": ProviderTokenMap.SCHEMA,
             "tokens": [
@@ -121,8 +124,8 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
         # A provider with another configured identity cannot claim this request.
         state_before_wrong_provider = self.fixture.exchange.status(
             request_id, correlation_id)["delivery_state"]
-        with self.assertRaises((self.fixture_module.ExchangeUnauthorized,
-                                self.fixture_module.ExchangeNotFound)):
+        from riverview_core.resident_execution.external_reasoning import ExchangeUnauthorized
+        with self.assertRaises((ExchangeUnauthorized, self.exchange_not_found)):
             self.adapter.call_tool(self.other_provider,
                 "reasoning_exchange_claim_request", {
                     "request_id": request_id,
