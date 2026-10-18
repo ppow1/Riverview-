@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_w2_p0_integrated_review_acceptance.py
 # Component: W2-P0-INTEGRATED-REVIEW-ACCEPTANCE
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Verify typed Grace review subjects survive durable C3 exchange and C4 MCP round trips
 # Execution Model: Isolated PostgreSQL schema, unittest, deterministic synthetic provider only
 # Observability: Subject/revision digests, provider identity, exchange state, objective events
@@ -10,6 +10,7 @@
 # Authority: W2 acceptance only; no browser, external provider, production DB, or grants
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Initial C3/C4 integrated tests
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Register unrelated provider in isolated router fixture
+# Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Accept privacy-concealed wrong-provider denial
 # Contracts: docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md; issue #120 comment 6254574126
 # History: Git and .riverview-revisions.json
 # =============================================================================
@@ -118,12 +119,17 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
                          set(PlanStep.__dataclass_fields__))
 
         # A provider with another configured identity cannot claim this request.
-        with self.assertRaises(self.fixture_module.ExchangeUnauthorized):
+        state_before_wrong_provider = self.fixture.exchange.status(
+            request_id, correlation_id)["delivery_state"]
+        with self.assertRaises((self.fixture_module.ExchangeUnauthorized,
+                                self.fixture_module.ExchangeNotFound)):
             self.adapter.call_tool(self.other_provider,
                 "reasoning_exchange_claim_request", {
                     "request_id": request_id,
                     "correlation_id": correlation_id,
                 })
+        self.assertEqual(self.fixture.exchange.status(
+            request_id, correlation_id)["delivery_state"], state_before_wrong_provider)
 
         tampered = json.loads(json.dumps(provider_subject))
         tampered["proposal"]["steps"][0]["authorized_paths"].append("test://altered-scope")
