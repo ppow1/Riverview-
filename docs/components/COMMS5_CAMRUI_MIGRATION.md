@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_CAMRUI_MIGRATION.md
 Component: COMMS5-CAMRUI-ADAPTER
-File Revision: 1.0.8
+File Revision: 1.0.9
 Status: Source implementation and live deployment tracker
 Date: 2026-10-17
 History: New file; no predecessor existed.
@@ -12,6 +12,7 @@ Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Map proposal, objectiv
 Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Complete the authenticated transport probe and report actual worker inventory without fabricating an unset resource policy.
 Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Add idempotent, exact-grant-checked dispatch request intake while leaving actual assignment creation to the existing CME execution service.
 Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Record PR #100 queue-intake behavior, verified source coverage, and current deployment boundary.
+Changed: 2026-10-18 UTC | RV-COMMS5-PR100-DEPLOY-20261018 | Record merged release deployment, protected backup/restore, live tool status, and preserved objective outcomes.
 Previous: 2026-10-17 UTC | RV-COMMS5-TOOL-CATALOG-AUDIT-001 | Link exact preserved input schemas and record current loopback deployment state.
 Previous: 2026-10-17 UTC | RV-COMMS5-DASHBOARD-READ-001 | Record read-only dashboard projection implementation before production deployment.
 -->
@@ -59,7 +60,7 @@ Comms5 uses a fixed loopback-only dashboard client with the existing protected d
 
 ## Validation status — 2026-10-17 UTC
 
-- Source catalog: 21 tools compared against historical FastMCP discovery; all 21 were returned through the authenticated production public route. PR #89 deployed six fully implemented, three partial, and twelve stubbed tools. PR #94 deployed 15 implemented, one partial, and five stubs. PR #100 source implements 18, with no partials and three truthful stubs. PR #100 has not been deployed; production remains on PR #94 until a controlled deployment is recorded.
+- Source catalog: 21 tools compared against the preserved FastMCP contract; all 21 are returned through authenticated MCP discovery. PR #89 deployed six fully implemented, three partial, and twelve stubbed tools. PR #94 deployed 15 implemented, one partial, and five stubs. PR #100 implements 18 with no partials and three explicit non-executing stubs; it is deployed as recorded below.
 - In the Camrui development shell, the new source's authenticated dashboard client returned the live CME projection as healthy with 7 workers registered. An isolated local MCP HTTP listener using that client returned HTTP 200 for `comms5_cme_status`; no objective content was queried, no production Comms5 release was switched, and this does not establish a public-route deployment test. The partial transport probe measured only the Comms5-to-dashboard loopback hop.
 - Camrui adapter release `588aee804fc6ada3cdf78f4bfded2f8306c783ea` active at loopback `127.0.0.1:11826`; `/healthz` returned 200 before and after a controlled reverse-tunnel disconnect/reconnect. Reconnect elapsed 6 seconds.
 - Ionoge OAuth source `048787f574d42ff073a9f94f571dc79943d60fa4` active at loopback `127.0.0.1:11827`. A pre-restart dynamic client remained registered across an OAuth unit restart; after the loopback health endpoint returned 200, authorization and MCP exchange succeeded.
@@ -83,8 +84,21 @@ The PR #94 source increment adds current proposal-registry operations and bounde
 
 ## Source implementation increment — PR #95 (2026-10-17; superseded by PR #100)
 
-PR #95 completed the request-scoped transport probe using its supplied probe ID plus the live dashboard `X-Request-ID`, and made resource-policy status a projection of the registered worker/capability inventory while returning `policy_state=not_configured`. PR #100 adds the durable, idempotent, exact-grant-checked queue-request operation through the existing dashboard-owned event ledger. Source coverage is now 18 implemented and three explicit stubs. The remaining stubs are stale-base revalidation and resource-policy set/lock; no equivalent current contracts exist for these operations. PR #100 remains source-only until review, merge, package build, and controlled deployment.
+PR #95 completed the request-scoped transport probe using its supplied probe ID plus the live dashboard `X-Request-ID`, and made resource-policy status a projection of the registered worker/capability inventory while returning `policy_state=not_configured`. PR #100 adds the durable, idempotent, exact-grant-checked queue-request operation through the existing dashboard-owned event ledger. Source coverage is now 18 implemented and three explicit stubs. The remaining stubs are stale-base revalidation and resource-policy set/lock; no equivalent current contracts exist for these operations. PR #100 passed CI and deployed as recorded below.
 
 ## Source implementation increment — PR #100 (2026-10-17)
 
-PR #100 implements the authenticated `comms5_form_and_queue_work` queue-intake contract through the current objective event ledger. Queue requests are durable and idempotent, require explicit Steward confirmation, recheck the exact current `objective.submit` grant in the transaction, and require a dependency-ready proposal step. Queue intent does not create an assignment or claim dispatch; the Grace execution service remains responsible for later assignment creation under `assignment.create`. Unit, focused routing, isolated PostgreSQL, process-graph, and revision checks passed. Production remains on PR #94 pending integration, immutable release creation, and controlled deployment.
+PR #100 implements the authenticated `comms5_form_and_queue_work` queue-intake contract through the current objective event ledger. Queue requests are durable and idempotent, require explicit Steward confirmation, recheck the exact current `objective.submit` grant in the transaction, and require a dependency-ready proposal step. Queue intent does not create an assignment or claim dispatch; the Grace execution service remains responsible for later assignment creation under `assignment.create`. Unit, focused routing, isolated PostgreSQL, process-graph, and revision checks passed.
+
+## PR #100 production deployment — 2026-10-18 UTC
+
+- Integrated commit: `6b44b39ae474e6389f26c97a2c70200f09f33e55`.
+- Core runtime package: `/tmp/riverview-core-6b44b39.tar.gz`, SHA-256 `058459162c6d01da27fca21e5152c4e798d94a46f5bc8a9d05273b745b6d9095`; package manifest and shell-compatibility verification passed.
+- Comms5 adapter package: `/tmp/riverview-comms5-6b44b39.tar.gz`, SHA-256 `954bea068ce15092af0c005daa1ff1c05702945f440fd03e1ec48c9182dfae7e`; staged file checksums passed.
+- Dashboard, Grace owner-session, and Comms5 `current` pointers now reference the integrated release. Each staged release is `root:root`, mode 0755; existing units were validated and retained. Dashboard source/deployment identity is pinned by the additive `pr100` release drop-in. The three affected services were restarted and are active. CME monitor, event processor, and autonomic inference remain active.
+- Before activation, custom-format database backup `/var/lib/postgresql/riverview-backup.comms5-Shs76pAi/riverview.dump` was created as `postgres:postgres`, mode 0600, 404450 bytes, SHA-256 `b73af90762240a1f95ae65cca044ed74d94d8b2ab6b205acbfbfff59704b9eba`. Archive listing and disposable restore passed; migration/assignment/event/objective/objective-event counts matched (22/11/63/2/12). The uniquely named restore database was removed.
+- Protected rollback state is `/var/backups/riverview/comms5-pr100-9QrHFBmP/` (mode 0700). `prestate.txt` records predecessor pointers, unit hashes, deployment identity, and database backup. Predecessor release directories remain installed.
+- Live checks: dashboard LAN HTTPS 200; Comms5 loopback health 200; anonymous loopback MCP 401; public OAuth authorization-server discovery 200; public protected-resource discovery 200; anonymous public Comms5 401; anonymous Comms4 401. One immediate dashboard HTTPS request during restart returned 502; the backend remained active and subsequent strict-TLS checks returned 200.
+- Authenticated production MCP discovery returned all 21 catalog tools. Live capability status is 18 `IMPLEMENTED`, 3 `NOT_IMPLEMENTED`. `comms5_cme_status` and `comms5_transport_probe` succeeded; resource policy reports `not_configured`. No write operation or synthetic Steward submission was made during acceptance.
+- Grace owner-session is active and reports a healthy heartbeat; there were no running leased assignments at activation. Read-only objective metadata confirms the recovery objective remains `WORK_ORDER_CREATED`, its assignment remains `rework_required`, and its verifier decision remains `REJECTED`. The related conversation objective is `COMPLETED` with a recorded `REJECTED` decision. No objective, assignment, artifact, verifier record, grant, credential, migration, Comms4, OAuth, or tunnel configuration was altered.
+- **Acceptance remains incomplete:** 18 of 21 operations are implemented. The stale-base revalidation and resource-policy set/lock tools have no equivalent current durable evidence/selection contracts and remain fail-closed stubs. The existing production Engineering record has no accepted verifier result. No new Steward submission or accepted work cycle is claimed.

@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/operations/RIVERVIEW_MACHINE_CONNECTIONS_AND_COMMS5_RECOVERY_2026-10-17.md
 Component: COMMS5-OAUTH-IONOGE
-File Revision: 1.0.8
+File Revision: 1.0.9
 Status: Verified machine connection and recovery runbook
 Date: 2026-10-17
 Purpose: Record nonsecret Camrui/Ionoge Comms5 connectivity, health checks, and recovery evidence.
@@ -13,6 +13,7 @@ Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-ROTATION-HEALTH-REPAIR | Document bo
 Changed: 2026-10-17 UTC | RV-CAMRUI-EXECUTION-ENVIRONMENT-001 | Confirm Windows alias operation and distinguish it from local Camrui Linux execution.
 Changed: 2026-10-17 UTC | RV-CAMRUI-SSH-ACCESS-DOCUMENTATION-001 | Record verified Windows `camrui` alias command and distinguish local Camrui shell access from Windows SSH configuration.
 Changed: 2026-10-17 UTC | RV-COMMS5-DASHBOARD-READ-DEPLOY-001 | Record the integrated Comms5 release, smoke tests, and protected rollback location.
+Changed: 2026-10-18 UTC | RV-COMMS5-PR100-DEPLOY-20261018 | Record PR #100 release pointers, backup/restore verification, authenticated tool checks, and rollback evidence.
 History: New file; no predecessor existed in the integration checkout.
 Authority: Existing service identities and grants; this document does not issue authority.
 -->
@@ -140,3 +141,14 @@ The deployment's root-only rollback directory is `/var/backups/riverview/comms5-
 ## Rollback
 
 For a Caddy-only rollback, restore the preserved `Caddyfile` predecessor and its metadata, validate with the Caddy service's existing protected EnvironmentFiles, then reload Caddy. Do not restart unrelated services. The correction touched only the Comms5 OAuth fallback header. Keep OAuth SQLite state and both SSH authorized-key backups. If a future Comms5 change fails, restore only this Caddyfile and reload; the Camrui adapter and tunnel are independently managed.
+
+## PR #100 production deployment and acceptance — 2026-10-18 UTC
+
+- Integrated source: `6b44b39ae474e6389f26c97a2c70200f09f33e55` (PR #100).
+- Immutable packages: Core `/tmp/riverview-core-6b44b39.tar.gz`, SHA-256 `058459162c6d01da27fca21e5152c4e798d94a46f5bc8a9d05273b745b6d9095`; Comms5 `/tmp/riverview-comms5-6b44b39.tar.gz`, SHA-256 `954bea068ce15092af0c005daa1ff1c05702945f440fd03e1ec48c9182dfae7e`.
+- Active release pointers for dashboard, Grace owner-session, and Comms5 reference the integrated source. The affected units are active; CME monitor, event processor, and autonomic inference are also active. Live health and anonymous rejection checks passed. An immediate dashboard request during restart returned 502; the service remained active and subsequent strict-TLS requests returned 200.
+- Before activation, a protected PostgreSQL custom-format backup was created at `/var/lib/postgresql/riverview-backup.comms5-Shs76pAi/riverview.dump` (mode 0600, 404450 bytes, SHA-256 `b73af90762240a1f95ae65cca044ed74d94d8b2ab6b205acbfbfff59704b9eba`). `pg_restore --list` and a disposable restore passed with matching migration/assignment/event/objective/objective-event counts `22/11/63/2/12`; the disposable database was removed. Root-only rollback state is `/var/backups/riverview/comms5-pr100-9QrHFBmP/` (mode 0700), and predecessor releases remain installed.
+- Authenticated production MCP discovery returned 21 tools; the capability projection reported 18 implemented and three not implemented. `comms5_cme_status` and `comms5_transport_probe` succeeded. Resource policy reports `not_configured`. Anonymous MCP requests returned 401. OAuth authorization-server and protected-resource discovery returned 200. Comms4 anonymous rejection returned 401; no Comms4 authenticated operation was attempted.
+- The active Grace owner-session service reported healthy with a fresh heartbeat. Metadata-only inspection found no eligible unassigned objective for a new dispatch. The existing recovery objective remains `WORK_ORDER_CREATED`, assignment `assignment:grace:bdf72a3c64f0377d3d4d6df4b1ce7c243068100d` remains `rework_required`, and the preserved verifier decision is `REJECTED`. A prior successful Codex attempt produced an artifact, but the independent verifier rejected it because the required exact lowercase acceptance phrase was capitalized differently. The objective linked to the earlier completed conversation remains `COMPLETED` with a recorded rejected verifier decision. No objective, assignment, artifact, verifier record, grant, credential, or conversation was modified in this deployment.
+- **Acceptance is partial:** the deployed catalog has 18 implemented tools and three fail-closed stubs. The preserved rejected assignment is not an accepted Engineering cycle. Do not replay or replace it through Comms5; follow the existing authorized revision/rework flow or obtain a genuine Steward website action for new work.
+- Rollback directory includes predecessor pointers and unit hashes. Restore recorded pointers and matching unit/drop-in state, run `systemctl daemon-reload`, restart only affected units, then rerun health checks. Do not restore the database backup unless a verified database-integrity failure requires it; this release applied no schema migration.
