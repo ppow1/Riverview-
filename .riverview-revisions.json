@@ -1,10 +1,8 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.244",
       "path": ".riverview-revisions.json",
-      "sha256": "722e29f05c24f74e96a2e94946ac1b305fe682b7769b9279185b41b43a935f90",
-      "size_bytes": 15947
+      "revision": "1.1.255"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -128,9 +126,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.185",
-      "sha256": "1b6a1f6052b3025867e71d2a172b9d84617ae8c5bd2551dabd487e9124f37d99",
-      "size_bytes": 646817
+      "revision": "1.0.187",
+      "sha256": "68df3be9b790e6a02614b83c955000c0dacb9e00ab1dc9584d77bb3514ec7433",
+      "size_bytes": 658270
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -271,10 +269,10 @@
       "size_bytes": 1226
     },
     "process_graphs/work-registry/observational-registry.json": {
-      "revision": "1.0.4",
+      "revision": "1.0.6",
       "path": "process_graphs/work-registry/observational-registry.json",
-      "sha256": "ec5e400efb1d7cee5e5e724873b59032e4c48f2e4e159cc3d5d6edb521beefce",
-      "size_bytes": 5334
+      "sha256": "23d14f22520633088aa782e972893e5dbe1b8937843a183c901ace9406dc119e",
+      "size_bytes": 13255
     },
     "docs/components/WORK_REGISTRY.schema.json": {
       "revision": "1.0.1",
@@ -289,10 +287,10 @@
       "size_bytes": 6186
     },
     "docs/components/WORK_REGISTRY.md": {
-      "revision": "1.1.0",
+      "revision": "1.1.4",
       "path": "docs/components/WORK_REGISTRY.md",
-      "sha256": "9b26743ee2a37b2d6b17e8695e217157dbadda846286b56e5ee15b0498e96fc6",
-      "size_bytes": 13677
+      "sha256": "1a8a9bbe39f01259d3b84f39159487893c59c0e4ff6e886516e2c214c1553d58",
+      "size_bytes": 20942
     },
     "docs/operations/CONTROL_BOARD_V4_IMPORT_MAP.json": {
       "revision": "1.0.0",
@@ -307,10 +305,10 @@
       "size_bytes": 1724
     },
     "scripts/Start-RiverviewControlBoard-Registry.ps1": {
-      "revision": "1.0.0",
+      "revision": "1.0.1",
       "path": "scripts/Start-RiverviewControlBoard-Registry.ps1",
-      "sha256": "9727ce5ad02da73823d362a376e6445483e7697ef1a04700f5ab5663be4c20e1",
-      "size_bytes": 14179
+      "sha256": "dea49b00a3dd7fc9d823da8fffa09d548ab17b0d5cc40dcfece55dc9d772c8fe",
+      "size_bytes": 15113
     },
     "scripts/import_work_registry.py": {
       "revision": "1.0.3",
@@ -319,24 +317,138 @@
       "size_bytes": 14633
     },
     "src/riverview_core/work_registry.py": {
-      "revision": "1.0.1",
+      "revision": "1.0.2",
       "path": "src/riverview_core/work_registry.py",
-      "sha256": "ec580fd84522a182d92e237c09f2f0ac2d9f32965844cd8c93a79df8cd27943a",
-      "size_bytes": 35043
+      "sha256": "0de3c5ff2d486d96ac7b9b81c0e070544e55bef78e1eabab93b449e76e4e9f49",
+      "size_bytes": 35669
     },
     "tests/test_work_registry.py": {
-      "revision": "1.0.2",
+      "revision": "1.0.3",
       "path": "tests/test_work_registry.py",
-      "sha256": "c135f44859400ad626d372ae80350ec45f3de08973bcc3ff6905c931fa30eb44",
-      "size_bytes": 18681
+      "sha256": "b0f09eec35c6ea9aa7d92dd11b428399f9553b951e60359c877c671d5af39491",
+      "size_bytes": 19510
     },
     "tests/test_work_registry_monitor.py": {
-      "revision": "1.0.0",
+      "revision": "1.0.1",
       "path": "tests/test_work_registry_monitor.py",
-      "sha256": "14aaa351044768b2065a569583d41685ff6a9f5e2078b1a85ea1cdf47d7543c1",
-      "size_bytes": 4973
+      "sha256": "52beff92bb04b20a62b179b62ed09d15c067bb4b3d6802fa8b3ebd13cdb9707a",
+      "size_bytes": 7148
+    },
+    ".gitattributes": {
+      "path": ".gitattributes",
+      "revision": "1.0.1",
+      "sha256": "4cee09b8c34b4ce77cef7ad883511668a362fb1ee54fd313ed4976d882356818",
+      "size_bytes": 960
+    },
+    "docs/components/STATUS_DASHBOARD.md": {
+      "path": "docs/components/STATUS_DASHBOARD.md",
+      "revision": "1.1.8",
+      "sha256": "7e5516eed1f5ddd53c7ccf801095d252b3dc42fd07d3354bf46ab8fd383f721f",
+      "size_bytes": 24301
+    },
+    "docs/components/WORK_REGISTRY_COOKBOOK.md": {
+      "path": "docs/components/WORK_REGISTRY_COOKBOOK.md",
+      "revision": "1.0.2",
+      "sha256": "8694034574d4385bf7871b9b89aba5bcd38fc4d2c4bdb5e8a76527e6d438f91f",
+      "size_bytes": 11245
+    },
+    "docs/components/WORK_REGISTRY_FLOW.md": {
+      "path": "docs/components/WORK_REGISTRY_FLOW.md",
+      "revision": "1.0.2",
+      "sha256": "678928e7f4f4492cf79ec889300d621ea881c070a22c877cafbf248fb8dd9143",
+      "size_bytes": 10820
+    },
+    "process_graphs/generated/RIVERVIEW_PROCESS_GRAPH.md": {
+      "path": "process_graphs/generated/RIVERVIEW_PROCESS_GRAPH.md",
+      "revision": "1.0.24",
+      "sha256": "d4cfcb5dd24ade9cebf7062c56fee7ea1bec3985a6bc9e9ca288e777d42c9c2c",
+      "size_bytes": 7210
+    },
+    "scripts/Start-RiverviewCodexSession.ps1": {
+      "path": "scripts/Start-RiverviewCodexSession.ps1",
+      "revision": "1.0.0",
+      "sha256": "98ebeb19acd6e079017d98583e37996c006df98d9cf8340fb7e939d42a54b959",
+      "size_bytes": 2221
+    },
+    "scripts/import_issue_120_work_inventory.py": {
+      "path": "scripts/import_issue_120_work_inventory.py",
+      "revision": "1.0.0",
+      "sha256": "13295049388c9a742e1e690548158f15a6092aaaae576600760f98621f0fd265",
+      "size_bytes": 4504
+    },
+    "scripts/record_work_assignment.py": {
+      "path": "scripts/record_work_assignment.py",
+      "revision": "1.0.0",
+      "sha256": "aa35a898a7753f8cd2dbcb3f628c92da98005a9a57830a01c61e64ba5e13f00c",
+      "size_bytes": 14276
+    },
+    "scripts/register_work.py": {
+      "path": "scripts/register_work.py",
+      "revision": "1.0.0",
+      "sha256": "1244a532e7aa502d0fa30769a0f5a99593a79cd1eb4d1bff356d0121834e4005",
+      "size_bytes": 7185
+    },
+    "scripts/start-riverview-codex-session.sh": {
+      "path": "scripts/start-riverview-codex-session.sh",
+      "revision": "1.0.0",
+      "sha256": "4f2db395c9d04c623271ca61347b3518a898ac71968eedee7c0a0fc8e6b71a04",
+      "size_bytes": 2038
+    },
+    "scripts/start_riverview_codex.py": {
+      "path": "scripts/start_riverview_codex.py",
+      "revision": "1.0.0",
+      "sha256": "c5057eeaff337c0074d09a25d05b8fb5ecc75c16db325f156ec56af94f298d67",
+      "size_bytes": 6802
+    },
+    "src/riverview_core/status_dashboard/server.py": {
+      "path": "src/riverview_core/status_dashboard/server.py",
+      "revision": "1.3.26",
+      "sha256": "83dfcc435f05e12b9480bb1e310dc18093460b4e3e091dfc15380edf33aed21b",
+      "size_bytes": 128709
+    },
+    "src/riverview_core/status_dashboard/static/app.js": {
+      "path": "src/riverview_core/status_dashboard/static/app.js",
+      "revision": "1.4.21",
+      "sha256": "5de13c423d0384e1cb1782dcb0d31c211ffca46c0d8b1807cb953d76c0386bd6",
+      "size_bytes": 91015
+    },
+    "src/riverview_core/status_dashboard/static/index.html": {
+      "path": "src/riverview_core/status_dashboard/static/index.html",
+      "revision": "1.1.22",
+      "sha256": "34589e08834519fc9021432f89fb837daa84a87b3500446ef5b0efb2123cd632",
+      "size_bytes": 36645
+    },
+    "tests/test_work_assignment_bridge.py": {
+      "path": "tests/test_work_assignment_bridge.py",
+      "revision": "1.0.2",
+      "sha256": "e37f2b5f429ea7c5bec86b49a2431789922b3e93acc78e72fc1dbfffab0a9222",
+      "size_bytes": 11415
+    },
+    "tests/test_work_registry_dashboard.py": {
+      "path": "tests/test_work_registry_dashboard.py",
+      "revision": "1.0.0",
+      "sha256": "1472cd335b3ff0b5d84a200281f1760d57136d2810e28cc3ec344b8262866a87",
+      "size_bytes": 5723
+    },
+    "tests/test_work_registry_startup.py": {
+      "path": "tests/test_work_registry_startup.py",
+      "revision": "1.0.0",
+      "sha256": "4942f749cca20e152d5a4a857062e7a07e6782b90e797de3ca2d2ae3e8d0436a",
+      "size_bytes": 5013
+    },
+    "scripts/poll_issue_assignments.py": {
+      "path": "scripts/poll_issue_assignments.py",
+      "revision": "1.0.0",
+      "sha256": "46d9b45e4d75be1d5f2e92299a4895f641817d5a1391f61c29a13feaa8ad735e",
+      "size_bytes": 18198
+    },
+    "tests/test_issue_assignment_poller.py": {
+      "path": "tests/test_issue_assignment_poller.py",
+      "revision": "1.0.0",
+      "sha256": "116b99f395f8bf70e1cc981b2ecda8bc2b5dfd16b5d32da2154579cdc1cbf8e4",
+      "size_bytes": 11438
     }
   },
-  "manifest_revision": "1.1.244",
-  "updated_at": "2026-10-18T15:52:28+00:00"
+  "manifest_revision": "1.1.255",
+  "updated_at": "2026-10-18T17:59:07+00:00"
 }

@@ -1,0 +1,7 @@
+{
+  "command": "python scripts/process_graph.py check (ordinary Windows checkout bytes)",
+  "exit_code": 1,
+  "stdout": "{\"status\": \"FAIL\", \"error\": \"JSON file revision sidecar checksum mismatch: process_graphs/schema/riverview-process-graph.schema.json\"}",
+  "stderr": "",
+  "cause": "Unchanged process_graphs/schema/riverview-process-graph.schema.json is materialized CRLF on this Windows checkout while the sidecar hashes canonical LF bytes."
+}

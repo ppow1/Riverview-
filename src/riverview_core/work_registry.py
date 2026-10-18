@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/work_registry.py
 # Component: UNIVERSAL-WORK-REGISTRY
-# Revision: 1.0.1
+# Revision: 1.0.2
+# Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-DISPATCH-BRIDGE-001 | Support conditional work-order updates to reject stale event transitions atomically.
 # Changed: 2026-10-18 UTC | RV-UNIVERSAL-WORK-REGISTRY-001 | Add one observational file-backed registry for workers, sessions, and work orders.
 # Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-CONTROL-BOARD-001 | Track verified and unverified session identities without breaking v1 snapshots.
 # Purpose: Persist cross-runtime work observations without dispatching or authorizing execution
@@ -506,9 +507,13 @@ class WorkRegistry:
             self._write_unlocked(document)
         return dict(work)
 
-    def update_work_order(self, work_order_id, *, at=None, **changes):
+    def update_work_order(self, work_order_id, *, at=None, expected_status=None, **changes):
         work_order_id = _id(work_order_id, "work_order_id")
         instant = _stamp(at)
+        expected = ({expected_status} if isinstance(expected_status, str)
+                    else set(expected_status) if expected_status is not None else None)
+        if expected is not None and (not expected or not expected <= _WORK_STATUSES):
+            raise ValueError("expected_status is unsupported")
         allowed = {"title", "detail", "status", "milestone", "milestones_total", "milestones",
                    "dependencies", "blocker", "next_action", "evidence", "outcome",
                    "repository", "branch", "pull_request", "deliverable", "local_ai_job",
@@ -521,6 +526,8 @@ class WorkRegistry:
             work = document["work_orders"].get(work_order_id)
             if work is None:
                 raise WorkRegistryError("work_order_not_found")
+            if expected is not None and work["status"] not in expected:
+                raise WorkRegistryError("work_order_state_conflict")
             old_session_id = work["session_id"]
             for key, value in changes.items():
                 if key in {"dependencies", "evidence"}:

@@ -2,8 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/Start-RiverviewControlBoard-Registry.ps1
 # Component: UNIVERSAL-WORK-REGISTRY
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-CONTROL-BOARD-001 | Add dynamic Windows registry view with v4 JSON fallback and timestamp reconciliation.
+# Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-STATUS-ACCURACY-001 | Separate terminal latest result from current assignment and session status.
 # Purpose: Read-only monitoring of any registered worker, session, and work order
 # Execution Model: Local PowerShell refresh loop; no session or service lifecycle changes
 # Observability: Worker availability, session activity, assignment, completion, and evidence shown separately
@@ -117,33 +118,43 @@ function Show-Board {
     foreach ($worker in $workers) {
         $workerSessions = @($sessions | Where-Object { $_.worker_id -eq $worker.worker_id })
         if (-not $workerSessions.Count) {
-            $rows += [pscustomobject]@{ Worker=$worker.worker_id; Type=$worker.worker_type; Model=$worker.model_identity; Host=$worker.hostname; Session='-'; Identity='-'; Availability=$worker.status; Activity='-'; Assignment='-'; AssignmentState='-'; Completion='-'; Milestone='-'; Heartbeat='-'; Blocker=''; Deliverable='' }
+            $rows += [pscustomobject]@{ Worker=$worker.worker_id; Type=$worker.worker_type; Model=$worker.model_identity; Host=$worker.hostname; Session='-'; Identity='-'; Availability=$worker.status; Activity='-'; Assignment='-'; AssignmentState='-'; LatestResult='-'; Milestone='-'; Heartbeat='-'; Blocker=''; Deliverable='' }
             continue
         }
         foreach ($session in $workerSessions) {
             $linked = @($orders | Where-Object { $_.session_id -eq $session.session_id -or ($null -eq $_.session_id -and $_.worker_id -eq $worker.worker_id) })
+            $latestResult = $null
+            if ($linked.Count) {
+                $latestResult = $linked | Where-Object { @('blocked','completed','failed','cancelled') -contains ([string]$_.status).ToLowerInvariant() } |
+                    Sort-Object updated_at -Descending | Select-Object -First 1
+            }
             $current = $null
             if ($session.current_work_order_id) { $current = $orders | Where-Object { $_.work_order_id -eq $session.current_work_order_id } | Select-Object -First 1 }
-            if (-not $current -and $linked.Count) { $current = $linked | Sort-Object updated_at -Descending | Select-Object -First 1 }
+            if ($current -and @('completed','failed','cancelled') -contains ([string]$current.status).ToLowerInvariant()) { $current = $null }
+            if (-not $current -and $linked.Count) {
+                $current = $linked | Where-Object { @('queued','active','blocked') -contains ([string]$_.status).ToLowerInvariant() } |
+                    Sort-Object updated_at -Descending | Select-Object -First 1
+            }
             $step = '-'
             if ($current -and $null -ne $current.milestone -and $null -ne $current.milestones_total) { $step = '{0}/{1}' -f $current.milestone,$current.milestones_total }
             $age = if ($session.last_heartbeat_at) { Age $session.last_heartbeat_at } else { 'unknown' }
+            $latestLabel = if ($latestResult) { '{0}: {1}' -f $latestResult.status,(Clip $latestResult.title 26) } else { 'none' }
             $rows += [pscustomobject]@{
                 Worker=$worker.worker_id; Type=$worker.worker_type; Model=$session.model_identity; Host=$worker.hostname; Session=$session.session_id
                 Identity=$(if ($session.identity_state -eq 'unverified') { 'UNVERIFIED' } else { 'verified' })
                 Availability=$session.status; Activity=$session.activity_state
                 Assignment=$(if ($current) { Clip $current.title 30 } else { 'unassigned' })
                 AssignmentState=$(if ($current) { $current.ownership_state } else { 'unassigned' })
-                Completion=$(if ($current) { $current.status } else { '-' }); Milestone=$step
+                LatestResult=$latestLabel; Milestone=$step
                 Heartbeat=$age; Blocker=$(if ($current) { Clip $current.blocker 36 } else { '' })
-                Deliverable=$(if ($current) { $current.pull_request } else { '' })
+                Deliverable=$(if ($current) { $current.pull_request } elseif ($latestResult) { $latestResult.pull_request } else { '' })
             }
         }
     }
     foreach ($row in $rows) {
-        Write-Host ('{0,-3} {1,-12} {2,-22} {3,-12} identity={4,-11} availability={5,-10} activity={6,-7} assignment={7} state={8}/{9} step={10} beat={11} model={12}' -f `
+        Write-Host ('{0,-3} {1,-12} {2,-22} {3,-12} identity={4,-11} availability={5,-10} activity={6,-7} assignment={7} owner_state={8} latest_result={9} step={10} beat={11} model={12}' -f `
             $row.Worker,$row.Type,$row.Host,$row.Session,$row.Identity,$row.Availability,$row.Activity,
-            (Clip $row.Assignment 24),$row.AssignmentState,$row.Completion,$row.Milestone,$row.Heartbeat,(Clip $row.Model 24))
+            (Clip $row.Assignment 24),$row.AssignmentState,(Clip $row.LatestResult 36),$row.Milestone,$row.Heartbeat,(Clip $row.Model 24))
         if ($row.Blocker) { Write-Host ('    BLOCKER: ' + $row.Blocker) -ForegroundColor Yellow }
         if ($row.Deliverable) { Write-Host ('    PR/DELIVERABLE: ' + $row.Deliverable) -ForegroundColor DarkGray }
     }
