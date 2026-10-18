@@ -14,7 +14,12 @@ ACL evidence, rollback limitations, deployment package identity, and the live
 provider/worker/Steward gates. The decision is NO-GO at commissioning milestone
 1/5. The record explicitly distinguishes prior isolated or historical evidence
 from state that must be rechecked immediately before any separately approved
-production change.
+production change. It now also records the C4 disposable deployment/execution
+rehearsal: package migration directories applied in order and reapplied
+idempotently; the actual restricted `riverview_core` role passed permitted
+retry-state operations and was denied identity update/delete/truncate; the
+package pointer switched from a synthetic predecessor to the candidate and
+back; and three focused PostgreSQL lifecycle/verification tests passed.
 
 No runtime code, migration, credential, grant, service configuration, graph,
 or production system was changed. Existing C4 57-test isolated worker execution
@@ -28,10 +33,12 @@ manifest PASS, shell compatibility PASS.
 - PRs #109–#115 and #119: OPEN, MERGEABLE, controlled-checkout SUCCESS at the
   observed heads recorded in the operator decision.
 - Package verifier: PASS for manifest and shell compatibility.
-- `python3 scripts/process_graph.py validate`: PASS, 22 graphs.
+- `python3 scripts/process_graph.py check`: PASS, 22 graphs / 565 nodes.
 - Migration/runtime, full suite, restricted-role, and rollback evidence is
   cited with its prior isolated test scope and is not represented as fresh
   production verification.
+- Focused rehearsal tests: 3 passed, 0 failed, 0 skipped. Disposable PG cluster
+  was stopped and its unique schema removed. No systemd unit was started.
 
 ## Authorization boundary
 
