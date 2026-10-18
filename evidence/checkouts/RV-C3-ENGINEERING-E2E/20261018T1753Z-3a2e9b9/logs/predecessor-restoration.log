@@ -1,0 +1,23 @@
+{
+  "status": "PASS",
+  "predecessors": [
+    {
+      "revision": "1.1.3",
+      "backup": ".riverview-backups/20261018T153214396336Z/tests/test_proposal_work_order_lifecycle.py",
+      "source_commit": "64b2e022e99fd6b548cf30963b475e236066470d",
+      "git_blob": "4fdee5fc9bbf8daa1ab76344f0e81bd877651c9c",
+      "sha256": "c73d94baebc7c0d8580d69ad64c0931ba71cc3641956dc5fdd491b950aa60fda",
+      "exact_git_match": true,
+      "temporary_restore_verified": true
+    },
+    {
+      "revision": "1.1.4",
+      "backup": ".riverview-backups/20261018T160440033495Z/tests/test_proposal_work_order_lifecycle.py",
+      "source_commit": "ea30f489aaed9545438364fc50561a075afbafe8",
+      "git_blob": "ef75e87d2f90bf0913aabe4bf211b9271a586c43",
+      "sha256": "6dd448fb966d411155757b62427d72675cccde5f0eecc1935ff45b1ee6f0737d",
+      "exact_git_match": true,
+      "temporary_restore_verified": true
+    }
+  ]
+}

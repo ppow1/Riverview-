@@ -1,0 +1,3 @@
+Command: python3 scripts/revision_control.py check --baseline evidence/checkouts/ENG-REVISION-CONTROL/20261010T1530Z-27a8c55/baseline-inventory.json
+Exit code: 1
+Result: FAIL during initial evidence packaging because the new artifacts.json entries were keyed by relative paths (for example logs/full-suite.log), while the current revision checker looks up evidence by basename. Six evidence log files were reported missing_revision. This was an evidence-sidecar indexing defect, not a source/test failure. The sidecar was corrected to basename keys, advanced from manifest revision 1.0.0 to 1.0.1 after preserving its exact predecessor, and the revision audit was rerun; final output is in revision-control.log.

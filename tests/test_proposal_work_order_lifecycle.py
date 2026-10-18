@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_proposal_work_order_lifecycle.py
 # Component: INSTITUTIONAL-PROPOSALS
-# Revision: 1.1.3
+# Revision: 1.1.5
 # Purpose: Verify revision approval and promotion into the existing objective pipeline
 # Execution Model: Pure command parser tests and disposable PostgreSQL integration
 # Observability: Proposal/objective events and correlation IDs are asserted
@@ -13,6 +13,8 @@
 # Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Exercise idempotent Comms5 CME queue-intent persistence against isolated PostgreSQL and exact Steward grants.
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Initial lifecycle bridge coverage
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Compose authenticated API approval/intake with real disposable worker execution, independent verification, and proposal result linkage
+# Changed: 2026-10-18 UTC | RV-C3-GRACE-ENGINEERING-E2E-001 | Verify an explicit synthetic Steward rejection is durable, idempotent, and cannot enter objective intake.
+# Changed: 2026-10-18 UTC | RV-C3-CANDIDATE-INTEGRATION-GAP-001 | Join exact synthetic approval and promotion to Grace's persistent reasoning/service worker cycle through durable verified closure.
 # =============================================================================
 """Proposal approval and work-order bridge tests; PostgreSQL is disposable."""
 
@@ -176,6 +178,30 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
             self.lifecycle.promote(record["proposal"]["proposal_id"], 1, actor_id="steward:authorized")
         self.assertEqual(self.registry.get(record["proposal"]["proposal_id"])["proposal"]["lifecycle_status"], "APPROVED")
 
+    def test_explicit_rejection_is_durable_idempotent_and_never_promoted(self):
+        from riverview_core.resident_execution.proposals import ProposalConflict
+        record = self.ready_proposal(key="proposal:rejection")
+        proposal_id = record["proposal"]["proposal_id"]
+        revision = record["revision"]
+        decision = self.lifecycle.decide(proposal_id, 1, decision="REJECT",
+            actor_id="steward:authorized", reason="Synthetic bounded-test rejection",
+            idempotency_key="decision:rejection:test",
+            content_sha256=revision["content_sha256"],
+            authority_reference="account-auth-session:test-account:steward")
+        replay = self.lifecycle.decide(proposal_id, 1, decision="REJECT",
+            actor_id="steward:authorized", reason="Synthetic bounded-test rejection",
+            idempotency_key="decision:rejection:test",
+            content_sha256=revision["content_sha256"],
+            authority_reference="account-auth-session:test-account:steward")
+        self.assertEqual(decision["proposal"]["lifecycle_status"], "REJECTED")
+        self.assertEqual(replay["proposal"]["lifecycle_status"], "REJECTED")
+        self.assertEqual(len([event for event in replay["events"]
+            if event["event_type"] == "proposal.steward_decision"]), 1)
+        with self.assertRaises(ProposalConflict):
+            self.lifecycle.promote(proposal_id, 1, actor_id="steward:authorized")
+        self.assertIsNone(self.pipeline.get_objective(
+            self.lifecycle.objective_id(proposal_id, 1)))
+
     def test_approved_proposal_without_assignment_grant_stays_approved_and_grounded(self):
         record = self.ready_proposal()
         self.approve(record)
@@ -248,6 +274,73 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
                 WHERE proposal_id=%s AND revision=1 AND event_type='proposal.work_order_requested'""",
                 (proposal_id,))
             self.assertEqual(cur.fetchone()["count"], 1)
+
+    def test_approved_proposal_runs_through_grace_reasoning_and_verified_service_cycle(self):
+        from riverview_core.resident_reasoning import (
+            PlanProposal, PlanStep, ReasoningResult, ReasoningStatus,
+        )
+        from riverview_core.resident_execution.service import GraceExecutionService
+        from riverview_core.resident_execution.worker import BoundedLocalCodingWorker
+        from riverview_core.worker_adapter import ContinuousWorker
+
+        record = self.ready_proposal(key="proposal:grace-service-cycle")
+        proposal_id = record["proposal"]["proposal_id"]
+        self.approve(record, key="decision:grace-service-cycle")
+        promoted = self.lifecycle.promote(proposal_id, 1, actor_id="steward:authorized")
+
+        class FixtureResidentReasoner:
+            office_id = "office:synthetic-grace"
+            providers = {"reasoner:synthetic-80b": object()}
+
+            def __init__(self):
+                self.calls = []
+
+            def propose(_self, objective_id, *, trigger, token_budget):
+                objective = self.pipeline.get_objective(objective_id)
+                _self.calls.append((objective_id, trigger, token_budget))
+                step = PlanStep("report", "Write the approved bounded artifact",
+                    tuple(objective["acceptance_criteria"]))
+                return ReasoningResult(ReasoningStatus.PROPOSED,
+                    "request:synthetic:" + objective_id, "FIXTURE_PLAN",
+                    provider_id="reasoner:synthetic-80b",
+                    proposal=PlanProposal("Approved bounded report", (step,), 0))
+
+        reasoner = FixtureResidentReasoner()
+        reasoner.pipeline = self.pipeline
+        worker = ContinuousWorker(self.adapter, self.worker_id,
+            self.tokens["worker:lifecycle-test"], knowledge=self.knowledge,
+            action=BoundedLocalCodingWorker(self.pipeline, self.artifact_root),
+            action_effect_class="retry_safe", action_capability="engineering.bounded-artifact.v1")
+        service = GraceExecutionService(self.pipeline, self.adapter, worker,
+            dispatch_credential=self.tokens["steward:authorized"],
+            authority_ref=self.scope, verifier_id=self.verifier_id,
+            verifier_credential=self.tokens["verifier:lifecycle-test"],
+            artifact_root=self.artifact_root, resident_reasoner=reasoner,
+            proposal_lifecycle=self.lifecycle)
+
+        self.assertTrue(service.reason_one_grounded_objective(promoted["objective_id"]))
+        self.assertEqual(reasoner.calls, [(promoted["objective_id"],
+            "persistent_resident_cycle", 768)])
+        self.assertEqual(self.pipeline.get_objective(promoted["objective_id"])["status"], "PROPOSED")
+        self.assertEqual(service.dispatch_proposed(promoted["objective_id"]), 1)
+        objective = self.pipeline.get_objective(promoted["objective_id"])
+        assignment_id = objective["assignment_id"]
+        self.ledger.transition(assignment_id, "ready", "event_processor_ready",
+            "grace-service-cycle-ready:" + assignment_id, actor_id="event-processor")
+
+        outcome = service.run_once()
+        self.assertEqual(outcome["worker"]["status"], "AWAITING_VERIFICATION")
+        self.assertTrue(outcome["verified"])
+        self.assertEqual(outcome["completed"], 1)
+        self.assertEqual(outcome["proposal_updates"], 1)
+        self.assertEqual(self.pipeline.get_objective(promoted["objective_id"])["status"], "COMPLETED")
+        final = self.registry.get(proposal_id)
+        self.assertEqual(len(final["work_order_links"]), 1)
+        execution = [event for event in final["events"]
+            if event["event_type"] == "proposal.execution_updated"]
+        self.assertEqual(len(execution), 1)
+        self.assertEqual(execution[0]["payload"]["status"], "completed")
+        self.assertEqual(execution[0]["payload"]["evidence"]["verification_decision"], "ACCEPTED")
 
     def test_authenticated_http_decision_and_promotion_use_the_same_lifecycle(self):
         from riverview_core.status_dashboard.server import DashboardHTTPServer

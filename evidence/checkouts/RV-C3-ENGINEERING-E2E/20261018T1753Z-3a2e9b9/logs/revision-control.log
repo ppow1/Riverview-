@@ -1,0 +1,33 @@
+{
+  "passed": false,
+  "issues": [
+    {
+      "path": "evidence/checkouts/RV-C3-ENGINEERING-E2E/20261018T1753Z-3a2e9b9/logs/focused-tests.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RV-C3-ENGINEERING-E2E/20261018T1753Z-3a2e9b9/logs/full-suite.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RV-C3-ENGINEERING-E2E/20261018T1753Z-3a2e9b9/logs/predecessor-restoration.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RV-C3-ENGINEERING-E2E/20261018T1753Z-3a2e9b9/logs/process-graph-check.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RV-C3-ENGINEERING-E2E/20261018T1753Z-3a2e9b9/logs/process-graph-validate.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RV-C3-ENGINEERING-E2E/20261018T1753Z-3a2e9b9/logs/revision-control-initial-failure.log",
+      "issue": "missing_revision"
+    },
+    {
+      "path": "evidence/checkouts/RV-C3-ENGINEERING-E2E/20261018T1753Z-3a2e9b9/logs/revision-control.log",
+      "issue": "missing_revision"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+Erratum for revision-control-initial-failure.log:
+The recorded output correctly showed missing_revision for nested log files, but its initial explanation was wrong. scripts/revision_control.py requires an artifacts.json sidecar in each evidence file's parent directory. The logs are in a child directory, so logs/artifacts.json is required. The top-level evidence manifest alone cannot provide revisions for nested logs. A later successful rerun is retained in revision-control-final.log; the earlier failed output remains in revision-control.log.
