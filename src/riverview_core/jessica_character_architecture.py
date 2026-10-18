@@ -2,18 +2,18 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/jessica_character_architecture.py
 # Component: JESSICA-CHARACTER-ARCHITECTURE
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Build advisory character packages and optionally adapt them as registry drafts
 # Execution Model: Request-driven library; no route is wired by this module
 # Observability: Proposal package and registry draft retain request, evidence and actor provenance
 # Dependencies: INSTITUTIONAL-PROPOSALS ProposalRegistry authorized_import contract
 # Authority: Only attested Steward caller persists a draft; Jessica cannot create residents, approve, grant authority or change production
-# Changed: 2026-10-18 UTC | W3-DORMANT-JESSICA-AUTHORSHIP-001 | Clarify dormant registry adapter contract
+# Changed: 2026-10-18 UTC | W3-DISPATCH-6252352344 | Clarify module persistence boundary
 # Contracts: docs/architecture/JESSICA_CHARACTER_ARCHITECTURE_RECOVERY.md
 # Tests: tests/test_jessica_character_architecture.py
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
-"""Evidence-gated Jessica design proposals, without persistence or authority."""
+"""Evidence-gated Jessica proposals with optional Steward-attested draft import."""
 
 from __future__ import annotations
 

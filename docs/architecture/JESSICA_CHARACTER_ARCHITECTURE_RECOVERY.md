@@ -1,5 +1,5 @@
 <!-- RIVERVIEW~ CONTROLLED DOCUMENT
-File Revision: 1.0.3
+File Revision: 1.0.4
 Component: JESSICA-CHARACTER-ARCHITECTURE-RECOVERY
 Status: Historical design recovered; isolated advisory package implemented; resident integration pending
 Purpose: Record source evidence, original Jessica design, current gaps, and bounded implementation/test evidence
@@ -7,6 +7,7 @@ Authority: Historical evidence is preserved; resident canon changes require the 
 History: 1.0.1 supersedes the preliminary current-checkout-only inventory after recovery of THEESTATE/Riverview history
 History: 1.0.2 adds an isolated evidence-gated advisory package and its acceptance boundary; no runtime activation
 History: 1.0.3 adds a dormant, Steward-attested adapter to the existing authorized_import proposal contract
+History: 1.0.4 traces current Steward account/principal binding and records the exact Jessica authorship gap
 -->
 
 # Jessica character architecture recovery
@@ -120,6 +121,12 @@ The builder accepts a bounded request, subject resident ID, base revision, propo
 The package builder rejects missing source evidence, claims whose evidence ID is absent or whose wording differs from its cited evidence record, unresolved personal fields presented as proposal facts, and proposals missing the mandatory advisory authority boundary. The builder is not a source retriever and cannot independently verify that a cited external artifact contains the supplied evidence statement; source resolution remains an integration acceptance requirement.
 
 `create_advisory_import_draft` is a dormant persistence adapter to the existing registry's `authorized_import` origin. It requires a Steward principal attested by the existing trusted transport boundary, stores the Steward as `created_by`, records Jessica only as `advisory_producer`, and carries the source/request/revision provenance forward. It does not add an HTTP route, resident grant, Jessica credential, proposal origin kind, migration, review, approval, or promotion path. Calling the helper can create only a DRAFT proposal through `ProposalRegistry.create_draft`; existing exact Steward review and decision mechanisms remain in force. Tests use a recording fake registry, not a database. No central Grace conversation/reasoning code, resident table, learning store, process graph, or migration was changed.
+
+### Trusted identity trace and exact integration gap
+
+The current authenticated account path is `status_dashboard/server.py` `_authorized()` → `AccountAuthService.authenticate()` in `account_auth/__init__.py`, which validates the session (and CSRF for state-changing requests) and returns the account's stored `authority_principal_id`. The proposal route checks authenticated account session, the `steward` role, and the linked principal; it passes that server-derived ID through conversation authorization and persists drafts with that ID as `created_by`. The route only formalizes selected Steward-authored messages from a Grace conversation. `ResidentConversationService` then checks exact `resident.conversation.read` and `.send` grants scoped to its configured office, and source-message ownership is checked against that same principal.
+
+Current evidence points to `steward:camrui` as the only bootstrap-linked account principal (`AccountAuthService.request_steward_bootstrap` and `verify_steward_bootstrap` constrain bootstrap to it). The live conversation service is Grace-office-bound. Repository search finds no Jessica principal/office binding or Jessica resident conversation route in current runtime code. The missing integration is therefore not a permission to add: there is no approved Jessica authenticated identity binding, resident office/implementation binding, or route that can submit Jessica-produced packages as such. The low-level proposal registry accepts `authorized_import`, but it does not authenticate actors; callers must provide the already-attested Steward identity. The dormant adapter uses that existing path transparently and deliberately records Steward as actor, Jessica as advisory producer. It is not a Jessica identity implementation. Any route that accepts Jessica-authored packages still needs an approved identity/authorship contract and authenticated caller path.
 
 ### Acceptance evidence
 
