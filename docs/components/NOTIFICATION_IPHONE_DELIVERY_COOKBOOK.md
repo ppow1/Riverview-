@@ -124,13 +124,24 @@ $RunId = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ')
 $Worktree = Join-Path $env:TEMP "rv-notification-release-$Commit"
 $Package = Join-Path $env:TEMP "riverview-notification-delivery-$Commit-$RunId.tar.gz"
 git -C $Repo worktree add --detach $Worktree $Commit
-python (Join-Path $Worktree 'scripts/build_camrui_package.py') $Package
-python (Join-Path $Worktree 'scripts/verify_camrui_package.py') $Package
+$BuildResult = python (Join-Path $Worktree 'scripts/build_camrui_package.py') $Package
+if ($LASTEXITCODE -ne 0) { throw 'Immutable package build failed' }
+$VerifyResult = python (Join-Path $Worktree 'scripts/verify_camrui_package.py') $Package | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0 -or $VerifyResult.manifest -ne 'PASS' -or
+    $VerifyResult.shell_compatibility -ne 'PASS' -or $VerifyResult.source_commit -ne $Commit) {
+  throw 'Package verification failed or source commit mismatch'
+}
 $Hash = (Get-FileHash -Algorithm SHA256 $Package).Hash.ToLowerInvariant()
 $RemoteName = [IO.Path]::GetFileName($Package)
 ssh.exe -o BatchMode=yes camrui "test ! -e /tmp/$RemoteName"
+if ($LASTEXITCODE -ne 0) { throw 'Remote archive path exists or Camrui preflight failed' }
 scp.exe $Package "camrui:/tmp/$RemoteName"
+if ($LASTEXITCODE -ne 0) { throw 'Package transfer failed' }
 ssh.exe -o BatchMode=yes camrui "echo $Hash  /tmp/$RemoteName | sha256sum -c -"
+if ($LASTEXITCODE -ne 0) { throw 'Camrui archive checksum verification failed' }
+Write-Host "package=$RemoteName sha256=$Hash"
+git -C $Repo worktree remove $Worktree
+if ($LASTEXITCODE -ne 0) { throw 'Temporary source worktree cleanup failed' }
 ```
 
 Require package verification to report `manifest=PASS`,
