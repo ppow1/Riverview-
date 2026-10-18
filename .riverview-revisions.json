@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.59",
+  "manifest_revision": "1.1.64",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.37",
+      "revision": "1.0.41",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "23177a899ba16d9953c474b365239599376bdabd7920124f75cd97839e8469e6",
-      "size_bytes": 219776
+      "sha256": "9c8408aa1c4fae7f26b7b9eac67c15b27e6071f660ffff634f787f391262acb8",
+      "size_bytes": 247565
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 27724
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.59"
+      "revision": "1.1.64"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -171,6 +171,30 @@
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
       "sha256": "a2cfa08f3abbc2d6d4e873ea9e4125266f2afbb56edec2228ce5aacc56c94b01",
       "size_bytes": 15802
+    },
+    "process_graphs/chatgpt-doorbell/browser-runtime.json": {
+      "revision": "1.0.5",
+      "path": "process_graphs/chatgpt-doorbell/browser-runtime.json",
+      "sha256": "8a3126b0cc9c88e5808cc34158aef21b63f629aeba5b6c8a19222c2101dc4873",
+      "size_bytes": 23651
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/runtime-qualification.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/runtime-qualification.json",
+      "sha256": "18885bb27223d32c01ff7f92f20b7f2036fc9fe89379128aa204a6b369420479",
+      "size_bytes": 2014
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/artifacts.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/artifacts.json",
+      "sha256": "7795ac8ef3dc75d565a83ce2ba4f789ec4a0bbd73216706df28def8c9f66fb9d",
+      "size_bytes": 509
+    },
+    "docs/components/CHATGPT_DOORBELL_STATUS.schema.json": {
+      "revision": "1.0.0",
+      "path": "docs/components/CHATGPT_DOORBELL_STATUS.schema.json",
+      "sha256": "17f1d1db5fec74663cb89c425c37781a3fce23bb7751db8cb4683742976a427e",
+      "size_bytes": 6987
     }
   }
 }

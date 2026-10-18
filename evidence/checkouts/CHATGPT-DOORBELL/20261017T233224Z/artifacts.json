@@ -1,0 +1,15 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-C3-DOORBELL-001",
+  "component_id": "CHATGPT-DOORBELL",
+  "source_commit": "0db48a2d06236e800d05df2dd618f5bdcad7fe4a",
+  "artifacts": {
+    "runtime-qualification.json": {
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/runtime-qualification.json",
+      "revision": "1.0.0",
+      "sha256": "18885bb27223d32c01ff7f92f20b7f2036fc9fe89379128aa204a6b369420479",
+      "size_bytes": 2014,
+      "classification": "metadata-only"
+    }
+  }
+}

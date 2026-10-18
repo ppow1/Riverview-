@@ -1,0 +1,33 @@
+# Riverview~ controlled user unit
+# File Revision: 1.0.1
+# Component: CHATGPT-DOORBELL
+# Task: RV-C3-DOORBELL-DOD-001
+# Purpose: Keep Riverview's dedicated ChatGPT browser profile available in admin1's graphical session
+# Execution Model: Persistent systemd user service; restarts the dedicated Chrome process after failure
+# Inputs/Outputs: Private XDG config and graphical-session target / foreground Chrome process and systemd journal
+# Observability: systemctl --user status and journalctl --user -u riverview-doorbell-browser.service
+# Dependencies: Node.js, Chrome/Chromium, authenticated user graphical session, private target config
+# Authority: Runs as admin1; localhost CDP only; does not read ChatGPT responses or manage Comms5
+# Contracts: docs/components/CHATGPT_DOORBELL.md; docs/components/CHATGPT_DOORBELL_COOKBOOK.md
+# Tests: systemd-analyze verify deploy/systemd-user/riverview-doorbell-browser.service
+# History: Git and .riverview-backups/manifest.jsonl
+[Unit]
+Description=Riverview fixed ChatGPT doorbell browser
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionPathExists=%h/.config/riverview/doorbell.json
+
+[Service]
+Type=simple
+Environment=HOME=%h
+Environment=RIVERVIEW_DOORBELL_CONFIG=%h/.config/riverview/doorbell.json
+Environment=RIVERVIEW_BROWSER_PROFILE=%h/.local/share/riverview/browser/profile
+Environment=RIVERVIEW_RUNTIME_ROOT=%h/.local/state/riverview
+ExecStart=/usr/bin/node /opt/riverview-core/current/tools/riverview_browser_runtime.cjs --serve
+Restart=on-failure
+RestartSec=5s
+KillMode=control-group
+UMask=0077
+
+[Install]
+WantedBy=graphical-session.target

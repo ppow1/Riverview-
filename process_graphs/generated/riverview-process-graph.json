@@ -271,6 +271,653 @@
       ]
     },
     {
+      "graph_id": "rv:chatgpt-doorbell:browser-runtime",
+      "graph_revision": "1.0.5",
+      "component_id": "CHATGPT-DOORBELL",
+      "workflow_id": "chatgpt.doorbell.v1",
+      "diagram_order": 18,
+      "source_references": [
+        "deploy/systemd-user/riverview-doorbell-browser.service",
+        "src/riverview_core/doorbell/__init__.py",
+        "src/riverview_core/doorbell/bootstrap.py",
+        "src/riverview_core/doorbell/browser_bridge.py",
+        "src/riverview_core/doorbell/config.py",
+        "tools/riverview_browser_runtime.cjs",
+        "tools/riverview_doorbell_bridge.cjs"
+      ],
+      "documentation_references": [
+        "docs/components/CHATGPT_DOORBELL.md",
+        "docs/components/CHATGPT_DOORBELL_COOKBOOK.md",
+        "docs/components/CHATGPT_DOORBELL_FLOW.md",
+        "docs/development/RV-C3-DOORBELL-DOD-001.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/runtime-qualification.json",
+        "evidence/checkouts/CHATGPT-DOORBELL/20261018T000144Z-14f517c/acceptance.json",
+        "tests/test_chatgpt_doorbell.py",
+        "tests/test_riverview_doorbell_bridge_node.cjs"
+      ],
+      "nodes": [
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:request-eligible",
+          "node_revision": "1.0.0",
+          "type": "x-riverview:external-dependency",
+          "label": "Comms5 persists an eligible durable reasoning request",
+          "source_references": [],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md",
+            "docs/components/CHATGPT_DOORBELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [],
+          "extension": {
+            "owner": "Codex1",
+            "implementation_state": "NOT_INTEGRATED",
+            "status": "blocked",
+            "contract_reference": "https://github.com/ppow1/Riverview-/issues/96"
+          }
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:trigger-received",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "New-Core caller invokes the wake adapter with request and correlation identities",
+          "source_references": [],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md",
+            "docs/components/CHATGPT_DOORBELL_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:request-identity",
+          "node_revision": "1.0.1",
+          "type": "entry",
+          "label": "Caller supplies one durable request and correlation identity; this caller is not connected to a mailbox source",
+          "source_references": [
+            "src/riverview_core/doorbell/browser_bridge.py"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md"
+          ],
+          "verification_evidence": [
+            "tests/test_chatgpt_doorbell.py"
+          ]
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:binding-check",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Require local conversation config to match the caller's current designated Comms5 binding",
+          "source_references": [
+            "src/riverview_core/doorbell/browser_bridge.py",
+            "src/riverview_core/doorbell/config.py"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md"
+          ],
+          "verification_evidence": [
+            "tests/test_chatgpt_doorbell.py"
+          ]
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:browser-readiness",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Check user service, Chrome process, dedicated profile ownership, and localhost CDP listener",
+          "source_references": [
+            "tools/riverview_doorbell_bridge.cjs"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md",
+            "docs/components/CHATGPT_DOORBELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_riverview_doorbell_bridge_node.cjs"
+          ]
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:cdp-established",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Establish bounded CDP connection to 127.0.0.1 only",
+          "source_references": [
+            "tools/riverview_doorbell_bridge.cjs"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md",
+            "docs/components/CHATGPT_DOORBELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_riverview_doorbell_bridge_node.cjs"
+          ]
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:target-resolution",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Resolve exactly one configured ChatGPT conversation over localhost CDP",
+          "source_references": [
+            "tools/riverview_doorbell_bridge.cjs"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md"
+          ],
+          "verification_evidence": [
+            "tests/test_riverview_doorbell_bridge_node.cjs",
+            "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/runtime-qualification.json"
+          ]
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:authenticated-composer",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Is the selected target authenticated and its composer available?",
+          "source_references": [
+            "tools/riverview_doorbell_bridge.cjs"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md"
+          ],
+          "verification_evidence": [
+            "tests/test_riverview_doorbell_bridge_node.cjs"
+          ]
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:steward-login",
+          "node_revision": "1.0.0",
+          "type": "escalation",
+          "label": "Steward completes supported login or MFA in the dedicated Riverview profile",
+          "source_references": [
+            "tools/riverview_browser_runtime.cjs"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:fixed-wake",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Submit only the fixed wake text with the allowlisted send control",
+          "source_references": [
+            "tools/riverview_doorbell_bridge.cjs"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md"
+          ],
+          "verification_evidence": [
+            "tests/test_riverview_doorbell_bridge_node.cjs"
+          ]
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:submit-verification",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Require click invocation and composer-cleared transition before recording success",
+          "source_references": [
+            "tools/riverview_doorbell_bridge.cjs"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md"
+          ],
+          "verification_evidence": [
+            "tests/test_riverview_doorbell_bridge_node.cjs"
+          ]
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:metadata-result",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "Return request/correlation identity and metadata-only evidence to the caller",
+          "source_references": [
+            "src/riverview_core/doorbell/browser_bridge.py",
+            "tools/riverview_doorbell_bridge.cjs"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md"
+          ],
+          "verification_evidence": [
+            "tests/test_chatgpt_doorbell.py",
+            "tests/test_riverview_doorbell_bridge_node.cjs"
+          ]
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:chatgpt-mailbox-access",
+          "node_revision": "1.0.0",
+          "type": "x-riverview:external-dependency",
+          "label": "Designated ChatGPT conversation accesses Comms5 mailbox operations",
+          "source_references": [],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md",
+            "docs/components/CHATGPT_DOORBELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [],
+          "extension": {
+            "owner": "Codex1",
+            "implementation_state": "NOT_INTEGRATED",
+            "status": "blocked",
+            "contract_reference": "https://github.com/ppow1/Riverview-/issues/96"
+          }
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:request-claimed",
+          "node_revision": "1.0.0",
+          "type": "x-riverview:external-dependency",
+          "label": "Comms5 acknowledges and claims the same eligible request",
+          "source_references": [],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md",
+            "docs/components/CHATGPT_DOORBELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [],
+          "extension": {
+            "owner": "Codex1",
+            "implementation_state": "NOT_INTEGRATED",
+            "status": "blocked",
+            "contract_reference": "https://github.com/ppow1/Riverview-/issues/96"
+          }
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:correlated-response",
+          "node_revision": "1.0.0",
+          "type": "x-riverview:external-dependency",
+          "label": "Comms5 accepts a response correlated to the active claim",
+          "source_references": [],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md",
+            "docs/components/CHATGPT_DOORBELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [],
+          "extension": {
+            "owner": "Codex1",
+            "implementation_state": "NOT_INTEGRATED",
+            "status": "blocked",
+            "contract_reference": "https://github.com/ppow1/Riverview-/issues/96"
+          }
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:grace-consumes",
+          "node_revision": "1.0.0",
+          "type": "x-riverview:external-dependency",
+          "label": "Grace consumes the completed response through its established interface",
+          "source_references": [
+            "process_graphs/grace/operational-integration.json"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md",
+            "docs/components/CHATGPT_DOORBELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [],
+          "extension": {
+            "owner": "Codex2",
+            "implementation_state": "NOT_INTEGRATED",
+            "status": "blocked",
+            "contract_reference": "docs/components/CHATGPT_DOORBELL.md"
+          }
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:workflow-complete",
+          "node_revision": "1.0.0",
+          "type": "x-riverview:external-dependency",
+          "label": "Comms5 records completion and Grace continuation is evidenced",
+          "source_references": [],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md",
+            "docs/components/CHATGPT_DOORBELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [],
+          "extension": {
+            "owner": "Codex1/Codex2",
+            "implementation_state": "NOT_INTEGRATED",
+            "status": "blocked",
+            "contract_reference": "docs/components/CHATGPT_DOORBELL.md"
+          }
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:browser-unavailable",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Browser service or Chrome unavailable; block without triggering",
+          "source_references": [
+            "tools/riverview_doorbell_bridge.cjs"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md",
+            "docs/components/CHATGPT_DOORBELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_riverview_doorbell_bridge_node.cjs"
+          ]
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:cdp-failure",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "CDP connection unavailable or timed out; block without triggering",
+          "source_references": [
+            "tools/riverview_doorbell_bridge.cjs"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md",
+            "docs/components/CHATGPT_DOORBELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_riverview_doorbell_bridge_node.cjs"
+          ]
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:submission-timeout",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Fixed message submission was not confirmed within the bounded timeout",
+          "source_references": [
+            "tools/riverview_doorbell_bridge.cjs"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md",
+            "docs/components/CHATGPT_DOORBELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_riverview_doorbell_bridge_node.cjs"
+          ]
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:comms5-missing",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Required Comms5 mailbox lifecycle operations are absent; stop downstream acceptance",
+          "source_references": [],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md",
+            "docs/components/CHATGPT_DOORBELL_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:retry-or-block",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Is retry safe under the same request identity and owning mailbox expiry policy?",
+          "source_references": [
+            "tools/riverview_doorbell_bridge.cjs"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md",
+            "docs/components/CHATGPT_DOORBELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_riverview_doorbell_bridge_node.cjs"
+          ]
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:bounded-retry",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Retry only an unverified attempt with the same request and correlation identities",
+          "source_references": [
+            "tools/riverview_doorbell_bridge.cjs"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md",
+            "docs/components/CHATGPT_DOORBELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_riverview_doorbell_bridge_node.cjs"
+          ]
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:restart-recovery",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "After service restart, re-read readiness and durable caller state before resuming",
+          "source_references": [
+            "tools/riverview_doorbell_bridge.cjs"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md",
+            "docs/components/CHATGPT_DOORBELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_riverview_doorbell_bridge_node.cjs"
+          ]
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:blocked-wait",
+          "node_revision": "1.0.0",
+          "type": "escalation",
+          "label": "Record blocker and await the owning Steward or component owner decision",
+          "source_references": [],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md",
+            "docs/components/CHATGPT_DOORBELL_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:chatgpt-doorbell:browser-runtime:wake-failure",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Fail closed on binding mismatch, missing or duplicate target, or unverified submission",
+          "source_references": [
+            "src/riverview_core/doorbell/browser_bridge.py"
+          ],
+          "documentation_references": [
+            "docs/components/CHATGPT_DOORBELL.md"
+          ],
+          "verification_evidence": [
+            "tests/test_chatgpt_doorbell.py"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:request-eligible",
+          "to": "rv:chatgpt-doorbell:browser-runtime:trigger-received",
+          "type": "prerequisite",
+          "label": "Comms5 durable request must exist; caller integration is not commissioned"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:trigger-received",
+          "to": "rv:chatgpt-doorbell:browser-runtime:request-identity",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:request-identity",
+          "to": "rv:chatgpt-doorbell:browser-runtime:binding-check",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:binding-check",
+          "to": "rv:chatgpt-doorbell:browser-runtime:browser-readiness",
+          "type": "runtime_transition",
+          "label": "binding matches"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:binding-check",
+          "to": "rv:chatgpt-doorbell:browser-runtime:wake-failure",
+          "type": "diagnostic_branch",
+          "label": "binding differs"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:browser-readiness",
+          "to": "rv:chatgpt-doorbell:browser-runtime:cdp-established",
+          "type": "runtime_transition",
+          "label": "service and profile ready"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:browser-readiness",
+          "to": "rv:chatgpt-doorbell:browser-runtime:browser-unavailable",
+          "type": "diagnostic_branch",
+          "label": "service, Chrome, or profile unavailable"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:browser-unavailable",
+          "to": "rv:chatgpt-doorbell:browser-runtime:blocked-wait",
+          "type": "escalation",
+          "label": "do not ring"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:browser-unavailable",
+          "to": "rv:chatgpt-doorbell:browser-runtime:restart-recovery",
+          "type": "recovery_route",
+          "label": "after approved service recovery"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:cdp-established",
+          "to": "rv:chatgpt-doorbell:browser-runtime:target-resolution",
+          "type": "runtime_transition",
+          "label": "localhost connection established"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:cdp-established",
+          "to": "rv:chatgpt-doorbell:browser-runtime:cdp-failure",
+          "type": "diagnostic_branch",
+          "label": "connection refused or timeout"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:cdp-failure",
+          "to": "rv:chatgpt-doorbell:browser-runtime:blocked-wait",
+          "type": "escalation"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:cdp-failure",
+          "to": "rv:chatgpt-doorbell:browser-runtime:restart-recovery",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:target-resolution",
+          "to": "rv:chatgpt-doorbell:browser-runtime:authenticated-composer",
+          "type": "runtime_transition",
+          "label": "exactly one target"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:target-resolution",
+          "to": "rv:chatgpt-doorbell:browser-runtime:wake-failure",
+          "type": "diagnostic_branch",
+          "label": "target missing or duplicated"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:authenticated-composer",
+          "to": "rv:chatgpt-doorbell:browser-runtime:fixed-wake",
+          "type": "runtime_transition",
+          "label": "local composer-ready heuristic and exact target"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:authenticated-composer",
+          "to": "rv:chatgpt-doorbell:browser-runtime:steward-login",
+          "type": "escalation",
+          "label": "login/MFA required"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:steward-login",
+          "to": "rv:chatgpt-doorbell:browser-runtime:authenticated-composer",
+          "type": "recovery_route",
+          "label": "Steward completes supported login; re-run preflight"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:fixed-wake",
+          "to": "rv:chatgpt-doorbell:browser-runtime:submit-verification",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:submit-verification",
+          "to": "rv:chatgpt-doorbell:browser-runtime:metadata-result",
+          "type": "runtime_transition",
+          "label": "submission transition confirmed"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:submit-verification",
+          "to": "rv:chatgpt-doorbell:browser-runtime:submission-timeout",
+          "type": "diagnostic_branch",
+          "label": "timeout or ambiguous submission"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:submission-timeout",
+          "to": "rv:chatgpt-doorbell:browser-runtime:retry-or-block",
+          "type": "diagnostic_branch"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:retry-or-block",
+          "to": "rv:chatgpt-doorbell:browser-runtime:bounded-retry",
+          "type": "recovery_route",
+          "label": "safe under the owning mailbox contract"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:bounded-retry",
+          "to": "rv:chatgpt-doorbell:browser-runtime:browser-readiness",
+          "type": "recovery_route",
+          "label": "same request and correlation identities"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:retry-or-block",
+          "to": "rv:chatgpt-doorbell:browser-runtime:blocked-wait",
+          "type": "escalation",
+          "label": "ambiguous outcome, expired request, or retry limit reached"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:metadata-result",
+          "to": "rv:chatgpt-doorbell:browser-runtime:chatgpt-mailbox-access",
+          "type": "prerequisite",
+          "label": "future Comms5 integration; browser bridge does not call mailbox"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:chatgpt-mailbox-access",
+          "to": "rv:chatgpt-doorbell:browser-runtime:request-claimed",
+          "type": "prerequisite",
+          "label": "Codex1-owned Comms5 operation required"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:chatgpt-mailbox-access",
+          "to": "rv:chatgpt-doorbell:browser-runtime:comms5-missing",
+          "type": "diagnostic_branch",
+          "label": "required operation absent"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:comms5-missing",
+          "to": "rv:chatgpt-doorbell:browser-runtime:blocked-wait",
+          "type": "escalation",
+          "label": "issue #96; Codex1"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:request-claimed",
+          "to": "rv:chatgpt-doorbell:browser-runtime:correlated-response",
+          "type": "prerequisite",
+          "label": "same request/correlation lineage"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:correlated-response",
+          "to": "rv:chatgpt-doorbell:browser-runtime:grace-consumes",
+          "type": "prerequisite",
+          "label": "existing Grace interface; Codex2-owned"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:grace-consumes",
+          "to": "rv:chatgpt-doorbell:browser-runtime:workflow-complete",
+          "type": "prerequisite",
+          "label": "completion requires independent evidence"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:restart-recovery",
+          "to": "rv:chatgpt-doorbell:browser-runtime:browser-readiness",
+          "type": "recovery_route",
+          "label": "read readiness and durable request state before resume"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:blocked-wait",
+          "to": "rv:chatgpt-doorbell:browser-runtime:restart-recovery",
+          "type": "recovery_route",
+          "label": "owner clears blocker and authorizes resume"
+        },
+        {
+          "from": "rv:chatgpt-doorbell:browser-runtime:wake-failure",
+          "to": "rv:chatgpt-doorbell:browser-runtime:retry-or-block",
+          "type": "diagnostic_branch",
+          "label": "bounded retry policy"
+        }
+      ]
+    },
+    {
       "graph_id": "rv:cme:progress-and-recovery",
       "graph_revision": "1.0.4",
       "component_id": "CME",
@@ -5267,6 +5914,32 @@
     "rv:assignment-scheduler:independent-claims:stale",
     "rv:assignment-scheduler:independent-claims:start",
     "rv:assignment-scheduler:independent-claims:start-check",
+    "rv:chatgpt-doorbell:browser-runtime:authenticated-composer",
+    "rv:chatgpt-doorbell:browser-runtime:binding-check",
+    "rv:chatgpt-doorbell:browser-runtime:blocked-wait",
+    "rv:chatgpt-doorbell:browser-runtime:bounded-retry",
+    "rv:chatgpt-doorbell:browser-runtime:browser-readiness",
+    "rv:chatgpt-doorbell:browser-runtime:browser-unavailable",
+    "rv:chatgpt-doorbell:browser-runtime:cdp-established",
+    "rv:chatgpt-doorbell:browser-runtime:cdp-failure",
+    "rv:chatgpt-doorbell:browser-runtime:chatgpt-mailbox-access",
+    "rv:chatgpt-doorbell:browser-runtime:comms5-missing",
+    "rv:chatgpt-doorbell:browser-runtime:correlated-response",
+    "rv:chatgpt-doorbell:browser-runtime:fixed-wake",
+    "rv:chatgpt-doorbell:browser-runtime:grace-consumes",
+    "rv:chatgpt-doorbell:browser-runtime:metadata-result",
+    "rv:chatgpt-doorbell:browser-runtime:request-claimed",
+    "rv:chatgpt-doorbell:browser-runtime:request-eligible",
+    "rv:chatgpt-doorbell:browser-runtime:request-identity",
+    "rv:chatgpt-doorbell:browser-runtime:restart-recovery",
+    "rv:chatgpt-doorbell:browser-runtime:retry-or-block",
+    "rv:chatgpt-doorbell:browser-runtime:steward-login",
+    "rv:chatgpt-doorbell:browser-runtime:submission-timeout",
+    "rv:chatgpt-doorbell:browser-runtime:submit-verification",
+    "rv:chatgpt-doorbell:browser-runtime:target-resolution",
+    "rv:chatgpt-doorbell:browser-runtime:trigger-received",
+    "rv:chatgpt-doorbell:browser-runtime:wake-failure",
+    "rv:chatgpt-doorbell:browser-runtime:workflow-complete",
     "rv:cme:progress-and-recovery:attention",
     "rv:cme:progress-and-recovery:credential-failure",
     "rv:cme:progress-and-recovery:credential-validation",
