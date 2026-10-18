@@ -1,9 +1,9 @@
 # Riverview Steward Punch List
 
-**Controlled file revision:** 1.0.0 (metadata established with this update; no prior file revision asserted)  
+**File Revision:** 1.0.1
 **Updated:** 2026-10-17 UTC  
-**Task:** PL-NEW-042  
-**Predecessor Git blob:** `a832cfff5395fe56e8c6e46ca14b54a668a64fac` (retrieve from Git history; SHA-256 backup verification remains outstanding)
+**Task:** PL-NEW-042; revision repair RV-ENG-REV-BASELINE-104
+**Changed:** 2026-10-18 UTC | RV-ENG-REV-BASELINE-104 | Normalize revision header; preserve verified historical predecessors
 
 
 Captured: 2026-10-13. Proposed IDs only; not yet registered in GitHub or Riverview's database. This backlog must not interrupt the active Grace-to-Engineering work-production campaign.
