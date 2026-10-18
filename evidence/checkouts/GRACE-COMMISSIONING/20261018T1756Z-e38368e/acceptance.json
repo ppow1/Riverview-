@@ -1,0 +1,49 @@
+{
+  "record_type": "isolated_preflight_evidence",
+  "task_id": "RV-C4-PR115-119-READINESS-001-REMEDIATION",
+  "candidate_commit": "e38368e4acba0e24820f3ba64e5ec0d69f683a94",
+  "created_at_local": "2026-10-18T13:57:56.536370-04:00",
+  "environment": {
+    "postgresql_major": 16,
+    "disposable": true,
+    "network": "loopback only",
+    "synthetic_credentials": true,
+    "production_access": false
+  },
+  "worker_suite": {
+    "command": "RIVERVIEW_TEST_PG_DSN=<private disposable PostgreSQL 16 DSN> pytest -q tests/test_grace_execution.py tests/test_codex_source_change.py tests/test_assignment_intake.py tests/test_assignment_scheduler.py",
+    "result": "PASS",
+    "tests": 57,
+    "failed": 0,
+    "skipped": 0,
+    "duration_seconds": 274.426,
+    "log": "worker-tests.log"
+  },
+  "focused_lifecycle": {
+    "result": "PASS",
+    "tests": 4,
+    "failed": 0,
+    "skipped": 0,
+    "log": "service-lifecycle.log"
+  },
+  "migration_acl": {
+    "result": "PASS in isolated rehearsal; migration directories applied in order and idempotently; restricted riverview_core operations allowed/denied as expected",
+    "log": "package-migrations-acl.log"
+  },
+  "rollback_pointer": {
+    "result": "PASS; synthetic symlink pointer only",
+    "log": "rollback-pointer.log"
+  },
+  "commissioning_state": {
+    "milestone": "1/5",
+    "status": "BLOCKED",
+    "capability_state": "NOT_COMMISSIONED"
+  },
+  "limits": [
+    "No production migration, grant, credential, configuration, service, deployment, or work order changed.",
+    "External ChatGPT provider identity and credential mapping remain unverified.",
+    "Source-worker live principal, credential, and exact grants remain unverified.",
+    "Exact harmless objective remains pending Steward approval.",
+    "Production rollback procedure remains unverified."
+  ]
+}

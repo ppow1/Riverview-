@@ -1,0 +1,8 @@
+test_runtime_can_claim_record_and_read_retry_state_but_cannot_delete (tests.test_resident_deferred_retry_acl.DeferredRetryRuntimeAclTests.test_runtime_can_claim_record_and_read_retry_state_but_cannot_delete) ... ok
+test_authorized_objective_executes_and_is_independently_verified (tests.test_grace_execution.GraceExecutionTests.test_authorized_objective_executes_and_is_independently_verified) ... ok
+test_independent_verifier_accepts_valid_result_and_gates_completion (tests.test_worker_adapter.WorkerAdapterTests.test_independent_verifier_accepts_valid_result_and_gates_completion) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 12.416s
+
+OK

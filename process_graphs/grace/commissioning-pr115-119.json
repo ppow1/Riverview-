@@ -1,0 +1,157 @@
+{
+  "graph_id": "rv:grace:commissioning-pr115-119",
+  "graph_revision": "1.0.0",
+  "component_id": "GRACE-COMMISSIONING",
+  "workflow_id": "grace-commissioning-readiness.v1",
+  "diagram_order": 1,
+  "source_references": [
+    "scripts/verify_camrui_package.py",
+    "scripts/process_graph.py",
+    "src/riverview_core/resident_execution/migrations/0012_resource_selection_policy.sql",
+    "src/riverview_core/resident_execution/migrations/0013_bounded_deferred_retries.sql",
+    "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+    "deploy/comms5/caddy-comms5-oauth-block.caddy",
+    "deploy/systemd/riverview-comms5-oauth.service",
+    "deploy/systemd/riverview-external-reasoning-mcp.service"
+  ],
+  "documentation_references": [
+    "docs/operations/PR115_119_COMMISSIONING_OPERATOR_DECISION.md",
+    "docs/components/GRACE_COMMISSIONING_COOKBOOK.md",
+    "docs/components/GRACE_COMMISSIONING_FLOW.md"
+  ],
+  "verification_evidence": [
+    "evidence/checkouts/GRACE-COMMISSIONING/20261018T1756Z-e38368e/acceptance.json",
+    "evidence/checkouts/GRACE-COMMISSIONING/20261018T1756Z-e38368e/artifacts.json"
+  ],
+  "nodes": [
+    {
+      "id": "rv:grace:commissioning-pr115-119:provenance",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Confirm candidate ancestry, PR CI, package identity and source provenance",
+      "source_references": [
+        "scripts/verify_camrui_package.py",
+        "scripts/process_graph.py",
+        "src/riverview_core/resident_execution/migrations/0012_resource_selection_policy.sql",
+        "src/riverview_core/resident_execution/migrations/0013_bounded_deferred_retries.sql"
+      ],
+      "documentation_references": [
+        "docs/operations/PR115_119_COMMISSIONING_OPERATOR_DECISION.md",
+        "docs/components/GRACE_COMMISSIONING_COOKBOOK.md",
+        "docs/components/GRACE_COMMISSIONING_FLOW.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/GRACE-COMMISSIONING/20261018T1756Z-e38368e/acceptance.json",
+        "evidence/checkouts/GRACE-COMMISSIONING/20261018T1756Z-e38368e/artifacts.json"
+      ]
+    },
+    {
+      "id": "rv:grace:commissioning-pr115-119:isolated-checks",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Run graph/revision/package and disposable PostgreSQL ACL, migration, and worker checks",
+      "source_references": [
+        "scripts/verify_camrui_package.py",
+        "scripts/process_graph.py",
+        "src/riverview_core/resident_execution/migrations/0012_resource_selection_policy.sql",
+        "src/riverview_core/resident_execution/migrations/0013_bounded_deferred_retries.sql"
+      ],
+      "documentation_references": [
+        "docs/operations/PR115_119_COMMISSIONING_OPERATOR_DECISION.md",
+        "docs/components/GRACE_COMMISSIONING_COOKBOOK.md",
+        "docs/components/GRACE_COMMISSIONING_FLOW.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/GRACE-COMMISSIONING/20261018T1756Z-e38368e/acceptance.json",
+        "evidence/checkouts/GRACE-COMMISSIONING/20261018T1756Z-e38368e/artifacts.json"
+      ]
+    },
+    {
+      "id": "rv:grace:commissioning-pr115-119:identity-gates",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Read-only compare Comms5 OAuth route with the distinct external-reasoning provider identity and source-worker grants",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "deploy/comms5/caddy-comms5-oauth-block.caddy",
+        "deploy/systemd/riverview-comms5-oauth.service",
+        "deploy/systemd/riverview-external-reasoning-mcp.service"
+      ],
+      "documentation_references": [
+        "docs/operations/PR115_119_COMMISSIONING_OPERATOR_DECISION.md",
+        "docs/components/GRACE_COMMISSIONING_COOKBOOK.md",
+        "docs/components/GRACE_COMMISSIONING_FLOW.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/GRACE-COMMISSIONING/20261018T1756Z-e38368e/acceptance.json",
+        "evidence/checkouts/GRACE-COMMISSIONING/20261018T1756Z-e38368e/artifacts.json"
+      ]
+    },
+    {
+      "id": "rv:grace:commissioning-pr115-119:blocked",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Keep capability NOT_COMMISSIONED and stop if provider, worker, objective, or deployment evidence is missing",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "deploy/comms5/caddy-comms5-oauth-block.caddy",
+        "deploy/systemd/riverview-comms5-oauth.service",
+        "deploy/systemd/riverview-external-reasoning-mcp.service"
+      ],
+      "documentation_references": [
+        "docs/operations/PR115_119_COMMISSIONING_OPERATOR_DECISION.md",
+        "docs/components/GRACE_COMMISSIONING_COOKBOOK.md",
+        "docs/components/GRACE_COMMISSIONING_FLOW.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/GRACE-COMMISSIONING/20261018T1756Z-e38368e/acceptance.json",
+        "evidence/checkouts/GRACE-COMMISSIONING/20261018T1756Z-e38368e/artifacts.json"
+      ]
+    },
+    {
+      "id": "rv:grace:commissioning-pr115-119:steward-handoff",
+      "node_revision": "1.0.0",
+      "type": "exit",
+      "label": "Deliver evidence and exact unresolved decisions for Steward and Operations review",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "deploy/comms5/caddy-comms5-oauth-block.caddy",
+        "deploy/systemd/riverview-comms5-oauth.service",
+        "deploy/systemd/riverview-external-reasoning-mcp.service"
+      ],
+      "documentation_references": [
+        "docs/operations/PR115_119_COMMISSIONING_OPERATOR_DECISION.md",
+        "docs/components/GRACE_COMMISSIONING_COOKBOOK.md",
+        "docs/components/GRACE_COMMISSIONING_FLOW.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/GRACE-COMMISSIONING/20261018T1756Z-e38368e/acceptance.json",
+        "evidence/checkouts/GRACE-COMMISSIONING/20261018T1756Z-e38368e/artifacts.json"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:grace:commissioning-pr115-119:provenance",
+      "to": "rv:grace:commissioning-pr115-119:isolated-checks",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:commissioning-pr115-119:isolated-checks",
+      "to": "rv:grace:commissioning-pr115-119:identity-gates",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:grace:commissioning-pr115-119:identity-gates",
+      "to": "rv:grace:commissioning-pr115-119:blocked",
+      "type": "diagnostic_branch",
+      "label": "mandatory gate absent or unverified"
+    },
+    {
+      "from": "rv:grace:commissioning-pr115-119:identity-gates",
+      "to": "rv:grace:commissioning-pr115-119:steward-handoff",
+      "type": "runtime_transition",
+      "label": "evidence packaged for review"
+    }
+  ]
+}

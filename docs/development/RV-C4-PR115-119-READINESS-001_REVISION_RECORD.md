@@ -1,6 +1,6 @@
 # PR #115/#119 commissioning preflight revision record
 
-**Document Revision:** 1.0.0
+**Document Revision:** 1.0.1
 **Task:** RV-C4-PR115-119-READINESS-001
 **Component:** GRACE-COMMISSIONING
 **Candidate base:** PR #119, `97128626df967bc992696dca38eaa7116f3616e9`
@@ -52,3 +52,30 @@ grant changes, service start/restart, external provider activation, or live
 Engineering execution. The exact external provider identity/credential/route
 and escalation grant, objective approval, and separate production change
 authorization remain unresolved.
+
+## Remediation record — 2026-10-18
+
+Task: RV-C4-PR115-119-READINESS-001-REMEDIATION.
+
+The operator decision document and this record were incremented prospectively
+from their declared revision 1.0.0 to 1.0.1. Exact current predecessor bytes
+were read back and SHA-256 verified before editing. Backup paths, source
+commit, previous hash, revisions and restoration instructions are recorded in
+.riverview-backups/manifest.jsonl. Earlier unversioned historical edits remain
+disclosed in the operator record; this revision does not invent missing
+historical backup timing.
+
+A structured commissioning blocker register, Comms5-versus-external-reasoning
+OAuth trace, nonproduction-only rollback cookbook, canonical readiness graph,
+and durable isolated checkout evidence were added. The graph is limited
+to preflight, isolated rehearsal, explicit blocked gates, and handoff for
+separate Steward review. It has no production activation step. The graph, its flow projection, and the operator cookbook carry controlled revisions and preserved immediate predecessors. The isolated evidence directory records 57 worker tests passing (0 failed, 0 skipped), four focused lifecycle checks, migration/ACL evidence, and synthetic pointer restoration. Production rollback remains unverified.
+
+The corrected hash from issue #120 comment 6253109270 is
+fcf1111d7fa6e6bb26a2de8817562505bc7e66657ddd994733663e0c5b699e50 for
+.codex-monitor/engineering-worker-test-evidence-20261018.md.
+
+The feature checkout carries branch-local AI_HINTS 1.0.5 / DoD 1.7 copies,
+while main has AI_HINTS 1.0.4 / active DoD 1.6. Neither copy was overwritten;
+the documented procedure follows the main authority revision specified by
+the assignment.

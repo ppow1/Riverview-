@@ -1,0 +1,6 @@
+test_dashboard_submission_persistent_restart_worker_verification_and_projection (tests.test_grace_execution.GraceExecutionTests.test_dashboard_submission_persistent_restart_worker_verification_and_projection) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 5.637s
+
+OK

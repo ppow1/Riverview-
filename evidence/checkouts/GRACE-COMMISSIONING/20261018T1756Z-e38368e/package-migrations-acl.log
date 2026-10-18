@@ -1,0 +1,12 @@
+core_applied=2
+assignment_scheduler_applied=1
+worker_adapter_applied=6
+institutional_authority_applied=10
+resident_execution_applied=13
+migration_order=PASS; 0012 precedes 0013
+migration_reapply=PASS; no migrations reapplied
+identity_update=DENIED_AS_EXPECTED
+delete=DENIED_AS_EXPECTED
+truncate=DENIED_AS_EXPECTED
+restricted_runtime_role=PASS; insert/upsert/update/select allowed; identity update/delete/truncate denied
+disposable_schema_cleanup=PASS
