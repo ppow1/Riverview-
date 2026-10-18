@@ -1,8 +1,9 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.175
+**Document Revision:** 1.0.176
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
+**Changed:** 2026-10-18 UTC | RV-RESIDENT-LEARNING-GOVERNANCE-001 | Define uniform resident learning retention, approval, provenance, permissions, correction, and rollback gates
 **Changed:** 2026-10-18 UTC | RV-RESIDENT-LEARNING-001 | Record existing capability inventory, lifecycle gaps, focused test results, and implementation boundary
 **Changed:** 2026-10-17 UTC | M33-REGISTRATION-RETIREMENT-AUTHORIZED | Record exact temporary database scope, guarded retirement, permission cleanup, and production acceptance
 **Changed:** 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Add OAuth resource-server validation and verify Secure MCP Tunnel path
@@ -2594,3 +2595,18 @@ because no disposable PostgreSQL DSN was configured. Recorded the assessment in
 resident-wide implementation can be commissioned until scope, permission,
 validation, retrieval, and correction contracts are approved. No production state
 or central reasoning adapter was changed.
+
+
+## 2026-10-18 UTC — RV-RESIDENT-LEARNING-GOVERNANCE-001
+
+Reviewed open PR #117, issue #120, resident permission profiles, institutional
+authority, Grace's Director of Operations role context, and resident learning
+references. The repository contains no Evelyn identity/office/implementation.
+Added a proposed non-operational policy at
+`docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md` and a record envelope schema
+at `docs/schemas/resident-learning-record.schema.json`. The contract permits no
+new runtime action, grant, profile, or activation. Nine isolated schema/policy
+tests pass; one explicitly records that resident identity equality must be
+checked by a future AuthorityRegistry-backed adapter. Runtime isolation, shared
+access, approval, and rollback behavior remain uncommissioned and require
+disposable PostgreSQL integration tests before activation.

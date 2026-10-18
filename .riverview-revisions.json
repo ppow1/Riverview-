@@ -26,9 +26,9 @@
     },
     "docs/development/JOURNAL.md": {
       "path": "docs/development/JOURNAL.md",
-      "revision": "1.0.175",
-      "sha256": "629cfbb62afdb497038bc069a13939fba05a924b8dcf5622afcfabf0517c56aa",
-      "size_bytes": 227878
+      "revision": "1.0.176",
+      "sha256": "ca9463a4bc2e92a83958d2c30bf563e09e6817836a550a9c92d558374faec9d3",
+      "size_bytes": 228923
     },
     "docs/development/RV-COMMS5-ESCALATION-INITIATION-001_REVISION_RECORD.md": {
       "path": "docs/development/RV-COMMS5-ESCALATION-INITIATION-001_REVISION_RECORD.md",
@@ -275,8 +275,26 @@
       "revision": "1.0.0",
       "sha256": "499d54c778b705fe1ae32d84b332c2f96c9155d6553588c143906de654d86d92",
       "size_bytes": 6174
+    },
+    "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md": {
+      "path": "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md",
+      "revision": "1.0.1",
+      "sha256": "79b7a2cf8fe1b348d908e133220ea26a1d36ac10202c48710fbc3d44211881e4",
+      "size_bytes": 11209
+    },
+    "docs/schemas/resident-learning-record.schema.json": {
+      "path": "docs/schemas/resident-learning-record.schema.json",
+      "revision": "1.0.2",
+      "sha256": "0ce0d5aa47f4ccbdb489295d99ae8d564467d31ef6dd5a6810a030e630da81dc",
+      "size_bytes": 10142
+    },
+    "tests/test_resident_learning_contract.py": {
+      "path": "tests/test_resident_learning_contract.py",
+      "revision": "1.0.2",
+      "sha256": "da37623323ad73724b7c9a81f029a05ca5689034d592a1d7e5b171d692808717",
+      "size_bytes": 7310
     }
   },
-  "manifest_revision": "1.1.236",
+  "manifest_revision": "1.1.239",
   "updated_at": null
 }
