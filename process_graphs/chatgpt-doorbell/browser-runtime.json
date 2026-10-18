@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:chatgpt-doorbell:browser-runtime",
-  "graph_revision": "1.0.3",
+  "graph_revision": "1.0.5",
   "component_id": "CHATGPT-DOORBELL",
   "workflow_id": "chatgpt.doorbell.v1",
   "diagram_order": 18,
@@ -20,9 +20,10 @@
     "docs/development/RV-C3-DOORBELL-DOD-001.md"
   ],
   "verification_evidence": [
+    "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/runtime-qualification.json",
+    "evidence/checkouts/CHATGPT-DOORBELL/20261018T000144Z-14f517c/acceptance.json",
     "tests/test_chatgpt_doorbell.py",
-    "tests/test_riverview_doorbell_bridge_node.cjs",
-    "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/runtime-qualification.json"
+    "tests/test_riverview_doorbell_bridge_node.cjs"
   ],
   "nodes": [
     {

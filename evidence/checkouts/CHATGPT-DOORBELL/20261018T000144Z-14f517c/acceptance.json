@@ -1,0 +1,86 @@
+{
+  "evidence_revision": "1.0.0",
+  "task_id": "RV-C3-DOORBELL-DOD-001",
+  "component_id": "CHATGPT-DOORBELL",
+  "verified_at_utc": "2026-10-18T00:03:00.310Z",
+  "test_window_utc": [
+    "2026-10-18T00:01:28Z",
+    "2026-10-18T00:01:45Z"
+  ],
+  "host": "admin1-Default-string",
+  "os": "Ubuntu 24.04.3 LTS",
+  "kernel": "Linux 7.0.0-38-generic x86_64",
+  "source_repository": "ppow1/Riverview- (New-Core)",
+  "branch": "codex/doorbell-ubuntu-clean-20261017",
+  "source_commit": "14f517c6bab7375ed914f9f71f13acec8577b8f2",
+  "pr": {
+    "number": 99,
+    "state": "OPEN",
+    "head_commit_before_evidence": "482bbcee16afcea85bd8bd33d0dd75944c519446"
+  },
+  "runtime": {
+    "node": "v18.19.1",
+    "chrome": "Google Chrome 155.0.8059.84",
+    "cdp_address": "127.0.0.1",
+    "cdp_port": 9225
+  },
+  "commands": [
+    {
+      "command": "PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_chatgpt_doorbell.py' -q",
+      "exit_code": 0,
+      "result": "9 passed"
+    },
+    {
+      "command": "node --test tests/test_riverview_doorbell_bridge_node.cjs",
+      "exit_code": 0,
+      "result": "5 passed; 0 failed"
+    },
+    {
+      "command": "python3 -m unittest tests.test_process_graph tests.test_revision_control -q",
+      "exit_code": 0,
+      "result": "27 passed"
+    },
+    {
+      "command": "python3 scripts/process_graph.py check",
+      "exit_code": 0,
+      "result": "PASS; 13 graphs; 254 nodes"
+    },
+    {
+      "command": "systemd-analyze verify deploy/systemd-user/riverview-doorbell-browser.service",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "python3 -m compileall -q src/riverview_core/doorbell",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "PASS before source commit"
+    },
+    {
+      "command": "python3 scripts/revision_control.py check --baseline evidence/checkouts/ENG-REVISION-CONTROL/20261010T1530Z-27a8c55/baseline-inventory.json",
+      "exit_code": 1,
+      "result": "FAIL only for pre-existing origin/main: AI_HINTS.md predecessor_backup_missing_or_invalid; docs/steward/Riverview_Steward_Punch_List_2026-10-13.md missing_revision"
+    },
+    {
+      "command": "node tools/riverview_browser_runtime.cjs --status",
+      "exit_code": 0,
+      "result": "CDP connected on loopback; browser healthy/running; auth unknown; exact target unresolved; status blocked; no trigger recorded"
+    }
+  ],
+  "acceptance": {
+    "production_unit_installed": false,
+    "wake_submitted": false,
+    "authentication_verified": false,
+    "exact_target_verified": false,
+    "comms5_mailbox_round_trip": "NOT RUN: mailbox lifecycle operations not integrated; issue #96 / Codex 1",
+    "grace_consumption": "NOT RUN: awaiting established interface and same-lineage acceptance; Codex 2",
+    "production_deployment": "NOT AUTHORIZED/PERFORMED"
+  },
+  "predecessor_backups": "Recorded in .riverview-backups/manifest.jsonl; exact source predecessor bytes were read-back verified; revision-control check found only the two unrelated baseline defects above.",
+  "secrets_or_private_conversation_content_recorded": false,
+  "status_snapshot_observed_at_utc": "2026-10-18T00:03:00.310Z"
+}
