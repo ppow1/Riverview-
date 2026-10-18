@@ -4342,7 +4342,7 @@
     },
     {
       "graph_id": "rv:steward-dashboard:linux-browser-acceptance",
-      "graph_revision": "1.0.1",
+      "graph_revision": "1.0.2",
       "component_id": "STEWARD-DASHBOARD",
       "workflow_id": "linux-browser-acceptance.v1",
       "diagram_order": 20,
@@ -4350,6 +4350,8 @@
         "scripts/run_linux_browser_acceptance.py",
         "browser-tests/conftest.py",
         "browser-tests/test_read_only_smoke.py",
+        "browser-tests/test_grace_workflow_synthetic.py",
+        "browser-tests/fixtures/grace-workflow.html",
         "browser-tests/fixtures/smoke.html"
       ],
       "documentation_references": [
@@ -4438,6 +4440,47 @@
             "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
           ],
           "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:synthetic-proposal",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Synthetic browser fixture submits harmless request and displays proposal pending approval",
+          "source_references": [
+            "browser-tests/fixtures/grace-workflow.html",
+            "browser-tests/test_grace_workflow_synthetic.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:synthetic-approval-boundary",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Synthetic-only approval button demonstrates UI gate and never grants real Steward authority",
+          "source_references": [
+            "browser-tests/fixtures/grace-workflow.html",
+            "browser-tests/test_grace_workflow_synthetic.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:synthetic-work-order-status",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Mock work-order record remains pending actual execution authorization; no CME dispatch or execution",
+          "source_references": [
+            "browser-tests/test_grace_workflow_synthetic.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
         }
       ],
       "edges": [
@@ -4474,6 +4517,23 @@
           "to": "rv:steward-dashboard:linux-browser-acceptance:fail-closed",
           "type": "diagnostic_branch",
           "label": "browser error or failed assertion"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:request",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:synthetic-proposal",
+          "type": "runtime_transition",
+          "label": "isolated fixture test only"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:synthetic-proposal",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:synthetic-approval-boundary",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:synthetic-approval-boundary",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:synthetic-work-order-status",
+          "type": "runtime_transition",
+          "label": "test-only synthetic approval; no actual authority"
         }
       ]
     },
@@ -6232,6 +6292,9 @@
     "rv:steward-dashboard:linux-browser-acceptance:fail-closed",
     "rv:steward-dashboard:linux-browser-acceptance:request",
     "rv:steward-dashboard:linux-browser-acceptance:run-chromium",
+    "rv:steward-dashboard:linux-browser-acceptance:synthetic-approval-boundary",
+    "rv:steward-dashboard:linux-browser-acceptance:synthetic-proposal",
+    "rv:steward-dashboard:linux-browser-acceptance:synthetic-work-order-status",
     "rv:steward-dashboard:linux-browser-acceptance:target-allowed",
     "rv:steward-dashboard:status:attention-relation-check",
     "rv:steward-dashboard:status:attention-uninitialized",

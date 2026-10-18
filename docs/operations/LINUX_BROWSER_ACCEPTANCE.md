@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/operations/LINUX_BROWSER_ACCEPTANCE.md
 Component: LINUX-BROWSER-ACCEPTANCE
-File Revision: 1.0.2
+File Revision: 1.0.3
 Purpose: Operate the bounded Linux Chromium acceptance harness and request it in Engineering work orders
 Authority: Read-only browser verification; production writes and authenticated sessions are out of scope
-Changed: 2026-10-18 UTC | RV-LINUX-BROWSER-ACCEPTANCE-001 | Initial Camrui browser acceptance procedure
+Changed: 2026-10-18 UTC | RV-C2-GRACE-WORKFLOW-BROWSER-002 | Add isolated synthetic Grace workflow browser test
 -->
 # Linux browser acceptance on Camrui
 
@@ -44,6 +44,21 @@ The runner defaults to loopback and rejects URL credentials, path prefixes, quer
 
 The run writes a mode-0700 evidence directory under `${XDG_STATE_HOME:-~/.local/state}/riverview/browser-acceptance/` unless `--output` names a new directory. It contains a run summary, sanitized browser error report, screenshots, Playwright test output, and traces retained on failure. Evidence may contain rendered page content; keep it private and review/redact it before sharing. No cookies, authorization headers, request bodies, or URL query strings are recorded in the custom reports.
 
+## Exercise the Grace workflow boundary in isolation
+
+`browser-tests/fixtures/grace-workflow.html` is a clearly labeled synthetic UI fixture. The Playwright test intercepts its `/__synthetic__/` API calls in the browser and returns test-only responses; there is no backing Riverview server, database, resident, credential, approval, CME, or worker. It demonstrates the visible sequence **request → proposal pending approval → synthetic approval gate → work-order record → status report**. The test asserts that work-order creation is unavailable before the approval step and that the resulting work order remains pending actual execution authorization. Nothing is dispatched or executed.
+
+With the disposable static fixture server running as above, run the expanded harness:
+
+```bash
+scripts/run_linux_browser_acceptance.py \
+  --base-url http://127.0.0.1:8766 \
+  --smoke-path /grace-workflow.html \
+  --expect-heading "Talk with Grace — isolated workflow demonstration"
+```
+
+The synthetic test-only “Steward” control demonstrates a UI gate, not institutional authority. It is not a real Steward identity or approval. This test proves the fixture interaction and browser harness only. Actual Grace conversation persistence, proposal API behavior, authenticated Steward approval/promotion, Engineering objective or work-order persistence, status from CME, and execution require a deployed or isolated application stack with its real contracts and a disposable database. Production endpoints, live credentials, real approvals, and live execution are not used or implied. Keep tests that use the static smoke runner read-only; the synthetic workflow test’s narrowly intercepted requests are fulfilled in memory and never reach a server.
+
 ## Request browser verification in an Engineering work order
 
 Add explicit, persisted acceptance criteria to the authorized Engineering work order. For example:
@@ -64,6 +79,7 @@ The Engineering executor must treat the URL and assertion as bounded test inputs
 
 - `browser_venv_missing`: create `.venv` and install the pinned requirements above.
 - `Executable doesn't exist`: run `.venv/bin/python -m playwright install chromium` for this exact Playwright version.
+- A failing synthetic workflow test: confirm it targets `/grace-workflow.html`; all `/__synthetic__/` calls must be intercepted and fulfilled in the test. An unhandled endpoint is a test failure, not a reason to point the fixture at production.
 - Missing shared library: inspect the Playwright launch error, then use the controlled OS dependency procedure; do not install packages from inside the test runner.
 - `non_loopback_target_requires_readonly_opt_in`: use loopback for a local checkout, or provide `--allow-remote-readonly` only for an approved staging target.
 - `target_must_be_http_origin_without_credentials_path_or_query`: pass only the base origin; use `--smoke-path` for the page path.

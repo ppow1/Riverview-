@@ -1,0 +1,83 @@
+<!--
+Riverview~ Controlled Fixture
+File: browser-tests/fixtures/grace-workflow.html
+Component: LINUX-BROWSER-ACCEPTANCE
+File Revision: 1.0.0
+Purpose: Present a synthetic Grace request, proposal, approval boundary, work-order, and status flow
+Authority: Test-only fixture; no credentials, real approvals, persistence, CME dispatch, or execution
+Changed: 2026-10-18 UTC | RV-C2-GRACE-WORKFLOW-BROWSER-002 | Add isolated workflow fixture
+Contracts: docs/operations/LINUX_BROWSER_ACCEPTANCE.md
+Tests: browser-tests/test_grace_workflow_synthetic.py
+History: Git
+-->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Grace Workflow — Isolated Test Fixture</title>
+  </head>
+  <body>
+    <main>
+      <p role="note"><strong>SYNTHETIC TEST FIXTURE.</strong> No Riverview services, database, identity, approval, or execution are connected.</p>
+      <h1>Talk with Grace — isolated workflow demonstration</h1>
+      <label for="request">Harmless request</label>
+      <textarea id="request">Please summarize the sample status normalization workflow.</textarea>
+      <button id="submit-request" type="button">Submit synthetic request</button>
+
+      <section aria-labelledby="proposal-heading">
+        <h2 id="proposal-heading">Proposal</h2>
+        <p id="proposal-status" role="status">No request submitted.</p>
+        <p id="approval-boundary">A proposal does not create an Engineering work order. Steward approval is a separate boundary.</p>
+        <button id="synthetic-approve" type="button" disabled>Record synthetic approval (test only)</button>
+        <button id="create-work-order" type="button" disabled>Create synthetic work-order record</button>
+      </section>
+
+      <section aria-labelledby="work-order-heading">
+        <h2 id="work-order-heading">Work-order status</h2>
+        <p id="work-order-status" role="status">No work order created.</p>
+      </section>
+
+      <script>
+        const byId = (id) => document.getElementById(id);
+        let proposalId = null;
+        let approvalId = null;
+        let workOrderId = null;
+
+        byId("submit-request").addEventListener("click", async () => {
+          const response = await fetch("/__synthetic__/requests", {
+            method: "POST", headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({message: byId("request").value})
+          });
+          const result = await response.json();
+          proposalId = result.proposal_id;
+          byId("proposal-status").textContent = `Proposal ${proposalId}: ${result.status}`;
+          byId("synthetic-approve").disabled = false;
+        });
+
+        byId("synthetic-approve").addEventListener("click", async () => {
+          if (!proposalId) return;
+          const response = await fetch(`/__synthetic__/proposals/${proposalId}/approve`, {method: "POST"});
+          const result = await response.json();
+          approvalId = result.approval_id;
+          byId("proposal-status").textContent = `Proposal ${proposalId}: ${result.status} (synthetic fixture)`;
+          byId("approval-boundary").textContent = "Synthetic approval only; this does not grant real authority or execution permission.";
+          byId("create-work-order").disabled = false;
+        });
+
+        byId("create-work-order").addEventListener("click", async () => {
+          if (!proposalId || !approvalId) return;
+          const response = await fetch("/__synthetic__/work-orders", {
+            method: "POST", headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({proposal_id: proposalId, approval_id: approvalId})
+          });
+          const result = await response.json();
+          workOrderId = result.work_order_id;
+          const statusResponse = await fetch(`/__synthetic__/work-orders/${workOrderId}`);
+          const status = await statusResponse.json();
+          byId("work-order-status").textContent = `Work order ${workOrderId}: ${status.status}. No execution was dispatched.`;
+        });
+      </script>
+    </main>
+  </body>
+</html>
