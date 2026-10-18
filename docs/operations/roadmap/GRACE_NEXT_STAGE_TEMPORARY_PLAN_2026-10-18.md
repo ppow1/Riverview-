@@ -50,3 +50,26 @@ NOW: external ChatGPT escalation + one complete real Grace Engineering cycle.
 NEXT: model resource/context admission, queueing and explainable routing.
 THEN: governed learning/known facts.
 THEN: Jessica/Grace character restoration and additional residents.
+
+## ADDENDUM 2026-10-18 — Grace process map and automated website acceptance
+Steward requirement: explicitly add browser/UI testing to Grace's Engineering process map and release lifecycle. Riverview's website is expanding beyond feasible manual click-through verification. Investigate and reuse the existing CueMastery (and possibly Estate) website automation, likely Playwright, before creating a new framework. Existing test locations, completeness, and portability are NOT yet verified.
+
+### Required process-map gates
+- Work-order formation: identify whether the change affects website/UI, affected user journeys, required browser tests, and acceptance criteria.
+- Engineering execution: run fast targeted unit/API tests and relevant UI/browser checks in a safe test environment; collect artifacts.
+- Independent verification: execute browser flows from a distinct verification step, including navigation, sign-in/permissions where test accounts exist, forms, buttons, approval/rejection and proposal flows, deferred conversation returns, status refresh, and error/retry handling. Test exact affected workflows; do not claim full coverage from a smoke test.
+- Rework loop: failures create actionable evidence (console/network errors, screenshots, trace, page URL, browser/version, exact commit) and return to Engineering for correction and re-verification; do not falsely close a work order.
+- Pre-release gate: repeat relevant end-to-end tests against the staged candidate; block promotion on critical failures or missing evidence.
+- Post-release gate: verify the deployed website with safe read-only/synthetic journeys and report drift or regressions. Avoid unapproved real work orders, irreversible UI actions, production test data changes, or production credentials.
+- Continuous maintenance: maintain stable selectors/test IDs, versioned journey catalog, baseline screenshots where justified, flaky-test quarantine with accountability, and browser/dependency updates. Grace should know test coverage and remaining untested surfaces.
+
+### Recovery and integration task — evidence first
+1. Locate the actual existing Playwright/browser testing in CueMastery and Estate repositories, including test runners, fixtures, screenshots/traces, CI, environment setup and any prior Riverview reuse.
+2. Compare it with the current Riverview website routes and workflows; produce a gap/coverage matrix and migration plan.
+3. Reuse the minimum viable existing harness; prefer Linux/Ubuntu Camrui-compatible headless browser execution in isolated staging. Keep any live website tests explicitly non-destructive.
+4. Wire browser acceptance evidence into the existing Engineering verification and Grace process graph through reviewed, tested source changes. Update canonical graphs, generated views, revisions and troubleshooting docs together; no unvalidated direct edits to generated graph outputs.
+5. Add focused smoke tests for essential existing flows first; expand alongside website features. Include UI tests in PR/CI and release gates, with useful failure evidence and bounded retries.
+6. Do not implement, deploy, merge or change production as a consequence of this temporary planning record; obtain separate authorization.
+
+### Sequencing
+This is a cross-cutting quality gate, not a distant feature after Jessica. Begin recovery/audit as soon as practical, and introduce the smallest reliable browser smoke suite BEFORE expanding or commissioning substantial new website functionality. It supports the immediate Engineering-cycle acceptance test as well as all later work (resource routing, learning UI, Jessica and resident onboarding).
