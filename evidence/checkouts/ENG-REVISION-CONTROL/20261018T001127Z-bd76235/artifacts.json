@@ -1,0 +1,15 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-ENG-REV-BASELINE-104",
+  "component_id": "ENG-REVISION-CONTROL",
+  "source_commit": "bd762352f79892776370a0de398641066dea1049",
+  "artifacts": {
+    "acceptance.json": {
+      "path": "evidence/checkouts/ENG-REVISION-CONTROL/20261018T001127Z-bd76235/acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "8d9b2a07ef55ce257f8739303ffb6ef934822141addaea8e9344bb420eb1e7e3",
+      "size_bytes": 3242,
+      "classification": "metadata-only"
+    }
+  }
+}

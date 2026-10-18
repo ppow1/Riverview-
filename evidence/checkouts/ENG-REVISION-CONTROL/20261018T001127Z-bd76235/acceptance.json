@@ -1,0 +1,70 @@
+{
+  "evidence_revision": "1.0.0",
+  "task_id": "RV-ENG-REV-BASELINE-104",
+  "component_id": "ENG-REVISION-CONTROL",
+  "verified_at_utc": "2026-10-18T00:11:27Z",
+  "host": "admin1-Default-string",
+  "os": "Ubuntu 24.04.3 LTS",
+  "repository": "ppow1/Riverview-",
+  "branch": "codex/revision-baseline-repair-20261018",
+  "source_commit": "bd762352f79892776370a0de398641066dea1049",
+  "base_commit": "c0b0fb9d3a0bbc5e50f223db65b86d5c828d141c",
+  "commands": [
+    {
+      "command": "python3 scripts/revision_control.py check --baseline evidence/checkouts/ENG-REVISION-CONTROL/20261010T1530Z-27a8c55/baseline-inventory.json",
+      "exit_code": 0,
+      "result": "PASS; issues=[]"
+    },
+    {
+      "command": "python3 -m unittest tests.test_revision_control -q",
+      "exit_code": 0,
+      "result": "15 tests passed"
+    },
+    {
+      "command": "git diff HEAD^ --check -- docs/steward/Riverview_Steward_Punch_List_2026-10-13.md .riverview-backups/manifest.jsonl",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "verify preserved historical files by SHA-256 readback against .riverview-backups/manifest.jsonl",
+      "exit_code": 0,
+      "result": "PASS for AI_HINTS Rev 1.0.3, pre-PL-NEW-042 punch-list, and immediate origin/main punch-list predecessor"
+    }
+  ],
+  "revisions": {
+    "docs/steward/Riverview_Steward_Punch_List_2026-10-13.md": "1.0.1"
+  },
+  "predecessors": [
+    {
+      "path": "AI_HINTS.md",
+      "revision": "1.0.3",
+      "sha256": "2bc94ba4a5f04b586cd1100990518daa6a2022e7f7e8315744bb31f219609a3e",
+      "backup": ".riverview-backups/20261018T000949779923Z/AI_HINTS.md",
+      "source_commit": "7dd9d472ad3c44ea71f2914392dd2696943c943b",
+      "source_object_id": "b965c85a1f2789cb95a6ec2683095d8834a0682a"
+    },
+    {
+      "path": "docs/steward/Riverview_Steward_Punch_List_2026-10-13.md",
+      "revision": null,
+      "sha256": "549f5976e7d8ab8679af1174478b9ff3e0577f3b33ab1f728ac1f6380a032487",
+      "backup": ".riverview-backups/20261018T000949799042Z/docs/steward/Riverview_Steward_Punch_List_2026-10-13.md",
+      "source_commit": "8480c83125f6af378774f415bab8530e894e04c7",
+      "source_object_id": "a832cfff5395fe56e8c6e46ca14b54a668a64fac"
+    },
+    {
+      "path": "docs/steward/Riverview_Steward_Punch_List_2026-10-13.md",
+      "revision": "1.0.0 (declared in c0b0fb9d, prior label was not parsed by validator)",
+      "sha256": "f7aea60ab108b8753340c32a08b286f909cb8713e33c31ffc5600f70881550d5",
+      "backup": ".riverview-backups/20261018T000938020454Z/docs/steward/Riverview_Steward_Punch_List_2026-10-13.md",
+      "source_commit": "c0b0fb9d3a0bbc5e50f223db65b86d5c828d141c",
+      "source_object_id": "c61246139011ee9d4c17d9cc268c83fb9090bbcd"
+    }
+  ],
+  "findings": {
+    "historical_predecessors_read_back_verified": true,
+    "revision_control_validator_modified": false,
+    "punch_list_current_revision_normalized": true,
+    "production_changes": false
+  },
+  "note": "The exact historic Markdown predecessor backups retain pre-existing trailing whitespace by design. A broad git diff --check over those immutable backup copies flags that legacy whitespace; the edited punch-list and manifest scoped check passes. Backup bytes were not normalized."
+}
