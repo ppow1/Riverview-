@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_notification_push.py
 # Component: NOTIFICATION-DELIVERY
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify provider routing, durable outbox recovery, retries, and ack semantics
 # Execution Model: Unit tests plus disposable PostgreSQL integration tests
 # Observability: Queue state, provider call evidence, append-only event ledger
 # Dependencies: Python 3.10+; Psycopg 3; optional disposable PostgreSQL 16
 # Authority: Test-only schema; no production credential or provider call
-# Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial push delivery tests
+# Changed: 2026-10-18 UTC | RV-NOTIFICATION-QUEUE-RETRY-ACCEPTANCE-20261018 | Add disposable retry/restart acceptance coverage
 # Contracts: docs/components/NOTIFICATION_IPHONE_DELIVERY.md
 # Tests: pytest tests/test_notification_push.py
 # History: Git + .riverview-backups/manifest.jsonl
@@ -184,6 +184,52 @@ class PushDeliveryPostgresTests(unittest.TestCase):
         state = self.rows("SELECT state,attempt_count,max_attempts FROM notification_delivery_queue")[0]
         self.assertEqual(state[0], "accepted")
         self.assertEqual((state[1], state[2]), (2, 3))
+
+    def test_disposable_queue_retry_survives_worker_restart_without_duplicate_delivery(self):
+        """Exercise durable notice-to-provider acceptance across a worker restart."""
+        self.manager.config = config(routes={"warning": ("ntfy",)}, retry_limit=3)
+        self.assertEqual(self.manager.reconcile(),
+                         {"notices_scanned": 1, "deliveries_queued": 1})
+        self.assertEqual(self.manager.reconcile(),
+                         {"notices_scanned": 0, "deliveries_queued": 0})
+
+        first_transport = FakeTransport([PushProviderError("temporary network failure")])
+        self.manager.transport = first_transport
+        failed_attempt = self.manager.deliver_one()
+        self.assertEqual(failed_attempt["status"], "retry_or_failed")
+        delivery_id = failed_attempt["delivery_id"]
+        first_key = first_transport.calls[0][2]
+        first_state = self.rows("""SELECT state,attempt_count,max_attempts,
+                idempotency_key,last_error_code FROM notification_delivery_queue""")[0]
+        self.assertEqual(first_state,
+                         ("retry", 1, 3, first_key, "provider_error"))
+
+        # Model a process restart: all retry intent and identity must come from PostgreSQL.
+        restarted_transport = FakeTransport([{"accepted": True}])
+        restarted = NotificationDeliveryManager(
+            DSN, config(routes={"warning": ("ntfy",)}, retry_limit=3),
+            schema=self.schema, transport=restarted_transport)
+        with self.admin.cursor() as cursor:
+            cursor.execute(sql.SQL("UPDATE {}.notification_delivery_queue "
+                "SET next_attempt_at=clock_timestamp() WHERE delivery_id=%s")
+                .format(sql.Identifier(self.schema)), (delivery_id,))
+        accepted = restarted.deliver_one()
+        self.assertEqual(accepted["status"], "provider_accepted")
+        self.assertEqual(accepted["delivery_id"], delivery_id)
+        self.assertEqual(accepted["handset_delivery"], "unverified")
+        self.assertEqual(restarted_transport.calls[0][2], first_key)
+
+        final_state = self.rows("""SELECT state,attempt_count,max_attempts,
+                idempotency_key,provider_accepted_at FROM notification_delivery_queue""")[0]
+        self.assertEqual(final_state[:4], ("accepted", 2, 3, first_key))
+        self.assertIsNotNone(final_state[4])
+        self.assertEqual(len(self.rows("SELECT delivery_id FROM notification_delivery_queue")), 1)
+        self.assertEqual(len(self.rows("""SELECT event_id FROM notification_delivery_events
+                WHERE event_type='delivery_queued'""")), 1)
+        self.assertEqual(len(self.rows("""SELECT event_id FROM notification_delivery_events
+                WHERE event_type='retry_scheduled'""")), 1)
+        self.assertEqual(len(self.rows("""SELECT event_id FROM notification_delivery_events
+                WHERE event_type='provider_accepted'""")), 1)
 
     def test_retry_limit_moves_delivery_to_terminal_failed(self):
         self.manager.config = config(routes={"warning": ("ntfy",)}, retry_limit=1)
