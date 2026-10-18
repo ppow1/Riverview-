@@ -2,10 +2,11 @@
 Riverview~ Controlled Engineering Proposal
 File: docs/architecture/JESSICA_CANONICAL_GRAPH_INTEGRATION_PROPOSAL.md
 Component: JESSICA-CHARACTER-ARCHITECTURE
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Preserve an isolated canonical graph candidate and exact integration delta while shared registry ownership blocks registration
 Authority: Proposal only; does not authorize shared-file edits, graph activation, or production changes
 Changed: 2026-10-18 UTC | W3-DISPATCH-6253533433 | Prepare graph/edge mapping and safe handoff patch
+Changed: 2026-10-18 UTC | W3-DISPATCH-6253533433 | Incorporate W1's precise read-only base/registry handoff
 Source checkout: 1c136347f70ae6f98adc1da65b4bb868b67e36bf
 Contracts: process_graphs/README.md; docs/standards/COMPONENT_DEFINITION_OF_DONE.md
 -->
@@ -69,7 +70,7 @@ After the shared registry owner hands off a clean target, the authorized graph o
 
 ## Blocker and coordination
 
-PR #127 is open at `29a0b45a97cda96795bced0e7a0a0eff1da66888`; its file list shows `.riverview-revisions.json` modified with 128 additions / 26 deletions. W1's issue update says its canonical-LF graph validation passes at 23 workflows / 577 nodes and its Windows invocation still encounters the CRLF sidecar issue. W3 asked W1 on issue #120 for a safe post-PR-#127 handoff point. As of this proposal, no handoff has arrived. The single blocking dependency is ownership/target-base reconciliation of that shared registry. This proposal can be applied after a separately reviewed handoff; it does not change W1's branch or PR.
+PR #127 is open at `29a0b45a97cda96795bced0e7a0a0eff1da66888`; its file list shows `.riverview-revisions.json` modified with 128 additions / 26 deletions. W1's canonical-LF validation passes at 23 workflows / 577 nodes; the Windows check has the CRLF sidecar limitation described above. W1 provided a read-only handoff in issue #120 comment 6253567313: W3 PR #116 is based on `codex/riverview-four-pr-integration-20261018` at `1c136347f70ae6f98adc1da65b4bb868b67e36bf`; its revision index has 82 fewer entries and aggregate graph is 192 lines behind the registry-activation branch. Before adding W3 graph records, the handoff says to reconcile against the latest integration target, union path entries without replacing newer hashes/revisions, preserve canonical LF, and regenerate projections. Doing so on W3 would modify the shared revision index plus W1-owned generated aggregate/projection paths, which the dispatch excludes. No W1 branch or PR is edited, and no history is rewritten. W3 therefore retains this exact candidate and patch proposal until an integration owner selects a safe target and path ownership.
 
 PostgreSQL integration is **NOT VERIFIED**: `RIVERVIEW_TEST_PG_DSN` is absent. No database test was attempted.
 
