@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md
 Component: RESIDENT-REASONING
-File Revision: 1.1.5
+File Revision: 1.1.6
 Purpose: Diagnose durable external reasoning exchange transitions safely
 Authority: Read-only diagnostics first; no production migration or transport operation
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial troubleshooting guide
@@ -15,9 +15,48 @@ Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Document HTTP 401/
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Document Grace's live durable response consumer, idempotent acknowledgement and restart diagnostics.
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Record the owner-session unit name and isolated full-round-trip acceptance boundary.
 Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Add initiation, active-principal, and exact-grant recovery diagnostics.
+Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Add exact-subject digest, bounded revision, restart, and blocked-review diagnostics.
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # External reasoning exchange troubleshooting
+
+## Exact proposal review diagnostics
+
+Start with body-free records only:
+
+```sql
+SELECT request_id, correlation_id, delivery_state, provider_id,
+       request_payload->'review_subject'->>'subject_id' AS subject_id,
+       request_payload->'review_subject'->>'revision' AS subject_revision,
+       request_payload->'review_subject'->>'sha256' AS subject_sha256,
+       response_sha256, last_error_code, deadline_at
+FROM external_reasoning_exchanges
+WHERE objective_id = :objective_id
+ORDER BY requested_at, request_id;
+```
+
+Do not select `request_payload` or `response_payload` wholesale in operational
+diagnostics. The provider-visible exact digest is `review_subject_sha256` from
+the authenticated status operation. A missing or changed echo is rejected
+before response persistence; check the safe error code and the existing MCP
+adapter logs without printing tool arguments or response text.
+
+Inspect objective events by request and correlation ID for
+`resident.reasoning.external_proposal_reviewed`,
+`resident.reasoning.external_proposal_revised`, or
+`resident.reasoning.external_proposal_review_blocked`. These events contain
+digests and IDs only. `reviewed` means Grace retained the exact reviewed
+execution content; the objective proposal remains unapproved. `revised` means
+a new subject revision is durably linked to a child request in the same
+exchange table. If the process stopped after child insertion, rerun the
+existing Grace consumer: it finds the child link and repairs the parent event
+without replaying the model call. `review_blocked` is terminal for that review
+chain and leaves the objective GROUNDED; escalation authority or review bounds
+must be reviewed by the responsible Steward before any new request is created.
+
+The maximum is three subject revisions. Do not reset or extend it by editing
+the row. A new independent escalation requires a new authorized Grace decision
+and the normal exact-grant admission path.
 
 ## Grace initiation checks (2026-10-18)
 

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.18
+# Revision: 1.0.19
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Persist and rate-limit failed resident proposals.
 # Purpose: Reconcile durable Grace work orders through existing CME worker contracts
 # Execution Model: Persistent scheduled poll over PostgreSQL objective state
@@ -22,6 +22,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Re-evaluate preserved rejected results only when the verifier implementation revision changes
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Resume append-only verifier decisions after a correction, including interrupted completion transition
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-REASONING-BUDGET-001 | Raise bounded resident proposal default to fit typed dependency plans and source scopes
+# Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Bind ChatGPT advisory to an exact proposal and support bounded Grace revision loop
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Reconcile existing assignments, execution state and verifier evidence to proposal revisions
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Consume correlated durable external advisory responses in Grace's persistent cycle
 # Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Resolve current resident principal and admit typed model-selected advisory requests from grounded reasoning
@@ -172,6 +173,9 @@ class GraceExecutionService:
         if (self.external_reasoning_exchange is not None and
                 self.external_reasoning_exchange.has_active_for_objective(objective_id)):
             return False
+        if (self.external_reasoning_exchange is not None and
+                self.external_reasoning_exchange.has_terminal_review_for_objective(objective_id)):
+            return False
         try:
             result = self.resident_reasoner.propose(
                 objective_id, trigger="persistent_resident_cycle",
@@ -181,10 +185,15 @@ class GraceExecutionService:
                     if result.reasoning_request is None:
                         raise RuntimeError("external_escalation_context_missing")
                     from ..reasoning_escalation import EscalationRequest
+                    from .external_reasoning import build_review_subject
                     intent = result.proposal.external_escalation
+                    subject_id = str(uuid5(NAMESPACE_URL,
+                        "rv-grace-review-subject:" + result.reasoning_request.request_id + ":" +
+                        intent.target_provider_id))
+                    review_subject = build_review_subject(subject_id, 1, result.proposal)
                     escalation_id = str(uuid5(NAMESPACE_URL,
                         "rv-external-escalation:" + result.reasoning_request.request_id + ":" +
-                        intent.target_provider_id))
+                        intent.target_provider_id + ":" + review_subject["sha256"]))
                     envelope = EscalationRequest.create(result.reasoning_request,
                         reason=intent.reason, target_provider_id=intent.target_provider_id,
                         max_tokens=min(512, self.resident_token_budget), timeout_seconds=30,
@@ -212,10 +221,11 @@ class GraceExecutionService:
                         message_sequence=origin["source_sequence"],
                         idempotency_key=("grace-escalation:" +
                             result.reasoning_request.request_id + ":" +
-                            intent.target_provider_id),
+                            intent.target_provider_id + ":" + review_subject["sha256"]),
                         deadline_at=datetime.now(timezone.utc) + timedelta(minutes=30),
                         classification=classification, proposal_id=proposal_id,
-                        proposal_revision=proposal_revision, source_references=references)
+                        proposal_revision=proposal_revision, source_references=references,
+                        review_subject=review_subject)
                     return True
                 self.pipeline.record_proposal(
                     objective_id, result.proposal,
@@ -541,6 +551,126 @@ class GraceExecutionService:
                 "failure_type": type(exc).__name__}, sort_keys=True))
             return 0
 
+    def _evaluate_exact_external_review(self, consumed, request_id, correlation_id):
+        """Finish, revise, or block one exact-subject review; never self-approve work."""
+        from ..resident_reasoning import ReasoningStatus
+        from .external_reasoning import (MAX_REVIEW_REVISIONS, build_review_subject,
+            proposal_review_content)
+        subject = consumed.review_subject
+        if subject is None:
+            raise ValueError("exact_review_subject_missing")
+        parent = self.external_reasoning_exchange.review_successor(request_id, correlation_id)
+        if parent is not None:
+            child = parent["review_subject"]
+            self.pipeline.record_external_review_decision(
+                consumed.original_request.assignment_id, request_id=request_id,
+                correlation_id=correlation_id,
+                event_type="resident.reasoning.external_proposal_revised",
+                actor_id="office:" + self.resident_reasoner.office_id,
+                payload={"subject_id": child["subject_id"], "revision": child["revision"],
+                    "subject_sha256": child["sha256"],
+                    "response_sha256": parent["response_sha256"],
+                    "proposal_sha256": hashlib.sha256(json.dumps(
+                        child["proposal"], ensure_ascii=False, sort_keys=True,
+                        separators=(",", ":"), allow_nan=False).encode("utf-8")).hexdigest(),
+                    "decision": "revise", "successor_request_id": parent["request_id"],
+                    "successor_correlation_id": parent["correlation_id"]})
+            return
+
+        if self._reasoning_failure_count(consumed.original_request.assignment_id) >= self.MAX_REASONING_FAILURES:
+            return
+        result = self.resident_reasoner.propose(
+            consumed.original_request.assignment_id, trigger="external_proposal_review",
+            token_budget=self.resident_token_budget, external_advisory=consumed.advisory,
+            review_subject=subject)
+        if result.status is not ReasoningStatus.PROPOSED or result.proposal is None:
+            self._record_reasoning_failure(consumed.original_request.assignment_id, result=result)
+            return
+        response = consumed.advisory
+        response_bytes = json.dumps(response, ensure_ascii=False, sort_keys=True,
+                                    separators=(",", ":"), allow_nan=False).encode("utf-8")
+        response_sha256 = hashlib.sha256(response_bytes).hexdigest()
+        reviewed_content = subject["proposal"]
+        proposed_content = proposal_review_content(result.proposal)
+        proposal_sha256 = hashlib.sha256(json.dumps(
+            proposed_content, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"), allow_nan=False).encode("utf-8")).hexdigest()
+        same = proposed_content == reviewed_content
+        if same and result.proposal.external_escalation is None:
+            provenance = {"request_id": request_id, "correlation_id": correlation_id,
+                "response_id": response["response_id"], "response_sha256": response_sha256,
+                "provider_id": response["provider_id"], "provider_model": response["provider_model"],
+                "reasoning_request_id": result.request_id}
+            evidence = {"subject_id": subject["subject_id"], "revision": subject["revision"],
+                "subject_sha256": subject["sha256"], "response_sha256": response_sha256,
+                "proposal_sha256": proposal_sha256, "decision": "finish"}
+            self.pipeline.record_proposal(consumed.original_request.assignment_id,
+                result.proposal, actor_id="office:" + self.resident_reasoner.office_id,
+                external_exchange=provenance, review_evidence=evidence)
+            return
+
+        objective_id = consumed.original_request.assignment_id
+        if subject["revision"] >= MAX_REVIEW_REVISIONS:
+            self.pipeline.record_external_review_decision(objective_id,
+                request_id=request_id, correlation_id=correlation_id,
+                event_type="resident.reasoning.external_proposal_review_blocked",
+                actor_id="office:" + self.resident_reasoner.office_id,
+                payload={"subject_id": subject["subject_id"], "revision": subject["revision"],
+                    "subject_sha256": subject["sha256"], "response_sha256": response_sha256,
+                    "proposal_sha256": proposal_sha256, "decision": "blocked",
+                    "reason_code": "review_revision_limit"})
+            return
+
+        intent = result.proposal.external_escalation
+        target = intent.target_provider_id if intent is not None else response["provider_id"]
+        reason = intent.reason if intent is not None else "low_confidence"
+        if target not in self.resident_reasoner.external_reasoning_targets:
+            self.pipeline.record_external_review_decision(objective_id,
+                request_id=request_id, correlation_id=correlation_id,
+                event_type="resident.reasoning.external_proposal_review_blocked",
+                actor_id="office:" + self.resident_reasoner.office_id,
+                payload={"subject_id": subject["subject_id"], "revision": subject["revision"],
+                    "subject_sha256": subject["sha256"], "response_sha256": response_sha256,
+                    "proposal_sha256": proposal_sha256, "decision": "blocked",
+                    "reason_code": "review_target_not_configured"})
+            return
+        next_subject = build_review_subject(subject["subject_id"],
+                                            subject["revision"] + 1, result.proposal)
+        source_request = result.reasoning_request
+        if source_request is None:
+            raise ValueError("review_successor_context_missing")
+        escalation_id = str(uuid5(NAMESPACE_URL,
+            "rv-external-review:" + source_request.request_id + ":" + target + ":" +
+            next_subject["sha256"]))
+        from ..reasoning_escalation import EscalationRequest
+        envelope = EscalationRequest.create(source_request, reason=reason,
+            target_provider_id=target, max_tokens=min(512, self.resident_token_budget),
+            timeout_seconds=30, escalation_id=escalation_id)
+        received = next((event for event in self.pipeline.objective_events(objective_id)
+            if event.get("event_type") == "objective.received"), None)
+        origin = (received or {}).get("payload", {}).get("origin")
+        if not isinstance(origin, dict):
+            raise ValueError("external_review_conversation_origin_missing")
+        references = tuple(dict.fromkeys(ref for item in source_request.verified_knowledge
+            for ref in item.get("source_references", ())))[:32]
+        receipt = self.request_external_reasoning(envelope, source_request,
+            conversation_id=origin["conversation_id"], message_sequence=origin["source_sequence"],
+            idempotency_key=("grace-review:" + request_id + ":" + correlation_id + ":" +
+                response_sha256 + ":" + next_subject["sha256"]),
+            deadline_at=datetime.now(timezone.utc) + timedelta(minutes=30),
+            source_references=references, review_subject=next_subject,
+            review_parent={"request_id": request_id, "correlation_id": correlation_id,
+                           "response_sha256": response_sha256})
+        self.pipeline.record_external_review_decision(objective_id,
+            request_id=request_id, correlation_id=correlation_id,
+            event_type="resident.reasoning.external_proposal_revised",
+            actor_id="office:" + self.resident_reasoner.office_id,
+            payload={"subject_id": next_subject["subject_id"], "revision": next_subject["revision"],
+                "subject_sha256": next_subject["sha256"], "response_sha256": response_sha256,
+                "proposal_sha256": proposal_sha256, "decision": "revise",
+                "successor_request_id": receipt.request_id,
+                "successor_correlation_id": receipt.correlation_id})
+
     def consume_external_reasoning(self, *, limit=5):
         """Resume persisted advisory replies through Grace's existing reasoner.
 
@@ -563,35 +693,41 @@ class GraceExecutionService:
                 objective_id = consumed.original_request.assignment_id
                 durable_event = next((event for event in
                     self.pipeline.objective_events(objective_id)
-                    if event.get("event_type") ==
-                        "resident.reasoning.external_advisory_evaluated" and
+                    if event.get("event_type") in {
+                        "resident.reasoning.external_advisory_evaluated",
+                        "resident.reasoning.external_proposal_reviewed",
+                        "resident.reasoning.external_proposal_revised",
+                        "resident.reasoning.external_proposal_review_blocked"} and
                         (event.get("payload") or {}).get("request_id") == request_id and
                         (event.get("payload") or {}).get("correlation_id") == correlation_id), None)
                 if durable_event is None:
-                    if self._reasoning_failure_count(objective_id) >= self.MAX_REASONING_FAILURES:
-                        continue
-                    from ..resident_reasoning import ReasoningStatus
-                    result = self.resident_reasoner.propose(objective_id,
-                        trigger="external_advisory_resume", token_budget=self.resident_token_budget,
-                        external_advisory=consumed.advisory)
-                    if result.status is not ReasoningStatus.PROPOSED or result.proposal is None:
-                        self._record_reasoning_failure(objective_id, result=result)
-                        continue
-                    response = consumed.advisory.get("response", consumed.advisory)
-                    if not isinstance(response, dict):
-                        raise ValueError("external advisory response is invalid")
-                    provenance = {"request_id": request_id,
-                        "correlation_id": correlation_id,
-                        "response_id": response.get("response_id"),
-                        "response_sha256": hashlib.sha256(json.dumps(
-                            consumed.advisory, ensure_ascii=False, sort_keys=True,
-                            separators=(",", ":"), allow_nan=False).encode("utf-8")).hexdigest(),
-                        "provider_id": response.get("provider_id"),
-                        "provider_model": response.get("provider_model"),
-                        "reasoning_request_id": result.request_id}
-                    self.pipeline.record_proposal(objective_id, result.proposal,
-                        actor_id="office:" + self.resident_reasoner.office_id,
-                        external_exchange=provenance)
+                    if consumed.review_subject is not None:
+                        self._evaluate_exact_external_review(consumed, request_id, correlation_id)
+                    else:
+                        if self._reasoning_failure_count(objective_id) >= self.MAX_REASONING_FAILURES:
+                            continue
+                        from ..resident_reasoning import ReasoningStatus
+                        result = self.resident_reasoner.propose(objective_id,
+                            trigger="external_advisory_resume", token_budget=self.resident_token_budget,
+                            external_advisory=consumed.advisory)
+                        if result.status is not ReasoningStatus.PROPOSED or result.proposal is None:
+                            self._record_reasoning_failure(objective_id, result=result)
+                            continue
+                        response = consumed.advisory
+                        if not isinstance(response, dict):
+                            raise ValueError("external advisory response is invalid")
+                        provenance = {"request_id": request_id,
+                            "correlation_id": correlation_id,
+                            "response_id": response.get("response_id"),
+                            "response_sha256": hashlib.sha256(json.dumps(
+                                consumed.advisory, ensure_ascii=False, sort_keys=True,
+                                separators=(",", ":"), allow_nan=False).encode("utf-8")).hexdigest(),
+                            "provider_id": response.get("provider_id"),
+                            "provider_model": response.get("provider_model"),
+                            "reasoning_request_id": result.request_id}
+                        self.pipeline.record_proposal(objective_id, result.proposal,
+                            actor_id="office:" + self.resident_reasoner.office_id,
+                            external_exchange=provenance)
                 exchange.acknowledge_consumed(request_id, correlation_id,
                     principal_id=principal, consumption_key=consumed.consumption_key,
                     consumption_token=consumed.consumption_token, fence=consumed.fence,
@@ -606,7 +742,8 @@ class GraceExecutionService:
 
     def request_external_reasoning(self, envelope, original_request, *, conversation_id,
             message_sequence, idempotency_key, deadline_at, classification="institutional",
-            proposal_id=None, proposal_revision=None, source_references=()):
+            proposal_id=None, proposal_revision=None, source_references=(),
+            review_subject=None, review_parent=None):
         """Persist an authorized external advisory request without waiting for a provider."""
         if self.external_reasoning_exchange is None:
             raise RuntimeError("external_reasoning_exchange_unavailable")
@@ -622,7 +759,8 @@ class GraceExecutionService:
             conversation_id=conversation_id, message_sequence=message_sequence,
             proposal_id=proposal_id, proposal_revision=proposal_revision,
             idempotency_key=idempotency_key, classification=classification,
-            deadline_at=deadline_at, source_references=source_references)
+            deadline_at=deadline_at, source_references=source_references,
+            review_subject=review_subject, review_parent=review_parent)
 
     def run_once(self):
         """Run bounded dispatch, advisory reasoning, independent workers and verification."""
