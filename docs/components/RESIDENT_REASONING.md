@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.10
+File Revision: 1.0.11
 Purpose: Define resident context regrounding and bounded reasoning-provider routing
 Authority: Exact office-state grant required; provider output is a proposal, never permission
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Establish isolated resident reasoning contract
@@ -16,6 +16,7 @@ Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Document typed i
 Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Pass canonical Grace role and authority boundaries into her assignment reasoning provider
 Changed: 2026-10-15 UTC | RV-GRACE-GROUNDING-BOUNDED-001 | Rank complete relevant passages within the evidence bound and retain full-source provenance
 Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Allow bounded 1–20 step proposals with acyclic dependencies and persist step dispatch state
+Changed: 2026-10-18 UTC | RV-RESOURCE-ADMISSION-001 | Specify explicit live free-context admission inputs and truthful queue/defer outcomes
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Resident regrounding and reasoning routing
@@ -169,6 +170,24 @@ budget. A proposal is explicitly unverified; no command or action interface is
 exposed.
 
 ## Routing, budgets, and failure semantics
+
+`ResourcePlanner` in `src/riverview_core/resource_admission.py` is an isolated
+admission primitive. Callers supply a fresh, timezone-aware `SlotObservation`
+with measured free context, active request count, concurrency limit, registered
+capabilities, and supported task classes. The planner checks the combined input
+and output token budget, freshness, readiness, concurrency, explicit task
+suitability, and optional vision requirement. It returns `admit`, `queue`, or
+`defer` with a safe reason and queue position. Configured maximum context is
+validation metadata only; it is never treated as available context. External
+advisory resources are considered only for explicitly advisory requests and do
+not satisfy local reasoning capability.
+
+No current inference adapter in this checkout reports per-slot free context
+tokens. `LocalReasoningProvider` reports only its own semaphore occupancy and
+uses a serialized prompt byte limit. Until a host adapter supplies fresh
+observations, callers must not represent this planner as live admission or
+assume the model's configured context is free. PL-0016 is also absent from this
+checkout and remains a roadmap dependency.
 
 The active `office_bindings` row selects the primary provider by its exact
 `provider_ref`; it is never selected from free text. Fallback IDs must be
