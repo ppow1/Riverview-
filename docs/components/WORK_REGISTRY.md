@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED DOCUMENT
 # File: docs/components/WORK_REGISTRY.md
 # Component: UNIVERSAL-WORK-REGISTRY
-# File Revision: 1.1.1
+# File Revision: 1.1.2
 # Purpose: Specify the shared observational worker, session, and work-order registry
 # Authority: Registration is observability; existing schedulers and authority grants govern execution
 # Changed: 2026-10-18 UTC | RV-UNIVERSAL-WORK-REGISTRY-001 | Document schema, integrations, import, and limits
@@ -12,6 +12,7 @@
 
 Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-CONTROL-BOARD-001 | Reconcile Control Board v4 aliases and provide a dynamic Windows registry board.
 Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-STATUS-ACCURACY-001 | Separate terminal work-order results from current assignment and runtime status.
+Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-DISPATCH-BRIDGE-001 | Document explicit alias assignment receipts and unavailable polling/wake capability.
 
 ## Purpose and boundary
 
@@ -75,6 +76,24 @@ A:\AI\Riverview-Development\Start-RiverviewControlBoard-Registry.ps1 -Detailed
 It enumerates registry worker/session/work-order collections each refresh and displays unmatched Windows and Camrui v4 JSON reports separately as legacy/unverified rows. Use `-Detailed` for long blockers and evidence. The existing `A:\AI\Riverview-Development\Start-RiverviewControlBoard-v4.ps1` remains unchanged as rollback/fallback. Rollback is to remove only the new `Start-RiverviewControlBoard-Registry.ps1` launcher and continue using v4; no live Codex session needs restarting. The existing seven-source mapping is specific to migration; neither registration nor the monitor has a fixed live worker count.
 
 Session rows select a current assignment from an explicit nonterminal session work-order reference or a linked queued, active, or blocked order. The newest linked blocked, completed, failed, or cancelled work order is shown separately as `latest_result`; completed, failed, and cancelled orders are retained as results and are not displayed as current assignments. Queued or active work is not labeled a result. Availability, activity, and heartbeat age continue to come from session state. A blocked work order does not set session activity or availability, and the board does not infer whether a session can accept more work from assignment completion or blockage.
+
+### Explicit v4 assignment events
+
+`scripts/record_work_assignment.py` is a one-shot, opt-in bridge from a canonical work-order ID to an alias in `CONTROL_BOARD_V4_IMPORT_MAP.json`. The order must already exist in the registry. The caller supplies the alias, work-order ID, event, and a GitHub issue/PR reference; the command validates that the registered worker/session and source mapping agree. It updates the registry under its existing lock with an expected-status check inside that lock, then atomically replaces the mapped local v4 JSON under a per-file lock, preserving the existing v4 keys and appending a deduplicated evidence string. If interrupted between the two file writes, rerun the same event to reconcile; there is no cross-file transaction. A leftover `.bridge.lock` after a crash causes a bounded wait/failure; verify no writer remains before manually removing it.
+
+```powershell
+$registry = 'A:\AI\Riverview-Development\_control\work-registry-v1.json'
+python scripts/record_work_assignment.py capabilities
+python scripts/record_work_assignment.py record `
+  --registry $registry --alias W1 `
+  --work-order-id work:issue120:example:w1 `
+  --event acknowledged `
+  --source 'https://github.com/ppow1/Riverview-/issues/120#issuecomment-6252352344'
+```
+
+Events are `acknowledged`, `in_progress`, `blocked`, and `completed`. Acknowledgment records `ownership_state=acknowledged` while retaining queued work status; it does not start a process or set session lifecycle/activity/heartbeat. `in_progress` is an explicit reporter event and may set the work order active, but still does not change session activity or heartbeat. Blocked events require a blocker; completion requires an outcome. The existing v4 status field carries the corresponding `WAITING`, `RUNNING`, `BLOCKED`, or `COMPLETE` value without adding schema fields. Call `capabilities` to see that automatic GitHub polling, assignment dispatch, existing-session wake, and shared Windows-Camrui storage are currently unavailable.
+
+W1-W3 mappings resolve to local v4 JSON paths. C1-C4 map to SSH read sources; a caller on the appropriate host must supply `--status-json` explicitly to write a local v4 record. The registry path must also be one that caller can safely access. There is no verified shared atomic registry path between Windows and Camrui, so the bridge does not claim cross-host synchronization. The existing v4 monitor remains read-only. GitHub issue comments are coordination records; no webhook/poller consumes them, and the current Codex launcher starts a new CLI only when explicitly invoked. No interface can wake or inject keystrokes into existing sessions. Reconciliation requires an explicit call after the assignment is received; no scheduler, daemon, background poller, or execution authorization is added.
 
 For future sessions, use `scripts/Start-RiverviewCodexSession.ps1` / the Linux wrapper with `RIVERVIEW_WORK_REGISTRY_PATH` set to the canonical registry file. Startup registers a worker/session; an existing assignment is linked when its canonical work-order ID is passed. A dispatcher that delivers a later assignment to a running session must create/update the canonical work order and invoke the documented `acknowledge-work-order` callback automatically; this callback is observational and does not replace scheduler authorization. The current user-directed Codex chat assignment path has no durable dispatch callback to integrate, and Windows↔Camrui currently has no verified common filesystem path. Until those integration points are supplied, subsequent chat assignments and cross-host live registrations must use the registry client explicitly; they must not be inferred from process activity or by editing status JSON.
 

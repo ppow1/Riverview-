@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_work_registry.py
 # Component: UNIVERSAL-WORK-REGISTRY
-# Revision: 1.0.2
+# Revision: 1.0.3
+# Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-DISPATCH-BRIDGE-001 | Verify work-order event compare-and-update rejects stale state.
 # Purpose: Verify durable dynamic worker/session/work lifecycle and import safety
 # Execution Model: Temporary file registry; concurrent writers; no services
 # Observability: Assert persisted snapshots, explicit unknown/stale state, and privacy allowlist
@@ -178,6 +179,17 @@ class WorkRegistryTests(unittest.TestCase):
         self.assertEqual(observed["session_id"], "session:received")
         self.assertEqual(snapshot["sessions"][0]["activity_state"], "unknown")
         self.assertEqual(snapshot["sessions"][0]["last_activity_at"], None)
+
+    def test_work_order_expected_status_guard_rejects_stale_transition_atomically(self):
+        item = self.registry.create_work_order(title="Conditional event", status="queued")
+        with self.assertRaisesRegex(WorkRegistryError, "work_order_state_conflict"):
+            self.registry.update_work_order(item["work_order_id"],
+                expected_status={"active"}, status="completed")
+        observed = self.registry.snapshot()["work_orders"][0]
+        self.assertEqual(observed["status"], "queued")
+        updated = self.registry.update_work_order(item["work_order_id"],
+            expected_status={"queued"}, status="active")
+        self.assertEqual(updated["status"], "active")
 
     def test_issue_120_import_is_idempotent_and_never_synthesizes_sessions(self):
         script = Path(__file__).parents[1] / "scripts/import_issue_120_work_inventory.py"
