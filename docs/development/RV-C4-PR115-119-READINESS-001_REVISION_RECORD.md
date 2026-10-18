@@ -19,7 +19,8 @@ rehearsal: package migration directories applied in order and reapplied
 idempotently; the actual restricted `riverview_core` role passed permitted
 retry-state operations and was denied identity update/delete/truncate; the
 package pointer switched from a synthetic predecessor to the candidate and
-back; and three focused PostgreSQL lifecycle/verification tests passed. The
+back; and four focused PostgreSQL lifecycle/verification tests passed, including
+a loopback dashboard and reconstructed Grace service execution. The
 current fetched-head ancestry was also checked: #109–#112 → #113 → #115 → #119
 are ancestor relationships, while current #114 is not an ancestor of #115 and
 only the reviewed provider-response corrections are integrated there.
@@ -40,8 +41,9 @@ manifest PASS, shell compatibility PASS.
 - Migration/runtime, full suite, restricted-role, and rollback evidence is
   cited with its prior isolated test scope and is not represented as fresh
   production verification.
-- Focused rehearsal tests: 3 passed, 0 failed, 0 skipped. Disposable PG cluster
-  was stopped and its unique schema removed. No systemd unit was started.
+- Focused rehearsal tests: 4 passed, 0 failed, 0 skipped. The loopback test
+  server shut down cleanly; the disposable PG cluster was stopped and its
+  unique migration schema was removed. No systemd unit was started.
 
 ## Authorization boundary
 
