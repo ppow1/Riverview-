@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_doorbell_dispatcher.py
 # Component: CHATGPT-DOORBELL
-# Revision: 1.0.3
+# Revision: 1.0.4
+# Changed: 2026-10-18 UTC | RV-C2-DOORBELL-INTEGRATED-CI-FIX | Construct bounded fake claims per exchange so full-suite runtime cannot expire their lease before test use.
 # Purpose: Verify the durable exchange to fixed browser wake adapter
 # Execution Model: Isolated fake exchange and bridge; no browser or provider access
 # Authority: Synthetic identities only; never sends a live wake
@@ -19,6 +20,7 @@ CORRELATION_ID = "ea24ed05-dc18-4a51-9904-ef96f2ac4840"
 CONVERSATION_ID = "8af9333f-a59f-4a06-b572-e68b4d12b6c2"
 PROVIDER_ID = "synthetic-chatgpt-provider"
 OWNER_ID = "test-doorbell-worker"
+_DEFAULT_CLAIM = object()
 
 
 @dataclass(frozen=True)
@@ -41,8 +43,10 @@ class WakeResult:
 
 
 class FakeExchange:
-    def __init__(self, claim=Claim(), *, receipt_error=False):
-        self.claim = claim
+    def __init__(self, claim=_DEFAULT_CLAIM, *, receipt_error=False):
+        # Claims carry a short lease; construct the default at exchange creation,
+        # not module import, so a long full-suite run cannot age it before use.
+        self.claim = Claim() if claim is _DEFAULT_CLAIM else claim
         self.receipt_error = receipt_error
         self.claim_calls = []
         self.receipts = []

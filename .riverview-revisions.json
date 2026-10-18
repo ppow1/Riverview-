@@ -275,21 +275,21 @@
     },
     "docs/components/CHATGPT_DOORBELL_DISPATCH.md": {
       "path": "docs/components/CHATGPT_DOORBELL_DISPATCH.md",
-      "revision": "1.0.4",
-      "sha256": "0bba04faf73d5831e8596f8be2b6e5c7729ee95c6a0fd956618b6ebf2d3fcd62",
-      "size_bytes": 6763
+      "revision": "1.0.5",
+      "sha256": "d126dcf79ad5c1055c6faf1b96bffd8942414c7d09ed87add175540341842b2e",
+      "size_bytes": 7273
     },
     "docs/components/RESIDENT_REASONING_FLOW.md": {
       "path": "docs/components/RESIDENT_REASONING_FLOW.md",
-      "revision": "1.0.18",
-      "sha256": "fd23b1036bc12ca7e697b48f416ca8886cf4d99bd3b112f713c1082a1ad4c035",
-      "size_bytes": 25464
+      "revision": "1.0.19",
+      "sha256": "1756c202c5febd924434ffb3732da086371f7fdfb3f616af1f22d915a47a4821",
+      "size_bytes": 25792
     },
     "docs/development/RV-C2-CHATGPT-DOORBELL-DISPATCH-001_REVISION_RECORD.md": {
       "path": "docs/development/RV-C2-CHATGPT-DOORBELL-DISPATCH-001_REVISION_RECORD.md",
-      "revision": "1.0.3",
-      "sha256": "2b5cda2044a99e8c781eb2ded2510622dbc4cabd6b1e064f58db023af0369555",
-      "size_bytes": 4862
+      "revision": "1.0.4",
+      "sha256": "5dd8039061fe4209c8b1d5a324b4df4dfe81ba6fb6b7188cad46a3d04be39698",
+      "size_bytes": 7161
     },
     "scripts/run_grace_execution_service.py": {
       "path": "scripts/run_grace_execution_service.py",
@@ -327,7 +327,5 @@
       "sha256": "d2171dd53e93395c7489bfc332c4dc892bfe756545cddabdb37fbf525f0c3672",
       "size_bytes": 7517
     }
-  },
-  "manifest_revision": "1.1.243",
-  "updated_at": "2026-10-18T22:50:23+00:00"
+  }
 }

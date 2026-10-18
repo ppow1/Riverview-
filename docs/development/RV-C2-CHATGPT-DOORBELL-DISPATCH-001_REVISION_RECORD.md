@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED DOCUMENT
 # File: docs/development/RV-C2-CHATGPT-DOORBELL-DISPATCH-001_REVISION_RECORD.md
 # Component: CHATGPT-DOORBELL
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Record implementation and isolated validation for the C2 wake dispatcher
 # Execution Model: Engineering revision record
 # Observability: Source, tests, and parent commits recorded without provider content
@@ -87,3 +87,40 @@ preserved in `.riverview-backups/manifest.jsonl` under task
 `RV-C2-DOORBELL-RUNTIME-WIRING-001`. Restore using the matching manifest backup,
 then regenerate/check graph projections. Reverting the source commit is the
 source rollback; runtime activation remains off unless separately configured.
+
+## Integration closure follow-up — 2026-10-18
+
+W3's controlled integration branch contains C3 exact head
+`d9506bf858ff72b2942f64171eb8c15b740cee20` and C2 runtime wiring
+`479ea738e541dbf413236476a82b24811a7f5d44`; assembled head at verification was
+`f2de2061778f0a69aa7af38d7e60ae987f4b17f6`. Source inspection confirms the C2
+runtime injects `DoorbellWakeWorker` through the existing
+`GraceExecutionService.doorbell_worker` hook; C3 claims with
+`claim_next_doorbell_request` and writes fenced receipts with
+`record_doorbell_receipt`. The durable receipt `actor_id` is
+`service:grace-chatgpt-doorbell`. C2 `trigger_status` is `ready` after an empty
+poll or submitted wake, `blocked` for invalid/ambiguous/failed wake, and
+`unavailable` when claim or receipt access fails.
+
+The C2 PR exact-head full-suite CI run exposed an expired synthetic claim: the
+test fake constructed an 80-second claim at module import, so it expired before
+its tests ran after the rest of the suite. The test now creates a fresh claim
+when each fake exchange is constructed. Runtime lease validation was not
+relaxed. See the component troubleshooting section for recurrence diagnosis.
+
+Integrated isolated validation on the W3 head used a temporary PostgreSQL 16
+cluster and the real C3 durable exchange with a synthetic bridge (no Chrome,
+CDP, provider call, or external wake): 17 C2 dispatcher/runtime unit tests
+passed; 38 C3 exchange/resident-reasoning tests passed; one focused C2 worker
+integration test passed, proving a durable receipt attributed to the configured
+owner, no duplicate receipt after polling again, terminal ambiguity without
+resend, and a two-fence bounded retry after a known pre-send failure. The first
+synthetic PostgreSQL attempt had a test-query typo (`created_at` instead of the
+actual `sequence` event ordering column); after correcting the disposable test
+query, it passed. The 38-test run completed on the same assembled W3 source.
+
+The integration branch's pre-refresh manifest still describes C3 claim/receipt
+as unavailable; W3 must append this acceptance and refresh the manifest before
+treating its assembly record as current. C4 expiry MCP mapping and the combined
+W2 acceptance remain separate integration gates. No production activation or
+live ChatGPT interaction was performed.
