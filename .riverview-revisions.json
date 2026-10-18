@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.240"
+      "revision": "1.1.241"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -131,9 +131,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.184",
-      "sha256": "2703a4b10b48508fec18787712113771e45eee9709ce5d17cea4f8856e95111b",
-      "size_bytes": 651132
+      "revision": "1.0.185",
+      "sha256": "ada1d856f2db264fef51a6137a530fdc82f89b40aa9b6632e511c9c35591d5c7",
+      "size_bytes": 651533
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -310,6 +310,6 @@
       "size_bytes": 5465
     }
   },
-  "manifest_revision": "1.1.240",
+  "manifest_revision": "1.1.241",
   "updated_at": "2026-10-18T20:41:00+00:00"
 }
