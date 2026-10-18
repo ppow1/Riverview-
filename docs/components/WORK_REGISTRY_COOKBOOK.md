@@ -2,13 +2,18 @@
 # RIVERVIEW~ CONTROLLED DOCUMENT
 # File: docs/components/WORK_REGISTRY_COOKBOOK.md
 # Component: UNIVERSAL-WORK-REGISTRY
-# File Revision: 1.0.1
+# File Revision: 1.0.2
 # Purpose: Provide safe read-only diagnosis and recovery for the observational work registry
 # Execution Model: Operator-invoked diagnostic and explicit event replay
+# Observability: Read-only JSON snapshots, safe poll summaries, and explicit bridge events
+# Dependencies: Python 3.10+; GitHub CLI for opt-in comment polling
 # Authority: Read-only inspection; replay records only an explicitly authorized event and grants no execution authority
 # Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-DOD-REMEDIATION-001 | Add read-only diagnostics and safe receipt recovery steps.
 # Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-DOD-REMEDIATION-001 | Document repository import paths for Windows and Linux diagnostic commands.
-# History: New document; no predecessor
+# Changed: 2026-10-18 UTC | RV-W1-ISSUE-POLL-001 | Add opt-in GitHub comment discovery, receipt inspection, and retry/recovery guidance.
+# Contracts: docs/components/WORK_REGISTRY.md; docs/components/WORK_REGISTRY.schema.json
+# Tests: tests/test_issue_assignment_poller.py; tests/test_work_assignment_bridge.py
+# History: .riverview-backups/manifest.jsonl and Git
 # =============================================================================
 # Work Registry diagnostic and recovery cookbook
 
@@ -38,6 +43,43 @@ python -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps({"workers":
 ```
 
 The read-only Windows board can also be run once with `scripts/Start-RiverviewControlBoard-Registry.ps1 -Once`. For long evidence/blocker detail, use `-Detailed` only in a trusted console. Registry heartbeat indicates a reporting process, not active model reasoning.
+
+## Opt-in issue comment polling
+
+The poller needs an existing GitHub CLI installation and read access to issue comments. Check the current login without changing authentication:
+
+```powershell
+gh auth status
+```
+
+Choose a local development cache path explicitly. The example is on the W1 development machine; it is not a shared Windows-Camrui registry and must not be redirected into a production data directory.
+
+### Windows PowerShell
+
+```powershell
+$receiptFile = 'A:\AI\Riverview-Development\_control\work-comment-receipts.json'
+python scripts/poll_issue_assignments.py poll-once --state-file $receiptFile --repo ppow1/Riverview- --issue 120
+```
+
+### Linux shell
+
+```bash
+python3 scripts/poll_issue_assignments.py poll-once \
+  --state-file "$HOME/.local/state/riverview/work-comment-receipts.json" \
+  --repo ppow1/Riverview- --issue 120
+```
+
+The command prints newly discovered or edited comment IDs, their GitHub URLs, metadata, and body SHA-256 values. It never prints or persists the comment body. Repeating the same successful poll produces no duplicate receipt. An edited comment creates a new hash version under the same comment ID. Inspect the returned URL in GitHub; treat its text as untrusted content and decide manually whether it is an assignment for this worker. The poller does not parse aliases, commands, work-order IDs, or instructions.
+
+To keep polling after an explicit operator start, use `watch` in a console you control; Ctrl+C stops it. Successful cycles use the configured interval; failures report a sanitized error and retry with exponential backoff capped by the configured maximum:
+
+```powershell
+python scripts/poll_issue_assignments.py watch --state-file $receiptFile --repo ppow1/Riverview- --issue 120 --interval-seconds 60 --max-backoff-seconds 900
+```
+
+The `gh` command uses its existing caller-managed authentication and is invoked without a shell. This prototype never configures credentials or asks for broader permissions. It makes only the read-only issue-comments request. Polling cursors follow the newest GitHub `updated_at` value observed with a five-minute overlap, so ordering does not depend on Windows/Linux clock agreement. A failed request or file write does not advance either saved cursor; replay deduplicates unchanged comment hashes. Deleted source identities remain null instead of being guessed. The local receipt file uses an exclusive lock directory and atomic replacement. A malformed receipt file or lock timeout stops the poll without overwriting state; preserve the file and contact its owner. Receipt history is not automatically pruned; the 32 MiB file ceiling fails closed. If the lock is older than five minutes, the next local process may retire it as abandoned. Do not share this file across Windows and Camrui until atomic rename and lock behavior are independently verified.
+
+Review remains separate from the existing registry bridge. Only after a person verifies a specific comment and canonical work-order ID may they explicitly call `scripts/record_work_assignment.py record`. That bridge records an assignment event and mirrors local status; it still does not execute or wake a Codex session. A fresh poll is not proof of worker or model activity. No long-running poll service is installed by this development change.
 
 ## Diagnose common outcomes
 

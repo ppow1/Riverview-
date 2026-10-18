@@ -1,10 +1,8 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.247",
       "path": ".riverview-revisions.json",
-      "sha256": "97b8eadac856ac50d496e5124dd682af00ba982d7a7b853e51f1b87bb1c292de",
-      "size_bytes": 20151
+      "revision": "1.1.255"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -128,9 +126,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.186",
-      "sha256": "f4a7fac537831ec370df3ad0018a3a9f7807ca59e5841d50b8367da47782f93b",
-      "size_bytes": 654105
+      "revision": "1.0.187",
+      "sha256": "68df3be9b790e6a02614b83c955000c0dacb9e00ab1dc9584d77bb3514ec7433",
+      "size_bytes": 658270
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -271,10 +269,10 @@
       "size_bytes": 1226
     },
     "process_graphs/work-registry/observational-registry.json": {
-      "revision": "1.0.5",
+      "revision": "1.0.6",
       "path": "process_graphs/work-registry/observational-registry.json",
-      "sha256": "09b4698bcdad9b7b5a03f6dcc73a1eee5425c224180a594115c84d70c7c704c1",
-      "size_bytes": 10404
+      "sha256": "23d14f22520633088aa782e972893e5dbe1b8937843a183c901ace9406dc119e",
+      "size_bytes": 13255
     },
     "docs/components/WORK_REGISTRY.schema.json": {
       "revision": "1.0.1",
@@ -289,10 +287,10 @@
       "size_bytes": 6186
     },
     "docs/components/WORK_REGISTRY.md": {
-      "revision": "1.1.3",
+      "revision": "1.1.4",
       "path": "docs/components/WORK_REGISTRY.md",
-      "sha256": "2eb18bf3edeb953d08c5a08b395abac9f8d947d92417e84ac25e6fc292300939",
-      "size_bytes": 17858
+      "sha256": "1a8a9bbe39f01259d3b84f39159487893c59c0e4ff6e886516e2c214c1553d58",
+      "size_bytes": 20942
     },
     "docs/operations/CONTROL_BOARD_V4_IMPORT_MAP.json": {
       "revision": "1.0.0",
@@ -350,15 +348,15 @@
     },
     "docs/components/WORK_REGISTRY_COOKBOOK.md": {
       "path": "docs/components/WORK_REGISTRY_COOKBOOK.md",
-      "revision": "1.0.1",
-      "sha256": "732d57b6b1626a2d18d19fbf6eb8632c3704a9eeaab3250428b17bc00544439a",
-      "size_bytes": 7464
+      "revision": "1.0.2",
+      "sha256": "8694034574d4385bf7871b9b89aba5bcd38fc4d2c4bdb5e8a76527e6d438f91f",
+      "size_bytes": 11245
     },
     "docs/components/WORK_REGISTRY_FLOW.md": {
       "path": "docs/components/WORK_REGISTRY_FLOW.md",
-      "revision": "1.0.1",
-      "sha256": "495ac3d103d157993c08124f3eff06b77b69df1d62a828aaf2faf9a6fa002385",
-      "size_bytes": 8164
+      "revision": "1.0.2",
+      "sha256": "678928e7f4f4492cf79ec889300d621ea881c070a22c877cafbf248fb8dd9143",
+      "size_bytes": 10820
     },
     "process_graphs/generated/RIVERVIEW_PROCESS_GRAPH.md": {
       "path": "process_graphs/generated/RIVERVIEW_PROCESS_GRAPH.md",
@@ -437,8 +435,20 @@
       "revision": "1.0.0",
       "sha256": "4942f749cca20e152d5a4a857062e7a07e6782b90e797de3ca2d2ae3e8d0436a",
       "size_bytes": 5013
+    },
+    "scripts/poll_issue_assignments.py": {
+      "path": "scripts/poll_issue_assignments.py",
+      "revision": "1.0.0",
+      "sha256": "46d9b45e4d75be1d5f2e92299a4895f641817d5a1391f61c29a13feaa8ad735e",
+      "size_bytes": 18198
+    },
+    "tests/test_issue_assignment_poller.py": {
+      "path": "tests/test_issue_assignment_poller.py",
+      "revision": "1.0.0",
+      "sha256": "116b99f395f8bf70e1cc981b2ecda8bc2b5dfd16b5d32da2154579cdc1cbf8e4",
+      "size_bytes": 11438
     }
   },
-  "manifest_revision": "1.1.247",
+  "manifest_revision": "1.1.255",
   "updated_at": "2026-10-18T17:59:07+00:00"
 }
