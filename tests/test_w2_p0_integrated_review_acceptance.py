@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_w2_p0_integrated_review_acceptance.py
 # Component: W2-P0-INTEGRATED-REVIEW-ACCEPTANCE
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Verify typed Grace review subjects survive durable C3 exchange and C4 MCP round trips
 # Execution Model: Isolated PostgreSQL schema, unittest, deterministic synthetic provider only
 # Observability: Subject/revision digests, provider identity, exchange state, objective events
@@ -13,6 +13,7 @@
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Accept privacy-concealed wrong-provider denial
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Import MCP denial type from its owning adapter module
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Assert tampered typed subject is rejected without binding to error wording
+# Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Exercise C2 synthetic wake through C3 fenced receipt and Grace owner hook
 # Contracts: docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md; issue #120 comment 6254574126
 # History: Git and .riverview-revisions.json
 # =============================================================================
@@ -23,6 +24,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import tempfile
 import unittest
 from datetime import timedelta
 from types import SimpleNamespace
@@ -108,8 +110,139 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
                          row[3]["review_subject"]["sha256"])
         return grace, row
 
-    def _provider_round_trip(self, request_id, correlation_id, subject, *, idempotency_key):
+    def _run_synthetic_doorbell(self, grace, request_id, correlation_id):
+        """Exercise C2's worker against the C3 disposable exchange through Grace's hook."""
+        from riverview_core.doorbell.dispatcher import DoorbellWakeWorker, DoorbellWorkerConfig
+        from riverview_core.doorbell.runtime import OWNER_ID
+
+        class SyntheticBridge:
+            def __init__(self):
+                self.calls = []
+
+            def ring(self, request, target):
+                self.calls.append((request, target))
+                return SimpleNamespace(status="succeeded", failure_class=None)
+
+        target_id = "8af9333f-a59f-4a06-b572-e68b4d12b6c2"
+        bridge = SyntheticBridge()
+        grace.doorbell_worker = DoorbellWakeWorker(self.fixture.exchange, bridge,
+            DoorbellWorkerConfig(provider_id=PROVIDER, owner_id=OWNER_ID,
+                                 designated_conversation_id=target_id))
+        self.assertEqual(grace._run_doorbell_worker(), {"status": "recorded"})
+        self.assertEqual(len(bridge.calls), 1)
+        wake_request, actual_target = bridge.calls[0]
+        self.assertEqual((str(wake_request.request_id), str(wake_request.correlation_id)),
+                         (request_id, correlation_id))
+        self.assertEqual(actual_target, target_id)
+        self.assertEqual(self.fixture.exchange.status(request_id, correlation_id)["delivery_state"],
+                         "awaiting_external_claim")
+        self.assertEqual(grace._run_doorbell_worker(), {"status": "idle"})
+        self.assertEqual(len(bridge.calls), 1)
+
         fx = self.fixture
+        receipt = fx.admin.execute(fx.sql.SQL("""SELECT count(*),min(actor_id)
+            FROM {}.external_reasoning_exchange_events
+            WHERE request_id=%s AND event_type='doorbell_receipt'""").format(
+                fx.sql.Identifier(fx.schema)), (request_id,)).fetchone()
+        self.assertEqual(receipt, (1, OWNER_ID))
+
+    def _write_w1_trace_snapshot(self, subject, request_id, correlation_id):
+        """Export only the W1 allowlisted synthetic trace fields from this PG fixture."""
+        from riverview_core.doorbell.runtime import OWNER_ID
+
+        fx = self.fixture
+        exchange_status = fx.exchange.status(request_id, correlation_id)
+        raw_exchange_events = fx.admin.execute(fx.sql.SQL("""SELECT event_type,actor_id,
+                payload,occurred_at,request_id::text,correlation_id::text
+            FROM {}.external_reasoning_exchange_events WHERE request_id=%s ORDER BY sequence""").format(
+                fx.sql.Identifier(fx.schema)), (request_id,)).fetchall()
+        allowed_exchange_types = {"delivery_claimed", "doorbell_receipt", "claimed",
+                                  "response_received", "grace_consumed"}
+        payload_keys = {
+            "delivery_claimed": ("state", "fence"),
+            "doorbell_receipt": ("outcome", "attempt_id", "fence", "safe_error_code"),
+            "claimed": ("state",),
+            "response_received": ("response_sha256",),
+            "grace_consumed": (),
+        }
+        exchange_events = []
+        event_times = {}
+        for event_type, actor_id, payload, occurred_at, event_request, event_correlation in raw_exchange_events:
+            if event_type not in allowed_exchange_types:
+                continue
+            safe_payload = {key: payload[key] for key in payload_keys[event_type]
+                            if isinstance(payload, dict) and key in payload}
+            event = {"event_type": event_type, "actor_id": actor_id,
+                     "occurred_at": occurred_at.isoformat(), "payload": safe_payload,
+                     "request_id": event_request, "correlation_id": event_correlation}
+            exchange_events.append(event)
+            if event_type in {"claimed", "response_received"}:
+                event_times[event_type] = occurred_at.isoformat()
+
+        raw_grace_events = fx.admin.execute(fx.sql.SQL("""SELECT event_type,actor_id,
+                payload,created_at FROM {}.grace_objective_events
+            WHERE objective_id=%s AND event_type IN
+                ('resident.reasoning.external_proposal_reviewed',
+                 'resident.reasoning.external_proposal_revised',
+                 'resident.reasoning.external_proposal_review_blocked')
+            ORDER BY created_at""").format(fx.sql.Identifier(fx.schema)),
+            (fx.objective,)).fetchall()
+        grace_keys = ("request_id", "correlation_id", "subject_id", "revision",
+                      "subject_sha256", "response_sha256", "proposal_sha256", "decision",
+                      "successor_request_id", "successor_correlation_id")
+        grace_events = []
+        for event_type, actor_id, payload, created_at in raw_grace_events:
+            if payload.get("request_id") != request_id or payload.get("correlation_id") != correlation_id:
+                continue
+            grace_events.append({"event_type": event_type, "actor_id": actor_id,
+                "occurred_at": created_at.isoformat(),
+                "payload": {key: payload[key] for key in grace_keys if key in payload}})
+
+        bundle = {"schema_version": "rv.external-review-trace-input.v1",
+            "execution_kind": "synthetic", "doorbell_owner_id": OWNER_ID,
+            "rounds": [{
+                "review_subject": {key: subject[key] for key in
+                    ("schema_version", "subject_id", "revision", "sha256")},
+                "exchange": {"request_id": request_id, "correlation_id": correlation_id,
+                    "state": exchange_status["delivery_state"],
+                    "eligible_at": exchange_status["requested_at"],
+                    "response_sha256": exchange_status["response_sha256"],
+                    "events": exchange_events},
+                "provider": {"request_id": request_id, "correlation_id": correlation_id,
+                    "state": "response_received", "provider_id": PROVIDER,
+                    "review_subject_sha256": exchange_status["review_subject_sha256"],
+                    "response_sha256": exchange_status["response_sha256"],
+                    "claimed_at": event_times.get("claimed"),
+                    "response_received_at": event_times.get("response_received")},
+                "grace": {"request_id": request_id, "correlation_id": correlation_id,
+                    "events": grace_events},
+            }]}
+        from riverview_core.resident_execution.external_review_trace import build_report
+        projected = build_report(bundle)
+        self.assertEqual(projected["outcome"], "complete")
+        self.assertEqual(projected["rounds"][0]["state"], "accepted")
+        self.assertFalse(projected["rounds"][0]["doorbell_source_mismatch"])
+        export_path = os.environ.get("RIVERVIEW_W2_TRACE_EXPORT")
+        if export_path:
+            path = Path(export_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            descriptor, export_path = tempfile.mkstemp(prefix="rv-w2-review-trace-", suffix=".json")
+            os.close(descriptor)
+            path = Path(export_path)
+        encoded = json.dumps(bundle, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        path.write_text(json.dumps(bundle, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+                        encoding="utf-8")
+        # This line contains only the allowlisted synthetic metadata bundle so W1 can
+        # retrieve it from the controlled-run log if the runner temp file is gone.
+        print("W2_TRACE_SNAPSHOT_PATH=" + str(path))
+        print("W2_TRACE_SNAPSHOT_JSON=" + encoded)
+
+    def _provider_round_trip(self, request_id, correlation_id, subject, *, idempotency_key,
+                             owner_service=None):
+        fx = self.fixture
+        if owner_service is not None:
+            self._run_synthetic_doorbell(owner_service, request_id, correlation_id)
         listed = self.adapter.call_tool(self.provider,
             "reasoning_exchange_list_requests", {})
         request = next(item for item in listed["requests"]
@@ -190,7 +323,8 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
         self.assertEqual(grace.consume_external_reasoning(), 0)
 
         submitted = self._provider_round_trip(request_id, correlation_id, subject,
-                                               idempotency_key="w2:finish:response")
+                                               idempotency_key="w2:finish:response",
+                                               owner_service=grace)
         self._restart_exchange()
         status = self.adapter.call_tool(self.provider, "reasoning_exchange_status", {
             "request_id": request_id, "correlation_id": correlation_id,
@@ -208,12 +342,16 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
         self.assertEqual(reviewed[0]["payload"]["subject_sha256"], subject["sha256"])
         self.assertEqual(reviewed[0]["payload"]["decision"], "finish")
         self.assertTrue(fx.exchange.has_terminal_review_for_objective(fx.objective))
+        self.assertFalse(any(event["event_type"] == "work_order.dispatched"
+                             for event in grace.pipeline.objective_events(fx.objective)))
+        self._write_w1_trace_snapshot(subject, request_id, correlation_id)
 
     def test_exact_subject_expiry_rejects_late_provider_response_without_finalization(self):
         fx = self.fixture
         grace, row = self._start_grace_review()
         request_id, correlation_id, _state, payload, deadline = row
         subject = payload["review_subject"]
+        self._run_synthetic_doorbell(grace, request_id, correlation_id)
         listed = self.adapter.call_tool(self.provider,
             "reasoning_exchange_list_requests", {})
         self.assertTrue(any(item["request_id"] == request_id
@@ -250,7 +388,8 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
         first_subject = first_payload["review_subject"]
         fx.grace_provider.revise_once = True
         self._provider_round_trip(first_id, first_correlation, first_subject,
-                                  idempotency_key="w2:revise:response-1")
+                                  idempotency_key="w2:revise:response-1",
+                                  owner_service=grace)
 
         # Restart with a durable response, then simulate failure after the successor is
         # admitted but before the parent's revision event is committed.
@@ -288,7 +427,8 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
 
         child_subject = child[2]["review_subject"]
         self._provider_round_trip(child[0], child[1], child_subject,
-                                  idempotency_key="w2:revise:response-2")
+                                  idempotency_key="w2:revise:response-2",
+                                  owner_service=grace)
         self.assertEqual(grace.consume_external_reasoning(), 1)
         self.assertEqual(grace.pipeline.get_objective(fx.objective)["status"], "PROPOSED")
         final = [event for event in grace.pipeline.objective_events(fx.objective)

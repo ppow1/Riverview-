@@ -2,10 +2,11 @@
 Riverview Controlled Document
 File: docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md
 Component: W2-P0-INTEGRATED-REVIEW-ACCEPTANCE
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Specify isolated PostgreSQL acceptance for Grace exact-subject provider review
 Authority: Offline synthetic test only; no live provider, browser, production DB, credentials, or grants
 Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Initial test contract and recovery guidance
+Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Document integrated synthetic C2 wake and C3 receipt path
 History: Git and docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md
 -->
 # W2 P0 controlled acceptance
@@ -19,12 +20,10 @@ schema on the explicitly configured disposable PostgreSQL test database and
 drops that schema during teardown.
 
 The W2 acceptance source is `tests/test_w2_p0_integrated_review_acceptance.py`.
-On the initial W3 integration head this exercises the C3 durable exact subject,
-C4 typed provider MCP round trip, Grace finish/revise evaluation, and restart
-recovery. The C2 doorbell worker/atomic receipt stage remains a pending extension
-until C3 publishes its claim/receipt adapter and W3 assembles that exact head.
-The test must not be described as a complete end-to-end doorbell acceptance
-until that extension passes on the W3 integration branch.
+On W3's assembled C2/C3 integration head this exercises the C3 durable exact
+subject, synthetic C2 owner-loop wake, one C3 fenced receipt, C4 typed provider
+MCP round trip, Grace finish/revise evaluation, and restart recovery. It does
+not activate or contact a real browser or provider.
 
 ## Isolated execution
 
@@ -60,10 +59,11 @@ flowchart TD
     L --> M[Reject late response; remain unfinalized]
 ```
 
-The owner-approved C2 worker, once integrated, must replace the direct test
-delivery path with its synthetic fixed-wake bridge and one C3-fenced durable
-receipt. It must forward only request/correlation IDs, use an injected test
-owner identity, and never contact a real browser.
+The integrated tests invoke C2's `DoorbellWakeWorker` through Grace's existing
+owner hook with a synthetic bridge. The actual C3 exchange grants one
+metadata-only fenced claim and records one durable receipt under the configured
+C2 owner identity. The test confirms the exact request becomes available for
+the provider MCP claim and a second owner cycle is idle. No browser is contacted.
 
 ## Observable assertions
 
