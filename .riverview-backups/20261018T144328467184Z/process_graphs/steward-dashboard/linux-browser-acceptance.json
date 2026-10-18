@@ -1,0 +1,82 @@
+{
+  "graph_id": "rv:steward-dashboard:linux-browser-acceptance",
+  "graph_revision": "1.0.0",
+  "component_id": "STEWARD-DASHBOARD",
+  "workflow_id": "linux-browser-acceptance.v1",
+  "diagram_order": 20,
+  "source_references": [
+    "scripts/run_linux_browser_acceptance.py",
+    "tests/browser/conftest.py",
+    "tests/browser/test_read_only_smoke.py",
+    "tests/browser/fixtures/smoke.html"
+  ],
+  "documentation_references": [
+    "docs/operations/LINUX_BROWSER_ACCEPTANCE.md",
+    "process_graphs/README.md"
+  ],
+  "verification_evidence": [],
+  "nodes": [
+    {
+      "id": "rv:steward-dashboard:linux-browser-acceptance:request",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Authorized browser smoke requested with origin and page assertion",
+      "source_references": ["scripts/run_linux_browser_acceptance.py"],
+      "documentation_references": ["docs/operations/LINUX_BROWSER_ACCEPTANCE.md"],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:linux-browser-acceptance:target-allowed",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "HTTP origin and read-only target satisfy loopback or explicit staging opt-in",
+      "source_references": ["scripts/run_linux_browser_acceptance.py"],
+      "documentation_references": ["docs/operations/LINUX_BROWSER_ACCEPTANCE.md"],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:linux-browser-acceptance:run-chromium",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Run isolated headless Chromium GET smoke and block non-GET requests",
+      "source_references": ["tests/browser/conftest.py", "tests/browser/test_read_only_smoke.py"],
+      "documentation_references": ["docs/operations/LINUX_BROWSER_ACCEPTANCE.md"],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:linux-browser-acceptance:collect-evidence",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Write private summary, errors, screenshot, and failure trace",
+      "source_references": ["tests/browser/conftest.py", "scripts/run_linux_browser_acceptance.py"],
+      "documentation_references": ["docs/operations/LINUX_BROWSER_ACCEPTANCE.md"],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:linux-browser-acceptance:accept",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Accept only successful same-origin page render with no browser errors or blocked mutations",
+      "source_references": ["tests/browser/test_read_only_smoke.py"],
+      "documentation_references": ["docs/operations/LINUX_BROWSER_ACCEPTANCE.md"],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:linux-browser-acceptance:fail-closed",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject unsafe target or retain failure evidence without retrying mutations",
+      "source_references": ["scripts/run_linux_browser_acceptance.py", "tests/browser/conftest.py"],
+      "documentation_references": ["docs/operations/LINUX_BROWSER_ACCEPTANCE.md"],
+      "verification_evidence": []
+    }
+  ],
+  "edges": [
+    {"from": "rv:steward-dashboard:linux-browser-acceptance:request", "to": "rv:steward-dashboard:linux-browser-acceptance:target-allowed", "type": "runtime_transition"},
+    {"from": "rv:steward-dashboard:linux-browser-acceptance:target-allowed", "to": "rv:steward-dashboard:linux-browser-acceptance:run-chromium", "type": "runtime_transition", "label": "valid target"},
+    {"from": "rv:steward-dashboard:linux-browser-acceptance:target-allowed", "to": "rv:steward-dashboard:linux-browser-acceptance:fail-closed", "type": "diagnostic_branch", "label": "invalid or unauthorized target"},
+    {"from": "rv:steward-dashboard:linux-browser-acceptance:run-chromium", "to": "rv:steward-dashboard:linux-browser-acceptance:collect-evidence", "type": "runtime_transition"},
+    {"from": "rv:steward-dashboard:linux-browser-acceptance:collect-evidence", "to": "rv:steward-dashboard:linux-browser-acceptance:accept", "type": "verification", "label": "successful smoke"},
+    {"from": "rv:steward-dashboard:linux-browser-acceptance:collect-evidence", "to": "rv:steward-dashboard:linux-browser-acceptance:fail-closed", "type": "diagnostic_branch", "label": "browser error or failed assertion"}
+  ]
+}
