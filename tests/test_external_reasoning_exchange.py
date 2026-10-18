@@ -2,7 +2,11 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_exchange.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.9
+# Revision: 1.0.13
+# Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify sanitized C2 exception receipts terminate without duplicate wake retries.
+# Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify duplicate receipt replay remains bound to the original lease token.
+# Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify deterministic doorbell attempt identity using disposable PostgreSQL.
+# Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify body-free doorbell claims, single-use receipts, retries, and ambiguity fencing.
 # Purpose: Verify durable external advisory exchange, leases, recovery and idempotency
 # Execution Model: Isolated PostgreSQL integration plus deterministic simulated provider
 # Observability: State, correlation, event, digest and sanitized diagnostic assertions
@@ -158,6 +162,20 @@ class ReviewSubjectUnitTests(unittest.TestCase):
             "steps": [{**subject["proposal"]["steps"][0], "unexpected": "x"}]}}
         with self.assertRaisesRegex(ValueError, "review subject content is invalid"):
             validate_review_subject(malformed)
+
+    def test_grace_execution_service_polls_optional_doorbell_worker(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+
+        class Worker:
+            def run_once(self):
+                return {"status": "SUBMITTED", "request_id": "private-id"}
+
+        service = GraceExecutionService(None, None, object(), dispatch_credential="d",
+            authority_ref="work-order:test", verifier_id="v", verifier_credential="v",
+            artifact_root="/tmp/unused", doorbell_worker=Worker())
+        self.assertEqual(service._run_doorbell_worker(), {"status": "SUBMITTED"})
+        service.doorbell_worker = None
+        self.assertEqual(service._run_doorbell_worker(), {"status": "NOT_CONFIGURED"})
 
 
 @unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")
@@ -813,6 +831,82 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         self.assertGreater(retry.fence, delivery.fence)
         self.assertEqual(self.exchange.status(receipt.request_id,
             receipt.correlation_id)["delivery_attempts"], 2)
+
+    def test_doorbell_claim_is_body_free_and_receipt_is_idempotent(self):
+        receipt = self._submit(idem="doorbell-receipt-success")
+        claim = self.exchange.claim_next_doorbell_request(PROVIDER, "doorbell:test", 90)
+        self.assertIsNotNone(claim)
+        self.assertEqual((claim.request_id, claim.correlation_id, claim.provider_id),
+                         (receipt.request_id, receipt.correlation_id, PROVIDER))
+        self.assertTrue(claim.attempt_id)
+        self.assertNotIn("request_payload", repr(claim))
+        self.assertEqual(self.exchange.claim_next_doorbell_request(
+            PROVIDER, "other-doorbell", 90), None)
+        transition = self.exchange.record_doorbell_receipt(
+            claim.request_id, claim.correlation_id, PROVIDER, "doorbell:test",
+            claim.attempt_id, claim.lease_token, claim.fence, "submitted", None)
+        self.assertEqual(transition, "awaiting_external_claim")
+        self.assertEqual(self.exchange.record_doorbell_receipt(
+            claim.request_id, claim.correlation_id, PROVIDER, "doorbell:test",
+            claim.attempt_id, claim.lease_token, claim.fence, "submitted", None), transition)
+        self.assertEqual(self.exchange.status(receipt.request_id,
+            receipt.correlation_id)["delivery_state"], "awaiting_external_claim")
+        with self.ledger.db.cursor() as cur:
+            self.exchange._set_path(cur)
+            cur.execute("""SELECT count(*) AS count FROM external_reasoning_exchange_events
+                WHERE request_id=%s AND event_type='doorbell_receipt'""", (receipt.request_id,))
+            self.assertEqual(cur.fetchone()["count"], 1)
+        with self.assertRaises(ExchangeConflict):
+            self.exchange.record_doorbell_receipt(claim.request_id, claim.correlation_id,
+                PROVIDER, "doorbell:test", claim.attempt_id, claim.lease_token,
+                claim.fence, "ambiguous", "RIV-PLY-0009")
+
+    def test_doorbell_known_pre_send_failure_uses_existing_bounded_retry(self):
+        receipt = self._submit(idem="doorbell-pre-send-failure")
+        claim = self.exchange.claim_next_doorbell_request(PROVIDER, "doorbell:test", 90)
+        self.assertEqual(self.exchange.record_doorbell_receipt(
+            claim.request_id, claim.correlation_id, PROVIDER, "doorbell:test",
+            claim.attempt_id, claim.lease_token, claim.fence, "failed", "RIV-PLY-0007"),
+            "awaiting_delivery")
+        self.assertEqual(self.exchange.status(receipt.request_id,
+            receipt.correlation_id)["last_error_code"], "riv_ply_0007")
+        self.assertIsNone(self.exchange.claim_next_doorbell_request(
+            PROVIDER, "doorbell:test", 90))
+        self.clock_value += timedelta(seconds=3)
+        retried = self.exchange.claim_next_doorbell_request(PROVIDER, "doorbell:test", 90)
+        self.assertGreater(retried.fence, claim.fence)
+        self.assertNotEqual(retried.attempt_id, claim.attempt_id)
+
+    def test_doorbell_ambiguous_failure_is_terminal_and_fenced(self):
+        receipt = self._submit(idem="doorbell-ambiguous")
+        claim = self.exchange.claim_next_doorbell_request(PROVIDER, "doorbell:test", 90)
+        self.assertEqual(self.exchange.record_doorbell_receipt(
+            claim.request_id, claim.correlation_id, PROVIDER, "doorbell:test",
+            claim.attempt_id, claim.lease_token, claim.fence, "ambiguous", "RIV-PLY-0009"),
+            "failed")
+        self.assertIsNone(self.exchange.claim_next_doorbell_request(
+            PROVIDER, "doorbell:test", 90))
+        status = self.exchange.status(receipt.request_id, receipt.correlation_id)
+        self.assertEqual((status["delivery_state"], status["last_error_code"]),
+                         ("failed", "riv_ply_0009"))
+        with self.assertRaises(ExchangeConflict):
+            self.exchange.record_doorbell_receipt(claim.request_id, claim.correlation_id,
+                PROVIDER, "doorbell:test", claim.attempt_id, "wrong-token",
+                claim.fence, "ambiguous", "RIV-PLY-0009")
+
+    def test_doorbell_sanitized_bridge_exception_codes_are_terminal(self):
+        for error_code in ("doorbell_exception", "doorbell_failure"):
+            with self.subTest(error_code=error_code):
+                receipt = self._submit(idem="doorbell-exception:" + error_code)
+                claim = self.exchange.claim_next_doorbell_request(PROVIDER, "doorbell:test", 90)
+                self.assertEqual(self.exchange.record_doorbell_receipt(
+                    claim.request_id, claim.correlation_id, PROVIDER, "doorbell:test",
+                    claim.attempt_id, claim.lease_token, claim.fence,
+                    "ambiguous", error_code), "failed")
+                status = self.exchange.status(receipt.request_id, receipt.correlation_id)
+                self.assertEqual(status["last_error_code"], error_code)
+                self.assertIsNone(self.exchange.claim_next_doorbell_request(
+                    PROVIDER, "doorbell:test", 90))
 
     def test_migration_grants_only_exchange_runtime_access(self):
         result = self.admin.execute(self.sql.SQL("""SELECT

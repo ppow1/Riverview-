@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.19
+# Revision: 1.0.20
+# Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Poll optional injected ChatGPT wake worker in Grace owner cycle.
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Persist and rate-limit failed resident proposals.
 # Purpose: Reconcile durable Grace work orders through existing CME worker contracts
 # Execution Model: Persistent scheduled poll over PostgreSQL objective state
@@ -68,7 +69,8 @@ class GraceExecutionService:
                  resident_token_budget=768, execution_capability=CAPABILITY,
                  conversation_result_publisher=None, proposal_lifecycle=None,
                  external_reasoning_exchange=None, external_reasoning_authorize=None,
-                 external_reasoning_principal=None, execution_workers=None, verifiers=None):
+                 external_reasoning_principal=None, execution_workers=None, verifiers=None,
+                 doorbell_worker=None):
         if not 1 <= max_dispatch_failures <= 10:
             raise ValueError("dispatch failure limit must be between 1 and 10")
         if type(resident_token_budget) is not int or not 1 <= resident_token_budget <= 4096:
@@ -127,6 +129,9 @@ class GraceExecutionService:
         self.external_reasoning_exchange = external_reasoning_exchange
         self.external_reasoning_authorize = external_reasoning_authorize
         self.external_reasoning_principal = external_reasoning_principal
+        if doorbell_worker is not None and not callable(getattr(doorbell_worker, "run_once", None)):
+            raise ValueError("doorbell worker must provide a bounded run_once method")
+        self.doorbell_worker = doorbell_worker
         if (external_reasoning_exchange is not None and
                 (not isinstance(external_reasoning_principal, str) or
                  not external_reasoning_principal or
@@ -765,6 +770,7 @@ class GraceExecutionService:
     def run_once(self):
         """Run bounded dispatch, advisory reasoning, independent workers and verification."""
         try:
+            doorbell = self._run_doorbell_worker()
             external_reasoned = self.consume_external_reasoning()
             reasoned = self.reason_one_grounded_objective()
             dispatched = self.dispatch_proposed()
@@ -781,10 +787,25 @@ class GraceExecutionService:
             return {"external_reasoned": external_reasoned, "reasoned": reasoned,
                     "dispatched": dispatched, "worker": worker_result, "verified": verified,
                     "completed": completed, "returned": returned,
-                    "proposal_updates": proposal_updates}
+                    "proposal_updates": proposal_updates, "doorbell": doorbell}
         except Exception as exc:
             self._heartbeat("degraded", type(exc).__name__)
             raise
+
+    def _run_doorbell_worker(self):
+        """Poll the injected local wake adapter without coupling its failure to Grace."""
+        if self.doorbell_worker is None:
+            return {"status": "NOT_CONFIGURED"}
+        try:
+            result = self.doorbell_worker.run_once()
+            status = getattr(result, "status", None)
+            if status is None and isinstance(result, Mapping):
+                status = result.get("status")
+            return {"status": status if isinstance(status, str) else "POLL_COMPLETED"}
+        except Exception as exc:
+            LOG.warning(json.dumps({"event": "grace_doorbell_worker_failed",
+                "failure_type": type(exc).__name__}, sort_keys=True))
+            return {"status": "FAILED", "failure_type": type(exc).__name__}
 
     def _run_workers(self, assignment_id=None):
         """Poll each capability independently; a failed worker cannot starve its peer."""

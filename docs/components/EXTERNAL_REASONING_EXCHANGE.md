@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 Component: RESIDENT-REASONING
-File Revision: 1.1.5
+File Revision: 1.1.7
 Purpose: Define the durable transport-neutral external reasoning exchange contract
 Authority: Existing resident.reasoning.escalate exact grant; advisory-only result
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial phase-one contract
@@ -16,6 +16,8 @@ Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Return standard HT
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Bind durable provider responses to Grace's existing persistent reasoner and idempotent proposal/event acknowledgement.
 Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Connect the existing reasoning decision to principal-resolved durable exchange admission.
 Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Bind advisory reviews to immutable proposal subjects and record bounded Grace revise-or-finish decisions.
+Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Define the fixed-wake bridge claim and metadata-only durable receipt contract.
+Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Accept sanitized C2 bridge exception codes as terminal ambiguous receipts.
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Durable external reasoning exchange
@@ -104,6 +106,29 @@ States and available internal operations:
 | `grace_consumed` | Existing Grace reasoning workflow durably recorded its result reference | Retry returns the same advisory and stable consumption key |
 | `expired` | Finite deadline elapsed before a response | Terminal; no replay or deadline extension |
 | `failed` | Delivery exhausted its bounded attempts or was explicitly non-retryable | Terminal diagnostic; preserve row and events |
+
+The local fixed-wake bridge uses `claim_next_doorbell_request(provider_id,
+owner_id, lease_seconds)` to claim one eligible row through the same fenced
+delivery lease. It returns only `request_id`, `correlation_id`, `provider_id`,
+deterministic `attempt_id`, lease token, fence, lease expiry, and request
+deadline. The browser bridge receives the existing fixed wake text and opaque
+correlation metadata; it never receives or extracts a request or response body.
+
+After the browser outcome, the dispatcher calls exactly one
+`record_doorbell_receipt(request_id, correlation_id, provider_id, owner_id,
+attempt_id, lease_token, fence, outcome, safe_error_code)`. The operation
+atomically validates the lease and records the transition in this exchange.
+`submitted` advances to `awaiting_external_claim`; known pre-send `failed`
+results use the existing bounded exponential retry and five-attempt limit;
+`ambiguous` results are terminal to prevent a duplicate wake after an uncertain
+send. The sanitized C2 error codes `doorbell_exception` and `doorbell_failure`
+are accepted as terminal ambiguous receipts; only the enumerated `RIV-PLY`
+pre-send codes can retry. An idempotent replay must match the attempt, owner,
+fence, outcome, safe code, and SHA-256 of the lease token. The token itself is
+not persisted in the receipt event. The service loop accepts an optional injected local doorbell
+worker; browser construction and runtime configuration remain owned by the
+doorbell integration. No production browser worker is commissioned by this
+exchange contract.
 
 Delivery and Grace-consumption leases are bounded and fenced. A reclaimed lease
 increments its fence, invalidating stale owners. Delivery retry uses bounded
