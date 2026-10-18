@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION_FLOW.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.18
+File Revision: 1.0.20
 Purpose: Generated focused flow for persistent Grace browser conversation
 Authority: Canonical graph JSON; diagram generated and not hand-edited
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Register generated chat workflow view
@@ -25,7 +25,7 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_provider_match_6e2180eb{"Does the registered provider match the exact implementation revision?"}
     g_rv_resident_conversation_browser_chat_model_readiness_diagnostic_90a0703b["Optional read-only readiness probe verifies health and exact served model; HTTP unavailability does not identify host power state"]
     g_rv_resident_conversation_browser_chat_persist_user_50079953["Append user event and idempotency key before inference"]
-    g_rv_resident_conversation_browser_chat_context_bound_672d08c9["Assemble recent persisted history and reject serialized context above 32 KiB"]
+    g_rv_resident_conversation_browser_chat_context_bound_672d08c9["Assemble recent history; retain every system instruction and the active user turn, trim oldest conversational context to the exact serialized 32 KiB provider limit"]
     g_rv_resident_conversation_browser_chat_stage_context_policy_b35672ba["For 0.6B acknowledgments use concise Director of Operations identity context and current user turn; retain full canonical context for substantive stages"]
     g_rv_resident_conversation_browser_chat_inference_8bca7614["Call the office-bound local model adapter; only loopback or explicitly allowlisted OCTO1 routes are accepted, with served-model and binding checks"]
     g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79[["Persist a sanitized unavailable or incomplete response outcome"]]
@@ -46,7 +46,7 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_readiness_route_7e67f750{"Route substantive turns to 80B; exact acknowledgments to 0.6B; narrow simple facts to provisional 30B"}
     g_rv_resident_conversation_browser_chat_attempt_diagnostics_6b1cc0a3["Emit sanitized provider attempts with bounded timing and error codes; never include conversation text"]
     g_rv_resident_conversation_browser_chat_defer_reasoning_7d693ff6["Persist complex turn and required capability when 80B is unavailable or busy"]
-    g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14["Poll durable deferred turns, acquire a cross-process lease, and rebuild context only through the original request"]
+    g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14["Poll durable deferred turns, acquire a cross-process lease, bound provider context, mark tool-enabled stream generation before inference, and atomically persist assistant response plus stream completion"]
     g_rv_resident_conversation_browser_chat_reasoning_router_failure_43c1e7f2[["Keep the request pending when the required 80B capability is unavailable; emit sanitized provider attempt diagnostics"]]
     g_rv_resident_conversation_browser_chat_resume_auth_recheck_b0f115ca["Revalidate the original sender exact grant and current Grace occupant"]
     g_rv_resident_conversation_browser_chat_upgrade_continuity_a3e9f484{"Does the current binding match or follow the explicitly authorized direct router transition for the persisted capability?"}
@@ -74,7 +74,7 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_provider_match_6e2180eb -->|Current implementation matched| g_rv_resident_conversation_browser_chat_persist_user_50079953
   g_rv_resident_conversation_browser_chat_provider_match_6e2180eb -->|documentation: Read-only readiness probe is available for diagnostics; chat currently requires no probe preflight| g_rv_resident_conversation_browser_chat_model_readiness_diagnostic_90a0703b
   g_rv_resident_conversation_browser_chat_persist_user_50079953 --> g_rv_resident_conversation_browser_chat_context_bound_672d08c9
-  g_rv_resident_conversation_browser_chat_context_bound_672d08c9 -->|diagnostic_branch: Context too large; model is not called| g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79
+  g_rv_resident_conversation_browser_chat_context_bound_672d08c9 -->|diagnostic_branch: Protected system context plus active user turn still exceeds 32 KiB; provider is not called| g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79
   g_rv_resident_conversation_browser_chat_inference_8bca7614 -->|diagnostic_branch: Timeout, unavailable or incomplete response| g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79
   g_rv_resident_conversation_browser_chat_inference_8bca7614 --> g_rv_resident_conversation_browser_chat_binding_recheck_06e5ffdc
   g_rv_resident_conversation_browser_chat_binding_recheck_06e5ffdc -->|diagnostic_branch: Office binding changed during inference| g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79

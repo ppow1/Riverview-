@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.14
+# Revision: 1.0.15
 # Purpose: Verify primary 80B routing, capability-pinned recovery, bounded fallback and diagnostics
 # Execution Model: Deterministic provider doubles; no database or model endpoint
 # Observability: Assert selected provider and served-model provenance
@@ -15,6 +15,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-CHAT-CONTEXT-BOUND-001 | Reproduce and prevent provider message-count rejection on long conversations
 # Changed: 2026-10-15 UTC | RV-GRACE-AUTONOMIC-CONTEXT-BOUND-001 | Verify minimal autonomic identity prompt and full substantive context without changing durable input
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
+# Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Regress byte-bounded prompt trimming and safe irreducible-context reporting.
 # =============================================================================
 """Focused tests for Grace's readiness-aware three-stage router."""
 
@@ -197,6 +198,60 @@ class GraceModelRouterTests(unittest.TestCase):
         reasoning = self.reasoner.calls[-1][0]
         self.assertIn("historical turn 0", json.dumps(reasoning))
         self.assertIn("synthetic state", json.dumps(reasoning))
+
+    def test_reasoning_context_trims_oldest_history_to_exact_provider_byte_limit(self):
+        messages = [{"role": "system", "content": "canonical role " * 300}]
+        messages.extend({"role": "user" if index % 2 == 0 else "assistant",
+                         "content": f"historical-{index} " * 1100}
+                        for index in range(12))
+        messages.extend([
+            {"role": "system", "content": "operational snapshot " * 400},
+            {"role": "user", "content": "Analyze the current commissioning request."},
+        ])
+        original = json.dumps(messages, ensure_ascii=False)
+        self.reasoner.chat_prefix = "/no_think\\n"
+
+        self.router.complete_chat(messages, max_tokens=128,
+            expected_revision=self.router.model_sha256,
+            required_capability="grace.reasoning.80b")
+
+        routed = self.reasoner.calls[-1][0]
+        provider_copy = [dict(item) for item in routed]
+        latest_user = next(index for index in range(len(provider_copy) - 1, -1, -1)
+                           if provider_copy[index]["role"] == "user")
+        provider_copy[latest_user]["content"] = (
+            self.reasoner.chat_prefix + provider_copy[latest_user]["content"])
+        encoded = json.dumps(provider_copy, ensure_ascii=False,
+                             separators=(",", ":")).encode("utf-8")
+        self.assertLessEqual(len(encoded), LocalReasoningProvider.MAX_PROMPT_BYTES)
+        systems = [item["content"] for item in routed if item["role"] == "system"]
+        self.assertTrue(any("canonical role" in item for item in systems))
+        self.assertTrue(any("operational snapshot" in item for item in systems))
+        self.assertEqual(routed[-1]["content"],
+                         "Analyze the current commissioning request.")
+        self.assertNotIn("historical-0", json.dumps(routed))
+        self.assertEqual(json.dumps(messages, ensure_ascii=False), original)
+
+    def test_system_context_and_active_turn_over_limit_fail_with_specific_safe_code(self):
+        messages = [
+            {"role": "system", "content": "fixed " * 6000},
+            {"role": "user", "content": "Analyze this request."},
+        ]
+        with self.assertRaises(LocalReasoningUnavailable) as raised:
+            self.router.complete_chat(messages, max_tokens=64,
+                expected_revision=self.router.model_sha256,
+                required_capability="grace.reasoning.80b")
+        self.assertEqual(raised.exception.code, "prompt_too_large")
+        self.assertEqual(self.reasoner.calls, [])
+
+    def test_prompt_too_large_survives_deferred_log_sanitization(self):
+        from riverview_core.resident_execution.conversation import _log_deferred_attempt
+        with self.assertLogs("riverview_core.resident_execution.conversation",
+                             level="WARNING") as captured:
+            _log_deferred_attempt("request:test", "grace.reasoning.80b",
+                                  LocalReasoningUnavailable("prompt_too_large"))
+        self.assertIn('"error_code": "prompt_too_large"', captured.output[0])
+        self.assertNotIn("message body", captured.output[0])
 
     def test_each_model_stage_describes_one_grace_identity_and_capability(self):
         cases = (

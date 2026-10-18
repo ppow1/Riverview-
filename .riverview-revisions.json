@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.226"
+      "revision": "1.1.228"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -119,9 +119,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.176",
-      "sha256": "fd879df5c455d49d873f1f8ddeef362e7e25398a33f44431f7f3126bedfd96e8",
-      "size_bytes": 622123
+      "revision": "1.0.178",
+      "sha256": "7eee4afe16f4fca8c1f5c8fcf011d6227a70569b0b1e1fc173f9e0825eaff733",
+      "size_bytes": 622352
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -179,9 +179,9 @@
     },
     "process_graphs/resident-conversation/browser-chat.json": {
       "path": "process_graphs/resident-conversation/browser-chat.json",
-      "revision": "1.0.19",
-      "sha256": "13d5f5d952a57aefc941ff9372fced054357bfaaee7e339a49fab612d3062b5b",
-      "size_bytes": 51229
+      "revision": "1.0.21",
+      "sha256": "d342d74a7b7e4d3a903edc71c1fb17aeddfe45b2cb7307168cff3f91060ddee1",
+      "size_bytes": 51458
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "path": "process_graphs/resident-reasoning/runtime.json",
@@ -262,6 +262,6 @@
       "size_bytes": 1226
     }
   },
-  "manifest_revision": "1.1.226",
+  "manifest_revision": "1.1.228",
   "updated_at": null
 }

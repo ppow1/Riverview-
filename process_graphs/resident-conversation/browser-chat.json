@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-conversation:browser-chat",
-  "graph_revision": "1.0.18",
+  "graph_revision": "1.0.20",
   "component_id": "RESIDENT-CONVERSATION",
   "workflow_id": "resident.conversation.v1",
   "diagram_order": 14,
@@ -169,9 +169,9 @@
     },
     {
       "id": "rv:resident-conversation:browser-chat:context-bound",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "verification",
-      "label": "Assemble recent persisted history and reject serialized context above 32 KiB",
+      "label": "Assemble recent history; retain every system instruction and the active user turn, trim oldest conversational context to the exact serialized 32 KiB provider limit",
       "source_references": [
         "src/riverview_core/resident_execution/conversation.py"
       ],
@@ -527,9 +527,9 @@
     },
     {
       "id": "rv:resident-conversation:browser-chat:resume-reasoning",
-      "node_revision": "1.0.2",
+      "node_revision": "1.0.3",
       "type": "recovery",
-      "label": "Poll durable deferred turns, acquire a cross-process lease, and rebuild context only through the original request",
+      "label": "Poll durable deferred turns, acquire a cross-process lease, bound provider context, mark tool-enabled stream generation before inference, and atomically persist assistant response plus stream completion",
       "source_references": [
         "src/riverview_core/resident_execution/conversation.py",
         "src/riverview_core/status_dashboard/server.py"
@@ -899,7 +899,7 @@
       "from": "rv:resident-conversation:browser-chat:context-bound",
       "to": "rv:resident-conversation:browser-chat:provider-failure",
       "type": "diagnostic_branch",
-      "label": "Context too large; model is not called"
+      "label": "Protected system context plus active user turn still exceeds 32 KiB; provider is not called"
     },
     {
       "from": "rv:resident-conversation:browser-chat:inference",
