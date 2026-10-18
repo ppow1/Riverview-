@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_notification_push.py
 # Component: NOTIFICATION-DELIVERY
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Verify provider routing, durable outbox recovery, retries, and ack semantics
 # Execution Model: Unit tests plus disposable PostgreSQL integration tests
 # Observability: Queue state, provider call evidence, append-only event ledger
 # Dependencies: Python 3.10+; Psycopg 3; optional disposable PostgreSQL 16
 # Authority: Test-only schema; no production credential or provider call
-# Changed: 2026-10-18 UTC | RV-NOTIFICATION-QUEUE-RETRY-ACCEPTANCE-20261018 | Add disposable retry/restart acceptance coverage
+# Changed: 2026-10-18 UTC | RV-NOTIFICATION-LIFECYCLE-ACCEPTANCE-20261018 | Cover CME event projection through severity-routed durable push and acknowledgment
 # Contracts: docs/components/NOTIFICATION_IPHONE_DELIVERY.md
 # Tests: pytest tests/test_notification_push.py
 # History: Git + .riverview-backups/manifest.jsonl
@@ -30,6 +30,7 @@ from riverview_core.notifications.push import (
     HttpPushTransport, NotificationDeliveryManager, PushConfig,
     PushConfigurationError, PushProviderError,
 )
+from riverview_core.notifications import NotificationDispatcher
 from riverview_core.postgres_migrations import apply_migrations
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -161,6 +162,101 @@ class PushDeliveryPostgresTests(unittest.TestCase):
             cursor.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(self.schema)))
             cursor.execute(query, params)
             return cursor.fetchall()
+
+    def test_cme_event_to_durable_push_request_routes_retries_and_acknowledges(self):
+        """Exercise the real event projector and push outbox with disposable rows."""
+        # Replace the one fixture notice with source events so this test proves both
+        # sides of the CME-event -> attention-notice -> provider-outbox lifecycle.
+        with self.admin.cursor() as cursor:
+            cursor.execute("DELETE FROM attention_notifications WHERE notification_id=%s",
+                           (self.notification_id,))
+            cursor.execute("DELETE FROM cme_monitor_events")
+            run_id = uuid4().hex
+            for event_type in ("attention_resolved", "assignment_stalled", "monitor_failed"):
+                cursor.execute("""INSERT INTO cme_monitor_events
+                    (event_key,service_id,assignment_id,event_type,details)
+                    VALUES (%s,'notification_acceptance_test',NULL,%s,%s::jsonb)""",
+                    (f"iphone-acceptance:{run_id}:{event_type}", event_type,
+                     json.dumps({"test_only": True, "test_id": run_id})))
+
+        dispatcher = NotificationDispatcher(DSN, schema=self.schema)
+        self.assertEqual(dispatcher.scan_once(), {
+            "status": "healthy", "scanned": 3,
+            "notifications_created": 3, "decision_requests_created": 0})
+        self.assertEqual(dispatcher.scan_once(), {
+            "status": "healthy", "scanned": 0,
+            "notifications_created": 0, "decision_requests_created": 0})
+
+        self.assertEqual(self.manager.reconcile(),
+                         {"notices_scanned": 3, "deliveries_queued": 4})
+        self.assertEqual(self.manager.reconcile(),
+                         {"notices_scanned": 0, "deliveries_queued": 0})
+        routed = self.rows("""SELECT n.event_type,q.severity,q.provider
+            FROM attention_notifications n
+            JOIN cme_monitor_events e ON e.event_id=n.source_event_id
+            JOIN notification_delivery_queue q ON q.notification_id=n.notification_id
+            WHERE e.service_id='notification_acceptance_test'
+            ORDER BY n.event_type,q.provider""")
+        self.assertEqual({row for row in routed}, {
+            ("attention_resolved", "info", "ntfy"),
+            ("assignment_stalled", "warning", "ntfy"),
+            ("assignment_stalled", "warning", "pushover"),
+            ("monitor_failed", "critical", "pushover"),
+        })
+        self.assertEqual(len(self.rows("""SELECT q.delivery_id
+            FROM notification_delivery_queue q
+            JOIN attention_notifications n USING (notification_id)
+            JOIN cme_monitor_events e ON e.event_id=n.source_event_id
+            WHERE e.service_id='notification_acceptance_test'""")), 4)
+
+        # First provider attempt fails and durably schedules a retry. A new manager
+        # resumes the outbox record; successful provider acceptance remains distinct
+        # from delivery to or acknowledgment by a handset.
+        failure_transport = FakeTransport([PushProviderError("temporary provider failure")])
+        self.manager.transport = failure_transport
+        failure = self.manager.deliver_one()
+        self.assertEqual(failure["status"], "retry_or_failed")
+        retried_id = failure["delivery_id"]
+        retry_key = failure_transport.calls[0][2]
+        retry_row = self.rows("""SELECT state,attempt_count,idempotency_key
+            FROM notification_delivery_queue WHERE delivery_id=%s""", (retried_id,))[0]
+        self.assertEqual(retry_row, ("retry", 1, retry_key))
+
+        receipt_id = "R" * 30
+        success_transport = FakeTransport(
+            [{"accepted": True, "receipt_id": receipt_id} for _ in range(4)],
+            {receipt_id: {"acknowledged": True, "expired": False}})
+        restarted = NotificationDeliveryManager(
+            DSN, config(), schema=self.schema, transport=success_transport)
+        with self.admin.cursor() as cursor:
+            cursor.execute("""UPDATE notification_delivery_queue
+                SET next_attempt_at=clock_timestamp()
+                WHERE delivery_id=%s""", (retried_id,))
+        outcomes = [restarted.deliver_one() for _ in range(4)]
+        self.assertTrue(all(outcome["status"] == "provider_accepted" for outcome in outcomes))
+        self.assertEqual(sum(outcome["delivery_id"] == retried_id for outcome in outcomes), 1)
+        self.assertEqual(sum(key == retry_key for _, _, key in success_transport.calls), 1)
+        self.assertEqual(restarted.reconcile(),
+                         {"notices_scanned": 0, "deliveries_queued": 0})
+        self.assertEqual(restarted.deliver_one(), {"status": "idle"})
+
+        accepted = self.rows("""SELECT state,attempt_count FROM notification_delivery_queue
+            ORDER BY delivery_id""")
+        self.assertEqual(len(accepted), 4)
+        self.assertEqual([row[0] for row in accepted], ["accepted"] * 4)
+        self.assertEqual(sorted(row[1] for row in accepted), [1, 1, 1, 2])
+        with self.admin.cursor() as cursor:
+            cursor.execute("""UPDATE notification_delivery_queue
+                SET next_receipt_check_at=clock_timestamp()-interval '1 second'
+                WHERE provider='pushover' AND severity='critical' AND state='accepted'""")
+        poll = restarted.poll_emergency_acknowledgments()
+        self.assertEqual(poll, {"polled": 1, "acknowledged": 1, "poll_failures": 0})
+        critical = self.rows("""SELECT state,acknowledged_at FROM notification_delivery_queue
+            WHERE provider='pushover' AND severity='critical'""")[0]
+        self.assertEqual(critical[0], "acknowledged")
+        self.assertIsNotNone(critical[1])
+        self.assertEqual(len(self.rows("""SELECT event_id FROM notification_delivery_events
+            WHERE event_type='emergency_acknowledged'""")), 1)
 
     def test_reconcile_deduplicates_and_http_acceptance_is_not_phone_delivery(self):
         self.assertEqual(self.manager.reconcile(), {"notices_scanned": 1, "deliveries_queued": 2})

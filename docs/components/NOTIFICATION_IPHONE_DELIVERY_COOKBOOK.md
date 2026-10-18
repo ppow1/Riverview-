@@ -2,12 +2,13 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.1.1
+File Revision: 1.1.2
 Purpose: Set up and troubleshoot ntfy/Pushover push delivery without exposing secrets
 Authority: Operational diagnosis and local setup only; no decision authority
 Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial push recovery cookbook
 Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATION-COMMISSIONING-READINESS-001 | Add checksum-pinned operator commissioning and phone acceptance steps
 Changed: 2026-10-18 UTC | RV-NOTIFICATION-QUEUE-RETRY-ACCEPTANCE-20261018 | Document disposable PostgreSQL queue/retry acceptance command
+Changed: 2026-10-18 UTC | RV-NOTIFICATION-LIFECYCLE-ACCEPTANCE-20261018 | Specify end-to-end isolated event-to-ack regression coverage
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # iPhone push delivery setup and troubleshooting
@@ -437,21 +438,23 @@ emergency test as a routine health check. ntfy has no corresponding handset
 acknowledgment signal.
 
 Retry and lease-recovery tests belong to the disposable PostgreSQL suite; do
-not create a production provider outage just to force a retry. The queue/retry
-acceptance case creates a unique schema, persists one eligible notice and one
-provider delivery, observes a bounded provider failure and scheduled retry,
-creates a fresh worker instance, then verifies the same delivery and
-idempotency key are accepted exactly once. Provider acceptance does not prove
-handset delivery. Run the focused suite against an ephemeral PostgreSQL 16
-cluster with:
+not create a production provider outage just to force a retry. The isolated
+lifecycle acceptance case inserts labeled CME source events, runs the actual
+notification dispatcher, checks info/warning/critical provider routing, and
+repeats projection/reconciliation to verify deduplication. It then records a
+bounded provider failure, reconstructs the delivery manager, retries the same
+durable row with its original idempotency key, and checks Pushover's critical
+receipt acknowledgment. The separate retry-limit test verifies terminal
+failure. Provider acceptance does not prove handset delivery. Run the focused
+suite against an ephemeral PostgreSQL 16 cluster with:
 
 ```bash
 pg_virtualenv -v 16 bash -c 'export PYTHONPATH="$PWD/src"; export RIVERVIEW_TEST_PG_DSN="host=$PGHOST port=$PGPORT dbname=$PGDATABASE user=$PGUSER password=$PGPASSWORD"; pytest -q tests/test_notification_push.py tests/test_notifications.py'
 ```
 
 This command starts and drops a disposable cluster; it does not connect to the
-Camrui production database. The queue/retry test must report PASS rather than
-SKIP. The prior isolated
+Camrui production database. The PostgreSQL queue/retry and lifecycle tests must
+report PASS rather than SKIP. The original
 acceptance command and expected counts are in
 [`RV-IPHONE-NOTIFICATIONS-001_REVISION_RECORD.md`](../development/RV-IPHONE-NOTIFICATIONS-001_REVISION_RECORD.md).
 
