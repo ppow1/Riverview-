@@ -2,11 +2,11 @@
 Riverview~ Controlled Document
 File: docs/steward/Riverview_Steward_Punch_List_2026-10-13.md
 Component: STEWARD-BACKLOG
-File Revision: 1.0.3
+File Revision: 1.0.4
 Purpose: Preserve Steward-captured operational and website improvement observations
 Authority: Backlog capture only; entries do not authorize implementation or change active scope
 Changed: 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Add controlled revision metadata without changing captured items
-Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Record the 80B deferred-recovery item, incident evidence, and final regression results
+Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Link final source commit and review PR to the 80B deferred-recovery evidence
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Riverview Steward Punch List
@@ -129,7 +129,7 @@ Workflow registry remains unverified in the user's Steward session. Notification
 
 | ID | Area | Observation / desired outcome | Priority | Owner | Status |
 |---|---|---|---|---|---|
-| PL-NEW-043 | Grace reasoning / deferred recovery | Deterministic provider request errors must be classified separately from provider readiness/outage, and durable deferred work must recover without identical unbounded retries or duplicate publication. Preserve the concurrent 0.6B, 30B and 80B capability routing. | P1 — reliability incident | Codex 3 (Grace runtime); coordinate model/provider ownership with Codex 1 where applicable | IN PROGRESS under RV-C3-GRACE-REASONING-RELIABILITY-001 |
+| PL-NEW-043 | Grace reasoning / deferred recovery | Deterministic provider request errors must be classified separately from provider readiness/outage, and durable deferred work must recover without identical unbounded retries or duplicate publication. Preserve the concurrent 0.6B, 30B and 80B capability routing. | P1 — reliability incident | Codex 3 (Grace runtime); coordinate model/provider ownership with Codex 1 where applicable | SOURCE IN REVIEW; operational acceptance remains open |
 
 ### PL-NEW-043 — acceptance criteria and incident evidence
 
@@ -151,4 +151,4 @@ Workflow registry remains unverified in the user's Steward session. Notification
 - **Collection limitation:** Root `PYTHONPATH=src python3 -m pytest -q` did not collect because an archived historical test imports unavailable `runtime_baseline` from `docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py`. The active `tests/` suite passed as recorded above; archived material was not changed.
 - **Operational boundary:** OctoMiner 1 SSH access and historical logs remain unavailable; live endpoint fault injection, deployment, restart, and model inference were not performed. Acceptance of durable PostgreSQL retry/restart behavior requires the isolated integration DSN plus authorized operational review. No production changes were made.
 - **Final edge-case regression:** A post-review check found missing model bindings were being scheduled for retry and HTTP 401/403/400/422 outcomes had lost their specific terminal response class. Missing bindings now block immediately; authorization maps to `authorization_denied`, malformed input to `model_response_invalid`, with sanitized HTTP status retained. Dedicated tests cover these cases; final run results above include this correction.
-- **Source revision and evidence:** See task `RV-C3-GRACE-REASONING-RELIABILITY-001`, branch commits, and `evidence/checkouts/RV-C3-GRACE-REASONING-RELIABILITY-001/20261018T0256Z/checkout.md` for timestamped commands and environment metadata. Keep PL-NEW-043 open pending review and operational acceptance.
+- **Source revision and evidence:** Commit `373978d0` on `codex/grace-reasoning-reliability-active-20261017`; review PR [#111](https://github.com/ppow1/Riverview-/pull/111). Checkout evidence: `evidence/checkouts/RV-C3-GRACE-REASONING-RELIABILITY-001/20261018T0256Z/checkout.md`. Keep PL-NEW-043 open pending review and operational acceptance.
