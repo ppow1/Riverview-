@@ -33,7 +33,7 @@ The combined execution service routes attempts and verification by the persisted
 - `python3 scripts/revision_control.py check --baseline /tmp/rv-fourpr-revision-baseline.json` — **PASS** against the integration base revision inventory.
 - The audit initially found twelve source-PR files without a verifiable copy of the exact integration-base predecessor. Their bytes were recovered from the base commit, SHA-256 checked against the baseline inventory, and preserved under `.riverview-backups/20261018T-integration-predecessors/`; the manifest-backed audit then passed.
 - `python3 -m compileall -q src scripts` and `git diff --check` — **PASS**.
-- Deployment package build and independent package verification: pending final commit, digest to be added before PR creation. The package is for inspection and is not installed.
+- A complete deployment package was built from the clean committed candidate and independently verified (manifest and shell compatibility checks **PASS**). The integration PR records the exact source commit and archive digest. The package is for inspection and is not installed.
 
 ## Remaining blockers and risks
 
