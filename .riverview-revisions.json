@@ -323,11 +323,11 @@
     },
     "docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md": {
       "path": "docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md",
-      "revision": "1.0.11",
-      "sha256": "3f3160f8d3fb6dbef61f81ea1afd239b9a4b1aee9b2ded0ffc2785ce4698e245",
-      "size_bytes": 8705
+      "revision": "1.0.12",
+      "sha256": "61850a0f6bf8866acfce24e9e6ee85aaf7d8e214b3a4e7211f2f15e24406d921",
+      "size_bytes": 9753
     }
   },
-  "manifest_revision": "1.1.246",
-  "updated_at": "2026-10-18T23:05:02+00:00"
+  "manifest_revision": "1.1.247",
+  "updated_at": "2026-10-18T23:11:29+00:00"
 }
