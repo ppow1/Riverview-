@@ -1,5 +1,5 @@
 <!-- RIVERVIEW~ CONTROLLED DOCUMENT
-File Revision: 1.0.4
+File Revision: 1.0.5
 Component: JESSICA-CHARACTER-ARCHITECTURE-RECOVERY
 Status: Historical design recovered; isolated advisory package implemented; resident integration pending
 Purpose: Record source evidence, original Jessica design, current gaps, and bounded implementation/test evidence
@@ -8,6 +8,7 @@ History: 1.0.1 supersedes the preliminary current-checkout-only inventory after 
 History: 1.0.2 adds an isolated evidence-gated advisory package and its acceptance boundary; no runtime activation
 History: 1.0.3 adds a dormant, Steward-attested adapter to the existing authorized_import proposal contract
 History: 1.0.4 traces current Steward account/principal binding and records the exact Jessica authorship gap
+History: 1.0.5 records the parent visibility contract, standards divergence, graph sidecar blocker, and bounded recovery evidence
 -->
 
 # Jessica character architecture recovery
@@ -148,3 +149,15 @@ This document is updated with an isolated, non-persistent advisory implementatio
 - `docs/architecture/GRACE_DIRECTOR_OF_OPERATIONS_RECONCILIATION.md` in `ppow1/Riverview-` references the historical Estate and Grace/Jessica baseline but is not itself the Jessica design source.
 - `docs/architecture/CORE_CONTRACT.md`, `docs/components/RESIDENT_CONVERSATION.md`, `process_graphs/resident-conversation/browser-chat.json`, and `src/riverview_core/resident_execution/` in `ppow1/Riverview-` describe current Grace identity/conversation seams; Jessica is not registered in them.
 - Prior PR #116 version 1.0.0 is preserved as `.riverview-backups/20261018T152357713027Z/docs/architecture/JESSICA_CHARACTER_ARCHITECTURE_RECOVERY.md` with SHA-256 `84b6d03c918817fe7999e8884b87f39a77932ac6eee7963010082f1db5bc0c76`.
+
+## Targeted DoD remediation — 2026-10-18
+
+This increment follows current `origin/main` AI_HINTS 1.0.4 and Component DoD Rev 1.6. This PR's base contains AI_HINTS 1.0.5 and DoD Rev 1.7; that branch-local divergence is recorded here and neither standard is changed by this increment. The lifecycle and engineering-records standards remain Proposed in both reviewed trees.
+
+The request-driven adapter has no process of its own and no independent health or heartbeat. Its parent visibility contract is therefore: (1) in-memory proposal packages remain caller-owned and are not reported as persisted work; (2) when the existing parent application invokes the dormant import adapter from a trusted, authenticated Steward context, the parent registry is authoritative for the resulting DRAFT; and (3) the Steward-authenticated proposal API (`GET /api/v1/institutional-proposals?q=&tag=&status=&limit=` and `GET /api/v1/institutional-proposals/{proposal_id}?revision=N`) is the existing visibility path. Jessica has no authenticated principal, account, route, independent status, or permission. The visible actor remains the trusted Steward; `advisory_producer` is provenance only. No Jessica proposal is currently connected to that API.
+
+The W3 recovery cookbook is `docs/operations/cookbooks/JESSICA_CHARACTER_ADVISORY_COOKBOOK.md`. It records the implemented request/proposal/evidence/revision boundaries, read-only diagnostics, visible parent contract, known failures, recovery steps, and the Mermaid path. It does not claim a canonical registered graph: the required JSON graph registration and generated projections depend on `.riverview-revisions.json`, which W1's separately authorized remediation currently owns. The pre-existing `python scripts/process_graph.py check` failure is independently reproducible: the branch's schema bytes hash to `95596d4def44a2ff201b2b32be7ebe1890a2903c2beff8cdabbc857e31c1b41f`, while its sidecar records `0c03d29216d6d3cb08e58ab7bff12b545211f78fbdffb0767118553b52025da7`. That recorded hash matches the schema bytes and sidecar on current `origin/main` (`f6558554a1d360aebdb24036d3a8b7781e7e92b5`), so the failure is isolated to this branch's schema/sidecar divergence. Changing the schema's registry metadata here would modify W1's assigned shared file. W3 leaves it untouched, reports canonical graph validation as blocked, and requests W1 handoff of the metadata change before graph generation. The cookbook's Mermaid is a focused view of existing behavior, not a substitute for canonical graph registration.
+
+No authorized isolated PostgreSQL DSN is configured (`RIVERVIEW_TEST_PG_DSN` is absent). Registry persistence and database integration are **NOT VERIFIED**. Existing isolated unit tests use a recording fake registry. No resident creation, Jessica identity, approval, production path, or permission was added.
+
+The recovery cookbook and the checkout evidence published with this increment are the operational and revision/restore record for this remediation. The existing generic backup manifest remains in its historical format; missing source-commit and restore fields on older records are not retroactively fabricated. The new checkout evidence records the exact source commit, test commands/results, backing file hashes, and restore path for these W3 changes.
