@@ -1,6 +1,6 @@
 # Riverview aggregate process graph
 
-**Document Revision:** 1.0.23
+**Document Revision:** 1.0.24
 **Generated from:** canonical workflow JSON; do not edit this projection by hand.  
 **Source:** `python3 scripts/process_graph.py generate`  
 
@@ -19,6 +19,7 @@ flowchart LR
   g_rv_institutional_authority_identity_and_grants_05fdf0c5[["INSTITUTIONAL-AUTHORITY<br/>identity-and-grants.v1<br/>rv:institutional-authority:identity-and-grants"]]
   g_rv_institutional_authority_resident_permission_profiles_2f442d86[["RESIDENT-PERMISSION-PROFILES<br/>resident-permission-profiles.v1<br/>rv:institutional-authority:resident-permission-profiles"]]
   g_rv_repository_knowledge_provider_pinned_worker_contracts_0269c370[["REPOSITORY-KNOWLEDGE-PROVIDER<br/>pinned-worker-contracts.v1<br/>rv:repository-knowledge-provider:pinned-worker-contracts"]]
+  g_rv_notification_delivery_iphone_push_243904a5[["NOTIFICATION-DELIVERY<br/>iphone-push.v1<br/>rv:notification-delivery:iphone-push"]]
   g_rv_notification_delivery_visual_attention_3f4f84d2[["NOTIFICATION-DELIVERY<br/>visual-attention.v1<br/>rv:notification-delivery:visual-attention"]]
   g_rv_outcome_verifier_independent_result_1d5c0875[["OUTCOME-VERIFIER<br/>deterministic-result-verification.v1<br/>rv:outcome-verifier:independent-result"]]
   g_rv_postgres_ledger_assignment_lifecycle_a9a01b67[["POSTGRES-LEDGER<br/>assignment-lifecycle.v1<br/>rv:postgres-ledger:assignment-lifecycle"]]

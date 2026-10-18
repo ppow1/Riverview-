@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_DELIVERY.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.0.1
+File Revision: 1.0.2
 Purpose: Define durable visual notification and pending decision-request projection
 Authority: Records notification state only; cannot approve or resolve institutional decisions
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Normalize controlled Markdown spacing
@@ -42,8 +42,10 @@ The request remains `pending` after rendering and receipt acknowledgment.
 
 ## Visual delivery contract
 
-The only channel in this slice is `dashboard.visual.v1`; no external provider,
-purchase, SMS, audio, or paid service is introduced.
+This section describes the existing visual channel `dashboard.visual.v1`.
+Provider-based mobile delivery is a separate additive consumer of these same
+durable notices; see `NOTIFICATION_IPHONE_DELIVERY.md`. This visual path does
+not itself call an external provider.
 
 | State | Meaning | Durable evidence |
 | --- | --- | --- |
@@ -63,6 +65,10 @@ heartbeat older than 15 seconds is `stale`, and a fresh successful heartbeat is
 
 See `NOTIFICATION_DELIVERY_API.schema.json` for bounded response schemas and
 `NOTIFICATION_DELIVERY_COOKBOOK.md` for diagnosis/recovery steps.
+
+The optional iPhone provider delivery contract and setup/recovery instructions
+are in `NOTIFICATION_IPHONE_DELIVERY.md` and
+`NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md`.
 
 ## Routes and security
 
