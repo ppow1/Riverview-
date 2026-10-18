@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:steward-dashboard:linux-browser-acceptance",
-  "graph_revision": "1.0.5",
+  "graph_revision": "1.0.6",
   "component_id": "STEWARD-DASHBOARD",
   "workflow_id": "linux-browser-acceptance.v1",
   "diagram_order": 20,
@@ -14,7 +14,8 @@
     "scripts/grace_staging_browser.py",
     "browser-tests/fixtures/smoke.html",
     "browser-tests/test_grace_staging_network_guard.py",
-    "tests/test_grace_staging_browser_fixture.py"
+    "tests/test_grace_staging_browser_fixture.py",
+    "scripts/browser_error_safety.py"
   ],
   "documentation_references": [
     "docs/operations/LINUX_BROWSER_ACCEPTANCE.md",
@@ -196,7 +197,8 @@
       "type": "process",
       "label": "Record fixed error categories only; remove arbitrary exception text and all request URLs",
       "source_references": [
-        "browser-tests/conftest.py"
+        "browser-tests/conftest.py",
+        "scripts/browser_error_safety.py"
       ],
       "documentation_references": [
         "docs/operations/LINUX_BROWSER_ACCEPTANCE.md",

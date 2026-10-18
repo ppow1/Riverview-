@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: browser-tests/conftest.py
 # Component: LINUX-BROWSER-ACCEPTANCE
-# Revision: 1.0.6
+# Revision: 1.0.7
 # Purpose: Capture bounded errors and safely provision optional host-scoped staging browser state
 # Execution Model: Pytest fixture and lifecycle hooks
 # Observability: Private JSON reports; Playwright plugin stores screenshots and failure traces
 # Dependencies: pytest-playwright; Python 3.10+
 # Authority: Loads only explicitly supplied exact-host cookie state in staging mode; all mutations remain blocked
-# Changed: 2026-10-18 UTC | RV-C2-DOD-REMEDIATION-001 | Replace raw browser errors and request URLs with fixed safe evidence
+# Changed: 2026-10-18 UTC | RV-C2-DOD-REMEDIATION-001 | Use dependency-free shared redaction helpers in reports
 # Contracts: docs/operations/LINUX_BROWSER_ACCEPTANCE.md
 # Tests: browser-tests/test_grace_staging_readonly.py; browser-tests/test_read_only_smoke.py
 # History: Git
@@ -26,6 +26,7 @@ from urllib.parse import urlsplit
 import pytest
 
 from scripts.grace_staging_browser import validate_storage_state
+from scripts.browser_error_safety import safe_message as _safe_message, safe_url as _safe_url
 
 
 def _output_dir() -> Path:
@@ -34,18 +35,6 @@ def _output_dir() -> Path:
     path.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(path, 0o700)
     return path
-
-
-def _safe_message(value: str) -> str:
-    """Return a fixed diagnostic; arbitrary browser text can contain user data."""
-    del value
-    return "Browser error details redacted"
-
-
-def _safe_url(value: str) -> str:
-    """Do not retain origin or path: either can identify a private target or record."""
-    del value
-    return "[request URL redacted]"
 
 
 @pytest.fixture(scope="session")
