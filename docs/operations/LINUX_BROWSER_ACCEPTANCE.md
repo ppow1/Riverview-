@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/operations/LINUX_BROWSER_ACCEPTANCE.md
 Component: LINUX-BROWSER-ACCEPTANCE
-File Revision: 1.0.6
+File Revision: 1.0.7
 Purpose: Operate the bounded Linux Chromium acceptance harness and request it in Engineering work orders
 Authority: Read-only browser verification; production writes and authenticated sessions are out of scope
-Changed: 2026-10-18 UTC | RV-C2-STAGING-GRACE-BROWSER-003 | Add authenticated read-only Grace staging bridge
+Changed: 2026-10-18 UTC | RV-C2-STAGING-GRACE-BROWSER-004 | Prove staging bridge with disposable authenticated loopback fixture
 -->
 # Linux browser acceptance on Camrui
 
@@ -79,6 +79,18 @@ scripts/run_linux_browser_acceptance.py \
 The staging test opens the preselected conversation and acts only on the exact configured harmless message, opens its **Create Engineering work order** dialog, checks the exact-grant and “does not approve execution” explanation, closes the dialog without submitting, then reads the existing objective/status projection. It never sends a chat message, approves/promotes a proposal, submits an objective, dispatches CME work, or executes an assignment. During this mode all cross-origin requests and all non-GET/HEAD requests are blocked except the same-origin, empty-body `POST /api/v1/resident/conversation-session` needed to establish the existing authenticated browser session. Playwright tracing and automatic screenshots are disabled for staging. On a successful run the test emits one screenshot after redacting the account label, conversation, message and objective details. If the test fails, no staging screenshot or trace is retained. JSON evidence remains private in the mode-0700 evidence directory.
 
 This bridge can verify the actual UI, existing seeded conversation, rendered approval boundary, and read-only status when supplied with an isolated staged dashboard and test session. It does **not** prove a newly submitted request, proposal persistence, real Steward approval, work-order creation, CME status for that new work, or execution. Those require separately authorized nonproduction fixtures and the existing exact authority contracts. No staging URL, cookie state, test-account label, or seeded conversation was configured during this task, so the authenticated browser stage remains unexecuted.
+
+### Prove the staging bridge locally
+
+Run the disposable authenticated fixture test on Camrui after installing the pinned browser requirements:
+
+```bash
+.venv/bin/python -m pytest -q tests/test_grace_staging_browser_fixture.py
+```
+
+This test starts a temporary HTTP server bound only to `127.0.0.1`. The server requires a synthetic cookie created inside a private temporary directory and accepts only the empty session-initialization request. It invokes the same browser runner and staging UI test as the operator path, verifies the synthetic account and pre-seeded conversation, opens and closes the exact-grant work-order dialog without submitting it, and reads the objective permission note. A second browser scenario attempts a harmless synthetic work-order POST and a cross-origin GET; both must be blocked before reaching the fixture server. The integration test checks that the synthetic cookie and page contents do not appear in JSON evidence, the screenshot is mode `0600` and taken after visible-content redaction, traces are absent, and result counts include the staging-only skip. All temporary state and evidence are deleted when the test exits.
+
+This proves the browser harness's cookie plumbing and safety guards against a local fixture. It is not a Grace login, Steward identity, real staging acceptance, proposal approval, work-order submission, CME dispatch, or execution. The test cookie is generated for the fixture only and must never be copied into staging or production.
 
 ## Request browser verification in an Engineering work order
 

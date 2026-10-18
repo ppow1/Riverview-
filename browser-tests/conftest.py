@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: browser-tests/conftest.py
 # Component: LINUX-BROWSER-ACCEPTANCE
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Capture bounded errors and safely provision optional host-scoped staging browser state
 # Execution Model: Pytest fixture and lifecycle hooks
 # Observability: Private JSON reports; Playwright plugin stores screenshots and failure traces
 # Dependencies: pytest-playwright; Python 3.10+
 # Authority: Loads only explicitly supplied exact-host cookie state in staging mode; all mutations remain blocked
-# Changed: 2026-10-18 UTC | RV-C2-STAGING-GRACE-BROWSER-003 | Add opt-in staging cookie state and exact session gate
+# Changed: 2026-10-18 UTC | RV-C2-STAGING-GRACE-BROWSER-004 | Count setup skips in durable browser summary
 # Contracts: docs/operations/LINUX_BROWSER_ACCEPTANCE.md
 # Tests: browser-tests/test_grace_staging_readonly.py; browser-tests/test_read_only_smoke.py
 # History: Git
@@ -128,10 +128,11 @@ def browser_error_log(page, request):
 def pytest_runtest_makereport(item, call):
     outcome = yield
     report = outcome.get_result()
-    if report.when != "call":
-        return
     results = getattr(item.config, "_riverview_browser_results", [])
-    results.append({"test": item.nodeid, "status": "PASS" if report.passed else "FAIL" if report.failed else "SKIP"})
+    if report.when == "call":
+        results.append({"test": item.nodeid, "status": "PASS" if report.passed else "FAIL"})
+    elif report.when == "setup" and report.skipped:
+        results.append({"test": item.nodeid, "status": "SKIP"})
     item.config._riverview_browser_results = results
 
 

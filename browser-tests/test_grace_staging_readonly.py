@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: browser-tests/test_grace_staging_readonly.py
 # Component: LINUX-BROWSER-ACCEPTANCE
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Inspect the authenticated Grace conversation and work-order approval boundary in disposable staging
 # Execution Model: Opt-in Playwright staging test; all browser writes except empty session initialization are blocked
 # Observability: Private screenshots/error report; tracing disabled to avoid retaining authenticated conversation traffic
 # Dependencies: pytest-playwright; staging-named HTTPS or explicitly confirmed loopback dashboard
 # Authority: Caller-supplied test-only cookie state and existing conversation access; never submits a message/objective
-# Changed: 2026-10-18 UTC | RV-C2-STAGING-GRACE-BROWSER-003 | Add authenticated read-only staging bridge
+# Changed: 2026-10-18 UTC | RV-C2-STAGING-GRACE-BROWSER-004 | Verify redaction before staging screenshot
 # Contracts: docs/operations/LINUX_BROWSER_ACCEPTANCE.md
 # Tests: browser-tests/test_grace_staging_readonly.py; tests/test_linux_browser_runner.py
 # History: Git
@@ -114,6 +114,11 @@ def test_staged_grace_conversation_and_work_order_authority_boundary(
         "element => element.replaceChildren(document.createTextNode('[objective details redacted]'))"
     )
     page.locator("#chat-message").evaluate("element => element.value = ''")
+    rendered_after_redaction = page.locator("body").inner_text()
+    for private_value in (expected_account, conversation_id.casefold(), expected_seed_message.casefold(),
+                          "private fixture input", "synthetic fixture objective details"):
+        assert private_value not in rendered_after_redaction.casefold(), \
+            "private staging content remained visible before screenshot capture"
     output = Path(os.environ["RIVERVIEW_BROWSER_OUTPUT_DIR"])
     screenshot_dir = output / "playwright"
     screenshot_dir.mkdir(mode=0o700, parents=True, exist_ok=True)

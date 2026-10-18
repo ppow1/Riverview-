@@ -4342,7 +4342,7 @@
     },
     {
       "graph_id": "rv:steward-dashboard:linux-browser-acceptance",
-      "graph_revision": "1.0.3",
+      "graph_revision": "1.0.4",
       "component_id": "STEWARD-DASHBOARD",
       "workflow_id": "linux-browser-acceptance.v1",
       "diagram_order": 20,
@@ -4354,7 +4354,9 @@
         "browser-tests/test_grace_staging_readonly.py",
         "browser-tests/fixtures/grace-workflow.html",
         "scripts/grace_staging_browser.py",
-        "browser-tests/fixtures/smoke.html"
+        "browser-tests/fixtures/smoke.html",
+        "browser-tests/test_grace_staging_network_guard.py",
+        "tests/test_grace_staging_browser_fixture.py"
       ],
       "documentation_references": [
         "docs/operations/LINUX_BROWSER_ACCEPTANCE.md",
@@ -4511,6 +4513,23 @@
             "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
           ],
           "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:staging-fixture-proof",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Disposable loopback authenticated fixture proves cookie scope, mutation and cross-origin blocking, redacted private evidence, and skip reporting",
+          "source_references": [
+            "browser-tests/fixtures/grace-staging.html",
+            "browser-tests/test_grace_staging_readonly.py",
+            "browser-tests/test_grace_staging_network_guard.py",
+            "tests/test_grace_staging_browser_fixture.py",
+            "browser-tests/conftest.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
         }
       ],
       "edges": [
@@ -4582,6 +4601,12 @@
           "to": "rv:steward-dashboard:linux-browser-acceptance:fail-closed",
           "type": "diagnostic_branch",
           "label": "missing or unsafe staging precondition"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:staging-scope-check",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:staging-fixture-proof",
+          "type": "verification",
+          "label": "isolated fixture test uses synthetic host-scoped cookie and asserts blocked requests plus redacted evidence"
         }
       ]
     },
@@ -6341,6 +6366,7 @@
     "rv:steward-dashboard:linux-browser-acceptance:request",
     "rv:steward-dashboard:linux-browser-acceptance:run-chromium",
     "rv:steward-dashboard:linux-browser-acceptance:staging-boundary-inspection",
+    "rv:steward-dashboard:linux-browser-acceptance:staging-fixture-proof",
     "rv:steward-dashboard:linux-browser-acceptance:staging-scope-check",
     "rv:steward-dashboard:linux-browser-acceptance:synthetic-approval-boundary",
     "rv:steward-dashboard:linux-browser-acceptance:synthetic-proposal",
