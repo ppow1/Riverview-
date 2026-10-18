@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED DOCUMENT
 # File: docs/components/CHATGPT_DOORBELL_DISPATCH.md
 # Component: CHATGPT-DOORBELL
-# Revision: 1.0.4
+# Revision: 1.0.5
+# Changed: 2026-10-18 UTC | RV-C2-DOORBELL-INTEGRATED-CI-FIX | Document full-suite fake-claim lease expiry diagnosis and safe fixture correction.
 # Purpose: Contract for waking the provider-scoped external review mailbox
 # Authority: No production activation or live ChatGPT send is authorized by this document
 
@@ -83,6 +84,12 @@ verified. With the flag disabled, no target file is read and no browser action
 is possible.
 
 ## Troubleshooting
+
+- If the full test suite runs the doorbell tests after a long delay and they
+  return `invalid_claim`, check that synthetic `FakeExchange` claims are
+  constructed when each exchange is created. A module-level default claim's
+  bounded lease expires while earlier tests run; this is a test-fixture timing
+  defect, not a reason to relax runtime lease validation.
 
 - `doorbell_enable_flag_invalid`: use only `0` or `1`; use `0` to restore the
   prior runtime behavior.
