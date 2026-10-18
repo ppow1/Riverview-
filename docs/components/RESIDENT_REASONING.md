@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.10
+File Revision: 1.0.11
 Purpose: Define resident context regrounding and bounded reasoning-provider routing
 Authority: Exact office-state grant required; provider output is a proposal, never permission
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Establish isolated resident reasoning contract
@@ -16,6 +16,7 @@ Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Document typed i
 Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Pass canonical Grace role and authority boundaries into her assignment reasoning provider
 Changed: 2026-10-15 UTC | RV-GRACE-GROUNDING-BOUNDED-001 | Rank complete relevant passages within the evidence bound and retain full-source provenance
 Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Allow bounded 1–20 step proposals with acyclic dependencies and persist step dispatch state
+Changed: 2026-10-18 UTC | RV-REASONING-ADAPTER-COMPAT-001 | Document safe provider-specific local chat response normalization
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Resident regrounding and reasoning routing
@@ -116,6 +117,32 @@ Assignment facts and verified knowledge continue through the existing bounded,
 redacted `ReasoningRequest`; provider output remains an unapproved typed
 proposal. Unit coverage confirms the office-specific context and no-permission
 boundary. This source change is not deployed or live-model verified.
+
+## Provider response compatibility
+
+Provider responses follow separate contracts. Local conversational responses
+may use a string or an ordered array of exact text blocks; the adapter joins
+every text block in order. Tool-call and function-call fields, refusal mixed
+with text, and unsupported or extra content-block fields fail with the
+sanitized `response_contract_invalid` code. The adapter does not execute tools
+or silently extract text from a response that carries unsupported semantics.
+Unknown envelope metadata may be ignored when the required response fields
+remain valid. Reasoning metadata is not exposed as user-facing content.
+Streaming applies the same block normalization and tool/refusal rejection;
+only a complete `stop` response is successful.
+
+These behaviors apply to local conversational providers, including the
+configured 80B response path. Synthetic fixtures validate the adapter contract;
+they do not establish live-provider compatibility.
+
+The external ChatGPT escalation path remains the distinct durable MCP advisory
+exchange. It uses correlated request/response identity, provider scope, the
+active resident principal, and exact authorization checks at initiation and
+consumption. Its output remains advisory and separate from verified knowledge.
+Codex CLI remains a separate bounded artifact-execution adapter: its strict
+output schema describes task results, with the authored artifact independently
+verified. Neither contract is a general conversational response parser. See
+`docs/components/REASONING_ADAPTER_COMPATIBILITY.md`.
 
 ## Interfaces
 

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.11
+# Revision: 1.3.12
 # Purpose: Adapt bounded resident proposals and conversation turns to local inference
 # Execution Model: Bounded loopback OpenAI-compatible request
 # Observability: Sanitized provider failures; no prompts or raw model output logged
@@ -36,6 +36,7 @@
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Pass external advice as unverified input, separate from institutional knowledge
 # Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-INTERNAL-TOOLS-001 | Carry structured internal tool result provenance on Grace chat completions
 # Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Accept an explicit configured-provider advisory escalation decision
+# Changed: 2026-10-18 UTC | RV-REASONING-ADAPTER-COMPAT-001 | Preserve ordered local chat text blocks and reject unsupported response semantics
 """Provider adapter for the existing loopback local-inference contract."""
 
 from __future__ import annotations
@@ -494,15 +495,21 @@ class LocalReasoningProvider:
                         choices = document.get("choices", [])
                         if not choices:
                             continue
+                        if len(choices) != 1:
+                            raise LocalReasoningUnavailable("response_contract_invalid")
                         choice = choices[0]
                         if not isinstance(choice, dict):
                             raise ValueError
                         delta = choice.get("delta", {})
-                        if not isinstance(delta, dict) or any(key in delta for key in ("tool_calls", "function_call")):
+                        if (not isinstance(delta, dict)
+                                or any(key in delta for key in
+                                       ("tool_calls", "function_call", "refusal"))):
                             raise LocalReasoningUnavailable("response_contract_invalid")
                         text = delta.get("content", "")
                         if text:
-                            if not isinstance(text, str):
+                            try:
+                                text = self._normalize_chat_content(text)
+                            except ValueError:
                                 raise ValueError
                             output_bytes += len(text.encode("utf-8"))
                             if output_bytes > 8192:
@@ -597,12 +604,19 @@ class LocalReasoningProvider:
             raise LocalReasoningUnavailable("response_too_large")
         try:
             document = json.loads(raw)
-            choice = document["choices"][0]
+            choices = document["choices"]
+            if not isinstance(choices, list) or len(choices) != 1:
+                raise ValueError("unsupported choice count")
+            choice = choices[0]
             message = choice["message"]
+            if (not isinstance(message, dict)
+                    or any(key in message for key in ("tool_calls", "function_call"))
+                    or (message.get("refusal") and message.get("content"))):
+                raise ValueError("unsupported message semantics")
             finish_reason = choice["finish_reason"]
             usage = document["usage"]
             served_model = document["model"]
-            text = message["content"]
+            text = self._normalize_chat_content(message["content"])
             prompt_tokens = usage["prompt_tokens"]
             completion_tokens = usage["completion_tokens"]
             if finish_reason != "stop":
@@ -623,6 +637,21 @@ class LocalReasoningProvider:
             raise
         except Exception:
             raise LocalReasoningUnavailable("response_contract_invalid") from None
+
+    @staticmethod
+    def _normalize_chat_content(content):
+        """Return every supported text block in order; reject unrepresented semantics."""
+        if isinstance(content, str):
+            return content
+        if not isinstance(content, list):
+            raise ValueError("unsupported chat content")
+        parts = []
+        for block in content:
+            if (not isinstance(block, dict) or set(block) != {"type", "text"}
+                    or block["type"] != "text" or not isinstance(block["text"], str)):
+                raise ValueError("unsupported chat content block")
+            parts.append(block["text"])
+        return "".join(parts)
 
 
 # Revision history
