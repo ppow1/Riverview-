@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED DOCUMENT
 # File: docs/components/CHATGPT_DOORBELL_DISPATCH.md
 # Component: CHATGPT-DOORBELL
-# Revision: 1.0.2
+# Revision: 1.0.4
 # Purpose: Contract for waking the provider-scoped external review mailbox
 # Authority: No production activation or live ChatGPT send is authorized by this document
 
@@ -64,12 +64,49 @@ readiness projection: `ready` after an empty successful poll or recorded wake,
 loop has not constructed/registered this optional worker, it must report
 `not_configured`; browser health alone is not evidence that this trigger runs.
 
+## Grace owner-session composition
+
+The owner-session entry point composes this worker only when
+`RIVERVIEW_CHATGPT_DOORBELL_ENABLED=1`. The default `0` preserves the prior
+runtime behavior. Enabling requires an existing configured external-reasoning
+exchange, an explicit `RIVERVIEW_CHATGPT_DOORBELL_PROVIDER_ID` that is already
+registered in that exchange, and the existing private doorbell target config.
+The owner ID is the stable event actor `service:grace-chatgpt-doorbell`; it is
+not a credential or grant. The worker is injected into Grace's existing
+`GraceExecutionService` owner cycle. If the service release does not expose the
+optional `doorbell_worker` hook, opted-in startup fails closed.
+
+This opt-in is not deployment authorization. Do not enable it until the
+Steward-approved provider map, exact target binding, C3 atomic exchange
+implementation, local browser session, and deployment controls have been
+verified. With the flag disabled, no target file is read and no browser action
+is possible.
+
+## Troubleshooting
+
+- `doorbell_enable_flag_invalid`: use only `0` or `1`; use `0` to restore the
+  prior runtime behavior.
+- `doorbell_provider_id_required` or `doorbell_provider_not_registered`: keep
+  the worker disabled and verify the selected provider ID is present in the
+  existing `RIVERVIEW_EXTERNAL_REASONING_PROVIDER_MAP`; do not add or rotate
+  provider credentials as a workaround.
+- `doorbell_target_or_worker_invalid`: keep the worker disabled and validate
+  the existing private target configuration with the doorbell status command.
+  Do not replace the configured conversation binding as a diagnostic step.
+- `doorbell_owner_loop_hook_unavailable`: use a source release whose Grace
+  execution service supports the optional hook. Do not remove the compatibility
+  check to force startup.
+- `receipt_unavailable` leaves the existing fenced claim durable. Let the
+  exchange lease and retry policy recover it; do not replay the wake manually.
+  `ambiguous` is terminal to automatic resend.
+
 ## Isolated validation
 
 Run the fake-exchange and fake-bridge tests with:
 
 ```bash
 PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_external_reasoning_doorbell_dispatcher.py'
+PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_grace_doorbell_runtime_wiring.py'
 PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_chatgpt_doorbell.py'
 node tests/test_riverview_doorbell_bridge_node.cjs
 ```
