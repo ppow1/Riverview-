@@ -1,0 +1,20 @@
+{
+  "commit": "381f863cf2503c75e4f35a863c8e3fbeec68f64d",
+  "repository": "ppow1/Riverview-",
+  "issue": 120,
+  "first_poll": {
+    "new_receipt_count": 164,
+    "observed_count": 164,
+    "stored_comment_count": 164,
+    "exit_code": 0
+  },
+  "second_poll": {
+    "receipt_changes": 0,
+    "observed_count": 7,
+    "stored_comment_count": 164,
+    "exit_code": 0
+  },
+  "receipt_cache_file": "temporary local file; path intentionally omitted",
+  "raw_body_field_persisted": false,
+  "credentials_changed": false
+}

@@ -1,0 +1,65 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "active-diff-check.log": {
+      "path": "active-diff-check.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "3049082801d238be47f22a078c5d8be045555410360e1810921ff392481be5f4",
+      "size_bytes": 5154
+    },
+    "compile.log": {
+      "path": "compile.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "focused-tests.log": {
+      "path": "focused-tests.log",
+      "revision": "1.0.0",
+      "sha256": "515c1ec3d5d033c9ed8b49e31348d221410ffad9f91e6095d4cd8f8e90abbbc5",
+      "size_bytes": 101
+    },
+    "live-poll.json": {
+      "path": "live-poll.json",
+      "revision": "1.0.0",
+      "sha256": "b2b3773cdd13f1f359027df7ee0c73cb5f96c2385285614edac9a448815faf9d",
+      "size_bytes": 535
+    },
+    "predecessors.json": {
+      "path": "predecessors.json",
+      "revision": "1.0.0",
+      "sha256": "358b3d6fd57aa6f9d77c4e5c2229aac93fa804a7c9dbc99d2ded2bbb1b2dff73",
+      "size_bytes": 6391
+    },
+    "process-graph-canonical-lf.json": {
+      "path": "process-graph-canonical-lf.json",
+      "revision": "1.0.0",
+      "sha256": "02bd5eb68a2fbd5e3b4e94d6ac08aca10aa82c599eb897786b48d11a62f32892",
+      "size_bytes": 265
+    },
+    "process-graph-windows-check.json": {
+      "path": "process-graph-windows-check.json",
+      "revision": "1.0.0",
+      "sha256": "36d3cf039de6c4d6dc4ca1a58188bf1aaa2f9175fb913b2ca15b80326af4d615",
+      "size_bytes": 463
+    },
+    "revision-audit.json": {
+      "path": "revision-audit.json",
+      "revision": "1.0.0",
+      "sha256": "601653b2e6d5c2d6470082f8d2bc122377021c6a8f14d31754fdfb1b94285b6b",
+      "size_bytes": 1985
+    },
+    "run-summary.json": {
+      "path": "run-summary.json",
+      "revision": "1.0.0",
+      "sha256": "92078a04a07a90a00eab13904f28b0801605f6bea5820973bcda23ef3ce9b32d",
+      "size_bytes": 285
+    }
+  }
+}

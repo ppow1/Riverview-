@@ -1,0 +1,63 @@
+{
+  "schema_version": "rv.revision-audit.v1",
+  "task_id": "RV-W1-ISSUE-POLL-001",
+  "commit": "381f863cf2503c75e4f35a863c8e3fbeec68f64d",
+  "revision_manifest_revision": "1.1.255",
+  "scoped_paths": [
+    {
+      "path": "scripts/poll_issue_assignments.py",
+      "revision": "1.0.0",
+      "sidecar_hash_matches": true,
+      "sidecar_size_matches": true
+    },
+    {
+      "path": "tests/test_issue_assignment_poller.py",
+      "revision": "1.0.0",
+      "sidecar_hash_matches": true,
+      "sidecar_size_matches": true
+    },
+    {
+      "path": "docs/components/WORK_REGISTRY.md",
+      "revision": "1.1.4",
+      "sidecar_hash_matches": true,
+      "sidecar_size_matches": true
+    },
+    {
+      "path": "docs/components/WORK_REGISTRY_COOKBOOK.md",
+      "revision": "1.0.2",
+      "sidecar_hash_matches": true,
+      "sidecar_size_matches": true
+    },
+    {
+      "path": "docs/components/WORK_REGISTRY_FLOW.md",
+      "revision": "1.0.2",
+      "sidecar_hash_matches": true,
+      "sidecar_size_matches": true
+    },
+    {
+      "path": "process_graphs/work-registry/observational-registry.json",
+      "revision": "1.0.6",
+      "sidecar_hash_matches": true,
+      "sidecar_size_matches": true
+    },
+    {
+      "path": "process_graphs/generated/riverview-process-graph.json",
+      "revision": "1.0.187",
+      "sidecar_hash_matches": true,
+      "sidecar_size_matches": true
+    }
+  ],
+  "scoped_sidecar_pass": true,
+  "predecessor_supplements": 6,
+  "predecessor_supplements_pass": true,
+  "task_backup_records": 20,
+  "backup_artifacts_verified": 20,
+  "task_backup_records_all_verified": true,
+  "repository_wide_revision_control": {
+    "status": "PARTIAL",
+    "finding_count": 692,
+    "finding_type": "missing_revision",
+    "assigned_paths_with_findings": 0,
+    "note": "Historical evidence files outside this W1 change lack sidecar revisions; none of the changed/new W1 paths were reported."
+  }
+}

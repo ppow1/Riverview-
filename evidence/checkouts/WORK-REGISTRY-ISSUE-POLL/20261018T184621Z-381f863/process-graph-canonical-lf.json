@@ -1,0 +1,10 @@
+{
+  "command": "python scripts/process_graph.py check (after temporary canonical-LF normalization of graph JSON)",
+  "exit_code": 0,
+  "result": {
+    "graphs": 23,
+    "nodes": 581,
+    "status": "PASS"
+  },
+  "unchanged_checkout_bytes_restored": true
+}
