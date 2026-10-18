@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md
 Component: P0-CONTROLLED-INTEGRATION
-Revision: 1.0.2
+Revision: 1.0.3
 Status: Offline integration evidence; no merge or deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record W3 branch assembly and isolated verification
@@ -71,3 +71,28 @@ authority.
 Integrated C1's expiry-specific readiness regression head `d9a8332006d59c443473ea7ef8b1b45e0271bbb6` and W2's test/snapshot head `8b4dcd0f9291f2c7c61bf47047063c8f33ffbea1`. At W3 code head `8203370f8deb518e87d7822cf54e090d077400d3`, 97 focused tests ran: 75 passed and 22 PostgreSQL tests skipped without a local test DSN. Graph validation/check passed (22 graphs / 573 nodes), revision audit passed, and the LF-checkout diff check passed.
 
 Hosted W2 run #39164629198 failed with an absent `created_at` column in its trace export, a C2 test fixture lease that expires during full-suite order, an expiry assertion needing alignment to terminal-expiry semantics, and a missing revision successor in the W2 restart case. These are recorded in the integration manifest and issue #120 comment 6254953224. They prevent completion of database-backed W2 acceptance and actual W1 trace evidence. W3 is awaiting owner corrections to integrate and retest.
+
+
+## Mailbox #144 integration closure update — 2026-10-18
+
+Integrated exact C2 fix `13d1730054628994daa8e2f46ee0bbe789ebd8f6` and W2 fix
+`37093dc5ba15e8d7e2b61e16e51eb6976162eee3` into W3 merge commit
+`5c71bb6119f41a8cdec763c91d16f227a25602db`. Append-only backup records were merged
+without deleting or reordering integration entries; the two shared registry
+predecessors were captured/read-back verified before conflict resolution. The
+sidecar's stale version/hash for `RESIDENT_REASONING_FLOW.md` was aligned to the
+existing generated document revision and canonical LF content.
+
+Focused combined offline unit selection on the assembled files: 97 tests, 75 passed,
+22 PostgreSQL skips because no local `RIVERVIEW_TEST_PG_DSN` is configured. C2's
+latest head passed its 17 focused dispatcher/runtime tests, as reported by C2. W2's
+exact-head hosted run #39173980276 failed before C2's latest commit was included
+(708 tests, 4 skips, 14 failures: 13 stale-fixture dispatcher cases and one W2
+restart assertion). It is not acceptance evidence for the combined W3 branch. W2 must
+repair that final restart assertion; W3 must rerun hosted PostgreSQL on the exact
+combined head. No actual W1 trace bundle or C1 runtime readiness projection is yet
+verified from a successful combined database run.
+
+Pending validation after push: exact-head CI/PostgreSQL, graph check, revision and
+predecessor audit against PR #119, and LF `git diff --check`. PR #139 remains draft;
+no main merge, deployment, live browser wake, credential or grant changes occurred.

@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/P0_CONTROLLED_INTEGRATION_MANIFEST.md
 Component: P0-CONTROLLED-INTEGRATION
-File Revision: 1.0.3
+File Revision: 1.0.4
 Status: Disposable integration manifest; no merge/deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record exact integration parent, published component heads, ownership, order and verification state for P0 Grace-to-ChatGPT review
@@ -190,3 +190,36 @@ terminal state; and the revise/restart acceptance cannot find the successor row.
 These are assigned to W1/W2/C2/C3 owners. W2's trace snapshot failed before export,
 so W1's actual database-backed projection and C1's actual integrated runtime
 readiness are not yet evidenced. Owners must rerun on current W3 head after fixes.
+
+
+## Mailbox #144 owner-fix integration checkpoint — 2026-10-18
+
+Exact owner fixes imported into the controlled branch from C2 PR #131 head
+`13d1730054628994daa8e2f46ee0bbe789ebd8f6` and W2 PR #140 head
+`37093dc5ba15e8d7e2b61e16e51eb6976162eee3`. W3 merge commit `5c71bb6119f41a8cdec763c91d16f227a25602db`
+preserves the owner commit history. C2's change is test-fixture-only: each fake
+exchange gets a fresh claim lease; runtime fencing and retry semantics are unchanged.
+W2's changes add the per-round `doorbell_owner_id` snapshot field and exercise
+post-crash retry/restart before successor assertions.
+
+On this assembled source state, focused local verification ran 97 tests: 75 passed,
+22 PostgreSQL cases skipped because local `RIVERVIEW_TEST_PG_DSN` is unset. The
+exact W2-head hosted run #39173980276 is not combined-head evidence: it ran before
+C2 `13d17300` was included and failed 708 tests / 4 skips with 14 failures, 13 in
+the known stale C2 claim fixture and one remaining W2 restart assertion (`3 != 2`).
+C2's exact fix is now in the controlled branch; W2's remaining assertion must be
+corrected by W2 before the complete hosted PostgreSQL acceptance can pass. The next
+controlled run must target the combined W3 head.
+
+The C2/W2 conflict in `.riverview-backups/manifest.jsonl` was resolved append-only:
+all 3,104 records from the integration first parent were retained and 4 unique C2
+records appended. The `.riverview-revisions.json` merge retained the higher owner
+revision for each changed file. Before resolving either shared registry, exact first
+parent bytes were backed up under `.riverview-backups/20261018T225343901244Z/` and
+read-back hashes verified. The stale sidecar entry for the generated resident
+reasoning flow was reconciled to its existing file revision 1.0.19 and canonical LF
+SHA-256; the document content itself was not changed.
+
+The prior LF validation checkout reported graph 22/573 PASS, revision check PASS
+against PR #119, and `git diff --check` PASS. Re-run the checks against this updated
+combined head after publishing. No production or live browser action occurred.
