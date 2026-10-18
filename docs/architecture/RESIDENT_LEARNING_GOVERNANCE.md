@@ -1,14 +1,15 @@
 <!-- Riverview~ Controlled Document
 File: docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md
 Component: RESIDENT-LEARNING-GOVERNANCE
-Document Revision: 1.0.1
+Document Revision: 1.1.0
 Purpose: Define resident-wide learning retention, evidence, authority, sharing, correction, and rollback rules
-Execution Model: Governance contract only; no runtime learning workflow is commissioned
+Execution Model: Dormant request-driven library and additive schema; no runtime route or grants commissioned
 Observability: Versioned records and append-only decision/correction event references when implemented
 Dependencies: AuthorityRegistry; resident permission profiles; existing knowledge and proposal contracts
 Authority: Grants no permission; all access remains subject to existing exact grants and approved profiles
 Changed: 2026-10-18 UTC | RV-RESIDENT-LEARNING-GOVERNANCE-001 | Initial resident-wide governance contract
 Changed: 2026-10-18 UTC | RV-RESIDENT-LEARNING-GOVERNANCE-001 | Clarify schema authority limits and prohibit local-only institutional sharing
+Changed: 2026-10-18 UTC | RV-RESIDENT-LEARNING-IMPLEMENTATION-001 | Document dormant lifecycle API, authorization adapter, storage schema, and rollback
 Contracts: docs/components/RESIDENT_PERMISSION_PROFILES.md; docs/components/RESIDENT_REASONING.md; docs/components/INSTITUTIONAL_PROPOSALS.md
 Tests: tests/test_resident_learning_contract.py
 History: Git; new file
@@ -16,7 +17,7 @@ History: Git; new file
 
 # Resident-wide learning governance contract
 
-**Status:** Proposed governance contract; documentation and schema only. No learning store, automatic extractor, grant, profile, or runtime route is enabled by this change.
+**Status:** Governance contract plus dormant source implementation. No runtime route, learning grant, production migration, or automatic extractor is enabled. The service requires an injected authorization adapter and is not wired into resident execution.
 
 ## 1. Scope and identity
 
@@ -34,7 +35,7 @@ Residents and their reasoning implementations may automatically:
 
 These operations do not create a verified fact, a reusable cross-session memory, or an institutional record. A conversation transcript remains conversation history, not independent evidence that its claims are true. Model output, resident inference, worker self-report, and repeated mention are never sufficient to promote a claim.
 
-No resident may currently create a new durable personal-learning or shared-learning record through this contract. Durable resident-private preferences or facts require an explicit resident confirmation, a suitable existing store and retention policy, and an already-authorized exact write scope. Durable cross-resident or institution-wide knowledge requires the approval and evidence gates below. No such learning-specific capability or exact grant is registered by this change.
+The new library can persist candidates only when a caller supplies an authorization adapter that returns a matching exact allow receipt. It does not register grant mappings or infer authority. No production caller is wired. Durable resident-private preferences or facts require explicit resident confirmation, a suitable retention policy, and an already-authorized exact write scope. Durable institutional knowledge requires evidence, independent validation, and Steward approval as below.
 
 ## 3. Candidate, validation, and approval gates
 
@@ -74,7 +75,7 @@ A **capability** describes an operation an implementation supports, such as `lea
 
 A **permission** is the existing exact, active `(principal, action, scope)` grant checked by AuthorityRegistry. Where a resident permission profile is active, its registered capability/resource allow and classification/export constraints further restrict that grant. Missing, expired, revoked, mismatched, approval-required-without-an-approval-path, or unavailable authority fails closed. Account role, Grace's title, a permission-profile tier, model response, proposal approval, and capability presence do not issue or widen a grant.
 
-This contract registers no capability, resource binding, grant, profile, approval event, table, endpoint, or background process. It defines the gates a later implementation must meet and leaves all existing authority owners in place.
+The source exposes a Python capability but registers no grant, profile, endpoint, background process, or production table. Its `AuthorizationPort.require(principal_id, operation, scope_ref)` must be adapted to owner-approved exact-grant checks and fail closed. The returned receipt must bind the same principal and include grant and authority references. No operation-to-grant mappings are supplied; integrating owners must provide them without broadening authority. The additive migration creates append-only candidate, revision, and event tables and includes no privilege grants. It must be applied only to an explicitly isolated database until separately reviewed and commissioned.
 
 ## 7. Uniform resident application and isolation
 
@@ -90,4 +91,27 @@ observation/source -> evidence-bearing candidate -> independent validation
                    -> append-only correction/supersession or rollback event
 ```
 
-The JSON Schema at `docs/schemas/resident-learning-record.schema.json` describes the non-authorizing record envelope. It cannot verify caller identity, exact grants, cross-field scope/digest equality, approval signatures, evidence truth, retention jobs, or database isolation. A `local_only` classification cannot be used for institutional scope. Isolated tests in this change validate structural and policy invariants only. Before runtime implementation, add disposable-database tests for cross-resident denial, shared-scope approval, rejection, correction/supersession, provenance, retention, and rollback, then separately review/commission the storage and authorization changes.
+The JSON Schema at `docs/schemas/resident-learning-record.schema.json` describes the non-authorizing record envelope. It cannot verify caller identity, exact grants, cross-field scope/digest equality, approval signatures, evidence truth, retention jobs, or database isolation. A `local_only` classification cannot be used for institutional scope. `ResidentLearningService` separates candidate creation, independent validation, private confirmation, Steward approval, rejection, scoped retrieval, correction, supersession, and rollback. Each operation records its authority receipt and event reference; retrieval lists only currently approved records in the exact requested scope. Corrections create a new candidate and supersede the previous approval; approval does not transfer. Rollback appends restoration and supersession events and requires fresh supported evidence plus authorization. Records and event rows reject update/delete at the database layer.
+
+The library takes evidence references from its caller and never treats generated text as verified evidence. Candidate and validation evidence must reference existing source or observation records; observations remain owned by their existing components. Request-local context is not persisted by this library. A separate retention/purge operation has not been implemented; bounded retention is recorded but enforcement requires an owner-approved retention service before deployment.
+
+Example construction (the authorization adapter is mandatory and must be supplied by the integrating authority owner):
+
+```python
+store = PostgresResidentLearningStore(dsn, schema="isolated_learning_test")
+learning = ResidentLearningService(store, existing_exact_grant_adapter)
+candidate = learning.create_candidate(
+    authenticated_resident_id,
+    scope_ref=authenticated_resident_id,
+    content=content,
+    evidence=evidence_references,
+    provenance=provenance,
+    classification=classification,
+    retention="bounded_durable",
+    idempotency_key=request_id,
+)
+```
+
+Rollback is an append-only decision, not deletion. In an isolated test schema, close the store, preserve the audit evidence, then drop only the uniquely named test schema created by that test. Do not run the learning migration against production or delete learning rows to simulate rollback. For an already commissioned store, use the authorized rollback API with the exact record/replacement IDs, expected revision, fresh independent evidence, and current authority; the prior fact becomes retrievable only if this decision succeeds. Data purge remains subject to the separate retention owner and policy.
+
+Unit tests cover isolation, denied writes/sharing, validation, approval, rejection, provenance, correction, rollback, and service resumption using an in-memory store. A PostgreSQL integration test creates and drops a unique schema only when `RIVERVIEW_TEST_PG_DSN` points to an explicitly disposable database. Without that variable, PostgreSQL persistence and trigger behavior remain unverified. No runtime use is commissioned by these tests.

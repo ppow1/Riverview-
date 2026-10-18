@@ -9131,6 +9131,128 @@
       ]
     },
     {
+      "graph_id": "rv:resident-learning:lifecycle",
+      "graph_revision": "1.0.0",
+      "component_id": "RESIDENT-LEARNING-GOVERNANCE",
+      "workflow_id": "resident.learning.lifecycle.v1",
+      "diagram_order": 18,
+      "source_references": [
+        "src/riverview_core/resident_execution/resident_learning.py",
+        "src/riverview_core/resident_execution/migrations/0014_resident_learning.sql"
+      ],
+      "documentation_references": [
+        "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_learning.py",
+        "tests/test_resident_learning_postgres.py"
+      ],
+      "nodes": [
+        {
+          "id": "rv:resident-learning:lifecycle:candidate",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Accept evidence-bearing candidate only after exact authorization",
+          "source_references": [
+            "src/riverview_core/resident_execution/resident_learning.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_learning.py"
+          ]
+        },
+        {
+          "id": "rv:resident-learning:lifecycle:validate",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Independent reviewer records supported, contradicted, or insufficient result",
+          "source_references": [
+            "src/riverview_core/resident_execution/resident_learning.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_learning.py"
+          ]
+        },
+        {
+          "id": "rv:resident-learning:lifecycle:approve",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Require resident confirmation for private retention or Steward approval for institutional sharing",
+          "source_references": [
+            "src/riverview_core/resident_execution/resident_learning.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_learning.py"
+          ]
+        },
+        {
+          "id": "rv:resident-learning:lifecycle:retrieve",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Return only approved knowledge in the exact authorized scope",
+          "source_references": [
+            "src/riverview_core/resident_execution/resident_learning.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_learning.py"
+          ]
+        },
+        {
+          "id": "rv:resident-learning:lifecycle:correct",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Append correction, supersession, or fresh-evidence rollback events",
+          "source_references": [
+            "src/riverview_core/resident_execution/resident_learning.py"
+          ],
+          "documentation_references": [
+            "docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_learning.py"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:resident-learning:lifecycle:candidate",
+          "to": "rv:resident-learning:lifecycle:validate",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:validate",
+          "to": "rv:resident-learning:lifecycle:approve",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:approve",
+          "to": "rv:resident-learning:lifecycle:retrieve",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:retrieve",
+          "to": "rv:resident-learning:lifecycle:correct",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-learning:lifecycle:correct",
+          "to": "rv:resident-learning:lifecycle:validate",
+          "type": "runtime_transition"
+        }
+      ]
+    },
+    {
       "graph_id": "rv:resident-reasoning:runtime",
       "graph_revision": "1.2.10",
       "component_id": "RESIDENT-REASONING",
@@ -14309,6 +14431,11 @@
     "rv:resident-conversation:browser-chat:stream-submit",
     "rv:resident-conversation:browser-chat:upgrade-continuity",
     "rv:resident-conversation:browser-chat:upgrade-rejected",
+    "rv:resident-learning:lifecycle:approve",
+    "rv:resident-learning:lifecycle:candidate",
+    "rv:resident-learning:lifecycle:correct",
+    "rv:resident-learning:lifecycle:retrieve",
+    "rv:resident-learning:lifecycle:validate",
     "rv:resident-reasoning:runtime:authority-denied",
     "rv:resident-reasoning:runtime:authority-gate",
     "rv:resident-reasoning:runtime:authorize-state",

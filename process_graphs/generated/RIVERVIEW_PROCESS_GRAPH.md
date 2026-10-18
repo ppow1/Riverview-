@@ -1,6 +1,6 @@
 # Riverview aggregate process graph
 
-**Document Revision:** 1.0.23
+**Document Revision:** 1.0.24
 **Generated from:** canonical workflow JSON; do not edit this projection by hand.  
 **Source:** `python3 scripts/process_graph.py generate`  
 
@@ -24,6 +24,7 @@ flowchart LR
   g_rv_postgres_ledger_assignment_lifecycle_a9a01b67[["POSTGRES-LEDGER<br/>assignment-lifecycle.v1<br/>rv:postgres-ledger:assignment-lifecycle"]]
   g_rv_postgres_ledger_migration_4c89ef23[["POSTGRES-LEDGER<br/>postgres-migration.v1<br/>rv:postgres-ledger:migration"]]
   g_rv_resident_conversation_browser_chat_533a6831[["RESIDENT-CONVERSATION<br/>resident.conversation.v1<br/>rv:resident-conversation:browser-chat"]]
+  g_rv_resident_learning_lifecycle_7a678edd[["RESIDENT-LEARNING-GOVERNANCE<br/>resident.learning.lifecycle.v1<br/>rv:resident-learning:lifecycle"]]
   g_rv_resident_reasoning_runtime_49854a10[["RESIDENT-REASONING<br/>resident.reasoning.v1<br/>rv:resident-reasoning:runtime"]]
   g_rv_runtime_baseline_commissioning_46ff1ccf[["RUNTIME-BASELINE<br/>runtime-baseline.v1<br/>rv:runtime-baseline:commissioning"]]
   g_rv_steward_dashboard_status_75f7c259[["STEWARD-DASHBOARD<br/>status-projection.v1<br/>rv:steward-dashboard:status"]]
