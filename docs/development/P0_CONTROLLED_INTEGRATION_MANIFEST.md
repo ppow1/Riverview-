@@ -2,12 +2,12 @@
 Riverview Controlled Document
 File: docs/development/P0_CONTROLLED_INTEGRATION_MANIFEST.md
 Component: P0-CONTROLLED-INTEGRATION
-File Revision: 1.0.0
+File Revision: 1.0.1
 Status: Disposable integration manifest; no merge/deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record exact integration parent, published component heads, ownership, order and verification state for P0 Grace-to-ChatGPT review
 Authority: Steward dispatch issue #120 comment 6254574126; W3 may assemble branches and run offline tests only
-History: New file; no predecessor
+History: 1.0.0 predecessor backed up in .riverview-backups/manifest.jsonl; 1.0.1 records assembled heads and verification
 -->
 
 # P0 controlled integration manifest
@@ -65,3 +65,50 @@ Reported owner CI/results in this table are provenance at dispatch, not integrat
 - Existing resident and proposal authorities stay intact. External review is advisory; only Grace may evaluate exact proposal versions; existing Steward approval and execution authorities remain separate.
 - Component interfaces and status are reported only when observed at the assembled exact HEAD. Missing integration remains an explicit slot/blocker, not a green status.
 - The eventual live smoke remains a separate approval with exact payload digest, destination, authority, one-message side effects, timing and stop conditions.
+
+
+## W3 integration checkpoint — 2026-10-18
+
+The disposable branch now assembles the published owner inputs in the dispatch
+order. Exact integrated commits and merges are preserved in Git history. The
+branch head after the W3 workflow proposal cherry-pick is
+`683be8b581c1d14b78c3d91ae1aa5aa61b497f81`.
+
+| Owner | Integrated source head | Integration note |
+|---|---|---|
+| C3 | `5c4a00512e5acd6f72aa766ea866a8828184b151` | Exact-proposal exchange and Grace consumption path integrated. Doorbell claim/receipt exchange methods and owner-loop registration remain missing at this head. |
+| C4 | `49f5dcfb` (`Align MCP review subjects with typed proposals`) | Latest C4 branch integrated after the original PR #130 head; validator normalizes complete typed `PlanStep` objects into a `PlanProposal`. |
+| C2 | `1123f3f356c121376591e9a3aa478b95939d2f58` | Offline dispatcher and bridge integration; depends on the missing C3 methods. |
+| W2 | `ab87e2fba4c2ca592ffebe991ec783ee23e673b0` | Combined PostgreSQL acceptance test added. |
+| C1 | `01bbf1587446c6b5975cc6cfe5c5af0138c3a957` | Readiness projection integrated. |
+| W1 | `c871ff069f99abe1d25dbf9d695ef64aa5ed2140` | Latest published trace branch integrated. |
+| W3 | `86808acb25da937c6af406c2d592563da69f08f1` | Only the owned workflow proposal document was cherry-picked. |
+
+Backup-manifest conflicts were resolved append-only: each resolution retained the
+current integration file byte-for-byte and appended only unique owner records in
+their original order. No existing record was removed or reordered.
+
+### Isolated validation at this checkpoint
+
+Command:
+
+```powershell
+$env:PYTHONPATH='src'; python -m unittest tests.test_external_reasoning_mcp tests.test_external_reasoning_doorbell_dispatcher tests.test_w2_p0_review_recovery tests.test_external_review_trace tests.test_grace_router_readiness -v
+```
+
+Result: 33 passed, 6 skipped, 1 import error. All 11 synthetic doorbell dispatcher
+cases and all W1 trace cases passed. The C4 MCP test module could not import because
+`PyJWT` (`jwt`) is absent from this disposable Python environment. The six skipped
+tests require `RIVERVIEW_TEST_PG_DSN`, which is not configured here. No dependency
+was installed and no live browser wake was sent.
+
+### Open integration dependency and next action
+
+C2's dispatcher calls `claim_next_doorbell_request` and
+`record_doorbell_receipt`, but those methods are not implemented by the integrated
+C3 exchange. The Grace owner loop invokes `consume_external_reasoning()` but does
+not register the doorbell dispatcher. This blocks the end-to-end test and remains
+assigned to C3. Integrate the published C3 follow-up when it appears, then run
+W2's combined PostgreSQL test against an isolated DSN and rerun the C4 MCP tests
+in an environment with declared test dependencies. Existing graph registration,
+revision audit, and the Steward-authorized live smoke remain separate gates.
