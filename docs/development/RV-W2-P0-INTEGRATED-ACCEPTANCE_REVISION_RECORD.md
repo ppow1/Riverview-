@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md
 Component: W2-P0-INTEGRATED-REVIEW-ACCEPTANCE
-File Revision: 1.0.8
+File Revision: 1.0.9
 Purpose: Preserve W2 integrated acceptance scope, source lineage, evidence and remaining gates
 Authority: Offline synthetic test only; no production or provider authority
 Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Record initial C3/C4 acceptance increment
@@ -14,6 +14,7 @@ Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Add synthetic 
 Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Fix trace timestamp, expiry boundary assertion, and use C3 successor API
 Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Correct per-round trace attribution and retry durable successor recovery after restart
 Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Record local W2 correction verification and environment limits
+Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Record exact-head combined run, W1 trace handoff, and C2/C3 dependencies
 History: Git; no predecessor existed for the new W2 acceptance test or cookbook
 -->
 # RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE revision record
@@ -30,7 +31,7 @@ History: Git; no predecessor existed for the new W2 acceptance test or cookbook
 - New W2 files: `tests/test_w2_p0_integrated_review_acceptance.py`, `docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md`
 - Predecessor backups: initial new-file versions had no predecessor. Revision 1.0.0 of the test and this record are backed up before the 1.0.1 fixture correction at `.riverview-backups/20261018T202428968484Z/tests/test_w2_p0_integrated_review_acceptance.py` (SHA-256 `03d5ae2a28c091d2a3c6283da7a8cc79327c25e740e01440025e2da2d8cd8353`) and `.riverview-backups/20261018T202429080246Z/docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md` (SHA-256 `b01cd17ec28a172e9f33ab1f3832fee3eb28d10cfe7f7ecfda5363ab0f6a2b3d`). No owner source file was edited.
 
-## Evidence and status (revision 1.0.8)
+## Evidence and status (revision 1.0.9)
 
 This is a partial integrated acceptance increment, not component or system completion.
 
@@ -50,7 +51,7 @@ This is a partial integrated acceptance increment, not component or system compl
   materializes CRLF bytes while the graph sidecar pins LF blob hashes. The
   controlled Linux exact-head workflow must run graph/revision checks after the
   PostgreSQL tests pass.
-- Controlled PostgreSQL CI on W2 merged head `06787a93` (run `39165000537`) executed **708 tests / 4 skips**, with 1 failure and 1 error. The snapshot exporter put `doorbell_owner_id` at bundle level although W1's schema requires it on each round. The successor test queried C3's recovery API before retrying consumption after the injected crash; it now mirrors the restart/retry recovery sequence in C3's existing test. Revision 1.0.7 corrects both W2-owned cases. The earlier integrated run's C2-owned failures were no longer present. Exact-head rerun pending.
+- Controlled disposable PostgreSQL CI on W2 head `37093dc5` (run `39173980276`) executed **708 tests / 4 skips**, with 14 failures. W2's trace export and finish case passed and emitted `rv.external-review-trace-input.v1`; the actual DB-derived body-free bundle was handed to W1 in issue #120 comment `6256185021`. The earlier owner attribution error and W2 expiry path are fixed. Thirteen failures remain in C2-owned dispatcher tests. One W2 restart/revision assertion is still failing: after the injected exception immediately following successor admission and a new exchange/Grace instance, retry called the reasoner again (3 provider requests versus 2 expected). W2 preserved the no-duplicate-reasoning assertion and reported this concrete C3 recovery boundary to mailbox #145 in issue comment `6256183481`, and to W3 mailbox #144 in comment `6256183665`; W2 does not modify C2/C3-owned runtime code. Graph/revision steps were skipped after the test failure, so exact-head graph/revision acceptance remains pending W3's corrected assembled run.
 - First controlled run `39162955178`: **FAIL** after 690 tests / 4 skips, with 3 errors in W2 setUp. All three errors were `MCPConfigurationError(provider_not_registered)` because the negative-test provider token was not registered in the isolated exchange router. No W2 lifecycle assertion ran. Revision 1.0.1 registers that synthetic provider only in the disposable fixture; rerun pending.
 - Current test scope: Grace typed review subject → durable C3 exchange → C2
   synthetic owner-loop wake → one fenced C3 receipt → C4 provider MCP
