@@ -1,0 +1,71 @@
+{
+  "artifacts": {
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.2",
+      "sha256": "9bfb21206de27237d30152f28efe52cb5886b608cc1506c291436c7da34f6df0",
+      "size_bytes": 3849
+    },
+    "focused-tests.log": {
+      "path": "logs/focused-tests.log",
+      "revision": "1.0.0",
+      "sha256": "e2a52d6d7dde9aadbe26218a439e7915b10509fbafa3d8b80699978d58bfd958",
+      "size_bytes": 2562
+    },
+    "full-suite.log": {
+      "path": "logs/full-suite.log",
+      "revision": "1.0.0",
+      "sha256": "7e4a6664ae92147fdd6b7a53ef7d3f48a48628559fc4253e4420e61c4e927217",
+      "size_bytes": 121642
+    },
+    "predecessor-restoration.log": {
+      "path": "logs/predecessor-restoration.log",
+      "revision": "1.0.0",
+      "sha256": "45884c6d36e33b5ff1155cc61b38d3dd065bdb2cf0e2aacdb270940398db576b",
+      "size_bytes": 907
+    },
+    "process-graph-check.log": {
+      "path": "logs/process-graph-check.log",
+      "revision": "1.0.0",
+      "sha256": "df4c2337c0dfd468082c21ab579d60441a41ed8da906d09b9fab62c4650a51e0",
+      "size_bytes": 55
+    },
+    "process-graph-validate.log": {
+      "path": "logs/process-graph-validate.log",
+      "revision": "1.0.0",
+      "sha256": "db07456abb40ffe37709c947270d061d432d12f3a08ac1b568f55b88688617a4",
+      "size_bytes": 39
+    },
+    "revision-control-correction.log": {
+      "path": "logs/revision-control-correction.log",
+      "revision": "1.0.0",
+      "sha256": "67af7cb0f9b13cbe9c5c6821b25befb24c45370469512c43323cf6295d1e25e8",
+      "size_bytes": 548
+    },
+    "revision-control-final.log": {
+      "path": "logs/revision-control-final.log",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "revision-control-initial-failure.log": {
+      "path": "logs/revision-control-initial-failure.log",
+      "revision": "1.0.0",
+      "sha256": "7c7f9105c8fe32d0668bbf1f824e322db10198658032658b1fea219c46918564",
+      "size_bytes": 712
+    },
+    "revision-control.log": {
+      "path": "logs/revision-control.log",
+      "revision": "1.0.0",
+      "sha256": "fd89bd301bf8d39d3e5ec795028036850ec1336d31b0651fe7f0218bf7227725",
+      "size_bytes": 1141
+    },
+    "verify_predecessors.py": {
+      "path": "verify_predecessors.py",
+      "revision": "1.0.1",
+      "sha256": "40a6e354d750e8859bbe60d13ecd6b433abb88026b19fa5bd71cb7ec94ea9b4a",
+      "size_bytes": 3536
+    }
+  },
+  "manifest_revision": "1.0.2"
+}
