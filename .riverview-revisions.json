@@ -2,7 +2,7 @@
   "files": {
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.242",
+      "revision": "1.1.243",
       "sha256": "db29799c026f20d431bbd748b3653235852fb32a503de7ac6bf8c05db8e78e04",
       "size_bytes": 13389
     },
@@ -320,11 +320,11 @@
     },
     "tests/test_resident_learning_postgres.py": {
       "path": "tests/test_resident_learning_postgres.py",
-      "revision": "1.0.0",
-      "sha256": "8da673ea4261ba07fe4775596784025f9d67067d1a238c5d9d454389b4e4acc2",
-      "size_bytes": 4814
+      "revision": "1.0.1",
+      "sha256": "31810c787d9a22f80a8265f667e97dc19734577aef27eee827392772a942bb03",
+      "size_bytes": 6414
     }
   },
-  "manifest_revision": "1.1.242",
+  "manifest_revision": "1.1.243",
   "updated_at": null
 }

@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_learning_postgres.py
 # Component: RESIDENT-LEARNING-GOVERNANCE
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify append-only learning persistence and restart retrieval in isolated PostgreSQL
 # Execution Model: Unique disposable schema; skipped unless RIVERVIEW_TEST_PG_DSN is set
 # Observability: Persisted records, evidence, events, and authorization receipts
 # Dependencies: PostgreSQL; Psycopg 3; RIVERVIEW_TEST_PG_DSN
 # Authority: Synthetic test principals; unique disposable schema only
 # Changed: 2026-10-18 UTC | RV-RESIDENT-LEARNING-IMPLEMENTATION-001 | Add isolated PostgreSQL persistence test
+# Changed: 2026-10-18 UTC | RV-W2-PR117-POSTGRES-001 | Verify scope filtering and database append-only triggers
 # Contracts: docs/architecture/RESIDENT_LEARNING_GOVERNANCE.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -80,6 +81,28 @@ class ResidentLearningPostgresTests(unittest.TestCase):
                 self.assertEqual(result[0]["evidence"][0]["source_sha256"], "a" * 64)
                 self.assertEqual([e["event_type"] for e in result[0]["events"]],
                     ["candidate_created", "validated", "approved"])
+                self.assertEqual(resumed.retrieve("resident:fixture",
+                    scope_ref="resident:fixture"), [])
+
+                identity = approved["record_id"].removeprefix("learning:")
+                for table, assignment in (
+                    ("resident_learning_records", "retention=retention"),
+                    ("resident_learning_revisions", "content=content"),
+                    ("resident_learning_events", "payload=payload"),
+                ):
+                    with self.subTest(table=table, operation="update"):
+                        with self.assertRaises(self.psycopg.errors.ObjectNotInPrerequisiteState):
+                            self.admin.execute(self.sql.SQL(
+                                "UPDATE {}.{} SET " + assignment + " WHERE " +
+                                ("record_id=%s" if table != "resident_learning_events" else "record_id=%s")
+                            ).format(self.sql.Identifier(self.schema), self.sql.Identifier(table)),
+                                (identity,))
+                    with self.subTest(table=table, operation="delete"):
+                        with self.assertRaises(self.psycopg.errors.ObjectNotInPrerequisiteState):
+                            self.admin.execute(self.sql.SQL(
+                                "DELETE FROM {}.{} WHERE record_id=%s"
+                            ).format(self.sql.Identifier(self.schema), self.sql.Identifier(table)),
+                                (identity,))
             finally:
                 resumed_store.close()
         finally:
