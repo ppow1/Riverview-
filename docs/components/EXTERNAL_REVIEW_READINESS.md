@@ -2,13 +2,14 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REVIEW_READINESS.md
 Component: EXTERNAL-REVIEW-READINESS
-File Revision: 1.0.3
+File Revision: 1.0.4
 Purpose: Define C1's privacy-safe readiness projection for the Grace external review flow
 Authority: Read-only projection; owning services retain all lifecycle and decision authority
 Changed: 2026-10-18 UTC | RV-C1-EXTERNAL-REVIEW-READINESS-001 | Initial component contract
 Changed: 2026-10-18 UTC | RV-C1-EXTERNAL-REVIEW-READINESS-001 | Record timeout projection and evidence boundaries
 Changed: 2026-10-18 UTC | RV-C1-EXTERNAL-REVIEW-READINESS-001 | Distinguish durable Grace consumption from an evaluated decision
 Changed: 2026-10-18 UTC | RV-C1-EXTERNAL-REVIEW-READINESS-001 | Document unverified wake submission recovery
+Changed: 2026-10-18 UTC | RV-C1-P0-READINESS-INTEGRATION-001 | Bind readiness to actual C2 trigger result and C3/C4 status digests
 History: Git
 -->
 # Grace External Review Readiness Projection
@@ -32,9 +33,11 @@ source-presence/freshness booleans only.
 
 The request-driven function `project_external_review_readiness(...)` accepts:
 
-1. `exchange_status`: the existing `DurableExternalReasoningExchange.status()`
-   projection (`delivery_state`, `deadline_at`; IDs may be present but are used
-   only for an optional receipt consistency check).
+1. `exchange_status`: the existing C3
+   `DurableExternalReasoningExchange.status()` projection. It supplies
+   `delivery_state`, `deadline_at`, and, after a response, `response_sha256`;
+   exact proposal reviews also supply `review_subject_sha256`. Digests are
+   validated but never copied to output.
 2. `doorbell_status`: C2's `rv.chatgpt-doorbell.status.v1` metadata object.
    This projection reads `observed_at`, `freshness.state`,
    `freshness.stale_after_seconds`, `status`, `browser_health`,
@@ -44,9 +47,16 @@ The request-driven function `project_external_review_readiness(...)` accepts:
 3. Optional `wake_receipt`: the C3 fenced, metadata-only receipt. The projection
    checks request/correlation equality when both source and receipt carry those
    fields, then maps only the `submitted|ambiguous|failed` outcome.
-4. Optional `provider_submission`: a body-free C4 result. Only `accepted` or
-   `rejected` is interpreted.
-5. `trigger_status`: C2's independently reported trigger-worker state. Only
+4. Optional `provider_submission`: either C4's body-free
+   `reasoning_exchange_status` result or correlated
+   `reasoning_exchange_submit_response` result. Status results are checked for
+   request/correlation identity and equality of response and review-subject
+   digests against C3. A submit result is checked against the response digest
+   because its request/correlation is already bound by the tool arguments.
+   Legacy normalized `accepted|rejected` results remain supported; mismatched
+   IDs or digests fail closed.
+5. `trigger_status`: `DoorbellCycleResult.trigger_status` from C2's
+   `DoorbellWakeWorker.run_once()`. Only
    `ready` permits the projection to report `ready_for_doorbell`; absent,
    unknown, or `not_configured` state cannot be inferred from a healthy browser
    process.
@@ -102,6 +112,17 @@ successful fixed browser wake only establishes that the fixed wake was
 submitted; the external provider must still claim the exact exchange, submit a
 correlated response, and Grace must consume it. Exchange consumption alone is
 not proof of an accept/revise decision or objective completion.
+
+The integrated status contract is verified with the real C2/C3/C4 source shapes
+as fixtures, but remains a read-only projection; no worker registration or live
+browser/provider activity is inferred from those fixtures.
+
+For the combined workflow graph, connect C2's trigger result and C3/C4
+body-free status into this projection; a matching `response_received` result
+may proceed to Grace consumption, while malformed or mismatched identity/digest
+routes to owner diagnostics. This projection does not create the wake or consume
+the response. W3 owns registration of this node in the combined integration
+graph.
 
 This increment supplies the pure consumer contract and isolated fixtures. It is
 not a Steward dashboard/API integration, deployed health endpoint, live browser
