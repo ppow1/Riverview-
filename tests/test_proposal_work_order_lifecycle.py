@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_proposal_work_order_lifecycle.py
 # Component: INSTITUTIONAL-PROPOSALS
-# Revision: 1.1.3
+# Revision: 1.1.4
 # Purpose: Verify revision approval and promotion into the existing objective pipeline
 # Execution Model: Pure command parser tests and disposable PostgreSQL integration
 # Observability: Proposal/objective events and correlation IDs are asserted
@@ -13,6 +13,7 @@
 # Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Exercise idempotent Comms5 CME queue-intent persistence against isolated PostgreSQL and exact Steward grants.
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Initial lifecycle bridge coverage
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Compose authenticated API approval/intake with real disposable worker execution, independent verification, and proposal result linkage
+# Changed: 2026-10-18 UTC | RV-C3-GRACE-ENGINEERING-E2E-001 | Verify an explicit synthetic Steward rejection is durable, idempotent, and cannot enter objective intake.
 # =============================================================================
 """Proposal approval and work-order bridge tests; PostgreSQL is disposable."""
 
@@ -175,6 +176,30 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
         with self.assertRaises(ObjectiveNotAuthorized):
             self.lifecycle.promote(record["proposal"]["proposal_id"], 1, actor_id="steward:authorized")
         self.assertEqual(self.registry.get(record["proposal"]["proposal_id"])["proposal"]["lifecycle_status"], "APPROVED")
+
+    def test_explicit_rejection_is_durable_idempotent_and_never_promoted(self):
+        from riverview_core.resident_execution.proposals import ProposalConflict
+        record = self.ready_proposal(key="proposal:rejection")
+        proposal_id = record["proposal"]["proposal_id"]
+        revision = record["revision"]
+        decision = self.lifecycle.decide(proposal_id, 1, decision="REJECT",
+            actor_id="steward:authorized", reason="Synthetic bounded-test rejection",
+            idempotency_key="decision:rejection:test",
+            content_sha256=revision["content_sha256"],
+            authority_reference="account-auth-session:test-account:steward")
+        replay = self.lifecycle.decide(proposal_id, 1, decision="REJECT",
+            actor_id="steward:authorized", reason="Synthetic bounded-test rejection",
+            idempotency_key="decision:rejection:test",
+            content_sha256=revision["content_sha256"],
+            authority_reference="account-auth-session:test-account:steward")
+        self.assertEqual(decision["proposal"]["lifecycle_status"], "REJECTED")
+        self.assertEqual(replay["proposal"]["lifecycle_status"], "REJECTED")
+        self.assertEqual(len([event for event in replay["events"]
+            if event["event_type"] == "proposal.steward_decision"]), 1)
+        with self.assertRaises(ProposalConflict):
+            self.lifecycle.promote(proposal_id, 1, actor_id="steward:authorized")
+        self.assertIsNone(self.pipeline.get_objective(
+            self.lifecycle.objective_id(proposal_id, 1)))
 
     def test_approved_proposal_without_assignment_grant_stays_approved_and_grounded(self):
         record = self.ready_proposal()
