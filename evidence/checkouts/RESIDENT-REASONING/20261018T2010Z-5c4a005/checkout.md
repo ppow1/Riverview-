@@ -2,7 +2,7 @@
 Riverview Controlled Evidence
 File: evidence/checkouts/RESIDENT-REASONING/20261018T2010Z-5c4a005/checkout.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.3
+File Revision: 1.0.5
 Purpose: Record C3 exact proposal review implementation and isolated verification
 Execution Model: Disposable PostgreSQL 16 integration tests and mocked local provider tests
 Observability: Test logs, revision audit, source commit, predecessor backup hashes
@@ -12,6 +12,8 @@ Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Capture exact-commit
 Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Append receipt/owner-cycle implementation and exact offline test evidence
 Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Record C2 exception-code compatibility and final 38-test rerun
 Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify latest acceptance-record predecessor and revision gate
+Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Bind checkout evidence to the committed follow-up source
+Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Keep predecessor verification reference current
 Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md; docs/components/RESIDENT_REASONING.md
 Tests: tests/test_external_reasoning_exchange.py; tests/test_resident_reasoning.py; tests/test_local_reasoning_provider.py
 History: Git and .riverview-backups/manifest.jsonl
@@ -21,7 +23,7 @@ History: Git and .riverview-backups/manifest.jsonl
 - **Task:** `RV-C3-EXACT-PROPOSAL-REVIEW-001`
 - **Host/environment:** Camrui Ubuntu 24.04; isolated worktree `/home/admin1/projects/Riverview-Grace-Review-C3`
 - **Branch:** `codex/c3-exact-proposal-review-20261018`
-- **Source base commit:** `5c4a00512e5acd6f72aa766ea866a8828184b151`; follow-up commit is recorded in the PR and GitHub issue.
+- **Source commits:** initial exact-review `5c4a00512e5acd6f72aa766ea866a8828184b151`; doorbell follow-up `2630dadaa82285a0b9a3e1977b753688183f9d17`.
 - **Base:** PR #119 head `97128626df967bc992696dca38eaa7116f3616e9`
 - **PR:** https://github.com/ppow1/Riverview-/pull/135 (draft at evidence creation)
 - **Run began (UTC): `2026-10-18T20:09:43Z`; final commands completed before this evidence commit.
@@ -37,7 +39,7 @@ History: Git and .riverview-backups/manifest.jsonl
 6. `python3 -m compileall -q src/riverview_core/resident_execution/external_reasoning.py src/riverview_core/resident_execution/service.py tests/test_external_reasoning_exchange.py` — exit 0.
 7. `git diff --check` — exit 0.
 8. `python3 scripts/revision_control.py check --baseline evidence/checkouts/RESIDENT-REASONING/20261018T2010Z-5c4a005/pre-edit-revision-baseline.json` — **PASS, zero findings**.
-9. Initial review commit predecessor restore check — **10/10 PASS**. Follow-up snapshots — **19/19 PASS**; files readable and SHA-256 matches manifest (`followup-predecessor-verification.log`).
+9. Initial review commit predecessor restore check — **10/10 PASS**. Follow-up snapshots — **PASS**; all task-scoped files are readable and match manifest SHA-256 (`followup-predecessor-verification.log`).
 10. Exact-head controlled-checkout CI for initial PR head — run **39161980119 SUCCESS**. New exact-head CI is required for the follow-up commit.
 
 

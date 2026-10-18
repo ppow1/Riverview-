@@ -1,3 +1,17 @@
+<!--
+Riverview~ Controlled Evidence
+File: evidence/checkouts/RESIDENT-REASONING/20261018T2010Z-5c4a005/attempts/failed-debug-attempts.md
+Component: RESIDENT-REASONING
+File Revision: 1.0.0
+Purpose: Record failed isolated implementation debug attempts and their corrections
+Execution Model: Test-run observation log
+Observability: Sanitized failure summaries with final passing rerun references
+Dependencies: C3 isolated checkout evidence
+Authority: No production or live provider operation
+Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Record source and test-fixture corrections
+History: Git and .riverview-backups/manifest.jsonl
+-->
+
 # Retained failed debug attempts
 
 These were implementation-debug runs on the same isolated C3 checkout, not accepted checkout evidence. The original tool output was returned interactively and was not saved as a file at the time; this summary records the observed failure and correction transparently.

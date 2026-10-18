@@ -2,7 +2,7 @@
 Riverview~ Controlled Engineering Record
 File: docs/development/RV-C3-CHATGPT-EXACT-REVIEW-001_ACCEPTANCE_RECORD.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.4
+File Revision: 1.0.6
 Purpose: Record C3 exact proposal review implementation evidence, scope and operational gates
 Execution Model: Offline source review and disposable test infrastructure
 Observability: Linked issue, pull request, revision-keyed backups, and checkout evidence
@@ -13,6 +13,7 @@ Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Add durable doorbell 
 Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Accept C2 sanitized exception receipts terminally and add regression evidence
 Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Record final 38-test run and terminal sanitized bridge exception behavior
 Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Refresh DoD gates after C4 typed-subject alignment and identify C2 runtime injection boundary
+Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Record exact implementation source commit
 Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md; docs/components/RESIDENT_REASONING.md
 Tests: tests/test_external_reasoning_exchange.py; tests/test_resident_reasoning.py; tests/test_local_reasoning_provider.py
 History: Git and .riverview-backups/manifest.jsonl
@@ -22,7 +23,7 @@ History: Git and .riverview-backups/manifest.jsonl
 **Task:** RV-C3-EXACT-PROPOSAL-REVIEW-001  
 **Status:** Implemented and tested offline in a draft PR; integration acceptance is PARTIAL. Component is NOT DONE.  
 **Owner:** C3  
-**Implementation:** exact proposal review commit `5c4a00512e5acd6f72aa766ea866a8828184b151` plus the current C3 doorbell follow-up commit recorded in Git.  
+**Implementation source commits:** exact proposal review `5c4a00512e5acd6f72aa766ea866a8828184b151`; doorbell exchange follow-up `2630dadaa82285a0b9a3e1977b753688183f9d17`.
 **PR:** https://github.com/ppow1/Riverview-/pull/135 (draft and unmerged)  
 **Parent:** PR #119 head 97128626df967bc992696dca38eaa7116f3616e9  
 **Checkout evidence:** evidence/checkouts/RESIDENT-REASONING/20261018T2010Z-5c4a005/checkout.md

@@ -1,20 +1,21 @@
 {
   "component_id": "RESIDENT-REASONING",
-  "manifest_revision": "1.1.1",
-  "source_commit": "5c4a00512e5acd6f72aa766ea866a8828184b151",
+  "manifest_revision": "1.1.11",
+  "source_commit": "2630dadaa82285a0b9a3e1977b753688183f9d17",
+  "source_base_commit": "5c4a00512e5acd6f72aa766ea866a8828184b151",
   "task_id": "RV-C3-CHATGPT-EXACT-REVIEW-001",
   "artifacts": {
-    "attempts/failed-debug-attempts.md": {
+    "failed-debug-attempts.md": {
       "path": "attempts/failed-debug-attempts.md",
       "revision": "1.0.0",
-      "sha256": "70622fb913331bce9ea74841d797d2719d3c0d89da2c97b12d36a1463b0b27a0",
-      "size_bytes": 2124
+      "sha256": "3bf2807b4457ab2d5f4c209f6d014b221df7d53dc2ab32ef37fc3104bc760b37",
+      "size_bytes": 2771
     },
     "checkout.md": {
       "path": "checkout.md",
       "revision": "1.0.0",
-      "sha256": "177ddd2a616d6281118b89bc088bae1489e01544f7c65ff29a39350e7f85d48c",
-      "size_bytes": 5246
+      "sha256": "2ad64e6e11da1f7047ce2ecd61ca5c756783a713e326814e1b638a708709d2d5",
+      "size_bytes": 5504
     },
     "compileall.log": {
       "path": "compileall.log",
@@ -61,7 +62,7 @@
     "followup-predecessor-verification.log": {
       "path": "followup-predecessor-verification.log",
       "revision": "1.0.0",
-      "sha256": "a2ed89555b9d6b9c639b4ef6fe1fe2f1dc5d3bc7f221a744ba3b564ba6207b7e",
+      "sha256": "05ec9a8b9fcca9f93b1a98e94702b351620368080a5044bf0079a32ec9d9a309",
       "size_bytes": 78
     },
     "followup-revision-check.log": {
