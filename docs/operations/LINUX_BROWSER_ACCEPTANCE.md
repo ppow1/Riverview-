@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/operations/LINUX_BROWSER_ACCEPTANCE.md
 Component: LINUX-BROWSER-ACCEPTANCE
-File Revision: 1.0.8
+File Revision: 1.0.9
 Purpose: Operate the bounded Linux Chromium acceptance harness and request it in Engineering work orders
 Authority: Read-only browser verification; production writes and authenticated sessions are out of scope
-Changed: 2026-10-18 UTC | RV-C2-STAGING-GRACE-BROWSER-004 | Document optional browser environment behavior in test discovery
+Changed: 2026-10-18 UTC | RV-C2-DOD-REMEDIATION-001 | Document safe error evidence, recovery, retention, observability, and failure handling
 -->
 # Linux browser acceptance on Camrui
 
@@ -120,6 +120,29 @@ The Engineering executor must treat the URL and assertion as bounded test inputs
 - Missing shared library: inspect the Playwright launch error, then use the controlled OS dependency procedure; do not install packages from inside the test runner.
 - `non_loopback_target_requires_readonly_opt_in`: use loopback for a local checkout, or provide `--allow-remote-readonly` only for an approved staging target.
 - `target_must_be_http_origin_without_credentials_path_or_query`: pass only the base origin; use `--smoke-path` for the page path.
-- Browser console/page/request failures: inspect the private screenshot, error JSON, and failure trace. Do not copy authenticated state into the runner or retry a test that attempted a non-GET request without first fixing its scope.
+- Browser console/page/request failures: reports intentionally store only fixed error categories, a generic redacted message, an allowlisted method, and a fully redacted request URL. They do not preserve arbitrary exception text, hostnames, paths, query strings, or fragments. Diagnose locally from the test name, exit code, safe category, assertion output in the private CI log, and (for a successful staging test only) the redacted screenshot. Do not add raw browser messages or URLs to reports to make diagnosis easier. Do not retry a test that attempted a non-GET request without first fixing its scope.
+- `Browser error details redacted`: the report deliberately has no raw exception. Re-run only against the same approved local fixture or staging target with the same read-only assertion; use the test runner's private local output to identify the failing assertion. Never attach authenticated browser profiles, cookie state, page text, request/response bodies, or full URLs to an issue.
+- `request URL redacted`: this is an expected privacy-preserving field for request failures or blocked requests. Use the request kind and allowlisted HTTP method to determine whether it was a failed fetch or a blocked method/origin. If the kind is `blocked_non_get` or `blocked_cross_origin`, treat it as a scope failure: stop, correct the test boundary, and do not retry against the target until corrected.
+- `browser_target_rejected` or `staging_origin_required`: stop before launch. Confirm an explicitly approved non-production origin, exact configured-origin match, correct loopback confirmation or remote read-only opt-in, exact-host cookie-only state at mode `0600` or stricter, and a harmless pre-seeded conversation. Do not substitute production or broaden the cookie domain.
+- `RIVERVIEW_TEST_PG_DSN`-related skips are unrelated to browser acceptance. Record the skip; do not claim database-backed Grace behavior from this harness.
+- If a failure leaves an incomplete output directory, preserve it privately until the run is diagnosed. Do not reuse an existing `--output` directory; the runner requires a new directory. A new run gets a new directory and does not overwrite prior evidence.
+
+## Evidence, observability, and retention
+
+The runner is a request-driven local tool, not a resident service. Its machine-readable run summary is `browser-errors.json` with `schema`, `status`, `exit_code`, test counts (`passed`, `failed`, `skipped`), test outcomes, error-report filenames, and screenshot/trace filenames. Per-test `*.errors.json` contains `test`, `errors`, and `blocked_non_get_methods`. Error `kind` values distinguish console, page, request, blocked-method, and blocked-origin events; `message` is the fixed `Browser error details redacted`; `url` is always `[request URL redacted]`; `method` is an allowlisted verb or `OTHER`. The summary's explicitly configured `target_origin` is metadata, not proof that the destination is non-production.
+
+Evidence directories are created with mode `0700`, JSON reports with mode `0600`, and are owned by the invoking Linux user. Successful staging screenshots are content-redacted before writing and mode `0600`; traces are disabled for authenticated staging. Local non-staging failures may include a Playwright trace and screenshot that expose rendered test data, so keep them private. No browser evidence is automatically uploaded or ingested into the dashboard/work-order ledger.
+
+There is no automatic purge or durable central archive. The run owner must record the output directory and source commit in the checkout/work-order evidence, keep it private through review and any related incident, and delete it only after the reviewer confirms that required redacted evidence is durably linked and no investigation is open. If evidence must be retained longer, move only reviewed/redacted artifacts to the approved project evidence store with its access controls. Never publish storage-state files, raw traces from authenticated runs, raw page text, or request bodies. Because no live dashboard consumes this output, a local PASS is visible only to the operator and CI; it is not a Steward live operational view.
+
+### Revision-control history note
+
+The earlier audit identified two historical control gaps. Commit `9b98f1f1` changed `browser-tests/test_grace_workflow_synthetic.py`, but its manifest backup hash is not the exact parent hash; this remains disclosed and is not retroactively relabeled. Commit `67fa3d23` changed `tests/test_grace_staging_browser_fixture.py` without a revision increment or recorded predecessor. The current correction advances that test from 1.0.0 to 1.0.1 and records the exact clean-parent bytes/hash as a recovery copy with `capture_timing: reconstructed_from_clean_parent_after_edit`; it does not claim the copy was created before the historical change. Older backup records also remain unchanged; all backups created by this remediation include predecessor/new revision, source commit, task, timestamp, checksum, and restore instruction. These corrections improve future recovery but do not erase the historical noncompliance.
+
+## Focused execution and recovery flow
+
+The diagram is generated from the canonical graph at `process_graphs/steward-dashboard/linux-browser-acceptance.json`. A safe report describes failure class and counts while dropping arbitrary browser strings and all request URL components.
+
+See [Linux browser acceptance flow](LINUX_BROWSER_ACCEPTANCE_FLOW.md) for the complete generated workflow.
 
 The test process starts no application server and restarts no service. The disposable static fixture command above binds only to `127.0.0.1`; interrupt it with Ctrl-C after the run.

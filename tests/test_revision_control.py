@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_revision_control.py
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.2.3
+# Revision: 1.2.4
 # Purpose: Regression tests for revision validation and predecessor preservation
 # Execution Model: Request-driven tests
 # Observability: unittest results and exit code
 # Dependencies: Python 3.10+, Git
 # Authority: Temporary repositories only
-# Changed: 2026-10-10 UTC | RV-ENG-REV-003 | Cover native evidence headers and reject malformed sidecar revisions
+# Changed: 2026-10-18 UTC | RV-C2-DOD-REMEDIATION-001 | Verify new backup provenance and restoration metadata
 # Contracts: docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md
 # Tests: This file
 # History: Git and revision backup manifest
@@ -32,6 +32,9 @@ class RevisionTests(unittest.TestCase):
         self.file=self.root/'sample.py'
         self.file.write_text('# Revision: 1.0.0\nprint(1)\n')
         subprocess.run(['git','-C',str(self.root),'add','sample.py'],check=True)
+        subprocess.run(['git','-C',str(self.root),'config','user.email','test@example.invalid'],check=True)
+        subprocess.run(['git','-C',str(self.root),'config','user.name','Revision Test'],check=True)
+        subprocess.run(['git','-C',str(self.root),'commit','-qm','baseline'],check=True)
         self.base=self.root/'baseline.json'
         self.base.write_text(json.dumps({'files':rev.inventory(self.root)}))
     def issues(self):
@@ -67,6 +70,10 @@ class RevisionTests(unittest.TestCase):
         result=rev.backup(self.root,'sample.py','TASK-1')
         self.assertEqual((self.root/result['backup']).read_bytes(),old)
         self.assertEqual(len((self.root/'.riverview-backups/manifest.jsonl').read_text().splitlines()),1)
+        self.assertEqual(result['new_revision'],'1.0.1')
+        self.assertEqual(result['source_commit'],rev.git(self.root,'rev-parse','HEAD').decode().strip())
+        self.assertIn(result['backup'],result['restoration_instruction'])
+        self.assertIn(result['sha256'],result['restoration_instruction'])
     def test_backup_rejects_traversal(self):
         with self.assertRaises(ValueError): rev.backup(self.root,'../bad','TASK-1')
 

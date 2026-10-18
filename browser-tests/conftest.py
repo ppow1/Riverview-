@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: browser-tests/conftest.py
 # Component: LINUX-BROWSER-ACCEPTANCE
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Capture bounded errors and safely provision optional host-scoped staging browser state
 # Execution Model: Pytest fixture and lifecycle hooks
 # Observability: Private JSON reports; Playwright plugin stores screenshots and failure traces
 # Dependencies: pytest-playwright; Python 3.10+
 # Authority: Loads only explicitly supplied exact-host cookie state in staging mode; all mutations remain blocked
-# Changed: 2026-10-18 UTC | RV-C2-STAGING-GRACE-BROWSER-004 | Count setup skips in durable browser summary
+# Changed: 2026-10-18 UTC | RV-C2-DOD-REMEDIATION-001 | Replace raw browser errors and request URLs with fixed safe evidence
 # Contracts: docs/operations/LINUX_BROWSER_ACCEPTANCE.md
 # Tests: browser-tests/test_grace_staging_readonly.py; browser-tests/test_read_only_smoke.py
 # History: Git
@@ -21,7 +21,7 @@ import json
 import os
 from pathlib import Path
 import re
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -37,21 +37,15 @@ def _output_dir() -> Path:
 
 
 def _safe_message(value: str) -> str:
-    value = re.sub(r"https?://[^\s'\"]+", lambda match: _safe_url(match.group(0)), value)
-    value = re.sub(r"(?i)(authorization|cookie|password|secret|token|api[_-]?key)\s*[:=]\s*[^\s,;]+",
-                   r"\1=[redacted]", value)
-    return value[:1000]
+    """Return a fixed diagnostic; arbitrary browser text can contain user data."""
+    del value
+    return "Browser error details redacted"
 
 
 def _safe_url(value: str) -> str:
-    try:
-        parsed = urlsplit(value)
-        host = parsed.hostname or ""
-        port = f":{parsed.port}" if parsed.port else ""
-        host = f"[{host}]" if ":" in host else host
-        return urlunsplit((parsed.scheme, host + port, parsed.path, "", ""))
-    except ValueError:
-        return "[url-redacted]"
+    """Do not retain origin or path: either can identify a private target or record."""
+    del value
+    return "[request URL redacted]"
 
 
 @pytest.fixture(scope="session")
@@ -81,8 +75,10 @@ def browser_error_log(page, request):
         errors.append({"kind": "page_error", "message": _safe_message(str(error))})
 
     def request_failed(browser_request):
+        method = browser_request.method.upper()
+        safe_method = method if method in {"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"} else "OTHER"
         errors.append({"kind": "request_failed", "url": _safe_url(browser_request.url),
-                       "method": browser_request.method})
+                       "method": safe_method})
 
     def block_non_get(route):
         request = route.request

@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:steward-dashboard:linux-browser-acceptance",
-  "graph_revision": "1.0.4",
+  "graph_revision": "1.0.5",
   "component_id": "STEWARD-DASHBOARD",
   "workflow_id": "linux-browser-acceptance.v1",
   "diagram_order": 20,
@@ -18,7 +18,8 @@
   ],
   "documentation_references": [
     "docs/operations/LINUX_BROWSER_ACCEPTANCE.md",
-    "process_graphs/README.md"
+    "process_graphs/README.md",
+    "docs/operations/LINUX_BROWSER_ACCEPTANCE_FLOW.md"
   ],
   "verification_evidence": [],
   "nodes": [
@@ -188,6 +189,52 @@
         "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
       ],
       "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:linux-browser-acceptance:safe-error-report",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Record fixed error categories only; remove arbitrary exception text and all request URLs",
+      "source_references": [
+        "browser-tests/conftest.py"
+      ],
+      "documentation_references": [
+        "docs/operations/LINUX_BROWSER_ACCEPTANCE.md",
+        "docs/operations/LINUX_BROWSER_ACCEPTANCE_FLOW.md"
+      ],
+      "verification_evidence": [
+        "tests/test_linux_browser_runner.py",
+        "tests/test_grace_staging_browser_fixture.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:linux-browser-acceptance:diagnose-private-run",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Diagnose with safe error kind, assertion, exit status, and private local output; never copy raw authenticated content",
+      "source_references": [
+        "scripts/run_linux_browser_acceptance.py",
+        "browser-tests/conftest.py"
+      ],
+      "documentation_references": [
+        "docs/operations/LINUX_BROWSER_ACCEPTANCE.md",
+        "docs/operations/LINUX_BROWSER_ACCEPTANCE_FLOW.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:linux-browser-acceptance:retain-reviewed-evidence",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Keep private evidence through review and incident closure; delete only after required redacted evidence is linked",
+      "source_references": [
+        "scripts/run_linux_browser_acceptance.py"
+      ],
+      "documentation_references": [
+        "docs/operations/LINUX_BROWSER_ACCEPTANCE.md",
+        "docs/operations/LINUX_BROWSER_ACCEPTANCE_FLOW.md"
+      ],
+      "verification_evidence": []
     }
   ],
   "edges": [
@@ -265,6 +312,42 @@
       "to": "rv:steward-dashboard:linux-browser-acceptance:staging-fixture-proof",
       "type": "verification",
       "label": "isolated fixture test uses synthetic host-scoped cookie and asserts blocked requests plus redacted evidence"
+    },
+    {
+      "from": "rv:steward-dashboard:linux-browser-acceptance:collect-evidence",
+      "to": "rv:steward-dashboard:linux-browser-acceptance:safe-error-report",
+      "type": "runtime_transition",
+      "label": "redact browser diagnostics"
+    },
+    {
+      "from": "rv:steward-dashboard:linux-browser-acceptance:safe-error-report",
+      "to": "rv:steward-dashboard:linux-browser-acceptance:accept",
+      "type": "verification",
+      "label": "safe evidence emitted"
+    },
+    {
+      "from": "rv:steward-dashboard:linux-browser-acceptance:safe-error-report",
+      "to": "rv:steward-dashboard:linux-browser-acceptance:fail-closed",
+      "type": "diagnostic_branch",
+      "label": "failure remains failed; no automatic retry"
+    },
+    {
+      "from": "rv:steward-dashboard:linux-browser-acceptance:fail-closed",
+      "to": "rv:steward-dashboard:linux-browser-acceptance:diagnose-private-run",
+      "type": "recovery_route",
+      "label": "inspect local safe diagnostics"
+    },
+    {
+      "from": "rv:steward-dashboard:linux-browser-acceptance:accept",
+      "to": "rv:steward-dashboard:linux-browser-acceptance:retain-reviewed-evidence",
+      "type": "runtime_transition",
+      "label": "record evidence location and commit"
+    },
+    {
+      "from": "rv:steward-dashboard:linux-browser-acceptance:diagnose-private-run",
+      "to": "rv:steward-dashboard:linux-browser-acceptance:retain-reviewed-evidence",
+      "type": "recovery_route",
+      "label": "retain while review or incident is open"
     }
   ]
 }

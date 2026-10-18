@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_grace_staging_browser_fixture.py
 # Component: LINUX-BROWSER-ACCEPTANCE
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Run the authenticated Grace staging browser suite against a disposable loopback fixture
 # Execution Model: Isolated nested Chromium acceptance runner with synthetic cookie authorization
 # Observability: Assert successful UI boundary check, guardrail report, and redacted private evidence
 # Dependencies: .venv Playwright/Chromium and pytest; no external service or production credential
 # Authority: Test-only cookie, loopback-only fixture, no objective creation or work-order submission
-# Changed: 2026-10-18 UTC | RV-C2-STAGING-GRACE-BROWSER-004 | Add end-to-end local staging bridge test
+# Changed: 2026-10-18 UTC | RV-C2-DOD-REMEDIATION-001 | Advance revision prospectively; retain local staging guard proof
 # Contracts: docs/operations/LINUX_BROWSER_ACCEPTANCE.md
 # Tests: tests/test_grace_staging_browser_fixture.py
 # History: Git
@@ -149,7 +149,11 @@ class GraceStagingBrowserFixtureTests(unittest.TestCase):
                     if artifact.suffix in {".json", ".txt"}:
                         content = artifact.read_text(encoding="utf-8", errors="replace")
                         for sensitive in (TEST_COOKIE, ACCOUNT_LABEL, CONVERSATION_ID, SEED_TEXT,
-                                          "Private fixture input", "Synthetic fixture objective details"):
+                                          "Private fixture input", "Synthetic fixture objective details",
+                                          "269535bd", "private-cookie", "private-token",
+                                          "private-conversation-id", "private-query-token",
+                                          "cross-origin-private-id", "private-cross-origin-token",
+                                          "Private failure conversation"):
                             self.assertNotIn(sensitive, content, f"private fixture content leaked in {artifact.name}")
                 screenshot = next(output.rglob("grace-staging-redacted.png"))
                 self.assertEqual(screenshot.stat().st_mode & 0o777, 0o600)

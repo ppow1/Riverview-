@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/revision_control.py
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.2.3
+# Revision: 1.2.4
 # Purpose: Inventory file revisions and verify preserved predecessor backups
 # Execution Model: Request-driven CLI; suitable for unattended CI and Camrui
 # Observability: JSON stdout and exit codes
 # Dependencies: Python 3.10+, Git
 # Authority: Local checkout only; never edits source or remote
-# Changed: 2026-10-10 UTC | RV-ENG-REV-003 | Validate revision syntax and use native headers in evidence records
+# Changed: 2026-10-18 UTC | RV-C2-DOD-REMEDIATION-001 | Record source commit, target revision, and restore guidance in new backups
 # Contracts: docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md
 # Tests: tests/test_revision_control.py
 # History: Git and revision backup manifest
@@ -112,6 +112,14 @@ def backup(root, rel, task):
         raise ValueError('Only existing regular files can be backed up')
     old=path.read_bytes()
     digest=sha(old)
+    old_revision=revision(root,rel)
+    if not old_revision or not valid_revision(old_revision):
+        raise ValueError('A valid predecessor revision is required for a controlled backup')
+    parts=old_revision.split('.')
+    while len(parts)<3: parts.append('0')
+    parts[-1]=str(int(parts[-1])+1)
+    new_revision='.'.join(parts)
+    source_commit=git(root,'rev-parse','HEAD').decode().strip()
     stamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
     location=root/'.riverview-backups'/stamp/rel
     location.parent.mkdir(parents=True, exist_ok=True)
@@ -119,7 +127,12 @@ def backup(root, rel, task):
         stream.write(old)
     if location.read_bytes()!=old:
         raise RuntimeError('Backup verification failed')
-    record={'path':rel,'revision':revision(root,rel),'sha256':digest,'backup':str(location.relative_to(root)),'task_id':task,'timestamp_utc':stamp}
+    record={'path':rel,'revision':old_revision,'new_revision':new_revision,
+            'sha256':digest,'backup':str(location.relative_to(root)),
+            'source_commit':source_commit,'task_id':task,'timestamp_utc':stamp,
+            'restoration_instruction':
+                f"Restore exact bytes from {location.relative_to(root)} to {rel}; "
+                f"verify SHA-256 {digest} before resuming work."}
     log=root/'.riverview-backups'/'manifest.jsonl'
     with log.open('a',encoding='utf-8') as stream:
         stream.write(json.dumps(record,sort_keys=True)+'\n')

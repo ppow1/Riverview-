@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_linux_browser_runner.py
 # Component: LINUX-BROWSER-ACCEPTANCE
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Verify browser runner and authenticated staging state safety rules
 # Execution Model: Local unit test
 # Observability: Pytest assertions
 # Dependencies: Python 3.10+; scripts.run_linux_browser_acceptance
 # Authority: No network access or production state
-# Changed: 2026-10-18 UTC | RV-C2-STAGING-GRACE-BROWSER-003 | Add staging bridge fail-closed tests
+# Changed: 2026-10-18 UTC | RV-C2-DOD-REMEDIATION-001 | Reject private browser text and URL leakage in diagnostics
 # Contracts: docs/operations/LINUX_BROWSER_ACCEPTANCE.md
 # Tests: tests/test_linux_browser_runner.py
 # History: Git
@@ -30,8 +30,32 @@ from scripts.grace_staging_browser import (
 )
 from scripts.run_linux_browser_acceptance import validate_smoke_path, validate_target
 
+_conftest_spec = __import__('importlib.util').util.spec_from_file_location(
+    'rv_browser_conftest', Path(__file__).resolve().parents[1] / 'browser-tests/conftest.py')
+_browser_conftest = __import__('importlib.util').util.module_from_spec(_conftest_spec)
+_conftest_spec.loader.exec_module(_browser_conftest)
+
 
 class BrowserRunnerSafetyTest(unittest.TestCase):
+    def test_adversarial_browser_error_text_is_replaced_not_pattern_redacted(self):
+        private_values = (
+            "TypeError: customer alice@example.invalid conversation 269535bd-8556-4f12-9d42-3b722837fbab",
+            "https://staging.invalid/conversations/secret-id?token=private-token",
+            "Cookie: rv_session=private-cookie Authorization=Bearer private-auth",
+            "Private fixture objective details must not survive an exception.",
+        )
+        for value in private_values:
+            with self.subTest(value=value):
+                safe = _browser_conftest._safe_message(value)
+                self.assertEqual(safe, "Browser error details redacted")
+                for marker in ("alice@example.invalid", "269535bd", "secret-id", "private-token",
+                               "private-cookie", "private-auth", "objective details"):
+                    self.assertNotIn(marker, safe)
+
+    def test_adversarial_url_drops_origin_path_query_and_fragment(self):
+        value = "https://staging.invalid/conversations/private-uuid?token=secret#message"
+        self.assertEqual(_browser_conftest._safe_url(value), "[request URL redacted]")
+
     def test_loopback_targets_are_allowed_without_remote_opt_in(self):
         for target in ("http://localhost:8766", "https://127.0.0.1", "http://[::1]:8766"):
             with self.subTest(target=target):
