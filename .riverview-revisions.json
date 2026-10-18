@@ -308,8 +308,26 @@
       "revision": "1.0.0",
       "sha256": "15d929ab980ea1234c4f3f420acc5014f09f5f52a5a89f6a11578bd820372049",
       "size_bytes": 5465
+    },
+    "tests/test_w2_p0_integrated_review_acceptance.py": {
+      "path": "tests/test_w2_p0_integrated_review_acceptance.py",
+      "revision": "1.0.7",
+      "sha256": "4cab5c1f97f2bf5bdb628b16ca161f40ab5252a4b8f556b8639281bd4869cc06",
+      "size_bytes": 25890
+    },
+    "docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md": {
+      "path": "docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md",
+      "revision": "1.0.3",
+      "sha256": "acc819f59b0456e3fe800e95bb50293252bbea4e4325b13fed0185184c440660",
+      "size_bytes": 7778
+    },
+    "docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md": {
+      "path": "docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md",
+      "revision": "1.0.8",
+      "sha256": "d2171dd53e93395c7489bfc332c4dc892bfe756545cddabdb37fbf525f0c3672",
+      "size_bytes": 7517
     }
   },
-  "manifest_revision": "1.1.241",
-  "updated_at": "2026-10-18T20:41:00+00:00"
+  "manifest_revision": "1.1.243",
+  "updated_at": "2026-10-18T22:50:23+00:00"
 }

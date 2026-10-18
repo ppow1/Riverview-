@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_w2_p0_integrated_review_acceptance.py
 # Component: W2-P0-INTEGRATED-REVIEW-ACCEPTANCE
-# Revision: 1.0.6
+# Revision: 1.0.7
 # Purpose: Verify typed Grace review subjects survive durable C3 exchange and C4 MCP round trips
 # Execution Model: Isolated PostgreSQL schema, unittest, deterministic synthetic provider only
 # Observability: Subject/revision digests, provider identity, exchange state, objective events
@@ -15,6 +15,7 @@
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Assert tampered typed subject is rejected without binding to error wording
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Exercise C2 synthetic wake through C3 fenced receipt and Grace owner hook
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Use canonical timestamps and successor API; assert expiry does not evaluate proposal
+# Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Put owner attribution in each trace round and verify successor recovery after restart retry
 # Contracts: docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md; issue #120 comment 6254574126
 # History: Git and .riverview-revisions.json
 # =============================================================================
@@ -200,8 +201,9 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
                 "payload": {key: payload[key] for key in grace_keys if key in payload}})
 
         bundle = {"schema_version": "rv.external-review-trace-input.v1",
-            "execution_kind": "synthetic", "doorbell_owner_id": OWNER_ID,
+            "execution_kind": "synthetic",
             "rounds": [{
+                "doorbell_owner_id": OWNER_ID,
                 "review_subject": {key: subject[key] for key in
                     ("schema_version", "subject_id", "revision", "sha256")},
                 "exchange": {"request_id": request_id, "correlation_id": correlation_id,
@@ -411,6 +413,13 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
         self.assertEqual(grace.consume_external_reasoning(), 0)
         grace.pipeline.record_external_review_decision = record_decision
         calls_after_admission = len(fx.grace_provider.requests)
+        # The crash may occur between durable child admission and the parent's
+        # revision event. Restart and retry the owner cycle; C3's lineage lookup
+        # must consume the child without reasoning or creating another successor.
+        self._restart_exchange()
+        grace = fx._grace_service(fx.exchange)
+        self.assertEqual(grace.consume_external_reasoning(), 1)
+        self.assertEqual(len(fx.grace_provider.requests), calls_after_admission)
         child = fx.exchange.review_successor(first_id, first_correlation)
         self.assertIsNotNone(child)
         self.assertEqual(child["review_subject"]["revision"], 2)
@@ -421,7 +430,7 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
 
         self._restart_exchange()
         grace = fx._grace_service(fx.exchange)
-        self.assertEqual(grace.consume_external_reasoning(), 1)
+        self.assertEqual(grace.consume_external_reasoning(), 0)
         self.assertEqual(len(fx.grace_provider.requests), calls_after_admission)
         revised = [event for event in grace.pipeline.objective_events(fx.objective)
                    if event["event_type"] == "resident.reasoning.external_proposal_revised"]
