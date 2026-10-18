@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 Component: RESIDENT-REASONING
-File Revision: 1.1.4
+File Revision: 1.1.5
 Purpose: Define the durable transport-neutral external reasoning exchange contract
 Authority: Existing resident.reasoning.escalate exact grant; advisory-only result
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial phase-one contract
@@ -15,6 +15,7 @@ Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Record Tunnel tran
 Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Return standard HTTP OAuth challenges for missing/invalid tokens and insufficient scope
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Bind durable provider responses to Grace's existing persistent reasoner and idempotent proposal/event acknowledgement.
 Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Connect the existing reasoning decision to principal-resolved durable exchange admission.
+Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Bind advisory reviews to immutable proposal subjects and record bounded Grace revise-or-finish decisions.
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Durable external reasoning exchange
@@ -41,12 +42,16 @@ initiation for that objective. The service also scans bounded IDs in
 `response_received`, then calls the existing fenced `consume` operation under
 Grace's configured principal and exact `resident.reasoning.escalate` grant.
 The response is provided as `external_advisory`, separate from verified
-knowledge, to the existing `ResidentReasoner`. A successful proposal and its
-correlated `resident.reasoning.external_advisory_evaluated` event are persisted
-atomically before the exchange acknowledgement. Recovery checks the event by
-request/correlation before reasoning again, so a crash after the durable write
-does not duplicate the proposal. The acknowledgement uses the exchange's
-consumption token/fence. A transient failure leaves the exchange recoverable.
+knowledge, to the existing `ResidentReasoner`. For exact proposal review, the
+exchange also carries the immutable candidate `review_subject`. Grace persists
+a final proposal only if its evaluated execution-relevant summary and steps
+match the reviewed subject digest and it requests no further escalation. A
+changed candidate creates a bounded successor subject revision; a limit or
+unavailable target records a blocked decision. Review event and final proposal
+are durable before the exchange acknowledgement. Recovery checks those events
+by request/correlation, so a crash after persistence does not duplicate a
+proposal or successor. The acknowledgement uses the exchange's consumption
+token/fence. A transient failure leaves the exchange recoverable.
 
 Grace's `request_external_reasoning()` service method persists a request through
 the same exchange object without waiting for delivery. It checks that the
@@ -236,13 +241,43 @@ issuer URL or tunnel credential alone does not prove ChatGPT connected.
 
 ## Troubleshooting and safeguards
 
+## Exact proposal review
+
+An exact review subject uses schema `rv.grace.proposal-review-subject.v1` with
+`subject_id`, `revision`, `proposal` and `sha256`. The proposal preserves the
+full typed execution-relevant summary and step fields; model telemetry and the
+external-escalation control hint are excluded. The hash is SHA-256 of UTF-8
+canonical JSON for exactly `{subject_id, revision, proposal}` with sorted keys,
+compact separators, `ensure_ascii=false` and `allow_nan=false`; schema version
+and digest are excluded. The subject is stored in the existing exchange row,
+not a second mailbox. Provider request listing exposes it, and response submit
+must echo its digest through the explicit `review_subject_sha256` argument.
+Exchange status exposes only the digest, never the proposal body.
+
+Grace feeds the exact subject and separate advice to its configured local
+reasoner. Pending escalated candidates are not saved as final office-state
+plans. An identical result with no further escalation finishes the review and
+creates the existing unapproved objective proposal. A changed result creates a
+new immutable revision, linked by parent request/correlation/response digest;
+at most three revisions are permitted. Exhaustion or an unconfigured review
+target yields `resident.reasoning.external_proposal_review_blocked` and leaves
+the objective grounded. `resident.reasoning.external_proposal_revised` records
+the durable successor link. A crash after successor admission is recovered by
+finding that child row and recording the parent event without another model
+call. A terminal chain with no active successor suppresses further local
+inference for that objective. A separate authorized objective is required for
+a new review cycle. These are Grace decisions; external advice cannot approve
+or execute.
+
 See [the external-exchange operations cookbook](EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md).
 The process graph `rv:resident-reasoning:runtime` records admission, delivery,
 claim, response commit, Grace consumption, expiry, and recovery checkpoints.
 The exchange operation itself invokes no provider or Engineering execution API.
 The typed consumer seam resumes `ResidentReasoner.propose` with the correlated
-advisory, then records the reasoning outcome through existing resident/objective
-state before acknowledging consumption.
+advisory and, for exact review requests, the immutable subject. The browser only
+sends the fixed wake text; it does not read ChatGPT output or submit responses.
+Grace records the revise-or-finish decision through the existing objective and
+exchange state before acknowledging consumption.
 The development MCP adapter handles only external retrieval/claim/advisory
 response and body-free status; migration, issuer provisioning, public routing,
 and ChatGPT setup remain separate commissioning gates.

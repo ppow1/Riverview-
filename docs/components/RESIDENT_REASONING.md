@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.11
+File Revision: 1.0.12
 Purpose: Define resident context regrounding and bounded reasoning-provider routing
 Authority: Exact office-state grant required; provider output is a proposal, never permission
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Establish isolated resident reasoning contract
@@ -16,6 +16,7 @@ Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Document typed i
 Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Pass canonical Grace role and authority boundaries into her assignment reasoning provider
 Changed: 2026-10-15 UTC | RV-GRACE-GROUNDING-BOUNDED-001 | Rank complete relevant passages within the evidence bound and retain full-source provenance
 Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Allow bounded 1–20 step proposals with acyclic dependencies and persist step dispatch state
+Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Specify candidate non-finality, immutable external review subjects, and bounded Grace revise-or-finish evaluation
 Changed: 2026-10-18 UTC | RV-REASONING-ADAPTER-COMPAT-001 | Document safe provider-specific local chat response normalization
 History: Git and .riverview-backups/manifest.jsonl
 -->
@@ -242,11 +243,26 @@ revision. The authority registry appends its normal office-state revision event.
 5. Route to the exact bound provider and bounded configured fallbacks.
 6. Validate proposal schema/token use and re-read office binding and assignment
    revision; discard stale results.
-7. Persist the proposal with compare-and-swap; return `PROPOSED` only after the
-   durable write succeeds.
+7. Persist an ordinary proposal with compare-and-swap. If the proposal
+   requests external review, keep the candidate non-final until Grace evaluates
+   the exact durable review subject; the objective remains grounded meanwhile.
 8. On restart, instantiate a new runtime, reload authoritative office/assignment
    state, reground, then provide the persisted prior plan to the selected
    implementation.
+
+When a local provider returns `external_escalation`, its candidate is not
+written to the office-state `plans` map as final. Grace persists the exact
+execution-relevant proposal in the existing external exchange as an immutable
+`review_subject`, together with its stable subject ID, revision and canonical
+SHA-256. The ChatGPT/provider response is advice only. On resume, Grace passes
+the subject and advice separately to the configured local reasoning provider.
+Only a result whose full summary and typed step fields match that exact subject,
+with no further escalation intent, is recorded as the unapproved objective
+proposal. A changed result creates a successor review subject with the same ID
+and next revision; at most three revisions are allowed. Missing configured
+target or exhausted revisions records a blocked outcome and leaves the
+objective grounded. Durable parent/child correlation allows restart recovery
+without duplicate review requests or proposal events.
 
 The component-specific flow and operational diagnostics are in
 [`RESIDENT_REASONING_FLOW.md`](RESIDENT_REASONING_FLOW.md) and

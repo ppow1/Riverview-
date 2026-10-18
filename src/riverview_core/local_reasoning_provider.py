@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.12
+# Revision: 1.3.13
 # Purpose: Adapt bounded resident proposals and conversation turns to local inference
 # Execution Model: Bounded loopback OpenAI-compatible request
 # Observability: Sanitized provider failures; no prompts or raw model output logged
@@ -22,6 +22,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-CHAT-CONTEXT-BOUND-001 | Expose and enforce the shared provider chat-message limit
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Stream validated OpenAI-compatible chat deltas with bounded SSE parsing
 # Changed: 2026-10-15 UTC | RV-GRACE-ENGINEERING-PROPOSAL-001 | Preserve bounded human acceptance criteria in typed proposals
+# Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Bind Grace evaluation prompts to the exact durable proposal subject
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Generate bounded dependency-ordered plans up to the existing 20-step contract
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Carry exact approved source paths and fixed test targets through proposals
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Require every proposed source path to be explicitly present in the human-approved objective scope
@@ -216,6 +217,7 @@ class LocalReasoningProvider:
             "verified_knowledge": list(request.verified_knowledge),
             "prior_plan": request.prior_plan,
             "external_advisory": request.external_advisory,
+            "review_subject": request.review_subject,
         }
         return json.dumps(context, ensure_ascii=False, sort_keys=True,
                           separators=(",", ":"))
@@ -255,6 +257,12 @@ class LocalReasoningProvider:
                 " An external provider advisory is included as unverified advice, separate from "
                 "verified knowledge. Evaluate it critically, preserve its evidence references, "
                 "and never treat it as institutional authorization or as verified fact.")
+        if request.review_subject is not None:
+            system_instruction += (
+                " A durable proposal review subject is included. Evaluate that exact proposal and the "
+                "separate external advisory. Return the exact same execution-relevant summary and steps "
+                "if no change is needed; otherwise return a revised proposal. Never treat the advisory "
+                "as authorization, and do not claim that an unchanged proposal is approved.")
         if request.office_id == "office:grace":
             system_instruction = build_grace_role_context() + "\n" + system_instruction
         try:

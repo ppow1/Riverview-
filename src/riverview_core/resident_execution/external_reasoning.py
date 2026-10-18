@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Persist and resume authorized external reasoning exchanges
 # Execution Model: Request-driven PostgreSQL outbox, bounded leases, no polling loop
 # Observability: Correlated state and sanitized append-only transition diagnostics
@@ -12,6 +12,7 @@
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Permit scoped pull/recovery of delivered provider requests
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Expose bounded response-received IDs for Grace's durable consumer
 # Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Provide pending-objective guard and make retry identity independent of first-delivery deadline
+# Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Persist immutable review subject and expose its digest in provider status
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # Tests: tests/test_external_reasoning_exchange.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -92,6 +93,7 @@ class ExchangeConsumption:
     advisory: Mapping[str, Any]
     original_request: ReasoningRequest
     duplicate: bool = False
+    review_subject: Mapping[str, Any] | None = None
 
 
 _ALLOWED_CLASSIFICATIONS = {"institutional", "confidential"}
@@ -99,6 +101,8 @@ _SAFE_CODE = re.compile(r"^[a-z0-9_]{1,80}$")
 _MAX_CONTEXT_BYTES = 32 * 1024
 _MAX_RESPONSE_BYTES = 16 * 1024
 _MAX_DELIVERY_ATTEMPTS = 5
+REVIEW_SUBJECT_SCHEMA = "rv.grace.proposal-review-subject.v1"
+MAX_REVIEW_REVISIONS = 3
 
 
 def _json(value):
@@ -108,6 +112,69 @@ def _json(value):
 
 def _digest(value):
     return hashlib.sha256(_json(value).encode("utf-8")).hexdigest()
+
+
+def proposal_review_content(proposal):
+    """Return execution-relevant proposal content, excluding model telemetry."""
+    from dataclasses import is_dataclass
+    from ..resident_reasoning import PlanProposal, PlanStep
+    if is_dataclass(proposal):
+        proposal = asdict(proposal)
+    if not isinstance(proposal, Mapping):
+        raise ValueError("review proposal must be an object")
+    summary, steps = proposal.get("summary"), proposal.get("steps")
+    if (not isinstance(summary, str) or not summary.strip() or len(summary) > 4000
+            or not isinstance(steps, (list, tuple)) or not 1 <= len(steps) <= 20):
+        raise ValueError("review proposal content is invalid")
+    normalized_steps = []
+    allowed_step_keys = set(PlanStep.__dataclass_fields__)
+    for step in steps:
+        if is_dataclass(step):
+            step = asdict(step)
+        if not isinstance(step, Mapping) or set(step) != allowed_step_keys:
+            raise ValueError("review proposal step is invalid")
+        data = dict(step)
+        for key in ("acceptance_criteria", "depends_on", "authorized_paths", "test_targets"):
+            if not isinstance(data[key], (tuple, list)):
+                raise ValueError("review proposal arrays are invalid")
+            data[key] = tuple(data[key])
+        normalized_steps.append(PlanStep(**data))
+    normalized = PlanProposal(summary, tuple(normalized_steps), 0)
+    return {"summary": normalized.summary,
+            "steps": [asdict(step) for step in normalized.steps]}
+
+
+def build_review_subject(subject_id, revision, proposal):
+    content = proposal_review_content(proposal)
+    value = {"subject_id": str(subject_id), "revision": revision, "proposal": content}
+    return validate_review_subject({"schema_version": REVIEW_SUBJECT_SCHEMA,
+                                    **value, "sha256": _digest(value)})
+
+
+def validate_review_subject(value):
+    """Validate exact immutable proposal bytes and the C2/C4 digest contract."""
+    if (not isinstance(value, Mapping) or set(value) != {
+            "schema_version", "subject_id", "revision", "proposal", "sha256"}
+            or value.get("schema_version") != REVIEW_SUBJECT_SCHEMA
+            or type(value.get("revision")) is not int
+            or not 1 <= value["revision"] <= MAX_REVIEW_REVISIONS
+            or not isinstance(value.get("sha256"), str)
+            or not re.fullmatch(r"[0-9a-f]{64}", value["sha256"])):
+        raise ValueError("review subject fields are invalid")
+    try:
+        UUID(str(value["subject_id"]))
+        content = proposal_review_content(value["proposal"])
+        expected = _digest({"subject_id": str(value["subject_id"]),
+                            "revision": value["revision"], "proposal": content})
+        if len(_json(value).encode("utf-8")) > 16 * 1024:
+            raise ValueError
+    except (ValueError, TypeError):
+        raise ValueError("review subject content is invalid") from None
+    if expected != value["sha256"]:
+        raise ValueError("review subject digest mismatch")
+    return {"schema_version": REVIEW_SUBJECT_SCHEMA,
+            "subject_id": str(value["subject_id"]), "revision": value["revision"],
+            "sha256": expected, "proposal": content}
 
 
 def _utc(value):
@@ -204,7 +271,9 @@ class DurableExternalReasoningExchange:
                idempotency_key: str, classification: str,
                deadline_at: datetime, proposal_id: str | None = None,
                proposal_revision: int | None = None,
-               source_references: tuple[str, ...] = ()) -> ExchangeReceipt:
+               source_references: tuple[str, ...] = (),
+               review_subject: Mapping[str, Any] | None = None,
+               review_parent: Mapping[str, Any] | None = None) -> ExchangeReceipt:
         """Authorize and durably enqueue before any delivery operation is possible."""
         self._validate_origin(original, originating_resident_id=originating_resident_id,
             objective_id=objective_id, conversation_id=conversation_id,
@@ -221,6 +290,14 @@ class DurableExternalReasoningExchange:
         self._authorize(envelope, original, principal_id, authorize)
         if context_fingerprint(original) != envelope.context_sha256:
             raise ExchangeConflict("reasoning context changed before durable admission")
+        if review_subject is not None:
+            review_subject = validate_review_subject(review_subject)
+        if review_parent is not None and (not isinstance(review_parent, Mapping)
+                or set(review_parent) != {"request_id", "correlation_id", "response_sha256"}
+                or not all(isinstance(review_parent[k], str) and review_parent[k]
+                           for k in review_parent)
+                or not re.fullmatch(r"[0-9a-f]{64}", review_parent["response_sha256"])):
+            raise ValueError("review parent correlation is invalid")
         request_payload = {
             "schema_version": self.REQUEST_SCHEMA,
             "original_request": asdict(original),
@@ -228,6 +305,8 @@ class DurableExternalReasoningExchange:
             "max_tokens": envelope.max_tokens,
             "timeout_seconds": envelope.timeout_seconds,
             "source_references": list(source_references),
+            **({"review_subject": review_subject} if review_subject is not None else {}),
+            **({"review_parent": dict(review_parent)} if review_parent is not None else {}),
         }
         encoded = _json(request_payload).encode("utf-8")
         if len(encoded) > _MAX_CONTEXT_BYTES:
@@ -292,6 +371,23 @@ class DurableExternalReasoningExchange:
                   ('awaiting_delivery','awaiting_external_claim','awaiting_response','response_received')
                 LIMIT 1""", (objective_id,))
             return cur.fetchone() is not None
+
+    def has_terminal_review_for_objective(self, objective_id: str) -> bool:
+        """Suppress repeated local inference after a bounded review chain is terminal."""
+        with self.ledger.db.cursor() as cur:
+            self._set_path(cur)
+            cur.execute("""SELECT EXISTS (
+                SELECT 1 FROM external_reasoning_exchanges terminal
+                WHERE terminal.objective_id=%s
+                  AND terminal.request_payload ? 'review_subject'
+                  AND terminal.delivery_state IN ('grace_consumed','expired','failed')
+                  AND NOT EXISTS (SELECT 1 FROM external_reasoning_exchanges active
+                    WHERE active.objective_id=terminal.objective_id
+                      AND active.delivery_state IN
+                        ('awaiting_delivery','awaiting_external_claim','awaiting_response','response_received')))
+                AS has_terminal_review
+                """, (objective_id,))
+            return bool(cur.fetchone()["has_terminal_review"])
 
     def eligible_requests(self, provider_id: str, *, principal_id: str,
                           limit=10) -> list[dict[str, Any]]:
@@ -460,7 +556,8 @@ class DurableExternalReasoningExchange:
 
     def submit_response(self, request_id: str, correlation_id: str, *, provider_id: str,
                         principal_id: str, claim_token: str, fence: int,
-                        idempotency_key: str, response: Mapping[str, Any]) -> str:
+                        idempotency_key: str, response: Mapping[str, Any],
+                        review_subject_sha256: str | None = None) -> str:
         clean = self._validate_response(response, request_id, correlation_id, provider_id)
         self._require_provider_principal(provider_id, principal_id)
         if (not isinstance(idempotency_key, str)
@@ -477,6 +574,14 @@ class DurableExternalReasoningExchange:
                 row = self._lock(cur, request_id, correlation_id)
                 if row["provider_id"] != provider_id:
                     raise ExchangeUnauthorized("provider_mismatch")
+                subject = row["request_payload"].get("review_subject")
+                expected_subject_digest = (subject or {}).get("sha256")
+                if expected_subject_digest is not None:
+                    if (not isinstance(review_subject_sha256, str)
+                            or review_subject_sha256 != expected_subject_digest):
+                        raise ExchangeConflict("review_subject_digest_mismatch")
+                elif review_subject_sha256 is not None:
+                    raise ExchangeConflict("unexpected_review_subject_digest")
                 if row["response_sha256"]:
                     if row["response_sha256"] == digest and row["response_idempotency_key"] == idempotency_key:
                         return row["response_sha256"]
@@ -523,9 +628,11 @@ class DurableExternalReasoningExchange:
                         raise ExchangeUnauthorized("consumption owner mismatch")
                     self._authorize_stored(row, principal_id, authorize)
                     original = self._request_from_payload(row["request_payload"])
+                    subject = row["request_payload"].get("review_subject")
+                    subject = validate_review_subject(subject) if subject is not None else None
                     return ExchangeConsumption(str(row["request_id"]), str(row["correlation_id"]),
                         row["consumption_key"], "", row["consumption_fence"],
-                        row["consumed_at"], row["response_payload"], original, True)
+                        row["consumed_at"], row["response_payload"], original, True, subject)
                 if row["delivery_state"] != "response_received":
                     raise ExchangeConflict("no completed advisory response is available")
                 self._authorize_stored(row, principal_id, authorize)
@@ -547,8 +654,11 @@ class DurableExternalReasoningExchange:
                     {"state": row["delivery_state"], "fence": fence})
                 response = row["response_payload"]
                 original = self._request_from_payload(row["request_payload"])
+                subject = row["request_payload"].get("review_subject")
+                subject = validate_review_subject(subject) if subject is not None else None
                 return ExchangeConsumption(str(row["request_id"]), str(row["correlation_id"]),
-                    consumption_key, str(token), fence, lease_until, response, original, active)
+                    consumption_key, str(token), fence, lease_until, response, original, active,
+                    subject)
 
     def acknowledge_consumed(self, request_id: str, correlation_id: str, *,
                              principal_id: str, consumption_key: str,
@@ -600,6 +710,7 @@ class DurableExternalReasoningExchange:
                 "diagnostic_state": self.STATES[row["delivery_state"]],
                 "provider_id": row["provider_id"], "classification": row["classification"],
                 "context_sha256": row["context_sha256"],
+                "review_subject_sha256": ((row["request_payload"].get("review_subject") or {}).get("sha256")),
                 "requested_at": row["requested_at"].isoformat(),
                 "deadline_at": row["deadline_at"].isoformat(),
                 "delivery_attempts": row["delivery_attempts"],
@@ -629,6 +740,25 @@ class DurableExternalReasoningExchange:
                 ORDER BY response_received_at,request_id LIMIT %s""",
                 (originating_resident_id, limit))
             return cur.fetchall()
+
+    def review_successor(self, request_id: str, correlation_id: str):
+        """Return an already-durable child exchange after parent crash recovery."""
+        with self.ledger.db.cursor() as cur:
+            self._set_path(cur)
+            cur.execute("""SELECT request_id::text AS request_id,
+                    correlation_id::text AS correlation_id,request_payload
+                FROM external_reasoning_exchanges
+                WHERE request_payload->'review_parent'->>'request_id'=%s
+                  AND request_payload->'review_parent'->>'correlation_id'=%s
+                ORDER BY requested_at,request_id LIMIT 1""",
+                (str(request_id), str(correlation_id)))
+            row = cur.fetchone()
+        if row is None:
+            return None
+        subject = validate_review_subject(row["request_payload"].get("review_subject"))
+        parent = row["request_payload"].get("review_parent") or {}
+        return {"request_id": row["request_id"], "correlation_id": row["correlation_id"],
+                "review_subject": subject, "response_sha256": parent.get("response_sha256")}
 
     def events(self, request_id: str, correlation_id: str) -> list[dict[str, Any]]:
         with self.ledger.db.cursor() as cur:
