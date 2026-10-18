@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_mcp.py
 # Component: EXTERNAL-REASONING-MCP-TRANSPORT
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Exercise MCP Streamable HTTP and OAuth provider identity mapping independently
 # Execution Model: Local ephemeral HTTP server; stdlib client independent of adapter dispatch
 # Observability: HTTP status, protocol negotiation, tool names and sanitized denials
@@ -14,6 +14,7 @@
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Verify 2025 version-header fallback and authentication on disabled GET stream
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Reject Streamable HTTP POST without both required Accept media types
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Verify quality-value denial and consume response on host rejection
+# Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-MCP | Verify bounded exact-proposal exposure and digest-bound provider response submission
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -26,6 +27,7 @@ import socket
 import threading
 import time
 import unittest
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import jwt
@@ -51,6 +53,51 @@ class _FixtureExchange(DurableExternalReasoningExchange):
 
     def eligible_requests(self, provider_id, *, principal_id, limit):
         return []
+
+
+class _ReviewFixtureExchange(_FixtureExchange):
+    def __init__(self, subject):
+        super().__init__()
+        self.subject = subject
+        self.submitted = []
+        self.request_id = "00000000-0000-4000-8000-000000000101"
+        self.correlation_id = "00000000-0000-4000-8000-000000000102"
+
+    def eligible_requests(self, provider_id, *, principal_id, limit):
+        return [{"request_id": self.request_id, "correlation_id": self.correlation_id,
+            "objective_id": "objective-1", "conversation_id": self.correlation_id,
+            "message_sequence": 1,
+            "proposal_id": self.subject["subject_id"] if self.subject else None,
+            "proposal_revision": self.subject["revision"] if self.subject else None,
+            "request_schema": "rv.external-reasoning.request.v1",
+            "classification": "institutional", "context_sha256": "a" * 64,
+            "deadline_at": datetime.now(timezone.utc) + timedelta(minutes=5),
+            "delivery_state": "awaiting_external_claim", "request_payload": {"reason": "review"},
+            **({"review_subject": self.subject} if self.subject else {})}]
+
+    def provider_status(self, request_id, correlation_id, *, provider_id, principal_id):
+        if (request_id != self.request_id or correlation_id != self.correlation_id
+                or provider_id != PROVIDER or principal_id != PRINCIPAL):
+            raise ValueError("exchange_identity_mismatch")
+        status = {"request_id": request_id, "correlation_id": correlation_id,
+            "provider_id": provider_id, "classification": "institutional",
+            "delivery_state": "awaiting_response"}
+        if self.subject:
+            status["review_subject_sha256"] = self.subject["sha256"]
+        return status
+
+    def submit_response(self, request_id, correlation_id, **kwargs):
+        self.submitted.append((request_id, correlation_id, kwargs))
+        return "b" * 64
+
+
+def _review_subject():
+    digest_body = {"subject_id": "proposal-1", "revision": 2,
+        "proposal": {"summary": "Harmless synthetic review", "steps": ["inspect fixture"]}}
+    digest = hashlib.sha256(json.dumps(digest_body, ensure_ascii=False, sort_keys=True,
+        separators=(",", ":"), allow_nan=False).encode()).hexdigest()
+    return {"schema_version": "rv.grace.proposal-review-subject.v1",
+        **digest_body, "sha256": digest}
 
 
 class _JWKFixture:
@@ -128,6 +175,10 @@ class IndependentMCPClientTests(unittest.TestCase):
         self.assertEqual(names, ["reasoning_exchange_list_requests",
             "reasoning_exchange_claim_request", "reasoning_exchange_submit_response",
             "reasoning_exchange_status"])
+        submit_schema = next(tool["inputSchema"] for tool in body["result"]["tools"]
+            if tool["name"] == "reasoning_exchange_submit_response")
+        self.assertEqual(submit_schema["properties"]["review_subject_sha256"]["pattern"],
+                         "^[0-9a-f]{64}$")
         self.assertNotIn("reasoning_exchange_consume", names)
         self.assertTrue(all(tool["securitySchemes"] == [{"type": "oauth2",
             "scopes": ["reasoning:exchange", "reasoning:exchange:confidential"]}]
@@ -204,6 +255,63 @@ class IndependentMCPClientTests(unittest.TestCase):
                     "scopes": ["reasoning:exchange"],
                     "expires_at": "2099-01-01T00:00:00Z"}]})
             ExternalReasoningMCPAdapter(_FixtureExchange(), bad)
+
+    def test_exact_review_subject_is_provider_visible_and_digest_bound(self):
+        exchange = _ReviewFixtureExchange(_review_subject())
+        adapter = ExternalReasoningMCPAdapter(exchange, self.tokens)
+        identity = self.tokens.resolve(TOKEN)
+        listed = adapter.call_tool(identity, "reasoning_exchange_list_requests", {})
+        request = listed["requests"][0]
+        self.assertEqual(request["review_subject"], exchange.subject)
+        self.assertEqual(request["review_subject_sha256"], exchange.subject["sha256"])
+
+        base_arguments = {"request_id": exchange.request_id,
+            "correlation_id": exchange.correlation_id, "claim_token": "c" * 36,
+            "fence": 1, "idempotency_key": "review-response-1", "response": {"advisory": "ok"}}
+        with self.assertRaisesRegex(ValueError, "review_subject_digest_mismatch"):
+            adapter.call_tool(identity, "reasoning_exchange_submit_response", base_arguments)
+        wrong = {**base_arguments, "review_subject_sha256": "0" * 64}
+        with self.assertRaisesRegex(ValueError, "review_subject_digest_mismatch"):
+            adapter.call_tool(identity, "reasoning_exchange_submit_response", wrong)
+        correct = {**base_arguments,
+            "review_subject_sha256": exchange.subject["sha256"]}
+        result = adapter.call_tool(identity, "reasoning_exchange_submit_response", correct)
+        self.assertEqual(result, {"response_sha256": "b" * 64, "state": "response_received"})
+        self.assertEqual(len(exchange.submitted), 1)
+        self.assertEqual(exchange.submitted[0][2]["review_subject_sha256"],
+                         exchange.subject["sha256"])
+
+        wrong_correlation = {**correct,
+            "correlation_id": "00000000-0000-4000-8000-000000000199"}
+        with self.assertRaisesRegex(ValueError, "exchange_identity_mismatch"):
+            adapter.call_tool(identity, "reasoning_exchange_submit_response", wrong_correlation)
+        self.assertEqual(len(exchange.submitted), 1)
+
+    def test_legacy_advisory_submission_does_not_require_subject_digest(self):
+        exchange = _ReviewFixtureExchange(None)
+        adapter = ExternalReasoningMCPAdapter(exchange, self.tokens)
+        identity = self.tokens.resolve(TOKEN)
+        arguments = {"request_id": exchange.request_id,
+            "correlation_id": exchange.correlation_id, "claim_token": "c" * 36,
+            "fence": 1, "idempotency_key": "legacy-response-1", "response": {"advisory": "ok"}}
+        result = adapter.call_tool(identity, "reasoning_exchange_submit_response", arguments)
+        self.assertEqual(result["state"], "response_received")
+        self.assertNotIn("review_subject_sha256", exchange.submitted[0][2])
+
+    def test_review_subject_digest_size_and_shape_are_checked(self):
+        subject = _review_subject()
+        self.assertEqual(ExternalReasoningMCPAdapter._review_subject({}, {"review_subject": subject}),
+                         subject)
+        with self.assertRaisesRegex(ValueError, "review_subject_digest_or_size_invalid"):
+            ExternalReasoningMCPAdapter._review_subject({}, {"review_subject": {
+                **subject, "sha256": "0" * 64}})
+        with self.assertRaisesRegex(ValueError, "review_subject_invalid"):
+            ExternalReasoningMCPAdapter._review_subject({}, {"review_subject": {
+                **subject, "revision": True}})
+        with self.assertRaisesRegex(ValueError, "review_subject_conflict"):
+            ExternalReasoningMCPAdapter._review_subject(
+                {"review_subject": {**subject, "revision": 3}},
+                {"review_subject": subject})
 
 
 class OAuthProviderTokenMapTests(unittest.TestCase):
