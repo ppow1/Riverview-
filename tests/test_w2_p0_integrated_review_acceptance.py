@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_w2_p0_integrated_review_acceptance.py
 # Component: W2-P0-INTEGRATED-REVIEW-ACCEPTANCE
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Verify typed Grace review subjects survive durable C3 exchange and C4 MCP round trips
 # Execution Model: Isolated PostgreSQL schema, unittest, deterministic synthetic provider only
 # Observability: Subject/revision digests, provider identity, exchange state, objective events
@@ -14,6 +14,7 @@
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Import MCP denial type from its owning adapter module
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Assert tampered typed subject is rejected without binding to error wording
 # Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Exercise C2 synthetic wake through C3 fenced receipt and Grace owner hook
+# Changed: 2026-10-18 UTC | RV-W2-P0-INTEGRATED-REVIEW-ACCEPTANCE | Use canonical timestamps and successor API; assert expiry does not evaluate proposal
 # Contracts: docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md; issue #120 comment 6254574126
 # History: Git and .riverview-revisions.json
 # =============================================================================
@@ -180,12 +181,12 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
                 event_times[event_type] = occurred_at.isoformat()
 
         raw_grace_events = fx.admin.execute(fx.sql.SQL("""SELECT event_type,actor_id,
-                payload,created_at FROM {}.grace_objective_events
+                payload,occurred_at FROM {}.grace_objective_events
             WHERE objective_id=%s AND event_type IN
                 ('resident.reasoning.external_proposal_reviewed',
                  'resident.reasoning.external_proposal_revised',
                  'resident.reasoning.external_proposal_review_blocked')
-            ORDER BY created_at""").format(fx.sql.Identifier(fx.schema)),
+            ORDER BY occurred_at""").format(fx.sql.Identifier(fx.schema)),
             (fx.objective,)).fetchall()
         grace_keys = ("request_id", "correlation_id", "subject_id", "revision",
                       "subject_sha256", "response_sha256", "proposal_sha256", "decision",
@@ -319,7 +320,10 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
 
         # A candidate remains non-final until an exact-subject provider response is consumed.
         self.assertEqual(grace.pipeline.get_objective(fx.objective)["status"], "GROUNDED")
-        self.assertFalse(fx.exchange.has_terminal_review_for_objective(fx.objective))
+        terminal_proposals = [event for event in grace.pipeline.objective_events(fx.objective)
+            if event["event_type"] in {"resident.reasoning.external_proposal_reviewed",
+                                       "resident.reasoning.external_proposal_revised"}]
+        self.assertEqual(terminal_proposals, [])
         self.assertEqual(grace.consume_external_reasoning(), 0)
 
         submitted = self._provider_round_trip(request_id, correlation_id, subject,
@@ -379,7 +383,10 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
             correlation_id)["delivery_state"], "expired")
         self.assertEqual(grace.consume_external_reasoning(), 0)
         self.assertEqual(grace.pipeline.get_objective(fx.objective)["status"], "GROUNDED")
-        self.assertFalse(fx.exchange.has_terminal_review_for_objective(fx.objective))
+        terminal_proposals = [event for event in grace.pipeline.objective_events(fx.objective)
+            if event["event_type"] in {"resident.reasoning.external_proposal_reviewed",
+                                       "resident.reasoning.external_proposal_revised"}]
+        self.assertEqual(terminal_proposals, [])
 
     def test_typed_subject_revision_survives_restart_and_finishes_new_revision(self):
         fx = self.fixture
@@ -404,15 +411,12 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
         self.assertEqual(grace.consume_external_reasoning(), 0)
         grace.pipeline.record_external_review_decision = record_decision
         calls_after_admission = len(fx.grace_provider.requests)
-        child = fx.admin.execute(fx.sql.SQL("""SELECT request_id::text,correlation_id::text,
-                request_payload FROM {}.external_reasoning_exchanges
-            WHERE request_payload->'review_parent'->>'request_id'=%s""").format(
-                fx.sql.Identifier(fx.schema)), (first_id,)).fetchone()
+        child = fx.exchange.review_successor(first_id, first_correlation)
         self.assertIsNotNone(child)
-        self.assertEqual(child[2]["review_subject"]["revision"], 2)
-        self.assertNotEqual(child[2]["review_subject"]["subject_id"],
+        self.assertEqual(child["review_subject"]["revision"], 2)
+        self.assertNotEqual(child["review_subject"]["subject_id"],
                             first_subject["subject_id"])
-        self.assertNotEqual(child[2]["review_subject"]["sha256"], first_subject["sha256"])
+        self.assertNotEqual(child["review_subject"]["sha256"], first_subject["sha256"])
         self.assertFalse(fx.exchange.has_terminal_review_for_objective(fx.objective))
 
         self._restart_exchange()
@@ -422,11 +426,11 @@ class W2IntegratedReviewAcceptanceTests(unittest.TestCase):
         revised = [event for event in grace.pipeline.objective_events(fx.objective)
                    if event["event_type"] == "resident.reasoning.external_proposal_revised"]
         self.assertEqual(len(revised), 1)
-        self.assertEqual(revised[0]["payload"]["successor_request_id"], child[0])
-        self.assertEqual(revised[0]["payload"]["successor_correlation_id"], child[1])
+        self.assertEqual(revised[0]["payload"]["successor_request_id"], child["request_id"])
+        self.assertEqual(revised[0]["payload"]["successor_correlation_id"], child["correlation_id"])
 
-        child_subject = child[2]["review_subject"]
-        self._provider_round_trip(child[0], child[1], child_subject,
+        child_subject = child["review_subject"]
+        self._provider_round_trip(child["request_id"], child["correlation_id"], child_subject,
                                   idempotency_key="w2:revise:response-2",
                                   owner_service=grace)
         self.assertEqual(grace.consume_external_reasoning(), 1)
