@@ -2,7 +2,7 @@
   "files": {
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.233",
+      "revision": "1.1.235",
       "sha256": "db29799c026f20d431bbd748b3653235852fb32a503de7ac6bf8c05db8e78e04",
       "size_bytes": 13389
     },
@@ -128,21 +128,21 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.180",
-      "sha256": "78ea48d808b96fbb70143d3db196872a858ed78497ae2d12cc139faf213d21a4",
-      "size_bytes": 633615
+      "revision": "1.0.182",
+      "sha256": "246e31ce265495299ae30651d6b1fb21852e3c1e09669d0537a5261d24cdbf4c",
+      "size_bytes": 639145
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
-      "revision": "1.0.1",
-      "sha256": "07aef246708ac54f1ad8636202badc2179fa61941c0426ffab6d19b04fb0afb7",
-      "size_bytes": 13923
+      "revision": "1.0.2",
+      "sha256": "c16bffabee77fdc9af4bf1ef23b90d9192fbe3a53ebc623a8841ec91e5a9984f",
+      "size_bytes": 17467
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
-      "revision": "1.0.49",
-      "sha256": "1d371dac4f05124dd82645c7174de9f930cecd0f318af01954dc4d13b431944d",
-      "size_bytes": 72913
+      "revision": "1.0.50",
+      "sha256": "6bf39b5c3cefcb849c3d85f24bf0af7e27adec9fd01f2ea19edd77eb3c7def8d",
+      "size_bytes": 76950
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
@@ -188,8 +188,8 @@
     },
     "process_graphs/resident-conversation/browser-chat.json": {
       "path": "process_graphs/resident-conversation/browser-chat.json",
-      "revision": "1.0.21",
-      "sha256": "d3f27daff71dea011cc32caad2a97c06a2463d172e590a252771d201782cdc4d",
+      "revision": "1.0.22",
+      "sha256": "0d46f74801faec4dd05d7f9fafeb410e1165e8b5c81e4625b71fcad16a2615c0",
       "size_bytes": 54861
     },
     "process_graphs/resident-reasoning/runtime.json": {
@@ -271,6 +271,6 @@
       "size_bytes": 1226
     }
   },
-  "manifest_revision": "1.1.233",
+  "manifest_revision": "1.1.235",
   "updated_at": null
 }

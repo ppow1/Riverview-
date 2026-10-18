@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_PERSISTENT_EXECUTION.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.17
+File Revision: 1.0.18
 Purpose: Define persistent model-independent Grace objective execution service
 Authority: Existing exact-grant registry and CME assignment/worker contracts
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-CONFIG-EXAMPLE | Add a secret-free environment template for exact service identity configuration
@@ -88,5 +88,42 @@ Expected service status is `healthy`, with `last_heartbeat_at` newer than the da
 ## Verification and limitations
 
 The integration tests use isolated PostgreSQL schemas, a temporary Git repository, local HTTP server, deterministic typed proposal, existing bounded worker, and a separate verifier identity. The new owner-session tests use only a synthetic auth-file marker, prove TTY-free construction under the owning identity, and reject weak/copy auth files. A real bounded adapter call reached the existing ChatGPT CLI but did not create a file; the local bwrap/unshare probe failure is reproduced and now blocks adapter preflight. The full PostgreSQL suite passed on a disposable PostgreSQL 16 cluster with the restricted-role fixture; teardown left no test schemas and the cluster shut down cleanly. This service is not live-commissioned; no real Grace website work order, independently accepted Codex artifact, or continuous service run is claimed.
+
+Canonical graph: `process_graphs/grace/operational-integration.json`. Generated views are updated with `python3 scripts/process_graph.py generate`; validate with `python3 scripts/process_graph.py check` and `python3 scripts/process_graph.py validate`.
+
+### Concurrent artifact and source-change enrollment
+
+The owner-session runner can host the existing artifact loop and a distinct
+source-change loop concurrently. The artifact worker ID, credential, registry
+entry and grants remain as provisioned. The source worker uses a different ID,
+protected `source-worker-token`, registry capability, PostgreSQL adapter
+connection, and exact `worker.register` plus `assignment.execute` grants. Each
+loop claims only its own capability. Worker errors are isolated per cycle; the
+other loop continues. Independent verification selects its action from the
+persisted attempt capability.
+
+Resident grounding remains in `grace_objectives.source_revision` and
+`source_sha256`. Every new source-change plan step separately requires an
+explicit `repository_reference` and immutable `repository_revision`. At
+dispatch, the append-only `work_order.dispatched` event snapshots the target,
+commit, authorized paths, test targets, objective, assignment, step, capability
+and proposal-step digest. Dispatch requires the target text in the Steward's
+request/criteria. The executor then checks that snapshot against the proposal,
+configured repository mapping and actual checkout HEAD. Result and verifier
+checks retain the same repository identity and commit. Unbound historical
+source-change assignments are rejected without editing their records; artifact
+plans remain compatible. The event snapshot requires no database migration.
+
+Source execution remains disabled unless an operator installs the optional
+`deploy/systemd/riverview-grace-execution-owner-session-source-worker.conf`
+drop-in after enrollment. Enrollment requires a newly distinct source worker
+credential, active registration, exact source capability, exact
+`worker.register`/`assignment.execute` grants in the existing Engineering
+scope, configured repository map/HEAD, and bounded
+`RIVERVIEW_CODEX_SOURCE_ALLOWED_PATHS`. Do not copy the artifact credential or
+grant paths beyond the Steward-approved objective. Missing source enrollment
+keeps source steps undispatched while artifact execution remains available.
+This branch does not provision credentials or grants, install/enable the
+drop-in, apply production migrations, or activate the source worker.
 
 Canonical graph: `process_graphs/grace/operational-integration.json`. Generated views are updated with `python3 scripts/process_graph.py generate`; validate with `python3 scripts/process_graph.py check` and `python3 scripts/process_graph.py validate`.

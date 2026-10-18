@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.3
+# Revision: 1.2.4
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -56,6 +56,7 @@ from riverview_core.resident_execution.proposals import ProposalRegistry
 from riverview_core.resident_execution.proposal_lifecycle import ProposalLifecycle
 from riverview_core.resident_execution.pipeline import ObjectiveContextReader
 from riverview_core.resident_execution.service import GraceExecutionService
+from riverview_core.resident_execution.verifier import BoundedArtifactVerifier
 from riverview_core.reasoning_escalation import ReasoningEscalationRouter
 from riverview_core.resident_execution.external_reasoning import DurableExternalReasoningExchange
 from riverview_core.resident_execution.worker import BoundedLocalCodingWorker
@@ -260,6 +261,7 @@ def reconcile_codex_startup_recovery(execution_action, recovery, *, scope_ref, w
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     ledger = adapter = authority_registry = conversation_store = proposal_registry = None
+    source_worker_adapter = None
     try:
         codex_auth_mode = os.environ.get("RIVERVIEW_CODEX_AUTH_MODE", "service")
         credential_unit = (OWNER_SESSION_SERVICE_UNIT
@@ -449,6 +451,67 @@ def main() -> int:
             action_effect_class="external_uncertain" if adapter_mode == "codex-cli" else "retry_safe",
             action_capability=execution_capability,
             recovery_max_retries=int(os.environ.get("RIVERVIEW_GRACE_MAX_WORKER_RECOVERIES", "3")))
+        execution_workers = {execution_capability: engine}
+        outcome_verifiers = {execution_capability: outcome_verifier or
+                             BoundedArtifactVerifier(artifact_root)}
+        if (os.environ.get("RIVERVIEW_SOURCE_WORKER_ENABLED", "0") == "1" and
+                adapter_mode == "codex-cli"):
+            try:
+                source_worker_id = os.environ.get("RIVERVIEW_SOURCE_WORKER_ID", "")
+                source_worker_token = read_worker_credential(
+                    credential_unit, "source-worker-token")
+                if (not source_worker_id or source_worker_id == worker_id or
+                        source_worker_token == worker_token):
+                    raise WorkerServiceConfigurationError(
+                        "source_worker_identity_or_credential_not_distinct")
+                allowed_paths = source_change_path_allowlist(os.environ)
+                source_worker_adapter = PostgresWorkerAdapter(
+                    dsn, schema=schema, authority_schema=authority_schema)
+                source_adapter = CodexSourceChangeAdapter(
+                    base_adapter=codex_adapter, repository_reference=repository_reference,
+                    authorized_paths=allowed_paths, max_timeout_seconds=timeout_seconds)
+                source_verifier = CodexSourceChangeVerifier(
+                    base_adapter=codex_adapter, authorized_paths=allowed_paths,
+                    max_timeout_seconds=timeout_seconds)
+                source_action = CodexSourceChangeWorkAction(
+                    pipeline, source_adapter, repository_reference,
+                    timeout_seconds=timeout_seconds)
+                source_verifier_result = CodexSourceChangeResultVerifier(
+                    pipeline, source_verifier, source_action)
+                ensure_registered(source_worker_adapter, source_worker_id,
+                    source_worker_token, (SOURCE_CHANGE_CAPABILITY,), scope_ref)
+                source_scope = source_worker_adapter.authenticated_scope(
+                    source_worker_id, source_worker_token, SOURCE_CHANGE_CAPABILITY)
+                if source_scope != scope_ref:
+                    raise WorkerServiceConfigurationError("source_worker_scope_mismatch")
+                source_engine = ContinuousWorker(source_worker_adapter, source_worker_id,
+                    source_worker_token, knowledge=RepositoryKnowledgeProvider(repo_root, commit),
+                    action=source_action, action_effect_class="retry_safe",
+                    action_capability=SOURCE_CHANGE_CAPABILITY,
+                    recovery_max_retries=int(os.environ.get(
+                        "RIVERVIEW_GRACE_MAX_WORKER_RECOVERIES", "3")))
+                recovery = PostgresRecoveryCoordinator(dsn, schema=schema,
+                    max_retries=int(os.environ.get(
+                        "RIVERVIEW_GRACE_MAX_WORKER_RECOVERIES", "3")))
+                try:
+                    recovered = reconcile_codex_startup_recovery(
+                        source_action, recovery, scope_ref=scope_ref,
+                        worker_id=source_worker_id)
+                finally:
+                    recovery.close()
+                if recovered:
+                    logging.info(json.dumps({"event": "codex_preexecution_recovery_completed",
+                        "capability": SOURCE_CHANGE_CAPABILITY,
+                        "assignments": [item["assignment_id"] for item in recovered],
+                        "count": len(recovered)}, sort_keys=True))
+                execution_workers[SOURCE_CHANGE_CAPABILITY] = source_engine
+                outcome_verifiers[SOURCE_CHANGE_CAPABILITY] = source_verifier_result
+            except Exception as exc:
+                if source_worker_adapter is not None:
+                    source_worker_adapter.close()
+                    source_worker_adapter = None
+                logging.warning(json.dumps({"event": "source_change_worker_unavailable",
+                    "failure_type": type(exc).__name__}, sort_keys=True))
         service = GraceExecutionService(pipeline, adapter, engine,
             dispatch_credential=dispatch_token, authority_ref=scope_ref,
             verifier_id=verifier_id, verifier_credential=verifier_token,
@@ -457,6 +520,7 @@ def main() -> int:
             resident_reasoner=resident_reasoner,
             resident_token_budget=int(os.environ.get("RIVERVIEW_RESIDENT_REASONING_TOKENS", "768")),
             verifier=outcome_verifier, execution_capability=execution_capability,
+            execution_workers=execution_workers, verifiers=outcome_verifiers,
             conversation_result_publisher=conversation_service.review_verified_work_order,
             proposal_lifecycle=proposal_lifecycle,
             external_reasoning_exchange=external_exchange,
@@ -518,6 +582,8 @@ def main() -> int:
                                   "failure_type": type(exc).__name__}, sort_keys=True))
         return 1
     finally:
+        if source_worker_adapter is not None:
+            source_worker_adapter.close()
         if adapter is not None:
             adapter.close()
         if conversation_store is not None:

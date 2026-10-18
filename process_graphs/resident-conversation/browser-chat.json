@@ -18,7 +18,7 @@
     "src/riverview_core/resident_execution/migrations/0004_deferred_conversation_responses.sql",
     "src/riverview_core/resident_execution/migrations/0006_deferred_execution_claims.sql",
     "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql",
-    "src/riverview_core/resident_execution/migrations/0012_bounded_deferred_retries.sql",
+    "src/riverview_core/resident_execution/migrations/0013_bounded_deferred_retries.sql",
     "src/riverview_core/resident_execution/model_router.py",
     "src/riverview_core/resident_execution/operational_context.py",
     "src/riverview_core/status_dashboard/server.py",
@@ -870,7 +870,7 @@
       "label": "Persist retry attempt and next-attempt time; use 5/10/20/40 second delays and block after five automatic resume attempts while retaining the original request",
       "source_references": [
         "src/riverview_core/resident_execution/conversation.py",
-        "src/riverview_core/resident_execution/migrations/0012_bounded_deferred_retries.sql"
+        "src/riverview_core/resident_execution/migrations/0013_bounded_deferred_retries.sql"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_CONVERSATION.md"
@@ -886,7 +886,7 @@
       "label": "Keep the correlated user request and response_deferred event durable; expose blocked status and stop automatic retries after exhaustion or authority denial",
       "source_references": [
         "src/riverview_core/resident_execution/conversation.py",
-        "src/riverview_core/resident_execution/migrations/0012_bounded_deferred_retries.sql"
+        "src/riverview_core/resident_execution/migrations/0013_bounded_deferred_retries.sql"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_CONVERSATION.md"

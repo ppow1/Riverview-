@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.2.15
+# Revision: 1.2.16
 # Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Preserve prompt_too_large as a safe deferred-resume diagnostic.
 # Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Persist capped deferred retries, terminalize deterministic provider errors, and distinguish terminal auth/input failures.
 # Changed: 2026-10-18 UTC | RV-GRACE-DEFERRED-STREAM-COMPLETION | Start the durable stream generation before non-streaming tool-router resumption.
@@ -1556,7 +1556,8 @@ class ResidentConversationService:
             proposed_step = review["proposed_step"]
             if review["decision"] == "ENGINEERING_STEP_PROPOSED":
                 required = {"step_id", "objective", "acceptance_criteria", "depends_on"}
-                allowed = required | {"execution_capability", "authorized_paths", "test_targets"}
+                allowed = required | {"execution_capability", "authorized_paths", "test_targets",
+                                     "repository_reference", "repository_revision"}
                 if (not isinstance(proposed_step, dict) or not required <= set(proposed_step) or
                         not set(proposed_step) <= allowed or
                         not isinstance(proposed_step["step_id"], str) or
@@ -1593,7 +1594,9 @@ class ResidentConversationService:
                         existing.get("execution_capability",
                             "engineering.codex-cli-artifact.v1"),
                         tuple(existing.get("authorized_paths", ())),
-                        tuple(existing.get("test_targets", ())))
+                        tuple(existing.get("test_targets", ())),
+                        existing.get("repository_reference"),
+                        existing.get("repository_revision"))
                     review["proposed_step"] = {
                         "step_id": continuation_step.step_id,
                         "objective": continuation_step.objective,
@@ -1601,7 +1604,9 @@ class ResidentConversationService:
                         "depends_on": list(continuation_step.depends_on),
                         "execution_capability": continuation_step.execution_capability,
                         "authorized_paths": list(continuation_step.authorized_paths),
-                        "test_targets": list(continuation_step.test_targets)}
+                        "test_targets": list(continuation_step.test_targets),
+                        "repository_reference": continuation_step.repository_reference,
+                        "repository_revision": continuation_step.repository_revision}
                 else:
                     approved_paths = {path for item in prior_steps if isinstance(item, dict)
                                       for path in item.get("authorized_paths", [])}
@@ -1614,7 +1619,14 @@ class ResidentConversationService:
                               not isinstance(proposed_step.get("test_targets"), list) or
                               not set(proposed_step["authorized_paths"]) <= approved_paths or
                               not set(proposed_step["test_targets"]) <=
-                                  set(proposed_step["authorized_paths"])) )):
+                                  set(proposed_step["authorized_paths"]) or
+                              not any(item.get("execution_capability") ==
+                                      "engineering.codex-cli-source-change.v1" and
+                                      item.get("repository_reference") ==
+                                      proposed_step.get("repository_reference") and
+                                      item.get("repository_revision") ==
+                                      proposed_step.get("repository_revision")
+                                      for item in prior_steps if isinstance(item, dict))) )):
                         review["decision"] = "STEWARD_AUTHORIZATION_REQUIRED"
                         review["proposed_step"] = None
                     else:
@@ -1626,7 +1638,9 @@ class ResidentConversationService:
                             proposed_step.get("execution_capability",
                                 "engineering.codex-cli-artifact.v1"),
                             tuple(proposed_step.get("authorized_paths", ())),
-                            tuple(proposed_step.get("test_targets", ())))
+                            tuple(proposed_step.get("test_targets", ())),
+                            proposed_step.get("repository_reference"),
+                            proposed_step.get("repository_revision"))
             elif proposed_step is not None:
                 raise ValueError
             if review["decision"] == "ADDITIONAL_EVIDENCE_REQUIRED" and not review["additional_evidence"]:

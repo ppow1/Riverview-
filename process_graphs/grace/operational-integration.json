@@ -75,7 +75,7 @@
       "id": "rv:grace:operational-integration:objective-intake",
       "node_revision": "1.0.3",
       "type": "entry",
-      "label": "IMPLEMENTED — exact objective.submit persists one objective per authenticated conversation message origin; retries revalidate the grant and retain original criteria",
+      "label": "IMPLEMENTED \u2014 exact objective.submit persists one objective per authenticated conversation message origin; retries revalidate the grant and retain original criteria",
       "source_references": [
         "src/riverview_core/status_dashboard/server.py",
         "src/riverview_core/resident_execution/pipeline.py"
@@ -92,7 +92,7 @@
       "id": "rv:grace:operational-integration:objective-intake-retry",
       "node_revision": "1.0.1",
       "type": "recovery",
-      "label": "SAME-SOURCE RETRY — revalidate objective.submit, retain immutable criteria, and rerun grounding for the existing durable objective",
+      "label": "SAME-SOURCE RETRY \u2014 revalidate objective.submit, retain immutable criteria, and rerun grounding for the existing durable objective",
       "source_references": [
         "src/riverview_core/status_dashboard/server.py",
         "src/riverview_core/resident_execution/pipeline.py"
@@ -108,7 +108,7 @@
       "id": "rv:grace:operational-integration:authority-check",
       "node_revision": "1.0.2",
       "type": "verification",
-      "label": "IMPLEMENTED — objective.submit and assignment.create use exact active grants; no proposal grants authority",
+      "label": "IMPLEMENTED \u2014 objective.submit and assignment.create use exact active grants; no proposal grants authority",
       "source_references": [
         "src/riverview_core/resident_execution/pipeline.py",
         "src/riverview_core/assignment_intake.py"
@@ -123,7 +123,7 @@
       "id": "rv:grace:operational-integration:reason-decompose",
       "node_revision": "1.0.2",
       "type": "process",
-      "label": "ISOLATED PERSISTENT INTEGRATION TESTED — existing ResidentReasoner handles grounded objectives and stores office-keyed plans; live model and supervised resident commissioning remain unverified",
+      "label": "ISOLATED PERSISTENT INTEGRATION TESTED \u2014 existing ResidentReasoner handles grounded objectives and stores office-keyed plans; live model and supervised resident commissioning remain unverified",
       "source_references": [
         "src/riverview_core/resident_reasoning.py",
         "src/riverview_core/resident_execution/pipeline.py",
@@ -142,7 +142,7 @@
       "id": "rv:grace:operational-integration:durable-plan",
       "node_revision": "1.0.1",
       "type": "process",
-      "label": "IMPLEMENTED — objective, complete evidence provenance, and unapproved plan persist in PostgreSQL",
+      "label": "IMPLEMENTED \u2014 objective, complete evidence provenance, and unapproved plan persist in PostgreSQL",
       "source_references": [
         "src/riverview_core/resident_execution/pipeline.py"
       ],
@@ -156,7 +156,7 @@
       "id": "rv:grace:operational-integration:assignment-fanout",
       "node_revision": "1.0.2",
       "type": "process",
-      "label": "IMPLEMENTED MULTI-STEP — persist one assignment per ordered proposal step; dispatch only when all dependency steps have independent verification",
+      "label": "IMPLEMENTED MULTI-STEP \u2014 persist one assignment per ordered proposal step; dispatch only when all dependency steps have independent verification",
       "source_references": [
         "src/riverview_core/resident_execution/pipeline.py",
         "src/riverview_core/assignment_intake.py",
@@ -174,7 +174,7 @@
       "id": "rv:grace:operational-integration:worker-dispatch",
       "node_revision": "1.0.2",
       "type": "jump",
-      "label": "DETERMINISTIC ADAPTER TESTED — lease-dispatched worker writes one bounded artifact; live executor remains outstanding",
+      "label": "DETERMINISTIC ADAPTER TESTED \u2014 lease-dispatched worker writes one bounded artifact; live executor remains outstanding",
       "jump_target_id": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
       "source_references": [
         "src/riverview_core/worker_adapter/continuous.py",
@@ -191,7 +191,7 @@
       "id": "rv:grace:operational-integration:cme-progress",
       "node_revision": "1.0.0",
       "type": "jump",
-      "label": "PLANNED — subscribe to durable progress, stall, and recovery events from CME",
+      "label": "PLANNED \u2014 subscribe to durable progress, stall, and recovery events from CME",
       "jump_target_id": "rv:cme:progress-and-recovery:observe",
       "source_references": [
         "docs/ROADMAP.md"
@@ -205,7 +205,7 @@
       "id": "rv:grace:operational-integration:evidence-review",
       "node_revision": "1.0.1",
       "type": "measurement",
-      "label": "IMPLEMENTED TEST PATH — independently reopened artifact and accepted verifier record determine completion",
+      "label": "IMPLEMENTED TEST PATH \u2014 independently reopened artifact and accepted verifier record determine completion",
       "source_references": [
         "src/riverview_core/resident_execution/verifier.py",
         "src/riverview_core/worker_adapter/adapter.py"
@@ -220,7 +220,7 @@
       "id": "rv:grace:operational-integration:verification-feedback",
       "node_revision": "1.0.0",
       "type": "jump",
-      "label": "PLANNED — consume independent verifier decision and evidence",
+      "label": "PLANNED \u2014 consume independent verifier decision and evidence",
       "jump_target_id": "rv:outcome-verifier:independent-result:decision",
       "source_references": [
         "docs/ROADMAP.md"
@@ -234,7 +234,7 @@
       "id": "rv:grace:operational-integration:objective-check",
       "node_revision": "1.0.0",
       "type": "decision",
-      "label": "PLANNED — determine whether objective acceptance criteria are independently met",
+      "label": "PLANNED \u2014 determine whether objective acceptance criteria are independently met",
       "source_references": [
         "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
       ],
@@ -247,7 +247,7 @@
       "id": "rv:grace:operational-integration:replan",
       "node_revision": "1.0.2",
       "type": "recovery",
-      "label": "IMPLEMENTED IN SOURCE — model-reviewed same-objective continuation is durable, bounded by original criteria, revalidates Grace binding, and returns through existing CME grants, leases, and verifier; production unverified",
+      "label": "IMPLEMENTED IN SOURCE \u2014 model-reviewed same-objective continuation is durable, bounded by original criteria, revalidates Grace binding, and returns through existing CME grants, leases, and verifier; production unverified",
       "source_references": [
         "src/riverview_core/resident_execution/conversation.py",
         "src/riverview_core/resident_execution/pipeline.py",
@@ -266,7 +266,7 @@
       "id": "rv:grace:operational-integration:steward-escalation",
       "node_revision": "1.0.0",
       "type": "escalation",
-      "label": "PLANNED — request only genuine Steward decision or authority",
+      "label": "PLANNED \u2014 request only genuine Steward decision or authority",
       "source_references": [
         "docs/ROADMAP.md"
       ],
@@ -294,7 +294,7 @@
       "id": "rv:grace:operational-integration:bounded-evidence-selection",
       "node_revision": "1.0.1",
       "type": "process",
-      "label": "IMPLEMENTED — verify the full pinned source set and deterministically select ranked complete passages within the evidence bound; retain source provenance and coverage metadata",
+      "label": "IMPLEMENTED \u2014 verify the full pinned source set and deterministically select ranked complete passages within the evidence bound; retain source provenance and coverage metadata",
       "source_references": [
         "src/riverview_core/worker_adapter/repository_knowledge.py",
         "src/riverview_core/worker_adapter/resident_knowledge.py"
@@ -311,7 +311,7 @@
       "id": "rv:grace:operational-integration:proposal-validation",
       "node_revision": "1.0.0",
       "type": "verification",
-      "label": "IMPLEMENTED — persist only typed proposals after complete VERIFIED grounding",
+      "label": "IMPLEMENTED \u2014 persist only typed proposals after complete VERIFIED grounding",
       "source_references": [
         "src/riverview_core/resident_execution/pipeline.py",
         "src/riverview_core/resident_reasoning.py"
@@ -326,7 +326,7 @@
       "id": "rv:grace:operational-integration:work-order-authorization",
       "node_revision": "1.0.0",
       "type": "verification",
-      "label": "IMPLEMENTED — assignment.create exact grant precedes durable CME handoff",
+      "label": "IMPLEMENTED \u2014 assignment.create exact grant precedes durable CME handoff",
       "source_references": [
         "src/riverview_core/resident_execution/pipeline.py",
         "src/riverview_core/assignment_intake.py"
@@ -341,7 +341,7 @@
       "id": "rv:grace:operational-integration:independent-artifact-check",
       "node_revision": "1.0.0",
       "type": "verification",
-      "label": "IMPLEMENTED TEST ADAPTER — reopen artifact and verify digest, task identity, criteria, and provenance",
+      "label": "IMPLEMENTED TEST ADAPTER \u2014 reopen artifact and verify digest, task identity, criteria, and provenance",
       "source_references": [
         "src/riverview_core/resident_execution/verifier.py"
       ],
@@ -355,7 +355,7 @@
       "id": "rv:grace:operational-integration:waiting-and-failure",
       "node_revision": "1.0.2",
       "type": "failure",
-      "label": "IMPLEMENTED — incomplete evidence remains pending; an authenticated retry after source correction either atomically advances the same objective to GROUNDED or records another pending revision",
+      "label": "IMPLEMENTED \u2014 incomplete evidence remains pending; an authenticated retry after source correction either atomically advances the same objective to GROUNDED or records another pending revision",
       "source_references": [
         "src/riverview_core/status_dashboard/server.py",
         "src/riverview_core/resident_execution/pipeline.py"
@@ -494,7 +494,7 @@
       "id": "rv:grace:operational-integration:office-bound-resident-runtime",
       "node_revision": "1.0.1",
       "type": "verification",
-      "label": "ISOLATED INTEGRATION VERIFIED — persistent runtime authenticates the current office.state.write occupant grant and requires a bound office implementation before resident reasoning",
+      "label": "ISOLATED INTEGRATION VERIFIED \u2014 persistent runtime authenticates the current office.state.write occupant grant and requires a bound office implementation before resident reasoning",
       "source_references": [
         "scripts/run_grace_execution_service.py",
         "src/riverview_core/institutional_authority/registry.py",
@@ -515,7 +515,7 @@
       "id": "rv:grace:operational-integration:office-state-restart-and-replacement",
       "node_revision": "1.0.0",
       "type": "recovery",
-      "label": "ISOLATED INTEGRATION VERIFIED — reconstructed resident runtime resumes office-keyed plan under replacement binding; stale occupant grant is denied",
+      "label": "ISOLATED INTEGRATION VERIFIED \u2014 reconstructed resident runtime resumes office-keyed plan under replacement binding; stale occupant grant is denied",
       "source_references": [
         "src/riverview_core/resident_reasoning.py",
         "src/riverview_core/resident_execution/service.py"
@@ -573,7 +573,7 @@
       "id": "rv:grace:operational-integration:codex-capability-check",
       "node_revision": "1.0.1",
       "type": "decision",
-      "label": "SOURCE INTEGRATED — exact Codex artifact capability is registered through the existing worker registry; deployment remains blocked on service identity and grants",
+      "label": "SOURCE INTEGRATED \u2014 exact Codex artifact capability is registered through the existing worker registry; deployment remains blocked on service identity and grants",
       "source_references": [
         "src/riverview_core/resident_execution/codex_cli.py",
         "src/riverview_core/resident_execution/codex_workflow.py",
@@ -639,7 +639,7 @@
       "id": "rv:grace:operational-integration:codex-cli-run",
       "node_revision": "1.0.8",
       "type": "process",
-      "label": "INTEGRATED LEGACY ARTIFACT CAPABILITY — only deliverable.md may change; a separate exact-scope source-change capability produces a pinned patch and never applies it to production",
+      "label": "INTEGRATED LEGACY ARTIFACT CAPABILITY \u2014 only deliverable.md may change; a separate exact-scope source-change capability produces a pinned patch and never applies it to production",
       "source_references": [
         "src/riverview_core/resident_execution/codex_cli.py",
         "src/riverview_core/resident_execution/codex_workflow.py",
@@ -670,7 +670,7 @@
       "id": "rv:grace:operational-integration:codex-artifact-verification",
       "node_revision": "1.0.1",
       "type": "verification",
-      "label": "INTEGRATED SOURCE — separate verifier reopens the assignment-bound Markdown artifact and checks mode, size, digest, provenance and literal acceptance criteria",
+      "label": "INTEGRATED SOURCE \u2014 separate verifier reopens the assignment-bound Markdown artifact and checks mode, size, digest, provenance and literal acceptance criteria",
       "source_references": [
         "src/riverview_core/resident_execution/codex_cli.py",
         "src/riverview_core/resident_execution/codex_workflow.py",
@@ -739,7 +739,7 @@
       "id": "rv:grace:operational-integration:engineering-resource-request",
       "node_revision": "1.0.0",
       "type": "escalation",
-      "label": "PLANNED — persist pending resource request for HR/Helen or Steward decision; Helen is not commissioned and no allocation is presumed",
+      "label": "PLANNED \u2014 persist pending resource request for HR/Helen or Steward decision; Helen is not commissioned and no allocation is presumed",
       "source_references": [
         "src/riverview_core/resident_execution/codex_cli.py"
       ],
@@ -753,7 +753,7 @@
       "id": "rv:grace:operational-integration:router-backed-grace-proposal",
       "node_revision": "1.0.0",
       "type": "process",
-      "label": "SOURCE IMPLEMENTED — Persistent ResidentReasoner proposals use the active router binding and require actual 80B provenance; smaller stages cannot substitute",
+      "label": "SOURCE IMPLEMENTED \u2014 Persistent ResidentReasoner proposals use the active router binding and require actual 80B provenance; smaller stages cannot substitute",
       "source_references": [
         "src/riverview_core/resident_execution/model_router.py",
         "src/riverview_core/resident_reasoning.py",
@@ -772,7 +772,7 @@
       "id": "rv:grace:operational-integration:verified-result-chat-return",
       "node_revision": "1.0.0",
       "type": "process",
-      "label": "SOURCE IMPLEMENTED — Independently accepted objective result is reviewed by bound 80B and appended once to its source conversation with durable provenance",
+      "label": "SOURCE IMPLEMENTED \u2014 Independently accepted objective result is reviewed by bound 80B and appended once to its source conversation with durable provenance",
       "source_references": [
         "src/riverview_core/resident_execution/pipeline.py",
         "src/riverview_core/resident_execution/service.py",
@@ -862,7 +862,7 @@
       "id": "rv:grace:operational-integration:codex-source-change",
       "node_revision": "1.0.1",
       "type": "process",
-      "label": "CANDIDATE SOURCE IMPLEMENTATION — the existing owner-session runner can select this separate capability; every work-order path is checked against Steward-approved text and an operator path ceiling; Codex returns a patch only",
+      "label": "CANDIDATE SOURCE IMPLEMENTATION \u2014 the existing owner-session runner can select this separate capability; every work-order path is checked against Steward-approved text and an operator path ceiling; Codex returns a patch only",
       "source_references": [
         "scripts/run_grace_execution_service.py",
         "src/riverview_core/resident_execution/codex_source_change.py",
@@ -914,7 +914,7 @@
       "id": "rv:grace:operational-integration:objective-steps",
       "node_revision": "1.0.1",
       "type": "process",
-      "label": "ISOLATED POSTGRES TESTED — each source-change continuation retains the same objective, receives a new assignment identity, and is dispatched only after its predecessor is independently verified",
+      "label": "ISOLATED POSTGRES TESTED \u2014 each source-change continuation retains the same objective, receives a new assignment identity, and is dispatched only after its predecessor is independently verified",
       "source_references": [
         "src/riverview_core/resident_execution/pipeline.py",
         "src/riverview_core/assignment_scheduler/scheduler.py",
@@ -932,7 +932,7 @@
       "id": "rv:grace:operational-integration:codex-owner-preflight",
       "node_revision": "1.0.4",
       "type": "verification",
-      "label": "SOURCE IMPLEMENTED — resolve CODEX_HOME from RIVERVIEW_CODEX_HOME under private service state; require admin1-owned 0700 home and 0600 empty auth bind target, both Code Mode features, pinned companion path, AF_NETLINK for bwrap --unshare-net, and owner-session MemoryDenyWriteExecute=no; retain workspace-write, network-disabled, AppArmor confinement",
+      "label": "SOURCE IMPLEMENTED \u2014 resolve CODEX_HOME from RIVERVIEW_CODEX_HOME under private service state; require admin1-owned 0700 home and 0600 empty auth bind target, both Code Mode features, pinned companion path, AF_NETLINK for bwrap --unshare-net, and owner-session MemoryDenyWriteExecute=no; retain workspace-write, network-disabled, AppArmor confinement",
       "source_references": [
         "src/riverview_core/resident_execution/codex_cli.py",
         "scripts/run_grace_execution_service.py",
@@ -951,7 +951,7 @@
       "id": "rv:grace:operational-integration:codex-owner-package-recovery",
       "node_revision": "1.0.0",
       "type": "recovery",
-      "label": "BLOCKED UNTIL PACKAGE COMPLETE — preserve the objective and retry budget; install reviewed CLI package with executable Code Mode host through ordinary release procedure, never expose or copy owner credentials",
+      "label": "BLOCKED UNTIL PACKAGE COMPLETE \u2014 preserve the objective and retry budget; install reviewed CLI package with executable Code Mode host through ordinary release procedure, never expose or copy owner credentials",
       "source_references": [
         "src/riverview_core/resident_execution/codex_cli.py",
         "docs/components/GRACE_EXECUTION_COOKBOOK.md"
@@ -1037,7 +1037,7 @@
       "id": "rv:grace:operational-integration:internal-tool-call",
       "node_revision": "1.0.0",
       "type": "process",
-      "label": "IMPLEMENTED — Grace 80B may emit one strict bounded read-tool request; Comms5Application dispatches it through the existing dashboard backend, preserving published schemas, validation, and result shaping",
+      "label": "IMPLEMENTED \u2014 Grace 80B may emit one strict bounded read-tool request; Comms5Application dispatches it through the existing dashboard backend, preserving published schemas, validation, and result shaping",
       "source_references": [
         "src/riverview_core/resident_execution/model_router.py",
         "src/riverview_core/resident_execution/internal_tools.py",
@@ -1058,7 +1058,7 @@
       "id": "rv:grace:operational-integration:internal-tool-consume",
       "node_revision": "1.0.0",
       "type": "verification",
-      "label": "IMPLEMENTED — Grace receives the structured tool result in a bounded follow-up completion; the result is persisted with the assistant conversation event; malformed or failed calls return sanitized errors",
+      "label": "IMPLEMENTED \u2014 Grace receives the structured tool result in a bounded follow-up completion; the result is persisted with the assistant conversation event; malformed or failed calls return sanitized errors",
       "source_references": [
         "src/riverview_core/resident_execution/model_router.py",
         "src/riverview_core/resident_execution/conversation.py"
@@ -1092,7 +1092,7 @@
       "id": "rv:grace:operational-integration:external-advisory-consumer",
       "node_revision": "1.0.0",
       "type": "process",
-      "label": "Source implemented; isolated PostgreSQL verified — Grace consumes correlated response_received exchange through the bound ResidentReasoner, records one unapproved proposal/evaluation event, then acknowledges with the durable fence",
+      "label": "Source implemented; isolated PostgreSQL verified \u2014 Grace consumes correlated response_received exchange through the bound ResidentReasoner, records one unapproved proposal/evaluation event, then acknowledges with the durable fence",
       "source_references": [
         "src/riverview_core/resident_execution/external_reasoning.py",
         "src/riverview_core/resident_execution/service.py",
@@ -1104,6 +1104,62 @@
       ],
       "verification_evidence": [
         "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:grace:operational-integration:source-target-dispatch-binding",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "ISOLATED IMPLEMENTATION \u2014 dispatch snapshots an explicitly Steward-authorized repository reference, immutable commit, paths, tests and proposal-step digest; resident grounding revision remains separate",
+      "source_references": [
+        "src/riverview_core/resident_execution/pipeline.py",
+        "src/riverview_core/resident_execution/codex_workflow.py",
+        "src/riverview_core/resident_execution/codex_source_change.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_EXECUTION_PIPELINE.md",
+        "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_grace_execution.py",
+        "tests/test_codex_source_change.py"
+      ]
+    },
+    {
+      "id": "rv:grace:operational-integration:dual-capability-owner-loops",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "ISOLATED IMPLEMENTATION \u2014 owner-session retains its artifact worker and optionally runs a distinct source worker; claims and verifier routing use persisted attempt capability",
+      "source_references": [
+        "scripts/run_grace_execution_service.py",
+        "src/riverview_core/resident_execution/service.py",
+        "deploy/systemd/riverview-grace-execution-owner-session.service",
+        "deploy/systemd/riverview-grace-execution-owner-session-source-worker.conf"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+        "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_grace_execution.py",
+        "tests/test_grace_runtime_provider_wiring.py"
+      ]
+    },
+    {
+      "id": "rv:grace:operational-integration:source-enrollment-fail-closed",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Source capability stays unavailable when separate credential, exact grants, registration, allowlist, repository mapping or pinned checkout is missing; artifact worker continues",
+      "source_references": [
+        "scripts/run_grace_execution_service.py",
+        "deploy/systemd/riverview-grace-execution-owner-session-source-worker.conf"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_grace_runtime_provider_wiring.py",
+        "tests/test_grace_execution.py"
       ]
     }
   ],
@@ -1167,19 +1223,19 @@
       "from": "rv:grace:operational-integration:objective-check",
       "to": "rv:grace:operational-integration:objective-complete",
       "type": "verification",
-      "label": "PLANNED — all criteria independently verified"
+      "label": "PLANNED \u2014 all criteria independently verified"
     },
     {
       "from": "rv:grace:operational-integration:objective-check",
       "to": "rv:grace:operational-integration:replan",
       "type": "recovery_route",
-      "label": "PLANNED — unmet criteria or new evidence"
+      "label": "PLANNED \u2014 unmet criteria or new evidence"
     },
     {
       "from": "rv:grace:operational-integration:objective-check",
       "to": "rv:grace:operational-integration:steward-escalation",
       "type": "escalation",
-      "label": "PLANNED — genuine decision required"
+      "label": "PLANNED \u2014 genuine decision required"
     },
     {
       "from": "rv:grace:operational-integration:replan",
@@ -1190,7 +1246,7 @@
       "from": "rv:grace:operational-integration:steward-escalation",
       "to": "rv:grace:operational-integration:durable-plan",
       "type": "runtime_transition",
-      "label": "PLANNED — resume after recorded decision"
+      "label": "PLANNED \u2014 resume after recorded decision"
     },
     {
       "from": "rv:grace:operational-integration:objective-intake",
@@ -1631,6 +1687,30 @@
       "to": "rv:grace:operational-integration:external-advisory-consumer",
       "type": "runtime_transition",
       "label": "authorized exchange reply is available to the recurring Grace execution cycle"
+    },
+    {
+      "from": "rv:grace:operational-integration:codex-source-change",
+      "to": "rv:grace:operational-integration:source-target-dispatch-binding",
+      "type": "verification",
+      "label": "The exact target repository and immutable commit are snapshotted at authorized dispatch; resident knowledge provenance is not substituted"
+    },
+    {
+      "from": "rv:grace:operational-integration:source-target-dispatch-binding",
+      "to": "rv:grace:operational-integration:dual-capability-owner-loops",
+      "type": "runtime_transition",
+      "label": "A source assignment is eligible only for the separately registered and credentialed source worker"
+    },
+    {
+      "from": "rv:grace:operational-integration:dual-capability-owner-loops",
+      "to": "rv:grace:operational-integration:source-enrollment-fail-closed",
+      "type": "diagnostic_branch",
+      "label": "Source enrollment is incomplete; source work remains undispatched while the artifact worker continues"
+    },
+    {
+      "from": "rv:grace:operational-integration:source-enrollment-fail-closed",
+      "to": "rv:grace:operational-integration:dual-capability-owner-loops",
+      "type": "recovery_route",
+      "label": "Resume only after separate credential, exact grants, registration, approved paths and pinned target configuration are verified"
     }
   ]
 }

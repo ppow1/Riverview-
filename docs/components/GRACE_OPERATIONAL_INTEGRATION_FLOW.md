@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.50
+**Document Revision:** 1.0.51
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -130,6 +130,9 @@ flowchart LR
     g_rv_grace_operational_integration_internal_tool_consume_a8336489["IMPLEMENTED — Grace receives the structured tool result in a bounded follow-up completion; the result is persisted with the assistant conversation event; malformed or failed calls return sanitized errors"]
     g_rv_grace_operational_integration_codex_persisted_criteria_verification_3aad2766["Verify the Codex deliverable against acceptance criteria resolved from the pre-dispatch PostgreSQL objective step linked to this assignment; missing durable criteria fail closed"]
     g_rv_grace_operational_integration_external_advisory_consumer_d4127120["Source implemented; isolated PostgreSQL verified — Grace consumes correlated response_received exchange through the bound ResidentReasoner, records one unapproved proposal/evaluation event, then acknowledges with the durable fence"]
+    g_rv_grace_operational_integration_source_target_dispatch_binding_bbd0e791["ISOLATED IMPLEMENTATION — dispatch snapshots an explicitly Steward-authorized repository reference, immutable commit, paths, tests and proposal-step digest; resident grounding revision remains separate"]
+    g_rv_grace_operational_integration_dual_capability_owner_loops_afceaa17["ISOLATED IMPLEMENTATION — owner-session retains its artifact worker and optionally runs a distinct source worker; claims and verifier routing use persisted attempt capability"]
+    g_rv_grace_operational_integration_source_enrollment_fail_closed_7bba0087[["Source capability stays unavailable when separate credential, exact grants, registration, allowlist, repository mapping or pinned checkout is missing; artifact worker continues"]]
   end
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_cme_progress_and_recovery_observe_428defda["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -227,6 +230,10 @@ flowchart LR
   g_rv_grace_operational_integration_codex_cli_run_ade47dcf -->|verification: Resolve exact persisted criteria through the assigned objective-step link before inspecting output| g_rv_grace_operational_integration_codex_persisted_criteria_verification_3aad2766
   g_rv_grace_operational_integration_codex_persisted_criteria_verification_3aad2766 -->|verification: Criteria contract is present and is evaluated independently against the artifact| g_rv_grace_operational_integration_codex_artifact_verification_ab484b65
   g_rv_grace_operational_integration_objective_intake_55567c14 -->|authorized exchange reply is available to the recurring Grace execution cycle| g_rv_grace_operational_integration_external_advisory_consumer_d4127120
+  g_rv_grace_operational_integration_codex_source_change_b577dd01 -->|verification: The exact target repository and immutable commit are snapshotted at authorized dispatch; resident knowledge provenance is not substituted| g_rv_grace_operational_integration_source_target_dispatch_binding_bbd0e791
+  g_rv_grace_operational_integration_source_target_dispatch_binding_bbd0e791 -->|A source assignment is eligible only for the separately registered and credentialed source worker| g_rv_grace_operational_integration_dual_capability_owner_loops_afceaa17
+  g_rv_grace_operational_integration_dual_capability_owner_loops_afceaa17 -->|diagnostic_branch: Source enrollment is incomplete; source work remains undispatched while the artifact worker continues| g_rv_grace_operational_integration_source_enrollment_fail_closed_7bba0087
+  g_rv_grace_operational_integration_source_enrollment_fail_closed_7bba0087 -->|recovery_route: Resume only after separate credential, exact grants, registration, approved paths and pinned target configuration are verified| g_rv_grace_operational_integration_dual_capability_owner_loops_afceaa17
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 
