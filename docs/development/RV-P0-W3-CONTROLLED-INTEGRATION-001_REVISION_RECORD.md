@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md
 Component: P0-CONTROLLED-INTEGRATION
-Revision: 1.0.1
+Revision: 1.0.2
 Status: Offline integration evidence; no merge or deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record W3 branch assembly and isolated verification
@@ -64,3 +64,10 @@ Still required for offline acceptance: W2 disposable PostgreSQL execution; C2/C3
 integrated connection confirmation; W1 trace over actual W2 events; C1 readiness
 projection over integrated state. Live ChatGPT review remains outside this branch's
 authority.
+
+
+## Latest integration verification — 2026-10-18
+
+Integrated C1's expiry-specific readiness regression head `d9a8332006d59c443473ea7ef8b1b45e0271bbb6` and W2's test/snapshot head `8b4dcd0f9291f2c7c61bf47047063c8f33ffbea1`. At W3 code head `8203370f8deb518e87d7822cf54e090d077400d3`, 97 focused tests ran: 75 passed and 22 PostgreSQL tests skipped without a local test DSN. Graph validation/check passed (22 graphs / 573 nodes), revision audit passed, and the LF-checkout diff check passed.
+
+Hosted W2 run #39164629198 failed with an absent `created_at` column in its trace export, a C2 test fixture lease that expires during full-suite order, an expiry assertion needing alignment to terminal-expiry semantics, and a missing revision successor in the W2 restart case. These are recorded in the integration manifest and issue #120 comment 6254953224. They prevent completion of database-backed W2 acceptance and actual W1 trace evidence. W3 is awaiting owner corrections to integrate and retest.

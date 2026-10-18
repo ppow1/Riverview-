@@ -2,12 +2,12 @@
 Riverview Controlled Document
 File: docs/development/P0_CONTROLLED_INTEGRATION_MANIFEST.md
 Component: P0-CONTROLLED-INTEGRATION
-File Revision: 1.0.2
+File Revision: 1.0.3
 Status: Disposable integration manifest; no merge/deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record exact integration parent, published component heads, ownership, order and verification state for P0 Grace-to-ChatGPT review
 Authority: Steward dispatch issue #120 comment 6254574126; W3 may assemble branches and run offline tests only
-History: 1.0.0 and 1.0.1 predecessors backed up in .riverview-backups/manifest.jsonl; 1.0.2 records closure-round imports and verification
+History: 1.0.0–1.0.2 predecessors backed up in .riverview-backups/manifest.jsonl; 1.0.3 records latest C1 import and hosted acceptance findings
 -->
 
 # P0 controlled integration manifest
@@ -159,3 +159,34 @@ checkout; this avoids Windows `core.autocrlf` changing checksummed JSON bytes.
 - These offline integration checks do not demonstrate an actual ChatGPT review.
   No live doorbell, production activation, deployment, credential or grant change
   was performed.
+
+
+## Latest closure evidence — 2026-10-18 20:47 UTC
+
+Published W3 head: `8203370f8deb518e87d7822cf54e090d077400d3`. This includes C1's
+latest PR #133 head `d9a8332006d59c443473ea7ef8b1b45e0271bbb6` with expiry-specific
+fail-closed readiness regressions. C3 #135 (`d9506bf8`), C2 #131 (`479ea738`), C4
+#130 (`45807c64`), and W2 #136 (`8b4dcd0f`) remain integrated.
+
+Expanded integrated unit selection:
+
+```powershell
+$env:PYTHONPATH="$env:TEMP\rv-p0-pydeps;src"; python -m unittest tests.test_external_reasoning_mcp tests.test_external_reasoning_exchange tests.test_external_reasoning_doorbell_dispatcher tests.test_grace_doorbell_runtime_wiring tests.test_w2_p0_integrated_review_acceptance tests.test_external_review_readiness tests.test_external_review_trace -v
+```
+
+Result: **97 tests ran, 75 passed, 22 skipped**. The 22 skips are PostgreSQL-backed
+cases because the local Windows environment has no `RIVERVIEW_TEST_PG_DSN`. C4
+expiry regression, C1 expired-readiness regressions, C2 synthetic dispatcher/runtime
+wiring, C3 subject/owner-hook unit checks, and W1 trace projector cases passed.
+Graph check passes at 22 graphs / 573 nodes; revision audit against PR #119 base
+passes with zero findings; LF checkout `git diff --check` passes.
+
+Hosted W2 run #39164629198 on the prior assembled code checkpoint failed (702 tests,
+15 failures, 1 error). It found: the W1 trace snapshot query selects missing event
+column `created_at`; C2's dispatcher fixture uses `claim=Claim()` as a function
+default, so its 80-second lease expires before those tests run in full-suite order;
+W2's expiry test asserts no terminal review even though exchange expiry itself is a
+terminal state; and the revise/restart acceptance cannot find the successor row.
+These are assigned to W1/W2/C2/C3 owners. W2's trace snapshot failed before export,
+so W1's actual database-backed projection and C1's actual integrated runtime
+readiness are not yet evidenced. Owners must rerun on current W3 head after fixes.
