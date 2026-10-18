@@ -7616,7 +7616,7 @@
     },
     {
       "graph_id": "rv:resident-conversation:browser-chat",
-      "graph_revision": "1.0.20",
+      "graph_revision": "1.0.21",
       "component_id": "RESIDENT-CONVERSATION",
       "workflow_id": "resident.conversation.v1",
       "diagram_order": 14,
@@ -7634,6 +7634,7 @@
         "src/riverview_core/resident_execution/migrations/0004_deferred_conversation_responses.sql",
         "src/riverview_core/resident_execution/migrations/0006_deferred_execution_claims.sql",
         "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql",
+        "src/riverview_core/resident_execution/migrations/0012_bounded_deferred_retries.sql",
         "src/riverview_core/resident_execution/model_router.py",
         "src/riverview_core/resident_execution/operational_context.py",
         "src/riverview_core/status_dashboard/server.py",
@@ -7785,9 +7786,9 @@
         },
         {
           "id": "rv:resident-conversation:browser-chat:context-bound",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "verification",
-          "label": "Assemble recent history; retain every system instruction and the active user turn, trim oldest conversational context to the exact serialized 32 KiB provider limit",
+          "label": "Assemble recent history; preserve every system instruction and active user turn, trim oldest eligible conversation context to the exact serialized 32 KiB provider limit, and terminalize irreducible overflow as context_too_large",
           "source_references": [
             "src/riverview_core/resident_execution/conversation.py"
           ],
@@ -8143,9 +8144,9 @@
         },
         {
           "id": "rv:resident-conversation:browser-chat:resume-reasoning",
-          "node_revision": "1.0.3",
+          "node_revision": "1.0.4",
           "type": "recovery",
-          "label": "Poll durable deferred turns, acquire a cross-process lease, bound provider context, mark tool-enabled stream generation before inference, and atomically persist assistant response plus stream completion",
+          "label": "Poll only due durable deferred turns, claim a cross-process lease, preserve original request/capability identity, apply persistent bounded retry scheduling, and atomically publish one correlated assistant response",
           "source_references": [
             "src/riverview_core/resident_execution/conversation.py",
             "src/riverview_core/status_dashboard/server.py"
@@ -8160,9 +8161,9 @@
         },
         {
           "id": "rv:resident-conversation:browser-chat:reasoning-router-failure",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "failure",
-          "label": "Keep the request pending when the required 80B capability is unavailable; emit sanitized provider attempt diagnostics",
+          "label": "Record sanitized readiness/completion diagnostics; deterministic provider errors are terminal while transient provider errors retain durable deferred work under the retry budget",
           "source_references": [
             "src/riverview_core/resident_execution/conversation.py"
           ],
@@ -8458,6 +8459,57 @@
             "tests/test_status_dashboard.py",
             "tests/test_local_reasoning_provider.py"
           ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:provider-error-classification",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Is this a transient readiness/transport/server failure, or a deterministic request/authentication/response failure?",
+          "source_references": [
+            "src/riverview_core/local_reasoning_provider.py",
+            "src/riverview_core/resident_execution/model_router.py",
+            "src/riverview_core/resident_execution/conversation.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_local_reasoning_provider.py",
+            "tests/test_resident_model_router.py",
+            "tests/test_resident_conversation.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:deferred-retry-budget",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Persist retry attempt and next-attempt time; use 5/10/20/40 second delays and block after five automatic resume attempts while retaining the original request",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/resident_execution/migrations/0012_bounded_deferred_retries.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:deferred-retry-blocked",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Keep the correlated user request and response_deferred event durable; expose blocked status and stop automatic retries after exhaustion or authority denial",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/resident_execution/migrations/0012_bounded_deferred_retries.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py"
+          ]
         }
       ],
       "edges": [
@@ -8673,15 +8725,9 @@
         },
         {
           "from": "rv:resident-conversation:browser-chat:resume-reasoning",
-          "to": "rv:resident-conversation:browser-chat:reasoning-router-failure",
+          "to": "rv:resident-conversation:browser-chat:provider-error-classification",
           "type": "diagnostic_branch",
-          "label": "Capability or provider remains unavailable"
-        },
-        {
-          "from": "rv:resident-conversation:browser-chat:reasoning-router-failure",
-          "to": "rv:resident-conversation:browser-chat:resume-reasoning",
-          "type": "recovery_route",
-          "label": "Retry persisted request when readiness changes"
+          "label": "A resumed completion or readiness attempt failed; classify the sanitized code"
         },
         {
           "from": "rv:resident-conversation:browser-chat:resume-reasoning",
@@ -8851,6 +8897,30 @@
           "from": "rv:resident-conversation:browser-chat:stream-failure",
           "to": "rv:resident-conversation:browser-chat:browser-history",
           "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:provider-error-classification",
+          "to": "rv:resident-conversation:browser-chat:provider-failure",
+          "type": "diagnostic_branch",
+          "label": "Deterministic prompt, authorization, request, model-identity or malformed-response failure"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:provider-error-classification",
+          "to": "rv:resident-conversation:browser-chat:deferred-retry-budget",
+          "type": "diagnostic_branch",
+          "label": "Transient timeout/transport/loading/busy, HTTP 408/409/425/429, or any 5xx failure"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:deferred-retry-budget",
+          "to": "rv:resident-conversation:browser-chat:resume-reasoning",
+          "type": "recovery_route",
+          "label": "A scheduled retry is due and fewer than five automatic attempts have failed"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:deferred-retry-budget",
+          "to": "rv:resident-conversation:browser-chat:deferred-retry-blocked",
+          "type": "diagnostic_branch",
+          "label": "Five automatic attempts exhausted; retain durable request and expose blocked state"
         }
       ]
     },
@@ -13953,6 +14023,8 @@
     "rv:resident-conversation:browser-chat:context-bound",
     "rv:resident-conversation:browser-chat:dashboard-auth",
     "rv:resident-conversation:browser-chat:defer-reasoning",
+    "rv:resident-conversation:browser-chat:deferred-retry-blocked",
+    "rv:resident-conversation:browser-chat:deferred-retry-budget",
     "rv:resident-conversation:browser-chat:deny",
     "rv:resident-conversation:browser-chat:exact-grant",
     "rv:resident-conversation:browser-chat:future-objective-jump",
@@ -13964,6 +14036,7 @@
     "rv:resident-conversation:browser-chat:operations-snapshot",
     "rv:resident-conversation:browser-chat:persist-response",
     "rv:resident-conversation:browser-chat:persist-user",
+    "rv:resident-conversation:browser-chat:provider-error-classification",
     "rv:resident-conversation:browser-chat:provider-failure",
     "rv:resident-conversation:browser-chat:provider-match",
     "rv:resident-conversation:browser-chat:readiness-route",

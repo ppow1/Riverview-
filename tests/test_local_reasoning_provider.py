@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.11
+# Revision: 1.1.12
 # Purpose: Verify local reasoning provider contract and fail-closed response handling
 # Execution Model: Bounded HTTP contract double; no credentials, database or model required
 # Observability: Typed proposals and sanitized unavailable/schema outcomes
@@ -24,6 +24,7 @@
 # Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Verify canonical Grace role context reaches assignment reasoning only for the Grace office
 # Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Assert token-limit finish reason and count are safely retained on truncation
 # Changed: 2026-10-15 UTC | RV-GRACE-DEMO-BASE-INTEGRATION | Retain provider and role-context regressions across integration
+# Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Verify sanitized transient and deterministic HTTP status codes remain distinct.
 # Tests: This file
 # History: Git
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
@@ -240,6 +241,16 @@ class LocalReasoningProviderTests(unittest.TestCase):
             self.provider.propose(self.request)
         self.assertNotIn("inspect controlled files", str(err.exception))
         self.assertTrue(self.error_stream.closed)
+
+    def test_http_status_classes_are_preserved_as_safe_codes(self):
+        for status in (400, 401, 403, 404, 408, 413, 422, 429, 500, 502, 503, 504):
+            with self.subTest(status=status):
+                self.response_status = status
+                with self.assertRaises(LocalReasoningUnavailable) as caught:
+                    self.provider.propose(self.request)
+                self.assertEqual(caught.exception.code, f"endpoint_http_{status}")
+                self.assertNotIn("inspect controlled files", str(caught.exception))
+                self.assertTrue(self.error_stream.closed)
 
     def test_non_loopback_endpoint_is_rejected(self):
         with self.assertRaises(ValueError):

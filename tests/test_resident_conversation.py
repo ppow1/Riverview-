@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.32
+# Revision: 1.0.35
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -39,6 +39,8 @@
 # Changed: 2026-10-16 UTC | RV-INSTITUTIONAL-PROPOSAL-LIFECYCLE-001 | Exercise 80B proposal drafting without objective, assignment, repository-write, or CME authority.
 # Changed: 2026-10-16 UTC | RV-INSTITUTIONAL-PROPOSAL-LIFECYCLE-001 | Verify authenticated proposal draft/search API and idempotent replay without objective creation; retain safe HTTP failure code in assertion.
 # Changed: 2026-10-18 UTC | RV-GRACE-DEFERRED-STREAM-COMPLETION | Regress tool-router resumption from deferred stream state through durable terminal persistence.
+# Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Verify deterministic provider failures terminalize and transient retries back off finitely.
+# Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Verify authorization/input HTTP errors and missing model bindings stop retrying.
 # =============================================================================
 """Isolated PostgreSQL and authority tests for Grace's persistent conversation path."""
 
@@ -171,6 +173,147 @@ class DeferredStreamResumeTests(unittest.TestCase):
             "reasoning_stage": "reasoning"})])
         self.assertEqual(store.terminal["body"], "Grace result.")
         self.assertEqual(store.terminal["stream_metadata"]["reasoning_stage"], "reasoning")
+
+
+class DeferredRetryPolicyTests(unittest.TestCase):
+    def _service_with_failure(self, failure):
+        from types import SimpleNamespace
+        from riverview_core.resident_execution.conversation import ResidentConversationService
+
+        class Store:
+            def __init__(self):
+                self.terminal = None
+                self.retry = None
+            def deferred_turns(self, *, limit):
+                return [{"conversation_id": "00000000-0000-0000-0000-000000000001",
+                    "request_id": "00000000-0000-0000-0000-000000000002",
+                    "principal_id": "steward:test", "body": "Synthetic bounded request.",
+                    "sequence": 7, "user_metadata": {},
+                    "metadata": {"required_capability": "grace.reasoning.80b"},
+                    "occupant_id": "occupant:grace:test", "implementation_id": "impl:test",
+                    "implementation_revision": "a" * 64, "provider_ref": "grace.router:test",
+                    "model_id": "grace-router", "attempt_count": 0}]
+            def claim_deferred_request(self, request_id, claim_token):
+                return self.terminal is None
+            def history(self, *args, **kwargs):
+                return {"events": []}
+            def has_stream(self, request_id):
+                return False
+            def record_deferred_retry(self, request_id, claim_token, error_code, *, permanent=False):
+                self.retry = {"request_id": request_id, "error_code": error_code,
+                              "permanent": permanent}
+                return {"attempt_count": 1, "blocked": permanent,
+                        "delay_seconds": None if permanent else 5}
+            def finish_turn(self, conversation_id, request_id, **kwargs):
+                self.terminal = {"conversation_id": conversation_id,
+                                 "request_id": request_id, **kwargs}
+            def release_deferred_claim(self, request_id, claim_token):
+                pass
+
+        class Router:
+            provider_id = "grace.router:test"
+            model = "grace-router"
+            internal_tools = None
+            providers = {"reasoning": SimpleNamespace(provider_id="local.80b", model="80b")}
+            def supports_capability(self, capability):
+                return capability == "grace.reasoning.80b"
+            def complete_chat(self, *args, **kwargs):
+                raise failure
+
+        store = Store()
+        router = Router()
+        service = ResidentConversationService.__new__(ResidentConversationService)
+        service.store = store
+        service.registry = SimpleNamespace()
+        service.office_id = "office:grace"
+        service._resident_credential = "resident:test"
+        service.providers = {router.provider_id: router}
+        service.max_response_tokens = 512
+        service.operational_context = None
+        service._authorize = lambda *_args: {"grant_id": "grant:test"}
+        service._authorize_office_binding = lambda: {
+            "occupant_id": "occupant:grace:test", "implementation_kind": "model",
+            "implementation_id": "impl:test", "implementation_revision": "a" * 64,
+            "provider_ref": router.provider_id, "model_id": router.model}
+        service._operational_context_snapshot = lambda: None
+        return service, store
+
+    def test_deterministic_prompt_and_authentication_errors_are_terminal(self):
+        from riverview_core.local_reasoning_provider import LocalReasoningUnavailable
+        from riverview_core.resident_execution.conversation import _deferred_failure_disposition
+        from riverview_core.resident_execution.model_router import ReasoningDeferred
+
+        prompt = ReasoningDeferred("UNAVAILABLE", attempts=(
+            {"error_code": "prompt_too_large"},))
+        auth = ReasoningDeferred("UNAVAILABLE", attempts=(
+            {"error_code": "endpoint_http_403"},))
+        self.assertEqual(_deferred_failure_disposition(prompt),
+                         ("terminal", "context_too_large"))
+        self.assertEqual(_deferred_failure_disposition(auth),
+                         ("terminal", "authorization_denied"))
+        malformed = LocalReasoningUnavailable("response_contract_invalid")
+        self.assertEqual(_deferred_failure_disposition(malformed),
+                         ("terminal", "model_response_invalid"))
+        for status, expected in ((401, "authorization_denied"),
+                                 (403, "authorization_denied"),
+                                 (400, "model_response_invalid"),
+                                 (422, "model_response_invalid")):
+            failure = ReasoningDeferred("UNAVAILABLE", attempts=(
+                {"error_code": f"endpoint_http_{status}"},))
+            self.assertEqual(_deferred_failure_disposition(failure),
+                             ("terminal", expected))
+
+    def test_transient_failures_remain_deferred_and_backoff_is_capped(self):
+        from riverview_core.local_reasoning_provider import LocalReasoningUnavailable
+        from riverview_core.resident_execution.conversation import (
+            _deferred_failure_disposition, _deferred_retry_delay)
+        from riverview_core.resident_execution.model_router import ReasoningDeferred
+
+        for code in ("endpoint_timeout", "endpoint_unavailable", "endpoint_busy",
+                     "endpoint_http_429", "endpoint_http_503"):
+            with self.subTest(code=code):
+                failure = ReasoningDeferred("UNAVAILABLE", attempts=(
+                    {"error_code": code},))
+                self.assertEqual(_deferred_failure_disposition(failure)[0], "retry")
+        self.assertEqual([_deferred_retry_delay(attempt) for attempt in range(1, 6)],
+                         [5, 10, 20, 40, None])
+        with self.assertRaises(ValueError):
+            _deferred_retry_delay(0)
+
+    def test_resume_terminalizes_prompt_error_but_schedules_transport_failure(self):
+        from riverview_core.local_reasoning_provider import LocalReasoningUnavailable
+        from riverview_core.resident_execution.model_router import ReasoningDeferred
+
+        terminal, terminal_store = self._service_with_failure(
+            LocalReasoningUnavailable("prompt_too_large"))
+        self.assertEqual(terminal.resume_deferred(limit=1), 0)
+        self.assertEqual(terminal_store.terminal["event_type"], "response_failed")
+        self.assertEqual(terminal_store.terminal["error_code"], "context_too_large")
+        self.assertEqual(terminal_store.terminal["request_id"],
+                         "00000000-0000-0000-0000-000000000002")
+        self.assertTrue(terminal_store.retry["permanent"])
+
+        transient, transient_store = self._service_with_failure(ReasoningDeferred(
+            "UNAVAILABLE", attempts=({"error_code": "endpoint_timeout"},)))
+        with self.assertLogs("riverview_core.resident_execution.conversation",
+                             level="WARNING") as captured:
+            transient.resume_deferred(limit=1)
+        self.assertEqual(transient_store.terminal, None)
+        self.assertFalse(transient_store.retry["permanent"])
+        self.assertEqual(transient_store.retry["error_code"], "endpoint_timeout")
+        diagnostic = json.loads(captured.output[0].split(":", 2)[2])
+        self.assertEqual(diagnostic["attempt_count"], 1)
+        self.assertEqual(diagnostic["recovery_action"], "retry_scheduled")
+        self.assertEqual(diagnostic["final_disposition"], "deferred")
+        self.assertNotIn("Synthetic bounded request", captured.output[0])
+
+    def test_missing_model_binding_is_permanently_blocked(self):
+        service, store = self._service_with_failure(RuntimeError("unused"))
+        service.providers = {}
+        self.assertEqual(service.resume_deferred(limit=1), 0)
+        self.assertEqual(store.terminal, None)
+        self.assertTrue(store.retry["permanent"])
+        self.assertEqual(store.retry["error_code"], "configured_model_missing")
 
 
 @unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")
@@ -787,11 +930,68 @@ class ResidentConversationTests(unittest.TestCase):
         final = self.service.response_status(self.steward_token,
             deferred["conversation_id"], deferred["request_id"])
         self.assertEqual(final["status"], "completed")
+        self.assertEqual(self.service.resume_deferred(), 0)
         history = self.service.history(self.steward_token, deferred["conversation_id"])
         self.assertEqual(history["events"][-1]["body"], "The verified analysis is complete.")
         self.assertTrue(history["events"][-1]["metadata"]["resumed_deferred_request"])
         self.assertEqual(len([event for event in history["events"]
                               if event["event_type"] == "user_message"]), 1)
+
+    def test_transient_deferred_retry_state_survives_restart_and_blocks_after_five_attempts(self):
+        import psycopg
+        from psycopg import sql
+        from riverview_core.local_reasoning_provider import ProviderReadiness
+        from riverview_core.resident_execution.conversation import (
+            ConversationStore, ResidentConversationService)
+        from riverview_core.resident_execution.model_router import GraceModelRouter
+
+        cpu = _ChatProvider("cpu-autonomic", "c" * 64)
+        vision = _ChatProvider("vision-interim", "d" * 64)
+        reasoner = _ChatProvider("reasoning-80b", "e" * 64)
+        cpu.readiness = lambda: ProviderReadiness("READY", cpu.model, "ready")
+        vision.readiness = lambda: ProviderReadiness("READY", vision.model, "ready")
+        reasoner.readiness = lambda: ProviderReadiness("MODEL_BUSY", reasoner.model, "endpoint_http_503")
+        router = GraceModelRouter(autonomic=cpu, vision=vision, reasoning=reasoner)
+        implementation_id = "implementation:router-retry:" + uuid4().hex
+        self.registry.create_implementation(self.steward_token, implementation_id,
+            kind="model", provider_ref=router.provider_id, revision=router.model_sha256)
+        self.registry.update_office_implementation(self.steward_token, self.office_id,
+            implementation_id, expected_binding_revision=1)
+        self.service.providers = {router.provider_id: router}
+        deferred = self.service.send(self.steward_token,
+            message="Synthetic transient retry request.", client_message_id=str(uuid4()))
+        self.assertEqual(deferred["status"], "deferred")
+
+        # Reopen the conversation store to exercise persisted retry state after restart.
+        previous_store = self.store
+        self.store = ConversationStore(DSN, schema=self.schema)
+        previous_store.close()
+        self.service = ResidentConversationService(store=self.store, registry=self.registry,
+            authorizer=self.authorizer, office_id=self.office_id,
+            resident_credential=self.resident_token, providers={router.provider_id: router})
+        for attempt in range(1, 6):
+            if attempt > 1:
+                with psycopg.connect(DSN, autocommit=True) as fresh:
+                    fresh.execute(sql.SQL("""UPDATE {}.resident_deferred_retry_state
+                        SET next_attempt_at=clock_timestamp()-interval '1 second'
+                        WHERE request_id=%s""").format(sql.Identifier(self.schema)),
+                        (deferred["request_id"],))
+            self.assertEqual(self.service.resume_deferred(limit=1), 0)
+            status = self.service.response_status(self.steward_token,
+                deferred["conversation_id"], deferred["request_id"])
+            self.assertEqual(status["recovery"]["attempt_count"], attempt)
+            if attempt < 5:
+                self.assertFalse(status["recovery"]["blocked"])
+                self.assertIsNotNone(status["recovery"]["next_attempt_at"])
+            else:
+                self.assertTrue(status["recovery"]["blocked"])
+                self.assertIsNone(status["recovery"]["next_attempt_at"])
+        self.assertEqual(self.store.deferred_turns(limit=10), [])
+        history = self.service.history(self.steward_token, deferred["conversation_id"])
+        request_events = [event for event in history["events"]
+            if event["request_id"] == deferred["request_id"]]
+        self.assertEqual([event["event_type"] for event in request_events],
+                         ["user_message", "response_deferred"])
 
     def test_failed_30b_fallback_diagnostics_are_durable_and_redacted(self):
         from riverview_core.local_reasoning_provider import LocalReasoningUnavailable, ProviderReadiness
