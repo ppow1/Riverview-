@@ -2,12 +2,12 @@
 Riverview Controlled Document
 File: docs/development/P0_CONTROLLED_INTEGRATION_MANIFEST.md
 Component: P0-CONTROLLED-INTEGRATION
-File Revision: 1.0.1
+File Revision: 1.0.2
 Status: Disposable integration manifest; no merge/deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record exact integration parent, published component heads, ownership, order and verification state for P0 Grace-to-ChatGPT review
 Authority: Steward dispatch issue #120 comment 6254574126; W3 may assemble branches and run offline tests only
-History: 1.0.0 predecessor backed up in .riverview-backups/manifest.jsonl; 1.0.1 records assembled heads and verification
+History: 1.0.0 and 1.0.1 predecessors backed up in .riverview-backups/manifest.jsonl; 1.0.2 records closure-round imports and verification
 -->
 
 # P0 controlled integration manifest
@@ -112,3 +112,50 @@ assigned to C3. Integrate the published C3 follow-up when it appears, then run
 W2's combined PostgreSQL test against an isolated DSN and rerun the C4 MCP tests
 in an environment with declared test dependencies. Existing graph registration,
 revision audit, and the Steward-authorized live smoke remain separate gates.
+
+
+## Integration closure checkpoint — 2026-10-18 20:44 UTC
+
+Latest available owner branches have been assembled on the W3 integration
+branch. The code and graph verification checkpoint is `d138e35269252d5bab0d0ee99be4fd3ec1c5cfc6`.
+
+| Owner | Exact integrated head | Closure result |
+|---|---|---|
+| C3 | PR #135 `d9506bf858ff72b2942f64171eb8c15b740cee20` | Durable body-free doorbell claim and receipt are implemented; optional owner-cycle hook is present. C3 integrated verification response is still requested. |
+| C2 | PR #131 `479ea738e541dbf413236476a82b24811a7f5d44` | Default-off Grace owner-session composition is integrated. Synthetic runtime test proves one claim and one receipt; actual C2 owner verification is still requested. |
+| C4 | PR #130 `45807c642040ba3b48fdb51e6f5f3d1219e23a06` | Expired MCP submissions now return explicit non-success without response digest. Regression passed. |
+| W2 | PR #136 `8b4dcd0f9291f2c7c61bf47047063c8f33ffbea1` | Updated integrated acceptance tests are included. The branch CI was pending at this checkpoint; local PostgreSQL acceptance was skipped without a test DSN. |
+| W1 | PR #134 `c871ff069f99abe1d25dbf9d695ef64aa5ed2140` | Trace component is integrated; actual trace evidence from the W2 disposable event/status snapshot remains pending. |
+| C1 | PR #133 `01bbf1587446c6b5975cc6cfe5c5af0138c3a957` | Readiness component is integrated; actual readiness evidence on the closure branch remains pending. |
+
+### Combined validation
+
+The following focused command ran on the assembled closure branch with PyJWT 2.10.1
+in a temporary test-only dependency directory:
+
+```powershell
+$env:PYTHONPATH="$env:TEMP\rv-p0-pydeps;src"; python -m unittest tests.test_external_reasoning_mcp tests.test_external_reasoning_exchange tests.test_external_reasoning_doorbell_dispatcher tests.test_grace_doorbell_runtime_wiring tests.test_w2_p0_integrated_review_acceptance -v
+```
+
+Result: **56 tests ran, 34 passed, 22 skipped**. Skips are all PostgreSQL tests
+because `RIVERVIEW_TEST_PG_DSN` was not configured. The C4 expired-response MCP
+regression, C3 typed-subject unit checks, C2 synthetic dispatcher cases and C2
+owner-session runtime tests passed. No real browser or ChatGPT wake occurred.
+
+`python scripts/process_graph.py generate` synchronized the canonical runtime
+graph with the generated aggregate and resident reasoning view. Graph validation
+and generated-view check pass: 22 graphs / 573 nodes. Revision-control audit against
+the selected PR #119 baseline passes. `git diff --check` passes in the LF validation
+checkout; this avoids Windows `core.autocrlf` changing checksummed JSON bytes.
+
+### Remaining acceptance evidence
+
+- W2 must execute the combined PostgreSQL tests on a disposable test database and
+  report the exact integration SHA.
+- C2 and C3 must confirm the integrated owner-loop / exchange connection against
+  this exact branch.
+- W1 must run its projector against the actual W2 synthetic event/status snapshot.
+- C1 must produce its redacted go/no-go from the actual integrated runtime state.
+- These offline integration checks do not demonstrate an actual ChatGPT review.
+  No live doorbell, production activation, deployment, credential or grant change
+  was performed.
