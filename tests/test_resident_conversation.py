@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.35
+# Revision: 1.0.36
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -41,6 +41,7 @@
 # Changed: 2026-10-18 UTC | RV-GRACE-DEFERRED-STREAM-COMPLETION | Regress tool-router resumption from deferred stream state through durable terminal persistence.
 # Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Verify deterministic provider failures terminalize and transient retries back off finitely.
 # Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Verify authorization/input HTTP errors and missing model bindings stop retrying.
+# Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Advance disposable retry state before asserting successful recovery after timeout.
 # =============================================================================
 """Isolated PostgreSQL and authority tests for Grace's persistent conversation path."""
 
@@ -1246,6 +1247,13 @@ class ResidentConversationTests(unittest.TestCase):
         self.assertNotIn("What is 2 + 2?", "\n".join(captured.output))
 
         reasoning.failure = None
+        import psycopg
+        from psycopg import sql
+        with psycopg.connect(DSN, autocommit=True) as connection:
+            connection.execute(sql.SQL("""UPDATE {}.resident_deferred_retry_state
+                SET next_attempt_at=clock_timestamp()-interval '1 second'
+                WHERE request_id=%s""").format(sql.Identifier(self.schema)),
+                (deferred["request_id"],))
         self.assertEqual(self.service.resume_deferred(), 1)
         self.assertEqual(len(reasoning.calls), 2)
         sent_messages = reasoning.calls[-1]
