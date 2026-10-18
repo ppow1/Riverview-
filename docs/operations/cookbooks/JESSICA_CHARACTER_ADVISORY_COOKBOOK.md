@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/operations/cookbooks/JESSICA_CHARACTER_ADVISORY_COOKBOOK.md
 Component: JESSICA-CHARACTER-ARCHITECTURE
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Diagnose and safely recover the dormant Jessica advisory proposal adapter
 Authority: Documentation only; does not authorize resident creation, approval, grants, or production changes
 Changed: 2026-10-18 UTC | W3-DOD-6253138751 | Add bounded diagnostics, recovery, and parent visibility contract
+Changed: 2026-10-18 UTC | W3-DISPATCH-6253533433 | Correct CRLF sidecar diagnosis and link isolated graph patch proposal
 Contracts: docs/architecture/JESSICA_CHARACTER_ARCHITECTURE_RECOVERY.md; docs/components/INSTITUTIONAL_PROPOSALS.md
 History: Git commit and .riverview-backups/manifest.jsonl
 -->
@@ -65,7 +66,7 @@ python -m pytest tests/test_jessica_character_architecture.py -q
 python scripts/process_graph.py check
 ```
 
-Expected for the remediation checkout: Jessica unit tests pass; the graph command currently returns `FAIL` with `JSON file revision sidecar checksum mismatch: process_graphs/schema/riverview-process-graph.schema.json`. In this checkout the schema hash is `95596d4def44a2ff201b2b32be7ebe1890a2903c2beff8cdabbc857e31c1b41f`, but `.riverview-revisions.json` records `0c03d29216d6d3cb08e58ab7bff12b545211f78fbdffb0767118553b52025da7`; that recorded value matches `origin/main`'s schema and sidecar, isolating the failure to branch divergence. Reconciliation is assigned to W1. Do not alter `.riverview-revisions.json` or process-graph schema metadata from this W3 change. Until the owner reconciles it and W3's canonical JSON graph is registered, Jessica canonical graph validation is **BLOCKED**, not passed.
+Expected on this Windows checkout with `core.autocrlf=true`: the command may return `FAIL` with `JSON file revision sidecar checksum mismatch: process_graphs/schema/riverview-process-graph.schema.json`. This is CRLF conversion in working-copy bytes, not tracked schema divergence: the Git blob is 3,203 LF bytes with SHA-256 `0c03d29216d6d3cb08e58ab7bff12b545211f78fbdffb0767118553b52025da7`, matching the sidecar; the Windows working copy expands it to 3,257 CRLF bytes and hashes to `95596d4def44a2ff201b2b32be7ebe1890a2903c2beff8cdabbc857e31c1b41f`. W1 reports canonical-LF graph validation passes. Do not "fix" the registry by recording CRLF bytes. The Jessica canonical graph remains unregistered pending W1 coordination on the shared `.riverview-revisions.json`; see `docs/architecture/JESSICA_CANONICAL_GRAPH_INTEGRATION_PROPOSAL.md`.
 
 Check whether isolated database integration can be run without revealing a DSN:
 
@@ -82,7 +83,7 @@ At this checkout the variable is absent. Do not substitute a production or share
 3. Before changing an existing controlled file, use `python scripts/revision_control.py backup <path> --task <task-id>` and verify the reported backup SHA-256 against the saved bytes. Increment that file's revision.
 4. For parent persistence, invoke only through an approved parent integration that derives the Steward principal from its authenticated session. Never accept a caller-provided principal string as authentication. The resulting DRAFT must retain the Steward as actor and Jessica as advisory producer.
 5. Stop before database, route, principal, grant, review, approval, promotion, or production changes. Those require separate authorization and are outside this cookbook.
-6. Canonical graph recovery requires coordination with the W1 owner of `.riverview-revisions.json`: reconcile the existing schema checksum and register the Jessica graph's JSON revision, then generate and check the process graph projections. Until then, report graph validation as blocked.
+6. Canonical graph registration requires coordination with the W1 owner of `.riverview-revisions.json` to add the Jessica graph entry and regenerate the projections. Run validation from a canonical-LF checkout (`core.autocrlf=false` on Windows or an LF-native checkout); the tracked schema blob already matches its sidecar, so do not rewrite its entry to match Windows CRLF bytes. Until the shared-registry handoff is available, report W3 canonical registration as blocked.
 
 ## Revision and restoration record
 
