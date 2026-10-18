@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.12
+File Revision: 1.1.13
 Purpose: Diagnose and safely resume the persistent Grace execution service
 Authority: Read-only diagnosis first; exact grants required for every mutation
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Add service operations and recovery procedures
@@ -29,8 +29,59 @@ Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-MDWE-001 | Diagnose Code Mode
 Changed: 2026-10-16 UTC | RV-GRACE-OWNER-CODEX-HOME-001 | Diagnose owner-session startup when HOME differs from explicit CODEX_HOME and require a private bind target
 Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Diagnose preserved verifier rejection, revision recheck, and interruption-safe completion
 Changed: 2026-10-17 UTC | RV-GRACE-ACCEPTANCE-CRITERIA-001 | Diagnose criteria result-echo gaps using the authoritative persisted objective step
+Changed: 2026-10-17 UTC | RV-GRACE-CAMRUI-LOCAL-RECOVERY | Record local Camrui execution recovery, current release provenance, and authenticated live-test boundary
 -->
 # Grace Execution Service — Troubleshooting and Recovery
+
+## Camrui execution and release recovery (2026-10-17)
+
+When a runner reports that SSH to Camrui failed, first identify where the
+runner is executing:
+
+```sh
+hostname
+whoami
+pwd
+ip -br addr
+```
+
+On the verified Camrui shell these report `admin1-Default-string`, `admin1`,
+`/home/admin1`, and `192.168.1.155` on `eno1`. If those values match, use the
+local shell and the controlled deployment helper. Do not SSH to `camrui` or
+`192.168.1.155` from the same host. The observed `ssh camrui` name-resolution
+failure came from the Linux runner lacking the Windows-only alias; the direct
+LAN SSH attempt was also from the machine already hosting Camrui and did not
+indicate a remote service outage. The established machine access record is
+[`RIVERVIEW_MACHINE_CONNECTIONS_AND_COMMS5_RECOVERY_2026-10-17.md`](../operations/RIVERVIEW_MACHINE_CONNECTIONS_AND_COMMS5_RECOVERY_2026-10-17.md).
+
+Before installing a prebuilt Grace release, verify its package manifest,
+source commit, checksum, and the installed `current` target. The acceptance
+criteria package for PR #101 was built from
+`9697a593e0c5a3f6d070696c51e3a9f8c91dfca7`, but the live Grace and dashboard
+symlinks subsequently advanced to merge commit
+`6b44b39ae474e6389f26c97a2c70200f09f33e55` (PR #100), whose first parent is
+PR #101. That live release contains the acceptance-criteria resolver fix and
+later Comms5 changes. Its `SOURCE_COMMIT` is 6b44, and the installed
+`PACKAGE_SHA256SUMS` digest is
+`f19b64970be8364f159f7a24d3c35dc89c0ff73002efd3a6f85a2c4604438efd`; running
+`sha256sum -c PACKAGE_SHA256SUMS` from that release directory passed all
+entries. The stale 9697 archive has SHA-256
+`199bd6131f96b99596c37163a8b13e56a42d86cd099490c21340664cf3ee28d4`. The
+predecessor guard correctly refused that archive because current was already
+6b44. Preserve the newer release and Codex 1's Comms5 service state; never
+force a symlink to an older package to satisfy an expected predecessor.
+
+Live check on Camrui at 2026-10-17 19:59 EDT confirmed the Grace owner-session
+and status-dashboard services active, with CME healthy and 7 registered / 3
+enabled workers. A fresh objective still requires the normal authenticated
+Steward intake path and exact `objective.submit` authority. Do not substitute
+the protected authority-manager credential or a resident/service credential
+for a Steward account session. If that authenticated session is unavailable,
+record this as an intake blocker and do not report a complete autonomous cycle.
+
+See [`GRACE_CAMRUI_LOCAL_EXECUTION_RECOVERY_2026-10-17.md`](../operations/GRACE_CAMRUI_LOCAL_EXECUTION_RECOVERY_2026-10-17.md)
+for the concise failure signature, local-host decision, release provenance,
+and current live verification.
 
 ## Read-only health check
 
