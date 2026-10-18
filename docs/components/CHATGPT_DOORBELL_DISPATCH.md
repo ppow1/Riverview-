@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED DOCUMENT
 # File: docs/components/CHATGPT_DOORBELL_DISPATCH.md
 # Component: CHATGPT-DOORBELL
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Contract for waking the provider-scoped external review mailbox
 # Authority: No production activation or live ChatGPT send is authorized by this document
 
@@ -61,7 +61,8 @@ loop has not constructed/registered this optional worker, it must report
 Run the fake-exchange and fake-bridge tests with:
 
 ```bash
-PYTHONPATH=src python3 -m pytest -q tests/test_external_reasoning_doorbell_dispatcher.py tests/test_chatgpt_doorbell.py
+PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_external_reasoning_doorbell_dispatcher.py'
+PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_chatgpt_doorbell.py'
 node tests/test_riverview_doorbell_bridge_node.cjs
 ```
 

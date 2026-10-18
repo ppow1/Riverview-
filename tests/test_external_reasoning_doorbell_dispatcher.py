@@ -1,15 +1,14 @@
-# RIVERVIEW~ CONTROLLED SOURCE
+# RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_doorbell_dispatcher.py
 # Component: CHATGPT-DOORBELL
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify the durable exchange to fixed browser wake adapter
 # Execution Model: Isolated fake exchange and bridge; no browser or provider access
 # Authority: Synthetic identities only; never sends a live wake
 
 from dataclasses import dataclass
+import unittest
 from uuid import UUID
-
-import pytest
 
 from riverview_core.doorbell.dispatcher import DoorbellWakeWorker, DoorbellWorkerConfig
 
@@ -75,140 +74,129 @@ def make_worker(exchange=None, bridge=None):
     return DoorbellWakeWorker(exchange, bridge, config), exchange, bridge
 
 
-def test_success_uses_exact_claim_lineage_fixed_target_and_metadata_receipt():
-    exchange = FakeExchange()
-    bridge = FakeBridge()
-    worker, _, _ = make_worker(exchange, bridge)
+class DoorbellDispatcherTests(unittest.TestCase):
+    def test_success_uses_exact_claim_lineage_fixed_target_and_metadata_receipt(self):
+        exchange, bridge = FakeExchange(), FakeBridge()
+        worker, _, _ = make_worker(exchange, bridge)
+        result = worker.run_once()
 
-    result = worker.run_once()
+        self.assertEqual(result.status, "recorded")
+        self.assertEqual(result.trigger_status, "ready")
+        self.assertEqual(result.outcome, "submitted")
+        self.assertTrue(result.receipt_recorded)
+        self.assertEqual(exchange.claim_calls, [(PROVIDER_ID, OWNER_ID, 30)])
+        request, target = bridge.calls[0]
+        self.assertEqual(request.request_id, UUID(REQUEST_ID))
+        self.assertEqual(request.correlation_id, UUID(CORRELATION_ID))
+        self.assertEqual(target, CONVERSATION_ID)
+        self.assertEqual(exchange.receipts, [(
+            REQUEST_ID, CORRELATION_ID, PROVIDER_ID, OWNER_ID, "attempt-1",
+            "opaque-test-lease", 1, "submitted", None,
+        )])
 
-    assert result.status == "recorded"
-    assert result.trigger_status == "ready"
-    assert result.outcome == "submitted"
-    assert result.receipt_recorded is True
-    assert exchange.claim_calls == [(PROVIDER_ID, OWNER_ID, 30)]
-    request, target = bridge.calls[0]
-    assert request.request_id == UUID(REQUEST_ID)
-    assert request.correlation_id == UUID(CORRELATION_ID)
-    assert target == CONVERSATION_ID
-    assert len(exchange.receipts) == 1
-    assert exchange.receipts[0] == (
-        REQUEST_ID, CORRELATION_ID, PROVIDER_ID, OWNER_ID, "attempt-1",
-        "opaque-test-lease", 1, "submitted", None,
-    )
+    def test_no_eligible_request_does_not_call_browser_or_write_receipt(self):
+        worker, exchange, bridge = make_worker(FakeExchange(claim=None))
+        result = worker.run_once()
+        self.assertEqual((result.status, result.trigger_status), ("idle", "ready"))
+        self.assertFalse(bridge.calls)
+        self.assertFalse(exchange.receipts)
 
+    def test_bridge_replay_of_prior_verified_success_records_submitted_idempotently(self):
+        worker, exchange, bridge = make_worker(bridge=FakeBridge(WakeResult("already_succeeded")))
+        result = worker.run_once()
+        self.assertEqual((result.outcome, result.trigger_status), ("submitted", "ready"))
+        self.assertEqual(exchange.receipts[0][-2:], ("submitted", None))
+        self.assertEqual(len(bridge.calls), 1)
 
-def test_no_eligible_request_does_not_call_browser_or_write_receipt():
-    worker, exchange, bridge = make_worker(FakeExchange(claim=None))
-    result = worker.run_once()
-    assert result.status == "idle"
-    assert result.trigger_status == "ready"
-    assert not bridge.calls
-    assert not exchange.receipts
+    def test_claim_is_provider_fenced_and_invalid_provider_never_rings(self):
+        worker, exchange, bridge = make_worker(FakeExchange(claim=Claim(provider_id="other")))
+        result = worker.run_once()
+        self.assertEqual((result.status, result.trigger_status), ("invalid_claim", "blocked"))
+        self.assertEqual(result.safe_error_code, "claim_metadata_invalid")
+        self.assertFalse(bridge.calls)
+        self.assertFalse(exchange.receipts)
 
+    def test_known_pre_send_failures_are_reported_for_bounded_exchange_backoff(self):
+        for code in ("RIV-PLY-0007", "RIV-PLY-0013", "RIV-PLY-0015"):
+            with self.subTest(code=code):
+                worker, exchange, bridge = make_worker(
+                    bridge=FakeBridge(WakeResult("failed", code))
+                )
+                result = worker.run_once()
+                self.assertEqual(result.outcome, "failed")
+                self.assertEqual(result.safe_error_code, code)
+                self.assertEqual(exchange.receipts[0][-2:], ("failed", code))
+                self.assertEqual(len(bridge.calls), 1)
 
-def test_bridge_replay_of_prior_verified_success_records_submitted_idempotently():
-    worker, exchange, bridge = make_worker(bridge=FakeBridge(WakeResult("already_succeeded")))
-    result = worker.run_once()
-    assert result.outcome == "submitted"
-    assert result.trigger_status == "ready"
-    assert exchange.receipts[0][-2:] == ("submitted", None)
-    assert len(bridge.calls) == 1
+    def test_uncertain_or_unrecognized_result_is_ambiguous_and_never_auto_retried(self):
+        for code in (
+            "RIV-PLY-0003", "RIV-PLY-0004", "RIV-PLY-0009", "RIV-PLY-0014",
+            "untrusted details/token",
+        ):
+            with self.subTest(code=code):
+                worker, exchange, _ = make_worker(
+                    bridge=FakeBridge(WakeResult("failed", code))
+                )
+                result = worker.run_once()
+                expected = code if code.startswith("RIV-PLY-") else "doorbell_failure"
+                self.assertEqual(result.outcome, "ambiguous")
+                self.assertEqual(result.trigger_status, "blocked")
+                self.assertEqual(result.safe_error_code, expected)
+                self.assertEqual(exchange.receipts[0][-2:], ("ambiguous", expected))
 
+    def test_unexpected_bridge_exception_is_redacted_and_recorded_ambiguous(self):
+        worker, exchange, _ = make_worker(
+            bridge=FakeBridge(error=RuntimeError("private proposal text and token"))
+        )
+        result = worker.run_once()
+        self.assertEqual(result.outcome, "ambiguous")
+        self.assertEqual(result.safe_error_code, "doorbell_exception")
+        self.assertNotIn("private", repr(result))
+        self.assertEqual(exchange.receipts[0][-2:], ("ambiguous", "doorbell_exception"))
 
-def test_claim_is_provider_fenced_and_invalid_provider_never_rings():
-    claim = Claim(provider_id="different-provider")
-    worker, exchange, bridge = make_worker(FakeExchange(claim=claim))
-    result = worker.run_once()
-    assert result.status == "invalid_claim"
-    assert result.trigger_status == "blocked"
-    assert result.safe_error_code == "claim_metadata_invalid"
-    assert not bridge.calls
-    assert not exchange.receipts
+    def test_claim_payload_is_never_forwarded_to_browser_or_result(self):
+        claim = {
+            **Claim().__dict__,
+            "request_payload": {"proposal": "private synthetic body"},
+            "review_subject": {"proposal": "private subject"},
+        }
+        exchange, bridge = FakeExchange(claim=claim), FakeBridge()
+        worker, _, _ = make_worker(exchange, bridge)
+        result = worker.run_once()
+        self.assertEqual(result.status, "recorded")
+        self.assertNotIn("private synthetic", repr(bridge.calls))
+        self.assertNotIn("private synthetic", repr(result))
 
+    def test_claim_once_then_idle_prevents_sequential_duplicate_wake(self):
+        worker, exchange, bridge = make_worker()
+        first, second = worker.run_once(), worker.run_once()
+        self.assertEqual(first.outcome, "submitted")
+        self.assertEqual(second.status, "idle")
+        self.assertEqual(len(bridge.calls), 1)
+        self.assertEqual(len(exchange.receipts), 1)
 
-@pytest.mark.parametrize("failure_class", [
-    "RIV-PLY-0007", "RIV-PLY-0013", "RIV-PLY-0015",
-])
-def test_known_pre_send_failures_are_reported_safely_for_exchange_backoff(failure_class):
-    worker, exchange, bridge = make_worker(
-        bridge=FakeBridge(WakeResult("failed", failure_class))
-    )
-    result = worker.run_once()
-    assert result.outcome == "failed"
-    assert result.safe_error_code == failure_class
-    assert exchange.receipts[0][-2:] == ("failed", failure_class)
-    assert len(bridge.calls) == 1
+    def test_receipt_write_failure_is_redacted_and_reported_unavailable(self):
+        worker, _, _ = make_worker(FakeExchange(receipt_error=True))
+        result = worker.run_once()
+        self.assertEqual((result.status, result.trigger_status),
+                         ("receipt_unavailable", "unavailable"))
+        self.assertFalse(result.receipt_recorded)
+        self.assertEqual(result.safe_error_code, "receipt_write_failed")
+        self.assertNotIn("private details", repr(result))
 
-
-@pytest.mark.parametrize("failure_class", [
-    "RIV-PLY-0003", "RIV-PLY-0004", "RIV-PLY-0009", "RIV-PLY-0014", "untrusted details/token",
-])
-def test_uncertain_or_unrecognized_results_are_ambiguous_and_never_auto_retried(failure_class):
-    worker, exchange, _ = make_worker(
-        bridge=FakeBridge(WakeResult("failed", failure_class))
-    )
-    result = worker.run_once()
-    expected = failure_class if failure_class.startswith("RIV-PLY-") else "doorbell_failure"
-    assert result.outcome == "ambiguous"
-    assert result.trigger_status == "blocked"
-    assert result.safe_error_code == expected
-    assert exchange.receipts[0][-2:] == ("ambiguous", expected)
-
-
-def test_unexpected_bridge_exception_is_redacted_and_durably_marked_ambiguous():
-    worker, exchange, _ = make_worker(
-        bridge=FakeBridge(error=RuntimeError("private proposal text and token"))
-    )
-    result = worker.run_once()
-    assert result.outcome == "ambiguous"
-    assert result.safe_error_code == "doorbell_exception"
-    assert "private" not in repr(result)
-    assert exchange.receipts[0][-2:] == ("ambiguous", "doorbell_exception")
-
-
-def test_claim_payload_is_never_forwarded_to_browser_or_result():
-    claim = {
-        **Claim().__dict__,
-        "request_payload": {"proposal": "private synthetic body"},
-        "review_subject": {"proposal": "private subject"},
-    }
-    exchange = FakeExchange(claim=claim)
-    bridge = FakeBridge()
-    worker, _, _ = make_worker(exchange, bridge)
-    result = worker.run_once()
-    assert result.status == "recorded"
-    assert "private synthetic" not in repr(bridge.calls)
-    assert "private synthetic" not in repr(result)
-
-
-def test_claim_once_then_idle_prevents_duplicate_wake_in_sequential_replay():
-    worker, exchange, bridge = make_worker()
-    first = worker.run_once()
-    second = worker.run_once()
-    assert first.outcome == "submitted"
-    assert second.status == "idle"
-    assert len(bridge.calls) == 1
-    assert len(exchange.receipts) == 1
-
-
-def test_receipt_write_failure_is_reported_without_exposing_database_exception():
-    worker, _, _ = make_worker(FakeExchange(receipt_error=True))
-    result = worker.run_once()
-    assert result.status == "receipt_unavailable"
-    assert result.trigger_status == "unavailable"
-    assert result.receipt_recorded is False
-    assert result.safe_error_code == "receipt_write_failed"
-    assert "private details" not in repr(result)
+    def test_worker_configuration_fails_closed(self):
+        cases = (
+            {"provider_id": "", "owner_id": OWNER_ID, "designated_conversation_id": CONVERSATION_ID},
+            {"provider_id": PROVIDER_ID, "owner_id": "", "designated_conversation_id": CONVERSATION_ID},
+            {"provider_id": PROVIDER_ID, "owner_id": OWNER_ID, "designated_conversation_id": "bad"},
+            {"provider_id": PROVIDER_ID, "owner_id": OWNER_ID,
+             "designated_conversation_id": CONVERSATION_ID, "lease_seconds": True},
+        )
+        for kwargs in cases:
+            with self.subTest(kwargs=kwargs):
+                with self.assertRaises(ValueError):
+                    DoorbellWorkerConfig(**kwargs)
 
 
-@pytest.mark.parametrize("kwargs", [
-    {"provider_id": "", "owner_id": OWNER_ID, "designated_conversation_id": CONVERSATION_ID},
-    {"provider_id": PROVIDER_ID, "owner_id": "", "designated_conversation_id": CONVERSATION_ID},
-    {"provider_id": PROVIDER_ID, "owner_id": OWNER_ID, "designated_conversation_id": "not-a-uuid"},
-    {"provider_id": PROVIDER_ID, "owner_id": OWNER_ID, "designated_conversation_id": CONVERSATION_ID,
-     "lease_seconds": True},
-])
-def test_worker_configuration_fails_closed(kwargs):
-    with pytest.raises(ValueError):
-        DoorbellWorkerConfig(**kwargs)
+if __name__ == "__main__":
+    unittest.main()

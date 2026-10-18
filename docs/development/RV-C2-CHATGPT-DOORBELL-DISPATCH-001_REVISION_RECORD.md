@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED DOCUMENT
 # File: docs/development/RV-C2-CHATGPT-DOORBELL-DISPATCH-001_REVISION_RECORD.md
 # Component: CHATGPT-DOORBELL
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Record implementation and isolated validation for the C2 wake dispatcher
 # Execution Model: Engineering revision record
 # Observability: Source, tests, and parent commits recorded without provider content
@@ -41,10 +41,13 @@ injected; no identity, credential, or grant is fabricated.
 
 ## Validation
 
-Pending final exact-head checks. Focused commands:
+The initial GitHub exact-head run found that repository CI uses `unittest`, not
+`pytest`. The focused tests have been converted to `unittest`; the retry and
+final exact-head run are pending. Focused commands:
 
 ```bash
-PYTHONPATH=src python3 -m pytest -q tests/test_external_reasoning_doorbell_dispatcher.py tests/test_chatgpt_doorbell.py
+PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_external_reasoning_doorbell_dispatcher.py'
+PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_chatgpt_doorbell.py'
 node tests/test_riverview_doorbell_bridge_node.cjs
 python3 -m compileall -q src/riverview_core/doorbell
 ```
