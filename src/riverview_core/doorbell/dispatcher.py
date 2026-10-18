@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/doorbell/dispatcher.py
 # Component: CHATGPT-DOORBELL
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Wake the fixed ChatGPT browser target for one durably claimed review
 # Inputs/Outputs: Provider-scoped metadata claim / metadata-only durable receipt
 # Execution Model: One bounded poll cycle called by the existing resident owner loop
@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping, Protocol
 from uuid import UUID
 
@@ -51,7 +52,7 @@ class DoorbellWorkerConfig:
     provider_id: str
     owner_id: str
     designated_conversation_id: str
-    lease_seconds: int = 30
+    lease_seconds: int = 90
     timeout_seconds: int = 60
 
     def __post_init__(self) -> None:
@@ -65,8 +66,10 @@ class DoorbellWorkerConfig:
             raise ValueError("designated conversation must be a UUID") from exc
         if type(self.lease_seconds) is not int or not 1 <= self.lease_seconds <= 120:
             raise ValueError("doorbell lease is outside the bounded range")
-        if type(self.timeout_seconds) is not int or not 1 <= self.timeout_seconds <= 120:
+        if type(self.timeout_seconds) is not int or not 1 <= self.timeout_seconds <= 110:
             raise ValueError("doorbell timeout is outside the bounded range")
+        if self.lease_seconds < self.timeout_seconds + 10:
+            raise ValueError("delivery lease must exceed bridge timeout and completion margin")
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,8 +90,9 @@ def _claim_value(claim: Any, name: str) -> Any:
     return getattr(claim, name, None)
 
 
-def _validated_claim(claim: Any, expected_provider: str) -> tuple[UUID, UUID, str, str, int]:
-    """Read only the six metadata fields required by the agreed claim contract."""
+def _validated_claim(claim: Any, expected_provider: str,
+                     minimum_lease_seconds: int) -> tuple[UUID, UUID, str, str, int]:
+    """Read only claim metadata and require enough fenced-lease time to finish a wake."""
     try:
         request_id = UUID(str(_claim_value(claim, "request_id")))
         correlation_id = UUID(str(_claim_value(claim, "correlation_id")))
@@ -106,6 +110,15 @@ def _validated_claim(claim: Any, expected_provider: str) -> tuple[UUID, UUID, st
         raise ValueError("claim_lease_invalid")
     if type(fence) is not int or fence < 1:
         raise ValueError("claim_fence_invalid")
+    lease_until = _claim_value(claim, "lease_until")
+    if isinstance(lease_until, str):
+        try:
+            lease_until = datetime.fromisoformat(lease_until.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError("claim_lease_expiry_invalid") from exc
+    if (not isinstance(lease_until, datetime) or lease_until.tzinfo is None
+            or lease_until <= datetime.now(timezone.utc) + timedelta(seconds=minimum_lease_seconds)):
+        raise ValueError("claim_lease_expiry_invalid")
     return request_id, correlation_id, attempt_id, lease_token, fence
 
 
@@ -146,7 +159,7 @@ class DoorbellWakeWorker:
 
         try:
             request_id, correlation_id, attempt_id, lease_token, fence = _validated_claim(
-                claim, self.config.provider_id
+                claim, self.config.provider_id, self.config.timeout_seconds + 5
             )
         except ValueError:
             # Leave an invalid claim to its durable lease expiry; never ring an unbound request.

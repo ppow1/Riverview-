@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.4
+# Revision: 1.2.5
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -30,6 +30,7 @@
 # Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-INTERNAL-TOOLS-001 | Bind Grace's reasoning router to the existing Comms5 read backend
 # Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Resolve external-reasoning authority through the active institutional office snapshot
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Attach the persistent Grace cycle to existing provider-scoped external reasoning exchanges
+# Changed: 2026-10-18 UTC | RV-C2-DOORBELL-RUNTIME-WIRING-001 | Optionally compose the C2 wake worker into the existing Grace owner cycle
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_runtime_provider_wiring.py; tests/test_grace_execution.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -81,6 +82,8 @@ from riverview_core.resident_execution.conversation import (
 from riverview_core.status_dashboard.projection import DashboardProjection
 from riverview_core.resident_execution.operational_context import GraceOperationalContext
 from riverview_core.resident_execution.internal_tools import GraceInternalTools
+from riverview_core.doorbell.runtime import (DoorbellRuntimeConfigurationError,
+    create_configured_doorbell_worker)
 
 
 def resident_reasoning_timeout(environ):
@@ -512,6 +515,15 @@ def main() -> int:
                     source_worker_adapter = None
                 logging.warning(json.dumps({"event": "source_change_worker_unavailable",
                     "failure_type": type(exc).__name__}, sort_keys=True))
+        doorbell_worker = create_configured_doorbell_worker(os.environ, external_exchange)
+        service_options = {}
+        if doorbell_worker is not None:
+            # Older releases remain compatible while the hook is disabled. If an
+            # operator opts in before the owner-loop hook is present, fail closed.
+            import inspect
+            if "doorbell_worker" not in inspect.signature(GraceExecutionService).parameters:
+                raise WorkerServiceConfigurationError("doorbell_owner_loop_hook_unavailable")
+            service_options["doorbell_worker"] = doorbell_worker
         service = GraceExecutionService(pipeline, adapter, engine,
             dispatch_credential=dispatch_token, authority_ref=scope_ref,
             verifier_id=verifier_id, verifier_credential=verifier_token,
@@ -525,7 +537,8 @@ def main() -> int:
             proposal_lifecycle=proposal_lifecycle,
             external_reasoning_exchange=external_exchange,
             external_reasoning_authorize=external_authorize,
-            external_reasoning_principal=resident_principal_id)
+            external_reasoning_principal=resident_principal_id,
+            **service_options)
         if codex_auth_mode == "supervised-chatgpt":
             if not re.search(r"80b", (reasoning_model or "").lower()) or not providers:
                 raise WorkerServiceConfigurationError("supervised_mode_requires_configured_80b_reasoner")
@@ -573,6 +586,10 @@ def main() -> int:
         service.run_forever(shutdown_requested=stop.is_set,
             poll_seconds=float(os.environ.get("RIVERVIEW_GRACE_POLL_SECONDS", "1")))
         return 0
+    except DoorbellRuntimeConfigurationError as exc:
+        logging.error(json.dumps({"event": "grace_service_configuration_error",
+                                  "failure_code": str(exc)}, sort_keys=True))
+        return 2
     except WorkerServiceConfigurationError as exc:
         logging.error(json.dumps({"event": "grace_service_configuration_error",
                                   "failure_code": str(exc)}, sort_keys=True))

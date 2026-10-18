@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_FLOW.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.17
+File Revision: 1.0.18
 Purpose: Generated focused process view for resident reasoning routing
 Authority: Graph-generated view; canonical source is JSON
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add graph-generated resident reasoning flow
@@ -70,6 +70,14 @@ flowchart LR
     g_rv_resident_reasoning_runtime_exchange_mcp_pull_9d19168a["Provider pulls bounded eligible request context; transport delivery lease and acknowledgement are durable"]
     g_rv_resident_reasoning_runtime_exchange_mcp_status_6c99e3ba["Expose provider-owned body-free state, digest, provenance and sanitized diagnostic projection"]
     g_rv_resident_reasoning_runtime_external_escalation_intent_8882f798{"Did the bound model return a typed advisory intent for a configured provider?"}
+    g_rv_resident_reasoning_runtime_doorbell_owner_loop_poll_2296c492["Grace owner-session cycle polls the optional fixed-wake adapter before continuing its existing exchange and Engineering work"]
+    g_rv_resident_reasoning_runtime_doorbell_runtime_opt_in_dd047c1c{"Is the worker explicitly enabled and bound to an already registered provider and exact existing target?"}
+    g_rv_resident_reasoning_runtime_doorbell_disabled_791a9791["Default-off or incomplete configuration leaves the durable exchange untouched and performs no browser action"]
+    g_rv_resident_reasoning_runtime_doorbell_durable_claim_1e6b34cd["C3 claims one due request with existing exchange lease, owner identity and monotonic fence; claim contains metadata only"]
+    g_rv_resident_reasoning_runtime_doorbell_fixed_wake_30192d7f["C2 invokes only the established browser bridge against its configured conversation target"]
+    g_rv_resident_reasoning_runtime_doorbell_durable_receipt_3c9db306["C3 atomically records one fenced receipt and applies existing retry, ambiguity and state-transition rules"]
+    g_rv_resident_reasoning_runtime_doorbell_worker_failure_363ede17[["Configuration, exchange, bridge or receipt failure is sanitized and isolated from the remainder of Grace cycle"]]
+    g_rv_resident_reasoning_runtime_doorbell_lease_recovery_e2646f65["Keep existing durable request; recover only through lease expiry and exchange retry policy; never infer wake success"]
   end
   g_rv_worker_adapter_deterministic_attempt_ground_c2193741["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_institutional_authority_identity_and_grants_office_state_e5a8ca22["Registered target<br/>rv:institutional-authority:identity-and-grants"]
@@ -137,5 +145,17 @@ flowchart LR
   g_rv_resident_reasoning_runtime_persistence_gate_d9f96702 -->|durable typed plan returned| g_rv_resident_reasoning_runtime_external_escalation_intent_8882f798
   g_rv_resident_reasoning_runtime_external_escalation_intent_8882f798 -->|intent targets an explicitly configured provider| g_rv_resident_reasoning_runtime_task_escalation_contract_dec2e604
   g_rv_resident_reasoning_runtime_external_escalation_intent_8882f798 -->|no escalation intent; proposal remains unapproved| g_rv_resident_reasoning_runtime_proposal_only_27f4e7fa
+  g_rv_resident_reasoning_runtime_exchange_outbox_7bebb762 -->|independent bounded owner-loop polling; no provider call in the exchange| g_rv_resident_reasoning_runtime_doorbell_owner_loop_poll_2296c492
+  g_rv_resident_reasoning_runtime_doorbell_owner_loop_poll_2296c492 -->|the configured owner cycle invokes the optional adapter hook| g_rv_resident_reasoning_runtime_doorbell_runtime_opt_in_dd047c1c
+  g_rv_resident_reasoning_runtime_doorbell_runtime_opt_in_dd047c1c -->|diagnostic_branch: disabled by default or required configuration is not present| g_rv_resident_reasoning_runtime_doorbell_disabled_791a9791
+  g_rv_resident_reasoning_runtime_doorbell_runtime_opt_in_dd047c1c -->|explicit opt-in with provider already registered and target config valid| g_rv_resident_reasoning_runtime_doorbell_durable_claim_1e6b34cd
+  g_rv_resident_reasoning_runtime_doorbell_durable_claim_1e6b34cd -->|one due metadata-only claim is returned with enough lease remaining| g_rv_resident_reasoning_runtime_doorbell_fixed_wake_30192d7f
+  g_rv_resident_reasoning_runtime_doorbell_fixed_wake_30192d7f -->|verification: the fixed bridge reports bounded success, known pre-send failure or ambiguity| g_rv_resident_reasoning_runtime_doorbell_durable_receipt_3c9db306
+  g_rv_resident_reasoning_runtime_doorbell_owner_loop_poll_2296c492 -->|diagnostic_branch: optional adapter reports a bounded failure without stopping the owner cycle| g_rv_resident_reasoning_runtime_doorbell_worker_failure_363ede17
+  g_rv_resident_reasoning_runtime_doorbell_runtime_opt_in_dd047c1c -->|diagnostic_branch: invalid opt-in configuration fails startup closed| g_rv_resident_reasoning_runtime_doorbell_worker_failure_363ede17
+  g_rv_resident_reasoning_runtime_doorbell_durable_claim_1e6b34cd -->|recovery_route: claim or receipt is unavailable; existing fenced lease remains authoritative| g_rv_resident_reasoning_runtime_doorbell_lease_recovery_e2646f65
+  g_rv_resident_reasoning_runtime_doorbell_fixed_wake_30192d7f -->|recovery_route: bridge result is uncertain; do not issue an automatic second wake| g_rv_resident_reasoning_runtime_doorbell_lease_recovery_e2646f65
+  g_rv_resident_reasoning_runtime_doorbell_durable_receipt_3c9db306 -->|recovery_route: receipt persistence fails; request can recover only through lease expiry| g_rv_resident_reasoning_runtime_doorbell_lease_recovery_e2646f65
+  g_rv_resident_reasoning_runtime_doorbell_lease_recovery_e2646f65 -->|recovery_route: subsequent cycle observes only work eligible under durable exchange policy| g_rv_resident_reasoning_runtime_doorbell_owner_loop_poll_2296c492
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
