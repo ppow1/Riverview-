@@ -32,7 +32,7 @@ The live GitHub review state was checked for PRs #109–#115 and #119 on 2026-10
 | #115 | Integrated reasoning candidate retaining #113 contracts and selected #114 fixes | `94592f26ad9af35b8cf609fce39e786c8c3f6e19` | #113 branch |
 | #119 | Restricted-role ACL correction for migration 0013 | `97128626df967bc992696dca38eaa7116f3616e9` | #115 branch |
 
-PRs #109–#114 are dependency/source evidence; #115 is the review candidate and #119 adds the ACL fix on top. Their passing checks establish source-candidate CI only. The most recent relevant controlled-checkout runs are [#115 run 39132606066](https://github.com/ppow1/Riverview-/actions/runs/39132606066) and [#119 run 39136300985](https://github.com/ppow1/Riverview-/actions/runs/39136300985). No merge has occurred.
+Fetched-head ancestry was verified in the isolated worktree: the current heads of #109, #110, #111 and #112 are ancestors of #113; #113 is an ancestor of #115; #115 is an ancestor of #119. The current #114 head is **not** an ancestor of #115; #115 carries only the reviewed provider-response corrections, as intended, while retaining #113's contracts. PRs #109–#114 are dependency/source evidence; #115 is the review candidate and #119 adds the ACL fix on top. Their passing checks establish source-candidate CI only. The most recent relevant controlled-checkout runs are [#115 run 39132606066](https://github.com/ppow1/Riverview-/actions/runs/39132606066) and [#119 run 39136300985](https://github.com/ppow1/Riverview-/actions/runs/39136300985). No merge has occurred.
 
 ## Verified technical evidence
 

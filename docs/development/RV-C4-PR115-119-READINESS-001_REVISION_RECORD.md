@@ -19,7 +19,10 @@ rehearsal: package migration directories applied in order and reapplied
 idempotently; the actual restricted `riverview_core` role passed permitted
 retry-state operations and was denied identity update/delete/truncate; the
 package pointer switched from a synthetic predecessor to the candidate and
-back; and three focused PostgreSQL lifecycle/verification tests passed.
+back; and three focused PostgreSQL lifecycle/verification tests passed. The
+current fetched-head ancestry was also checked: #109–#112 → #113 → #115 → #119
+are ancestor relationships, while current #114 is not an ancestor of #115 and
+only the reviewed provider-response corrections are integrated there.
 
 No runtime code, migration, credential, grant, service configuration, graph,
 or production system was changed. Existing C4 57-test isolated worker execution
