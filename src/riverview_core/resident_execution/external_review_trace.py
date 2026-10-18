@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_review_trace.py
 # Component: EXTERNAL-REVIEW-OBSERVABILITY
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Build a redacted, read-only trace for exact external proposal reviews
 # Execution Model: Pure projection of bounded metadata; no network or database access
 # Observability: Correlated stage state, hashes, timestamps and sanitized blockers
 # Dependencies: Python standard library
 # Authority: Observational only; cannot authorize, deliver, consume, or finalize work
-# Changed: 2026-10-18 UTC | RV-EXTERNAL-REVIEW-TRACE-001 | Initial metadata-only trace
+# Changed: 2026-10-18 UTC | RV-P0-W1-INTEGRATION-EVIDENCE | Align exact C3 successor and office actor mapping
 # Tests: tests/test_external_review_trace.py
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -234,7 +234,8 @@ def _doorbell_from_exchange_events(exchange: dict[str, Any], request_id: str,
 
 
 def _grace_event_metadata(grace: dict[str, Any], exchange: dict[str, Any],
-                          request_id: str, correlation_id: str, subject_id: str):
+                          request_id: str, correlation_id: str, subject_id: str,
+                          subject_revision: int, subject_sha256: str):
     """Map C3's allowlisted Grace events and exchange consumption event."""
     result = dict(grace)
     events = grace.get("events", [])
@@ -253,22 +254,32 @@ def _grace_event_metadata(grace: dict[str, Any], exchange: dict[str, Any],
             raise TraceInputError("invalid_grace_event_payload")
         if payload.get("request_id") != request_id or payload.get("correlation_id") != correlation_id:
             continue
-        if payload.get("subject_id") is not None and payload.get("subject_id") != subject_id:
-            result["event_subject_mismatch"] = True
-        revision = payload.get("revision")
-        subject_hash = payload.get("subject_sha256")
-        if revision is not None:
-            result["reviewed_revision"] = revision
-        if subject_hash is not None:
-            result["review_sha256"] = subject_hash
+        actor = event.get("actor_id")
+        if not isinstance(actor, str) or not actor.startswith("office:"):
+            result["event_actor_mismatch"] = True
+            continue
         result["evaluated_at"] = event.get("occurred_at")
-        decision = "blocked" if event["event_type"].endswith("review_blocked") else payload.get("decision")
-        result["decision"] = "accept" if decision == "finish" else decision
         if event["event_type"].endswith("revised"):
-            result["revised_version"] = revision + 1 if type(revision) is int else None
-            result["revised_sha256"] = payload.get("proposal_sha256")
+            # C3's revised event identifies the successor subject in subject_id,
+            # revision and subject_sha256; the request/correlation still bind
+            # the evaluation to this parent review.
+            result["reviewed_revision"] = subject_revision
+            result["review_sha256"] = subject_sha256
+            result["decision"] = "revise"
+            result["revised_version"] = payload.get("revision")
+            result["revised_sha256"] = payload.get("subject_sha256")
             result["successor_request_id"] = payload.get("successor_request_id")
             result["successor_correlation_id"] = payload.get("successor_correlation_id")
+        else:
+            if (payload.get("subject_id") != subject_id or
+                    payload.get("revision") != subject_revision or
+                    payload.get("subject_sha256") != subject_sha256):
+                result["event_subject_mismatch"] = True
+                continue
+            decision = "blocked" if event["event_type"].endswith("review_blocked") else payload.get("decision")
+            result["reviewed_revision"] = payload.get("revision")
+            result["review_sha256"] = payload.get("subject_sha256")
+            result["decision"] = "accept" if decision == "finish" else decision
     exchange_events = exchange.get("events", [])
     if not isinstance(exchange_events, list) or len(exchange_events) > 2000:
         raise TraceInputError("invalid_exchange_events")
@@ -298,7 +309,8 @@ def _round(item: Any, index: int):
     request_id = _uuid(exchange.get("request_id"), "request_id")
     correlation_id = _uuid(exchange.get("correlation_id"), "correlation_id")
     exchange_state = _state(exchange.get("state", exchange.get("delivery_state")), "exchange")
-    grace = _grace_event_metadata(grace, exchange, request_id, correlation_id, review_id)
+    grace = _grace_event_metadata(grace, exchange, request_id, correlation_id,
+                                  review_id, version, subject_hash)
     doorbell_owner_id = _text(item.get("doorbell_owner_id"), "doorbell_owner_id",
                               required=True, max_length=160)
     doorbell = item.get("doorbell")
@@ -364,6 +376,8 @@ def _round(item: Any, index: int):
         blockers.append("grace_review_revision_mismatch")
     if grace.get("event_subject_mismatch") is True:
         blockers.append("grace_review_subject_id_mismatch")
+    if grace.get("event_actor_mismatch") is True:
+        blockers.append("grace_event_actor_unverified")
 
     evaluated_at = _timestamp(grace.get("evaluated_at"), "evaluated_at")
     consumed_at = _timestamp(grace.get("consumed_at"), "consumed_at")
@@ -390,6 +404,9 @@ def _round(item: Any, index: int):
         blockers.append("revision_not_durably_consumed")
     if decision == "revise" and (revised_hash is None or revised_version is None):
         blockers.append("revision_not_recorded")
+    if decision == "revise" and (grace.get("successor_request_id") is None or
+                                  grace.get("successor_correlation_id") is None):
+        blockers.append("revision_successor_identity_missing")
     if decision in {"reject", "blocked"}:
         blockers.append(f"grace_{decision}")
 
@@ -501,6 +518,9 @@ def build_report(bundle: Any) -> dict[str, Any]:
             if (current_round["review_version"] != previous["revised_version"] or
                     current_round["review_sha256"] != previous["revised_sha256"]):
                 raise TraceInputError("revision_successor_subject_mismatch")
+            if (current_round["request_id"] != previous["successor_request_id"] or
+                    current_round["correlation_id"] != previous["successor_correlation_id"]):
+                raise TraceInputError("revision_successor_identity_mismatch")
     current = rendered[-1]
     if any(item["state"] == "accepted" for item in rendered[:-1]):
         # Acceptance followed by another round is contradictory unless the old

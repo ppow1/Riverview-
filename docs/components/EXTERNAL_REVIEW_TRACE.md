@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REVIEW_TRACE.md
 Component: EXTERNAL-REVIEW-OBSERVABILITY
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Define the read-only review lineage report and operator procedure
 Authority: Observation only; no provider, mailbox, browser, Grace, or work-order mutation
-Changed: 2026-10-18 UTC | RV-EXTERNAL-REVIEW-TRACE-001 | Initial report contract
+Changed: 2026-10-18 UTC | RV-P0-W1-INTEGRATION-EVIDENCE | Align trace with published C3 event source
 Tests: tests/test_external_review_trace.py
 History: Git and .riverview-backups/manifest.jsonl
 -->
@@ -59,10 +59,13 @@ Each round contains:
   `subject_sha256`, `response_sha256`, `proposal_sha256`, and `decision`
   (`finish`, `revise`, or `blocked`). Revision events also carry
   `successor_request_id` and `successor_correlation_id`; W1 maps the result
-  `proposal_sha256` to the next subject digest and increments the current
-  revision by one. Durable `grace_consumed` time is taken from the correlated
-  exchange event. The W1 fixture tests this mapping; event actor and owner ID
-  are still unverified against a live runtime.
+  `subject_id`, `revision`, and `subject_sha256` in that event to the successor
+  subject. `proposal_sha256` is retained as a distinct proposal-content digest
+  and is not treated as the canonical review-subject digest. The parent review
+  remains bound by its durable request/correlation pair and stored subject.
+  The next round must match both successor IDs. Durable `grace_consumed` time
+  is taken from the correlated exchange event. The W1 fixture tests this
+  mapping; event actor and owner ID are still unverified against a live runtime.
 
 The W1 projector accepts only these metadata fields. Future owner adapters must
 map their authoritative records to this shape without weakening correlation or
@@ -129,6 +132,23 @@ and `blockers`; `wake_submitted` alone is never completion. The report hashes
 its sanitized output for evidence comparison. The input snapshot may contain
 private fields from its source; the report will not copy unknown fields, but the
 operator remains responsible for handling/deleting the input safely.
+
+## Troubleshooting
+
+- `doorbell_owner_mismatch`: compare the durable receipt's `actor_id` with the
+  exact injected C2 `owner_id`; do not substitute the MCP principal or infer an
+  owner from a process name.
+- `grace_event_actor_unverified`: the matching objective event must have an
+  `office:` actor. The report does not accept an MCP/provider actor as Grace's
+  decision.
+- `grace_review_subject_id_mismatch` or
+  `grace_review_revision_mismatch`: compare the reviewed event's subject ID,
+  revision and digest with the exact request snapshot.
+- `revision_successor_identity_mismatch` or
+  `revision_successor_subject_mismatch`: reconcile the next request and subject
+  against the IDs, revision and canonical subject digest in the revised event.
+- `doorbell_receipt_evidence_incomplete`: the matching owner receipt needs its
+  attempt ID and timestamp; a lease claim alone is not an attempted wake.
 
 ## Installation, rollback, and limits
 

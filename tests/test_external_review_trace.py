@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_review_trace.py
 # Component: EXTERNAL-REVIEW-OBSERVABILITY
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify exact review correlation and redacted operator projection
 # Execution Model: Isolated synthetic metadata; no network or database access
 # Observability: unittest assertions over sanitized trace reports
 # Dependencies: Python standard library
 # Authority: Tests never contact browser, mailbox, ChatGPT, or production
-# Changed: 2026-10-18 UTC | RV-EXTERNAL-REVIEW-TRACE-001 | Initial trace tests
+# Changed: 2026-10-18 UTC | RV-P0-W1-INTEGRATION-EVIDENCE | Test C3 successor lineage and actor attribution
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
 
@@ -188,6 +188,7 @@ class ExternalReviewTraceTests(unittest.TestCase):
         record = round_record()
         record["grace"] = {"events": [{
             "event_type": "resident.reasoning.external_proposal_reviewed",
+            "actor_id": "office:synthetic-grace",
             "occurred_at": "2026-10-18T15:00:04-04:00",
             "payload": {"request_id": REQUEST, "correlation_id": CORRELATION,
                         "subject_id": "proposal-review:synthetic-1", "revision": 1,
@@ -206,6 +207,7 @@ class ExternalReviewTraceTests(unittest.TestCase):
         record = round_record()
         record["grace"] = {"events": [{
             "event_type": "resident.reasoning.external_proposal_review_blocked",
+            "actor_id": "office:synthetic-grace",
             "occurred_at": "2026-10-18T15:00:04-04:00",
             "payload": {"request_id": REQUEST, "correlation_id": CORRELATION,
                         "subject_id": "proposal-review:synthetic-1", "revision": 1,
@@ -220,11 +222,12 @@ class ExternalReviewTraceTests(unittest.TestCase):
         record = round_record(decision="revise")
         record["grace"] = {"events": [{
             "event_type": "resident.reasoning.external_proposal_revised",
+            "actor_id": "office:synthetic-grace",
             "occurred_at": "2026-10-18T15:00:04-04:00",
             "payload": {"request_id": REQUEST, "correlation_id": CORRELATION,
-                        "subject_id": "proposal-review:synthetic-1", "revision": 1,
-                        "subject_sha256": HASH, "response_sha256": RESPONSE_HASH,
-                        "proposal_sha256": "c" * 64, "decision": "revise",
+                        "subject_id": "proposal-review:synthetic-2", "revision": 2,
+                        "subject_sha256": "c" * 64, "response_sha256": RESPONSE_HASH,
+                        "proposal_sha256": "d" * 64, "decision": "revise",
                         "successor_request_id": "c44d68af-1d9c-458f-829d-9e2fced39894",
                         "successor_correlation_id": "99339a0a-bc79-463d-abd8-c8b2e0f8fe91"},
         }]}
@@ -238,6 +241,40 @@ class ExternalReviewTraceTests(unittest.TestCase):
         self.assertEqual(report["rounds"][0]["revised_sha256"], "c" * 64)
         self.assertEqual(report["rounds"][0]["successor_request_id"],
                          "c44d68af-1d9c-458f-829d-9e2fced39894")
+        successor = copy.deepcopy(round_record())
+        successor["review_subject"].update(subject_id="proposal-review:synthetic-2",
+                                             revision=2, sha256="c" * 64)
+        successor["exchange"].update(request_id="c44d68af-1d9c-458f-829d-9e2fced39894",
+                                      correlation_id="99339a0a-bc79-463d-abd8-c8b2e0f8fe91")
+        successor["provider"].update(request_id=successor["exchange"]["request_id"],
+                                      correlation_id=successor["exchange"]["correlation_id"],
+                                      review_subject_sha256="c" * 64)
+        successor["grace"].update(request_id=successor["exchange"]["request_id"],
+                                   correlation_id=successor["exchange"]["correlation_id"],
+                                   review_sha256="c" * 64)
+        report = build_report(bundle(record, successor))
+        self.assertEqual(report["outcome"], "complete")
+
+        wrong_successor = copy.deepcopy(successor)
+        wrong_successor["exchange"]["request_id"] = "d44d68af-1d9c-458f-829d-9e2fced39894"
+        wrong_successor["provider"]["request_id"] = wrong_successor["exchange"]["request_id"]
+        wrong_successor["grace"]["request_id"] = wrong_successor["exchange"]["request_id"]
+        with self.assertRaisesRegex(TraceInputError, "revision_successor_identity_mismatch"):
+            build_report(bundle(record, wrong_successor))
+
+    def test_c3_grace_event_requires_office_actor(self):
+        record = round_record()
+        record["grace"] = {"events": [{
+            "event_type": "resident.reasoning.external_proposal_reviewed",
+            "actor_id": "mcp:synthetic-provider",
+            "occurred_at": "2026-10-18T15:00:04-04:00",
+            "payload": {"request_id": REQUEST, "correlation_id": CORRELATION,
+                        "subject_id": "proposal-review:synthetic-1", "revision": 1,
+                        "subject_sha256": HASH, "decision": "finish"},
+        }]}
+        report = build_report(bundle(record))
+        self.assertEqual(report["outcome"], "blocked")
+        self.assertIn("grace_event_actor_unverified", report["rounds"][0]["blockers"])
 
     def test_request_or_correlation_mismatch_fails_closed(self):
         record = round_record()
@@ -276,6 +313,8 @@ class ExternalReviewTraceTests(unittest.TestCase):
         first = round_record(decision="revise", consumed=True)
         first["grace"]["revised_version"] = 2
         first["grace"]["revised_sha256"] = "c" * 64
+        first["grace"]["successor_request_id"] = "c44d68af-1d9c-458f-829d-9e2fced39894"
+        first["grace"]["successor_correlation_id"] = "99339a0a-bc79-463d-abd8-c8b2e0f8fe91"
         second = copy.deepcopy(round_record())
         second["review_subject"].update(subject_id="proposal-review:synthetic-2", revision=2, sha256="c" * 64)
         second["exchange"].update(request_id="c44d68af-1d9c-458f-829d-9e2fced39894",
