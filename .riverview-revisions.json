@@ -26,9 +26,9 @@
     },
     "docs/development/JOURNAL.md": {
       "path": "docs/development/JOURNAL.md",
-      "revision": "1.0.174",
-      "sha256": "5348dd19d8e114f5fc025a5ac4e9b8e648e972564658604f1ba2b304aecb2f81",
-      "size_bytes": 226833
+      "revision": "1.0.175",
+      "sha256": "629cfbb62afdb497038bc069a13939fba05a924b8dcf5622afcfabf0517c56aa",
+      "size_bytes": 227878
     },
     "docs/development/RV-COMMS5-ESCALATION-INITIATION-001_REVISION_RECORD.md": {
       "path": "docs/development/RV-COMMS5-ESCALATION-INITIATION-001_REVISION_RECORD.md",
@@ -269,8 +269,14 @@
       "revision": "1.0.0",
       "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
       "size_bytes": 1226
+    },
+    "docs/development/RESIDENT_LEARNING_FOUNDATION_ASSESSMENT_20261018.md": {
+      "path": "docs/development/RESIDENT_LEARNING_FOUNDATION_ASSESSMENT_20261018.md",
+      "revision": "1.0.0",
+      "sha256": "499d54c778b705fe1ae32d84b332c2f96c9155d6553588c143906de654d86d92",
+      "size_bytes": 6174
     }
   },
-  "manifest_revision": "1.1.235",
+  "manifest_revision": "1.1.236",
   "updated_at": null
 }

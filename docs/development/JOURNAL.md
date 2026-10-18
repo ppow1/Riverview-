@@ -1,8 +1,9 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.174
+**Document Revision:** 1.0.175
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
+**Changed:** 2026-10-18 UTC | RV-RESIDENT-LEARNING-001 | Record existing capability inventory, lifecycle gaps, focused test results, and implementation boundary
 **Changed:** 2026-10-17 UTC | M33-REGISTRATION-RETIREMENT-AUTHORIZED | Record exact temporary database scope, guarded retirement, permission cleanup, and production acceptance
 **Changed:** 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Add OAuth resource-server validation and verify Secure MCP Tunnel path
 **Changed:** 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Resolve resident principal from the active office binding and connect typed external escalation to durable exchange
@@ -2578,3 +2579,18 @@ Disposable PostgreSQL tests using the real `AuthorityRegistry` cover active prin
 Built and independently verified the full Camrui immutable package from source commit `3e0cb2c98e0308bdda3458715622d57953082c58`. Archive: `/tmp/riverview-camrui-followup-3e0cb2c9.tar.gz`, 34,097,690 bytes, SHA-256 `ecead4fb3d7673b461572012df5184c2a961dc17f29436a7b1a5156fbc4095cb`. Package manifest and shell compatibility passed; direct member inspection confirmed Grace, external exchange/MCP, Comms5 resource policy, and migrations 0011 and 0012 are included. The package is local validation output only; it was not transferred, installed, or activated.
 
 No production database, migration, credential, grant, service, or release was changed. PR #109 remains unchanged and open. This follow-up is isolated on `codex/comms5-principal-escalation-20261018`; it is not merged. Production requires review/integration, a fresh protected backup and restore verification, migration 0012 and exact provider identity/grant commissioning under Steward authority, complete multi-component immutable release staging, and controlled service activation followed by external exchange and Grace-consumption acceptance.
+
+
+## 2026-10-18 UTC — RV-RESIDENT-LEARNING-001
+
+Inspected the shared knowledge provider, assignment observation ledger, resident
+reasoning state, institutional proposal lifecycle, and resident permission
+profiles. Existing retrieval is pinned and provenance-bearing but read-only; the
+proposal workflow is Steward-only planning material; no resident-scoped learning
+actions or retrieval contract are registered. Focused tests passed for resident
+retrieval and pinned provider behavior. Proposal database suites were skipped
+because no disposable PostgreSQL DSN was configured. Recorded the assessment in
+`docs/development/RESIDENT_LEARNING_FOUNDATION_ASSESSMENT_20261018.md`. No safe
+resident-wide implementation can be commissioned until scope, permission,
+validation, retrieval, and correction contracts are approved. No production state
+or central reasoning adapter was changed.
