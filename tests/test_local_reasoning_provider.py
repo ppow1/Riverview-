@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.11
+# Revision: 1.1.12
 # Purpose: Verify local reasoning provider contract and fail-closed response handling
 # Execution Model: Bounded HTTP contract double; no credentials, database or model required
 # Observability: Typed proposals and sanitized unavailable/schema outcomes
@@ -31,6 +31,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Reject source-change plans with missing explicit path and test scope
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Require source-change test targets to be test files
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Keep external advice separate from verified context and authority
+# Changed: 2026-10-18 UTC | RV-REASONING-ADAPTER-COMPAT-AUDIT-001 | Cover ordered text blocks, tool/refusal semantics, and safe metadata handling
 # =============================================================================
 """Contract tests for the replaceable local reasoning provider."""
 
@@ -379,6 +380,72 @@ class LocalReasoningProviderTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             LocalReasoningProvider("http://127.0.0.1:8767/v1", "fixture-model",
                                    MODEL_SHA, chat_prefix="x" * 65)
+
+    def test_chat_joins_ordered_text_blocks_and_ignores_unknown_envelope_metadata(self):
+        self.response_body = json.dumps({"model":"fixture-model", "future_metadata":{"safe":True},
+            "choices":[{"message":{"content":[{"type":"text","text":"first"},
+                {"type":"text","text":" second"}], "future_annotation":"opaque"},
+                "finish_reason":"stop"}],
+            "usage":{"prompt_tokens":4,"completion_tokens":2}}).encode()
+        result = self.provider.complete_chat([{"role":"user","content":"hello"}],
+            max_tokens=64, expected_revision=MODEL_SHA)
+        self.assertEqual(result.content, "first second")
+
+    def test_chat_rejects_tool_calls_even_when_text_is_also_present(self):
+        self.response_body = json.dumps({"model":"fixture-model", "choices":[{
+            "message":{"content":"text plus call", "tool_calls":[{"id":"call-1"}]},
+            "finish_reason":"stop"}],
+            "usage":{"prompt_tokens":4,"completion_tokens":2}}).encode()
+        with self.assertRaises(LocalReasoningUnavailable) as caught:
+            self.provider.complete_chat([{"role":"user","content":"hello"}],
+                max_tokens=64, expected_revision=MODEL_SHA)
+        self.assertEqual(caught.exception.code, "response_contract_invalid")
+
+    def test_chat_rejects_non_text_blocks_and_mixed_refusal(self):
+        messages = [{"role":"user","content":"hello"}]
+        invalid_messages = [
+            {"content":[{"type":"text","text":"visible"},
+                         {"type":"image_url","image_url":{"url":"fixture"}}]},
+            {"content":"visible", "refusal":"declined"},
+        ]
+        for message in invalid_messages:
+            self.response_body = json.dumps({"model":"fixture-model", "choices":[{
+                "message":message, "finish_reason":"stop"}],
+                "usage":{"prompt_tokens":4,"completion_tokens":2}}).encode()
+            with self.subTest(message=message), self.assertRaises(LocalReasoningUnavailable) as caught:
+                self.provider.complete_chat(messages, max_tokens=64, expected_revision=MODEL_SHA)
+            self.assertEqual(caught.exception.code, "response_contract_invalid")
+
+    def test_chat_keeps_user_text_and_does_not_expose_reasoning_metadata(self):
+        self.response_body = json.dumps({"model":"fixture-model", "choices":[{
+            "message":{"content":"answer", "reasoning_content":"private reasoning"},
+            "finish_reason":"stop"}],
+            "usage":{"prompt_tokens":4,"completion_tokens":1}}).encode()
+        result = self.provider.complete_chat([{"role":"user","content":"hello"}],
+            max_tokens=64, expected_revision=MODEL_SHA)
+        self.assertEqual(result.content, "answer")
+        self.assertNotIn("private reasoning", result.content)
+
+    def test_stream_chat_normalizes_text_blocks_and_rejects_mixed_tool_calls(self):
+        messages = [{"role":"user","content":"bounded request"}]
+        body = (b'data: {"model":"fixture-model","choices":[{"delta":{"content":['
+            b'{"type":"text","text":"first"},{"type":"text","text":" second"}]},'
+            b'"finish_reason":"stop"}]}\n\n')
+        self.urlopen.side_effect = None
+        self.urlopen.return_value = _SSEResponse(BytesIO(body))
+        emitted = []
+        result = self.provider.stream_chat(messages, max_tokens=64,
+            expected_revision=MODEL_SHA, on_delta=emitted.append)
+        self.assertEqual(emitted, ["first second"])
+        self.assertEqual(result.content, "first second")
+
+        body = (b'data: {"model":"fixture-model","choices":[{"delta":{"content":"text",'
+            b'"tool_calls":[{"index":0}]},"finish_reason":"stop"}]}\n\n')
+        self.urlopen.return_value = _SSEResponse(BytesIO(body))
+        with self.assertRaises(LocalReasoningUnavailable) as caught:
+            self.provider.stream_chat(messages, max_tokens=64,
+                expected_revision=MODEL_SHA, on_delta=lambda _text: None)
+        self.assertEqual(caught.exception.code, "response_contract_invalid")
 
 
 if __name__ == "__main__":

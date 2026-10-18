@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_FLOW.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.14
+File Revision: 1.0.15
 Purpose: Generated focused process view for resident reasoning routing
 Authority: Graph-generated view; canonical source is JSON
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add graph-generated resident reasoning flow
@@ -32,6 +32,7 @@ flowchart LR
     g_rv_resident_reasoning_runtime_route_unavailable_854025a6[["Persist route failure and return UNAVAILABLE without inferred fallback"]]
     g_rv_resident_reasoning_runtime_provider_call_c528110c["Call the bound provider under a shared explicitly bounded deadline of at most 60 seconds and divided token budget"]
     g_rv_resident_reasoning_runtime_grace_role_context_8af6db52["For office:grace only, add the shared Director of Operations role and authority boundaries to the assignment proposal prompt"]
+    g_rv_resident_reasoning_runtime_response_normalization_327d11e8["Normalize ordered text blocks; reject tool calls, mixed refusal, unsupported content and incomplete provider results without granting authority"]
     g_rv_resident_reasoning_runtime_fallback_gate_7e77ebca{"Did the call time out or fail before returning a plan?"}
     g_rv_resident_reasoning_runtime_fallback_6dc058bf["Try the next explicitly configured provider only; no implicit provider selection"]
     g_rv_resident_reasoning_runtime_proposal_gate_8918a316["Validate typed plan schema, ordered dependencies, and attempt token budget"]
@@ -84,7 +85,8 @@ flowchart LR
   g_rv_resident_reasoning_runtime_select_provider_46047639 -->|documentation| g_rv_resident_reasoning_runtime_binding_jump_a19c568e
   g_rv_resident_reasoning_runtime_binding_jump_a19c568e -->|jump| g_rv_institutional_authority_identity_and_grants_office_state_e5a8ca22
   g_rv_resident_reasoning_runtime_route_gate_56e9828c -->|diagnostic_branch: unknown or invalid route| g_rv_resident_reasoning_runtime_route_unavailable_854025a6
-  g_rv_resident_reasoning_runtime_provider_call_c528110c --> g_rv_resident_reasoning_runtime_fallback_gate_7e77ebca
+  g_rv_resident_reasoning_runtime_provider_call_c528110c -->|provider response or sanitized failure| g_rv_resident_reasoning_runtime_response_normalization_327d11e8
+  g_rv_resident_reasoning_runtime_response_normalization_327d11e8 -->|normalized response or bounded failure classification| g_rv_resident_reasoning_runtime_fallback_gate_7e77ebca
   g_rv_resident_reasoning_runtime_fallback_gate_7e77ebca -->|provider returned| g_rv_resident_reasoning_runtime_proposal_gate_8918a316
   g_rv_resident_reasoning_runtime_fallback_gate_7e77ebca -->|recovery_route: timeout/failure with configured next provider| g_rv_resident_reasoning_runtime_fallback_6dc058bf
   g_rv_resident_reasoning_runtime_fallback_6dc058bf --> g_rv_resident_reasoning_runtime_provider_call_c528110c
