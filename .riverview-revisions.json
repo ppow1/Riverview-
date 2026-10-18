@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.228"
+      "revision": "1.1.229"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -107,9 +107,9 @@
     },
     "process_graphs/comms5/camrui-adapter.json": {
       "path": "process_graphs/comms5/camrui-adapter.json",
-      "revision": "1.0.13",
-      "sha256": "28284106631109398cc8e8d725d4587e636d8b7ef9cacad545b4299fba9cea9f",
-      "size_bytes": 14460
+      "revision": "1.0.14",
+      "sha256": "6ddacfa3d6d9096093566c6429c30a00a41fbc0c999ad638eea8734537636355",
+      "size_bytes": 17847
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "path": "process_graphs/event-processor/assignment-progression.json",
@@ -119,9 +119,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.178",
-      "sha256": "7eee4afe16f4fca8c1f5c8fcf011d6227a70569b0b1e1fc173f9e0825eaff733",
-      "size_bytes": 622352
+      "revision": "1.0.179",
+      "sha256": "bed3fe0a3eb4cde51867b4cbe85e9705e773ca2017a023fb0f662cff29fd230f",
+      "size_bytes": 628269
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -131,9 +131,9 @@
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
-      "revision": "1.0.48",
-      "sha256": "e86f8b96a24c94143bfbc5654ea0d1583394b46d63733e2e08fc726a5bfcfd9c",
-      "size_bytes": 71471
+      "revision": "1.0.49",
+      "sha256": "1d371dac4f05124dd82645c7174de9f930cecd0f318af01954dc4d13b431944d",
+      "size_bytes": 72913
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
@@ -185,9 +185,9 @@
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "path": "process_graphs/resident-reasoning/runtime.json",
-      "revision": "1.0.22",
-      "sha256": "5564e19fa72db12910dda487403d36cab2da2f7252f5bb51fb65b11a26e23f31",
-      "size_bytes": 50386
+      "revision": "1.0.23",
+      "sha256": "7bc27392e49ad77ad2802762b1b6769ac02744f43da5e189633a1f9aa34c4c21",
+      "size_bytes": 50804
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -262,6 +262,6 @@
       "size_bytes": 1226
     }
   },
-  "manifest_revision": "1.1.228",
+  "manifest_revision": "1.1.229",
   "updated_at": null
 }

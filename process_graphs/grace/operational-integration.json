@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:grace:operational-integration",
-  "graph_revision": "1.0.49",
+  "graph_revision": "1.0.50",
   "component_id": "RESIDENT-ORCHESTRATION",
   "workflow_id": "grace-engineering-objective.v1",
   "diagram_order": 9,
@@ -41,7 +41,9 @@
     "src/riverview_core/comms5/server.py",
     "src/riverview_core/comms5/dashboard_backend.py",
     "deploy/systemd/riverview-grace-execution.service",
-    "src/riverview_core/resident_execution/codex_workflow.py"
+    "src/riverview_core/resident_execution/codex_workflow.py",
+    "src/riverview_core/resident_execution/external_reasoning.py",
+    "src/riverview_core/resident_execution/service.py"
   ],
   "documentation_references": [
     "docs/ROADMAP.md",
@@ -51,7 +53,9 @@
     "docs/components/GRACE_EXECUTION_PIPELINE.md",
     "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
     "docs/components/GRACE_PERSISTENT_EXECUTION.md",
-    "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+    "docs/standards/COMPONENT_DEFINITION_OF_DONE.md",
+    "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+    "docs/components/GRACE_PERSISTENT_EXECUTION.md"
   ],
   "verification_evidence": [
     "tests/test_grace_conversation_result.py",
@@ -63,7 +67,8 @@
     "tests/test_supervised_codex_dispatch.py",
     "tests/test_grace_engineering_demo_provisioning.py",
     "tests/test_codex_source_change.py",
-    "tests/test_grace_internal_tools.py"
+    "tests/test_grace_internal_tools.py",
+    "tests/test_external_reasoning_exchange.py"
   ],
   "nodes": [
     {
@@ -1082,6 +1087,24 @@
       "verification_evidence": [
         "tests/test_codex_cli_adapter.py"
       ]
+    },
+    {
+      "id": "rv:grace:operational-integration:external-advisory-consumer",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Source implemented; isolated PostgreSQL verified — Grace consumes correlated response_received exchange through the bound ResidentReasoner, records one unapproved proposal/evaluation event, then acknowledges with the durable fence",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning.py",
+        "src/riverview_core/resident_execution/service.py",
+        "src/riverview_core/resident_execution/pipeline.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_exchange.py"
+      ]
     }
   ],
   "edges": [
@@ -1602,6 +1625,12 @@
       "to": "rv:grace:operational-integration:codex-artifact-verification",
       "type": "verification",
       "label": "Criteria contract is present and is evaluated independently against the artifact"
+    },
+    {
+      "from": "rv:grace:operational-integration:objective-intake",
+      "to": "rv:grace:operational-integration:external-advisory-consumer",
+      "type": "runtime_transition",
+      "label": "authorized exchange reply is available to the recurring Grace execution cycle"
     }
   ]
 }

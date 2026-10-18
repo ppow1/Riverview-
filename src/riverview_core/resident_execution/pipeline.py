@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.5
+# Revision: 1.1.8
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
 # Execution Model: Request-driven orchestration over existing PostgreSQL authority and ledger
 # Observability: Append-only objective events linked to assignment and evidence provenance
@@ -25,6 +25,9 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Expose each verified objective step to the existing Grace result-review outbox
 # Changed: 2026-10-16 UTC | RV-GRACE-REVIEW-OBJECTIVE-PROGRESS | Include authoritative objective and step state in Grace's verified-result review context
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Persist immutable proposal revision, approval, source and exact-grant correlation on objective intake
+# Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Persist Grace's external-advisory evaluation atomically with the resulting proposal
+# Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Resolve failed steps only after their linked revalidation successor is independently verified
+# Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Share the verified rework completion predicate with objective reconciliation.
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -255,7 +258,8 @@ class GraceExecutionPipeline:
                             {"status": evidence["status"],
                              "retrieval_complete": evidence["retrieval_complete"]})
 
-    def record_proposal(self, objective_id, proposal: PlanProposal, *, actor_id="resident:grace"):
+    def record_proposal(self, objective_id, proposal: PlanProposal, *, actor_id="resident:grace",
+                        external_exchange=None):
         if not isinstance(proposal, PlanProposal):
             raise TypeError("proposal must satisfy the existing PlanProposal contract")
         objective = self.get_objective(objective_id)
@@ -284,6 +288,20 @@ class GraceExecutionPipeline:
                         for path in step.authorized_paths)):
                 raise ObjectiveStateError(
                     "source-change path is absent from the Steward-approved objective scope")
+        if external_exchange is not None:
+            required = {"request_id", "correlation_id", "response_id", "response_sha256", "provider_id",
+                        "provider_model", "reasoning_request_id"}
+            if (not isinstance(external_exchange, dict) or set(external_exchange) != required
+                    or not all(isinstance(external_exchange[key], str) and external_exchange[key]
+                               and len(external_exchange[key]) <= 160 for key in required)
+                    or not re.fullmatch(r"[0-9a-f]{64}", external_exchange["response_sha256"])):
+                raise ObjectiveStateError("external advisory provenance is invalid")
+            from uuid import UUID
+            try:
+                UUID(external_exchange["request_id"])
+                UUID(external_exchange["correlation_id"])
+            except (ValueError, TypeError, AttributeError):
+                raise ObjectiveStateError("external advisory correlation is invalid") from None
         document = asdict(proposal)
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
@@ -306,6 +324,14 @@ class GraceExecutionPipeline:
                             {"proposal_sha256": hashlib.sha256(_json(document).encode()).hexdigest(),
                              "step_ids": [step.step_id for step in proposal.steps],
                              "approved": False})
+                if external_exchange is not None:
+                    self._event(cur, objective_id,
+                        "resident.reasoning.external_advisory_evaluated",
+                        f"external-reasoning:{external_exchange['request_id']}:reasoned",
+                        actor_id, {**external_exchange,
+                            "decision": "advisory_evaluated_as_unapproved_proposal",
+                            "proposal_sha256": hashlib.sha256(
+                                _json(document).encode("utf-8")).hexdigest()})
         return self.get_objective(objective_id)
 
     def dispatchable_step(self, objective_id):
@@ -326,6 +352,23 @@ class GraceExecutionPipeline:
                     (row["step_order"] == 1 or row["step_id"] in reviewed)):
                 return row
         return None
+
+    def objective_steps_complete(self, cur, objective_id):
+        """Treat a blocked step as resolved only through its verified rework successor."""
+        cur.execute("""SELECT bool_and(s.status='verified' OR (
+                s.status='blocked' AND EXISTS (
+                    SELECT 1 FROM grace_objective_events re
+                    JOIN grace_objective_steps successor
+                      ON successor.objective_id=re.objective_id
+                     AND successor.step_id=re.payload->>'successor_step_id'
+                    WHERE re.objective_id=s.objective_id
+                      AND re.event_type='work_order.stale_base_revalidated'
+                      AND re.payload->>'source_step_id'=s.step_id
+                      AND successor.status='verified')))
+            AS complete FROM grace_objective_steps s WHERE s.objective_id=%s""",
+            (objective_id,))
+        row = cur.fetchone()
+        return bool(row and row["complete"])
 
     def proposal_step_for_assignment(self, objective_id, assignment_id):
         """Resolve proposal content through the durable objective-step assignment link."""
@@ -475,9 +518,7 @@ class GraceExecutionPipeline:
                     AND assignment_id=%s""", (objective_id, step_row["step_id"], assignment_id))
                 if cur.rowcount not in (0, 1):
                     raise ObjectiveStateError("step verification state is inconsistent")
-                cur.execute("""SELECT bool_and(status='verified') AS complete
-                    FROM grace_objective_steps WHERE objective_id=%s""", (objective_id,))
-                all_steps = bool(cur.fetchone()["complete"])
+                all_steps = self.objective_steps_complete(cur, objective_id)
         completion_cycle = step_row["step_order"]
         payload = {"assignment_id": assignment_id, "step_id": step_row["step_id"],
                    "completion_cycle": completion_cycle,

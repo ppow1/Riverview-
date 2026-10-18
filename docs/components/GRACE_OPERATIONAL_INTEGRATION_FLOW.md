@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.49
+**Document Revision:** 1.0.50
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -129,6 +129,7 @@ flowchart LR
     g_rv_grace_operational_integration_internal_tool_call_340d40b0["IMPLEMENTED — Grace 80B may emit one strict bounded read-tool request; Comms5Application dispatches it through the existing dashboard backend, preserving published schemas, validation, and result shaping"]
     g_rv_grace_operational_integration_internal_tool_consume_a8336489["IMPLEMENTED — Grace receives the structured tool result in a bounded follow-up completion; the result is persisted with the assistant conversation event; malformed or failed calls return sanitized errors"]
     g_rv_grace_operational_integration_codex_persisted_criteria_verification_3aad2766["Verify the Codex deliverable against acceptance criteria resolved from the pre-dispatch PostgreSQL objective step linked to this assignment; missing durable criteria fail closed"]
+    g_rv_grace_operational_integration_external_advisory_consumer_d4127120["Source implemented; isolated PostgreSQL verified — Grace consumes correlated response_received exchange through the bound ResidentReasoner, records one unapproved proposal/evaluation event, then acknowledges with the durable fence"]
   end
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_cme_progress_and_recovery_observe_428defda["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -225,6 +226,7 @@ flowchart LR
   g_rv_grace_operational_integration_internal_tool_consume_a8336489 -->|recovery_route: A later lookup is a new model-originated request and is independently schema-validated| g_rv_grace_operational_integration_internal_tool_call_340d40b0
   g_rv_grace_operational_integration_codex_cli_run_ade47dcf -->|verification: Resolve exact persisted criteria through the assigned objective-step link before inspecting output| g_rv_grace_operational_integration_codex_persisted_criteria_verification_3aad2766
   g_rv_grace_operational_integration_codex_persisted_criteria_verification_3aad2766 -->|verification: Criteria contract is present and is evaluated independently against the artifact| g_rv_grace_operational_integration_codex_artifact_verification_ab484b65
+  g_rv_grace_operational_integration_objective_intake_55567c14 -->|authorized exchange reply is available to the recurring Grace execution cycle| g_rv_grace_operational_integration_external_advisory_consumer_d4127120
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

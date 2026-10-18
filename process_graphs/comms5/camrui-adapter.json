@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:comms5:camrui-adapter",
-  "graph_revision": "1.0.13",
+  "graph_revision": "1.0.14",
   "component_id": "COMMS5-CAMRUI-ADAPTER",
   "workflow_id": "comms5.camrui.compatibility.v1",
   "diagram_order": 91,
@@ -16,7 +16,9 @@
     "src/riverview_core/resident_execution/proposals.py",
     "src/riverview_core/resident_execution/proposal_lifecycle.py",
     "src/riverview_core/resident_execution/pipeline.py",
-    "src/riverview_core/status_dashboard/server.py"
+    "src/riverview_core/status_dashboard/server.py",
+    "src/riverview_core/assignment_scheduler/scheduler.py",
+    "src/riverview_core/resident_execution/migrations/0012_resource_selection_policy.sql"
   ],
   "documentation_references": [
     "docs/components/COMMS5_CAMRUI_DEPLOYMENT.md",
@@ -28,7 +30,9 @@
     "tests/test_comms5_mcp.py",
     "tests/test_comms5_deployment.py",
     "tests/test_comms5_current_runtime.py",
-    "tests/test_proposal_work_order_lifecycle.py"
+    "tests/test_proposal_work_order_lifecycle.py",
+    "tests/test_comms5_resource_policy_postgres.py",
+    "tests/test_external_reasoning_exchange.py"
   ],
   "nodes": [
     {
@@ -294,6 +298,56 @@
       "verification_evidence": [
         "tests/test_comms5_current_runtime.py"
       ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:resource-policy-mutation",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Steward-attested policy set and lock operations persist revisioned state and append-only events; locked state rejects changes",
+      "source_references": [
+        "src/riverview_core/resident_execution/comms5_operations.py",
+        "src/riverview_core/resident_execution/migrations/0012_resource_selection_policy.sql"
+      ],
+      "documentation_references": [
+        "docs/components/COMMS5_CAMRUI_MIGRATION.md",
+        "docs/components/COMMS5_CAMRUI_DEPLOYMENT.md"
+      ],
+      "verification_evidence": [
+        "tests/test_comms5_resource_policy_postgres.py"
+      ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:resource-policy-selection",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Transactional worker claim enforces active registered capability and persisted policy; lock prevents policy override; policy absent preserves prior automatic selection",
+      "source_references": [
+        "src/riverview_core/assignment_scheduler/scheduler.py",
+        "src/riverview_core/resident_execution/migrations/0012_resource_selection_policy.sql"
+      ],
+      "documentation_references": [
+        "docs/components/COMMS5_CAMRUI_MIGRATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_comms5_resource_policy_postgres.py"
+      ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:stale-base-revalidation",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Preserve eligible rejected pre-execution assignment; require exact assignment.create grant and fresh verified base; append same-scope successor and retarget dependent steps without accepting prior failure",
+      "source_references": [
+        "src/riverview_core/resident_execution/comms5_operations.py",
+        "src/riverview_core/resident_execution/pipeline.py"
+      ],
+      "documentation_references": [
+        "docs/components/COMMS5_CAMRUI_MIGRATION.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_comms5_resource_policy_postgres.py"
+      ]
     }
   ],
   "edges": [
@@ -376,6 +430,28 @@
       "from": "rv:comms5:camrui-adapter:current-runtime-operations",
       "to": "rv:comms5:camrui-adapter:steward-cme-queue-request",
       "type": "runtime_transition"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:current-runtime-operations",
+      "to": "rv:comms5:camrui-adapter:resource-policy-mutation",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:resource-policy-mutation",
+      "to": "rv:comms5:camrui-adapter:resource-policy-selection",
+      "type": "verification",
+      "label": "durable policy must affect real scheduler selection"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:current-runtime-operations",
+      "to": "rv:comms5:camrui-adapter:stale-base-revalidation",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:stale-base-revalidation",
+      "to": "rv:comms5:camrui-adapter:steward-cme-queue-request",
+      "type": "runtime_transition",
+      "label": "successor remains queued for existing Grace/CME dispatcher; no work executes in MCP handler"
     }
   ]
 }

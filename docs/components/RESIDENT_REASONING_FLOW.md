@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_FLOW.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.14
+File Revision: 1.0.15
 Purpose: Generated focused process view for resident reasoning routing
 Authority: Graph-generated view; canonical source is JSON
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add graph-generated resident reasoning flow
@@ -57,11 +57,11 @@ flowchart LR
     g_rv_resident_reasoning_runtime_exchange_external_claim_bb5aa89e["Authenticate provider identity, claim correlated request with bounded lease and monotonic fence"]
     g_rv_resident_reasoning_runtime_exchange_response_gate_87bf6800{"Does response schema, provider, request/correlation, active claim fence, size and deadline match?"}
     g_rv_resident_reasoning_runtime_exchange_response_persisted_74d2abca["Commit one structured advisory, evidence references, digest and provenance idempotently"]
-    g_rv_resident_reasoning_runtime_exchange_grace_consumption_0b864d8c["Revalidate original exact grant; lease the response and return advisory separately from original reasoning context"]
-    g_rv_resident_reasoning_runtime_exchange_grace_ack_4657c0a8["Acknowledge only after Grace records the next reasoning result under stable consumption key"]
+    g_rv_resident_reasoning_runtime_exchange_grace_consumption_0b864d8c["IMPLEMENTED; ISOLATED POSTGRESQL VERIFIED — Grace revalidates original exact escalation grant, leases the persisted response, and passes typed advice separately from verified context to ResidentReasoner"]
+    g_rv_resident_reasoning_runtime_exchange_grace_ack_4657c0a8["IMPLEMENTED; ISOLATED POSTGRESQL VERIFIED — Acknowledge only after proposal and correlated external_advisory_evaluated event commit; restart recovery checks that durable idempotency fence before repeating reasoning"]
     g_rv_resident_reasoning_runtime_exchange_expired_124bcfc4[["Expire request on finite deadline; preserve one terminal event and reject late response"]]
     g_rv_resident_reasoning_runtime_exchange_recovery_4f7ee76d["Recover awaiting-delivery, expired claims or persisted response after restart with same correlation and fenced idempotency"]
-    g_rv_resident_reasoning_runtime_exchange_resume_6e7253b1["Return correlated advisory to existing resident reasoning; proposal, assignment, execution and verification still use their current authority paths"]
+    g_rv_resident_reasoning_runtime_exchange_resume_6e7253b1["IMPLEMENTED; ISOLATED POSTGRESQL VERIFIED — Grace reasons over the correlated advisory as unapproved proposal input; existing objective and authorization paths govern any next action"]
     g_rv_resident_reasoning_runtime_exchange_mcp_auth_89ac0223{"Validate OAuth JWT issuer, exact MCP audience, expiry and fixed subject/client mapping; return 401 for invalid tokens and 403 for missing scope"}
     g_rv_resident_reasoning_runtime_exchange_mcp_auth_denied_eac5aa1a[["Reject missing or invalid OAuth tokens with HTTP 401/WWW-Authenticate; reject authenticated insufficient scope with HTTP 403; preserve challenge metadata"]]
     g_rv_resident_reasoning_runtime_exchange_mcp_initialize_602c72d5["Negotiate supported MCP protocol version over sessionless Streamable HTTP JSON-RPC POST"]

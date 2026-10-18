@@ -1,12 +1,13 @@
 # Riverview Controlled Source
 # File: src/riverview_core/comms5/dashboard_backend.py
 # Component: COMMS5-CAMRUI-ADAPTER
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Expose bounded current-runtime operations through Comms5
 # Authority: Existing dashboard credential plus ingress-attested Steward principal
 # Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Route proposal and complete bounded status operations through the fixed authenticated internal dashboard contract.
 # Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Correlate authenticated transport probes to the dashboard request and surface truthful resource-policy status.
 # Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Route durable work-order queue requests through the existing authenticated dashboard operation endpoint.
+# Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Route stale-base recovery and durable worker policy operations through the existing authenticated operation endpoint.
 # Changed: 2026-10-17 UTC | RV-COMMS5-PR100-CORRELATION-HEADER-20261017 | Keep ordinary status reads compatible with responses lacking optional request-correlation headers.
 # History: New file; no predecessor existed.
 """Narrow authenticated bridge to Riverview's existing dashboard API."""
@@ -38,6 +39,9 @@ _INTERNAL_TOOLS = _PROPOSAL_TOOLS | {
     "comms5_objective_status", "comms5_recent_steward_submissions",
     "comms5_resource_policy_status",
     "comms5_form_and_queue_work",
+    "comms5_revalidate_and_queue_work",
+    "comms5_set_resource_policy",
+    "comms5_set_resource_policy_lock",
 }
 
 
@@ -80,6 +84,9 @@ class DashboardReadBackend:
         "comms5_cancel_draft": "IMPLEMENTED",
         "comms5_supersede_seed": "IMPLEMENTED",
         "comms5_confirm_and_promote_seed": "IMPLEMENTED",
+        "comms5_revalidate_and_queue_work": "IMPLEMENTED",
+        "comms5_set_resource_policy": "IMPLEMENTED",
+        "comms5_set_resource_policy_lock": "IMPLEMENTED",
     }
 
     def __init__(self, *, base_url=None, credential_file=None, timeout=3.0):

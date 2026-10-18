@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.14
+# Revision: 1.0.16
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Persist and rate-limit failed resident proposals.
 # Purpose: Reconcile durable Grace work orders through existing CME worker contracts
 # Execution Model: Persistent scheduled poll over PostgreSQL objective state
@@ -23,6 +23,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Resume append-only verifier decisions after a correction, including interrupted completion transition
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-REASONING-BUDGET-001 | Raise bounded resident proposal default to fit typed dependency plans and source scopes
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Reconcile existing assignments, execution state and verifier evidence to proposal revisions
+# Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Consume correlated durable external advisory responses in Grace's persistent cycle
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -60,7 +61,9 @@ class GraceExecutionService:
                  authority_ref, verifier_id, verifier_credential, artifact_root,
                  max_dispatch_failures=3, verifier=None, resident_reasoner=None,
                  resident_token_budget=768, execution_capability=CAPABILITY,
-                 conversation_result_publisher=None, proposal_lifecycle=None):
+                 conversation_result_publisher=None, proposal_lifecycle=None,
+                 external_reasoning_exchange=None, external_reasoning_authorize=None,
+                 external_reasoning_principal=None):
         if not 1 <= max_dispatch_failures <= 10:
             raise ValueError("dispatch failure limit must be between 1 and 10")
         if type(resident_token_budget) is not int or not 1 <= resident_token_budget <= 4096:
@@ -86,6 +89,14 @@ class GraceExecutionService:
                 getattr(proposal_lifecycle, "reconcile_links", None)):
             raise ValueError("proposal lifecycle reconciliation contract is invalid")
         self.proposal_lifecycle = proposal_lifecycle
+        if (external_reasoning_exchange is None) != (external_reasoning_authorize is None):
+            raise ValueError("external reasoning exchange and authorizer must be configured together")
+        if external_reasoning_exchange is not None and not callable(external_reasoning_authorize):
+            raise ValueError("external reasoning authorizer must be callable")
+        self.external_reasoning_exchange = external_reasoning_exchange
+        self.external_reasoning_authorize = external_reasoning_authorize
+        self.external_reasoning_principal = external_reasoning_principal or getattr(
+            resident_reasoner, "office_id", "")
         self.instance_id = uuid4()
 
     def reason_one_grounded_objective(self, objective_id=None):
@@ -397,9 +408,92 @@ class GraceExecutionService:
                 "failure_type": type(exc).__name__}, sort_keys=True))
             return 0
 
+    def consume_external_reasoning(self, *, limit=5):
+        """Resume persisted advisory replies through Grace's existing reasoner.
+
+        Proposal persistence and its correlated objective event are atomic; that
+        event fences recovery after a crash before exchange acknowledgement.
+        External advice remains an unapproved proposal and cannot dispatch work.
+        """
+        exchange = self.external_reasoning_exchange
+        if exchange is None or self.resident_reasoner is None:
+            return 0
+        principal = self.external_reasoning_principal
+        if not isinstance(principal, str) or not principal:
+            return 0
+        processed = 0
+        for item in exchange.pending_responses(principal, limit=limit):
+            request_id, correlation_id = item["request_id"], item["correlation_id"]
+            try:
+                consumed = exchange.consume(request_id, correlation_id,
+                    principal_id=principal, authorize=self.external_reasoning_authorize)
+                objective_id = consumed.original_request.assignment_id
+                durable_event = next((event for event in
+                    self.pipeline.objective_events(objective_id)
+                    if event.get("event_type") ==
+                        "resident.reasoning.external_advisory_evaluated" and
+                        (event.get("payload") or {}).get("request_id") == request_id and
+                        (event.get("payload") or {}).get("correlation_id") == correlation_id), None)
+                if durable_event is None:
+                    if self._reasoning_failure_count(objective_id) >= self.MAX_REASONING_FAILURES:
+                        continue
+                    from ..resident_reasoning import ReasoningStatus
+                    result = self.resident_reasoner.propose(objective_id,
+                        trigger="external_advisory_resume", token_budget=self.resident_token_budget,
+                        external_advisory=consumed.advisory)
+                    if result.status is not ReasoningStatus.PROPOSED or result.proposal is None:
+                        self._record_reasoning_failure(objective_id, result=result)
+                        continue
+                    response = consumed.advisory.get("response", consumed.advisory)
+                    if not isinstance(response, dict):
+                        raise ValueError("external advisory response is invalid")
+                    provenance = {"request_id": request_id,
+                        "correlation_id": correlation_id,
+                        "response_id": response.get("response_id"),
+                        "response_sha256": hashlib.sha256(json.dumps(
+                            consumed.advisory, ensure_ascii=False, sort_keys=True,
+                            separators=(",", ":"), allow_nan=False).encode("utf-8")).hexdigest(),
+                        "provider_id": response.get("provider_id"),
+                        "provider_model": response.get("provider_model"),
+                        "reasoning_request_id": result.request_id}
+                    self.pipeline.record_proposal(objective_id, result.proposal,
+                        actor_id="office:" + self.resident_reasoner.office_id,
+                        external_exchange=provenance)
+                exchange.acknowledge_consumed(request_id, correlation_id,
+                    principal_id=principal, consumption_key=consumed.consumption_key,
+                    consumption_token=consumed.consumption_token, fence=consumed.fence,
+                    result_reference=f"objective:{objective_id}:external-reasoning:{request_id}",
+                    authorize=self.external_reasoning_authorize)
+                processed += 1
+            except Exception as exc:
+                LOG.warning(json.dumps({"event": "grace_external_reasoning_consume_failed",
+                    "request_id": request_id, "correlation_id": correlation_id,
+                    "failure_type": type(exc).__name__}, sort_keys=True))
+        return processed
+
+    def request_external_reasoning(self, envelope, original_request, *, conversation_id,
+            message_sequence, idempotency_key, deadline_at, classification="institutional",
+            proposal_id=None, proposal_revision=None, source_references=()):
+        """Persist an authorized external advisory request without waiting for a provider."""
+        if self.external_reasoning_exchange is None:
+            raise RuntimeError("external_reasoning_exchange_unavailable")
+        principal = self.external_reasoning_principal
+        if (not isinstance(principal, str) or
+                getattr(original_request, "office_id", None) != principal):
+            raise PermissionError("Grace exchange principal does not match the original request")
+        return self.external_reasoning_exchange.submit(envelope, original_request,
+            principal_id=principal, authorize=self.external_reasoning_authorize,
+            originating_resident_id=principal,
+            objective_id=original_request.assignment_id,
+            conversation_id=conversation_id, message_sequence=message_sequence,
+            proposal_id=proposal_id, proposal_revision=proposal_revision,
+            idempotency_key=idempotency_key, classification=classification,
+            deadline_at=deadline_at, source_references=source_references)
+
     def run_once(self):
         """Run bounded dispatch, one existing leased worker poll and verification."""
         try:
+            external_reasoned = self.consume_external_reasoning()
             reasoned = self.reason_one_grounded_objective()
             dispatched = self.dispatch_proposed()
             worker_result = self.worker.run_once()
@@ -408,7 +502,8 @@ class GraceExecutionService:
             returned = self.publish_conversation_results()
             proposal_updates = self.reconcile_proposal_lifecycle()
             self._heartbeat("healthy")
-            return {"reasoned": reasoned, "dispatched": dispatched, "worker": worker_result,
+            return {"external_reasoned": external_reasoned, "reasoned": reasoned,
+                    "dispatched": dispatched, "worker": worker_result,
                     "verified": verified, "completed": completed, "returned": returned,
                     "proposal_updates": proposal_updates}
         except Exception as exc:
@@ -454,7 +549,8 @@ class GraceExecutionService:
         while not shutdown_requested():
             try:
                 result = self.run_once()
-                if (not result["reasoned"] and not result["dispatched"] and result["worker"].get("status") == "IDLE"
+                if (not result.get("external_reasoned") and not result["reasoned"] and
+                        not result["dispatched"] and result["worker"].get("status") == "IDLE"
                         and not result["verified"] and not result["completed"]
                         and not result["returned"]):
                     sleep(poll_seconds)

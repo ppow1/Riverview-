@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/assignment_scheduler/scheduler.py
 # Component: ASSIGNMENT-SCHEDULER
-# Revision: 1.0.13
+# Revision: 1.0.15
 # Purpose: Claim ready assignments fairly and fence stale lease holders
 # Execution Model: PostgreSQL transactional request interface
 # Observability: Durable lease generations and causally linked ledger events
@@ -16,6 +16,8 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Preserve standalone scheduler operation before resident schema migration and map legacy bounded artifact worker to the Codex artifact plan capability
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Restrict the optional proposal capability filter to the currently selected schema contract
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Resolve persisted plan capability through the durable step-to-assignment link, not the mutable ledger status label
+# Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Enforce persisted Engineering worker-selection policy during transactional lease claims
+# Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Fail closed on malformed durable resource-policy parameters.
 # Changed: 2026-10-16 UTC | RV-GRACE-SCHEDULER-PROBE-COMPAT | Pass an explicit empty parameter tuple to the optional schema capability probe
 # Changed: 2026-10-16 UTC | RV-GRACE-SCHEDULER-PROBE-COMPAT | Normalize assignment query parameters to the DB-API tuple contract
 # Tests: tests/test_assignment_scheduler.py
@@ -61,9 +63,66 @@ class PostgresAssignmentScheduler:
             raise ValueError("lease_seconds must be positive")
 
     @staticmethod
+    def _policy_selected_worker(cur, scope_ref, required_capability):
+        """Return the worker selected by an installed durable policy, if any."""
+        if scope_ref != "work-order:engineering":
+            return None
+        cur.execute("SELECT to_regclass(current_schema() || '.resource_selection_policies') AS table_name", ())
+        if not cur.fetchone()["table_name"]:
+            return None
+        cur.execute("""SELECT mode,parameters,last_selected_worker FROM
+            resource_selection_policies WHERE policy_key='engineering'""")
+        policy = cur.fetchone()
+        if not policy or policy["mode"] == "automatic":
+            return None
+        params = policy["parameters"]
+        if (not isinstance(params, dict) or set(params) -
+                {"target_seat", "priority_order", "fallback", "consume_reset"} or
+                type(params.get("fallback", True)) is not bool or
+                type(params.get("consume_reset", False)) is not bool or
+                params.get("consume_reset", False)):
+            raise RuntimeError("resource_policy_parameters_inconsistent")
+        target = params.get("target_seat", "")
+        order = params.get("priority_order", [])
+        if (not isinstance(target, str) or
+                not isinstance(order, list) or
+                any(not isinstance(item, str) or not item for item in order) or
+                len(order) != len(set(order))):
+            raise RuntimeError("resource_policy_parameters_inconsistent")
+        cur.execute("""SELECT worker_id FROM worker_registry
+            WHERE active=TRUE AND scope_ref='work-order:engineering'
+              AND (%s::text IS NULL OR capabilities @> jsonb_build_array(%s::text))
+            ORDER BY worker_id""", (required_capability, required_capability))
+        eligible = [row["worker_id"] for row in cur.fetchall()]
+        if not eligible:
+            return ""  # Explicit policy with no eligible registered resource fails closed.
+        params = policy["parameters"] or {}
+        fallback = params.get("fallback", True)
+        if policy["mode"] == "target":
+            if target in eligible:
+                return target
+            return eligible[0] if fallback else ""
+        if policy["mode"] == "priority":
+            ranked = [worker for worker in order
+                      if worker in eligible]
+            return ranked[0] if ranked else (eligible[0] if fallback else "")
+        if policy["mode"] == "balanced":
+            cur.execute("""SELECT wr.worker_id,count(l.assignment_id)::bigint AS active_leases
+                FROM worker_registry wr LEFT JOIN assignment_leases l
+                  ON l.worker_id=wr.worker_id AND l.expires_at>clock_timestamp()
+                WHERE wr.worker_id=ANY(%s) GROUP BY wr.worker_id
+                ORDER BY active_leases,wr.worker_id""", (eligible,))
+            return cur.fetchone()["worker_id"]
+        raise RuntimeError("resource_policy_mode_inconsistent")
+
+    @staticmethod
     def _claim_candidate(cur, worker_id, lease_seconds, *, scope_ref=None,
                          assignment_id=None, required_capability=None):
         """Claim one eligible assignment in the caller's active transaction."""
+        selected_worker = PostgresAssignmentScheduler._policy_selected_worker(
+            cur, scope_ref, required_capability)
+        if selected_worker is not None and selected_worker != worker_id:
+            return None
         # The scheduler is also used by installations that have not enabled the
         # resident-objective schema. Only add proposal-scope fencing when that
         # existing contract is installed; an absent table cannot contain a
@@ -117,7 +176,21 @@ class PostgresAssignmentScheduler:
                    expires_at=EXCLUDED.expires_at
                RETURNING assignment_id,worker_id,generation,acquired_at,heartbeat_at,expires_at""",
             (assignment["id"], worker_id, generation, lease_seconds))
-        return cur.fetchone()
+        lease = cur.fetchone()
+        if lease is not None and selected_worker is not None:
+            cur.execute("""UPDATE resource_selection_policies SET
+                last_selected_worker=%s,updated_at=clock_timestamp()
+                WHERE policy_key='engineering'""", (worker_id,))
+            cur.execute("""INSERT INTO resource_selection_policy_events
+                (policy_key,revision,event_type,idempotency_key,actor_id,payload)
+                SELECT 'engineering',revision,'worker_selected',%s,'service:assignment-scheduler',%s::jsonb
+                FROM resource_selection_policies WHERE policy_key='engineering'
+                ON CONFLICT(idempotency_key) DO NOTHING""",
+                (f"resource-policy-select:{lease['assignment_id']}:{lease['generation']}",
+                 __import__("json").dumps({"worker_id": worker_id,
+                    "assignment_id": lease["assignment_id"],
+                    "generation": lease["generation"]}, sort_keys=True)))
+        return lease
 
     def claim_next(self, worker_id, *, lease_seconds=30, scope_ref=None,
                    assignment_id=None, required_capability=None):

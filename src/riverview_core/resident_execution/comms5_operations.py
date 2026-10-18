@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/comms5_operations.py
 # Component: COMMS5-CURRENT-RUNTIME-OPERATIONS
-# Revision: 1.0.3
+# Revision: 1.0.6
 # Purpose: Share authenticated Comms5 proposal operations with Riverview callers
 # Execution Model: Request-driven; durable state remains in existing proposal/objective stores
 # Observability: Proposal registry events and linked objective lifecycle events
@@ -12,6 +12,8 @@
 # Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Add full bounded objective and combined Steward submission projections.
 # Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Add an authenticated read projection for real worker capability inventory and explicitly unset policy state.
 # Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Persist exact-grant-checked, idempotent Steward queue requests for CME without claiming assignment dispatch.
+# Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Require fresh trusted repository grounding for stale-base rework and preserve dependency/completion semantics.
+# Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Make repeated policy transitions auditable after intervening changes without losing retry safety.
 # Contracts: docs/components/INSTITUTIONAL_PROPOSALS.md; Comms5 contract 5.0
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -20,6 +22,8 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import re
 
 from .proposals import ProposalConflict
 
@@ -45,6 +49,8 @@ class Comms5Operations:
         "comms5_supersede_seed", "comms5_confirm_and_promote_seed",
         "comms5_resource_policy_status", "comms5_form_and_queue_work",
         "comms5_objective_status", "comms5_recent_steward_submissions",
+        "comms5_revalidate_and_queue_work", "comms5_set_resource_policy",
+        "comms5_set_resource_policy_lock",
     })
 
     def __init__(self, proposal_registry, proposal_lifecycle, objective_pipeline=None):
@@ -318,6 +324,198 @@ class Comms5Operations:
                 "assignment_id": None, "work_order_created": False,
                 "dispatched": False, "dispatch_state": "awaiting_grace_execution_service"}
 
+        if tool == "comms5_revalidate_and_queue_work":
+            if self.pipeline is None:
+                raise RuntimeError("objective_pipeline_unavailable")
+            if arguments.get("explicit_steward_confirmation") is not True:
+                raise PermissionError("explicit Steward confirmation is required")
+            work_order_id = arguments.get("work_order_id")
+            evidence = arguments.get("infrastructure_repair_evidence", [])
+            if (not isinstance(work_order_id, str) or not work_order_id or len(work_order_id) > 160 or
+                    not isinstance(evidence, list) or not 1 <= len(evidence) <= 20 or
+                    any(not isinstance(item, str) or not item.strip() or len(item) > 512
+                        for item in evidence)):
+                raise ValueError("stale_base_revalidation_evidence_required")
+            if arguments.get("protocol_version", "riverview-comms-contract:5.0") != \
+                    "riverview-comms-contract:5.0":
+                raise ValueError("protocol_version_invalid")
+            if arguments.get("classification", "river") not in {
+                    "river", "institutional", "confidential"}:
+                raise ValueError("classification_invalid")
+            idem = self._idempotency(arguments.get("idempotency_key"))
+            # Reground against the same approved knowledge contract. Caller-supplied
+            # evidence references are provenance only; they cannot assert a new base.
+            assignment_projection = self.pipeline.ledger.get(work_order_id)
+            if not assignment_projection:
+                raise Comms5OperationNotFound("work_order_not_found")
+            objective_id = assignment_projection.get("objective_ref")
+            objective_projection = self.pipeline.get_objective(objective_id)
+            if not objective_projection:
+                raise Comms5OperationNotFound("work_order_objective_not_found")
+            knowledge = getattr(self.pipeline, "knowledge", None)
+            if knowledge is None:
+                raise RuntimeError("verified_repository_knowledge_unavailable")
+            grounding = knowledge.ground_assignment({
+                "id": objective_id, "objective": objective_projection["request"],
+                "acceptance_criteria": objective_projection["acceptance_criteria"],
+                "contract_ref": getattr(self.pipeline, "CONTRACT_REF", "")})
+            from ..worker_adapter.knowledge import KnowledgeStatus
+            if (grounding.status is not KnowledgeStatus.VERIFIED or
+                    grounding.retrieval_complete is not True or
+                    not grounding.source_references or
+                    not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}",
+                                     grounding.source_revision or "") or
+                    not re.fullmatch(r"[0-9a-f]{64}", grounding.source_sha256 or "")):
+                raise ProposalConflict("fresh repository base could not be verified")
+            request_digest = hashlib.sha256(json.dumps({
+                "work_order_id": work_order_id, "evidence": evidence,
+                "correlation_id": arguments.get("correlation_id", ""),
+                "classification": arguments.get("classification", "river")},
+                ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+            idem_key = "comms5-revalidate:" + hashlib.sha256(
+                (actor + "\0" + idem).encode()).hexdigest()
+            with self.pipeline.ledger.db.transaction():
+                with self.pipeline.ledger.db.cursor() as cur:
+                    self.pipeline.ledger._set_search_path(cur)
+                    cur.execute("""SELECT objective_id,event_type,payload FROM grace_objective_events
+                        WHERE idempotency_key=%s""", (idem_key,))
+                    prior = cur.fetchone()
+                    if prior:
+                        if prior["event_type"] != "work_order.stale_base_revalidated" or \
+                                prior["payload"].get("request_sha256") != request_digest:
+                            raise ProposalConflict("idempotency key is already bound to different revalidation input")
+                        return {"status": "already_queued_for_cme", "executed": True,
+                            "objective_id": prior["objective_id"],
+                            "successor_step_id": prior["payload"]["successor_step_id"],
+                            "assignment_id": None, "dispatched": False,
+                            "request_event_id": idem_key}
+                    cur.execute("""SELECT a.id,a.objective_ref,a.authority_ref,a.correlation_id,
+                            a.state,a.workflow_step,o.status AS objective_status,o.scope_ref,
+                            o.proposal,o.revision,s.step_id,s.step_order,s.step_objective,
+                            s.acceptance_criteria,s.depends_on,s.status AS step_status,
+                            o.source_revision AS prior_source_revision,
+                            i.failure_class,i.status AS intent_status,i.finished_at,
+                            (SELECT count(*) FROM worker_results wr JOIN worker_attempts wa
+                              USING(attempt_id) WHERE wa.assignment_id=a.id) AS result_count,
+                            (SELECT count(*) FROM verification_records vr WHERE vr.assignment_id=a.id) AS verification_count
+                        FROM assignments a
+                        JOIN grace_objectives o ON o.objective_id=a.objective_ref
+                        JOIN grace_objective_steps s ON s.objective_id=o.objective_id AND s.assignment_id=a.id
+                        JOIN LATERAL (SELECT failure_class,status,finished_at FROM worker_execution_intents
+                            WHERE assignment_id=a.id ORDER BY started_at DESC,intent_id DESC LIMIT 1) i ON true
+                        WHERE a.id=%s FOR UPDATE OF a,o,s""", (work_order_id,))
+                    failed = cur.fetchone()
+                    if failed is None:
+                        raise Comms5OperationNotFound("work_order_not_found")
+                    if (failed["state"] != "blocked" or
+                            failed["workflow_step"] != "WORKER_PRE_EXECUTION_FAILED" or
+                            failed["intent_status"] != "failed" or
+                            failed["failure_class"] not in {
+                                "CodexActionFailure:repository_revision_mismatch",
+                                "CodexActionFailure:stale_base"} or
+                            failed["scope_ref"] != "work-order:engineering" or
+                            failed["step_status"] not in {"failed", "blocked"} or
+                            failed["result_count"] != 0 or failed["verification_count"] != 0):
+                        raise ProposalConflict("work order lacks eligible durable stale-base failure evidence")
+                    if grounding.source_revision == failed["prior_source_revision"]:
+                        raise ProposalConflict("fresh repository base is unchanged from the stale pin")
+                    if failed["objective_status"] not in {"WORK_ORDER_CREATED", "PROPOSED"}:
+                        raise ProposalConflict("objective is not eligible for bounded revalidation")
+                    try:
+                        grant = self.pipeline.authorizer.require_principal(
+                            cur, actor, "assignment.create", failed["scope_ref"])
+                    except Exception as exc:
+                        if type(exc).__name__ == "GrantDenied":
+                            raise PermissionError("assignment.create is not authorized") from None
+                        raise
+                    policy = failed["proposal"]
+                    if isinstance(policy, str):
+                        policy = json.loads(policy)
+                    steps = policy.get("steps", []) if isinstance(policy, dict) else []
+                    original_step = next((item for item in steps
+                        if isinstance(item, dict) and item.get("step_id") == failed["step_id"]), None)
+                    if not original_step:
+                        raise ProposalConflict("failed step is absent from immutable approved proposal scope")
+                    cur.execute("""SELECT step_id,step_order,depends_on FROM grace_objective_steps
+                        WHERE objective_id=%s ORDER BY step_order FOR UPDATE""",
+                        (failed["objective_ref"],))
+                    existing_steps = cur.fetchall()
+                    if len(existing_steps) >= 20:
+                        raise ProposalConflict("objective step limit prevents a safe successor")
+                    successor = "revalidate:" + hashlib.sha256(
+                        (work_order_id + "\0" + idem).encode()).hexdigest()[:32]
+                    new_step = dict(original_step)
+                    new_step["step_id"] = successor
+                    new_step["depends_on"] = list(failed["depends_on"] or [])
+                    new_order = max(int(row["step_order"]) for row in existing_steps) + 1
+                    new_step["revalidates_step_id"] = failed["step_id"]
+                    # Retarget direct successors to the verified rework step. Their
+                    # criteria and scope remain unchanged; they cannot run until it verifies.
+                    rewired = []
+                    for current_step in existing_steps:
+                        dependencies = list(current_step["depends_on"] or [])
+                        if failed["step_id"] in dependencies:
+                            updated_dependencies = [successor if item == failed["step_id"] else item
+                                                   for item in dependencies]
+                            cur.execute("""UPDATE grace_objective_steps SET depends_on=%s::jsonb,
+                                updated_at=clock_timestamp() WHERE objective_id=%s AND step_id=%s""",
+                                (json.dumps(updated_dependencies), failed["objective_ref"],
+                                 current_step["step_id"]))
+                            for plan_step in steps:
+                                if isinstance(plan_step, dict) and plan_step.get("step_id") == current_step["step_id"]:
+                                    plan_step["depends_on"] = updated_dependencies
+                            rewired.append({"step_id": current_step["step_id"],
+                                "depends_on": updated_dependencies})
+                    details = {"source_work_order_id": work_order_id,
+                        "source_step_id": failed["step_id"], "successor_step_id": successor,
+                        "request_sha256": request_digest, "failure_class": failed["failure_class"],
+                        "infrastructure_repair_evidence": evidence,
+                        "authority_grant_id": grant["grant_id"],
+                        "correlation_id": arguments.get("correlation_id") or failed["correlation_id"],
+                        "classification": arguments.get("classification", "river"),
+                        "scope_preserved": True, "verification_required": True,
+                        "verified_base_revision": grounding.source_revision,
+                        "verified_base_sha256": grounding.source_sha256,
+                        "verified_base_references": list(grounding.source_references),
+                        "rewired_successors": rewired}
+                    policy["steps"].append(new_step)
+                    refreshed_evidence = {"status": "VERIFIED", "retrieval_complete": True,
+                        "source_references": list(grounding.source_references),
+                        "source_revision": grounding.source_revision,
+                        "source_sha256": grounding.source_sha256,
+                        "value": grounding.value}
+                    evidence_bytes = json.dumps(refreshed_evidence, ensure_ascii=False,
+                        sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+                    if len(evidence_bytes) > getattr(self.pipeline, "MAX_EVIDENCE_BYTES", 32768):
+                        raise ProposalConflict("verified repository evidence exceeds objective limit")
+                    cur.execute("""UPDATE grace_objectives SET proposal=%s::jsonb,
+                        evidence=%s::jsonb,source_revision=%s,source_sha256=%s,
+                        revision=revision+1,updated_at=clock_timestamp() WHERE objective_id=%s""",
+                        (json.dumps(policy, ensure_ascii=False, sort_keys=True),
+                         json.dumps(refreshed_evidence, ensure_ascii=False, sort_keys=True),
+                         grounding.source_revision, grounding.source_sha256,
+                         failed["objective_ref"]))
+                    cur.execute("""INSERT INTO grace_objective_steps
+                        (objective_id,step_id,step_order,step_objective,acceptance_criteria,depends_on,status)
+                        VALUES (%s,%s,%s,%s,%s::jsonb,%s::jsonb,'pending')""",
+                        (failed["objective_ref"], successor, new_order,
+                         failed["step_objective"], json.dumps(failed["acceptance_criteria"]),
+                         json.dumps(list(failed["depends_on"] or []))))
+                    self.pipeline._event(cur, failed["objective_ref"],
+                        "work_order.continuation_proposed",
+                        f"comms5-revalidate-continuation:{hashlib.sha256((work_order_id + chr(0) + idem).encode()).hexdigest()}",
+                        actor, {"step_id": successor, "depends_on": new_step["depends_on"],
+                            "source_work_order_id": work_order_id,
+                            "authorization": "explicit_steward_revalidation",
+                            "repository_revision": grounding.source_revision})
+                    self.pipeline._event(cur, failed["objective_ref"],
+                        "work_order.stale_base_revalidated", idem_key, actor, details)
+            return {"status": "queued_for_cme", "executed": True,
+                "objective_id": failed["objective_ref"], "source_work_order_id": work_order_id,
+                "successor_step_id": successor, "assignment_id": None,
+                "dispatched": False, "dispatch_state": "awaiting_grace_execution_service",
+                "verification_required": True}
+
         if tool == "comms5_recent_steward_submissions":
             limit = arguments.get("limit", 20)
             if type(limit) is not int or not 1 <= limit <= 100:
@@ -357,13 +555,28 @@ class Comms5Operations:
                 cur.execute("""SELECT worker_id,capabilities,scope_ref,active,registered_at
                     FROM worker_registry ORDER BY worker_id LIMIT 100""")
                 rows = cur.fetchall()
-            # The current runtime has no persisted seat-selection preference or
-            # lock contract. Report that fact, along with the real capability-
-            # scoped workers, instead of presenting registry inventory as policy.
+                cur.execute("""SELECT policy_key,revision,mode,parameters,locked,changed_by,
+                        authority_reference,rationale,last_selected_worker,updated_at
+                    FROM resource_selection_policies WHERE policy_key='engineering'""")
+                policy = cur.fetchone()
+                events = []
+                if policy:
+                    cur.execute("""SELECT event_type,revision,actor_id,payload,occurred_at
+                        FROM resource_selection_policy_events WHERE policy_key='engineering'
+                        ORDER BY occurred_at DESC,event_id DESC LIMIT 20""")
+                    events = cur.fetchall()
             return {"status": "available", "executed": True,
-                "policy_state": "not_configured",
-                "policy": None,
-                "selection_source": "registered_worker_capabilities",
+                "policy_state": "not_configured" if not policy else "configured",
+                "policy": ({key: (policy[key].isoformat() if key == "updated_at" and
+                    hasattr(policy[key], "isoformat") else policy[key])
+                    for key in ("policy_key", "revision", "mode",
+                    "parameters", "locked", "changed_by", "authority_reference",
+                    "rationale", "last_selected_worker", "updated_at")} if policy else None),
+                "policy_events": [{"event_type": row["event_type"],
+                    "revision": row["revision"], "actor_id": row["actor_id"],
+                    "payload": row["payload"], "occurred_at": row["occurred_at"].isoformat()}
+                    for row in events],
+                "selection_source": "durable_policy_and_registered_worker_capabilities",
                 "registered_workers": [{
                     "worker_id": row["worker_id"],
                     "capabilities": row["capabilities"],
@@ -372,7 +585,126 @@ class Comms5Operations:
                     "registered_at": row["registered_at"].isoformat()
                         if hasattr(row["registered_at"], "isoformat") else row["registered_at"],
                 } for row in rows],
-                "policy_mutation_available": False}
+                "policy_mutation_available": True}
+
+        if tool == "comms5_set_resource_policy":
+            if self.pipeline is None:
+                raise RuntimeError("resource_registry_unavailable")
+            if arguments.get("explicit_steward_confirmation") is not True:
+                raise PermissionError("explicit Steward confirmation is required")
+            mode = arguments.get("mode")
+            params = arguments.get("parameters")
+            rationale = arguments.get("rationale", "")
+            expected = arguments.get("expected_revision", -1)
+            if not isinstance(mode, str) or mode not in {"automatic", "priority", "target", "balanced"}:
+                raise ValueError("resource_policy_mode_unsupported")
+            if (not isinstance(params, dict) or set(params) -
+                    {"target_seat", "priority_order", "fallback", "consume_reset"} or
+                    not isinstance(rationale, str) or len(rationale) > 1000 or
+                    type(expected) is not int or expected < -1):
+                raise ValueError("resource_policy_parameters_invalid")
+            target = params.get("target_seat", "")
+            order = params.get("priority_order", [])
+            fallback = params.get("fallback", True)
+            if (not isinstance(target, str) or len(target) > 160 or
+                    not isinstance(order, list) or len(order) > 32 or
+                    any(not isinstance(item, str) or not item or len(item) > 160 for item in order) or
+                    len(order) != len(set(order)) or type(fallback) is not bool or
+                    type(params.get("consume_reset", False)) is not bool or
+                    params.get("consume_reset", False)):
+                raise ValueError("resource_policy_parameters_invalid")
+            if mode == "target" and not target:
+                raise ValueError("resource_policy_target_required")
+            if mode == "priority" and not order:
+                raise ValueError("resource_policy_priority_order_required")
+            params = {"target_seat": target, "priority_order": order,
+                      "fallback": fallback, "consume_reset": False}
+            with self.pipeline.ledger.db.transaction():
+                with self.pipeline.ledger.db.cursor() as cur:
+                    self.pipeline.ledger._set_search_path(cur)
+                    cur.execute("""SELECT worker_id FROM worker_registry
+                        WHERE scope_ref='work-order:engineering' ORDER BY worker_id""")
+                    known_workers = {row["worker_id"] for row in cur.fetchall()}
+                    named = set(order) | ({target} if target else set())
+                    if not named <= known_workers:
+                        raise ValueError("resource_policy_worker_not_registered_for_engineering")
+                    cur.execute("""SELECT revision,mode,parameters,locked FROM
+                        resource_selection_policies WHERE policy_key='engineering' FOR UPDATE""")
+                    current = cur.fetchone()
+                    if current and current["locked"]:
+                        raise PermissionError("resource_policy_locked")
+                    current_revision = current["revision"] if current else 0
+                    document = {"mode": mode, "parameters": params, "rationale": rationale}
+                    if (current and current["mode"] == mode and
+                            current["parameters"] == params and
+                            current["rationale"] == rationale and
+                            current["changed_by"] == actor):
+                        return {"status": "already_set", "executed": True,
+                            "revision": current_revision, "policy": document}
+                    if expected >= 0 and expected != current_revision:
+                        raise ProposalConflict("resource_policy_revision_conflict")
+                    idem = "comms5-resource-policy-set:" + hashlib.sha256(
+                        (actor + "\0" + str(current_revision) + "\0" + json.dumps(document, sort_keys=True,
+                            separators=(",", ":"))).encode()).hexdigest()
+                    revision = current_revision + 1
+                    cur.execute("""INSERT INTO resource_selection_policies
+                        (policy_key,revision,mode,parameters,locked,changed_by,authority_reference,rationale,updated_at)
+                        VALUES ('engineering',%s,%s,%s::jsonb,FALSE,%s,'authenticated-comms5-steward',%s,clock_timestamp())
+                        ON CONFLICT(policy_key) DO UPDATE SET revision=EXCLUDED.revision,
+                          mode=EXCLUDED.mode,parameters=EXCLUDED.parameters,changed_by=EXCLUDED.changed_by,
+                          authority_reference=EXCLUDED.authority_reference,rationale=EXCLUDED.rationale,
+                          updated_at=clock_timestamp()""",
+                        (revision, mode, json.dumps(params, sort_keys=True), actor, rationale))
+                    cur.execute("""INSERT INTO resource_selection_policy_events
+                        (policy_key,revision,event_type,idempotency_key,actor_id,payload)
+                        VALUES ('engineering',%s,'policy_set',%s,%s,%s::jsonb)""",
+                        (revision, idem, actor, json.dumps(document, sort_keys=True)))
+            return {"status": "policy_set", "executed": True, "revision": revision,
+                    "locked": False, "policy": document}
+
+        if tool == "comms5_set_resource_policy_lock":
+            if self.pipeline is None:
+                raise RuntimeError("resource_registry_unavailable")
+            if arguments.get("explicit_steward_confirmation") is not True:
+                raise PermissionError("explicit Steward confirmation is required")
+            locked, rationale = arguments.get("locked"), arguments.get("rationale", "")
+            if type(locked) is not bool or not isinstance(rationale, str) or len(rationale) > 1000:
+                raise ValueError("resource_policy_lock_parameters_invalid")
+            with self.pipeline.ledger.db.transaction():
+                with self.pipeline.ledger.db.cursor() as cur:
+                    self.pipeline.ledger._set_search_path(cur)
+                    cur.execute("""SELECT revision,mode,parameters,locked FROM
+                        resource_selection_policies WHERE policy_key='engineering' FOR UPDATE""")
+                    current = cur.fetchone()
+                    if current is None:
+                        if not locked:
+                            raise ProposalConflict("resource_policy_not_configured")
+                        revision, mode, params, prior_lock = 1, "automatic", {}, False
+                    else:
+                        revision, mode, params, prior_lock = (current["revision"],
+                            current["mode"], current["parameters"], current["locked"])
+                    if prior_lock == locked:
+                        return {"status": "already_locked" if locked else "already_unlocked",
+                                "executed": True, "revision": revision, "locked": locked}
+                    revision += 1
+                    idem = "comms5-resource-policy-lock:" + hashlib.sha256(
+                        (actor + "\0" + str(revision) + "\0" + str(locked) +
+                         "\0" + rationale).encode()).hexdigest()
+                    cur.execute("""INSERT INTO resource_selection_policies
+                        (policy_key,revision,mode,parameters,locked,changed_by,authority_reference,rationale,updated_at)
+                        VALUES ('engineering',%s,%s,%s::jsonb,%s,%s,'authenticated-comms5-steward',%s,clock_timestamp())
+                        ON CONFLICT(policy_key) DO UPDATE SET revision=EXCLUDED.revision,
+                          locked=EXCLUDED.locked,changed_by=EXCLUDED.changed_by,
+                          authority_reference=EXCLUDED.authority_reference,rationale=EXCLUDED.rationale,
+                          updated_at=clock_timestamp()""",
+                        (revision, mode, json.dumps(params, sort_keys=True), locked, actor, rationale))
+                    cur.execute("""INSERT INTO resource_selection_policy_events
+                        (policy_key,revision,event_type,idempotency_key,actor_id,payload)
+                        VALUES ('engineering',%s,%s,%s,%s,%s::jsonb) ON CONFLICT(idempotency_key) DO NOTHING""",
+                        (revision, "policy_locked" if locked else "policy_unlocked", idem,
+                         actor, json.dumps({"locked": locked, "rationale": rationale}, sort_keys=True)))
+            return {"status": "locked" if locked else "unlocked", "executed": True,
+                    "revision": revision, "locked": locked}
 
         if tool == "comms5_store_specification":
             content = arguments.get("content")

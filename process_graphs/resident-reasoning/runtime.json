@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-reasoning:runtime",
-  "graph_revision": "1.2.8",
+  "graph_revision": "1.2.9",
   "component_id": "RESIDENT-REASONING",
   "workflow_id": "resident.reasoning.v1",
   "diagram_order": 13,
@@ -23,7 +23,9 @@
     "scripts/run_external_reasoning_mcp.py",
     "deploy/systemd/riverview-external-reasoning-mcp.service",
     "deploy/external-reasoning-mcp.env.example",
-    "deploy/external-reasoning-mcp-requirements.txt"
+    "deploy/external-reasoning-mcp-requirements.txt",
+    "src/riverview_core/resident_execution/service.py",
+    "src/riverview_core/resident_execution/pipeline.py"
   ],
   "documentation_references": [
     "docs/components/RESIDENT_REASONING.md",
@@ -32,7 +34,8 @@
     "docs/components/RESIDENT_REASONING_FLOW.md",
     "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
     "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md",
-    "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md"
+    "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md",
+    "docs/components/GRACE_PERSISTENT_EXECUTION.md"
   ],
   "verification_evidence": [
     "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md",
@@ -727,7 +730,7 @@
       "id": "rv:resident-reasoning:runtime:exchange-grace-consumption",
       "node_revision": "1.0.0",
       "type": "process",
-      "label": "Revalidate original exact grant; lease the response and return advisory separately from original reasoning context",
+      "label": "IMPLEMENTED; ISOLATED POSTGRESQL VERIFIED — Grace revalidates original exact escalation grant, leases the persisted response, and passes typed advice separately from verified context to ResidentReasoner",
       "source_references": [
         "src/riverview_core/resident_execution/external_reasoning.py"
       ],
@@ -743,7 +746,7 @@
       "id": "rv:resident-reasoning:runtime:exchange-grace-ack",
       "node_revision": "1.0.0",
       "type": "verification",
-      "label": "Acknowledge only after Grace records the next reasoning result under stable consumption key",
+      "label": "IMPLEMENTED; ISOLATED POSTGRESQL VERIFIED — Acknowledge only after proposal and correlated external_advisory_evaluated event commit; restart recovery checks that durable idempotency fence before repeating reasoning",
       "source_references": [
         "src/riverview_core/resident_execution/external_reasoning.py"
       ],
@@ -791,7 +794,7 @@
       "id": "rv:resident-reasoning:runtime:exchange-resume",
       "node_revision": "1.0.0",
       "type": "process",
-      "label": "Return correlated advisory to existing resident reasoning; proposal, assignment, execution and verification still use their current authority paths",
+      "label": "IMPLEMENTED; ISOLATED POSTGRESQL VERIFIED — Grace reasons over the correlated advisory as unapproved proposal input; existing objective and authorization paths govern any next action",
       "source_references": [
         "src/riverview_core/resident_execution/external_reasoning.py"
       ],

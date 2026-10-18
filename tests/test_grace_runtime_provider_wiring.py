@@ -1,7 +1,7 @@
 # Riverview~ controlled test
 # File: tests/test_grace_runtime_provider_wiring.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Verify persistent Grace reasoning follows the authorized office binding
 # Execution Model: Deterministic provider factory; no database or inference service
 # Observability: Assert provider identities and router model digest
@@ -13,13 +13,15 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-RESULT-RETURN-DIAGNOSTICS-001 | Require default 512-token review budget and reject invalid overrides
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Parse an explicit owner-configured source-change path ceiling fail-closed
 # Changed: 2026-10-16 UTC | RV-PR62-SOURCE-CHANGE-MODE | Reproduce source-change mode being rejected before adapter setup
+# Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Verify the persistent Grace runtime maps configured provider identities through the existing exact escalation grant.
 """Tests for the persistent executor's model-provider wiring."""
 
 import unittest
+from contextlib import nullcontext
 
 from scripts.run_grace_execution_service import (
     configured_resident_providers, is_codex_adapter_mode, persistent_owner_codex_home,
-    reconcile_codex_startup_recovery, resident_result_review_tokens,
+    external_exchange_configuration, reconcile_codex_startup_recovery, resident_result_review_tokens,
     source_change_path_allowlist,
 )
 from riverview_core.local_reasoning_provider import LocalReasoningProvider
@@ -54,6 +56,56 @@ def make_router(environ):
 
 
 class GraceRuntimeProviderWiringTests(unittest.TestCase):
+    def test_external_exchange_configuration_reuses_exact_escalation_grant(self):
+        from riverview_core.reasoning_escalation import EscalationRequest, EscalationStatus
+        from riverview_core.resident_reasoning import ReasoningRequest
+        from scripts.run_grace_execution_service import ReasoningEscalationRouter
+        calls = []
+
+        class Ledger:
+            class Db:
+                transaction = staticmethod(nullcontext)
+                cursor = staticmethod(lambda: nullcontext(object()))
+            db = Db()
+            @staticmethod
+            def _set_search_path(_cur):
+                return None
+
+        class Authorizer:
+            @staticmethod
+            def require_principal(_cur, principal, action, scope):
+                calls.append((principal, action, scope))
+                return {"grant_id": "grant:exact-escalation-test"}
+
+        exchange, authorize = external_exchange_configuration({
+            "RIVERVIEW_EXTERNAL_REASONING_PROVIDER_MAP":
+                '{"chatgpt:plus":"provider:chatgpt:plus"}'},
+            ledger=Ledger(), authorizer=Authorizer(), office_id="office:grace")
+        self.assertIsNotNone(exchange)
+        original = ReasoningRequest("request:test", "office:grace", "objective:test",
+            "2", 9, "a" * 64, "low_confidence", 128,
+            {"objective": "bounded"}, ({"status": "VERIFIED"},), None)
+        envelope = EscalationRequest.create(original, reason="low_confidence",
+            target_provider_id="chatgpt:plus", max_tokens=64)
+        result = exchange.router.authorize_for_durable_exchange(envelope, original,
+            principal_id="office:grace", authorize=authorize)
+        self.assertEqual(result.status, EscalationStatus.AUTHORIZED_FOR_EXCHANGE)
+        self.assertEqual(calls, [("office:grace", "resident.reasoning.escalate",
+                                  "provider:chatgpt:plus")])
+
+    def test_external_exchange_configuration_is_optional_but_invalid_maps_fail_closed(self):
+        class Ledger:
+            pass
+        class Authorizer:
+            pass
+        self.assertEqual(external_exchange_configuration({}, ledger=Ledger(),
+            authorizer=Authorizer(), office_id="office:grace"), (None, None))
+        for raw in ("[]", "{}", '{"bad provider id":"provider:test"}', "invalid-json"):
+            with self.subTest(raw=raw), self.assertRaisesRegex(
+                    WorkerServiceConfigurationError, "external_reasoning_provider_map_invalid"):
+                external_exchange_configuration({"RIVERVIEW_EXTERNAL_REASONING_PROVIDER_MAP": raw},
+                    ledger=Ledger(), authorizer=Authorizer(), office_id="office:grace")
+
     def test_source_change_mode_enters_registered_codex_adapter_path(self):
         self.assertTrue(is_codex_adapter_mode("codex-cli"))
         self.assertTrue(is_codex_adapter_mode("codex-source-change"))

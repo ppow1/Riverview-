@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md
 Component: RESIDENT-REASONING
-File Revision: 1.1.2
+File Revision: 1.1.4
 Purpose: Diagnose durable external reasoning exchange transitions safely
 Authority: Read-only diagnostics first; no production migration or transport operation
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial troubleshooting guide
@@ -12,9 +12,53 @@ Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Document required Accept
 Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Document OAuth issuer/JWKS validation, open discovery, and tunnel prerequisites
 Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Record official Tunnel operation, authentication separation, and OAuth resource-server implementation
 Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Document HTTP 401/403 OAuth challenges from the MCP handler
+Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Document Grace's live durable response consumer, idempotent acknowledgement and restart diagnostics.
+Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Record the owner-session unit name and isolated full-round-trip acceptance boundary.
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # External reasoning exchange troubleshooting
+
+## Grace consumer checks (2026-10-18)
+
+The `riverview-grace-execution-owner-session.service` runner consumes existing
+`response_received` exchanges during each bounded cycle. A healthy MCP
+listener alone does not demonstrate Grace consumption. Check the Grace health
+projection and sanitized log event `grace_external_reasoning_consume_failed`
+using request/correlation IDs. Never log response bodies or provider tokens.
+
+If an exchange remains `response_received`:
+
+1. Confirm the Grace execution service is active and its `RIVERVIEW_EXTERNAL_REASONING_PROVIDER_MAP` maps the request provider to the configured Grace principal.
+2. Check that the original request still passes the exact `resident.reasoning.escalate` grant and has not expired.
+3. Check `grace_objective_events` for `resident.reasoning.external_advisory_evaluated` with the exact request and correlation IDs. If present, the durable evaluation precedes a pending acknowledgement; the next Grace cycle should acknowledge idempotently.
+4. If no event exists, inspect the sanitized failure class and grounding/binding state. The response must remain recoverable; do not mark it consumed manually.
+5. Confirm the result is only an unapproved proposal. Work-order creation and execution require their separate existing lifecycle checks.
+
+In this source branch, `GraceExecutionService.request_external_reasoning(...)`
+persists an explicitly selected external advisory request before delivery;
+the current exchange does not add an MCP request-creation tool. The existing
+provider-side MCP operations remain `reasoning_exchange_list_requests`,
+`reasoning_exchange_claim_request`, `reasoning_exchange_submit_response`, and
+`reasoning_exchange_status`. The owner-session's bounded `run_once` cycle is
+the Grace consumer and invokes the existing `consume` followed by
+`acknowledge_consumed` methods. Isolated PostgreSQL tests exercise request
+creation through this service method, provider claim/response, Grace's model
+reasoning, durable proposal/event persistence, interruption before ack, and
+idempotent recovery after service recreation. Production acceptance remains
+blocked until a valid provider mapping and exact AuthorityRegistry grant are
+provisioned and the currently inactive external MCP service is commissioned.
+
+## Stale-base rework checks (2026-10-18)
+
+`comms5_revalidate_and_queue_work` accepts only a durable blocked pre-execution
+stale-revision failure without worker results or verifier records. It obtains a
+fresh VERIFIED package/repository revision from the configured trusted
+knowledge provider. A caller-provided evidence reference is recorded as
+provenance but never establishes the new base itself. The original assignment
+stays blocked. A successor step waits for existing dependencies and Grace
+review; downstream steps are rewired to depend on that successor. If the
+provider cannot produce a fresh verified revision, no objective or assignment
+mutation is committed.
 
 ## MCP transport readiness and diagnostics (2026-10-16)
 

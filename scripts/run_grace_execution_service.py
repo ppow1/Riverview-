@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.1
+# Revision: 1.2.2
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -28,6 +28,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Wire the separately scoped source-change capability through the existing leased worker and independent verifier
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Reconcile proposal records when registry migration exists without making it a prerequisite for older deployments
 # Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-INTERNAL-TOOLS-001 | Bind Grace's reasoning router to the existing Comms5 read backend
+# Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Attach the persistent Grace cycle to existing provider-scoped external reasoning exchanges
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_runtime_provider_wiring.py; tests/test_grace_execution.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -54,6 +55,8 @@ from riverview_core.resident_execution.proposals import ProposalRegistry
 from riverview_core.resident_execution.proposal_lifecycle import ProposalLifecycle
 from riverview_core.resident_execution.pipeline import ObjectiveContextReader
 from riverview_core.resident_execution.service import GraceExecutionService
+from riverview_core.reasoning_escalation import ReasoningEscalationRouter
+from riverview_core.resident_execution.external_reasoning import DurableExternalReasoningExchange
 from riverview_core.resident_execution.worker import BoundedLocalCodingWorker
 from riverview_core.resident_execution.codex_cli import CAPABILITY as CODEX_CAPABILITY
 from riverview_core.resident_execution.codex_cli import CodexAdapterError, CodexCLIExecutionAdapter
@@ -98,6 +101,46 @@ def resident_result_review_tokens(environ):
     if not 16 <= tokens <= 512:
         raise WorkerServiceConfigurationError("resident_result_review_tokens_invalid")
     return tokens
+
+
+class _ExternalExchangeProvider:
+    """Identity marker for an MCP provider; inference remains externally pulled."""
+
+    def __init__(self, provider_id, exchange_principal_id):
+        self.provider_id = provider_id
+        self.exchange_principal_id = exchange_principal_id
+
+
+def external_exchange_configuration(environ, *, ledger, authorizer, office_id):
+    """Build the existing durable exchange only from an explicit provider map."""
+    raw = environ.get("RIVERVIEW_EXTERNAL_REASONING_PROVIDER_MAP", "")
+    if not raw:
+        return None, None
+    try:
+        mapping = json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        raise WorkerServiceConfigurationError("external_reasoning_provider_map_invalid") from None
+    if (not isinstance(mapping, dict) or not 1 <= len(mapping) <= 8 or
+            any(not isinstance(provider, str) or not re.fullmatch(
+                r"[A-Za-z0-9._:-]{1,160}", provider) or
+                not isinstance(principal, str) or not re.fullmatch(
+                    r"[A-Za-z0-9._:-]{1,256}", principal)
+                for provider, principal in mapping.items())):
+        raise WorkerServiceConfigurationError("external_reasoning_provider_map_invalid")
+    providers = {provider: _ExternalExchangeProvider(provider, principal)
+        for provider, principal in mapping.items()}
+    router = ReasoningEscalationRouter(providers)
+    exchange = DurableExternalReasoningExchange(ledger, router,
+        actor_id="office:" + office_id)
+
+    def authorize(principal_id, action, scope_ref):
+        with ledger.db.transaction():
+            with ledger.db.cursor() as cur:
+                ledger._set_search_path(cur)
+                authorizer.require_principal(cur, principal_id, action, scope_ref)
+        return True
+
+    return exchange, authorize
 
 
 def source_change_path_allowlist(environ):
@@ -256,6 +299,8 @@ def main() -> int:
         conversation_service.continuation_handler = lambda context, step: pipeline.propose_continuation(
             context["objective_id"], context["assignment_id"], step,
             actor_id="office:" + office_id)
+        external_exchange, external_authorize = external_exchange_configuration(
+            os.environ, ledger=ledger, authorizer=authorizer, office_id=office_id)
         adapter_mode = os.environ.get("RIVERVIEW_ENGINEERING_ADAPTER", "bounded-artifact")
         execution_capability = "engineering.bounded-artifact.v1"
         execution_action = BoundedLocalCodingWorker(pipeline, artifact_root)
@@ -383,7 +428,10 @@ def main() -> int:
             resident_token_budget=int(os.environ.get("RIVERVIEW_RESIDENT_REASONING_TOKENS", "768")),
             verifier=outcome_verifier, execution_capability=execution_capability,
             conversation_result_publisher=conversation_service.review_verified_work_order,
-            proposal_lifecycle=proposal_lifecycle)
+            proposal_lifecycle=proposal_lifecycle,
+            external_reasoning_exchange=external_exchange,
+            external_reasoning_authorize=external_authorize,
+            external_reasoning_principal=office_id)
         if codex_auth_mode == "supervised-chatgpt":
             if not re.search(r"80b", (reasoning_model or "").lower()) or not providers:
                 raise WorkerServiceConfigurationError("supervised_mode_requires_configured_80b_reasoner")

@@ -1,0 +1,116 @@
+<!--
+Riverview Controlled Document
+File: docs/components/COMMS5_CAMRUI_MIGRATION.md
+Component: COMMS5-CAMRUI-ADAPTER
+File Revision: 1.0.11
+Status: Source implementation and live deployment tracker
+Date: 2026-10-17
+History: New file; no predecessor existed.
+Changed: 2026-10-17 UTC | RV-COMMS5-OAUTH-FORWARD-HEADERS-001 | Record authenticated OAuth/MCP acceptance and identify the unchanged Comms4 upstream outage.
+Changed: 2026-10-17 UTC | RV-COMMS5-DASHBOARD-READ-DEPLOY-001 | Record PR #89 deployment and measured production operation coverage.
+Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Map proposal, objective-status and recent-submission operations to the current durable proposal/objective services; distinguish source from deployed coverage.
+Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Complete the authenticated transport probe and report actual worker inventory without fabricating an unset resource policy.
+Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Add idempotent, exact-grant-checked dispatch request intake while leaving actual assignment creation to the existing CME execution service.
+Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Record PR #100 queue-intake behavior, verified source coverage, and current deployment boundary.
+Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Implement the final three operations, policy enforcement and Grace's durable external-advisory consumer; record migration and production boundary.
+Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Record complete test-suite and isolated PostgreSQL verification counts; keep production acceptance unverified under the current change boundary.
+Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Record fresh read-only production state and exact commissioning blockers; no production changes made.
+Previous: 2026-10-17 UTC | RV-COMMS5-TOOL-CATALOG-AUDIT-001 | Link exact preserved input schemas and record current loopback deployment state.
+Previous: 2026-10-17 UTC | RV-COMMS5-DASHBOARD-READ-001 | Record read-only dashboard projection implementation before production deployment.
+-->
+
+# Comms5 Camrui migration matrix
+
+Historical contract source: `ppow1/Riverview` PR #15 head `048787f574d42ff073a9f94f571dc79943d60fa4`, `src/riverview/mcp/comms5_server.py`, with operation metadata from `src/riverview/mcp/comms5.py`. The checked-in catalog has 21 original tool names, exact descriptions, FastMCP-generated input schemas, original annotations, and the historical OAuth scope metadata. Camrui does not install or recreate the historical Windows-only tables.
+
+Exact historical input schemas, annotations, authentication metadata, and captured response-description limits are recorded per tool in [`COMMS5_TOOL_CATALOG_AUDIT.md`](COMMS5_TOOL_CATALOG_AUDIT.md). All 21 operations now have source implementations. The objective/status and proposal operations continue to use their existing durable stores and authorization contracts. `comms5_form_and_queue_work` records a durable, idempotent Steward request against an eligible step; Grace's persistent service remains the dispatcher and rechecks `assignment.create`. Stale-base revalidation uses durable typed pre-execution failure evidence, obtains a new VERIFIED source revision from the configured knowledge provider, appends a scoped successor step, retargets direct dependent steps, and leaves the rejected assignment and rejection state unchanged. Resource selection policy is stored and audited by migration 0012 and enforced inside transactional scheduler claims; a locked policy rejects subsequent changes. Source/test status in this document does not imply that migration 0012 or the new runtime release is installed in production.
+
+| Tool | Original purpose | Original authorization | Current implementation | Dependencies / remaining work |
+|---|---|---|---|
+| `comms5_contract_info` | Version and compatibility identity | READ_ONLY | Static versioned contract payload | No database dependency; Implemented; pure read-only |
+| `comms5_help` | Discovery, limits, safety guidance, and examples | READ_ONLY | Historical bounded Comms5 help payload preserved from source | No database dependency; Implemented; pure read-only |
+| `comms5_capabilities` | Operation list, authorization classes, limits | READ_ONLY | Historical operation registry, including all 21 tool functions | No database dependency; Implemented; pure read-only |
+| `comms5_describe_operation` | Describe one named operation | READ_ONLY | Historical operation registry lookup | No database dependency; Implemented; unknown names return historical bounded error object |
+| `comms5_examples` | Bounded operation examples | READ_ONLY | Historical static examples payload | No database dependency; Implemented; pure read-only |
+| `comms5_submit_steward_seed` | Submit a bounded draft; this never promotes or creates work. | DRAFT_WRITE | IMPLEMENTED; idempotent DRAFT in `ProposalRegistry` | Authenticated Steward ingress; no execution authority is created |
+| `comms5_store_specification` | Store a bounded specification and optional typed non-shell formation contract. | DRAFT_WRITE | IMPLEMENTED; current proposal revision and provenance; formation fields remain advisory | Exact current proposal schema; no work order is created |
+| `comms5_seed_status` | Return bounded seed, specification, objective linkage, and promotion status metadata. | READ_ONLY | IMPLEMENTED over current proposal record and links | Legacy seed IDs map to stable current proposal IDs; output is bounded |
+| `comms5_seed_lineage` | Return authoritative bounded seed lineage. | READ_ONLY | IMPLEMENTED over proposal events, reviews, and work-order links | No legacy seed/result tables are installed |
+| `comms5_objective_status` | Return bounded objective, stages, authority, intent, and work metadata. | READ_ONLY | IMPLEMENTED through authenticated internal current-runtime operation | Includes durable steps/events, latest verification, execution intent and current exact submission-grant state; excludes request and acceptance text |
+| `comms5_cme_status` | Return the authoritative CME runtime projection. | READ_ONLY | IMPLEMENTED through authenticated dashboard status projection | Returns live CME health/status fields from the existing dashboard projection; no scheduler or executor action is invoked. |
+| `comms5_recent_steward_submissions` | Return bounded recent submission metadata. | READ_ONLY | IMPLEMENTED across objective and proposal registries | Returns metadata only; combines current Steward-submitted objectives and proposal records, with bounded pagination/truncation status |
+| `comms5_transport_probe` | Run one read-only end-to-end transport correlation probe. | READ_ONLY | PR #100 source: IMPLEMENTED; requires authenticated MCP principal, probes the live dashboard status API, and returns both caller probe ID and dashboard request ID | A successful call proves this request reached Camrui through its authenticated Comms5 ingress and loopback dashboard hop; it does not claim general network availability outside that request |
+| `comms5_resource_policy_status` | Return the durable Codex resource policy and its audit projection. | READ_ONLY | IMPLEMENTED using migration 0012 policy and event tables plus actual registered worker capabilities | Requires migration 0012; a missing migration is a deployment error, not an implicit empty policy |
+| `comms5_set_resource_policy` | Set policy only from authenticated Steward transport attestation. | STEWARD-GATED_WRITE | IMPLEMENTED: validates closed policy parameters and registered Engineering workers; persists CAS revision and append-only event | Explicit confirmation and current ingress-attested Steward identity; locked policy rejects mutation; scheduler enforces configured mode |
+| `comms5_set_resource_policy_lock` | Lock or unlock policy only from authenticated Steward transport attestation. | STEWARD-GATED_WRITE | IMPLEMENTED: revisioned append-only lock transition; lock can initialize the default automatic policy | Unlock requires authenticated Steward identity and explicit confirmation; no scheduler override while locked |
+| `comms5_confirm_and_promote_seed` | Approve the exact eligible proposal revision and promote it into the existing objective pipeline. | STEWARD-GATED_WRITE | IMPLEMENTED through `ProposalLifecycle.decide` + `promote` | Requires explicit confirmation, ready revision, resolved reviews, exact content digest and existing `objective.submit`; intake failure preserves approved proposal and reports prerequisite |
+| `comms5_form_and_queue_work` | Form the approved typed intent and enqueue exactly one work order. | STEWARD-GATED_WRITE | PR #100 source: IMPLEMENTED as an append-only `work_order.dispatch_requested` event after explicit confirmation, current `objective.submit` grant revalidation, exact grant-ID match, and dependency readiness. Idempotent retries reuse the same event; target/payload conflicts fail closed. | It records queue intent only; the existing Grace Execution Service remains the sole dispatcher and separately rechecks `assignment.create`. It does not claim an assignment exists until CME creates one. |
+| `comms5_revalidate_and_queue_work` | Revalidate one stale approved base and queue one bounded successor.
+
+    This preserves the original failed attempt and exact authority scope. It
+    never widens paths, changes the capability, or executes Codex; material
+    repository drift fails closed for renewed specification approval.
+    | STEWARD-GATED_WRITE | IMPLEMENTED: requires explicit Steward confirmation, current exact `assignment.create`, durable eligible pre-execution stale-base failure, and fresh VERIFIED grounding; appends a same-scope successor and queues it for Grace/CME | Original failed assignment remains blocked and unaccepted. Successor is independently executed and verified; direct dependents are retargeted and still require Grace review. No result is synthesized. |
+| `comms5_cancel_draft` | Append-only cancel of a draft; never cancels an objective or work order. | STEWARD-GATED_WRITE | IMPLEMENTED as an explicit-confirmation transition of the current proposal to ARCHIVED | Current proposal event is append-only and transition is idempotent; rejects stale/ineligible states |
+| `comms5_supersede_seed` | Append an old-draft-to-new-draft replacement relation. | STEWARD-GATED_WRITE | IMPLEMENTED as an explicit-confirmation SUPERSEDED transition linked to a current DRAFT replacement | Relationship is recorded in proposal lifecycle event; replacement must remain unreviewed DRAFT |
+
+## Runtime boundary
+
+Camrui adapter binds to `127.0.0.1:11826` only. It requires both Caddy-injected `X-Riverview-Comms5: 1` / `X-Riverview-Comms5-Principal: steward` and a distinct backend-hop bearer credential delivered by systemd credentials. OAuth validation is performed by the Ionoge Comms5 OAuth service through Caddy `forward_auth`; that authenticated response supplies the `steward` principal, and Caddy sets the trusted hop marker on the backend request. The old connector bearer route remains a separate compatibility path. The MCP process logs no request line, body, arguments, or bearer values.
+
+Comms5 uses a fixed loopback-only dashboard client with the existing protected dashboard bearer. Read projections use fixed allowlisted paths. The proposal/objective operations use one fixed POST endpoint, `/api/v1/internal/comms5/operation`, and a closed tool allowlist; redirects, caller URLs, caller headers, and caller credentials are rejected. The dashboard independently verifies the bearer, Caddy-attested Steward marker, fixed principal mapping, bounded payload, and each existing proposal/objective lifecycle rule. The dashboard owns PostgreSQL operations; Comms5 receives no database credential. No migration is required for the current proposal/objective mappings. Work-order dispatch remains separate and is not performed by approval/promotion.
+
+## Validation status — 2026-10-17 UTC
+
+- Source catalog: 21 tools compared against historical FastMCP discovery; all 21 were returned through the authenticated production public route. PR #89 deployed six fully implemented, three partial, and twelve stubbed tools. PR #94 deployed 15 implemented, one partial, and five stubs. PR #100 source implements 18, with no partials and three truthful stubs. PR #100 has not been deployed; production remains on PR #94 until a controlled deployment is recorded.
+- In the Camrui development shell, the new source's authenticated dashboard client returned the live CME projection as healthy with 7 workers registered. An isolated local MCP HTTP listener using that client returned HTTP 200 for `comms5_cme_status`; no objective content was queried, no production Comms5 release was switched, and this does not establish a public-route deployment test. The partial transport probe measured only the Comms5-to-dashboard loopback hop.
+- Camrui adapter release `588aee804fc6ada3cdf78f4bfded2f8306c783ea` active at loopback `127.0.0.1:11826`; `/healthz` returned 200 before and after a controlled reverse-tunnel disconnect/reconnect. Reconnect elapsed 6 seconds.
+- Ionoge OAuth source `048787f574d42ff073a9f94f571dc79943d60fa4` active at loopback `127.0.0.1:11827`. A pre-restart dynamic client remained registered across an OAuth unit restart; after the loopback health endpoint returned 200, authorization and MCP exchange succeeded.
+- Public OAuth DCR, discovery, authorization-code + PKCE S256, callback state, resource-bound token exchange, MCP initialize, initialized notification, 21-tool discovery, `comms5_contract_info`, token-family revoke, and rejection of unauthenticated/revoked requests passed. Exact UTC-stage results and sanitized details are in the dated runbook/troubleshooting record.
+- The live Caddy Comms5 OAuth route now copies only the OAuth-validated `steward` principal, overwrites the backend marker, and no longer deletes that marker. Public OAuth discovery returns 200; unauthenticated Comms5 returns 401.
+- Comms4 route/config was not changed. Its unauthenticated endpoint returns 401, but authorized `ping` currently returns 502 because Ionoge has no listener on upstream `127.0.0.1:11825`; that upstream recovery is an unresolved separate issue.
+- No legacy Comms5 database tables were installed or needed. The ChatGPT Plus account UI itself has not yet been used; production protocol acceptance is not equivalent to ChatGPT application acceptance.
+
+## Production deployment record — 2026-10-17 22:16 UTC
+
+- PR #89 merged at `c18b283ae7263b6fa708b80dbf179b8199ec4b64`. The immutable package is `/tmp/riverview-comms5-c18b283.tar.gz`, SHA-256 `c2a7c5681d0f94097bed27f124a3666e6f5cc0d3959ebf4573535573fcd65371`, containing nine source/config/document files plus its manifest and checksum list. Every embedded checksum passed on Camrui.
+- Camrui `current` points to `/opt/riverview-comms5-camrui/releases/c18b283ae7263b6fa708b80dbf179b8199ec4b64`; systemd is active and the sole listener is `127.0.0.1:11826`. `/healthz` returned 200. An unauthenticated MCP POST returned 401.
+- A one-shot transient systemd invocation loaded the existing protected backend-hop credential without displaying it, then called the running production adapter. `tools/list` returned all 21 historical contracts. `comms5_cme_status` returned `IMPLEMENTED`, healthy CME state, and 7 registered workers. The dashboard-backed source was exercised against the real dashboard endpoint and protected credential; no objective or conversation body was queried.
+- Public OAuth discovery returned 200; anonymous public Comms5 MCP returned 401. Anonymous Comms4 MCP also returned 401. Caddy, OAuth, and tunnel configurations were not changed. This is not ChatGPT UI acceptance. Comms4's protected upstream remains separately unverified as recorded above.
+- Root-only rollback evidence is at `/var/backups/riverview/comms5-deploy-20261017T221707Z` (directory mode 0700): predecessor unit SHA-256 `6ece4c2f765b57d7aa6bdecca0ca137f491ef14c0497fc540e98b12475e1fdd4`, predecessor release pointer `588aee804fc6ada3cdf78f4bfded2f8306c783ea`, and new package checksum. The predecessor release remains present. Rollback restores that unit and pointer, runs `systemctl daemon-reload`, restarts only `riverview-comms5-camrui.service`, and checks `/healthz`.
+- Production capability coverage is 6 fully implemented operations (5 static discovery/contract tools plus CME status), 3 partial operations (objective status, recent Steward submissions, and bounded local transport probe), and 12 explicit non-executing stubs. Assignment intake and CME monitor remain active; `riverview-grace-execution.service` is inactive, so this release did not demonstrate Comms5-to-Codex execution.
+
+## Source implementation increment — PR #94 (2026-10-17)
+
+The PR #94 source increment adds current proposal-registry operations and bounded objective/recent-submission projections, backed by `Comms5Operations` and the authenticated dashboard internal endpoint. It was merged and deployed as commit `2c7adc678de409a50fa6817b3d98492ebb66b451`; production discovery reports 15 implemented, one partial, and five explicit stubs.
+
+## Source implementation increment — PR #95 (2026-10-17; superseded by PR #100)
+
+PR #95 completed the request-scoped transport probe using its supplied probe ID plus the live dashboard `X-Request-ID`, and made resource-policy status a projection of the registered worker/capability inventory while returning `policy_state=not_configured`. PR #100 adds the durable, idempotent, exact-grant-checked queue-request operation through the existing dashboard-owned event ledger. Source coverage is now 18 implemented and three explicit stubs. The remaining stubs are stale-base revalidation and resource-policy set/lock; no equivalent current contracts exist for these operations. PR #100 remains source-only until review, merge, package build, and controlled deployment.
+
+## Source implementation increment — PR #100 (2026-10-17)
+
+PR #100 implements the authenticated `comms5_form_and_queue_work` queue-intake contract through the current objective event ledger. Queue requests are durable and idempotent, require explicit Steward confirmation, recheck the exact current `objective.submit` grant in the transaction, and require a dependency-ready proposal step. Queue intent does not create an assignment or claim dispatch; the Grace execution service remains responsible for later assignment creation under `assignment.create`. Unit, focused routing, isolated PostgreSQL, process-graph, and revision checks passed. Production remains on its separately observed release until a controlled deployment is recorded.
+
+## Source implementation increment — RV-COMMS5-COMPLETION-20261017 (2026-10-18)
+
+The current source completes the last three Comms5 operations. New additive migration `0012_resource_selection_policy.sql` stores the Engineering selection policy, revision, lock and append-only events. Scheduler lease claims consume the policy in the same transaction as worker selection, and policy selection is constrained by active registered workers and the step's required capability. The persisted lock prevents further policy mutations until a Steward unlock operation. `balanced` selects the least-loaded eligible worker; `priority` and `target` honor the configured registered-worker order/target and the configured fallback behavior. Existing behavior remains unchanged when no policy exists or the mode is `automatic`.
+
+Stale-base revalidation is not acceptance of the failed result. It requires a typed pre-execution failure with no worker result or verification record, explicit Steward confirmation, the current exact assignment grant, and fresh verified repository grounding whose source revision differs from the stale pin. It preserves the original blocked assignment, creates an idempotent successor under the same objective and scope, refreshes the verified source binding, and rewires direct dependent steps to wait for that successor. Grace must still review a verified successor before any later step dispatches.
+
+The persistent Grace service now consumes `response_received` rows from the existing external-reasoning exchange. It revalidates the exact escalation grant, passes the typed response as advisory to the configured ResidentReasoner, records the proposal and correlated evaluation event atomically, then acknowledges consumption. A crash before acknowledgement is recovered by the durable objective event and stable exchange consumption key. The external response remains advisory and cannot approve or execute work. The Grace service also exposes the corresponding authorized request-persistence method; provider-specific configuration is opt-in and no provider credential is included in source.
+
+Verification in this checkout: `PYTHONPATH=.:src pytest -p no:cacheprovider -q tests` passed 382 tests with 204 PostgreSQL/environment-dependent skips. The targeted PostgreSQL run, executed as the local `postgres` account against disposable schemas, passed 14 tests covering exchange/MCP recovery, scheduler selection, policy lock/enforcement, stale-base successor creation, dependent-step gating, and verified completion. A full repository-root pytest discovery attempt also found a legacy test under `docs/history/` that imports `runtime_baseline` as a top-level module; the supported `tests/` suite passes. Process-graph validation/check passed for 22 graphs and 556 nodes; revision-control check against base commit `6b44b39ae474e6389f26c97a2c70200f09f33e55` passed. This source increment is not deployed. Production migration 0012, service environment verification, provider identity/exact grant, and authenticated live mailbox/rework acceptance remain unverified. Per the current Steward instruction, no merge, deployment, service restart, or production configuration change was performed.
+
+## Read-only production preflight — 2026-10-18
+
+On Camrui, Comms5 remained active on loopback and returned HTTP 200 from
+`/healthz`; an anonymous MCP POST returned HTTP 401. The Grace owner-session
+unit was active on the predecessor release `6b44b39ae474e6389f26c97a2c70200f09f33e55`.
+The external-reasoning MCP unit was disabled/inactive and port 11827 had no
+listener. PostgreSQL recorded migration 0011 but not 0012; the resource policy
+table was absent. The read-only AuthorityRegistry query returned zero
+`resident.reasoning.escalate` grants. No service, database, grant, credential,
+or configuration was changed. These observations block genuine production
+mailbox and policy-operation acceptance until separately authorized
+commissioning inputs are present.
