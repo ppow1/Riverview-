@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_CHATGPT_REVIEW_PROVIDER_PREFLIGHT.md
 Component: EXTERNAL-REASONING-MCP-TRANSPORT
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Give operators a read-only, non-secret preflight for provider-facing exact-proposal reviews
 Authority: Existing resident.reasoning.escalate grant; provider responses remain advisory
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-MCP | Initial offline and live-gate runbook
+Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-TYPED-REVIEW-SUBJECT | Document the typed PlanProposal/PlanStep subject contract
 History: Git
 -->
 # Grace to ChatGPT review provider preflight
@@ -22,8 +23,15 @@ that advisory through its existing resident reasoning path.
 `reasoning_exchange_list_requests` returns only requests assigned to the
 authenticated provider. Exact-review requests include the immutable
 `review_subject` and `review_subject_sha256`. Its schema is
-`rv.grace.proposal-review-subject.v1` and contains `subject_id`, `revision`,
-`sha256`, and the bounded `{summary, steps}` proposal. The digest is SHA-256 of
+`rv.grace.proposal-review-subject.v1` and contains UUID `subject_id`, revision
+1 through 3, `sha256`, and a bounded `PlanProposal` `{summary, steps}`. Summary
+length is at most 4,000 characters and each of 1 through 20 steps preserves all
+`PlanStep` fields: `step_id`, `objective`, `acceptance_criteria`, `depends_on`,
+`execution_capability`, `authorized_paths`, `test_targets`,
+`repository_reference`, and `repository_revision`. In particular, source-change
+targets and pinned repository provenance are not flattened or dropped. The
+adapter checks the same structural rules used by the resident `PlanProposal`
+and `PlanStep` types. The digest is SHA-256 of
 UTF-8 canonical JSON for `{subject_id, revision, proposal}` using sorted keys,
 compact separators, `ensure_ascii=false`, and `allow_nan=false`.
 
