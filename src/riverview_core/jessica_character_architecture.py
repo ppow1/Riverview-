@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/jessica_character_architecture.py
 # Component: JESSICA-CHARACTER-ARCHITECTURE
-# Revision: 1.0.1
-# Purpose: Build evidence-gated, non-persistent character proposal packages
-# Execution Model: Request-driven pure library
-# Observability: Returned package includes request, evidence and revision provenance
-# Dependencies: INSTITUTIONAL-PROPOSALS ProposalContent contract (serialization only)
-# Authority: Advisory role only; cannot create residents, approve proposals or change production
-# Changed: 2026-10-18 UTC | W3-JESSICA-CHARACTER-INTEGRATION-001 | Require cited claim text to match evidence record
+# Revision: 1.0.4
+# Purpose: Build advisory character packages and optionally adapt them as registry drafts
+# Execution Model: Request-driven library; no route is wired by this module
+# Observability: Proposal package and registry draft retain request, evidence and actor provenance
+# Dependencies: INSTITUTIONAL-PROPOSALS ProposalRegistry authorized_import contract
+# Authority: Only attested Steward caller persists a draft; Jessica cannot create residents, approve, grant authority or change production
+# Changed: 2026-10-18 UTC | W3-DORMANT-JESSICA-AUTHORSHIP-001 | Clarify dormant registry adapter contract
 # Contracts: docs/architecture/JESSICA_CHARACTER_ARCHITECTURE_RECOVERY.md
 # Tests: tests/test_jessica_character_architecture.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -213,3 +213,39 @@ def revise_character_proposal(previous, **changes):
         **successor.__dict__,
         "provenance": {**successor.provenance, "predecessor_revision": previous.revision},
     })
+
+
+def create_advisory_import_draft(registry, package, *, authenticated_steward_id,
+                                idempotency_key):
+    """Persist this package as a draft through the existing registry contract.
+
+    The principal must come from an already authenticated Steward transport, as
+    with Comms5Operations. Jessica is recorded as advisory producer, never as the
+    authenticated actor. This helper adds no endpoint, grant, approval, or route.
+    """
+    if not isinstance(package, CharacterProposalPackage):
+        raise CharacterProposalError("character proposal package required")
+    if (not isinstance(authenticated_steward_id, str)
+            or not authenticated_steward_id.strip()
+            or len(authenticated_steward_id) > 256):
+        raise PermissionError("authenticated Steward principal required")
+    principal = authenticated_steward_id.strip()
+    if not principal.startswith("steward:") or not principal[len("steward:"):].strip():
+        raise PermissionError("authenticated Steward principal required")
+    idempotency_key = _required_text(idempotency_key, "idempotency key", 240)
+    provenance = {
+        **package.provenance,
+        "advisory_producer": ROLE_ID,
+        "authenticated_actor": principal,
+        "authoring_mode": "steward_attested_advisory_import",
+        "proposal_package_revision": package.revision,
+        "proposal_base_revision": package.base_revision,
+    }
+    return registry.create_draft(
+        package.content,
+        created_by=principal,
+        origin_kind="authorized_import",
+        source_references=list(package.source_references),
+        provenance=provenance,
+        idempotency_key=idempotency_key,
+    )

@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_jessica_character_architecture.py
 # Component: JESSICA-CHARACTER-ARCHITECTURE
-# Revision: 1.0.1
+# Revision: 1.0.3
 # Purpose: Verify Jessica's advisory boundary and evidence-gated proposal package
 # Execution Model: Isolated in-process unit tests
 # Observability: Assertions use synthetic resident requests and provenance
 # Dependencies: pytest; no database or resident runtime
 # Authority: No resident creation, review decision, persistence, or production access
-# Changed: 2026-10-18 UTC | W3-JESSICA-CHARACTER-INTEGRATION-001 | Require claim/source text binding
+# Changed: 2026-10-18 UTC | W3-DORMANT-JESSICA-AUTHORSHIP-001 | Verify consistent permission denial for malformed actors
 # Contracts: docs/architecture/JESSICA_CHARACTER_ARCHITECTURE_RECOVERY.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -21,6 +21,7 @@ from riverview_core.jessica_character_architecture import (
     CharacterProposalError,
     JessicaRoleProfile,
     build_character_proposal,
+    create_advisory_import_draft,
     revise_character_proposal,
 )
 
@@ -103,3 +104,41 @@ def test_authority_boundary_cannot_be_omitted_or_revised_away():
     first = draft()
     with pytest.raises(CharacterProposalError, match="mandatory authority boundary"):
         revise_character_proposal(first, constraints=["Jessica may approve the proposal."])
+
+
+class RecordingRegistry:
+    def __init__(self):
+        self.calls = []
+
+    def create_draft(self, content, **kwargs):
+        self.calls.append((content, kwargs))
+        return {"proposal": {"lifecycle_status": "DRAFT"}, "revision": {"revision": 1}}
+
+
+def test_dormant_adapter_uses_existing_import_contract_and_preserves_steward_actor():
+    registry = RecordingRegistry()
+    package = draft()
+    result = create_advisory_import_draft(
+        registry, package,
+        authenticated_steward_id="steward:attested-test-principal",
+        idempotency_key="jessica-test-request-revision-1",
+    )
+    assert result["proposal"]["lifecycle_status"] == "DRAFT"
+    content, args = registry.calls[0]
+    assert content is package.content
+    assert args["created_by"] == "steward:attested-test-principal"
+    assert args["origin_kind"] == "authorized_import"
+    assert args["provenance"]["advisory_producer"] == "resident:jessica"
+    assert args["provenance"]["authenticated_actor"] == args["created_by"]
+    assert args["provenance"]["authoring_mode"] == "steward_attested_advisory_import"
+    assert args["idempotency_key"] == "jessica-test-request-revision-1"
+    assert not hasattr(result["proposal"], "approve")
+
+
+@pytest.mark.parametrize("principal", ["resident:jessica", "grace:session", "steward:", ""])
+def test_dormant_adapter_rejects_non_steward_actor_before_registry_write(principal):
+    registry = RecordingRegistry()
+    with pytest.raises(PermissionError, match="authenticated Steward principal"):
+        create_advisory_import_draft(registry, draft(), authenticated_steward_id=principal,
+                                    idempotency_key="jessica-test-denied")
+    assert registry.calls == []

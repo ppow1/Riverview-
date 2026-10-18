@@ -1,11 +1,12 @@
 <!-- RIVERVIEW~ CONTROLLED DOCUMENT
-File Revision: 1.0.2
+File Revision: 1.0.3
 Component: JESSICA-CHARACTER-ARCHITECTURE-RECOVERY
 Status: Historical design recovered; isolated advisory package implemented; resident integration pending
 Purpose: Record source evidence, original Jessica design, current gaps, and bounded implementation/test evidence
 Authority: Historical evidence is preserved; resident canon changes require the existing review and publication authority
 History: 1.0.1 supersedes the preliminary current-checkout-only inventory after recovery of THEESTATE/Riverview history
 History: 1.0.2 adds an isolated evidence-gated advisory package and its acceptance boundary; no runtime activation
+History: 1.0.3 adds a dormant, Steward-attested adapter to the existing authorized_import proposal contract
 -->
 
 # Jessica character architecture recovery
@@ -112,20 +113,22 @@ The method inventory covers identity decomposition and source classification; ch
 
 `src/riverview_core/jessica_character_architecture.py` adds an **inactive advisory role profile** and a pure proposal-package builder. The role carries only the verified office responsibilities from C471, cites that source, has no authority grants, and marks biography, surname, backstory, appearance, expanded personality, personal history, and original memories unresolved. It does not establish a prompt/personality or register a resident.
 
-The builder accepts a bounded request, subject resident ID, base revision, proposed content, exact evidence references, and evidence-linked claims. It emits content shaped for the existing `ProposalContent` contract, with source references and producer/request provenance. The revision helper produces a successor package and retains its predecessor revision and evidence context. These are in-memory advisory packages only; no database, registry, resident record, review outcome, or approval is created.
+The builder accepts a bounded request, subject resident ID, base revision, proposed content, exact evidence references, and evidence-linked claims. It emits content shaped for the existing `ProposalContent` contract, with source references and producer/request provenance. The revision helper produces a successor package and retains its predecessor revision and evidence context. These builder operations are in-memory only.
 
 **Verified workflow evidence:** historical code uses inspect → propose → independent review → Steward review → publish, with versioned character canon and explicit review gates (historical commits listed in the inventory). **Current isolated behavior:** request → evidence-bounded proposal package → local successor revision. **Still not connected:** current HTTP proposal authoring is Steward-session-bound and Grace-conversation-bound. It does not accept Jessica as author. Existing registry APIs can persist/review/revise records but do not supply authorization, and direct use as Jessica would misrepresent the authenticated actor. A future adapter requires an approved identity/authorship contract and authority route; this increment intentionally does not create one.
 
-The package builder rejects missing source evidence, claims whose evidence ID is absent or whose wording differs from its cited evidence record, unresolved personal fields presented as proposal facts, and proposals missing the mandatory advisory authority boundary. The package builder is not a source retriever and cannot independently verify that a cited external artifact contains the supplied evidence statement; that source resolution remains an integration acceptance requirement. It never transitions a package to reviewed or approved. Current registry review and Steward decision APIs remain the only review/decision mechanism once a properly authorized authoring path exists. No central Grace conversation/reasoning code, resident table, learning store, process graph, or migration was changed.
+The package builder rejects missing source evidence, claims whose evidence ID is absent or whose wording differs from its cited evidence record, unresolved personal fields presented as proposal facts, and proposals missing the mandatory advisory authority boundary. The builder is not a source retriever and cannot independently verify that a cited external artifact contains the supplied evidence statement; source resolution remains an integration acceptance requirement.
+
+`create_advisory_import_draft` is a dormant persistence adapter to the existing registry's `authorized_import` origin. It requires a Steward principal attested by the existing trusted transport boundary, stores the Steward as `created_by`, records Jessica only as `advisory_producer`, and carries the source/request/revision provenance forward. It does not add an HTTP route, resident grant, Jessica credential, proposal origin kind, migration, review, approval, or promotion path. Calling the helper can create only a DRAFT proposal through `ProposalRegistry.create_draft`; existing exact Steward review and decision mechanisms remain in force. Tests use a recording fake registry, not a database. No central Grace conversation/reasoning code, resident table, learning store, process graph, or migration was changed.
 
 ### Acceptance evidence
 
-`tests/test_jessica_character_architecture.py` uses isolated synthetic requests and no database. It covers inactive/non-authoritative role metadata, proposal and successor revision provenance, evidence-required behavior, rejection of unsupported historical claims and unresolved identity expansion, and rejection of an omitted/revised authority boundary. Command and result are recorded in the PR update. These tests establish the pure adapter contract only; they do not establish connected resident behavior or historical C471 validation/Steward acceptance.
+`tests/test_jessica_character_architecture.py` uses isolated synthetic requests and a recording fake registry, with no database. It covers inactive/non-authoritative role metadata, proposal and successor revision provenance, evidence-required behavior, rejection of unsupported historical claims and unresolved identity expansion, rejection of an omitted/revised authority boundary, mapping through the existing import origin while keeping the authenticated Steward actor distinct from Jessica's advisory authorship, and denial before any registry call for non-Steward actor labels. These tests do not establish that a caller actually authenticated its supplied principal; the trusted transport remains the actor-authentication boundary. They do not establish connected resident behavior or historical C471 validation/Steward acceptance.
 
 ### Minimal next integration plan
 
-1. Obtain the Steward-approved authorship/identity contract for Jessica proposals and confirm it does not conflict with active proposal/authority work.
-2. Add only the authenticated adapter into the existing institutional proposal registry, preserving its origin kinds, append-only revisions/reviews, and exact Steward decision gate; do not add storage or lifecycle tables.
+1. Obtain approval for any calling path that would accept or generate a Jessica advisory package, and confirm it uses the existing trusted Steward identity rather than asserting Jessica is authenticated.
+2. If approved, integrate the dormant helper behind the existing authenticated proposal path, preserving append-only revisions/reviews and the exact Steward decision gate; do not add storage or lifecycle tables.
 3. Add disposable-schema tests for authorized draft creation, immutable revision, review evidence, denial of authority changes, and no work-order promotion absent the existing separate exact grant.
 4. Keep Jessica inactive until the separate resident framework and identity acceptance work are complete.
 
