@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_mcp.py
 # Component: EXTERNAL-REASONING-MCP-TRANSPORT
-# Revision: 1.0.8
+# Revision: 1.0.9
 # Purpose: Exercise MCP Streamable HTTP and OAuth provider identity mapping independently
 # Execution Model: Local ephemeral HTTP server; stdlib client independent of adapter dispatch
 # Observability: HTTP status, protocol negotiation, tool names and sanitized denials
@@ -15,6 +15,7 @@
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Reject Streamable HTTP POST without both required Accept media types
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Verify quality-value denial and consume response on host rejection
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-MCP | Verify bounded exact-proposal exposure and digest-bound provider response submission
+# Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-TYPED-REVIEW-SUBJECT | Verify C3 typed proposal shape, source provenance preservation, and structural rejection
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -92,8 +93,16 @@ class _ReviewFixtureExchange(_FixtureExchange):
 
 
 def _review_subject():
-    digest_body = {"subject_id": "proposal-1", "revision": 2,
-        "proposal": {"summary": "Harmless synthetic review", "steps": ["inspect fixture"]}}
+    proposal_id = "00000000-0000-4000-8000-000000000103"
+    proposal = {"summary": "Harmless synthetic review", "steps": [{
+        "step_id": "inspect-fixture", "objective": "Inspect a disposable fixture",
+        "acceptance_criteria": ["Report fixture checksum"], "depends_on": [],
+        "execution_capability": "engineering.codex-cli-source-change.v1",
+        "authorized_paths": ["src/example.py", "tests/test_example.py"],
+        "test_targets": ["tests/test_example.py"],
+        "repository_reference": "repo://ppow1/Riverview-",
+        "repository_revision": "a" * 40}]}
+    digest_body = {"subject_id": proposal_id, "revision": 2, "proposal": proposal}
     digest = hashlib.sha256(json.dumps(digest_body, ensure_ascii=False, sort_keys=True,
         separators=(",", ":"), allow_nan=False).encode()).hexdigest()
     return {"schema_version": "rv.grace.proposal-review-subject.v1",
@@ -262,8 +271,14 @@ class IndependentMCPClientTests(unittest.TestCase):
         identity = self.tokens.resolve(TOKEN)
         listed = adapter.call_tool(identity, "reasoning_exchange_list_requests", {})
         request = listed["requests"][0]
-        self.assertEqual(request["review_subject"], exchange.subject)
+        self.assertEqual(json.loads(json.dumps(request["review_subject"])), exchange.subject)
         self.assertEqual(request["review_subject_sha256"], exchange.subject["sha256"])
+        step = request["review_subject"]["proposal"]["steps"][0]
+        self.assertEqual(step["execution_capability"], "engineering.codex-cli-source-change.v1")
+        self.assertEqual(list(step["authorized_paths"]), ["src/example.py", "tests/test_example.py"])
+        self.assertEqual(list(step["test_targets"]), ["tests/test_example.py"])
+        self.assertEqual(step["repository_reference"], "repo://ppow1/Riverview-")
+        self.assertEqual(step["repository_revision"], "a" * 40)
 
         base_arguments = {"request_id": exchange.request_id,
             "correlation_id": exchange.correlation_id, "claim_token": "c" * 36,
@@ -287,6 +302,26 @@ class IndependentMCPClientTests(unittest.TestCase):
             adapter.call_tool(identity, "reasoning_exchange_submit_response", wrong_correlation)
         self.assertEqual(len(exchange.submitted), 1)
 
+    def test_typed_review_subject_rejects_unpinned_or_incomplete_source_scope(self):
+        adapter = ExternalReasoningMCPAdapter(_FixtureExchange(), self.tokens)
+        subject = _review_subject()
+        for mutation in (
+                lambda value: value.pop("repository_revision"),
+                lambda value: value.update(repository_revision="not-a-commit"),
+                lambda value: value.update(test_targets=["tests/outside.py"]),
+                lambda value: value.update(unrecognized="silently-dropped")):
+            malformed = json.loads(json.dumps(subject))
+            mutation(malformed["proposal"]["steps"][0])
+            with self.assertRaisesRegex(ValueError, "review_subject_digest_or_size_invalid|review_subject_invalid"):
+                adapter._review_subject({"review_subject": malformed}, {})
+        malformed = json.loads(json.dumps(subject))
+        malformed["subject_id"] = "proposal-1"
+        with self.assertRaisesRegex(ValueError, "review_subject_invalid"):
+            adapter._review_subject({"review_subject": malformed}, {})
+        malformed = json.loads(json.dumps(subject))
+        malformed["revision"] = 4
+        with self.assertRaisesRegex(ValueError, "review_subject_invalid"):
+            adapter._review_subject({"review_subject": malformed}, {})
     def test_legacy_advisory_submission_does_not_require_subject_digest(self):
         exchange = _ReviewFixtureExchange(None)
         adapter = ExternalReasoningMCPAdapter(exchange, self.tokens)
@@ -300,8 +335,8 @@ class IndependentMCPClientTests(unittest.TestCase):
 
     def test_review_subject_digest_size_and_shape_are_checked(self):
         subject = _review_subject()
-        self.assertEqual(ExternalReasoningMCPAdapter._review_subject({}, {"review_subject": subject}),
-                         subject)
+        normalized = ExternalReasoningMCPAdapter._review_subject({}, {"review_subject": subject})
+        self.assertEqual(json.loads(json.dumps(normalized)), subject)
         with self.assertRaisesRegex(ValueError, "review_subject_digest_or_size_invalid"):
             ExternalReasoningMCPAdapter._review_subject({}, {"review_subject": {
                 **subject, "sha256": "0" * 64}})

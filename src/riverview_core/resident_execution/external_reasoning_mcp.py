@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning_mcp.py
 # Component: EXTERNAL-REASONING-MCP-TRANSPORT
-# Revision: 1.1.3
+# Revision: 1.1.4
 # Purpose: Expose the durable advisory exchange through authenticated MCP Streamable HTTP
 # Execution Model: Request-driven, sessionless HTTP JSON-RPC adapter
 # Observability: Sanitized request outcomes; authoritative exchange state remains PostgreSQL
@@ -15,6 +15,7 @@
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Require both Streamable HTTP response media types in MCP client Accept
 # Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Add OAuth JWT resource-server validation and OpenAI mixed-auth tool metadata
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-MCP | Expose bounded immutable review subjects and require correlated subject digest on provider replies
+# Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-TYPED-REVIEW-SUBJECT | Validate and preserve the complete typed PlanProposal/PlanStep subject
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # Tests: tests/test_external_reasoning_mcp.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -29,7 +30,7 @@ or override an authenticated provider identity.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import hashlib
@@ -44,6 +45,7 @@ import threading
 from typing import Any, Mapping
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+from uuid import UUID
 
 import jwt
 from jwt import PyJWKClient
@@ -52,6 +54,7 @@ from .external_reasoning import (
     DurableExternalReasoningExchange, ExchangeConflict, ExchangeError,
     ExchangeExpired, ExchangeNotFound, ExchangeUnauthorized,
 )
+from ..resident_reasoning import PlanProposal, PlanStep
 
 
 MCP_PATH = "/mcp"
@@ -500,24 +503,46 @@ class ExternalReasoningMCPAdapter:
         proposal = subject["proposal"]
         if (subject["schema_version"] != "rv.grace.proposal-review-subject.v1"
                 or not isinstance(subject["subject_id"], str)
-                or not subject["subject_id"] or len(subject["subject_id"]) > 160
-                or type(subject["revision"]) is not int or subject["revision"] < 1
+                or type(subject["revision"]) is not int or not 1 <= subject["revision"] <= 3
                 or not isinstance(subject["sha256"], str)
                 or not _SHA256.fullmatch(subject["sha256"])
                 or not isinstance(proposal, Mapping)
                 or set(proposal) != {"summary", "steps"}
                 or not isinstance(proposal["summary"], str)
-                or not proposal["summary"].strip() or len(proposal["summary"]) > 8000
-                or not isinstance(proposal["steps"], list) or not 1 <= len(proposal["steps"]) <= 32
-                or any(not isinstance(step, str) or not step.strip() or len(step) > 2000
-                       for step in proposal["steps"])):
+                or not proposal["summary"].strip() or len(proposal["summary"]) > 4000
+                or not isinstance(proposal["steps"], (list, tuple))
+                or not 1 <= len(proposal["steps"]) <= 20):
             raise ValueError("review_subject_invalid")
-        digest_input = {key: subject[key] for key in ("subject_id", "revision", "proposal")}
+        try:
+            UUID(subject["subject_id"])
+            subject_id = str(subject["subject_id"])
+            allowed_step_keys = set(PlanStep.__dataclass_fields__)
+            normalized_steps = []
+            for step in proposal["steps"]:
+                if not isinstance(step, Mapping) or set(step) != allowed_step_keys:
+                    raise ValueError
+                step_data = dict(step)
+                for field in ("acceptance_criteria", "depends_on", "authorized_paths", "test_targets"):
+                    values = step_data[field]
+                    if not isinstance(values, (list, tuple)):
+                        raise ValueError
+                    step_data[field] = tuple(values)
+                normalized_steps.append(PlanStep(**step_data))
+            validated_proposal = PlanProposal(proposal["summary"], tuple(normalized_steps), 0)
+            normalized_proposal = {"summary": validated_proposal.summary,
+                "steps": [asdict(step) for step in validated_proposal.steps]}
+        except (TypeError, ValueError, KeyError):
+            raise ValueError("review_subject_invalid") from None
+        digest_input = {"subject_id": subject_id, "revision": subject["revision"],
+                        "proposal": normalized_proposal}
         digest = hashlib.sha256(cls._json(digest_input).encode("utf-8")).hexdigest()
+        normalized = {"schema_version": subject["schema_version"],
+            "subject_id": subject_id, "revision": subject["revision"],
+            "sha256": subject["sha256"], "proposal": normalized_proposal}
         encoded = cls._json(subject).encode("utf-8")
         if digest != subject["sha256"] or len(encoded) > MAX_REVIEW_SUBJECT_BYTES:
             raise ValueError("review_subject_digest_or_size_invalid")
-        return dict(subject)
+        return normalized
 
     def call_tool(self, principal: ProviderPrincipal, name: str,
                   arguments: Mapping[str, Any]) -> dict[str, Any]:
