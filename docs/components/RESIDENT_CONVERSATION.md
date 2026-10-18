@@ -2,12 +2,13 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.37
+File Revision: 1.1.38
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
 Changed: 2026-10-15 UTC | RV-GRACE-AUTONOMIC-CONTEXT-BOUND-001 | Keep persisted history intact while limiting 0.6B acknowledgments to current-turn identity context
 Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-GUIDANCE-001 | Clarify user-facing Engineering proposal behavior, exact intake boundary, and live refusal evidence
+Changed: 2026-10-18 UTC | RV-PR115-0013-RUNTIME-ACL | Document the restricted runtime permissions for bounded deferred retry state
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Set a short CPU-model response budget and record observed timeout evidence
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Document model-specific inference prefix and real browser verification approach
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Record committed-source local Firefox and PostgreSQL commissioning evidence
@@ -239,6 +240,8 @@ The safe provider taxonomy is:
 - **Sanitization:** HTTP status codes are retained only in the `endpoint_http_NNN` form. Raw response bodies, prompts, completions, credentials, cookies and exception text are not included in retry state or logs.
 
 Migration `0013_bounded_deferred_retries.sql` persists `attempt_count`, `next_attempt_at`, `last_error_code`, and `blocked_at` in `resident_deferred_retry_state`. A deferred request receives at most five automatic resume attempts. After a transient failure, the next attempt is scheduled after 5, 10, 20, then 40 seconds; failure of attempt five leaves the original user and `response_deferred` events intact and marks the request blocked with no automatic next attempt. The status endpoint returns a `recovery` object with attempt count, next-attempt timestamp, sanitized last error, and blocked state. The existing cross-process lease still serializes inference. A successful or terminal response is written against the original request ID using the existing idempotent terminal-event transaction; retries cannot publish a second response.
+
+The migration grants `riverview_core` SELECT and INSERT access plus UPDATE only on the retry count, scheduling timestamp, sanitized error code, blocked timestamp, and update timestamp. It grants no DELETE or TRUNCATE access; request identity and table structure remain immutable to the runtime role.
 
 To inspect a request, use its authenticated response-status route and read only the `status`, `error_code`, and `recovery` fields. For database verification, query only `request_id`, `attempt_count`, `next_attempt_at`, `last_error_code`, and whether `blocked_at IS NOT NULL` from `resident_deferred_retry_state`; never select conversation `body` or event payloads for routine diagnosis. The migration is required before a release containing this retry scheduler is commissioned. A blocked request remains durable; reactivation requires an explicitly reviewed recovery operation, not deleting its events or changing the model routing policy.
 
