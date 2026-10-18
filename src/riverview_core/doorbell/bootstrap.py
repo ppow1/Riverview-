@@ -1,13 +1,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/doorbell/bootstrap.py
 # Component: CHATGPT-DOORBELL
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Create the user-owned exact-target config without credential material
+# Inputs/Outputs: Exact target ID and executable / private config path or stable failure class
 # Execution Model: Interactive commissioning CLI
 # Observability: Prints only the config path or a stable failure class
 # Dependencies: Python standard library; installed Chrome/Chromium
 # Authority: Refuses to replace an existing binding unless --replace is explicit
-# Changed: 2026-10-17 UTC | RV-C3-DOORBELL-001 | Add Linux profile bootstrap command
+# Changed: 2026-10-18 UTC | RV-C3-DOORBELL-DOD-001 | Complete controlled header and status/recovery contract
 # Contracts: docs/components/CHATGPT_DOORBELL.md
 # Tests: tests/test_chatgpt_doorbell.py
 # History: Git and .riverview-revisions.json

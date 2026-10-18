@@ -1,13 +1,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/doorbell/config.py
 # Component: CHATGPT-DOORBELL
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Store the single exact ChatGPT target and local browser executable
+# Inputs/Outputs: XDG config, profile and executable settings / validated runtime configuration
 # Execution Model: Request-driven configuration library
 # Observability: Stable failure classes; config values are not emitted
 # Dependencies: Python standard library; Riverview-owned user profile
 # Authority: One configured conversation and localhost CDP port only
-# Changed: 2026-10-17 UTC | RV-C3-DOORBELL-001 | Add Ubuntu and XDG runtime paths
+# Changed: 2026-10-18 UTC | RV-C3-DOORBELL-DOD-001 | Complete controlled header and status/recovery contract
 # Contracts: docs/components/CHATGPT_DOORBELL.md
 # Tests: tests/test_chatgpt_doorbell.py
 # History: Git and .riverview-revisions.json

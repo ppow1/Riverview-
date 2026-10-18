@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.60",
+  "manifest_revision": "1.1.63",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.38",
+      "revision": "1.0.40",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "3195cc1cfef726cb55c0cf47e4b5f6ab670b0d5ea3d03408a1cc6d3ecfe6cdef",
-      "size_bytes": 229245
+      "sha256": "a76420443d036935ce40cdb823650e0735ffa977972e0c9af24b1f63f272ab18",
+      "size_bytes": 247477
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 27724
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.60"
+      "revision": "1.1.63"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -173,10 +173,10 @@
       "size_bytes": 15802
     },
     "process_graphs/chatgpt-doorbell/browser-runtime.json": {
-      "revision": "1.0.2",
+      "revision": "1.0.4",
       "path": "process_graphs/chatgpt-doorbell/browser-runtime.json",
-      "sha256": "66bca93bab463ef81a83ddea36f58998ace104ce7dce5f9b6e30da7fea9d09d7",
-      "size_bytes": 7249
+      "sha256": "0ffa5fef6f201ad8223d5f04f050875cb94ea56b6e5b831707dc4d5c8455e2c0",
+      "size_bytes": 23567
     },
     "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/runtime-qualification.json": {
       "revision": "1.0.0",
@@ -189,6 +189,12 @@
       "path": "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/artifacts.json",
       "sha256": "7795ac8ef3dc75d565a83ce2ba4f789ec4a0bbd73216706df28def8c9f66fb9d",
       "size_bytes": 509
+    },
+    "docs/components/CHATGPT_DOORBELL_STATUS.schema.json": {
+      "revision": "1.0.0",
+      "path": "docs/components/CHATGPT_DOORBELL_STATUS.schema.json",
+      "sha256": "17f1d1db5fec74663cb89c425c37781a3fce23bb7751db8cb4683742976a427e",
+      "size_bytes": 6987
     }
   }
 }

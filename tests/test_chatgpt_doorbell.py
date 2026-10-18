@@ -1,13 +1,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_chatgpt_doorbell.py
 # Component: CHATGPT-DOORBELL
-# Revision: 1.0.1
-# Purpose: Verify exact target binding, request identity, timeout bounds and metadata-only bridge results
+# Revision: 1.0.2
+# Purpose: Verify exact binding, request lineage, bounded failures and machine-readable status
+# Inputs/Outputs: Synthetic configurations, mocked results and temporary XDG paths / unittest assertions only
 # Execution Model: Deterministic unit tests; no browser, mailbox or network access
 # Observability: unittest assertions and exit status
 # Dependencies: Python standard library and riverview_core.doorbell
 # Authority: Uses temporary config and fake process runner only
-# Changed: 2026-10-17 UTC | RV-C3-DOORBELL-001 | Verify mismatched bridge lineage is rejected
+# Changed: 2026-10-18 UTC | RV-C3-DOORBELL-DOD-001 | Validate owner-local status schema with missing configuration
 # Contracts: docs/components/CHATGPT_DOORBELL.md
 # Tests: This file
 # History: Git and .riverview-revisions.json
@@ -21,6 +22,8 @@ import tempfile
 import unittest
 from pathlib import Path
 from uuid import uuid4
+
+from jsonschema import Draft202012Validator
 
 from riverview_core.doorbell.browser_bridge import BrowserBridgeRunner, DoorbellRequest
 from riverview_core.doorbell.config import bootstrap_config, load_config
@@ -124,6 +127,26 @@ class DoorbellTests(unittest.TestCase):
         missing_result = BrowserBridgeRunner(config_path=self.config_path, runner=no_node).ring(
             self.request, CONVERSATION_ID)
         self.assertEqual(missing_result.failure_class, "RIV-PLY-0015")
+
+    def test_status_cli_returns_schema_valid_owner_local_blocker_snapshot(self):
+        runtime = Path(__file__).resolve().parents[1] / "tools" / "riverview_browser_runtime.cjs"
+        schema_path = Path(__file__).resolve().parents[1] / "docs" / "components" / "CHATGPT_DOORBELL_STATUS.schema.json"
+        env = {
+            **__import__("os").environ,
+            "RIVERVIEW_DOORBELL_CONFIG": str(self.root / "missing-doorbell.json"),
+            "RIVERVIEW_RUNTIME_ROOT": str(self.root / "state"),
+            "RIVERVIEW_BROWSER_PROFILE": str(self.root / "profile"),
+        }
+        result = subprocess.run(["node", str(runtime), "--status"], capture_output=True, text=True,
+                                env=env, timeout=10, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        status = json.loads(result.stdout)
+        Draft202012Validator(json.loads(schema_path.read_text(encoding="utf-8"))).validate(status)
+        self.assertEqual(status["status"], "unavailable")
+        self.assertEqual(status["ready"], False)
+        self.assertEqual(status["authentication_status"], "unknown")
+        self.assertTrue(any(item["code"] == "COMMS5_MAILBOX_CONTRACT_NOT_INTEGRATED"
+                            for item in status["blockers"]))
 
 
 if __name__ == "__main__":

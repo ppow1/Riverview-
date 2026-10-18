@@ -1,13 +1,14 @@
 // RIVERVIEW~ CONTROLLED SOURCE
 // File: tools/riverview_browser_runtime.cjs
-// File Revision: 1.0.0
-// Component: CHATGPT-DOORBELL | Revision: 1.0.0
-// Purpose: Supervise only the configured Riverview Chrome profile on a user session
+// File Revision: 1.0.1
+// Component: CHATGPT-DOORBELL | Revision: 1.0.1
+// Purpose: Supervise the configured Riverview Chrome profile and expose owner-local runtime status
+// Inputs/Outputs: Private config and graphical session / bounded status JSON and Chrome lifecycle
 // Execution Model: Persistent systemd user service or explicit local start
-// Observability: Metadata-only preflight and PID/runtime status
+// Observability: Metadata-only preflight, PID/runtime status, and status.v1 schema
 // Dependencies: Node.js; Chrome/Chromium; graphical user session
 // Authority: Dedicated profile; localhost CDP; no browser content access
-// Changed: 2026-10-17 UTC | RV-C3-DOORBELL-001 | Add Linux persistent browser lifecycle
+// Changed: 2026-10-18 UTC | RV-C3-DOORBELL-DOD-001 | Add process-safe runtime state to status contract
 // Contracts: docs/components/CHATGPT_DOORBELL.md
 // Tests: tests/test_riverview_doorbell_bridge_node.cjs
 // History: Git and .riverview-revisions.json
@@ -63,6 +64,18 @@ function clearRuntime(pid) {
     if (current.pid === pid) fs.unlinkSync(PID_FILE);
   } catch { /* no state to clear */ }
 }
+function runtimeInfo() {
+  try {
+    const value = JSON.parse(fs.readFileSync(PID_FILE, 'utf8'));
+    if (!Number.isInteger(value.pid) || value.pid < 1) return { state: 'stale', started_at: null };
+    process.kill(value.pid, 0);
+    const command = fs.readFileSync(`/proc/${value.pid}/cmdline`, 'utf8').replaceAll('\0', ' ');
+    if (!command.includes(`--user-data-dir=${PROFILE}`)) return { state: 'stale', started_at: null };
+    return { state: 'running', started_at: value.started_at || null };
+  } catch (error) {
+    return { state: error.code === 'ENOENT' ? 'not_running' : 'stale', started_at: null };
+  }
+}
 async function serve(config) {
   if (await cdpAvailable(config)) throw Error('RIV-PLY-0015');
   if (!fs.existsSync(config.browser_executable)) throw Error('RIV-PLY-0013');
@@ -91,6 +104,24 @@ async function start(config) {
   return { status: 'started', pid: child.pid, cdp_address: '127.0.0.1', cdp_port: config.cdp_port, profile: PROFILE };
 }
 async function main() {
+  if (process.argv.includes('--status')) {
+    let config = null;
+    try { config = bridge.loadConfig(); } catch { /* status remains machine-readable when config is missing */ }
+    const readiness = config ? await preflight(config) : {
+      bridge_version: '1.0.2', browser_runtime: false, cdp_available: false,
+      authenticated_session: false, designated_target_configured: false, exact_target_resolvable: false,
+      fixed_action_available: false, ready: false, failure_class: 'RIV-PLY-0010',
+    };
+    const status = await bridge.statusSnapshot({
+      readiness,
+      browser_runtime: config ? fs.existsSync(config.browser_executable) : false,
+      cdp_port: config?.cdp_port || null,
+      process: runtimeInfo(),
+      profile_lock_present: fs.existsSync(path.join(PROFILE, 'SingletonLock')),
+    });
+    console.log(JSON.stringify(status));
+    return;
+  }
   let config;
   try { config = bridge.loadConfig(); }
   catch { console.log(JSON.stringify({ ready: false, failure_class: 'RIV-PLY-0010' })); process.exitCode = 2; return; }
@@ -105,4 +136,4 @@ async function main() {
   }
 }
 if (require.main === module) main();
-module.exports = { launchArgs, preflight };
+module.exports = { launchArgs, preflight, runtimeInfo };

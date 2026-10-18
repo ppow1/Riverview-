@@ -1,13 +1,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/doorbell/browser_bridge.py
 # Component: CHATGPT-DOORBELL
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Pass durable mailbox identities to the fixed local CDP wake operation
+# Inputs/Outputs: UUID request lineage, bounded timeout, designated target / metadata-only bridge result
 # Execution Model: Request-driven adapter invoked by the Comms5-owned caller
 # Observability: Bounded DoorbellResult with request/correlation IDs and safe evidence reference
 # Dependencies: Python standard library; Node.js; tools/riverview_doorbell_bridge.cjs
 # Authority: Does not create mailbox state, read page output, or expose browser controls
-# Changed: 2026-10-17 UTC | RV-C3-DOORBELL-001 | Verify bridge response lineage before reporting success
+# Changed: 2026-10-18 UTC | RV-C3-DOORBELL-DOD-001 | Complete controlled header and status/recovery contract
 # Contracts: docs/components/CHATGPT_DOORBELL.md
 # Tests: tests/test_chatgpt_doorbell.py
 # History: Git and .riverview-revisions.json

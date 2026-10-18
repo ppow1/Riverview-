@@ -2,9 +2,9 @@
 Riverview~ Controlled Document
 File: docs/components/CHATGPT_DOORBELL.md
 Component: CHATGPT-DOORBELL
-File Revision: 1.0.1
-Purpose: Contract, configuration, runtime, diagnostics and recovery for the Ubuntu ChatGPT wake adapter
-Changed: 2026-10-17 UTC | RV-C3-DOORBELL-001 | Record Codex 1 Comms5 mailbox contract handoff
+File Revision: 1.0.2
+Purpose: Architecture, contracts, configuration, security, lifecycle, runtime boundaries and acceptance for the Ubuntu ChatGPT wake adapter
+Changed: 2026-10-18 UTC | RV-C3-DOORBELL-DOD-001 | Complete Linux lifecycle, status contract, integration boundary and acceptance documentation
 -->
 # ChatGPT Doorbell
 
@@ -160,3 +160,98 @@ Rollback disables only this user unit and restores its prior unit/config backup.
 It does not touch Grace, CME, PostgreSQL, Comms4, or Comms5. Keep the historical
 Windows bridge unchanged as the fallback until the Linux mailbox round trip is
 independently verified.
+
+## Implemented architecture and commissioning boundary
+
+The implemented path is: a caller may provide a durable request identity to
+`BrowserBridgeRunner.ring()` → the adapter validates identity and current
+designated conversation binding → the Linux Chrome runtime exposes CDP only on
+loopback → the bridge resolves exactly one configured ChatGPT conversation →
+it submits the fixed wake text → it returns request/correlation IDs and
+metadata-only submission evidence. This caller API is implemented, but no
+durable Comms5 request source currently invokes it.
+
+The intended full path continues through ChatGPT's Comms5 application to
+retrieve and claim the request, submit a correlated response, and let Grace
+consume the completed result. These downstream stages are not implemented by
+the browser bridge and are not commissioned in this release. The graph marks
+them as Codex 1/Codex 2 owned dependency nodes. The live Comms5 capability
+catalog lacks required mailbox operations; see issue #96. The browser does not
+scrape assistant output because that would make page content an untrusted,
+private, non-authoritative substitute for the correlated Comms5 response and
+would create an undocumented second result interface. The fixed wake is the
+only browser-submitted content.
+
+## Configuration, identity, and status contract
+
+Configuration is owner-local JSON, mode `0600`, with the exact designated
+conversation ID, localhost CDP range, dedicated profile path, and executable
+selection. The service user is `admin1` because Chrome requires its graphical
+session. Configuration bootstrap refuses overwrite unless explicitly asked
+after a binding change is approved. The wake request accepts UUID request and
+correlation identities, exact configured binding, and a bounded 1–120 second
+timeout. No user prompt or mailbox body is accepted as browser input.
+
+`node tools/riverview_browser_runtime.cjs --status` emits the machine-readable
+`rv.chatgpt-doorbell.status.v1` object defined in
+[`CHATGPT_DOORBELL_STATUS.schema.json`](CHATGPT_DOORBELL_STATUS.schema.json).
+It includes component ID/version, local readiness, observed timestamp and a
+60-second freshness threshold, browser/runtime/session state, localhost CDP
+health and port, authentication control-readiness heuristic, exact target
+resolution, fixed action availability, last trigger IDs/status, coded error,
+blockers, external dependency states, workflow position/reason, process
+state, and whether a profile lock is present. The local command reads only
+metadata and browser control availability; it does not inspect page text or
+assistant responses. Authentication `composer_ready` means UI controls are
+available, not that a particular account identity or mailbox permission has
+been independently proven.
+
+This status is an owner-local snapshot, not a continuously refreshed
+Steward-facing endpoint. Downstream dependency state is release-configured,
+not queried dynamically. `workflow_position` is null because this release has
+no connected durable event source. The existing dashboard registers the
+canonical graph via its graph API, but does not yet consume this per-user
+runtime status. DoD gate 6 therefore remains PARTIAL. Never display an old
+snapshot as healthy; consumers must mark it stale after the stated threshold.
+
+## Dependencies and authority
+
+Runtime dependencies are Ubuntu systemd user services, Node.js, `node-ws`
+where the runtime lacks global WebSocket, Chrome/Chromium, an active
+`admin1` graphical session, localhost CDP, and supported interactive ChatGPT
+authentication. Integration dependencies are the current Comms5 capability
+contract, the designated reasoning conversation's authorized Comms5 app, and
+the existing Grace response-consumption interface. The bridge has no authority
+to create/claim/complete a mailbox request or to assert Grace completion.
+PostgreSQL state remains Comms5-owned.
+
+The doorbell journal is auxiliary local evidence keyed by request/correlation
+IDs and stores status, timestamps, and stable failure classes. It is not the
+mailbox, does not contain request/response content, and is not authoritative
+for claim/completion. Files and config are owner-only. CDP binds to
+`127.0.0.1`; no remote-debugging listener is exposed to the network.
+
+## Retry, idempotency, service lifecycle, and recovery
+
+A verified successful attempt is idempotently returned for the same request
+and correlation identities. Failures retain the same identities and stable
+error code in the local journal. Transport and submission waits are bounded.
+An ambiguous click/timeout is not automatically resent: the mailbox owner must
+check durable request/claim state before retry, and retries use the same
+identities under the owning lease/expiry rules. The component has no continuous
+mailbox poll or event queue; it is request-driven.
+
+Systemd starts the configured browser at graphical-session startup and
+restarts Chrome after an unexpected process exit. Normal shutdown/restart is
+limited to the doorbell unit under change control. On restart, the caller must
+re-read authoritative mailbox state and binding before resuming; a local
+journal is insufficient to infer whether ChatGPT/Comms5 processed a wake.
+Bootstrap preserves existing config. Rollback disables only the doorbell unit
+and restores its retained unit/config predecessor; it does not affect Grace,
+CME, inference, Comms4/5, or PostgreSQL. Production deployment is not part of
+this change.
+
+Detailed node-level diagnosis and safe procedures are in
+[`CHATGPT_DOORBELL_COOKBOOK.md`](CHATGPT_DOORBELL_COOKBOOK.md). Acceptance and
+external blockers are tracked in
+[`RV-C3-DOORBELL-DOD-001.md`](../development/RV-C3-DOORBELL-DOD-001.md).
