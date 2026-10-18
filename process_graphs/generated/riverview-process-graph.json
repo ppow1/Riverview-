@@ -9132,7 +9132,7 @@
     },
     {
       "graph_id": "rv:resident-reasoning:runtime",
-      "graph_revision": "1.2.11",
+      "graph_revision": "1.2.12",
       "component_id": "RESIDENT-REASONING",
       "workflow_id": "resident.reasoning.v1",
       "diagram_order": 13,
@@ -9909,9 +9909,9 @@
         },
         {
           "id": "rv:resident-reasoning:runtime:exchange-expired",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "failure",
-          "label": "Expire request on finite deadline; preserve one terminal event and reject late response",
+          "label": "Expire request on finite deadline; preserve terminal event, reject late response, and return MCP expired/non-success without response digest",
           "source_references": [
             "src/riverview_core/resident_execution/external_reasoning.py"
           ],
@@ -10011,9 +10011,9 @@
         },
         {
           "id": "rv:resident-reasoning:runtime:exchange-mcp-tools",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
-          "label": "Discover the fixed provider-scoped list, claim, submit-advisory and status tool schemas",
+          "label": "Discover fixed provider-scoped tools; late submit after durable deadline reports expired/non-success without a response digest",
           "source_references": [
             "src/riverview_core/resident_execution/external_reasoning_mcp.py",
             "scripts/run_external_reasoning_mcp.py"
@@ -10457,6 +10457,12 @@
           "to": "rv:resident-reasoning:runtime:proposal-only",
           "type": "runtime_transition",
           "label": "no escalation intent; proposal remains unapproved"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:exchange-response-gate",
+          "to": "rv:resident-reasoning:runtime:exchange-expired",
+          "type": "diagnostic_branch",
+          "label": "deadline elapsed before response commit; MCP returns expired/non-success without digest"
         }
       ]
     },

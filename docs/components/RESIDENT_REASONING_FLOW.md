@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_FLOW.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.17
+File Revision: 1.0.18
 Purpose: Generated focused process view for resident reasoning routing
 Authority: Graph-generated view; canonical source is JSON
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add graph-generated resident reasoning flow
@@ -60,13 +60,13 @@ flowchart LR
     g_rv_resident_reasoning_runtime_exchange_response_persisted_74d2abca["Commit one structured advisory, evidence references, digest and provenance idempotently"]
     g_rv_resident_reasoning_runtime_exchange_grace_consumption_0b864d8c["IMPLEMENTED; ISOLATED POSTGRESQL VERIFIED — Grace revalidates original exact escalation grant, leases the persisted response, and passes typed advice separately from verified context to ResidentReasoner"]
     g_rv_resident_reasoning_runtime_exchange_grace_ack_4657c0a8["IMPLEMENTED; ISOLATED POSTGRESQL VERIFIED — Acknowledge only after proposal and correlated external_advisory_evaluated event commit; restart recovery checks that durable idempotency fence before repeating reasoning"]
-    g_rv_resident_reasoning_runtime_exchange_expired_124bcfc4[["Expire request on finite deadline; preserve one terminal event and reject late response"]]
+    g_rv_resident_reasoning_runtime_exchange_expired_124bcfc4[["Expire request on finite deadline; preserve terminal event, reject late response, and return MCP expired/non-success without response digest"]]
     g_rv_resident_reasoning_runtime_exchange_recovery_4f7ee76d["Recover awaiting-delivery, expired claims or persisted response after restart with same correlation and fenced idempotency"]
     g_rv_resident_reasoning_runtime_exchange_resume_6e7253b1["IMPLEMENTED; ISOLATED POSTGRESQL VERIFIED — Grace reasons over the correlated advisory as unapproved proposal input; existing objective and authorization paths govern any next action"]
     g_rv_resident_reasoning_runtime_exchange_mcp_auth_89ac0223{"Validate OAuth JWT issuer, exact MCP audience, expiry and fixed subject/client mapping; return 401 for invalid tokens and 403 for missing scope"}
     g_rv_resident_reasoning_runtime_exchange_mcp_auth_denied_eac5aa1a[["Reject missing or invalid OAuth tokens with HTTP 401/WWW-Authenticate; reject authenticated insufficient scope with HTTP 403; preserve challenge metadata"]]
     g_rv_resident_reasoning_runtime_exchange_mcp_initialize_602c72d5["Negotiate supported MCP protocol version over sessionless Streamable HTTP JSON-RPC POST"]
-    g_rv_resident_reasoning_runtime_exchange_mcp_tools_856213a4["Discover the fixed provider-scoped list, claim, submit-advisory and status tool schemas"]
+    g_rv_resident_reasoning_runtime_exchange_mcp_tools_856213a4["Discover fixed provider-scoped tools; late submit after durable deadline reports expired/non-success without a response digest"]
     g_rv_resident_reasoning_runtime_exchange_mcp_pull_9d19168a["Provider pulls bounded eligible request context; transport delivery lease and acknowledgement are durable"]
     g_rv_resident_reasoning_runtime_exchange_mcp_status_6c99e3ba["Expose provider-owned body-free state, digest, provenance and sanitized diagnostic projection"]
     g_rv_resident_reasoning_runtime_external_escalation_intent_8882f798{"Did the bound model return a typed advisory intent for a configured provider?"}
@@ -137,5 +137,6 @@ flowchart LR
   g_rv_resident_reasoning_runtime_persistence_gate_d9f96702 -->|durable typed plan returned| g_rv_resident_reasoning_runtime_external_escalation_intent_8882f798
   g_rv_resident_reasoning_runtime_external_escalation_intent_8882f798 -->|intent targets an explicitly configured provider| g_rv_resident_reasoning_runtime_task_escalation_contract_dec2e604
   g_rv_resident_reasoning_runtime_external_escalation_intent_8882f798 -->|no escalation intent; proposal remains unapproved| g_rv_resident_reasoning_runtime_proposal_only_27f4e7fa
+  g_rv_resident_reasoning_runtime_exchange_response_gate_87bf6800 -->|diagnostic_branch: deadline elapsed before response commit; MCP returns expired/non-success without digest| g_rv_resident_reasoning_runtime_exchange_expired_124bcfc4
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

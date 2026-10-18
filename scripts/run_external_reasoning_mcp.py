@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_external_reasoning_mcp.py
 # Component: EXTERNAL-REASONING-MCP-TRANSPORT
-# Revision: 1.1.0
+# Revision: 1.1.1
 # Purpose: Start the loopback authenticated MCP adapter without applying migrations
 # Execution Model: systemd long-running bounded HTTP service
 # Observability: Sanitized startup failure codes and private health endpoint
@@ -12,6 +12,7 @@
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Initial service launcher
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Validate the systemd provider-token credential boundary
 # Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Require issuer-validated OAuth provider mappings at service startup
+# Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-MCP | Report the reviewed-subject MCP adapter version
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # Tests: tests/test_external_reasoning_mcp.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -121,7 +122,7 @@ def main():
     try:
         server, ledger = build_service()
         print(json.dumps({"event": "external_reasoning_mcp_started",
-            "component_id": "external-reasoning-mcp", "component_version": "1.1.0",
+            "component_id": "external-reasoning-mcp", "component_version": "1.2.0",
             "host": server.server_address[0], "port": server.server_address[1],
             "transport": "streamable-http", "database_schema": ledger.schema}), flush=True)
         server.serve_forever(poll_interval=0.5)
