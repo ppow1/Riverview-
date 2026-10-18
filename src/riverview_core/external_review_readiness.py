@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/external_review_readiness.py
 # Component: EXTERNAL-REVIEW-READINESS
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Produce a privacy-safe operator readiness projection for Grace's external review exchange
 # Execution Model: Request-driven pure projection
 # Observability: Versioned, bounded state object; identifiers and private content omitted
@@ -14,6 +14,7 @@
 # Changed: 2026-10-18 UTC | RV-C1-EXTERNAL-REVIEW-READINESS-001 | Do not equate Grace mailbox consumption with an evaluation decision
 # Changed: 2026-10-18 UTC | RV-C1-EXTERNAL-REVIEW-READINESS-001 | Require complete receipt lineage for positive wake status
 # Changed: 2026-10-18 UTC | RV-C1-EXTERNAL-REVIEW-READINESS-001 | Classify an unverified wake separately from a successful submission
+# Changed: 2026-10-18 UTC | RV-C1-P0-READINESS-INTEGRATION-001 | Consume C3/C4 body-free status and bind provider result digests
 # Contracts: docs/components/EXTERNAL_REVIEW_READINESS.md
 # Tests: tests/test_external_review_readiness.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -28,6 +29,7 @@ not make or authorize a review decision.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import re
 from typing import Any, Mapping
 
 
@@ -45,6 +47,74 @@ _AUTH = {"composer_ready", "login_required", "unknown"}
 _TARGET = {"exact_match", "unresolved", "unknown"}
 _RECEIPT_OUTCOMES = {"submitted", "ambiguous", "failed"}
 _PROVIDER_OUTCOMES = {"accepted", "rejected"}
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+
+
+def _provider_result_matches_exchange(
+    exchange_status: Mapping[str, Any], provider_result: Mapping[str, Any]
+) -> str:
+    """Validate C4's body-free status/result against C3's durable exchange metadata.
+
+    C4 status includes request/correlation identity and both digests. Its submit
+    result may contain only state and response digest because it is returned in
+    the already-correlated tool call. No provider payload is inspected.
+    """
+    outcome = provider_result.get("outcome")
+    if outcome in _PROVIDER_OUTCOMES:
+        # Preserve the old normalized adapter seam, but do not let it contradict
+        # a durable digest already available from the authoritative exchange.
+        if outcome == "rejected":
+            return "rejected"
+        expected_response = exchange_status.get("response_sha256")
+        supplied_response = provider_result.get("response_sha256")
+        if expected_response is not None and (
+            not isinstance(expected_response, str)
+            or not _SHA256.fullmatch(expected_response)
+            or supplied_response != expected_response
+        ):
+            return "mismatch"
+        expected_subject = exchange_status.get("review_subject_sha256")
+        supplied_subject = provider_result.get("review_subject_sha256")
+        if expected_subject is not None and supplied_subject != expected_subject:
+            return "mismatch"
+        return "accepted"
+
+    state = provider_result.get("delivery_state", provider_result.get("state"))
+    if state != "response_received":
+        return "invalid"
+
+    # A provider status is required to identify the same exchange. A direct
+    # submit result omits these identifiers because the call is already scoped
+    # to its request and correlation arguments.
+    if "delivery_state" in provider_result:
+        for key in ("request_id", "correlation_id"):
+            expected = exchange_status.get(key)
+            supplied = provider_result.get(key)
+            if not isinstance(expected, str) or supplied != expected:
+                return "mismatch"
+
+    expected_response = exchange_status.get("response_sha256")
+    supplied_response = provider_result.get("response_sha256")
+    if (not isinstance(expected_response, str) or not _SHA256.fullmatch(expected_response)
+            or not isinstance(supplied_response, str)
+            or not _SHA256.fullmatch(supplied_response)
+            or supplied_response != expected_response):
+        return "mismatch"
+
+    expected_subject = exchange_status.get("review_subject_sha256")
+    supplied_subject = provider_result.get("review_subject_sha256")
+    if "delivery_state" in provider_result:
+        if expected_subject is not None:
+            if (not isinstance(expected_subject, str) or not _SHA256.fullmatch(expected_subject)
+                    or supplied_subject != expected_subject):
+                return "mismatch"
+        elif supplied_subject is not None:
+            return "mismatch"
+        expected_provider = exchange_status.get("provider_id")
+        supplied_provider = provider_result.get("provider_id")
+        if expected_provider is not None and supplied_provider != expected_provider:
+            return "mismatch"
+    return "accepted"
 
 
 def _timestamp(value: Any) -> datetime | None:
@@ -99,13 +169,15 @@ def project_external_review_readiness(
     ``exchange_status`` is the existing exchange ``status()`` projection.
     ``doorbell_status`` is C2's ``rv.chatgpt-doorbell.status.v1`` readiness
     metadata. Optional receipt and provider results use the C3/C4 agreed
-    metadata-only contracts. Correlation fields, when both present, are checked
-    for consistency but never copied to the returned object.
+    metadata-only contracts. C3 subject/response digests are validated but
+    never copied to output. C4 status identity and digests are compared with
+    C3's authoritative status before the response is projected.
 
     Unknown, stale, malformed, expired, or mismatched evidence fails closed.
     The function performs no network, persistence, browser, or authorization
     operation; consumers must obtain each input from its owning service.
-    ``trigger_status`` is the C2 owner's runtime health label; absent or unknown
+    ``trigger_status`` is ``DoorbellCycleResult.trigger_status`` from C2's
+    ``DoorbellWakeWorker.run_once()``; absent or unknown
     trigger status does not produce an overall ready result.
     """
     observed = _now(now)
@@ -132,7 +204,13 @@ def project_external_review_readiness(
 
     exchange_state = exchange_status.get("delivery_state")
     deadline = _timestamp(exchange_status.get("deadline_at"))
-    if exchange_state not in _EXCHANGE_STATES or deadline is None:
+    subject_digest = exchange_status.get("review_subject_sha256")
+    response_digest = exchange_status.get("response_sha256")
+    if (exchange_state not in _EXCHANGE_STATES or deadline is None
+            or (subject_digest is not None and (
+                not isinstance(subject_digest, str) or not _SHA256.fullmatch(subject_digest)))
+            or (exchange_state == "response_received" and (
+                not isinstance(response_digest, str) or not _SHA256.fullmatch(response_digest)))):
         return _report(readiness="blocked", state="invalid_exchange_status",
             failure_code="malformed_exchange_status", retryable=False,
             next_action="inspect_exchange_owner", sources=evidence, now=observed)
@@ -165,11 +243,15 @@ def project_external_review_readiness(
             )
     if exchange_state == "response_received":
         if isinstance(provider_submission, Mapping):
-            outcome = provider_submission.get("outcome")
+            outcome = _provider_result_matches_exchange(exchange_status, provider_submission)
             if outcome == "rejected":
                 return emit(readiness="blocked", state="response_rejected",
                     failure_code="response_rejected", retryable=False,
                     next_action="request_valid_provider_response")
+            if outcome == "mismatch":
+                return emit(readiness="blocked", state="provider_status_mismatch",
+                    failure_code="provider_status_mismatch", retryable=False,
+                    next_action="inspect_provider_owner")
             if outcome != "accepted":
                 return emit(readiness="blocked", state="invalid_provider_status",
                     failure_code="malformed_provider_status", retryable=False,

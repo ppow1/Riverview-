@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md
 Component: RESIDENT-REASONING
-File Revision: 1.1.6
+File Revision: 1.1.7
 Purpose: Diagnose durable external reasoning exchange transitions safely
 Authority: Read-only diagnostics first; no production migration or transport operation
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial troubleshooting guide
@@ -16,6 +16,7 @@ Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Document Grace's live 
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Record the owner-session unit name and isolated full-round-trip acceptance boundary.
 Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Add initiation, active-principal, and exact-grant recovery diagnostics.
 Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Add exact-subject digest, bounded revision, restart, and blocked-review diagnostics.
+Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-EXPIRED-RESPONSE-MCP | Diagnose rejected late provider responses without false success
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # External reasoning exchange troubleshooting
@@ -122,6 +123,15 @@ provider cannot produce a fresh verified revision, no objective or assignment
 mutation is committed.
 
 ## MCP transport readiness and diagnostics (2026-10-16)
+
+If `reasoning_exchange_submit_response` returns `{state: "expired",
+accepted: false}`, the durable deadline won the race with provider submission.
+The adapter must omit `response_sha256` and must never label this outcome
+`response_received`. Confirm the body-free exchange status is terminal
+`expired`; keep the response unconsumed and preserve the terminal event. Do
+not retry the same response, extend the deadline, acknowledge it to Grace, or
+create a second request as an automatic recovery. A new exchange requires a
+new authorized Grace reasoning decision and idempotency key.
 
 The durable exchange remains transport-neutral. The adapter is an OAuth
 resource server; it does not implement an authorization server, issue tokens,

@@ -785,7 +785,7 @@
       "id": "rv:resident-reasoning:runtime:exchange-expired",
       "node_revision": "1.0.0",
       "type": "failure",
-      "label": "Expire request on finite deadline; preserve one terminal event and reject late response",
+      "label": "Expire request on finite deadline; preserve terminal event, reject late response, and return MCP expired/non-success without response digest",
       "source_references": [
         "src/riverview_core/resident_execution/external_reasoning.py"
       ],
@@ -887,7 +887,7 @@
       "id": "rv:resident-reasoning:runtime:exchange-mcp-tools",
       "node_revision": "1.0.0",
       "type": "process",
-      "label": "Discover the fixed provider-scoped list, claim, submit-advisory and status tool schemas",
+      "label": "Discover fixed provider-scoped tools; late submit after durable deadline reports expired/non-success without a response digest",
       "source_references": [
         "src/riverview_core/resident_execution/external_reasoning_mcp.py",
         "scripts/run_external_reasoning_mcp.py"
@@ -1548,6 +1548,12 @@
       "to": "rv:resident-reasoning:runtime:doorbell-owner-loop-poll",
       "type": "recovery_route",
       "label": "subsequent cycle observes only work eligible under durable exchange policy"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:exchange-response-gate",
+      "to": "rv:resident-reasoning:runtime:exchange-expired",
+      "type": "diagnostic_branch",
+      "label": "deadline elapsed before response commit; MCP returns expired/non-success without digest"
     }
   ]
 }

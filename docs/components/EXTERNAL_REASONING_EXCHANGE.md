@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 Component: RESIDENT-REASONING
-File Revision: 1.1.7
+File Revision: 1.1.8
 Purpose: Define the durable transport-neutral external reasoning exchange contract
 Authority: Existing resident.reasoning.escalate exact grant; advisory-only result
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial phase-one contract
@@ -205,7 +205,7 @@ The bounded tool set is:
 |---|---|
 | `reasoning_exchange_list_requests` | Pull at most ten requests selected for this provider. It advances `awaiting_delivery` through the existing short delivery lease and returns the immutable context only to the matching provider; retries can rediscover delivered/claimed requests. Confidential requests require the additional confidential scope. |
 | `reasoning_exchange_claim_request` | Claim one exact request/correlation pair with a finite lease and fence; an idempotent same-principal retry returns the active claim. |
-| `reasoning_exchange_submit_response` | Submit the existing response schema under the active claim token/fence and idempotency key. The exchange applies its 16 KiB bound and validation. |
+| `reasoning_exchange_submit_response` | Submit the existing response schema under the active claim token/fence and idempotency key. The exchange applies its 16 KiB bound and validation. If the durable exchange returns its `expired` sentinel, MCP reports `{state: expired, accepted: false}` with no response digest; Grace cannot consume or finalize a response that was not durably accepted. |
 | `reasoning_exchange_status` | Return provider-owned state, timestamps, attempts, response digest/provenance and sanitized diagnostics, without response body. |
 
 Grace-only consume/acknowledge and Engineering/work-order functions are not
