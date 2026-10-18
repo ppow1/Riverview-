@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_work_assignment_bridge.py
 # Component: UNIVERSAL-WORK-REGISTRY
-# Revision: 1.0.0
+# Revision: 1.0.2
+# Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-DOD-REMEDIATION-001 | Assert replay evidence remains deduplicated after the recovery write.
+# Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-DOD-REMEDIATION-001 | Verify partial mirror failure replay and separate-process snapshot recovery.
 # Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-DISPATCH-BRIDGE-001 | Verify explicit alias events preserve unknown session state and v4 compatibility.
 # Purpose: Test opt-in work-order receipt mirroring without polling or session control
 # Authority: All fixtures are disposable; event receipts do not grant execution authorization
@@ -13,8 +15,11 @@
 from concurrent.futures import ThreadPoolExecutor
 import json
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from riverview_core.work_registry import WorkRegistry
 from scripts.record_work_assignment import capabilities, record_event
@@ -148,6 +153,47 @@ class WorkAssignmentBridgeTests(unittest.TestCase):
         self.assertFalse(result["existing_session_wake"])
         self.assertFalse(result["automatic_assignment_dispatch"])
         self.assertFalse(result["shared_windows_camrui_registry_verified"])
+
+    def test_replay_after_status_mirror_failure_survives_new_process_read(self):
+        self.apply_event("in_progress")
+        with patch("scripts.record_work_assignment._write_atomic",
+                   side_effect=OSError("simulated_status_replace_failure")):
+            with self.assertRaisesRegex(OSError, "simulated_status_replace_failure"):
+                self.apply_event("blocked", blocker="Fixture dependency")
+
+        # The registry commit is durable, while atomic v4 replacement left the
+        # previous complete status document intact. A fresh request replays it.
+        persisted = self.registry.snapshot()
+        order = next(row for row in persisted["work_orders"]
+                     if row["work_order_id"] == self.work["work_order_id"])
+        self.assertEqual(order["status"], "blocked")
+        self.assertEqual(self.status()["status"], "RUNNING")
+        self.apply_event("blocked", blocker="Fixture dependency")
+        self.assertEqual(self.status()["status"], "BLOCKED")
+        self.assertEqual(self.status()["blocker"], "Fixture dependency")
+        recovered = self.registry.snapshot()
+        recovered_order = next(row for row in recovered["work_orders"]
+                               if row["work_order_id"] == self.work["work_order_id"])
+        self.assertEqual(sum(item.startswith("assignment event=blocked;")
+                             for item in recovered_order["evidence"]), 1)
+
+        # A separate CLI process can independently read the recovered durable
+        # state after the writer invocation has ended.
+        root = Path(__file__).resolve().parents[1]
+        env = dict(__import__("os").environ)
+        src = str(root / "src")
+        env["PYTHONPATH"] = src + (__import__("os").pathsep + env["PYTHONPATH"]
+                                   if env.get("PYTHONPATH") else "")
+        completed = subprocess.run(
+            [sys.executable, str(root / "scripts" / "register_work.py"),
+             "--registry", str(self.registry_path), "snapshot"],
+            cwd=root, env=env, capture_output=True, text=True, check=True,
+        )
+        snapshot = json.loads(completed.stdout)
+        observed = next(row for row in snapshot["work_orders"]
+                        if row["work_order_id"] == self.work["work_order_id"])
+        self.assertEqual(observed["status"], "blocked")
+        self.assertEqual(observed["blocker"], "Fixture dependency")
 
 
 if __name__ == "__main__":

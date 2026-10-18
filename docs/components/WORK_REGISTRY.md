@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED DOCUMENT
 # File: docs/components/WORK_REGISTRY.md
 # Component: UNIVERSAL-WORK-REGISTRY
-# File Revision: 1.1.2
+# File Revision: 1.1.3
 # Purpose: Specify the shared observational worker, session, and work-order registry
 # Authority: Registration is observability; existing schedulers and authority grants govern execution
 # Changed: 2026-10-18 UTC | RV-UNIVERSAL-WORK-REGISTRY-001 | Document schema, integrations, import, and limits
@@ -13,6 +13,7 @@
 Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-CONTROL-BOARD-001 | Reconcile Control Board v4 aliases and provide a dynamic Windows registry board.
 Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-STATUS-ACCURACY-001 | Separate terminal work-order results from current assignment and runtime status.
 Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-DISPATCH-BRIDGE-001 | Document explicit alias assignment receipts and unavailable polling/wake capability.
+Changed: 2026-10-18 UTC | RV-WORK-REGISTRY-DOD-REMEDIATION-001 | Link the generated bridge workflow and read-only recovery cookbook.
 
 ## Purpose and boundary
 
@@ -74,6 +75,8 @@ A:\AI\Riverview-Development\Start-RiverviewControlBoard-Registry.ps1 -Detailed
 ```
 
 It enumerates registry worker/session/work-order collections each refresh and displays unmatched Windows and Camrui v4 JSON reports separately as legacy/unverified rows. Use `-Detailed` for long blockers and evidence. The existing `A:\AI\Riverview-Development\Start-RiverviewControlBoard-v4.ps1` remains unchanged as rollback/fallback. Rollback is to remove only the new `Start-RiverviewControlBoard-Registry.ps1` launcher and continue using v4; no live Codex session needs restarting. The existing seven-source mapping is specific to migration; neither registration nor the monitor has a fixed live worker count.
+
+The actual observational flow, stable step IDs, and receipt failure/recovery transitions are in [`WORK_REGISTRY_FLOW.md`](WORK_REGISTRY_FLOW.md). Read-only diagnostics, safe event replay, and rollback guidance are in [`WORK_REGISTRY_COOKBOOK.md`](WORK_REGISTRY_COOKBOOK.md).
 
 Session rows select a current assignment from an explicit nonterminal session work-order reference or a linked queued, active, or blocked order. The newest linked blocked, completed, failed, or cancelled work order is shown separately as `latest_result`; completed, failed, and cancelled orders are retained as results and are not displayed as current assignments. Queued or active work is not labeled a result. Availability, activity, and heartbeat age continue to come from session state. A blocked work order does not set session activity or availability, and the board does not infer whether a session can accept more work from assignment completion or blockage.
 

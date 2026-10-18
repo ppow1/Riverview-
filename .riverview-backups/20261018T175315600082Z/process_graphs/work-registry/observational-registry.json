@@ -1,0 +1,29 @@
+{
+  "graph_id": "rv:work-registry:observational-registry",
+  "graph_revision": "1.0.3",
+  "component_id": "UNIVERSAL-WORK-REGISTRY",
+  "workflow_id": "observational-registry.v1",
+  "diagram_order": 99,
+  "source_references": ["src/riverview_core/work_registry.py", "src/riverview_core/status_dashboard/server.py", "src/riverview_core/status_dashboard/static/app.js", "scripts/register_work.py", "scripts/start_riverview_codex.py", "scripts/import_work_registry.py", "scripts/import_issue_120_work_inventory.py"],
+  "documentation_references": ["docs/components/WORK_REGISTRY.md", "docs/components/WORK_REGISTRY.schema.json", "docs/operations/ISSUE_120_INITIAL_WORK_INVENTORY.json", "process_graphs/README.md"],
+  "verification_evidence": ["tests/test_work_registry.py", "tests/test_work_registry_dashboard.py", "tests/test_work_registry_startup.py"],
+  "nodes": [
+    {"id":"rv:work-registry:observational-registry:register-worker","node_revision":"1.0.0","type":"entry","label":"Register persistent worker identity and capabilities","source_references":["src/riverview_core/work_registry.py","scripts/register_work.py"],"documentation_references":["docs/components/WORK_REGISTRY.md"],"verification_evidence":[]},
+    {"id":"rv:work-registry:observational-registry:start-session","node_revision":"1.0.0","type":"process","label":"Start independently identified session and report heartbeat/activity","source_references":["src/riverview_core/work_registry.py","scripts/start_riverview_codex.py"],"documentation_references":["docs/components/WORK_REGISTRY.md"],"verification_evidence":["tests/test_work_registry.py"]},
+    {"id":"rv:work-registry:observational-registry:record-work","node_revision":"1.0.1","type":"process","label":"Record sequential work orders, dispatcher receipts, and optional inference job metadata","source_references":["src/riverview_core/work_registry.py","scripts/register_work.py","scripts/import_issue_120_work_inventory.py"],"documentation_references":["docs/components/WORK_REGISTRY.md","docs/components/WORK_REGISTRY.schema.json","docs/operations/ISSUE_120_INITIAL_WORK_INVENTORY.json"],"verification_evidence":["tests/test_work_registry.py","tests/test_work_registry_startup.py"]},
+    {"id":"rv:work-registry:observational-registry:acknowledge-assignment","node_revision":"1.0.1","type":"process","label":"Codex startup acknowledges the assigned work-order ID and binds observed session","source_references":["src/riverview_core/work_registry.py","scripts/start_riverview_codex.py","scripts/Start-RiverviewCodexSession.ps1","scripts/start-riverview-codex-session.sh"],"documentation_references":["docs/components/WORK_REGISTRY.md"],"verification_evidence":["tests/test_work_registry_startup.py"]},
+    {"id":"rv:work-registry:observational-registry:read-dashboard","node_revision":"1.0.1","type":"process","label":"Authenticated dashboard reads every dynamic worker, session, and work order","source_references":["src/riverview_core/status_dashboard/server.py","src/riverview_core/status_dashboard/static/app.js"],"documentation_references":["docs/components/WORK_REGISTRY.md"],"verification_evidence":["tests/test_work_registry_dashboard.py"]},
+    {"id":"rv:work-registry:observational-registry:grace-permission-boundary","node_revision":"1.0.0","type":"jump","label":"Future Grace read/event adapter must check existing exact authority grants","jump_target_id":"rv:grace:operational-integration:assignment-fanout","source_references":["src/riverview_core/work_registry.py"],"documentation_references":["docs/components/WORK_REGISTRY.md","process_graphs/grace/operational-integration.json"],"verification_evidence":[]},
+    {"id":"rv:work-registry:observational-registry:retain-history","node_revision":"1.0.0","type":"exit","label":"Retain completed and disconnected historical sessions and work orders","source_references":["src/riverview_core/work_registry.py"],"documentation_references":["docs/components/WORK_REGISTRY.md"],"verification_evidence":["tests/test_work_registry.py"]}
+  ],
+  "edges": [
+    {"from":"rv:work-registry:observational-registry:register-worker","to":"rv:work-registry:observational-registry:start-session","type":"runtime_transition"},
+    {"from":"rv:work-registry:observational-registry:start-session","to":"rv:work-registry:observational-registry:record-work","type":"runtime_transition"},
+    {"from":"rv:work-registry:observational-registry:start-session","to":"rv:work-registry:observational-registry:acknowledge-assignment","type":"runtime_transition"},
+    {"from":"rv:work-registry:observational-registry:record-work","to":"rv:work-registry:observational-registry:read-dashboard","type":"runtime_transition"},
+    {"from":"rv:work-registry:observational-registry:acknowledge-assignment","to":"rv:work-registry:observational-registry:read-dashboard","type":"runtime_transition"},
+    {"from":"rv:work-registry:observational-registry:read-dashboard","to":"rv:work-registry:observational-registry:grace-permission-boundary","type":"documentation"},
+    {"from":"rv:work-registry:observational-registry:grace-permission-boundary","to":"rv:grace:operational-integration:assignment-fanout","type":"jump"},
+    {"from":"rv:work-registry:observational-registry:record-work","to":"rv:work-registry:observational-registry:retain-history","type":"runtime_transition"}
+  ]
+}
