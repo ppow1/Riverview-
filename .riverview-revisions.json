@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.259",
+      "revision": "1.1.260",
       "path": ".riverview-revisions.json",
       "sha256": "52cb9908377791af65712ff7272e0014b8cd1af6b5f4c717f6a9e0df02d07047",
       "size_bytes": 15924
@@ -356,17 +356,17 @@
     },
     "docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md": {
       "path": "docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md",
-      "revision": "1.0.12",
-      "sha256": "3beea18848b816a4e21814d4b61625b874dfbe06125c856586acc2e852b3956c",
-      "size_bytes": 20044
+      "revision": "1.0.13",
+      "sha256": "e14980b412fcd8b265e0dbef930c86ee8050717f0e76f965ebc0f9038962882a",
+      "size_bytes": 21509
     },
     "docs/components/GRACE_CHATGPT_REVIEW_PROVIDER_PREFLIGHT.md": {
       "path": "docs/components/GRACE_CHATGPT_REVIEW_PROVIDER_PREFLIGHT.md",
-      "revision": "1.0.2",
-      "sha256": "37aa3978f4cd57937174b17cd39b42d6700faea735faf73ac7dd87882b2a2502",
-      "size_bytes": 12394
+      "revision": "1.0.3",
+      "sha256": "a97e0c1511c9df8f30cf46a1d23b8edfddf9dbcd8c14ffa953835ffd03274ef4",
+      "size_bytes": 13840
     }
   },
-  "manifest_revision": "1.1.259",
-  "updated_at": "2026-10-19T02:11:00Z"
+  "manifest_revision": "1.1.260",
+  "updated_at": "2026-10-19T02:12:09Z"
 }

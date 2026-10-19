@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md
 Component: P0-CONTROLLED-INTEGRATION
-Revision: 1.0.12
+Revision: 1.0.13
 Status: Offline integration evidence; no merge or deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record W3 branch assembly and isolated verification
@@ -325,3 +325,24 @@ was created and no wake, dispatch, backup, restore, migration, merge, deployment
 service/config/credential/grant or production write occurred. Current active
 queue safety still depends on C1's record-level metadata report and later
 separate authorization.
+
+C1 follow-up #6258158950 narrows the concern but does not clear the live queue:
+candidate source does not select a `COMPLETED` objective for dispatch, while a
+`WORK_ORDER_CREATED` objective may automatically continue if the pending step,
+dependency/continuation evidence, and exact grant allow it. A `rework_required`
+assignment is not directly claimable, but verifier-only revalidation may still
+be eligible. C1 could not retrieve production row-level metadata because its
+Linux environment could not resolve the Camrui SSH alias; this is an execution
+environment limitation, not a production-host failure. The currently active
+release pointer `6b44b39` was not shown to match candidate source `f728b630`.
+Because the owner-session loop may already evaluate work, not restarting it
+does not eliminate this exposure. Record-level operator evidence and active
+runtime comparison remain required before trial or release activation.
+
+C1's minimal guard proposal is an append-only quarantine event keyed by
+objective/assignment that both Grace dispatch selection and scheduler claim
+eligibility honor, with release through separately authorized idempotent event.
+That is only a proposal: no guard is implemented or appended under this task.
+Any implementation requires separate review and authorization. The runbook now
+requires no dispatchable historical work (or a separately authorized,
+implemented, and verified guard) before trial; otherwise the result is NO-GO.

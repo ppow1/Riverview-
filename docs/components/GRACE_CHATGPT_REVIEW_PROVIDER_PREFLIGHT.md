@@ -2,12 +2,13 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_CHATGPT_REVIEW_PROVIDER_PREFLIGHT.md
 Component: EXTERNAL-REASONING-MCP-TRANSPORT
-File Revision: 1.0.2
+File Revision: 1.0.3
 Purpose: Give operators a read-only, non-secret preflight for provider-facing exact-proposal reviews
 Authority: Existing resident.reasoning.escalate grant; provider responses remain advisory
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-MCP | Initial offline and live-gate runbook
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-TYPED-REVIEW-SUBJECT | Document the typed PlanProposal/PlanStep subject contract
 Changed: 2026-10-19 UTC | RV-W3-GRACE-BOUNDED-TRIAL-PLAN | Preserve the active owner-session and define a fresh, approval-gated acceptance trial; historical trial rows are not replay authority
+Changed: 2026-10-19 UTC | RV-W3-GRACE-BOUNDED-TRIAL-PLAN | Require record-level queue and active-runtime evidence before trial; mark quarantine guard as unimplemented
 History: Git
 -->
 # Grace to ChatGPT review provider preflight
@@ -153,15 +154,32 @@ guard recommendation. Do not mutate, quarantine by writing, delete, or replay
 those rows from this procedure. Any unexpected eligible old work or unresolved
 queue state blocks a new trial.
 
+C1's source-only review (#120 comment 6258158950) found that the `COMPLETED`
+objective is not selected by the candidate source's normal dispatcher, but the
+`WORK_ORDER_CREATED` objective may be eligible for automatic continuation if a
+pending step is dependency-ready, has the required continuation event, and its
+exact grant still authorizes dispatch. The `rework_required` assignment is not
+directly claimable by the candidate scheduler, but its verifier history may
+permit verifier-only revalidation. Aggregate counts cannot decide any of these
+conditions. These are candidate-source rules, not confirmation of active
+release `6b44b39`; C1 could not obtain record-level production evidence in its
+Linux session because the Camrui DNS/SSH route was unavailable there. The
+operator-reported owner-session is active, so possible queue exposure is
+ongoing, not merely a restart concern. Do not restart or manually invoke the
+service. The append-only quarantine-event guard proposed by C1 would require a
+separate reviewed and authorized code change; it is not implemented here.
+
 One **new** acceptance trial may be proposed only after all of these independent
 gates pass: (1) PR acceptance and exact final source SHA are approved and
 revalidated; (2) the fresh protected PostgreSQL backup and isolated restore,
 required migration, release staging, and source verification each receive
 their own Steward authorization and pass; (3) the existing active owner-session
 unit/configuration is preserved and the release is activated only under its
-separate approval; (4) C1's record-level queue review establishes that no
-unintended historical trial can be picked up; and (5) the Steward separately
-approves the exact harmless objective/proposal, provider and designated ChatGPT
+separate approval; (4) sanitized record-level evidence identifies the existing
+rows, provenance, grants, dispatch/retry eligibility, verifier history and
+active runtime revision, and establishes that no unintended historical work
+can be picked up (or a separately authorized quarantine change is completed
+and verified); and (5) the Steward separately approves the exact harmless objective/proposal, provider and designated ChatGPT
 conversation, expected effects, operator, observation window, and stop/rollback
 procedure. These gates are not granted by this document.
 
