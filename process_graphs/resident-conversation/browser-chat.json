@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-conversation:browser-chat",
-  "graph_revision": "1.0.21",
+  "graph_revision": "1.0.22",
   "component_id": "RESIDENT-CONVERSATION",
   "workflow_id": "resident.conversation.v1",
   "diagram_order": 14,
@@ -170,9 +170,9 @@
     },
     {
       "id": "rv:resident-conversation:browser-chat:context-bound",
-      "node_revision": "1.0.2",
+      "node_revision": "1.0.3",
       "type": "verification",
-      "label": "Assemble recent history; preserve every system instruction and active user turn, trim oldest eligible conversation context to the exact serialized 32 KiB provider limit, and terminalize irreducible overflow as context_too_large",
+      "label": "Assemble recent history; preserve system context and active turn, trim oldest eligible conversation context to the exact serialized 32 KiB provider limit, and reject irreducible protected-context overflow before inference",
       "source_references": [
         "src/riverview_core/resident_execution/conversation.py"
       ],
@@ -185,9 +185,9 @@
     },
     {
       "id": "rv:resident-conversation:browser-chat:stage-context-policy",
-      "node_revision": "1.0.1",
+      "node_revision": "1.0.2",
       "type": "process",
-      "label": "For 0.6B acknowledgments use concise Director of Operations identity context and current user turn; retain full canonical context for substantive stages",
+      "label": "Apply model-stage context policy and retain full canonical identity context for substantive stages",
       "source_references": [
         "src/riverview_core/resident_execution/model_router.py",
         "src/riverview_core/resident_execution/conversation.py"
@@ -894,6 +894,23 @@
       "verification_evidence": [
         "tests/test_resident_conversation.py"
       ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:required-tool-context",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Does this 80B request require a current Comms5 lookup? Include only the selected tool schema; omit all tool schemas for ordinary reasoning.",
+      "source_references": [
+        "src/riverview_core/resident_execution/model_router.py",
+        "src/riverview_core/resident_execution/internal_tools.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resident_model_router.py",
+        "tests/test_grace_internal_tools.py"
+      ]
     }
   ],
   "edges": [
@@ -1180,12 +1197,6 @@
     },
     {
       "from": "rv:resident-conversation:browser-chat:stage-context-policy",
-      "to": "rv:resident-conversation:browser-chat:inference",
-      "type": "runtime_transition",
-      "label": "Use concise identity context for autonomic acknowledgments; retain full supplied context for substantive stages"
-    },
-    {
-      "from": "rv:resident-conversation:browser-chat:stage-context-policy",
       "to": "rv:resident-conversation:browser-chat:provider-failure",
       "type": "diagnostic_branch",
       "label": "Malformed context or no current user turn; reject before inference"
@@ -1305,6 +1316,30 @@
       "to": "rv:resident-conversation:browser-chat:deferred-retry-blocked",
       "type": "diagnostic_branch",
       "label": "Five automatic attempts exhausted; retain durable request and expose blocked state"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:stage-context-policy",
+      "to": "rv:resident-conversation:browser-chat:required-tool-context",
+      "type": "runtime_transition",
+      "label": "Select only the exact required internal tool schema after request matching"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:required-tool-context",
+      "to": "rv:resident-conversation:browser-chat:inference",
+      "type": "runtime_transition",
+      "label": "No current lookup is required; omit the internal tool catalog"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:required-tool-context",
+      "to": "rv:resident-conversation:browser-chat:inference",
+      "type": "runtime_transition",
+      "label": "Current lookup is required; include only the selected schema"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:required-tool-context",
+      "to": "rv:resident-conversation:browser-chat:provider-failure",
+      "type": "diagnostic_branch",
+      "label": "Protected context plus one selected schema cannot fit the exact provider byte limit; reject before inference"
     }
   ]
 }
