@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md
 Component: P0-CONTROLLED-INTEGRATION
-Revision: 1.0.9
+Revision: 1.0.10
 Status: Offline integration evidence; no merge or deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record W3 branch assembly and isolated verification
@@ -193,4 +193,39 @@ the CRLF predecessor was retained and recorded. A follow-up scan found 37 indexe
 JSON checksum entries, including all 22 workflow graphs, captured from Windows
 CRLF working copies. Their SHA-256 values and sizes now match the exact committed
 Git blobs; JSON payloads are unchanged. Latest graph and diff checks pass; the
-exact-head PostgreSQL workflow must rerun before acceptance.
+exact-head PostgreSQL workflow was rerun and passed on the final candidate.
+
+## Final combined exact-head acceptance — 2026-10-19
+
+Final controlled head: `c7c29ca66bd386cbe279d705045b082af8612c96` on draft PR #139.
+Hosted run [#39182995705](https://github.com/ppow1/Riverview-/actions/runs/39182995705)
+passed **714 tests / 4 skipped / 0 failures** with PostgreSQL 16. Canonical graph
+validation passed **22 graphs / 575 nodes**. The controlled revision and
+predecessor audit passed with **0 issues**. `git diff --check` passed before
+publication. PR #130 and W2 PR #140 were already in the lineage; only PR #150 was
+added.
+
+### W1 and C1 handoffs
+
+W1's body-free PostgreSQL-emitted trace is from test run 39173980276 and is at
+[issue comment 6256193503](https://github.com/ppow1/Riverview-/issues/120#issuecomment-6256193503).
+W1 independently projected it with exit 0, one round complete, zero blockers,
+report SHA-256 `5c0ac02a1c452e9f0921e2dac7baacd951c6e256a3fb19f771e007b58954c454`;
+the trace is synthetic and reports `execution_kind_verified=false` ([verification
+6256352265](https://github.com/ppow1/Riverview-/issues/120#issuecomment-6256352265)).
+C1's offline readiness handoff ([comment
+6256648441](https://github.com/ppow1/Riverview-/issues/120#issuecomment-6256648441))
+passed 19 readiness tests and 22 trace tests on earlier W3 head `e6fa5758` and
+marked production/live readiness NOT READY / unverified. Neither the W1 projector
+nor C1 readiness suite was rerun on final head c7c29ca6; the hosted suite is
+combined code/DB acceptance, not a fresh W1/C1 readiness handoff.
+
+### Remaining blockers and authority
+
+No real ChatGPT browser wake or external review was triggered. Production service
+activation, connector refresh, and real provider identity/configuration remain
+unverified; the last C1 report also lacked evidence of approved provider mapping,
+protected configuration, and service activation. A live commissioning/review
+requires separate Steward authorization. PR #139 remains draft and unmerged; no
+deployment, service restart, migration, credential/grant change or production
+action occurred.

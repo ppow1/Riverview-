@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/P0_CONTROLLED_INTEGRATION_MANIFEST.md
 Component: P0-CONTROLLED-INTEGRATION
-File Revision: 1.0.7
+File Revision: 1.0.8
 Status: Disposable integration manifest; no merge/deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record exact integration parent, published component heads, ownership, order and verification state for P0 Grace-to-ChatGPT review
@@ -290,3 +290,24 @@ tests / 20 PostgreSQL skips. Local full-suite verification was environment-limit
 (625 discovered, 3 failures, 70 errors, 216 skipped); a hosted PostgreSQL run on
 the exact published head remains the acceptance gate. No deployment or production
 operation was performed.
+
+
+## Final combined exact-head acceptance — 2026-10-19
+
+Final controlled W3 head is `c7c29ca66bd386cbe279d705045b082af8612c96` on draft
+PR #139. Hosted PostgreSQL run
+[#39182995705](https://github.com/ppow1/Riverview-/actions/runs/39182995705)
+passed **714 tests / 4 skipped / 0 failures**. Process-graph validation passed
+22 / 575 and revision/predecessor audit passed with zero issues.
+
+W1's exact body-free synthetic DB trace/projector handoff is at issue comments
+6256193503 and 6256352265; its result was one completed round, zero blockers, and
+`execution_kind_verified=false`. C1's prior offline readiness handoff at comment
+6256648441 passed 19 readiness and 22 trace tests on e6fa5758 and marked
+production/live readiness NOT READY / unverified. These W1/C1 handoffs predate
+c7c29ca6 and were not rerun on this final integration head.
+
+Real ChatGPT/browser review, provider production identity/configuration, service
+activation, and connector refresh remain unverified and outside this authorization.
+PR #139 remains draft/unmerged. No production, deployment, restart, migration,
+credential or grant changes occurred.
