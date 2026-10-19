@@ -1,7 +1,8 @@
 # Riverview~ controlled test
 # File: tests/test_grace_conversation_result.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.9
+# Revision: 1.0.10
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-DIAGNOSTICS | Verify safe structured-review diagnostics reveal shape only and never generated text
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-RESULT-RECEIPT-001 | Cover publisher receipts without cycle metadata and fail-closed mismatches
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Verify both accepted and rejected review paths provide the actual digest-checked artifact to Grace.
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Prove Grace sees the digest-verified artifact and may decide substantive satisfaction without scheduling rework; reject forged review material before inference.
@@ -220,6 +221,20 @@ class GraceConversationResultTests(unittest.TestCase):
         self.assertNotIn("PRIVATE-COMPLETION", diagnostic)
         self.assertNotIn("PRIVATE-CREDENTIAL", diagnostic)
         self.assertEqual(self.store.responses, {})
+
+    def test_invalid_verified_result_review_logs_shape_without_generated_text(self):
+        from riverview_core.resident_execution.conversation import ConversationUnavailable
+        self.router.content = json.dumps({"decision": "OBJECTIVE_COMPLETE",
+            "rationale": "PRIVATE-GENERATED-RATIONALE", "additional_evidence": [],
+            "proposed_step": None, "unexpected": "PRIVATE-EXTRA"})
+        with self.assertLogs("riverview_core.resident_execution.conversation",
+                             level="WARNING") as captured:
+            with self.assertRaises(ConversationUnavailable):
+                self.service.review_verified_work_order(valid_context())
+        self.assertIn('"failure_stage": "decision_shape"', captured.output[0])
+        self.assertIn('"unexpected_field_count": 1', captured.output[0])
+        self.assertNotIn("PRIVATE-GENERATED-RATIONALE", captured.output[0])
+        self.assertNotIn("PRIVATE-EXTRA", captured.output[0])
 
     def test_smaller_direct_model_cannot_review_substantive_result(self):
         small = SimpleNamespace(model="qwen3-0.6b", model_sha256="r" * 64)
