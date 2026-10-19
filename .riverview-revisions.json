@@ -2,7 +2,7 @@
   "files": {
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.235",
+      "revision": "1.1.236",
       "sha256": "db29799c026f20d431bbd748b3653235852fb32a503de7ac6bf8c05db8e78e04",
       "size_bytes": 13389
     },
@@ -128,9 +128,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.182",
-      "sha256": "246e31ce265495299ae30651d6b1fb21852e3c1e09669d0537a5261d24cdbf4c",
-      "size_bytes": 639145
+      "revision": "1.0.183",
+      "sha256": "0e2811e1d55e5d730bc038a5ee14dd52f4a5b71c6e570b780b5ca89b7c240163",
+      "size_bytes": 640360
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -194,9 +194,9 @@
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "path": "process_graphs/resident-reasoning/runtime.json",
-      "revision": "1.0.24",
-      "sha256": "23c171cea772a107ba52a4d8048b247ad8d423584427c6ed8eee8b6195a5fbe6",
-      "size_bytes": 52081
+      "revision": "1.0.25",
+      "sha256": "49e8424449e001975f0774928a845500a04bbd72e557d18b819081bf045e1926",
+      "size_bytes": 53140
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -271,6 +271,6 @@
       "size_bytes": 1226
     }
   },
-  "manifest_revision": "1.1.235",
+  "manifest_revision": "1.1.236",
   "updated_at": null
 }

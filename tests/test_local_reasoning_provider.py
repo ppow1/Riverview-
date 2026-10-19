@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.12
+# Revision: 1.1.13
 # Purpose: Verify local reasoning provider contract and fail-closed response handling
 # Execution Model: Bounded HTTP contract double; no credentials, database or model required
 # Observability: Typed proposals and sanitized unavailable/schema outcomes
@@ -33,6 +33,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Require source-change test targets to be test files
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Keep external advice separate from verified context and authority
 # Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Verify the typed external escalation decision is limited to configured providers
+# Changed: 2026-10-18 UTC | RV-REASONING-ADAPTER-COMPAT-001 | Verify ordered local chat text and fail-closed tool/refusal/content handling
 # =============================================================================
 """Contract tests for the replaceable local reasoning provider."""
 
@@ -195,6 +196,25 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertIsNone(self.provider.propose(self.request))
         system_prompt = self.requests[0]["messages"][0]["content"]
         self.assertIn("MUST include non-empty authorized_paths and test_targets", system_prompt)
+
+    def test_source_change_plan_preserves_pinned_repository_provenance(self):
+        revision = "a" * 40
+        self.response_body = self._response(text=json.dumps({"summary":"Scoped source change",
+            "steps":[{"step_id":"edit", "objective":"Edit scoped source",
+                "acceptance_criteria":["Independent verification passes"], "depends_on":[],
+                "execution_capability":"engineering.codex-cli-source-change.v1",
+                "authorized_paths":["src/example.py", "tests/test_example.py"],
+                "test_targets":["tests/test_example.py"],
+                "repository_reference":"repo://ppow1/Riverview-",
+                "repository_revision":revision}]}))
+        proposal = self.provider.propose(self.request)
+        self.assertEqual(proposal.steps[0].repository_reference,
+                         "repo://ppow1/Riverview-")
+        self.assertEqual(proposal.steps[0].repository_revision, revision)
+        schema = self.requests[0]["response_format"]["json_schema"]["schema"]
+        step_properties = schema["properties"]["steps"]["items"]["properties"]
+        self.assertIn("repository_reference", step_properties)
+        self.assertIn("repository_revision", step_properties)
 
     def test_stream_chat_emits_text_before_terminal_chunk_and_validates_provenance(self):
         chunks = [
@@ -415,6 +435,104 @@ class LocalReasoningProviderTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             LocalReasoningProvider("http://127.0.0.1:8767/v1", "fixture-model",
                                    MODEL_SHA, chat_prefix="x" * 65)
+
+    def test_80b_chat_preserves_ordered_text_blocks_and_unknown_envelope_metadata(self):
+        self.response_body = json.dumps({"model":"fixture-80b-model",
+            "future_metadata":{"safe":True}, "choices":[{"message":{
+                "content":[{"type":"text","text":"Valid "},
+                            {"type":"text","text":"80B response."}],
+                "future_annotation":"opaque"}, "finish_reason":"stop"}],
+            "usage":{"prompt_tokens":4,"completion_tokens":3}}).encode()
+        provider = LocalReasoningProvider("http://127.0.0.1:8767/v1",
+            "fixture-80b-model", MODEL_SHA)
+        result = provider.complete_chat([{"role":"user","content":"hello"}],
+            max_tokens=64, expected_revision=MODEL_SHA)
+        self.assertEqual(result.content, "Valid 80B response.")
+        self.assertEqual(result.served_model, "fixture-80b-model")
+
+    def test_chat_rejects_tool_call_semantics_even_when_text_is_present(self):
+        messages = [{"role":"user","content":"hello"}]
+        for semantics in ({"tool_calls": [{"id":"call-1"}]},
+                          {"function_call": {"name":"lookup"}}):
+            self.response_body = json.dumps({"model":"fixture-model", "choices":[{
+                "message":{"content":"visible text", **semantics}, "finish_reason":"stop"}],
+                "usage":{"prompt_tokens":4,"completion_tokens":2}}).encode()
+            with self.subTest(semantics=semantics), self.assertRaises(
+                    LocalReasoningUnavailable) as caught:
+                self.provider.complete_chat(messages, max_tokens=64,
+                    expected_revision=MODEL_SHA)
+            self.assertEqual(caught.exception.code, "response_contract_invalid")
+
+    def test_chat_rejects_multiple_choices_instead_of_discarding_content(self):
+        self.response_body = json.dumps({"model":"fixture-model", "choices":[
+            {"message":{"content":"first answer"}, "finish_reason":"stop"},
+            {"message":{"content":"second answer"}, "finish_reason":"stop"}],
+            "usage":{"prompt_tokens":4,"completion_tokens":2}}).encode()
+        with self.assertRaises(LocalReasoningUnavailable) as caught:
+            self.provider.complete_chat([{"role":"user","content":"hello"}],
+                max_tokens=64, expected_revision=MODEL_SHA)
+        self.assertEqual(caught.exception.code, "response_contract_invalid")
+
+    def test_chat_rejects_non_text_blocks_and_unrepresented_block_fields(self):
+        messages = [{"role":"user","content":"hello"}]
+        invalid = [
+            [{"type":"text","text":"visible"},
+             {"type":"image_url","image_url":{"url":"fixture"}}],
+            [{"type":"text","text":"visible", "tool_calls":[]}],
+        ]
+        for content in invalid:
+            self.response_body = json.dumps({"model":"fixture-model", "choices":[{
+                "message":{"content":content}, "finish_reason":"stop"}],
+                "usage":{"prompt_tokens":4,"completion_tokens":2}}).encode()
+            with self.subTest(content=content), self.assertRaises(
+                    LocalReasoningUnavailable) as caught:
+                self.provider.complete_chat(messages, max_tokens=64,
+                    expected_revision=MODEL_SHA)
+            self.assertEqual(caught.exception.code, "response_contract_invalid")
+
+    def test_chat_rejects_mixed_refusal_and_text(self):
+        self.response_body = json.dumps({"model":"fixture-model", "choices":[{
+            "message":{"content":"visible text", "refusal":"declined"},
+            "finish_reason":"stop"}],
+            "usage":{"prompt_tokens":4,"completion_tokens":2}}).encode()
+        with self.assertRaises(LocalReasoningUnavailable) as caught:
+            self.provider.complete_chat([{"role":"user","content":"hello"}],
+                max_tokens=64, expected_revision=MODEL_SHA)
+        self.assertEqual(caught.exception.code, "response_contract_invalid")
+
+    def test_chat_preserves_visible_text_without_exposing_reasoning_metadata(self):
+        self.response_body = json.dumps({"model":"fixture-model", "choices":[{
+            "message":{"content":"visible answer", "reasoning_content":"private reasoning"},
+            "finish_reason":"stop"}],
+            "usage":{"prompt_tokens":4,"completion_tokens":2}}).encode()
+        result = self.provider.complete_chat([{"role":"user","content":"hello"}],
+            max_tokens=64, expected_revision=MODEL_SHA)
+        self.assertEqual(result.content, "visible answer")
+        self.assertNotIn("private reasoning", result.content)
+
+    def test_stream_chat_preserves_text_blocks_and_rejects_tool_and_refusal_deltas(self):
+        messages = [{"role":"user","content":"bounded request"}]
+        body = (b'data: {"model":"fixture-model","choices":[{"delta":{"content":['
+            b'{"type":"text","text":"first "},{"type":"text","text":"second"}]},'
+            b'"finish_reason":"stop"}]}' b'\n\ndata: [DONE]\n\n')
+        self.urlopen.side_effect = None
+        self.urlopen.return_value = _SSEResponse(BytesIO(body))
+        emitted = []
+        result = self.provider.stream_chat(messages, max_tokens=64,
+            expected_revision=MODEL_SHA, on_delta=emitted.append)
+        self.assertEqual(emitted, ["first second"])
+        self.assertEqual(result.content, "first second")
+
+        for key, value in (("tool_calls", [{"index":0}]), ("refusal", "declined")):
+            event = {"model":"fixture-model", "choices":[{"delta":{
+                "content":"visible text", key:value}, "finish_reason":"stop"}]}
+            self.urlopen.return_value = _SSEResponse(BytesIO(
+                b"data: " + json.dumps(event).encode() + b"\n\ndata: [DONE]\n\n"))
+            with self.subTest(key=key), self.assertRaises(
+                    LocalReasoningUnavailable) as caught:
+                self.provider.stream_chat(messages, max_tokens=64,
+                    expected_revision=MODEL_SHA, on_delta=lambda _text: None)
+            self.assertEqual(caught.exception.code, "response_contract_invalid")
 
 
 if __name__ == "__main__":
