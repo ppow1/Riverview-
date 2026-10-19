@@ -1,7 +1,7 @@
 <!-- Riverview Controlled Document
 File: docs/operations/network/RIVERVIEW_MACHINE_ACCESS.md
 Component: OPERATIONS-MACHINE-ACCESS
-File Revision: 1.0.0
+File Revision: 1.0.1
 Changed: 2026-10-19 | Steward machine-access index
 -->
 # Riverview machine access — canonical quick reference
@@ -13,7 +13,7 @@ Changed: 2026-10-19 | Steward machine-access index
 | Camrui Ubuntu controller | `192.168.1.155` | `camrui` | `admin1`; existing Windows OpenSSH identity |
 | OctoMiner1 | `192.168.1.160` | `octo1` | Historical configuration: `root`, identity `C:\Users\wille\.ssh\octominer1_nopass`; confirm against Windows config |
 | OctoMiner2 | `192.168.1.162` | **Not yet independently verified** | Do not assume `octo2` is configured until checked |
-| Windows development workstation | **Not yet recorded** | Local machine | Checkout `A:\Riverview-New-Core` |
+| Windows development workstation | `192.168.1.88` (last observed source IP; confirm if changed) | Local machine | Checkout `A:\Riverview-New-Core` |
 
 ## Windows access
 
@@ -36,5 +36,5 @@ To inspect an existing alias safely (including the eventual OctoMiner2 alias), r
 ## Outstanding inventory verification
 
 1. Confirm OctoMiner2's actual configured SSH alias and identity.
-2. Record the development workstation's LAN IPv4 after a local read-only check.
+2. Reconfirm the development workstation's last observed LAN IPv4 `192.168.1.88` if its DHCP lease has changed.
 3. Link the verified OctoMiner1 BIOS recovery procedure.
