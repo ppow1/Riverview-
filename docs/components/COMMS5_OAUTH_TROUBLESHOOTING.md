@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_OAUTH_TROUBLESHOOTING.md
 Component: COMMS5-OAUTH-IONOGE
-File Revision: 1.0.3
+File Revision: 1.0.4
 Status: Operational troubleshooting record
 Date: 2026-10-17
 Purpose: Diagnose and recover Comms5 OAuth-to-Camrui authenticated MCP forwarding.
@@ -78,3 +78,8 @@ The corrected helper retries each post-restart readiness check within one shared
 Check IDs are `oauth_service_active`, `caddy_service_active`, `oauth_loopback_health_200`, `oauth_public_discovery_200`, and `mcp_anonymous_rejected_401`. Restart command failures identify the service unit separately and do not enter the readiness retry window.
 
 Use the single Windows PowerShell 5.1 operator script documented in the machine-connection runbook. It verifies the exact helper hash and live service readiness, then requires the exact text `ROTATE` before generation and installation. It streams the new value over strict-host-verified SSH, leaves it only on the operator clipboard, and prints no secret. The utility validates both service environment-file references, refuses mismatched/duplicated entries, writes protected predecessors, atomically updates only the shared client-secret setting, and restarts only OAuth and Caddy. Post-restart checks use the 15-second bounded readiness contract above. Complete OAuth in the browser using the clipboard and clear it. See the runbook for manual predecessor recovery if automatic service recovery is unverified.
+## External reasoning review tools in the existing Comms5 connector
+
+The Comms5 tool list should expose 25 entries after refreshing the existing connector catalog. The four `reasoning_exchange_*` tools are authorized by the established Steward Comms5 identity on the existing internal route. They are not external-provider OAuth operations. Provider OAuth tokens continue to work only against the provider-scoped four-tool MCP adapter.
+
+If the tools are absent, refresh or re-register the existing Comms5 connector from the current catalog; do not add a second ChatGPT MCP app or public route. If listing works but an operation returns `BACKEND_UNAVAILABLE`, inspect dashboard startup logs for the sanitized `comms5_steward_review_exchange_unavailable` marker and verify that the existing exchange migrations and runtime ACLs are present. If an operation returns `NOT_AUTHORIZED`, inspect the existing ingress identity mapping; do not pass a principal in tool arguments or widen grants. Correlation, lease/fence, expiry, and exact review-subject digest errors require the caller to resume or re-read the durable request.

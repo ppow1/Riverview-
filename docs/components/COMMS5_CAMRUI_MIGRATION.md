@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_CAMRUI_MIGRATION.md
 Component: COMMS5-CAMRUI-ADAPTER
-File Revision: 1.0.12
+File Revision: 1.0.13
 Status: Source implementation and live deployment tracker
 Date: 2026-10-17
 History: New file; no predecessor existed.
@@ -115,3 +115,10 @@ table was absent. The read-only AuthorityRegistry query returned zero
 or configuration was changed. These observations block genuine production
 mailbox and policy-operation acceptance until separately authorized
 commissioning inputs are present.
+## Single-Comms5 external reasoning bridge (2026-10-18)
+
+The existing Comms5 catalog now contains 25 tools: the historical 21 plus four bounded external reasoning exchange operations (`reasoning_exchange_list_requests`, `reasoning_exchange_claim_request`, `reasoning_exchange_submit_response`, and `reasoning_exchange_status`). They use the existing authenticated Steward ingress and Comms5 internal route. No second ChatGPT MCP app, OAuth client, or public endpoint is introduced.
+
+The review operations are routed by the backend using the authenticated Steward principal. They read and transition only durable exchange records, preserve request correlation, provider routing, expiration, delivery lease, claim token, fence, idempotency, and immutable review-subject digest checks. The provider OAuth adapter remains separate and unchanged. A Steward review response is advisory evidence only; it grants no proposal approval, promotion, objective submission, or Engineering dispatch authority.
+
+There is no schema migration for this bridge. The current exchange ledger and its existing runtime permissions are reused. The Comms5 internal operation fails closed when exchange tables or the runtime adapter are unavailable. Offline verification is covered by `tests/test_comms5_mcp.py`, `tests/test_external_reasoning_mcp.py`, and `tests/test_external_reasoning_exchange.py`.

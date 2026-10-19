@@ -1,11 +1,12 @@
 """Comms5 Camrui compatibility adapter tests.
 
-File Revision: 1.1.5
+File Revision: 1.1.6
 Component: COMMS5-CAMRUI-ADAPTER-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify authenticated internal operation routing for full objective status and submission listing.
 Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify transport probes return caller and dashboard correlation evidence and reject unauthenticated direct use.
 Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify the Steward queue request uses the attested dashboard operation bridge and preserves its truthful queued state.
+Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Verify the 25-tool catalog, preserved legacy catalog, and authenticated reasoning bridge dispatch.
 """
 
 import hashlib
@@ -38,16 +39,44 @@ def rpc(method, params=None, request_id=1):
 class Comms5MCPTests(unittest.TestCase):
     def test_historical_catalog_is_complete_and_contract_metadata_works(self):
         catalog = json.loads(CATALOG.read_text())
-        canonical = json.dumps(catalog["tools"], separators=(",", ":"), ensure_ascii=False).encode()
+        canonical = json.dumps(catalog["tools"][:21], separators=(",", ":"), ensure_ascii=False).encode()
         self.assertEqual(hashlib.sha256(canonical).hexdigest(), "d13698b1ad415d152f481c1a5360166ef1519b4ebd74944f0836f3341701a807")
         result = app().handle(rpc("tools/list"))["result"]["tools"]
-        self.assertEqual(len(result), 21)
+        self.assertEqual(len(result), 25)
         self.assertEqual([tool["name"] for tool in result], [tool["name"] for tool in catalog["tools"]])
+        self.assertEqual([tool["name"] for tool in result[-4:]], [
+            "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
+            "reasoning_exchange_submit_response", "reasoning_exchange_status"])
         self.assertTrue(all(tool["securitySchemes"] == [{"type": "oauth2", "scopes": ["comms5"]}] for tool in result))
+        from riverview_core.resident_execution.external_reasoning_mcp import ExternalReasoningMCPAdapter
+        shared = {tool["name"]: tool["inputSchema"] for tool in ExternalReasoningMCPAdapter.tools()}
+        self.assertEqual({tool["name"]: tool["inputSchema"] for tool in result[-4:]}, shared)
         call = app().handle(rpc("tools/call", {"name": "comms5_contract_info", "arguments": {}}))
         payload = json.loads(call["result"]["content"][0]["text"])
         self.assertEqual(payload["contract"], "riverview-comms-contract:5.0")
         self.assertFalse(call["result"]["isError"])
+
+    def test_reasoning_tools_dispatch_only_through_authenticated_steward_backend(self):
+        class ReviewBackend:
+            supported_tools = {"reasoning_exchange_status"}
+
+            def call_authenticated(self, name, arguments, *, principal=None):
+                if principal != "steward":
+                    raise PermissionError("steward required")
+                return {"request_id": arguments["request_id"],
+                        "correlation_id": arguments["correlation_id"],
+                        "delivery_state": "awaiting_response"}
+
+        application = Comms5Application("x" * 48, backend=ReviewBackend())
+        args = {"request_id": "00000000-0000-4000-8000-000000000001",
+                "correlation_id": "00000000-0000-4000-8000-000000000002"}
+        result = application.handle(rpc("tools/call", {
+            "name": "reasoning_exchange_status", "arguments": args}), principal="steward")
+        self.assertEqual(result["result"]["structuredContent"]["delivery_state"], "awaiting_response")
+        denied = application.handle(rpc("tools/call", {
+            "name": "reasoning_exchange_status", "arguments": args}), principal="provider")
+        self.assertTrue(denied["result"]["isError"])
+        self.assertEqual(denied["result"]["structuredContent"]["status"], "NOT_AUTHORIZED")
 
     def test_help_and_describe_are_real_read_only_operations(self):
         application = app()
@@ -351,7 +380,7 @@ class Comms5MCPTests(unittest.TestCase):
             with urlopen(request, timeout=2) as response:
                 result = json.loads(response.read())
                 self.assertEqual(response.status, 200)
-                self.assertEqual(len(result["result"]["tools"]), 21)
+                self.assertEqual(len(result["result"]["tools"]), 25)
         finally:
             server.shutdown()
             server.server_close()

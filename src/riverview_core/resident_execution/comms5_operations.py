@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/comms5_operations.py
 # Component: COMMS5-CURRENT-RUNTIME-OPERATIONS
-# Revision: 1.0.6
+# Revision: 1.0.7
 # Purpose: Share authenticated Comms5 proposal operations with Riverview callers
 # Execution Model: Request-driven; durable state remains in existing proposal/objective stores
 # Observability: Proposal registry events and linked objective lifecycle events
@@ -14,6 +14,7 @@
 # Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Persist exact-grant-checked, idempotent Steward queue requests for CME without claiming assignment dispatch.
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Require fresh trusted repository grounding for stale-base rework and preserve dependency/completion semantics.
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Make repeated policy transitions auditable after intervening changes without losing retry safety.
+# Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Route four advisory exchange tools through an explicit authenticated Steward bridge.
 # Contracts: docs/components/INSTITUTIONAL_PROPOSALS.md; Comms5 contract 5.0
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -51,12 +52,16 @@ class Comms5Operations:
         "comms5_objective_status", "comms5_recent_steward_submissions",
         "comms5_revalidate_and_queue_work", "comms5_set_resource_policy",
         "comms5_set_resource_policy_lock",
+        "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
+        "reasoning_exchange_submit_response", "reasoning_exchange_status",
     })
 
-    def __init__(self, proposal_registry, proposal_lifecycle, objective_pipeline=None):
+    def __init__(self, proposal_registry, proposal_lifecycle, objective_pipeline=None,
+                 steward_review_bridge=None):
         self.registry = proposal_registry
         self.lifecycle = proposal_lifecycle
         self.pipeline = objective_pipeline
+        self.steward_review_bridge = steward_review_bridge
 
     def create_draft_record(self, content, *, actor_id, origin_kind,
                             source_references, provenance, idempotency_key):
@@ -101,6 +106,10 @@ class Comms5Operations:
         actor = self._actor(principal_id)
         if tool not in self.SUPPORTED:
             raise ValueError("operation_not_supported")
+        if tool.startswith("reasoning_exchange_"):
+            if self.steward_review_bridge is None:
+                raise RuntimeError("external_reasoning_exchange_unavailable")
+            return self.steward_review_bridge.call_tool(actor, tool, arguments)
         if tool == "comms5_submit_steward_seed":
             text = arguments.get("seed_text")
             if not isinstance(text, str) or not text.strip() or len(text.encode("utf-8")) > 4000:
