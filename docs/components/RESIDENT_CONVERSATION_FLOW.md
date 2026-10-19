@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION_FLOW.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.20
+File Revision: 1.0.22
 Purpose: Generated focused flow for persistent Grace browser conversation
 Authority: Canonical graph JSON; diagram generated and not hand-edited
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Register generated chat workflow view
@@ -25,7 +25,7 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_provider_match_6e2180eb{"Does the registered provider match the exact implementation revision?"}
     g_rv_resident_conversation_browser_chat_model_readiness_diagnostic_90a0703b["Optional read-only readiness probe verifies health and exact served model; HTTP unavailability does not identify host power state"]
     g_rv_resident_conversation_browser_chat_persist_user_50079953["Append user event and idempotency key before inference"]
-    g_rv_resident_conversation_browser_chat_context_bound_672d08c9["Assemble recent history; retain every system instruction and the active user turn, trim oldest conversational context to the exact serialized 32 KiB provider limit"]
+    g_rv_resident_conversation_browser_chat_context_bound_672d08c9["Assemble recent history; preserve every system instruction and active user turn, trim oldest eligible conversation context to the exact serialized 32 KiB provider limit, and terminalize irreducible overflow as context_too_large"]
     g_rv_resident_conversation_browser_chat_stage_context_policy_b35672ba["For 0.6B acknowledgments use concise Director of Operations identity context and current user turn; retain full canonical context for substantive stages"]
     g_rv_resident_conversation_browser_chat_inference_8bca7614["Call the office-bound local model adapter; only loopback or explicitly allowlisted OCTO1 routes are accepted, with served-model and binding checks"]
     g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79[["Persist a sanitized unavailable or incomplete response outcome"]]
@@ -46,8 +46,8 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_readiness_route_7e67f750{"Route substantive turns to 80B; exact acknowledgments to 0.6B; narrow simple facts to provisional 30B"}
     g_rv_resident_conversation_browser_chat_attempt_diagnostics_6b1cc0a3["Emit sanitized provider attempts with bounded timing and error codes; never include conversation text"]
     g_rv_resident_conversation_browser_chat_defer_reasoning_7d693ff6["Persist complex turn and required capability when 80B is unavailable or busy"]
-    g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14["Poll durable deferred turns, acquire a cross-process lease, bound provider context, mark tool-enabled stream generation before inference, and atomically persist assistant response plus stream completion"]
-    g_rv_resident_conversation_browser_chat_reasoning_router_failure_43c1e7f2[["Keep the request pending when the required 80B capability is unavailable; emit sanitized provider attempt diagnostics"]]
+    g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14["Poll only due durable deferred turns, claim a cross-process lease, preserve original request/capability identity, apply persistent bounded retry scheduling, and atomically publish one correlated assistant response"]
+    g_rv_resident_conversation_browser_chat_reasoning_router_failure_43c1e7f2[["Record sanitized readiness/completion diagnostics; deterministic provider errors are terminal while transient provider errors retain durable deferred work under the retry budget"]]
     g_rv_resident_conversation_browser_chat_resume_auth_recheck_b0f115ca["Revalidate the original sender exact grant and current Grace occupant"]
     g_rv_resident_conversation_browser_chat_upgrade_continuity_a3e9f484{"Does the current binding match or follow the explicitly authorized direct router transition for the persisted capability?"}
     g_rv_resident_conversation_browser_chat_upgrade_rejected_183d47de[["Keep the request deferred when grant, capability, successor, or audited transition is invalid"]]
@@ -63,6 +63,9 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_stream_history_verify_0f5110ca["Load the canonical completed response from history after reload; stream and conversation terminal state commit atomically."]
     g_rv_resident_conversation_browser_chat_stream_nonstream_fallback_c2c28c67["Use the existing bounded synchronous conversation route when browser streaming is unavailable."]
     g_rv_resident_conversation_browser_chat_stream_failure_f82a9aa6[["Retain the user turn and one sanitized terminal failure; do not expose prompts, output logs, or credentials."]]
+    g_rv_resident_conversation_browser_chat_provider_error_classification_00b2aa90{"Is this a transient readiness/transport/server failure, or a deterministic request/authentication/response failure?"}
+    g_rv_resident_conversation_browser_chat_deferred_retry_budget_cd9dc00c["Persist retry attempt and next-attempt time; use 5/10/20/40 second delays and block after five automatic resume attempts while retaining the original request"]
+    g_rv_resident_conversation_browser_chat_deferred_retry_blocked_785d668a[["Keep the correlated user request and response_deferred event durable; expose blocked status and stop automatic retries after exhaustion or authority denial"]]
   end
   g_rv_grace_operational_integration_objective_intake_55567c14["Registered target<br/>rv:grace:operational-integration"]
   g_rv_resident_conversation_browser_chat_browser_submit_e4a0bb86 --> g_rv_resident_conversation_browser_chat_dashboard_auth_1ec7b499
@@ -103,8 +106,7 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_readiness_route_7e67f750 -->|80B ready or bounded provisional path selected| g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b
   g_rv_resident_conversation_browser_chat_readiness_route_7e67f750 -->|diagnostic_branch: Substantive turn requires unavailable or busy 80B| g_rv_resident_conversation_browser_chat_defer_reasoning_7d693ff6
   g_rv_resident_conversation_browser_chat_defer_reasoning_7d693ff6 -->|recovery_route: Automatic readiness polling; durable request retained| g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14
-  g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14 -->|diagnostic_branch: Capability or provider remains unavailable| g_rv_resident_conversation_browser_chat_reasoning_router_failure_43c1e7f2
-  g_rv_resident_conversation_browser_chat_reasoning_router_failure_43c1e7f2 -->|recovery_route: Retry persisted request when readiness changes| g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14
+  g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14 -->|diagnostic_branch: A resumed completion or readiness attempt failed; classify the sanitized code| g_rv_resident_conversation_browser_chat_provider_error_classification_00b2aa90
   g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14 -->|Lease acquired; inspect original principal and deferred capability| g_rv_resident_conversation_browser_chat_resume_auth_recheck_b0f115ca
   g_rv_resident_conversation_browser_chat_resume_auth_recheck_b0f115ca -->|diagnostic_branch: Original exact grant revoked or current occupant differs| g_rv_resident_conversation_browser_chat_upgrade_rejected_183d47de
   g_rv_resident_conversation_browser_chat_resume_auth_recheck_b0f115ca -->|Exact grant and occupant revalidated| g_rv_resident_conversation_browser_chat_upgrade_continuity_a3e9f484
@@ -134,5 +136,9 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_browser_history_c2d99277 -->|verification: Reload canonical persisted response; no preview duplicates| g_rv_resident_conversation_browser_chat_stream_history_verify_0f5110ca
   g_rv_resident_conversation_browser_chat_stream_nonstream_fallback_c2c28c67 --> g_rv_resident_conversation_browser_chat_context_bound_672d08c9
   g_rv_resident_conversation_browser_chat_stream_failure_f82a9aa6 --> g_rv_resident_conversation_browser_chat_browser_history_c2d99277
+  g_rv_resident_conversation_browser_chat_provider_error_classification_00b2aa90 -->|diagnostic_branch: Deterministic prompt, authorization, request, model-identity or malformed-response failure| g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79
+  g_rv_resident_conversation_browser_chat_provider_error_classification_00b2aa90 -->|diagnostic_branch: Transient timeout/transport/loading/busy, HTTP 408/409/425/429, or any 5xx failure| g_rv_resident_conversation_browser_chat_deferred_retry_budget_cd9dc00c
+  g_rv_resident_conversation_browser_chat_deferred_retry_budget_cd9dc00c -->|recovery_route: A scheduled retry is due and fewer than five automatic attempts have failed| g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14
+  g_rv_resident_conversation_browser_chat_deferred_retry_budget_cd9dc00c -->|diagnostic_branch: Five automatic attempts exhausted; retain durable request and expose blocked state| g_rv_resident_conversation_browser_chat_deferred_retry_blocked_785d668a
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

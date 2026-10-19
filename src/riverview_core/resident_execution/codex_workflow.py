@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.9
+# Revision: 1.2.10
+# Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Validate source execution against dispatch-time target snapshot, checkout HEAD, and verifier result provenance.
 # Purpose: Adapt bounded Codex production and independent Markdown verification to CME
 # Execution Model: Existing leased worker action and independent verifier contract
 # Observability: Persisted artifact location, digest, criteria and verifier evidence
@@ -29,6 +30,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
@@ -374,6 +376,21 @@ class CodexSourceChangeWorkAction:
         self.repository_reference = repository_reference
         self.timeout_seconds = timeout_seconds
 
+    def validate_proposal_target(self, step):
+        """Check target identity, commit, and ceiling before CME assignment creation."""
+        if (not isinstance(step, Mapping) or
+                step.get("repository_reference") != self.repository_reference or
+                not isinstance(step.get("repository_revision"), str) or
+                not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})",
+                                 step["repository_revision"]) or
+                not isinstance(step.get("authorized_paths"), (tuple, list)) or
+                not set(step["authorized_paths"]) <= set(self.adapter.authorized_paths)):
+            return False
+        try:
+            return self.adapter.base.repository_revision() == step["repository_revision"]
+        except Exception:
+            return False
+
     def _assignment(self, assignment):
         objective_id = assignment.get("objective_ref")
         objective = self.pipeline.get_objective(objective_id)
@@ -384,15 +401,45 @@ class CodexSourceChangeWorkAction:
                 not objective.get("proposal") or
                 objective.get("source_revision") is None):
             raise CodexActionFailure("persisted_source_change_scope_required")
+        binding = step.get("source_target_binding")
+        raw_step = next((item for item in objective["proposal"].get("steps", [])
+                         if isinstance(item, Mapping) and item.get("step_id") == step["step_id"]), None)
+        expected_hash = (hashlib.sha256(json.dumps(raw_step, sort_keys=True,
+            separators=(",", ":"), ensure_ascii=False).encode("utf-8")).hexdigest()
+            if isinstance(raw_step, Mapping) else None)
+        if (not isinstance(binding, Mapping) or
+                binding.get("version") != "grace.source-target-binding.v1" or
+                binding.get("objective_id") != objective_id or
+                binding.get("assignment_id") != assignment.get("id") or
+                binding.get("step_id") != step["step_id"] or
+                binding.get("capability") != SOURCE_CHANGE_CAPABILITY or
+                binding.get("proposal_step_sha256") != expected_hash or
+                binding.get("repository_reference") != step.get("repository_reference") or
+                binding.get("repository_revision") != step.get("repository_revision") or
+                binding.get("authorized_paths") != step.get("authorized_paths") or
+                binding.get("test_targets") != step.get("test_targets")):
+            raise CodexActionFailure("persisted_source_target_binding_invalid")
+        evidence = objective.get("evidence")
+        if (not isinstance(evidence, Mapping) or evidence.get("status") != "VERIFIED" or
+                evidence.get("retrieval_complete") is not True or
+                evidence.get("source_revision") != objective.get("source_revision") or
+                evidence.get("source_sha256") != objective.get("source_sha256")):
+            raise CodexActionFailure("persisted_resident_grounding_invalid")
         if step.get("depends_on"):
             from ..resident_reasoning import PlanStep
             predecessor = self.pipeline.verified_source_change_predecessor(
                 objective_id, PlanStep(step["step_id"], step["objective"],
                     tuple(step["acceptance_criteria"]), tuple(step["depends_on"]),
                     step["execution_capability"], tuple(step["authorized_paths"]),
-                    tuple(step["test_targets"])))
+                    tuple(step["test_targets"]), step["repository_reference"],
+                    step["repository_revision"]))
         else:
-            predecessor = {"prior_patches": (), "authorized_paths": (), "test_targets": ()}
+            predecessor = {"prior_patches": (), "authorized_paths": (), "test_targets": (),
+                           "repository_reference": binding["repository_reference"],
+                           "repository_revision": binding["repository_revision"]}
+        if (predecessor.get("repository_reference") != binding["repository_reference"] or
+                predecessor.get("repository_revision") != binding["repository_revision"]):
+            raise CodexActionFailure("source_change_predecessor_target_mismatch")
         authorized_paths = tuple(dict.fromkeys(
             (*predecessor["authorized_paths"], *step["authorized_paths"])))
         test_targets = tuple(dict.fromkeys(
@@ -403,8 +450,8 @@ class CodexSourceChangeWorkAction:
             raise CodexActionFailure("source_change_task_scope_too_large")
         request = CodexSourceChangeAssignment(
             assignment_id=assignment["id"], objective_id=objective_id,
-            repository_reference=self.repository_reference,
-            repository_revision=objective["source_revision"],
+            repository_reference=binding["repository_reference"],
+            repository_revision=binding["repository_revision"],
             task_scope=task_scope,
             acceptance_criteria=tuple(step["acceptance_criteria"]),
             authorized_paths=authorized_paths, test_targets=test_targets,
@@ -419,8 +466,7 @@ class CodexSourceChangeWorkAction:
             raise CodexActionFailure("verified_regrounding_required")
         try:
             _, _, request = self._assignment(assignment)
-            if (request.repository_revision != grounded.source_revision or
-                    request.repository_reference != self.repository_reference):
+            if request.repository_reference != self.repository_reference:
                 raise CodexActionFailure("source_change_repository_provenance_mismatch")
             result = self.adapter.execute(request)
         except CodexActionFailure:
@@ -434,7 +480,10 @@ class CodexSourceChangeWorkAction:
         return {"status": "SUCCEEDED", "artifact_schema": "rv.codex-cli.source-change.v1",
             "capability": result.capability, "assignment_id": result.assignment_id,
             "objective_id": result.objective_id,
+            "repository_reference": result.repository_reference,
             "repository_revision": result.repository_revision,
+            "authorized_paths": list(request.authorized_paths),
+            "test_targets": list(request.test_targets),
             "changed_files": list(result.changed_files),
             "patch_path": result.patch_path, "patch_sha256": result.patch_sha256,
             "patch_bytes": result.patch_bytes, "test_status": result.test_status,
@@ -468,10 +517,17 @@ class CodexSourceChangeResultVerifier:
     def verify(self, assignment, attempt, result):
         try:
             _, _, request = self.action._assignment(assignment)
+            if (result.get("repository_reference") != request.repository_reference or
+                    result.get("repository_revision") != request.repository_revision or
+                    tuple(result.get("authorized_paths", ())) != request.authorized_paths or
+                    tuple(result.get("test_targets", ())) != request.test_targets):
+                raise ValueError("source result binding does not match dispatched request")
             parsed = CodexSourceChangeResult(
                 status="PATCH_PRODUCED" if result.get("status") == "SUCCEEDED" else result.get("status"),
                 capability=result["capability"], assignment_id=result["assignment_id"],
-                objective_id=result["objective_id"], repository_revision=result["repository_revision"],
+                objective_id=result["objective_id"],
+                repository_reference=result["repository_reference"],
+                repository_revision=result["repository_revision"],
                 changed_files=tuple(result["changed_files"]), patch_path=result["patch_path"],
                 patch_sha256=result["patch_sha256"], patch_bytes=result["patch_bytes"],
                 test_status=result["test_status"], detail_code=result["detail_code"],

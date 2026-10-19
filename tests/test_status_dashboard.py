@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.51
+# Revision: 1.0.54
+# Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Verify institutional proposal dashboard actions remain distinct from Engineering intake.
+# Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Verify Steward proposal UI uses distinct draft, approval and objective-promotion actions.
 # Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Assert UI distinguishes lease heartbeat status from worker process liveness.
 # Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Assert inactive retired registrations do not affect active worker health counts.
 # Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
@@ -104,6 +106,23 @@ class _FakeProjection:
 
 
 class DashboardDeploymentContractTests(unittest.TestCase):
+    def test_institutional_proposal_ui_keeps_draft_approval_and_engineering_intake_distinct(self):
+        static = ROOT / "src/riverview_core/status_dashboard/static"
+        html = (static / "index.html").read_text(encoding="utf-8")
+        app = (static / "app.js").read_text(encoding="utf-8")
+        proposals = (static / "institutional-proposals.js").read_text(encoding="utf-8")
+        self.assertIn('id="institutional-proposals-nav"', html)
+        self.assertIn('id="proposal-draft-dialog"', html)
+        self.assertIn("Steward approval is revision-specific", html)
+        self.assertIn('dataset.messageProposal', app)
+        self.assertIn('data-message-work-order', app)
+        self.assertIn('institutional-proposals-nav").hidden = !steward', app)
+        self.assertIn("/api/v1/institutional-proposals", proposals)
+        self.assertIn("content_sha256:selected.digest", proposals)
+        self.assertIn("approved_purpose", proposals)
+        self.assertIn("/work-orders", proposals)
+        self.assertIn('window.RiverviewDashboardNavigate?.("institutional-proposals")', proposals)
+
     def test_documentation_links_reuse_a_named_tab_and_return_to_existing_dashboard(self):
         app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
         html = (ROOT / "src/riverview_core/status_dashboard/static/index.html").read_text(encoding="utf-8")
@@ -792,6 +811,12 @@ class DashboardHTTPTests(unittest.TestCase):
                          "uncovered_rendered_controls", "detail_tiles", "const safeRequest", "safeCode", "getEntriesByType(\"navigation\")", "unresolved_references"):
             self.assertIn(contract, script)
         self.assertIn('id="snapshot"', self.request("GET", "/", token=self.token)[2].decode("utf-8"))
+
+    def test_institutional_proposal_script_is_served_as_dashboard_asset(self):
+        status, headers, body = self.request("GET", "/assets/institutional-proposals.js")
+        self.assertEqual(status, 200)
+        self.assertIn("text/javascript", dict(headers).get("Content-Type", ""))
+        self.assertIn(b"institutional-proposals", body)
 
     def test_assignment_intake_cookbook_renders_without_broken_evidence_link(self):
         status, headers, body = self.request(

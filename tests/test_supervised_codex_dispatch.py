@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_supervised_codex_dispatch.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Verify the supervised Codex cycle remains pinned to one proposed objective
 # Execution Model: In-memory contract fixtures; no database or account credentials
 # Observability: Assertions inspect objective, assignment, verifier, and completion calls
@@ -11,6 +11,7 @@
 # Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Add exact-objective cycle contract checks
 # Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Assert the database claim carries the selected assignment identity
 # Changed: 2026-10-16 UTC | RV-GRACE-SCHEDULER-PROBE-COMPAT | Model the optional resident-schema probe before inspecting the claim filter
+# Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Model the optional resource-policy probe before the scheduler query.
 # Contracts: src/riverview_core/resident_execution/service.py
 # Tests: python3 -m unittest tests.test_supervised_codex_dispatch -v
 # History: Git
@@ -87,7 +88,7 @@ class SupervisedCodexDispatchTests(unittest.TestCase):
     def test_scheduler_claim_query_carries_exact_assignment_filter(self):
         class Cursor:
             calls = []
-            rows = [{"available": False}, None]
+            rows = [{"table_name": None}, {"available": False}, None]
 
             def execute(self, query, params):
                 self.calls.append((query, params))
@@ -99,10 +100,12 @@ class SupervisedCodexDispatchTests(unittest.TestCase):
         PostgresAssignmentScheduler._claim_candidate(cursor, "worker:test", 30,
             scope_ref="work-order:engineering", assignment_id="assignment:one")
 
-        self.assertIn("to_regclass(current_schema() || '.grace_objectives')", cursor.calls[0][0])
+        self.assertIn("to_regclass(current_schema() || '.resource_selection_policies')", cursor.calls[0][0])
         self.assertEqual(cursor.calls[0][1], ())
-        self.assertIn("(%s::text IS NULL OR a.id=%s)", cursor.calls[1][0])
-        self.assertEqual(cursor.calls[1][1], ("work-order:engineering",
+        self.assertIn("to_regclass(current_schema() || '.grace_objectives')", cursor.calls[1][0])
+        self.assertEqual(cursor.calls[1][1], ())
+        self.assertIn("(%s::text IS NULL OR a.id=%s)", cursor.calls[2][0])
+        self.assertEqual(cursor.calls[2][1], ("work-order:engineering",
             "work-order:engineering", "assignment:one", "assignment:one"))
 
 

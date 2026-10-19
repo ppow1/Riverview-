@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-reasoning:runtime",
-  "graph_revision": "1.2.8",
+  "graph_revision": "1.2.10",
   "component_id": "RESIDENT-REASONING",
   "workflow_id": "resident.reasoning.v1",
   "diagram_order": 13,
@@ -23,7 +23,9 @@
     "scripts/run_external_reasoning_mcp.py",
     "deploy/systemd/riverview-external-reasoning-mcp.service",
     "deploy/external-reasoning-mcp.env.example",
-    "deploy/external-reasoning-mcp-requirements.txt"
+    "deploy/external-reasoning-mcp-requirements.txt",
+    "src/riverview_core/resident_execution/service.py",
+    "src/riverview_core/resident_execution/pipeline.py"
   ],
   "documentation_references": [
     "docs/components/RESIDENT_REASONING.md",
@@ -32,7 +34,8 @@
     "docs/components/RESIDENT_REASONING_FLOW.md",
     "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
     "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md",
-    "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md"
+    "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md",
+    "docs/components/GRACE_PERSISTENT_EXECUTION.md"
   ],
   "verification_evidence": [
     "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md",
@@ -508,7 +511,7 @@
       "id": "rv:resident-reasoning:runtime:task-escalation-contract",
       "node_revision": "1.0.0",
       "type": "process",
-      "label": "IMPLEMENTED — explicit task escalation is durably admitted to PostgreSQL before a separate transport attempts delivery; no provider call blocks Grace or CME",
+      "label": "IMPLEMENTED \u2014 explicit task escalation is durably admitted to PostgreSQL before a separate transport attempts delivery; no provider call blocks Grace or CME",
       "source_references": [
         "src/riverview_core/reasoning_escalation.py",
         "tests/test_reasoning_escalation.py"
@@ -727,7 +730,7 @@
       "id": "rv:resident-reasoning:runtime:exchange-grace-consumption",
       "node_revision": "1.0.0",
       "type": "process",
-      "label": "Revalidate original exact grant; lease the response and return advisory separately from original reasoning context",
+      "label": "IMPLEMENTED; ISOLATED POSTGRESQL VERIFIED \u2014 Grace revalidates original exact escalation grant, leases the persisted response, and passes typed advice separately from verified context to ResidentReasoner",
       "source_references": [
         "src/riverview_core/resident_execution/external_reasoning.py"
       ],
@@ -743,7 +746,7 @@
       "id": "rv:resident-reasoning:runtime:exchange-grace-ack",
       "node_revision": "1.0.0",
       "type": "verification",
-      "label": "Acknowledge only after Grace records the next reasoning result under stable consumption key",
+      "label": "IMPLEMENTED; ISOLATED POSTGRESQL VERIFIED \u2014 Acknowledge only after proposal and correlated external_advisory_evaluated event commit; restart recovery checks that durable idempotency fence before repeating reasoning",
       "source_references": [
         "src/riverview_core/resident_execution/external_reasoning.py"
       ],
@@ -791,7 +794,7 @@
       "id": "rv:resident-reasoning:runtime:exchange-resume",
       "node_revision": "1.0.0",
       "type": "process",
-      "label": "Return correlated advisory to existing resident reasoning; proposal, assignment, execution and verification still use their current authority paths",
+      "label": "IMPLEMENTED; ISOLATED POSTGRESQL VERIFIED \u2014 Grace reasons over the correlated advisory as unapproved proposal input; existing objective and authorization paths govern any next action",
       "source_references": [
         "src/riverview_core/resident_execution/external_reasoning.py"
       ],
@@ -909,6 +912,25 @@
       "verification_evidence": [
         "tests/test_external_reasoning_mcp.py",
         "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:external-escalation-intent",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Did the bound model return a typed advisory intent for a configured provider?",
+      "source_references": [
+        "src/riverview_core/resident_reasoning.py",
+        "src/riverview_core/local_reasoning_provider.py",
+        "src/riverview_core/resident_execution/service.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_REASONING.md",
+        "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_exchange.py",
+        "tests/test_local_reasoning_provider.py"
       ]
     }
   ],
@@ -1033,12 +1055,6 @@
       "from": "rv:resident-reasoning:runtime:persist-plan",
       "to": "rv:resident-reasoning:runtime:persistence-gate",
       "type": "runtime_transition"
-    },
-    {
-      "from": "rv:resident-reasoning:runtime:persistence-gate",
-      "to": "rv:resident-reasoning:runtime:proposal-only",
-      "type": "runtime_transition",
-      "label": "durable write committed"
     },
     {
       "from": "rv:resident-reasoning:runtime:persistence-gate",
@@ -1267,6 +1283,24 @@
       "to": "rv:resident-reasoning:runtime:exchange-grace-consumption",
       "type": "runtime_transition",
       "label": "status is observational; Grace consumes only through its existing authorized workflow"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:persistence-gate",
+      "to": "rv:resident-reasoning:runtime:external-escalation-intent",
+      "type": "runtime_transition",
+      "label": "durable typed plan returned"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:external-escalation-intent",
+      "to": "rv:resident-reasoning:runtime:task-escalation-contract",
+      "type": "runtime_transition",
+      "label": "intent targets an explicitly configured provider"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:external-escalation-intent",
+      "to": "rv:resident-reasoning:runtime:proposal-only",
+      "type": "runtime_transition",
+      "label": "no escalation intent; proposal remains unapproved"
     }
   ]
 }

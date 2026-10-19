@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_runtime_baseline.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.9
+# Revision: 1.0.10
 # Purpose: Identity/credential security, DB contract, observer and package regression tests
 # Execution Model: Request-driven tests; simulated DB explicitly distinct from live proof
 # Observability: unittest counts and failures
@@ -9,6 +9,7 @@
 # Authority: Temporary fixtures only; no live DB or credentials
 # Changed: 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Cover allowlisted Bash packaging and safe runner behavior
 # Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PACKAGING | Ensure tracked predecessor archives never enter release packages
+# Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Guard full Camrui packages include the Grace exchange initiation and policy migration components.
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: This file
 # History: docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py
@@ -339,6 +340,42 @@ class RuntimeBaselineTests(unittest.TestCase):
             (root / "code.py").write_text("changed")
             with self.assertRaises(subprocess.CalledProcessError):
                 build(root, Path(folder) / "dirty.tar.gz")
+
+    def test_full_camrui_package_includes_grace_exchange_and_comms5_policy_components(self):
+        root_repo = Path(__file__).resolve().parents[1]
+        required = (
+            "scripts/run_grace_execution_service.py",
+            "src/riverview_core/resident_reasoning.py",
+            "src/riverview_core/local_reasoning_provider.py",
+            "src/riverview_core/reasoning_escalation.py",
+            "src/riverview_core/resident_execution/service.py",
+            "src/riverview_core/resident_execution/external_reasoning.py",
+            "src/riverview_core/resident_execution/migrations/0011_external_reasoning_exchange.sql",
+            "src/riverview_core/resident_execution/migrations/0012_resource_selection_policy.sql",
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            isolated = Path(folder) / "repo"
+            isolated.mkdir()
+            subprocess.run(["git", "init", "-q", str(isolated)], check=True)
+            for rel in required:
+                target = isolated / rel
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((root_repo / rel).read_bytes())
+            subprocess.run(["git", "-C", str(isolated), "add", *required], check=True)
+            subprocess.run(["git", "-C", str(isolated), "-c", "user.name=Fixture", "-c",
+                            "user.email=fixture@example.invalid", "commit", "-qm",
+                            "package components"], check=True)
+            package_path = Path(folder) / "grace-camrui.tar.gz"
+            _commit, digest = build(isolated, package_path)
+            self.assertEqual(digest, hashlib.sha256(package_path.read_bytes()).hexdigest())
+            with tarfile.open(package_path, "r:gz") as archive:
+                names = set(archive.getnames())
+                self.assertTrue(set(required) <= names)
+                manifest = archive.extractfile("PACKAGE_SHA256SUMS").read().decode().splitlines()
+                for line in manifest:
+                    checksum, name = line.split("  ", 1)
+                    self.assertEqual(checksum,
+                        hashlib.sha256(archive.extractfile(name).read()).hexdigest())
 
 
 

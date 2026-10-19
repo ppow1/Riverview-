@@ -1,0 +1,11 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "checkout.md": {
+      "path": "evidence/checkouts/RV-C3-GRACE-REASONING-RELIABILITY-001/20261018T0256Z/checkout.md",
+      "revision": "1.0.0",
+      "sha256": "98550ecba005882bd55647d0ba942630c0a8784304c46687ac8d6b60d8deb88d",
+      "size_bytes": 3368
+    }
+  }
+}

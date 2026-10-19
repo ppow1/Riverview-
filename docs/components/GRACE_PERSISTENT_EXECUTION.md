@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_PERSISTENT_EXECUTION.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.15
+File Revision: 1.0.18
 Purpose: Define persistent model-independent Grace objective execution service
 Authority: Existing exact-grant registry and CME assignment/worker contracts
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-CONFIG-EXAMPLE | Add a secret-free environment template for exact service identity configuration
@@ -19,10 +19,12 @@ Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-ENABLE-001 | Pass --enable co
 Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-MDWE-001 | Disable MDWE only on the owner-session unit because its Code Mode host requires executable-memory mappings; retain offline bubblewrap workspace isolation
 Changed: 2026-10-16 UTC | RV-GRACE-CODEX-OWNER-STATE-001 | Keep writable Codex runtime state service-local and bind only the existing owner auth file read-only
 Changed: 2026-10-16 UTC | RV-GRACE-OWNER-CODEX-HOME-001 | Resolve persistent Codex home from explicit service configuration and validate its private bind target
+Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Consume durable external reasoning replies through the existing reasoner and preserve stale-base successor completion semantics.
+Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Admit configured model-selected advisory exchanges through active-resident exact grants and the existing CME cycle.
 -->
 # Grace Persistent Execution Service
 
-**Status:** Persistent office-bound reasoning integration is isolated-test verified; service is not installed or commissioned on Camrui. Model calls remain optional and must match the active office implementation binding.
+**Status:** Source integration of external exchange consumption and stale-base successor handling is isolated-PostgreSQL verified. Production release activation and live provider/rework acceptance remain unverified; service readiness must be checked against current systemd state.
 
 ## Components and lifecycle
 
@@ -30,7 +32,15 @@ Changed: 2026-10-16 UTC | RV-GRACE-OWNER-CODEX-HOME-001 | Resolve persistent Cod
 
 The supervised poll has no run-once exit. It records a durable `grace_execution_health` row and continues after assignment-local worker failures. PostgreSQL remains the work source. A process restart reconstructs work and office identity from objective, step, assignment, lease, attempt, result, verification, office binding, grants, and office-state rows; stable per-step assignment IDs and ledger idempotency keys prevent duplicate handoff. Occupant replacement revokes the old exact office-state grant while preserving office-keyed plans. A restarted service loads the replacement credential; the reasoner rejects the former credential and rechecks the active binding before persistence. Existing worker execution-intent recovery fences interrupted attempts; the Grace runner caps dispatch authorization failures at three durable retries. Unknown external effects remain governed by the worker recovery contract.
 
+When the external-reasoning provider map is explicitly configured, the same persistent cycle checks the existing durable exchange for response-received IDs. Grace rechecks `resident.reasoning.escalate`, consumes one fenced advisory response, and supplies it separately from verified knowledge to the bound resident reasoner. Proposal persistence and its correlated external-advisory evaluation event commit together before the exchange is acknowledged. If the service restarts after proposal persistence but before acknowledgement, the durable event is the idempotency fence and the pending exchange is acknowledged without a duplicate proposal. `request_external_reasoning()` persists an authorized exchange with conversation/objective lineage and a finite deadline without waiting on the provider. The exchange never approves or dispatches work.
+
+The same service cycle initiates an exchange when the bound local reasoning provider returns a typed optional external escalation intent, selected from the configured external-provider map. The service reads the originating objective event, keeps conversation/message and proposal-revision provenance, checks for an already-active exchange, and admits the request through the durable exchange. An absent origin, unregistered provider, missing exact grant, or authority lookup failure leaves the objective durable and records a recoverable reasoning failure. The active office principal is resolved from the authorized `AuthorityRegistry` snapshot and rechecked during exact `resident.reasoning.escalate` checks for `provider:<id>` using the resident credential. No office-name-to-principal shortcut is used. These source changes are covered by disposable PostgreSQL integration; production provider mapping, grant, migration state, and service deployment remain unverified.
+
 For multi-step proposals, migration `0009_durable_objective_steps.sql` stores stable step order, dependencies, status and assignment identity. The service dispatches only dependency-ready steps; dependent steps wait for independently accepted verification. The objective remains open until every step is verified. A structured post-verification review can append a bounded continuation to the same objective; it cannot expand the original acceptance envelope, bypass the current office binding, or create authority. Continuation steps return through ordinary assignment.create validation, leased execution, independent verification, and the cycle-keyed conversation-result outbox. Outbox receipts are unique per completion cycle so earlier verified work can be returned even as the same objective continues.
+
+Comms5 stale-base revalidation preserves the failed assignment as blocked and unaccepted. It requires fresh VERIFIED repository grounding and appends a same-scope successor assignment step. Direct dependent steps are retargeted to the successor and remain gated by Grace review after independent verification. Objective completion treats the predecessor failure as resolved only when the linked revalidation successor is verified; a failed/rejected worker result is never promoted to success. Resource-policy migration `0012_resource_selection_policy.sql` is required before policy status/mutation or scheduler enforcement is available; an absent table is not treated as an empty policy in a release that includes these operations.
+
+The Comms5-only packager, `scripts/package_comms5_camrui.py`, remains scoped to that service. Changes spanning the Grace runner, resident reasoning, durable exchange, or scheduler policy use the immutable full-source package from `scripts/build_camrui_package.py`; its package is built from one committed revision and includes tracked source and migrations. Install the relevant Grace and Comms5 release pointers independently with their own predecessor and rollback records. The package regression test requires both migrations `0011` and `0012` and all runtime initiation/consumption components in the full package. A passing package check proves artifact contents and integrity only; it does not apply migrations or commission service grants.
 
 The owner-session process uses the existing restricted `riverview_core` PostgreSQL role. Migration `0007_grace_runtime_objective_and_health_acl` grants only the selected columns used by the existing pipeline: read/insert/update columns on `grace_objectives`, read/insert columns and sequence usage on `grace_objective_events`, and heartbeat insert/update columns on `grace_execution_health`. Migration `0009_durable_objective_steps.sql` is the additive per-step persistence prerequisite for multi-step plans; it does not authorize the service to modify any unrelated relation. Existing read-only health migration remains separately scoped. Missing grants produce a sanitized `InsufficientPrivilege` failure; do not work around them with schema-wide privileges.
 
@@ -78,5 +88,42 @@ Expected service status is `healthy`, with `last_heartbeat_at` newer than the da
 ## Verification and limitations
 
 The integration tests use isolated PostgreSQL schemas, a temporary Git repository, local HTTP server, deterministic typed proposal, existing bounded worker, and a separate verifier identity. The new owner-session tests use only a synthetic auth-file marker, prove TTY-free construction under the owning identity, and reject weak/copy auth files. A real bounded adapter call reached the existing ChatGPT CLI but did not create a file; the local bwrap/unshare probe failure is reproduced and now blocks adapter preflight. The full PostgreSQL suite passed on a disposable PostgreSQL 16 cluster with the restricted-role fixture; teardown left no test schemas and the cluster shut down cleanly. This service is not live-commissioned; no real Grace website work order, independently accepted Codex artifact, or continuous service run is claimed.
+
+Canonical graph: `process_graphs/grace/operational-integration.json`. Generated views are updated with `python3 scripts/process_graph.py generate`; validate with `python3 scripts/process_graph.py check` and `python3 scripts/process_graph.py validate`.
+
+### Concurrent artifact and source-change enrollment
+
+The owner-session runner can host the existing artifact loop and a distinct
+source-change loop concurrently. The artifact worker ID, credential, registry
+entry and grants remain as provisioned. The source worker uses a different ID,
+protected `source-worker-token`, registry capability, PostgreSQL adapter
+connection, and exact `worker.register` plus `assignment.execute` grants. Each
+loop claims only its own capability. Worker errors are isolated per cycle; the
+other loop continues. Independent verification selects its action from the
+persisted attempt capability.
+
+Resident grounding remains in `grace_objectives.source_revision` and
+`source_sha256`. Every new source-change plan step separately requires an
+explicit `repository_reference` and immutable `repository_revision`. At
+dispatch, the append-only `work_order.dispatched` event snapshots the target,
+commit, authorized paths, test targets, objective, assignment, step, capability
+and proposal-step digest. Dispatch requires the target text in the Steward's
+request/criteria. The executor then checks that snapshot against the proposal,
+configured repository mapping and actual checkout HEAD. Result and verifier
+checks retain the same repository identity and commit. Unbound historical
+source-change assignments are rejected without editing their records; artifact
+plans remain compatible. The event snapshot requires no database migration.
+
+Source execution remains disabled unless an operator installs the optional
+`deploy/systemd/riverview-grace-execution-owner-session-source-worker.conf`
+drop-in after enrollment. Enrollment requires a newly distinct source worker
+credential, active registration, exact source capability, exact
+`worker.register`/`assignment.execute` grants in the existing Engineering
+scope, configured repository map/HEAD, and bounded
+`RIVERVIEW_CODEX_SOURCE_ALLOWED_PATHS`. Do not copy the artifact credential or
+grant paths beyond the Steward-approved objective. Missing source enrollment
+keeps source steps undispatched while artifact execution remains available.
+This branch does not provision credentials or grants, install/enable the
+drop-in, apply production migrations, or activate the source worker.
 
 Canonical graph: `process_graphs/grace/operational-integration.json`. Generated views are updated with `python3 scripts/process_graph.py generate`; validate with `python3 scripts/process_graph.py check` and `python3 scripts/process_graph.py validate`.

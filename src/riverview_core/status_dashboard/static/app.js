@@ -1,6 +1,6 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
 // Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record bounded same-origin request and SSE response metadata without bodies or auth headers.
-// Revision: 1.4.19
+// Revision: 1.4.20
 // Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Label assignment-lease freshness separately from worker process liveness.
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
 // Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Use linked Steward account session for exact-grant Grace connection
@@ -19,6 +19,7 @@
 // Changed: 2026-10-16 UTC | RV-WEBSITE-PL038 | Build a searchable client-side registry of workflows and declared traceability references.
 // Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Explain immutable criteria reuse on same-origin retries.
 // Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Capture bounded UI request diagnostics and connect the comprehensive offline ZIP collector.
+// Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Connect Steward proposal drafting and lifecycle views to the existing authenticated API.
 (() => {
   "use strict";
   window.name = "rv-dashboard-main";
@@ -364,6 +365,7 @@
     const steward = state.accountIdentity?.roles?.includes("steward") === true;
     $("account-nav").hidden = !steward;
     $("resident-permissions-nav").hidden = !steward;
+    $("institutional-proposals-nav").hidden = !steward;
     $("account-label").textContent = state.accountIdentity ? `${state.accountIdentity.email} · ${state.accountIdentity.roles.join(", ")}` : "";
     $("sign-out").hidden = !state.accountIdentity;
   }
@@ -454,12 +456,12 @@
   }
   function navigate(name) {
     const start = performance.now();
-    const view = ["overview","assignments","objectives","grace-chat","activity","workflows","notifications","documentation","account","resident-permissions"].includes(name) ? name : "overview";
-    if (["account","resident-permissions"].includes(view) && !state.accountIdentity?.roles?.includes("steward")) { navigate("overview"); return; }
+    const view = ["overview","assignments","objectives","institutional-proposals","grace-chat","activity","workflows","notifications","documentation","account","resident-permissions"].includes(name) ? name : "overview";
+    if (["account","resident-permissions","institutional-proposals"].includes(view) && !state.accountIdentity?.roles?.includes("steward")) { navigate("overview"); return; }
     state.activeView = view;
     document.querySelectorAll(".view").forEach((node) => { const active = node.id === `view-${view}`; node.hidden = !active; node.classList.toggle("active", active); });
     document.querySelectorAll(".nav-item").forEach((node) => node.classList.toggle("selected", node.dataset.view === view));
-    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",objectives:"Grace objectives","grace-chat":"Talk with Grace",activity:"Activity",workflows:"Process workflows",notifications:"Notifications",documentation:"Documentation and diagnostics",account:"Account access","resident-permissions":"Resident permissions"})[view];
+    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",objectives:"Grace objectives","institutional-proposals":"Institutional proposals","grace-chat":"Talk with Grace",activity:"Activity",workflows:"Process workflows",notifications:"Notifications",documentation:"Documentation and diagnostics",account:"Account access","resident-permissions":"Resident permissions"})[view];
     history.replaceState(null,"",`#${view}`);
     const duration = performance.now() - start;
     state.navSamples.push({view,ms:duration}); state.navSamples=state.navSamples.slice(-100);
@@ -467,6 +469,7 @@
     if (state.lastFetch && performance.now() - state.lastFetch > 10000) refreshStatus();
     if (view === "assignments" && !state.assignments.length) loadAssignments();
     if (view === "objectives") loadObjectives();
+    if (view === "institutional-proposals") window.dispatchEvent(new Event("rv:institutional-proposals"));
     if (view === "activity" && !state.events.length) loadEvents();
     if (view === "notifications") loadNotifications();
     if (view === "documentation") loadDocumentationCatalog();
@@ -475,6 +478,7 @@
     if (view === "resident-permissions") window.dispatchEvent(new Event("rv:resident-permissions"));
   }
   document.querySelectorAll(".nav-item").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.view)));
+  window.RiverviewDashboardNavigate = navigate;
   $("rail-toggle").addEventListener("click", () => setRailCollapsed(!document.querySelector(".shell").classList.contains("rail-collapsed")));
   document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.go)));
   $("documentation-search").addEventListener("input", renderDocumentationCatalog);
@@ -732,7 +736,9 @@
     host.querySelectorAll("[data-message-details]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageDetails)];state.chatDialogReturnFocus=button;if(ev)showMessageDetails(ev);closeMessageMenus();}));
     host.querySelectorAll("[data-message-copy]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageCopy)];state.selectedEventId=String(ev?.sequence??ev?.request_id??"");if(ev)copyChatText(ev.body||ev.error_code||"").catch(()=>toast("Clipboard access unavailable."));closeMessageMenus();}));
     host.querySelectorAll("[data-message-id-copy]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageIdCopy)];if(ev?.sequence!=null)copyChatText(String(ev.sequence)).catch(()=>toast("Clipboard access unavailable."));closeMessageMenus();}));
+    host.querySelectorAll("[data-message-work-order]").forEach((button)=>{const eventIndex=button.dataset.messageWorkOrder;const proposalButton=document.createElement("button");proposalButton.type="button";proposalButton.role="menuitem";proposalButton.dataset.messageProposal=eventIndex;proposalButton.textContent="Draft institutional proposal…";button.before(proposalButton);});
     host.querySelectorAll("[data-message-work-order]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageWorkOrder)];if(!ev||!Number.isInteger(ev.sequence))return;state.workOrderSourceSequence=ev.sequence;$("work-order-source").textContent=ev.body||"(empty message)";$("work-order-criteria").value="";$("work-order-error").textContent="";$("work-order-dialog").showModal();closeMessageMenus();}));
+    host.querySelectorAll("[data-message-proposal]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageProposal)];if(!ev||!Number.isInteger(ev.sequence))return;$("proposal-draft-dialog").dataset.sourceSequence=String(ev.sequence);$("proposal-draft-source").textContent=`Message ${ev.sequence}: ${ev.body||"(empty message)"}`;$("proposal-draft-error").textContent="";$("proposal-draft-dialog").showModal();closeMessageMenus();}));
   }
   $("work-order-form").addEventListener("submit",async(event)=>{
     event.preventDefault();

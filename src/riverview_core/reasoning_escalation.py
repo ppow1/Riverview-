@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/reasoning_escalation.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.0
+# Revision: 1.1.1
 # Purpose: Define bounded, authority-checked task escalation without execution authority
 # Execution Model: Bounded provider call or authorized durable-exchange admission
 # Observability: Typed decision, provider, budget, timeout and context fingerprint
 # Dependencies: Existing ResidentReasoner provider contract; standard library
 # Authority: Exact resident.reasoning.escalate grant; proposal only, never dispatch
 # Changed: 2026-10-13 UTC | RV-REASONING-ESCALATION-CONTRACT | Add additive escalation request/result contract
+# Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Allow deterministic escalation IDs for retry-safe durable admission
 # Changed: 2026-10-13 UTC | RV-REASONING-ESCALATION-CONTEXT-SNAPSHOT | Recheck correlation and deep-copy provider context before invocation
 # Changed: 2026-10-13 UTC | RV-REASONING-ESCALATION-AUTHORITY-STATUS | Distinguish denied grants from unavailable authority checks
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Expose nonblocking exact-grant admission for durable exchange adapter
@@ -81,7 +82,7 @@ class EscalationRequest:
     @classmethod
     def create(cls, original: ReasoningRequest, *, reason: str,
                target_provider_id: str, max_tokens: int = 512,
-               timeout_seconds: int = 30):
+               timeout_seconds: int = 30, escalation_id: str | None = None):
         if (not isinstance(original, ReasoningRequest) or
                 reason not in {"task_complexity", "capability_gap", "low_confidence"} or
                 not isinstance(target_provider_id, str) or not target_provider_id or
@@ -89,7 +90,13 @@ class EscalationRequest:
                 not 1 <= max_tokens <= 512 or type(timeout_seconds) is not int or
                 not 1 <= timeout_seconds <= 60):
             raise ValueError("escalation request exceeds its bounded contract")
-        return cls("rv.resident.escalation-request.v1", str(uuid4()),
+        escalation_id = str(uuid4()) if escalation_id is None else escalation_id
+        try:
+            from uuid import UUID
+            UUID(escalation_id)
+        except (ValueError, TypeError, AttributeError):
+            raise ValueError("escalation ID must be a UUID") from None
+        return cls("rv.resident.escalation-request.v1", escalation_id,
                    original.request_id, original.office_id, original.assignment_id,
                    original.assignment_revision, original.binding_revision,
                    original.implementation_revision, context_fingerprint(original),

@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.9
+File Revision: 1.0.10
 Purpose: Define resident context regrounding and bounded reasoning-provider routing
 Authority: Exact office-state grant required; provider output is a proposal, never permission
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Establish isolated resident reasoning contract
@@ -12,6 +12,7 @@ Changed: 2026-10-11 UTC | RV-M4.2-LOCAL-PROVIDER-INTEGRATION | Document strict l
 Changed: 2026-10-11 UTC | RV-M4.2-LOCAL-PROVIDER-RESULT | Record actual model timeout separately from the verified mock HTTP contract
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Accept correlated external advisory separately from verified knowledge
 Changed: 2026-10-13 UTC | RV-REASONING-ESCALATION-CONTRACT | Specify task-escalation request/result boundary and integration limit
+Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Document typed intent initiation, active occupant resolution and exact provider grants
 Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Pass canonical Grace role and authority boundaries into her assignment reasoning provider
 Changed: 2026-10-15 UTC | RV-GRACE-GROUNDING-BOUNDED-001 | Rank complete relevant passages within the evidence bound and retain full-source provenance
 Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Allow bounded 1–20 step proposals with acyclic dependencies and persist step dispatch state
@@ -36,7 +37,7 @@ Converting a proposal into an objective or work order remains a separately
 authorized workflow. CME scheduling and worker execution do not depend on the
 resident reasoning provider.
 
-## Task escalation contract (integration pending)
+## Durable external reasoning initiation
 
 `src/riverview_core/reasoning_escalation.py` defines a separate typed
 `EscalationRequest`/`EscalationResult` contract for a provider selected because
@@ -47,15 +48,49 @@ correlates the original office, objective, assignment revision, model binding,
 implementation revision, complete verified context fingerprint, exact target
 provider, token limit (maximum 512), and timeout (maximum 60 seconds).
 
-The caller must use the existing authority registry to authorize
-`resident.reasoning.escalate` on `provider:<provider-id>` before the router is
-called. The router returns a typed proposal only; it cannot create or dispatch
-an assignment. Current source does not yet connect task-difficulty recognition
-in `ResidentReasoner` to this router, persist escalation outcomes, or configure
-an 80B provider. Unit tests use synthetic local providers and do not prove a
-live route. Unavailable provider, capacity, timeout, invalid output, or changed
-context returns a typed non-success result; the caller must retain the durable
-objective and schedule a bounded retry or explicit Steward decision.
+`LocalReasoningProvider` may return an optional typed
+`external_escalation` intent when the persistent runner explicitly registers
+one or more external reasoning providers. This field is optional in the
+existing proposal schema; the provider is instructed to select only a listed
+target and only for task complexity, capability gap, or low confidence. The
+runner handles this decision at the existing `reason_one_grounded_objective`
+boundary: it resolves the original objective-received event, preserves the
+conversation/message and proposal-revision lineage, then calls
+`request_external_reasoning()` on the existing `GraceExecutionService`. The
+operation writes the existing durable exchange outbox and returns without
+waiting for delivery. A pending exchange suppresses another reasoning attempt
+for the same objective until it is consumed or terminal. No additional loop or
+dispatcher is introduced.
+
+The runner resolves the active resident principal from the authenticated
+`AuthorityRegistry.authorize_office_state()` snapshot (`principal_kind`,
+`principal_id`, occupant and binding revision). It does not infer a principal
+from the office name. For each exchange authorization check, it resolves that
+snapshot again, requires the same active resident principal, and passes the
+resident's existing office credential to `ExactGrantAuthorizer.require()` for
+the exact `resident.reasoning.escalate` action and
+`provider:<provider-id>` scope. The returned exact-grant principal must match
+the active binding. `require_principal()` is not used because the established
+principal-grant SQL contract is restricted to already-authenticated Steward
+subjects. Missing grants, wrong principals/scopes, stale office occupants, and
+authority-store errors fail closed; no identity string is hardcoded as a
+universal resident shortcut.
+
+The durable exchange checks that the target is registered, the request context
+matches its fingerprint, and its deadline is finite before commit. A stable
+reasoning/escalation identity plus the exchange idempotency key prevents a
+restart or duplicate CME cycle from creating a second active request. The MCP
+provider claims and responds through the existing four provider-scoped tools.
+Grace consumes a correlated response through the same exact grant and
+`ResidentReasoner`; it remains advisory input, separate from VERIFIED
+knowledge, and cannot approve a proposal or dispatch work. A durable objective
+event fences the existing acknowledgement path against duplicate reasoning
+after restart.
+
+These changes are source-level and isolated-PostgreSQL verified only. They do
+not establish a production provider identity, grant, migration, service
+activation, or live 80B external-reasoning exchange. Provider readiness and
+exact authority must be commissioned independently before production use.
 
 The implementation consumes M4.1's `AuthorityRegistry` and the frozen
 `worker_adapter.knowledge_provider_v1` contract. No second knowledge API is

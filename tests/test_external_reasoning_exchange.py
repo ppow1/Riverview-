@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_exchange.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.5
+# Revision: 1.0.8
 # Purpose: Verify durable external advisory exchange, leases, recovery and idempotency
 # Execution Model: Isolated PostgreSQL integration plus deterministic simulated provider
 # Observability: State, correlation, event, digest and sanitized diagnostic assertions
@@ -13,6 +13,9 @@
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Exercise actual ResidentReasoner on the consumed advisory
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Exercise provider-scoped MCP operations against isolated PostgreSQL
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Run the durable tool round-trip through an independent Streamable HTTP client
+# Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Initiate the accepted exchange through Grace's persistent service and resume MCP replies through Grace after recovery.
+# Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Exercise restart after proposal/evaluation persistence but before exchange acknowledgement.
+# Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Exercise typed reasoning initiation and distinguish active office from resident principal identities.
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -22,6 +25,7 @@ import os
 import hashlib
 import http.client
 import json
+import secrets
 import socket
 import threading
 import unittest
@@ -31,6 +35,7 @@ from uuid import uuid4
 from riverview_core.postgres_ledger import PostgresLedger
 from riverview_core.postgres_migrations import apply_migrations
 from riverview_core.reasoning_escalation import EscalationRequest, ReasoningEscalationRouter
+from riverview_core.assignment_intake import AuthorizedAssignmentIntake
 from riverview_core.resident_execution.external_reasoning import (
     DurableExternalReasoningExchange, ExchangeConflict, ExchangeExpired,
     ExchangeUnauthorized,
@@ -38,13 +43,14 @@ from riverview_core.resident_execution.external_reasoning import (
 from riverview_core.resident_execution.external_reasoning_mcp import (
     ExternalReasoningMCPAdapter, ProviderTokenMap, create_server,
 )
-from riverview_core.resident_reasoning import ReasoningRequest
+from riverview_core.resident_reasoning import ExternalEscalationIntent, ReasoningRequest
 
 
 ROOT = __import__("pathlib").Path(__file__).resolve().parents[1]
 DSN = os.environ.get("RIVERVIEW_TEST_PG_DSN")
 PROVIDER = "simulated:chatgpt-reasoning"
-RESIDENT = "office:grace"
+OFFICE = "office:grace"
+RESIDENT = "resident:grace-test"
 
 
 class _SimulatedExternalProvider:
@@ -98,8 +104,9 @@ class _ResumeKnowledge:
 class _GraceReasoningProvider:
     provider_id = "reasoner:test"
 
-    def __init__(self):
+    def __init__(self, *, initiate_external=False):
         self.requests = []
+        self.initiate_external = initiate_external
 
     def propose(self, request):
         from riverview_core.resident_reasoning import PlanProposal, PlanStep
@@ -107,7 +114,9 @@ class _GraceReasoningProvider:
         return PlanProposal("evaluate advisory", (PlanStep("review", "Review advice",
             ("record a proposal only",)),), 5, provider_id=self.provider_id,
             served_model="fixture-reasoner", model_revision="c" * 64,
-            reasoning_stage="reasoning")
+            reasoning_stage="reasoning",
+            external_escalation=(ExternalEscalationIntent("task_complexity", PROVIDER)
+                if self.initiate_external and request.external_advisory is None else None))
 
 
 @unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")
@@ -140,10 +149,12 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         self.other_objective = "objective:" + uuid4().hex
         for objective in (self.objective, self.other_objective):
             self.admin.execute(sql.SQL("""INSERT INTO {}.grace_objectives
-                (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status)
+                (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,evidence,source_sha256)
                 VALUES (%s,'bounded synthetic reasoning task','work-order:engineering',
-                        'steward:test','[\"produce advisory\"]'::jsonb,'GROUNDED')""").format(
-                sql.Identifier(self.schema)), (objective,))
+                        'steward:test','[\"record a proposal only\"]'::jsonb,'GROUNDED',
+                        %s::jsonb,%s)""").format(sql.Identifier(self.schema)),
+                (objective, json.dumps({"status": "VERIFIED", "retrieval_complete": True,
+                    "source_references": ["test://source"], "source_sha256": "d" * 64}), "d" * 64))
         self.provider = _SimulatedExternalProvider()
         self.router = ReasoningEscalationRouter({PROVIDER: self.provider})
         self.clock_value = datetime.now(timezone.utc)
@@ -164,12 +175,101 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
             and scope == "provider:" + PROVIDER)
         self.reasoning_state = _ReasoningState()
         self.grace_provider = _GraceReasoningProvider()
+        self.real_authority_fixture = None
+        self.admin.execute(sql.SQL("""INSERT INTO {}.grace_objective_events
+            (objective_id,event_type,idempotency_key,actor_id,payload)
+            VALUES (%s,'objective.received',%s,'steward:test',%s::jsonb)""").format(
+                sql.Identifier(self.schema)),
+            (self.objective, "test-origin:" + self.objective,
+             json.dumps({"origin": {"conversation_id": self.conversation_id,
+                                    "source_sequence": 4}})))
 
     def _service(self, clock=None):
         return DurableExternalReasoningExchange(self.ledger, self.router,
             actor_id=RESIDENT, clock=clock or (lambda: self.clock_value))
 
+    def _grace_service(self, exchange, *, initiate_external=False, targets=()):
+        from riverview_core.institutional_authority import ExactGrantAuthorizer
+        from riverview_core.resident_execution.pipeline import GraceExecutionPipeline, ObjectiveContextReader
+        from riverview_core.resident_execution.service import GraceExecutionService
+        from riverview_core.resident_reasoning import ResidentReasoner
+        authority = ExactGrantAuthorizer(self.schema)
+        pipeline = GraceExecutionPipeline(self.ledger, authority,
+            AuthorizedAssignmentIntake(self.ledger, authority), _ResumeKnowledge())
+        self.grace_provider.initiate_external = initiate_external
+        reasoner = ResidentReasoner(registry=self.reasoning_state, office_id=OFFICE,
+            resident_credential="fixture-resident-credential", assignments=ObjectiveContextReader(pipeline),
+            knowledge=_ResumeKnowledge(), providers={"reasoner:test": self.grace_provider},
+            external_reasoning_targets=tuple(targets),
+            timeout_seconds=1)
+        return GraceExecutionService(pipeline, object(), object(),
+            dispatch_credential="unused-in-consumer-test", authority_ref="work-order:engineering",
+            verifier_id="verifier:test", verifier_credential="unused", artifact_root="/tmp",
+            verifier=object(), resident_reasoner=reasoner,
+            external_reasoning_exchange=exchange,
+            external_reasoning_authorize=self.authorized,
+            external_reasoning_principal=RESIDENT)
+
+    def _real_exchange_authority(self):
+        """Build the production AuthorityRegistry contract in this disposable schema."""
+        from riverview_core.institutional_authority import AuthorityRegistry
+
+        if self.real_authority_fixture is not None:
+            return self.real_authority_fixture
+        registry = AuthorityRegistry(DSN, schema=self.schema)
+        steward_id = "steward:" + uuid4().hex
+        steward_token = secrets.token_urlsafe(32)
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.institutional_principals
+            (principal_id,principal_kind) VALUES (%s,'steward')""").format(
+                self.sql.Identifier(self.schema)), (steward_id,))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.principal_credentials
+            (credential_id,principal_id,credential_sha256) VALUES (%s,%s,%s)""").format(
+                self.sql.Identifier(self.schema)), (uuid4(), steward_id,
+                hashlib.sha256(steward_token.encode()).digest()))
+        for action in ("authority.grant", "identity.manage", "office.manage"):
+            self.admin.execute(self.sql.SQL("""INSERT INTO {}.authority_grants
+                (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+                VALUES (%s,%s,%s,'institution',%s,'rv.policy:test-bootstrap.v1')""").format(
+                    self.sql.Identifier(self.schema)),
+                ("bootstrap:" + action + ":" + uuid4().hex, steward_id, action, steward_id))
+        registry.create_office(steward_token, OFFICE, "Director of Operations")
+        resident_token = registry.create_principal(steward_token, RESIDENT, "resident",
+                                                   office_id=OFFICE)
+        occupant_id = "occupant:" + uuid4().hex
+        implementation_id = "implementation:" + uuid4().hex
+        registry.create_occupant(steward_token, occupant_id, principal_id=RESIDENT)
+        registry.create_implementation(steward_token, implementation_id, kind="model",
+            provider_ref="reasoner:test", revision="model-revision:test")
+        registry.bind_office(steward_token, OFFICE, occupant_id, implementation_id)
+        registry.grant(steward_token, RESIDENT, "office.state.write", "office:" + OFFICE,
+            policy_ref="rv.policy:test-runtime.v1")
+        registry.grant(steward_token, RESIDENT, ReasoningEscalationRouter.ACTION,
+            "provider:" + PROVIDER, policy_ref="rv.policy:test-escalation.v1")
+        self.real_authority_fixture = (registry, resident_token)
+        return self.real_authority_fixture
+
+    def _real_authorizer(self, *, provider_id=PROVIDER):
+        from riverview_core.institutional_authority import ExactGrantAuthorizer
+        from scripts.run_grace_execution_service import (
+            active_resident_principal, external_exchange_configuration)
+
+        registry, credential = self._real_exchange_authority()
+        snapshot = registry.authorize_office_state(credential, OFFICE)
+        principal = active_resident_principal(snapshot)
+        exchange, authorize = external_exchange_configuration({
+            "RIVERVIEW_EXTERNAL_REASONING_PROVIDER_MAP":
+                json.dumps({provider_id: "provider:external-test"})},
+            ledger=self.ledger, authorizer=ExactGrantAuthorizer(self.schema),
+            authority_registry=registry, resident_credential=credential,
+            office_id=OFFICE, principal_id=principal)
+        self.assertIsNotNone(exchange)
+        return registry, credential, principal, exchange, authorize, snapshot
+
     def tearDown(self):
+        if self.real_authority_fixture is not None:
+            registry = self.real_authority_fixture[0]
+            if not registry.db.closed:
+                registry.db.close()
         if getattr(self, "ledger", None) and not self.ledger.db.closed:
             self.ledger.close()
         if getattr(self, "admin", None) and not self.admin.closed:
@@ -191,18 +291,67 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
             deadline_at=deadline or self.clock_value + timedelta(minutes=5),
             source_references=("test://synthetic-context",))
 
-    def _deliver_and_claim(self, receipt, *, lease=120):
-        delivery = self.exchange.begin_delivery(receipt.request_id, PROVIDER,
+    def _grace_submit(self, exchange, *, idem):
+        grace = self._grace_service(exchange)
+        return grace.request_external_reasoning(self.envelope, self.original,
+            conversation_id=self.conversation_id, message_sequence=4,
+            idempotency_key=idem, deadline_at=self.clock_value + timedelta(minutes=5),
+            classification="institutional", source_references=("test://synthetic-context",))
+
+    def _deliver_and_claim(self, receipt, *, lease=120, exchange=None,
+                           principal_id=PROVIDER):
+        exchange = exchange or self.exchange
+        delivery = exchange.begin_delivery(receipt.request_id, PROVIDER,
             owner_id="transport:test", lease_seconds=30)
         self.assertIsNotNone(delivery)
-        self.assertEqual(self.exchange.mark_delivered(receipt.request_id,
+        self.assertEqual(exchange.mark_delivered(receipt.request_id,
             receipt.correlation_id, PROVIDER, owner_id="transport:test",
             delivery_token=delivery.claim_token, fence=delivery.fence), "awaiting_external_claim")
-        self.assertEqual(self.exchange.mark_delivered(receipt.request_id,
+        self.assertEqual(exchange.mark_delivered(receipt.request_id,
             receipt.correlation_id, PROVIDER, owner_id="transport:test",
             delivery_token=delivery.claim_token, fence=delivery.fence), "awaiting_external_claim")
-        return self.exchange.claim(receipt.request_id, receipt.correlation_id,
-            provider_id=PROVIDER, principal_id=PROVIDER, lease_seconds=lease)
+        return exchange.claim(receipt.request_id, receipt.correlation_id,
+            provider_id=PROVIDER, principal_id=principal_id, lease_seconds=lease)
+
+    def _real_grace_service(self, *, authority=None):
+        from riverview_core.institutional_authority import ExactGrantAuthorizer
+        from riverview_core.resident_execution.pipeline import (
+            GraceExecutionPipeline, ObjectiveContextReader)
+        from riverview_core.resident_execution.service import GraceExecutionService
+        from riverview_core.resident_reasoning import ResidentReasoner
+
+        if authority is None:
+            registry, credential, principal, exchange, authorize, _snapshot = (
+                self._real_authorizer())
+        else:
+            from riverview_core.institutional_authority import ExactGrantAuthorizer
+            from scripts.run_grace_execution_service import (
+                active_resident_principal, external_exchange_configuration)
+            registry, credential = authority
+            snapshot = registry.authorize_office_state(credential, OFFICE)
+            principal = active_resident_principal(snapshot)
+            exchange, authorize = external_exchange_configuration({
+                "RIVERVIEW_EXTERNAL_REASONING_PROVIDER_MAP":
+                    json.dumps({PROVIDER: "provider:external-test"})},
+                ledger=self.ledger, authorizer=ExactGrantAuthorizer(self.schema),
+                authority_registry=registry, resident_credential=credential,
+                office_id=OFFICE, principal_id=principal)
+        pipeline = GraceExecutionPipeline(self.ledger, ExactGrantAuthorizer(self.schema),
+            AuthorizedAssignmentIntake(self.ledger, ExactGrantAuthorizer(self.schema)),
+            _ResumeKnowledge())
+        self.grace_provider.initiate_external = True
+        reasoner = ResidentReasoner(registry=registry, office_id=OFFICE,
+            resident_credential=credential, assignments=ObjectiveContextReader(pipeline),
+            knowledge=_ResumeKnowledge(), providers={"reasoner:test": self.grace_provider},
+            external_reasoning_targets=(PROVIDER,), timeout_seconds=1)
+        grace = GraceExecutionService(pipeline, object(), object(),
+            dispatch_credential="unused-in-consumer-test", authority_ref="work-order:engineering",
+            verifier_id="verifier:test", verifier_credential="unused", artifact_root="/tmp",
+            verifier=object(), resident_reasoner=reasoner,
+            external_reasoning_exchange=exchange,
+            external_reasoning_authorize=authorize,
+            external_reasoning_principal=principal)
+        return registry, credential, principal, exchange, authorize, grace
 
     def _response(self, receipt, *, advisory="Consider the verified context and continue reasoning"):
         return {"schema_version": self.exchange.RESPONSE_SCHEMA,
@@ -220,7 +369,7 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
             return False, f"{consumption.consumption_key}:reasoned"
         from riverview_core.resident_reasoning import ReasoningStatus, ResidentReasoner
 
-        reasoner = ResidentReasoner(registry=self.reasoning_state, office_id=RESIDENT,
+        reasoner = ResidentReasoner(registry=self.reasoning_state, office_id=OFFICE,
             resident_credential="fixture-resident-credential", assignments=_ResumeAssignments(),
             knowledge=_ResumeKnowledge(), providers={"reasoner:test": self.grace_provider},
             timeout_seconds=1)
@@ -256,7 +405,7 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
                 return cur.rowcount == 1, event_key
 
     def test_authorized_round_trip_restart_and_unrelated_assignment_progress(self):
-        receipt = self._submit(idem="roundtrip")
+        receipt = self._grace_submit(self.exchange, idem="roundtrip")
         self.assertEqual(receipt.delivery_state, "awaiting_delivery")
         self.assertEqual(self.provider.calls, 0)
         # Work in the existing independent assignment ledger proceeds while the
@@ -287,30 +436,46 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         self.exchange = self._service()
         self.assertEqual(self.exchange.status(receipt.request_id, receipt.correlation_id)["delivery_state"],
                          "response_received")
-        consumption = self.exchange.consume(receipt.request_id, receipt.correlation_id,
-            principal_id=RESIDENT, authorize=self.authorized)
-        self.assertEqual(consumption.original_request.request_id, self.original.request_id)
-        self.assertEqual(consumption.advisory["advisory"], response["advisory"])
-        # The existing reasoning/objective event contract receives original
-        # context and advice separately; retries use one durable idempotency key.
-        self.assertEqual(consumption.original_request.request_id, self.original.request_id)
-        self.assertEqual(consumption.consumption_key,
-                         f"external-reasoning-consumed:{receipt.request_id}")
-        inserted, evaluation_key = self._existing_reasoning_resume(consumption)
-        self.assertTrue(inserted)
-        self.assertEqual(self.exchange.acknowledge_consumed(receipt.request_id,
-            receipt.correlation_id, principal_id=RESIDENT,
-            consumption_key=consumption.consumption_key,
-            consumption_token=consumption.consumption_token, fence=consumption.fence,
-            result_reference="grace-state:external-advisory-evaluated:1",
-            authorize=self.authorized), "grace_consumed")
+        # The production Grace cycle consumes the persisted exchange, reasons
+        # over the typed advisory and atomically records the unapproved proposal.
+        # Simulate process loss after that commit but before exchange ack.
+        grace = self._grace_service(self.exchange)
+        pipeline = grace.pipeline
+        acknowledge = self.exchange.acknowledge_consumed
+        def fail_first_ack(*args, **kwargs):
+            raise RuntimeError("simulated_acknowledgement_interruption")
+        self.exchange.acknowledge_consumed = fail_first_ack
+        self.assertEqual(grace.consume_external_reasoning(), 0)
+        self.assertEqual(self.exchange.status(receipt.request_id,
+            receipt.correlation_id)["delivery_state"], "response_received")
+        evaluation = [event for event in pipeline.objective_events(self.objective)
+            if event["event_type"] == "resident.reasoning.external_advisory_evaluated"]
+        self.assertEqual(len(evaluation), 1)
+        self.assertEqual(evaluation[0]["payload"]["request_id"], receipt.request_id)
+        self.assertEqual(evaluation[0]["payload"]["decision"],
+                         "advisory_evaluated_as_unapproved_proposal")
+        self.assertEqual(self.grace_provider.requests[-1].external_advisory["advisory"],
+                         response["advisory"])
+        self.assertNotIn(response["advisory"], str(self.grace_provider.requests[-1].verified_knowledge))
+        reasoner_calls = len(self.grace_provider.requests)
+        # A restarted exchange/service sees the durable evaluation and performs
+        # only the fenced acknowledgement, without invoking the reasoner again.
+        self.exchange.acknowledge_consumed = acknowledge
+        self.ledger.close()
+        self.ledger = PostgresLedger(DSN, schema=self.schema)
+        self.exchange = self._service()
+        grace = self._grace_service(self.exchange)
+        self.assertEqual(grace.consume_external_reasoning(), 1)
+        self.assertEqual(len(self.grace_provider.requests), reasoner_calls)
+        self.assertEqual(self.exchange.status(receipt.request_id,
+            receipt.correlation_id)["delivery_state"], "grace_consumed")
+        self.assertEqual(grace.consume_external_reasoning(), 0)
         again = self.exchange.consume(receipt.request_id, receipt.correlation_id,
             principal_id=RESIDENT, authorize=self.authorized)
         self.assertTrue(again.duplicate)
         self.assertEqual(again.advisory["advisory"], response["advisory"])
-        retry_inserted, retry_key = self._existing_reasoning_resume(again)
-        self.assertFalse(retry_inserted)
-        self.assertEqual(retry_key, evaluation_key)
+        self.assertEqual(grace.consume_external_reasoning(), 0)
+        evaluation_key = evaluation[0]["idempotency_key"]
         status = self.exchange.status(receipt.request_id, receipt.correlation_id)
         self.assertEqual(status["diagnostic_state"], "Grace consumed")
         self.assertEqual(status["response_sha256"], digest)
@@ -322,7 +487,164 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         objective = self.admin.execute(self.sql.SQL("""SELECT status,assignment_id,proposal
             FROM {}.grace_objectives WHERE objective_id=%s""").format(
                 self.sql.Identifier(self.schema)), (self.objective,)).fetchone()
-        self.assertEqual(objective, ("GROUNDED", None, None))
+        self.assertEqual(objective[0], "PROPOSED")
+        self.assertIsNone(objective[1])
+        self.assertIsInstance(objective[2], dict)
+
+    def test_grounded_reasoning_decision_initiates_and_consumes_durable_exchange(self):
+        grace = self._grace_service(self.exchange, initiate_external=True,
+                                    targets=(PROVIDER,))
+        self.assertTrue(grace.reason_one_grounded_objective(self.objective))
+        self.assertEqual(grace.pipeline.get_objective(self.objective)["status"], "GROUNDED")
+        self.assertTrue(self.exchange.has_active_for_objective(self.objective))
+        row = self.admin.execute(self.sql.SQL("""SELECT request_id,correlation_id,
+                delivery_state,originating_resident_id,conversation_id,message_sequence
+            FROM {}.external_reasoning_exchanges WHERE objective_id=%s""").format(
+                self.sql.Identifier(self.schema)), (self.objective,)).fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(row[3], RESIDENT)
+        self.assertEqual(str(row[4]), self.conversation_id)
+        self.assertEqual(row[5], 4)
+        receipt = type("Receipt", (), {"request_id": str(row[0]),
+            "correlation_id": str(row[1]), "delivery_state": row[2]})()
+        claim = self._deliver_and_claim(receipt)
+        response = self._response(receipt)
+        self.exchange.submit_response(receipt.request_id, receipt.correlation_id,
+            provider_id=PROVIDER, principal_id=PROVIDER, claim_token=claim.claim_token,
+            fence=claim.fence, idempotency_key="response:reasoning-initiated",
+            response=response)
+        self.assertEqual(grace.consume_external_reasoning(), 1)
+        self.assertEqual(self.exchange.status(receipt.request_id,
+            receipt.correlation_id)["delivery_state"], "grace_consumed")
+        self.assertEqual(grace.pipeline.get_objective(self.objective)["status"], "PROPOSED")
+        self.assertFalse(self.exchange.has_active_for_objective(self.objective))
+
+    def test_real_authority_registry_allows_only_bound_principal_and_exact_provider_scope(self):
+        from riverview_core.institutional_authority import GrantDenied
+        from riverview_core.reasoning_escalation import EscalationStatus
+
+        _registry, _credential, principal, _exchange, authorize, _snapshot = self._real_authorizer()
+        self.assertEqual(principal, RESIDENT)
+        self.assertIs(authorize(principal, ReasoningEscalationRouter.ACTION,
+                                "provider:" + PROVIDER), True)
+        with self.assertRaises(GrantDenied):
+            authorize("resident:unbound", ReasoningEscalationRouter.ACTION,
+                      "provider:" + PROVIDER)
+        with self.assertRaises(GrantDenied):
+            authorize(principal, ReasoningEscalationRouter.ACTION, "provider:other")
+
+        other_provider = "provider:ungranted"
+        _registry, _credential, principal, other_exchange, authorize, _snapshot = (
+            self._real_authorizer(provider_id=other_provider))
+        other_envelope = EscalationRequest.create(self.original,
+            reason="task_complexity", target_provider_id=other_provider,
+            max_tokens=64, timeout_seconds=10)
+        decision = other_exchange.router.authorize_for_durable_exchange(
+            other_envelope, self.original, principal_id=principal, authorize=authorize)
+        self.assertIs(decision.status, EscalationStatus.DENIED)
+
+    def test_real_authority_registry_admits_durable_exchange_only_with_exact_grant(self):
+        registry, credential, principal, exchange, authorize, snapshot = self._real_authorizer()
+        original = self.original.__class__(**{**self.original.__dict__,
+            "binding_revision": snapshot["binding_revision"],
+            "implementation_revision": snapshot["implementation_revision"]})
+        envelope = EscalationRequest.create(original, reason="task_complexity",
+            target_provider_id=PROVIDER, max_tokens=64, timeout_seconds=10)
+        receipt = exchange.submit(envelope, original, principal_id=principal,
+            authorize=authorize, originating_resident_id=principal,
+            objective_id=self.objective, conversation_id=self.conversation_id,
+            message_sequence=4, idempotency_key="authority-approved:" + uuid4().hex,
+            classification="institutional", deadline_at=self.clock_value + timedelta(minutes=5),
+            source_references=("test://verified-evidence",))
+        self.assertEqual(receipt.delivery_state, "awaiting_delivery")
+        row = self.admin.execute(self.sql.SQL("""SELECT originating_resident_id,provider_id,
+            delivery_state FROM {}.external_reasoning_exchanges WHERE request_id=%s""").format(
+                self.sql.Identifier(self.schema)), (receipt.request_id,)).fetchone()
+        self.assertEqual(row, (RESIDENT, PROVIDER, "awaiting_delivery"))
+
+        # A registered second provider has no exact grant. It is rejected before
+        # any outbox row is written, even though the resident has another grant.
+        other_provider = "provider:ungranted"
+        _registry, _credential, _principal, denied_exchange, denied_authorize, _snapshot = (
+            self._real_authorizer(provider_id=other_provider))
+        denied_original = original.__class__(**{**original.__dict__,
+            "request_id": str(uuid4())})
+        denied_envelope = EscalationRequest.create(denied_original,
+            reason="task_complexity", target_provider_id=other_provider,
+            max_tokens=64, timeout_seconds=10)
+        with self.assertRaises(ExchangeUnauthorized):
+            denied_exchange.submit(denied_envelope, denied_original,
+                principal_id=principal, authorize=denied_authorize,
+                originating_resident_id=principal, objective_id=self.objective,
+                conversation_id=self.conversation_id, message_sequence=4,
+                idempotency_key="authority-denied:" + uuid4().hex,
+                classification="institutional",
+                deadline_at=self.clock_value + timedelta(minutes=5))
+
+    def test_real_authority_registry_grace_initiates_and_consumes_exchange(self):
+        (registry, credential, principal, exchange, _authorize, grace) = (
+            self._real_grace_service())
+        self.exchange = exchange
+        self.assertTrue(grace.reason_one_grounded_objective(self.objective))
+        row = self.admin.execute(self.sql.SQL("""SELECT request_id,correlation_id,provider_id,
+            delivery_state,originating_resident_id,conversation_id,message_sequence
+            FROM {}.external_reasoning_exchanges WHERE objective_id=%s""").format(
+                self.sql.Identifier(self.schema)), (self.objective,)).fetchone()
+        self.assertEqual(row[2:5], (PROVIDER, "awaiting_delivery", principal))
+        self.assertEqual(str(row[5]), self.conversation_id)
+        self.assertEqual(row[6], 4)
+        receipt = type("Receipt", (), {"request_id": str(row[0]),
+            "correlation_id": str(row[1]), "delivery_state": row[3]})()
+        provider_principal = "provider:external-test"
+        claim = self._deliver_and_claim(receipt, exchange=exchange,
+                                        principal_id=provider_principal)
+        response = self._response(receipt)
+        exchange.submit_response(receipt.request_id, receipt.correlation_id,
+            provider_id=PROVIDER, principal_id=provider_principal,
+            claim_token=claim.claim_token, fence=claim.fence,
+            idempotency_key="response:real-authority:" + uuid4().hex,
+            response=response)
+        self.assertEqual(grace.consume_external_reasoning(), 1)
+        self.assertEqual(exchange.status(receipt.request_id,
+            receipt.correlation_id)["delivery_state"], "grace_consumed")
+        events = grace.pipeline.objective_events(self.objective)
+        evaluation = [event for event in events if event["event_type"] ==
+                      "resident.reasoning.external_advisory_evaluated"]
+        self.assertEqual(len(evaluation), 1)
+        self.assertEqual(evaluation[0]["payload"]["request_id"], receipt.request_id)
+        self.assertEqual(grace.pipeline.get_objective(self.objective)["status"], "PROPOSED")
+
+    def test_real_authority_registry_exchange_survives_restart_before_grace_consumption(self):
+        (registry, credential, principal, exchange, _authorize, grace) = (
+            self._real_grace_service())
+        self.exchange = exchange
+        self.assertTrue(grace.reason_one_grounded_objective(self.objective))
+        row = self.admin.execute(self.sql.SQL("""SELECT request_id,correlation_id
+            FROM {}.external_reasoning_exchanges WHERE objective_id=%s""").format(
+                self.sql.Identifier(self.schema)), (self.objective,)).fetchone()
+        receipt = type("Receipt", (), {"request_id": str(row[0]),
+            "correlation_id": str(row[1]), "delivery_state": "awaiting_delivery"})()
+        provider_principal = "provider:external-test"
+        claim = self._deliver_and_claim(receipt, exchange=exchange,
+                                        principal_id=provider_principal)
+        exchange.submit_response(receipt.request_id, receipt.correlation_id,
+            provider_id=PROVIDER, principal_id=provider_principal,
+            claim_token=claim.claim_token, fence=claim.fence,
+            idempotency_key="response:restart-before-consume:" + uuid4().hex,
+            response=self._response(receipt))
+
+        self.ledger.close()
+        self.ledger = PostgresLedger(DSN, schema=self.schema)
+        registry, credential, principal, exchange, _authorize, grace = (
+            self._real_grace_service(authority=(registry, credential)))
+        self.exchange = exchange
+        self.assertEqual(grace.consume_external_reasoning(), 1)
+        self.assertEqual(exchange.status(receipt.request_id,
+            receipt.correlation_id)["delivery_state"], "grace_consumed")
+        self.assertTrue(any(event["event_type"] ==
+            "resident.reasoning.external_advisory_evaluated"
+            for event in grace.pipeline.objective_events(self.objective)))
+        self.assertEqual(principal, RESIDENT)
 
     def test_exact_grant_is_required_before_persistence_and_rechecked_on_consume(self):
         with self.assertRaises(ExchangeUnauthorized):
@@ -468,7 +790,7 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
             ReasoningEscalationRouter({PROVIDER: provider}), actor_id=RESIDENT,
             clock=lambda: self.clock_value)
         adapter = ExternalReasoningMCPAdapter(mcp_exchange, token_map)
-        receipt = self._submit(idem="mcp-round-trip")
+        receipt = self._grace_submit(mcp_exchange, idem="mcp-round-trip")
         probe = socket.socket()
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
@@ -532,6 +854,14 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
             self.assertEqual(status["response_sha256"], submitted["response_sha256"])
             self.assertNotIn("response_payload", status)
             self.assertNotIn("reasoning_exchange_consume", {x["name"] for x in tools})
+            grace = self._grace_service(mcp_exchange)
+            self.assertEqual(grace.consume_external_reasoning(), 1)
+            self.assertEqual(mcp_exchange.status(receipt.request_id,
+                receipt.correlation_id)["delivery_state"], "grace_consumed")
+            records = [event for event in grace.pipeline.objective_events(self.objective)
+                if event["event_type"] == "resident.reasoning.external_advisory_evaluated"]
+            self.assertEqual(len(records), 1)
+            self.assertEqual(records[0]["payload"]["provider_id"], PROVIDER)
         finally:
             server.shutdown()
             server.server_close()

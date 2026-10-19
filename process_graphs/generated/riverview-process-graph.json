@@ -1471,7 +1471,7 @@
     },
     {
       "graph_id": "rv:comms5:camrui-adapter",
-      "graph_revision": "1.0.13",
+      "graph_revision": "1.0.14",
       "component_id": "COMMS5-CAMRUI-ADAPTER",
       "workflow_id": "comms5.camrui.compatibility.v1",
       "diagram_order": 91,
@@ -1487,7 +1487,9 @@
         "src/riverview_core/resident_execution/proposals.py",
         "src/riverview_core/resident_execution/proposal_lifecycle.py",
         "src/riverview_core/resident_execution/pipeline.py",
-        "src/riverview_core/status_dashboard/server.py"
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/assignment_scheduler/scheduler.py",
+        "src/riverview_core/resident_execution/migrations/0012_resource_selection_policy.sql"
       ],
       "documentation_references": [
         "docs/components/COMMS5_CAMRUI_DEPLOYMENT.md",
@@ -1499,7 +1501,9 @@
         "tests/test_comms5_mcp.py",
         "tests/test_comms5_deployment.py",
         "tests/test_comms5_current_runtime.py",
-        "tests/test_proposal_work_order_lifecycle.py"
+        "tests/test_proposal_work_order_lifecycle.py",
+        "tests/test_comms5_resource_policy_postgres.py",
+        "tests/test_external_reasoning_exchange.py"
       ],
       "nodes": [
         {
@@ -1765,6 +1769,56 @@
           "verification_evidence": [
             "tests/test_comms5_current_runtime.py"
           ]
+        },
+        {
+          "id": "rv:comms5:camrui-adapter:resource-policy-mutation",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Steward-attested policy set and lock operations persist revisioned state and append-only events; locked state rejects changes",
+          "source_references": [
+            "src/riverview_core/resident_execution/comms5_operations.py",
+            "src/riverview_core/resident_execution/migrations/0012_resource_selection_policy.sql"
+          ],
+          "documentation_references": [
+            "docs/components/COMMS5_CAMRUI_MIGRATION.md",
+            "docs/components/COMMS5_CAMRUI_DEPLOYMENT.md"
+          ],
+          "verification_evidence": [
+            "tests/test_comms5_resource_policy_postgres.py"
+          ]
+        },
+        {
+          "id": "rv:comms5:camrui-adapter:resource-policy-selection",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Transactional worker claim enforces active registered capability and persisted policy; lock prevents policy override; policy absent preserves prior automatic selection",
+          "source_references": [
+            "src/riverview_core/assignment_scheduler/scheduler.py",
+            "src/riverview_core/resident_execution/migrations/0012_resource_selection_policy.sql"
+          ],
+          "documentation_references": [
+            "docs/components/COMMS5_CAMRUI_MIGRATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_comms5_resource_policy_postgres.py"
+          ]
+        },
+        {
+          "id": "rv:comms5:camrui-adapter:stale-base-revalidation",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Preserve eligible rejected pre-execution assignment; require exact assignment.create grant and fresh verified base; append same-scope successor and retarget dependent steps without accepting prior failure",
+          "source_references": [
+            "src/riverview_core/resident_execution/comms5_operations.py",
+            "src/riverview_core/resident_execution/pipeline.py"
+          ],
+          "documentation_references": [
+            "docs/components/COMMS5_CAMRUI_MIGRATION.md",
+            "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_comms5_resource_policy_postgres.py"
+          ]
         }
       ],
       "edges": [
@@ -1847,6 +1901,28 @@
           "from": "rv:comms5:camrui-adapter:current-runtime-operations",
           "to": "rv:comms5:camrui-adapter:steward-cme-queue-request",
           "type": "runtime_transition"
+        },
+        {
+          "from": "rv:comms5:camrui-adapter:current-runtime-operations",
+          "to": "rv:comms5:camrui-adapter:resource-policy-mutation",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:comms5:camrui-adapter:resource-policy-mutation",
+          "to": "rv:comms5:camrui-adapter:resource-policy-selection",
+          "type": "verification",
+          "label": "durable policy must affect real scheduler selection"
+        },
+        {
+          "from": "rv:comms5:camrui-adapter:current-runtime-operations",
+          "to": "rv:comms5:camrui-adapter:stale-base-revalidation",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:comms5:camrui-adapter:stale-base-revalidation",
+          "to": "rv:comms5:camrui-adapter:steward-cme-queue-request",
+          "type": "runtime_transition",
+          "label": "successor remains queued for existing Grace/CME dispatcher; no work executes in MCP handler"
         }
       ]
     },
@@ -2239,7 +2315,7 @@
     },
     {
       "graph_id": "rv:grace:institutional-proposal-lifecycle",
-      "graph_revision": "1.1.0",
+      "graph_revision": "1.1.1",
       "component_id": "INSTITUTIONAL-PROPOSALS",
       "workflow_id": "institutional-proposal.v1",
       "diagram_order": 1,
@@ -2527,14 +2603,25 @@
           "verification_evidence": [
             "tests/test_proposal_work_order_lifecycle.py"
           ]
+        },
+        {
+          "id": "rv:grace:institutional-proposal-lifecycle:steward-website-ui",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Steward dashboard exposes proposal drafting, revision review, exact-revision decision, and promotion controls through authenticated existing API routes; proposal approval and objective submission remain separate grants",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/resident_execution/conversation.py"
+          ],
+          "documentation_references": [
+            "docs/components/INSTITUTIONAL_PROPOSALS.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py"
+          ]
         }
       ],
       "edges": [
-        {
-          "from": "rv:grace:institutional-proposal-lifecycle:steward-source",
-          "to": "rv:grace:institutional-proposal-lifecycle:authorize-and-bind",
-          "type": "runtime_transition"
-        },
         {
           "from": "rv:grace:institutional-proposal-lifecycle:authorize-and-bind",
           "to": "rv:grace:institutional-proposal-lifecycle:reason-or-clarify",
@@ -2637,12 +2724,22 @@
           "to": "rv:grace:institutional-proposal-lifecycle:objective-intake",
           "type": "recovery_route",
           "label": "idempotent recovery after exact authority recheck"
+        },
+        {
+          "from": "rv:grace:institutional-proposal-lifecycle:steward-website-ui",
+          "to": "rv:grace:institutional-proposal-lifecycle:authorize-and-bind",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:grace:institutional-proposal-lifecycle:steward-source",
+          "to": "rv:grace:institutional-proposal-lifecycle:steward-website-ui",
+          "type": "runtime_transition"
         }
       ]
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.49",
+      "graph_revision": "1.0.50",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -2683,7 +2780,9 @@
         "src/riverview_core/comms5/server.py",
         "src/riverview_core/comms5/dashboard_backend.py",
         "deploy/systemd/riverview-grace-execution.service",
-        "src/riverview_core/resident_execution/codex_workflow.py"
+        "src/riverview_core/resident_execution/codex_workflow.py",
+        "src/riverview_core/resident_execution/external_reasoning.py",
+        "src/riverview_core/resident_execution/service.py"
       ],
       "documentation_references": [
         "docs/ROADMAP.md",
@@ -2693,7 +2792,9 @@
         "docs/components/GRACE_EXECUTION_PIPELINE.md",
         "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
         "docs/components/GRACE_PERSISTENT_EXECUTION.md",
-        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
+        "docs/standards/COMPONENT_DEFINITION_OF_DONE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+        "docs/components/GRACE_PERSISTENT_EXECUTION.md"
       ],
       "verification_evidence": [
         "tests/test_grace_conversation_result.py",
@@ -2705,7 +2806,8 @@
         "tests/test_supervised_codex_dispatch.py",
         "tests/test_grace_engineering_demo_provisioning.py",
         "tests/test_codex_source_change.py",
-        "tests/test_grace_internal_tools.py"
+        "tests/test_grace_internal_tools.py",
+        "tests/test_external_reasoning_exchange.py"
       ],
       "nodes": [
         {
@@ -3724,6 +3826,80 @@
           "verification_evidence": [
             "tests/test_codex_cli_adapter.py"
           ]
+        },
+        {
+          "id": "rv:grace:operational-integration:external-advisory-consumer",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Source implemented; isolated PostgreSQL verified — Grace consumes correlated response_received exchange through the bound ResidentReasoner, records one unapproved proposal/evaluation event, then acknowledges with the durable fence",
+          "source_references": [
+            "src/riverview_core/resident_execution/external_reasoning.py",
+            "src/riverview_core/resident_execution/service.py",
+            "src/riverview_core/resident_execution/pipeline.py"
+          ],
+          "documentation_references": [
+            "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_external_reasoning_exchange.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:source-target-dispatch-binding",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "ISOLATED IMPLEMENTATION — dispatch snapshots an explicitly Steward-authorized repository reference, immutable commit, paths, tests and proposal-step digest; resident grounding revision remains separate",
+          "source_references": [
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/codex_workflow.py",
+            "src/riverview_core/resident_execution/codex_source_change.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_execution.py",
+            "tests/test_codex_source_change.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:dual-capability-owner-loops",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "ISOLATED IMPLEMENTATION — owner-session retains its artifact worker and optionally runs a distinct source worker; claims and verifier routing use persisted attempt capability",
+          "source_references": [
+            "scripts/run_grace_execution_service.py",
+            "src/riverview_core/resident_execution/service.py",
+            "deploy/systemd/riverview-grace-execution-owner-session.service",
+            "deploy/systemd/riverview-grace-execution-owner-session-source-worker.conf"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_execution.py",
+            "tests/test_grace_runtime_provider_wiring.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:source-enrollment-fail-closed",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Source capability stays unavailable when separate credential, exact grants, registration, allowlist, repository mapping or pinned checkout is missing; artifact worker continues",
+          "source_references": [
+            "scripts/run_grace_execution_service.py",
+            "deploy/systemd/riverview-grace-execution-owner-session-source-worker.conf"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_runtime_provider_wiring.py",
+            "tests/test_grace_execution.py"
+          ]
         }
       ],
       "edges": [
@@ -4244,6 +4420,36 @@
           "to": "rv:grace:operational-integration:codex-artifact-verification",
           "type": "verification",
           "label": "Criteria contract is present and is evaluated independently against the artifact"
+        },
+        {
+          "from": "rv:grace:operational-integration:objective-intake",
+          "to": "rv:grace:operational-integration:external-advisory-consumer",
+          "type": "runtime_transition",
+          "label": "authorized exchange reply is available to the recurring Grace execution cycle"
+        },
+        {
+          "from": "rv:grace:operational-integration:codex-source-change",
+          "to": "rv:grace:operational-integration:source-target-dispatch-binding",
+          "type": "verification",
+          "label": "The exact target repository and immutable commit are snapshotted at authorized dispatch; resident knowledge provenance is not substituted"
+        },
+        {
+          "from": "rv:grace:operational-integration:source-target-dispatch-binding",
+          "to": "rv:grace:operational-integration:dual-capability-owner-loops",
+          "type": "runtime_transition",
+          "label": "A source assignment is eligible only for the separately registered and credentialed source worker"
+        },
+        {
+          "from": "rv:grace:operational-integration:dual-capability-owner-loops",
+          "to": "rv:grace:operational-integration:source-enrollment-fail-closed",
+          "type": "diagnostic_branch",
+          "label": "Source enrollment is incomplete; source work remains undispatched while the artifact worker continues"
+        },
+        {
+          "from": "rv:grace:operational-integration:source-enrollment-fail-closed",
+          "to": "rv:grace:operational-integration:dual-capability-owner-loops",
+          "type": "recovery_route",
+          "label": "Resume only after separate credential, exact grants, registration, approved paths and pinned target configuration are verified"
         }
       ]
     },
@@ -7616,7 +7822,7 @@
     },
     {
       "graph_id": "rv:resident-conversation:browser-chat",
-      "graph_revision": "1.0.20",
+      "graph_revision": "1.0.21",
       "component_id": "RESIDENT-CONVERSATION",
       "workflow_id": "resident.conversation.v1",
       "diagram_order": 14,
@@ -7634,6 +7840,7 @@
         "src/riverview_core/resident_execution/migrations/0004_deferred_conversation_responses.sql",
         "src/riverview_core/resident_execution/migrations/0006_deferred_execution_claims.sql",
         "src/riverview_core/resident_execution/migrations/0008_resident_conversation_stream_delivery.sql",
+        "src/riverview_core/resident_execution/migrations/0013_bounded_deferred_retries.sql",
         "src/riverview_core/resident_execution/model_router.py",
         "src/riverview_core/resident_execution/operational_context.py",
         "src/riverview_core/status_dashboard/server.py",
@@ -7785,9 +7992,9 @@
         },
         {
           "id": "rv:resident-conversation:browser-chat:context-bound",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "verification",
-          "label": "Assemble recent history; retain every system instruction and the active user turn, trim oldest conversational context to the exact serialized 32 KiB provider limit",
+          "label": "Assemble recent history; preserve every system instruction and active user turn, trim oldest eligible conversation context to the exact serialized 32 KiB provider limit, and terminalize irreducible overflow as context_too_large",
           "source_references": [
             "src/riverview_core/resident_execution/conversation.py"
           ],
@@ -8143,9 +8350,9 @@
         },
         {
           "id": "rv:resident-conversation:browser-chat:resume-reasoning",
-          "node_revision": "1.0.3",
+          "node_revision": "1.0.4",
           "type": "recovery",
-          "label": "Poll durable deferred turns, acquire a cross-process lease, bound provider context, mark tool-enabled stream generation before inference, and atomically persist assistant response plus stream completion",
+          "label": "Poll only due durable deferred turns, claim a cross-process lease, preserve original request/capability identity, apply persistent bounded retry scheduling, and atomically publish one correlated assistant response",
           "source_references": [
             "src/riverview_core/resident_execution/conversation.py",
             "src/riverview_core/status_dashboard/server.py"
@@ -8160,9 +8367,9 @@
         },
         {
           "id": "rv:resident-conversation:browser-chat:reasoning-router-failure",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "failure",
-          "label": "Keep the request pending when the required 80B capability is unavailable; emit sanitized provider attempt diagnostics",
+          "label": "Record sanitized readiness/completion diagnostics; deterministic provider errors are terminal while transient provider errors retain durable deferred work under the retry budget",
           "source_references": [
             "src/riverview_core/resident_execution/conversation.py"
           ],
@@ -8458,6 +8665,57 @@
             "tests/test_status_dashboard.py",
             "tests/test_local_reasoning_provider.py"
           ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:provider-error-classification",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Is this a transient readiness/transport/server failure, or a deterministic request/authentication/response failure?",
+          "source_references": [
+            "src/riverview_core/local_reasoning_provider.py",
+            "src/riverview_core/resident_execution/model_router.py",
+            "src/riverview_core/resident_execution/conversation.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_local_reasoning_provider.py",
+            "tests/test_resident_model_router.py",
+            "tests/test_resident_conversation.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:deferred-retry-budget",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Persist retry attempt and next-attempt time; use 5/10/20/40 second delays and block after five automatic resume attempts while retaining the original request",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/resident_execution/migrations/0013_bounded_deferred_retries.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:deferred-retry-blocked",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Keep the correlated user request and response_deferred event durable; expose blocked status and stop automatic retries after exhaustion or authority denial",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/resident_execution/migrations/0013_bounded_deferred_retries.sql"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py"
+          ]
         }
       ],
       "edges": [
@@ -8673,15 +8931,9 @@
         },
         {
           "from": "rv:resident-conversation:browser-chat:resume-reasoning",
-          "to": "rv:resident-conversation:browser-chat:reasoning-router-failure",
+          "to": "rv:resident-conversation:browser-chat:provider-error-classification",
           "type": "diagnostic_branch",
-          "label": "Capability or provider remains unavailable"
-        },
-        {
-          "from": "rv:resident-conversation:browser-chat:reasoning-router-failure",
-          "to": "rv:resident-conversation:browser-chat:resume-reasoning",
-          "type": "recovery_route",
-          "label": "Retry persisted request when readiness changes"
+          "label": "A resumed completion or readiness attempt failed; classify the sanitized code"
         },
         {
           "from": "rv:resident-conversation:browser-chat:resume-reasoning",
@@ -8851,12 +9103,36 @@
           "from": "rv:resident-conversation:browser-chat:stream-failure",
           "to": "rv:resident-conversation:browser-chat:browser-history",
           "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:provider-error-classification",
+          "to": "rv:resident-conversation:browser-chat:provider-failure",
+          "type": "diagnostic_branch",
+          "label": "Deterministic prompt, authorization, request, model-identity or malformed-response failure"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:provider-error-classification",
+          "to": "rv:resident-conversation:browser-chat:deferred-retry-budget",
+          "type": "diagnostic_branch",
+          "label": "Transient timeout/transport/loading/busy, HTTP 408/409/425/429, or any 5xx failure"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:deferred-retry-budget",
+          "to": "rv:resident-conversation:browser-chat:resume-reasoning",
+          "type": "recovery_route",
+          "label": "A scheduled retry is due and fewer than five automatic attempts have failed"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:deferred-retry-budget",
+          "to": "rv:resident-conversation:browser-chat:deferred-retry-blocked",
+          "type": "diagnostic_branch",
+          "label": "Five automatic attempts exhausted; retain durable request and expose blocked state"
         }
       ]
     },
     {
       "graph_id": "rv:resident-reasoning:runtime",
-      "graph_revision": "1.2.8",
+      "graph_revision": "1.2.10",
       "component_id": "RESIDENT-REASONING",
       "workflow_id": "resident.reasoning.v1",
       "diagram_order": 13,
@@ -8879,7 +9155,9 @@
         "scripts/run_external_reasoning_mcp.py",
         "deploy/systemd/riverview-external-reasoning-mcp.service",
         "deploy/external-reasoning-mcp.env.example",
-        "deploy/external-reasoning-mcp-requirements.txt"
+        "deploy/external-reasoning-mcp-requirements.txt",
+        "src/riverview_core/resident_execution/service.py",
+        "src/riverview_core/resident_execution/pipeline.py"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_REASONING.md",
@@ -8888,7 +9166,8 @@
         "docs/components/RESIDENT_REASONING_FLOW.md",
         "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
         "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md",
-        "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md"
+        "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md",
+        "docs/components/GRACE_PERSISTENT_EXECUTION.md"
       ],
       "verification_evidence": [
         "evidence/checkouts/RESIDENT-REASONING/20261011T074000Z-isolated/checkout.md",
@@ -9583,7 +9862,7 @@
           "id": "rv:resident-reasoning:runtime:exchange-grace-consumption",
           "node_revision": "1.0.0",
           "type": "process",
-          "label": "Revalidate original exact grant; lease the response and return advisory separately from original reasoning context",
+          "label": "IMPLEMENTED; ISOLATED POSTGRESQL VERIFIED — Grace revalidates original exact escalation grant, leases the persisted response, and passes typed advice separately from verified context to ResidentReasoner",
           "source_references": [
             "src/riverview_core/resident_execution/external_reasoning.py"
           ],
@@ -9599,7 +9878,7 @@
           "id": "rv:resident-reasoning:runtime:exchange-grace-ack",
           "node_revision": "1.0.0",
           "type": "verification",
-          "label": "Acknowledge only after Grace records the next reasoning result under stable consumption key",
+          "label": "IMPLEMENTED; ISOLATED POSTGRESQL VERIFIED — Acknowledge only after proposal and correlated external_advisory_evaluated event commit; restart recovery checks that durable idempotency fence before repeating reasoning",
           "source_references": [
             "src/riverview_core/resident_execution/external_reasoning.py"
           ],
@@ -9647,7 +9926,7 @@
           "id": "rv:resident-reasoning:runtime:exchange-resume",
           "node_revision": "1.0.0",
           "type": "process",
-          "label": "Return correlated advisory to existing resident reasoning; proposal, assignment, execution and verification still use their current authority paths",
+          "label": "IMPLEMENTED; ISOLATED POSTGRESQL VERIFIED — Grace reasons over the correlated advisory as unapproved proposal input; existing objective and authorization paths govern any next action",
           "source_references": [
             "src/riverview_core/resident_execution/external_reasoning.py"
           ],
@@ -9765,6 +10044,25 @@
           "verification_evidence": [
             "tests/test_external_reasoning_mcp.py",
             "tests/test_external_reasoning_exchange.py"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:external-escalation-intent",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Did the bound model return a typed advisory intent for a configured provider?",
+          "source_references": [
+            "src/riverview_core/resident_reasoning.py",
+            "src/riverview_core/local_reasoning_provider.py",
+            "src/riverview_core/resident_execution/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_external_reasoning_exchange.py",
+            "tests/test_local_reasoning_provider.py"
           ]
         }
       ],
@@ -9889,12 +10187,6 @@
           "from": "rv:resident-reasoning:runtime:persist-plan",
           "to": "rv:resident-reasoning:runtime:persistence-gate",
           "type": "runtime_transition"
-        },
-        {
-          "from": "rv:resident-reasoning:runtime:persistence-gate",
-          "to": "rv:resident-reasoning:runtime:proposal-only",
-          "type": "runtime_transition",
-          "label": "durable write committed"
         },
         {
           "from": "rv:resident-reasoning:runtime:persistence-gate",
@@ -10123,6 +10415,24 @@
           "to": "rv:resident-reasoning:runtime:exchange-grace-consumption",
           "type": "runtime_transition",
           "label": "status is observational; Grace consumes only through its existing authorized workflow"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:persistence-gate",
+          "to": "rv:resident-reasoning:runtime:external-escalation-intent",
+          "type": "runtime_transition",
+          "label": "durable typed plan returned"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:external-escalation-intent",
+          "to": "rv:resident-reasoning:runtime:task-escalation-contract",
+          "type": "runtime_transition",
+          "label": "intent targets an explicitly configured provider"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:external-escalation-intent",
+          "to": "rv:resident-reasoning:runtime:proposal-only",
+          "type": "runtime_transition",
+          "label": "no escalation intent; proposal remains unapproved"
         }
       ]
     },
@@ -13698,10 +14008,13 @@
     "rv:comms5:camrui-adapter:hop-validation",
     "rv:comms5:camrui-adapter:not-implemented",
     "rv:comms5:camrui-adapter:request-correlated-transport-probe",
+    "rv:comms5:camrui-adapter:resource-policy-mutation",
+    "rv:comms5:camrui-adapter:resource-policy-selection",
     "rv:comms5:camrui-adapter:resource-policy-status",
     "rv:comms5:camrui-adapter:rotation-predecessor-rollback",
     "rv:comms5:camrui-adapter:rotation-readiness",
     "rv:comms5:camrui-adapter:rotation-readiness-timeout",
+    "rv:comms5:camrui-adapter:stale-base-revalidation",
     "rv:comms5:camrui-adapter:steward-cme-queue-request",
     "rv:comms5:camrui-adapter:steward-credential-lifecycle",
     "rv:event-processor:assignment-progression:advance",
@@ -13735,6 +14048,7 @@
     "rv:grace:institutional-proposal-lifecycle:search-revise-review",
     "rv:grace:institutional-proposal-lifecycle:steward-decision",
     "rv:grace:institutional-proposal-lifecycle:steward-source",
+    "rv:grace:institutional-proposal-lifecycle:steward-website-ui",
     "rv:grace:institutional-proposal-lifecycle:verified-result",
     "rv:grace:operational-integration:assignment-fanout",
     "rv:grace:operational-integration:authority-check",
@@ -13757,9 +14071,11 @@
     "rv:grace:operational-integration:dashboard-objective-projection",
     "rv:grace:operational-integration:dependency-ready-dispatch",
     "rv:grace:operational-integration:dispatch-retry-limit",
+    "rv:grace:operational-integration:dual-capability-owner-loops",
     "rv:grace:operational-integration:durable-plan",
     "rv:grace:operational-integration:engineering-resource-request",
     "rv:grace:operational-integration:evidence-review",
+    "rv:grace:operational-integration:external-advisory-consumer",
     "rv:grace:operational-integration:governed-objective-api",
     "rv:grace:operational-integration:independent-artifact-check",
     "rv:grace:operational-integration:internal-tool-call",
@@ -13778,6 +14094,8 @@
     "rv:grace:operational-integration:reason-decompose",
     "rv:grace:operational-integration:replan",
     "rv:grace:operational-integration:router-backed-grace-proposal",
+    "rv:grace:operational-integration:source-enrollment-fail-closed",
+    "rv:grace:operational-integration:source-target-dispatch-binding",
     "rv:grace:operational-integration:stale-resident-denied",
     "rv:grace:operational-integration:steward-escalation",
     "rv:grace:operational-integration:typed-proposal-api",
@@ -13953,6 +14271,8 @@
     "rv:resident-conversation:browser-chat:context-bound",
     "rv:resident-conversation:browser-chat:dashboard-auth",
     "rv:resident-conversation:browser-chat:defer-reasoning",
+    "rv:resident-conversation:browser-chat:deferred-retry-blocked",
+    "rv:resident-conversation:browser-chat:deferred-retry-budget",
     "rv:resident-conversation:browser-chat:deny",
     "rv:resident-conversation:browser-chat:exact-grant",
     "rv:resident-conversation:browser-chat:future-objective-jump",
@@ -13964,6 +14284,7 @@
     "rv:resident-conversation:browser-chat:operations-snapshot",
     "rv:resident-conversation:browser-chat:persist-response",
     "rv:resident-conversation:browser-chat:persist-user",
+    "rv:resident-conversation:browser-chat:provider-error-classification",
     "rv:resident-conversation:browser-chat:provider-failure",
     "rv:resident-conversation:browser-chat:provider-match",
     "rv:resident-conversation:browser-chat:readiness-route",
@@ -14014,6 +14335,7 @@
     "rv:resident-reasoning:runtime:exchange-resume",
     "rv:resident-reasoning:runtime:exchange-transport-blocked",
     "rv:resident-reasoning:runtime:exchange-transport-readiness",
+    "rv:resident-reasoning:runtime:external-escalation-intent",
     "rv:resident-reasoning:runtime:fallback",
     "rv:resident-reasoning:runtime:fallback-gate",
     "rv:resident-reasoning:runtime:freshness-gate",

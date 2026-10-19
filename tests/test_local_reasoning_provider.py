@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.11
+# Revision: 1.1.12
 # Purpose: Verify local reasoning provider contract and fail-closed response handling
 # Execution Model: Bounded HTTP contract double; no credentials, database or model required
 # Observability: Typed proposals and sanitized unavailable/schema outcomes
@@ -24,6 +24,7 @@
 # Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Verify canonical Grace role context reaches assignment reasoning only for the Grace office
 # Changed: 2026-10-14 UTC | RV-GRACE-80B-COMPLETION-BUDGET-001 | Assert token-limit finish reason and count are safely retained on truncation
 # Changed: 2026-10-15 UTC | RV-GRACE-DEMO-BASE-INTEGRATION | Retain provider and role-context regressions across integration
+# Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Verify sanitized transient and deterministic HTTP status codes remain distinct.
 # Tests: This file
 # History: Git
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
@@ -31,6 +32,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Reject source-change plans with missing explicit path and test scope
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Require source-change test targets to be test files
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Keep external advice separate from verified context and authority
+# Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Verify the typed external escalation decision is limited to configured providers
 # =============================================================================
 """Contract tests for the replaceable local reasoning provider."""
 
@@ -42,7 +44,7 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 
-from riverview_core.resident_reasoning import ReasoningRequest
+from riverview_core.resident_reasoning import ExternalEscalationIntent, ReasoningRequest
 from riverview_core.local_reasoning_provider import (
     LocalReasoningProvider, LocalReasoningUnavailable)
 
@@ -161,6 +163,30 @@ class LocalReasoningProviderTests(unittest.TestCase):
         schema = self.requests[0]["response_format"]["json_schema"]["schema"]
         self.assertEqual(schema["properties"]["steps"]["maxItems"], 20)
 
+    def test_external_escalation_is_explicit_and_limited_to_configured_provider(self):
+        self.request = replace(self.request,
+            external_reasoning_targets=("chatgpt:approved",))
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Request second opinion", "steps": [{
+                "step_id": "review", "objective": "Review verified facts",
+                "acceptance_criteria": ["Return advisory evidence"], "depends_on": []}],
+            "external_escalation": {"reason": "capability_gap",
+                                     "target_provider_id": "chatgpt:approved"}}))
+        proposal = self.provider.propose(self.request)
+        self.assertEqual(proposal.external_escalation,
+                         ExternalEscalationIntent("capability_gap", "chatgpt:approved"))
+        schema = self.requests[0]["response_format"]["json_schema"]["schema"]
+        self.assertEqual(schema["properties"]["external_escalation"]["properties"]
+                         ["target_provider_id"]["enum"], ["chatgpt:approved"])
+        self.request = replace(self.request, external_reasoning_targets=("chatgpt:approved",))
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Request second opinion", "steps": [{
+                "step_id": "review", "objective": "Review verified facts",
+                "acceptance_criteria": ["Return advisory evidence"], "depends_on": []}],
+            "external_escalation": {"reason": "capability_gap",
+                                     "target_provider_id": "chatgpt:other"}}))
+        self.assertIsNone(self.provider.propose(self.request))
+
     def test_source_change_plan_requires_explicit_paths_in_model_output(self):
         self.response_body = self._response(text=json.dumps({"summary": "Scoped source change", "steps": [{
             "step_id": "edit", "objective": "Edit scoped files",
@@ -240,6 +266,16 @@ class LocalReasoningProviderTests(unittest.TestCase):
             self.provider.propose(self.request)
         self.assertNotIn("inspect controlled files", str(err.exception))
         self.assertTrue(self.error_stream.closed)
+
+    def test_http_status_classes_are_preserved_as_safe_codes(self):
+        for status in (400, 401, 403, 404, 408, 413, 422, 429, 500, 502, 503, 504):
+            with self.subTest(status=status):
+                self.response_status = status
+                with self.assertRaises(LocalReasoningUnavailable) as caught:
+                    self.provider.propose(self.request)
+                self.assertEqual(caught.exception.code, f"endpoint_http_{status}")
+                self.assertNotIn("inspect controlled files", str(caught.exception))
+                self.assertTrue(self.error_stream.closed)
 
     def test_non_loopback_endpoint_is_rejected(self):
         with self.assertRaises(ValueError):

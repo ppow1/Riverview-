@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.2
+# Revision: 1.0.4
 # Purpose: Persist and resume authorized external reasoning exchanges
 # Execution Model: Request-driven PostgreSQL outbox, bounded leases, no polling loop
 # Observability: Correlated state and sanitized append-only transition diagnostics
@@ -10,6 +10,8 @@
 # Authority: Exact resident.reasoning.escalate grant; returned advice cannot authorize work
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial durable exchange contract
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Permit scoped pull/recovery of delivered provider requests
+# Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Expose bounded response-received IDs for Grace's durable consumer
+# Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Provide pending-objective guard and make retry identity independent of first-delivery deadline
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # Tests: tests/test_external_reasoning_exchange.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -242,7 +244,6 @@ class DurableExternalReasoningExchange:
             "classification": classification,
             "provider_id": envelope.target_provider_id,
             "request_payload": request_payload,
-            "deadline_at": deadline.isoformat(),
         }
         request_hash = _digest(immutable)
         request_id = UUID(envelope.escalation_id)
@@ -279,6 +280,18 @@ class DurableExternalReasoningExchange:
                          "classification": row["classification"]})
         return ExchangeReceipt(str(row["request_id"]), str(row["correlation_id"]),
                                row["delivery_state"], row["context_sha256"], not inserted)
+
+    def has_active_for_objective(self, objective_id: str) -> bool:
+        """Prevent duplicate model escalation while an objective exchange is pending."""
+        if not isinstance(objective_id, str) or not objective_id:
+            raise ValueError("objective identity is required")
+        with self.ledger.db.cursor() as cur:
+            self._set_path(cur)
+            cur.execute("""SELECT 1 FROM external_reasoning_exchanges
+                WHERE objective_id=%s AND delivery_state IN
+                  ('awaiting_delivery','awaiting_external_claim','awaiting_response','response_received')
+                LIMIT 1""", (objective_id,))
+            return cur.fetchone() is not None
 
     def eligible_requests(self, provider_id: str, *, principal_id: str,
                           limit=10) -> list[dict[str, Any]]:
@@ -596,6 +609,26 @@ class DurableExternalReasoningExchange:
                 "consumption_key": row["consumption_key"],
                 "consumed_at": row["consumed_at"].isoformat() if row["consumed_at"] else None,
                 "last_error_code": row["last_error_code"]}
+
+    def pending_responses(self, originating_resident_id: str, *, limit=10) -> list[dict[str, str]]:
+        """List only response/correlation IDs awaiting the originating resident.
+
+        Bodies remain available only through the exact-grant-checked ``consume``
+        transition. The service cycle can call this without holding a transaction
+        while the resident model reasons over a response.
+        """
+        if (not isinstance(originating_resident_id, str) or not originating_resident_id
+                or len(originating_resident_id) > 256 or type(limit) is not int
+                or not 1 <= limit <= 50):
+            raise ValueError("resident identity and bounded response limit are required")
+        with self.ledger.db.cursor() as cur:
+            self._set_path(cur)
+            cur.execute("""SELECT request_id::text AS request_id,correlation_id::text AS correlation_id
+                FROM external_reasoning_exchanges
+                WHERE originating_resident_id=%s AND delivery_state='response_received'
+                ORDER BY response_received_at,request_id LIMIT %s""",
+                (originating_resident_id, limit))
+            return cur.fetchall()
 
     def events(self, request_id: str, correlation_id: str) -> list[dict[str, Any]]:
         with self.ledger.db.cursor() as cur:

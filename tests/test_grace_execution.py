@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.26
+# Revision: 1.0.28
+# Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Cover mixed-capability claims, verification routing, and isolated worker failure behavior.
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Cover persistent proposal failure recording and retry limits.
 # Purpose: Exercise objective-to-authorized-worker-to-independent-verification pipeline
 # Execution Model: Isolated PostgreSQL schema, committed repository fixture, deterministic proposal
@@ -194,7 +195,9 @@ class CodingWorkOrderContractTests(unittest.TestCase):
                     request_id=f"request-{self.calls}", proposal=None)
 
         pipeline, reasoner = Pipeline(), Reasoner()
-        service = GraceExecutionService(pipeline, None, None,
+        class Worker:
+            def run_once(self, **_kwargs): return {"status": "IDLE"}
+        service = GraceExecutionService(pipeline, None, Worker(),
             dispatch_credential="dispatch", authority_ref="work-order:engineering",
             verifier_id="verifier", verifier_credential="verify", artifact_root="/tmp/unused",
             resident_reasoner=reasoner)
@@ -207,10 +210,48 @@ class CodingWorkOrderContractTests(unittest.TestCase):
 
     def test_grace_proposal_budget_supports_bounded_multistep_plans(self):
         from riverview_core.resident_execution.service import GraceExecutionService
-        service = GraceExecutionService(None, None, None, dispatch_credential="dispatch",
+        class Worker:
+            def run_once(self, **_kwargs): return {"status": "IDLE"}
+        service = GraceExecutionService(None, None, Worker(), dispatch_credential="dispatch",
             authority_ref="work-order:test", verifier_id="verifier",
             verifier_credential="verify", artifact_root="/tmp/unused")
         self.assertEqual(service.resident_token_budget, 768)
+
+    def test_dual_capability_worker_failure_isolated_from_peer(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+        calls = []
+        class Worker:
+            def __init__(self, name, fail=False): self.name, self.fail = name, fail
+            def run_once(self, **_kwargs):
+                calls.append(self.name)
+                if self.fail: raise RuntimeError("fixture")
+                return {"status": "IDLE"}
+        class Verifier:
+            REVISION = "test-v1"
+            def verify(self, *_args): return None
+        artifact = "engineering.codex-cli-artifact.v1"
+        source = "engineering.codex-cli-source-change.v1"
+        workers = {artifact: Worker("artifact", fail=True), source: Worker("source")}
+        service = GraceExecutionService(None, None, workers[artifact],
+            dispatch_credential="dispatch", authority_ref="work-order:test",
+            verifier_id="verifier", verifier_credential="verify", artifact_root="/tmp/unused",
+            execution_capability=artifact, execution_workers=workers,
+            verifiers={artifact: Verifier(), source: Verifier()})
+        result = service._run_workers()
+        self.assertEqual(set(calls), {"artifact", "source"})
+        self.assertEqual(result["status"], "FAILED")
+        self.assertEqual(result["capabilities"][artifact]["status"], "FAILED")
+        self.assertEqual(result["capabilities"][source]["status"], "IDLE")
+
+    def test_artifact_only_worker_configuration_remains_supported(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+        class Worker:
+            def run_once(self, **_kwargs): return {"status": "IDLE"}
+        service = GraceExecutionService(None, None, Worker(), dispatch_credential="dispatch",
+            authority_ref="work-order:test", verifier_id="verifier",
+            verifier_credential="verify", artifact_root="/tmp/unused")
+        self.assertEqual(service.execution_capabilities, ("engineering.bounded-artifact.v1",))
+        self.assertEqual(service._run_workers(), {"status": "IDLE"})
 
     def test_source_change_plan_requires_nonempty_bounded_authorized_paths(self):
         from riverview_core.resident_reasoning import PlanStep
@@ -228,7 +269,9 @@ class CodingWorkOrderContractTests(unittest.TestCase):
                      authorized_paths=("src/app.py",), test_targets=("src/app.py",))
         valid = PlanStep("step", "edit", ("verify",), execution_capability=capability,
                          authorized_paths=("src/app.py", "tests/test_app.py"),
-                         test_targets=("tests/test_app.py",))
+                         test_targets=("tests/test_app.py",),
+                         repository_reference="repo://test/repo",
+                         repository_revision="a" * 40)
         self.assertEqual(valid.authorized_paths, ("src/app.py", "tests/test_app.py"))
 
     def test_worker_contract_rejects_unbounded_operations_and_timeout(self):
@@ -654,8 +697,24 @@ class GraceExecutionTests(unittest.TestCase):
                     self.commit, "c" * 64, True)
 
         self.pipeline.knowledge = FixedVerifiedKnowledge()
+        target_root = self.root / "independent-target-repository"
+        target_root.mkdir()
+        subprocess.run(["git", "init", "-q", str(target_root)], check=True)
+        (target_root / "src").mkdir()
+        (target_root / "src/a.py").write_text("VALUE = 1\n", encoding="utf-8")
+        (target_root / "tests").mkdir()
+        (target_root / "tests/test_ab.py").write_text("def test_value(): assert True\n",
+                                                        encoding="utf-8")
+        subprocess.run(["git", "-C", str(target_root), "config", "user.email", "test@invalid"], check=True)
+        subprocess.run(["git", "-C", str(target_root), "config", "user.name", "Test"], check=True)
+        subprocess.run(["git", "-C", str(target_root), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(target_root), "commit", "-qm", "pinned target"], check=True)
+        target_revision = subprocess.check_output(
+            ["git", "-C", str(target_root), "rev-parse", "HEAD"], text=True).strip()
+        self.assertNotEqual(target_revision, self.commit)
         objective_id = "objective:source-change-human-scope"
-        self.pipeline.submit_objective(objective_id, "Improve the test fixture.",
+        self.pipeline.submit_objective(objective_id,
+            f"Improve the test fixture in repo://test/repo at {target_revision}.",
             ["The test remains passing."], credential=self.credentials["steward"],
             scope_ref=self.scope)
         self.pipeline.ground_objective(objective_id)
@@ -663,20 +722,22 @@ class GraceExecutionTests(unittest.TestCase):
         source_step = PlanStep("source", "Modify bounded files",
             ("The test remains passing.",), execution_capability=
             "engineering.codex-cli-source-change.v1", authorized_paths=paths,
-            test_targets=("tests/test_ab.py",))
+            test_targets=("tests/test_ab.py",), repository_reference="repo://test/repo",
+            repository_revision=target_revision)
         with self.assertRaisesRegex(ObjectiveStateError, "Steward-approved objective scope"):
             self.pipeline.record_proposal(objective_id,
                 PlanProposal("Scoped source change", (source_step,), 0))
         approved_id = "objective:source-change-explicit-scope"
         self.pipeline.submit_objective(approved_id,
-            "Update src/a.py, src/b.py, and tests/test_ab.py only.",
+            f"Update repo://test/repo at {target_revision}; files: src/a.py, src/b.py, and tests/test_ab.py.",
             ["Only those three files change and the focused test passes."],
             credential=self.credentials["steward"], scope_ref=self.scope)
         self.pipeline.ground_objective(approved_id)
         approved_step = PlanStep("source", "Modify bounded files",
             ("Only those three files change and the focused test passes.",),
             execution_capability="engineering.codex-cli-source-change.v1",
-            authorized_paths=paths, test_targets=("tests/test_ab.py",))
+            authorized_paths=paths, test_targets=("tests/test_ab.py",),
+            repository_reference="repo://test/repo", repository_revision=target_revision)
         persisted = self.pipeline.record_proposal(approved_id,
             PlanProposal("Scoped source change", (approved_step,), 0))
         self.assertEqual(persisted["status"], "PROPOSED")
@@ -685,6 +746,18 @@ class GraceExecutionTests(unittest.TestCase):
         self.pipeline.authorize_and_dispatch(approved_id, assignment_id,
             credential=self.credentials["steward"], authority_ref=self.scope,
             idempotency_key="dispatch:" + assignment_id)
+        assignment_step = self.pipeline.proposal_step_for_assignment(approved_id, assignment_id)
+        binding = assignment_step["source_target_binding"]
+        self.assertEqual(binding["version"], "grace.source-target-binding.v1")
+        self.assertEqual(binding["repository_reference"], "repo://test/repo")
+        self.assertEqual(binding["repository_revision"], target_revision)
+        objective_record = self.pipeline.get_objective(approved_id)
+        self.assertEqual(objective_record["source_revision"], self.commit)
+        self.assertNotEqual(objective_record["source_revision"], binding["repository_revision"])
+        self.assertEqual(binding["assignment_id"], assignment_id)
+        self.assertEqual(binding["step_id"], "source")
+        self.assertEqual(binding["authorized_paths"], list(paths))
+        self.assertEqual(binding["test_targets"], ["tests/test_ab.py"])
         self.ledger.transition(assignment_id, "ready", "event_processor_ready",
             "ready:" + assignment_id, actor_id="event-processor")
         artifact_worker = "worker:artifact-only:" + uuid4().hex
@@ -702,6 +775,336 @@ class GraceExecutionTests(unittest.TestCase):
             capability="engineering.codex-cli-source-change.v1",
             assignment_id=assignment_id)
         self.assertIsNotNone(source_claim)
+
+    def test_dual_capability_claims_and_verification_route_by_persisted_attempt_capability(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+        from riverview_core.worker_adapter.verifier import VerificationResult, VerificationStatus
+        artifact_cap = "engineering.bounded-artifact.v1"
+        source_cap = "engineering.codex-cli-source-change.v1"
+        source_id, source_token = "worker:source-test:" + uuid4().hex, secrets.token_urlsafe(36)
+        source_principal = "principal:" + source_id
+        self.admin.execute(f'INSERT INTO "{self.schema}".institutional_principals '
+            "(principal_id,principal_kind) VALUES (%s,'resident')", (source_principal,))
+        self.admin.execute(f'INSERT INTO "{self.schema}".principal_credentials '
+            "(credential_id,principal_id,credential_sha256) VALUES (%s,%s,%s)",
+            (uuid4(), source_principal, hashlib.sha256(source_token.encode()).digest()))
+        for action in ("worker.register", "assignment.execute"):
+            self.admin.execute(f'INSERT INTO "{self.schema}".authority_grants '
+                "(grant_id,principal_id,action,scope_ref,granted_by,policy_ref) "
+                "VALUES (%s,%s,%s,%s,%s,'rv.policy:grace-execution-test.v1')",
+                (source_id + ":" + action, source_principal, action, self.scope, source_principal))
+        source_adapter = PostgresWorkerAdapter(DSN, schema=self.schema)
+        self.addCleanup(source_adapter.close)
+        source_adapter.register_worker(source_id, [source_cap], self.scope,
+                                       credential=source_token)
+
+        class Action:
+            def __init__(self, capability): self.capability = capability
+            def __call__(self, assignment, _grounded):
+                return {"status": "SUCCEEDED", "capability": self.capability,
+                        "assignment_id": assignment["id"]}
+            def validate_proposal_target(self, _step): return True
+        class RecordingVerifier:
+            def __init__(self, capability): self.capability, self.calls = capability, []
+            REVISION = "dual-test-v1"
+            def verify(self, assignment, attempt, _result):
+                self.calls.append((assignment["id"], attempt["capability"]))
+                return VerificationResult(VerificationStatus.ACCEPTED,
+                    {"selected_capability_matches": attempt["capability"] == self.capability},
+                    ("test://capability-verification",), self.REVISION,
+                    "capability-specific test verifier")
+        class WrapWorker:
+            def __init__(self, worker, action): self.worker, self.action = worker, action
+            def run_once(self, **kwargs): return self.worker.run_once(**kwargs)
+
+        artifact_action, source_action = Action(artifact_cap), Action(source_cap)
+        artifact_loop = ContinuousWorker(self.adapter, self.worker_id,
+            self.credentials["worker"], knowledge=RepositoryKnowledgeProvider(self.repo, self.commit),
+            action=artifact_action, action_effect_class="retry_safe", action_capability=artifact_cap)
+        source_loop = ContinuousWorker(source_adapter, source_id, source_token,
+            knowledge=RepositoryKnowledgeProvider(self.repo, self.commit), action=source_action,
+            action_effect_class="retry_safe", action_capability=source_cap)
+        artifact_verifier, source_verifier = RecordingVerifier(artifact_cap), RecordingVerifier(source_cap)
+        workers = {artifact_cap: WrapWorker(artifact_loop, artifact_action),
+                   source_cap: WrapWorker(source_loop, source_action)}
+        service = GraceExecutionService(self.pipeline, self.adapter, workers[artifact_cap],
+            dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
+            verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
+            artifact_root=self.root / "dual-artifacts", execution_capability=artifact_cap,
+            execution_workers=workers, verifiers={artifact_cap: artifact_verifier,
+                                                   source_cap: source_verifier})
+
+        artifact_objective = "objective:dual-artifact:" + uuid4().hex
+        criterion = "The bounded result is accepted."
+        self.pipeline.submit_objective(artifact_objective, "Create a bounded artifact result.",
+            [criterion], credential=self.credentials["steward"], scope_ref=self.scope)
+        self.pipeline.ground_objective(artifact_objective)
+        self.pipeline.record_proposal(artifact_objective, PlanProposal("Artifact test", (
+            PlanStep("artifact", "Create a bounded result", (criterion,)),), 0))
+        self.pipeline.authorize_and_dispatch(artifact_objective, "assignment:dual:artifact:" + uuid4().hex,
+            credential=self.credentials["steward"], authority_ref=self.scope,
+            idempotency_key="dual-artifact:" + uuid4().hex)
+
+        source_objective = "objective:dual-source:" + uuid4().hex
+        target_ref = "repo://test/dual-source"
+        paths = ("src/a.py", "tests/test_a.py")
+        from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
+        self.pipeline.knowledge = type("FixedVerifiedKnowledge", (), {
+            "ground_assignment": lambda _self, _assignment: KnowledgeResult(
+                KnowledgeStatus.VERIFIED, {"evidence": "bounded source repository"},
+                ("repo://docs/verified.md",), self.commit, "c" * 64, True),
+            "reground_assignment": lambda _self, _assignment, _trigger: KnowledgeResult(
+                KnowledgeStatus.VERIFIED, {"evidence": "bounded source repository"},
+                ("repo://docs/verified.md",), self.commit, "c" * 64, True)})()
+        self.pipeline.submit_objective(source_objective,
+            f"Edit src/a.py and tests/test_a.py in {target_ref} at {self.commit}.",
+            ["The scoped source test passes."], credential=self.credentials["steward"],
+            scope_ref=self.scope)
+        self.pipeline.ground_objective(source_objective)
+        source_plan = PlanStep("source", "Make the bounded source change",
+            ("The scoped source test passes.",), execution_capability=source_cap,
+            authorized_paths=paths, test_targets=("tests/test_a.py",),
+            repository_reference=target_ref, repository_revision=self.commit)
+        self.pipeline.record_proposal(source_objective,
+            PlanProposal("Source test", (source_plan,), 0))
+        self.pipeline.authorize_and_dispatch(source_objective, "assignment:dual:source:" + uuid4().hex,
+            credential=self.credentials["steward"], authority_ref=self.scope,
+            idempotency_key="dual-source:" + uuid4().hex)
+
+        assignments = [self.pipeline.get_objective(artifact_objective)["assignment_id"],
+                       self.pipeline.get_objective(source_objective)["assignment_id"]]
+        for assignment_id in assignments:
+            self.ledger.transition(assignment_id, "ready", "event_processor_ready",
+                "dual-ready:" + assignment_id, actor_id="event-processor")
+        outcomes = [artifact_loop.run_once(assignment_id=assignments[0]),
+                    source_loop.run_once(assignment_id=assignments[1])]
+        self.assertEqual([item["status"] for item in outcomes],
+                         ["AWAITING_VERIFICATION", "AWAITING_VERIFICATION"])
+        self.assertTrue(service.verify_one())
+        self.assertTrue(service.verify_one())
+        self.assertEqual(artifact_verifier.calls, [(assignments[0], artifact_cap)])
+        self.assertEqual(source_verifier.calls, [(assignments[1], source_cap)])
+        self.assertEqual(self.pipeline.record_verified_completion(artifact_objective,
+            assignments[0])["status"], "COMPLETED")
+        self.assertEqual(self.pipeline.record_verified_completion(source_objective,
+            assignments[1])["status"], "COMPLETED")
+
+    def test_pr62_source_change_cycle_persists_two_verified_dependent_steps(self):
+        import shutil
+        from riverview_core.resident_execution.codex_cli import CodexCLIExecutionAdapter
+        from riverview_core.resident_execution.codex_source_change import (
+            CAPABILITY as SOURCE_CAPABILITY, CodexSourceChangeAdapter,
+            CodexSourceChangeVerifier)
+        from riverview_core.resident_execution.codex_workflow import (
+            CodexSourceChangeResultVerifier, CodexSourceChangeWorkAction)
+        from riverview_core.resident_execution.service import GraceExecutionService
+        from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
+        pinned = "5885c8d9395dde43898f7a47a37a15cfc849299a"
+        fixture = Path("/opt/riverview-pr62-disposable-acceptance")
+        if not fixture.is_dir():
+            self.skipTest("pinned PR62 fixture is not installed")
+        target = self.root / "pr62-two-step-target"
+        shutil.copytree(fixture, target)
+        target_revision = subprocess.check_output(["/usr/bin/git", "-C", str(target),
+            "rev-parse", "HEAD"], text=True).strip()
+        if target_revision != pinned:
+            self.skipTest("isolated PR62 target does not match the approved test commit")
+        self.assertNotEqual(target_revision, self.commit)
+        codex_exec = self.root / "pr62-codex"
+        codex_exec.write_text("#!/usr/bin/env python3\n"
+            "import json,pathlib,sys\n"
+            "prompt=sys.stdin.read()\n"
+            "root=pathlib.Path.cwd()\n"
+            "if 'Step 1:' in prompt:\n"
+            " (root/'src/status.py').write_text('def normalize_status(value):\\n    return str(value).strip().upper()\\n')\n"
+            "else:\n"
+            " (root/'src/report.py').write_text('from status import normalize_status\\n\\ndef readiness_report(value):\\n    return f\\\"Readiness: {normalize_status(value)}\\\"\\n')\n"
+            "p=pathlib.Path(sys.argv[sys.argv.index('--output-last-message')+1])\n"
+            "p.write_text(json.dumps({'status':'PATCH_PRODUCED','summary':'bounded PR62 change'}))\n",
+            encoding="utf-8")
+        codex_exec.chmod(0o700)
+        repo_ref = "repo://riverview/pr62-disposable-acceptance"
+        codex_home = self.root / "pr62-codex-home"
+        workspace = self.root / "pr62-workspaces"
+        codex_artifacts = self.root / "pr62-patch-artifacts"
+        for directory in (codex_home, workspace, codex_artifacts):
+            directory.mkdir(mode=0o700)
+        base = CodexCLIExecutionAdapter(executable=str(codex_exec), repository_path=target,
+            repository_reference=repo_ref, codex_home=codex_home,
+            workspace_root=workspace, artifact_root=codex_artifacts)
+        source_adapter = CodexSourceChangeAdapter(base_adapter=base,
+            repository_reference=repo_ref,
+            authorized_paths=("src/status.py", "tests/test_status.py", "src/report.py",
+                              "tests/test_report.py"), max_timeout_seconds=30)
+        source_verifier = CodexSourceChangeVerifier(base_adapter=base,
+            authorized_paths=source_adapter.authorized_paths, max_timeout_seconds=30)
+        action = CodexSourceChangeWorkAction(self.pipeline, source_adapter, repo_ref,
+                                             timeout_seconds=30)
+        source_result_verifier = CodexSourceChangeResultVerifier(
+            self.pipeline, source_verifier, action)
+
+        source_id = "worker:source-test:" + uuid4().hex
+        source_token = secrets.token_urlsafe(36)
+        principal = "principal:" + source_id
+        self.admin.execute(f'INSERT INTO "{self.schema}".institutional_principals '
+            "(principal_id,principal_kind) VALUES (%s,'resident')", (principal,))
+        self.admin.execute(f'INSERT INTO "{self.schema}".principal_credentials '
+            "(credential_id,principal_id,credential_sha256) VALUES (%s,%s,%s)",
+            (uuid4(), principal, hashlib.sha256(source_token.encode()).digest()))
+        for verb in ("worker.register", "assignment.execute"):
+            self.admin.execute(f'INSERT INTO "{self.schema}".authority_grants '
+                "(grant_id,principal_id,action,scope_ref,granted_by,policy_ref) "
+                "VALUES (%s,%s,%s,%s,%s,'rv.policy:grace-execution-test.v1')",
+                (source_id + ":" + verb, principal, verb, self.scope, principal))
+        source_db = PostgresWorkerAdapter(DSN, schema=self.schema)
+        self.addCleanup(source_db.close)
+        source_db.register_worker(source_id, [SOURCE_CAPABILITY], self.scope,
+                                  credential=source_token)
+
+        class VerifiedKnowledge:
+            def ground_assignment(_self, _assignment):
+                return KnowledgeResult(KnowledgeStatus.VERIFIED,
+                    {"evidence": "separate resident knowledge fixture"},
+                    ("repo://docs/verified.md",), self.commit, "c" * 64, True)
+            reground_assignment = ground_assignment
+
+        source_loop = ContinuousWorker(source_db, source_id, source_token,
+            knowledge=RepositoryKnowledgeProvider(self.repo, self.commit),
+            action=action, action_effect_class="retry_safe",
+            action_capability=SOURCE_CAPABILITY)
+        artifact_root = self.root / "pr62-artifacts"
+        artifact_loop = ContinuousWorker(self.adapter, self.worker_id,
+            self.credentials["worker"], knowledge=RepositoryKnowledgeProvider(self.repo, self.commit),
+            action=BoundedLocalCodingWorker(self.pipeline, artifact_root),
+            action_effect_class="retry_safe", action_capability="engineering.bounded-artifact.v1")
+
+        class ResultPublisher:
+            def __init__(self): self.cycles = []
+            def __call__(self, context):
+                cycle = context["completion_cycle"]
+                self.cycles.append(cycle)
+                return {"status":"published", "request_id":f"test-result:{cycle}",
+                    "provider_id":"provider:test", "served_model":"model:test",
+                    "implementation_id":"implementation:test",
+                    "completion_cycle":str(cycle)}
+        publisher = ResultPublisher()
+        service = GraceExecutionService(self.pipeline, self.adapter, artifact_loop,
+            dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
+            verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
+            artifact_root=artifact_root,
+            execution_capability="engineering.bounded-artifact.v1",
+            execution_workers={"engineering.bounded-artifact.v1":artifact_loop,
+                               SOURCE_CAPABILITY:source_loop},
+            verifiers={"engineering.bounded-artifact.v1":BoundedArtifactVerifier(artifact_root),
+                       SOURCE_CAPABILITY:source_result_verifier},
+            conversation_result_publisher=publisher)
+
+        objective_id = "objective:pr62-source-cycle:" + uuid4().hex
+        criteria = ('normalize_status(" ready ") == "READY"',
+                    'readiness_report(" ready ") == "Readiness: READY"')
+        scope_text = (f"In {repo_ref} at commit {pinned}, change only src/status.py, "
+            "tests/test_status.py, src/report.py, and tests/test_report.py. "
+            "normalize_status(\" ready \") must equal \"READY\" and "
+            "readiness_report(\" ready \") must equal \"Readiness: READY\".")
+        self.pipeline.knowledge = VerifiedKnowledge()
+        self.pipeline.submit_objective(objective_id, scope_text, criteria,
+            credential=self.credentials["steward"], scope_ref=self.scope,
+            origin={"conversation_id":str(uuid4()), "source_sequence":1})
+        self.pipeline.ground_objective(objective_id)
+        first = PlanStep("step1", "Step 1: normalize_status trims and uppercases input.",
+            (criteria[0],), execution_capability=SOURCE_CAPABILITY,
+            authorized_paths=("src/status.py", "tests/test_status.py"),
+            test_targets=("tests/test_status.py",), repository_reference=repo_ref,
+            repository_revision=pinned)
+        second = PlanStep("step2", "Step 2: readiness_report returns the normalized report.",
+            (criteria[1],), depends_on=("step1",), execution_capability=SOURCE_CAPABILITY,
+            authorized_paths=("src/report.py", "tests/test_report.py"),
+            test_targets=("tests/test_report.py",), repository_reference=repo_ref,
+            repository_revision=pinned)
+        self.pipeline.record_proposal(objective_id, PlanProposal("Normalize status and report",
+            (first, second), 0))
+        self.assertEqual(service.dispatch_proposed(objective_id), 1)
+        first_assignment = self.pipeline.get_objective(objective_id)["assignment_id"]
+        with self.assertRaises(ObjectiveStateError):
+            self.pipeline.authorize_and_dispatch(objective_id,
+                "assignment:pr62:premature:" + uuid4().hex,
+                credential=self.credentials["steward"], authority_ref=self.scope,
+                idempotency_key="pr62-premature:" + uuid4().hex, step_id="step2")
+        self.assertIsNone(self.pipeline.dispatchable_step(objective_id))
+        self.ledger.transition(first_assignment, "ready", "event_processor_ready",
+            "pr62-ready:" + first_assignment, actor_id="event-processor")
+        first_outcome = source_loop.run_once(assignment_id=first_assignment)
+        self.assertEqual(first_outcome["status"], "AWAITING_VERIFICATION", first_outcome)
+        first_result = self.admin.execute(f'SELECT result FROM "{self.schema}".worker_results '
+            "WHERE attempt_id=%s", (first_outcome["attempt_id"],)).fetchone()[0]
+        self.assertEqual(first_result["repository_reference"], repo_ref)
+        self.assertEqual(first_result["repository_revision"], pinned)
+        self.assertTrue(service.verify_one(first_assignment))
+        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 1)
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "WORK_ORDER_CREATED")
+        first_decision = self.admin.execute(f'SELECT decision FROM "{self.schema}".verification_records '
+            "WHERE assignment_id=%s", (first_assignment,)).fetchone()[0]
+        self.assertEqual(first_decision, "ACCEPTED")
+        self.assertEqual(service.publish_conversation_results(), 1)
+        self.assertEqual(publisher.cycles, [1])
+        self.assertIsNone(self.pipeline.dispatchable_step(objective_id))
+        self.pipeline.propose_continuation(objective_id, first_assignment, second)
+        self.assertEqual(service.dispatch_proposed(objective_id), 1)
+        second_assignment = self.pipeline.get_objective(objective_id)["assignment_id"]
+        self.assertNotEqual(second_assignment, first_assignment)
+        self.ledger.transition(second_assignment, "ready", "event_processor_ready",
+            "pr62-ready:" + second_assignment, actor_id="event-processor")
+        # Reconstruct the source worker and Grace service after the assignment is
+        # durable and ready, as systemd would after an owner-session restart.
+        restarted_source_db = PostgresWorkerAdapter(DSN, schema=self.schema)
+        self.addCleanup(restarted_source_db.close)
+        restarted_source_loop = ContinuousWorker(restarted_source_db, source_id, source_token,
+            knowledge=RepositoryKnowledgeProvider(self.repo, self.commit), action=action,
+            action_effect_class="retry_safe", action_capability=SOURCE_CAPABILITY)
+        service = GraceExecutionService(self.pipeline, self.adapter, artifact_loop,
+            dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
+            verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
+            artifact_root=artifact_root,
+            execution_capability="engineering.bounded-artifact.v1",
+            execution_workers={"engineering.bounded-artifact.v1":artifact_loop,
+                               SOURCE_CAPABILITY:restarted_source_loop},
+            verifiers={"engineering.bounded-artifact.v1":BoundedArtifactVerifier(artifact_root),
+                       SOURCE_CAPABILITY:source_result_verifier},
+            conversation_result_publisher=publisher)
+        self.assertEqual(service.dispatch_proposed(objective_id), 0,
+                         "restart must not create a duplicate assignment")
+        self.assertEqual(service.publish_conversation_results(), 0,
+                         "restart must not republish the acknowledged first-step result")
+        self.assertEqual(publisher.cycles, [1])
+        second_outcome = restarted_source_loop.run_once(assignment_id=second_assignment)
+        self.assertEqual(second_outcome["status"], "AWAITING_VERIFICATION")
+        second_result = self.admin.execute(f'SELECT result FROM "{self.schema}".worker_results '
+            "WHERE attempt_id=%s", (second_outcome["attempt_id"],)).fetchone()[0]
+        self.assertEqual(second_result["repository_reference"], repo_ref)
+        self.assertEqual(second_result["repository_revision"], pinned)
+        self.assertTrue(service.verify_one(second_assignment))
+        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 1)
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "COMPLETED")
+        self.assertEqual(service.publish_conversation_results(), 1)
+        self.assertEqual(service.publish_conversation_results(), 0)
+        self.assertEqual(publisher.cycles, [1, 2])
+        self.assertEqual(restarted_source_loop.run_once(assignment_id=second_assignment)["status"],
+                         "IDLE")
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("SELECT count(*) AS n FROM worker_attempts WHERE assignment_id=ANY(%s)",
+                        ([first_assignment, second_assignment],))
+            self.assertEqual(cur.fetchone()["n"], 2)
+            cur.execute("SELECT count(*) AS n FROM verification_records WHERE assignment_id=ANY(%s) "
+                        "AND decision='ACCEPTED'", ([first_assignment, second_assignment],))
+            self.assertEqual(cur.fetchone()["n"], 2)
+        events = self.pipeline.objective_events(objective_id)
+        self.assertEqual(sum(event["event_type"] == "work_order.dispatched" for event in events), 2)
+        self.assertEqual(sum(event["event_type"] == "conversation.result_published" for event in events), 2)
+        self.assertEqual(sum(event["event_type"] == "objective.completed" for event in events), 1)
+        final_event = next(event for event in events if event["event_type"] == "objective.completed")
+        self.assertEqual(final_event["payload"]["artifact"]["repository_reference"], repo_ref)
+        self.assertEqual(final_event["payload"]["artifact"]["repository_revision"], pinned)
 
     def test_missing_or_oversized_evidence_fails_closed(self):
         from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus

@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.1
+# Revision: 1.2.4
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -28,6 +28,8 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Wire the separately scoped source-change capability through the existing leased worker and independent verifier
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Reconcile proposal records when registry migration exists without making it a prerequisite for older deployments
 # Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-INTERNAL-TOOLS-001 | Bind Grace's reasoning router to the existing Comms5 read backend
+# Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Resolve external-reasoning authority through the active institutional office snapshot
+# Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Attach the persistent Grace cycle to existing provider-scoped external reasoning exchanges
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_runtime_provider_wiring.py; tests/test_grace_execution.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -54,6 +56,9 @@ from riverview_core.resident_execution.proposals import ProposalRegistry
 from riverview_core.resident_execution.proposal_lifecycle import ProposalLifecycle
 from riverview_core.resident_execution.pipeline import ObjectiveContextReader
 from riverview_core.resident_execution.service import GraceExecutionService
+from riverview_core.resident_execution.verifier import BoundedArtifactVerifier
+from riverview_core.reasoning_escalation import ReasoningEscalationRouter
+from riverview_core.resident_execution.external_reasoning import DurableExternalReasoningExchange
 from riverview_core.resident_execution.worker import BoundedLocalCodingWorker
 from riverview_core.resident_execution.codex_cli import CAPABILITY as CODEX_CAPABILITY
 from riverview_core.resident_execution.codex_cli import CodexAdapterError, CodexCLIExecutionAdapter
@@ -98,6 +103,69 @@ def resident_result_review_tokens(environ):
     if not 16 <= tokens <= 512:
         raise WorkerServiceConfigurationError("resident_result_review_tokens_invalid")
     return tokens
+
+
+def active_resident_principal(office_snapshot):
+    """Resolve the current occupant's principal from AuthorityRegistry's authorized snapshot."""
+    if (not isinstance(office_snapshot, dict)
+            or office_snapshot.get("principal_kind") != "resident"
+            or not isinstance(office_snapshot.get("principal_id"), str)
+            or not office_snapshot["principal_id"]
+            or not isinstance(office_snapshot.get("occupant_id"), str)
+            or not office_snapshot["occupant_id"]
+            or type(office_snapshot.get("binding_revision")) is not int
+            or office_snapshot["binding_revision"] < 1):
+        raise WorkerServiceConfigurationError("resident_office_principal_unavailable")
+    return office_snapshot["principal_id"]
+
+
+class _ExternalExchangeProvider:
+    """Identity marker for an MCP provider; inference remains externally pulled."""
+
+    def __init__(self, provider_id, exchange_principal_id):
+        self.provider_id = provider_id
+        self.exchange_principal_id = exchange_principal_id
+
+
+def external_exchange_configuration(environ, *, ledger, authorizer, authority_registry,
+                                    resident_credential, office_id, principal_id):
+    """Build the existing durable exchange only from an explicit provider map."""
+    raw = environ.get("RIVERVIEW_EXTERNAL_REASONING_PROVIDER_MAP", "")
+    if not raw:
+        return None, None
+    try:
+        mapping = json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        raise WorkerServiceConfigurationError("external_reasoning_provider_map_invalid") from None
+    if (not isinstance(mapping, dict) or not 1 <= len(mapping) <= 8 or
+            any(not isinstance(provider, str) or not re.fullmatch(
+                r"[A-Za-z0-9._:-]{1,160}", provider) or
+                not isinstance(principal, str) or not re.fullmatch(
+                    r"[A-Za-z0-9._:-]{1,256}", principal)
+                for provider, principal in mapping.items())):
+        raise WorkerServiceConfigurationError("external_reasoning_provider_map_invalid")
+    if (not isinstance(principal_id, str) or not principal_id or principal_id == office_id):
+        raise WorkerServiceConfigurationError("external_reasoning_active_resident_principal_required")
+    providers = {provider: _ExternalExchangeProvider(provider, principal)
+        for provider, principal in mapping.items()}
+    router = ReasoningEscalationRouter(providers)
+    exchange = DurableExternalReasoningExchange(ledger, router,
+        actor_id="office:" + office_id)
+
+    def authorize(principal_id, action, scope_ref):
+        from riverview_core.institutional_authority import GrantDenied
+        if principal_id != active_resident_principal(
+                authority_registry.authorize_office_state(resident_credential, office_id)):
+            raise GrantDenied("exchange principal is no longer the active office occupant")
+        with ledger.db.transaction():
+            with ledger.db.cursor() as cur:
+                ledger._set_search_path(cur)
+                decision = authorizer.require(cur, resident_credential, action, scope_ref)
+                if decision.get("principal_id") != principal_id:
+                    raise GrantDenied("exact grant principal does not match the active office occupant")
+        return True
+
+    return exchange, authorize
 
 
 def source_change_path_allowlist(environ):
@@ -193,6 +261,7 @@ def reconcile_codex_startup_recovery(execution_action, recovery, *, scope_ref, w
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     ledger = adapter = authority_registry = conversation_store = proposal_registry = None
+    source_worker_adapter = None
     try:
         codex_auth_mode = os.environ.get("RIVERVIEW_CODEX_AUTH_MODE", "service")
         credential_unit = (OWNER_SESSION_SERVICE_UNIT
@@ -241,10 +310,18 @@ def main() -> int:
         for configured_provider in providers.values():
             if isinstance(configured_provider, GraceModelRouter):
                 configured_provider.internal_tools = internal_tools
+        resident_principal_id = active_resident_principal(office)
+        external_exchange, external_authorize = external_exchange_configuration(
+            os.environ, ledger=ledger, authorizer=authorizer,
+            authority_registry=authority_registry, resident_credential=resident_token,
+            office_id=office_id,
+            principal_id=resident_principal_id)
         resident_reasoner = ResidentReasoner(
             registry=authority_registry, office_id=office_id,
             resident_credential=resident_token, assignments=ObjectiveContextReader(pipeline),
             knowledge=resident_knowledge, providers=providers,
+            external_reasoning_targets=tuple(external_exchange.router.providers)
+                if external_exchange is not None else (),
             timeout_seconds=reasoning_timeout)
         conversation_store = ConversationStore(dsn, schema=schema)
         conversation_service = ResidentConversationService(
@@ -374,6 +451,67 @@ def main() -> int:
             action_effect_class="external_uncertain" if adapter_mode == "codex-cli" else "retry_safe",
             action_capability=execution_capability,
             recovery_max_retries=int(os.environ.get("RIVERVIEW_GRACE_MAX_WORKER_RECOVERIES", "3")))
+        execution_workers = {execution_capability: engine}
+        outcome_verifiers = {execution_capability: outcome_verifier or
+                             BoundedArtifactVerifier(artifact_root)}
+        if (os.environ.get("RIVERVIEW_SOURCE_WORKER_ENABLED", "0") == "1" and
+                adapter_mode == "codex-cli"):
+            try:
+                source_worker_id = os.environ.get("RIVERVIEW_SOURCE_WORKER_ID", "")
+                source_worker_token = read_worker_credential(
+                    credential_unit, "source-worker-token")
+                if (not source_worker_id or source_worker_id == worker_id or
+                        source_worker_token == worker_token):
+                    raise WorkerServiceConfigurationError(
+                        "source_worker_identity_or_credential_not_distinct")
+                allowed_paths = source_change_path_allowlist(os.environ)
+                source_worker_adapter = PostgresWorkerAdapter(
+                    dsn, schema=schema, authority_schema=authority_schema)
+                source_adapter = CodexSourceChangeAdapter(
+                    base_adapter=codex_adapter, repository_reference=repository_reference,
+                    authorized_paths=allowed_paths, max_timeout_seconds=timeout_seconds)
+                source_verifier = CodexSourceChangeVerifier(
+                    base_adapter=codex_adapter, authorized_paths=allowed_paths,
+                    max_timeout_seconds=timeout_seconds)
+                source_action = CodexSourceChangeWorkAction(
+                    pipeline, source_adapter, repository_reference,
+                    timeout_seconds=timeout_seconds)
+                source_verifier_result = CodexSourceChangeResultVerifier(
+                    pipeline, source_verifier, source_action)
+                ensure_registered(source_worker_adapter, source_worker_id,
+                    source_worker_token, (SOURCE_CHANGE_CAPABILITY,), scope_ref)
+                source_scope = source_worker_adapter.authenticated_scope(
+                    source_worker_id, source_worker_token, SOURCE_CHANGE_CAPABILITY)
+                if source_scope != scope_ref:
+                    raise WorkerServiceConfigurationError("source_worker_scope_mismatch")
+                source_engine = ContinuousWorker(source_worker_adapter, source_worker_id,
+                    source_worker_token, knowledge=RepositoryKnowledgeProvider(repo_root, commit),
+                    action=source_action, action_effect_class="retry_safe",
+                    action_capability=SOURCE_CHANGE_CAPABILITY,
+                    recovery_max_retries=int(os.environ.get(
+                        "RIVERVIEW_GRACE_MAX_WORKER_RECOVERIES", "3")))
+                recovery = PostgresRecoveryCoordinator(dsn, schema=schema,
+                    max_retries=int(os.environ.get(
+                        "RIVERVIEW_GRACE_MAX_WORKER_RECOVERIES", "3")))
+                try:
+                    recovered = reconcile_codex_startup_recovery(
+                        source_action, recovery, scope_ref=scope_ref,
+                        worker_id=source_worker_id)
+                finally:
+                    recovery.close()
+                if recovered:
+                    logging.info(json.dumps({"event": "codex_preexecution_recovery_completed",
+                        "capability": SOURCE_CHANGE_CAPABILITY,
+                        "assignments": [item["assignment_id"] for item in recovered],
+                        "count": len(recovered)}, sort_keys=True))
+                execution_workers[SOURCE_CHANGE_CAPABILITY] = source_engine
+                outcome_verifiers[SOURCE_CHANGE_CAPABILITY] = source_verifier_result
+            except Exception as exc:
+                if source_worker_adapter is not None:
+                    source_worker_adapter.close()
+                    source_worker_adapter = None
+                logging.warning(json.dumps({"event": "source_change_worker_unavailable",
+                    "failure_type": type(exc).__name__}, sort_keys=True))
         service = GraceExecutionService(pipeline, adapter, engine,
             dispatch_credential=dispatch_token, authority_ref=scope_ref,
             verifier_id=verifier_id, verifier_credential=verifier_token,
@@ -382,8 +520,12 @@ def main() -> int:
             resident_reasoner=resident_reasoner,
             resident_token_budget=int(os.environ.get("RIVERVIEW_RESIDENT_REASONING_TOKENS", "768")),
             verifier=outcome_verifier, execution_capability=execution_capability,
+            execution_workers=execution_workers, verifiers=outcome_verifiers,
             conversation_result_publisher=conversation_service.review_verified_work_order,
-            proposal_lifecycle=proposal_lifecycle)
+            proposal_lifecycle=proposal_lifecycle,
+            external_reasoning_exchange=external_exchange,
+            external_reasoning_authorize=external_authorize,
+            external_reasoning_principal=resident_principal_id)
         if codex_auth_mode == "supervised-chatgpt":
             if not re.search(r"80b", (reasoning_model or "").lower()) or not providers:
                 raise WorkerServiceConfigurationError("supervised_mode_requires_configured_80b_reasoner")
@@ -440,6 +582,8 @@ def main() -> int:
                                   "failure_type": type(exc).__name__}, sort_keys=True))
         return 1
     finally:
+        if source_worker_adapter is not None:
+            source_worker_adapter.close()
         if adapter is not None:
             adapter.close()
         if conversation_store is not None:

@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/steward/Riverview_Steward_Punch_List_2026-10-13.md
 Component: STEWARD-BACKLOG
-File Revision: 1.0.0
+File Revision: 1.0.4
 Purpose: Preserve Steward-captured operational and website improvement observations
 Authority: Backlog capture only; entries do not authorize implementation or change active scope
 Changed: 2026-10-15 UTC | RV-WEBSITE-PUNCH-LIST-001 | Add controlled revision metadata without changing captured items
+Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Link final source commit and review PR to the 80B deferred-recovery evidence
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Riverview Steward Punch List
@@ -123,3 +124,31 @@ Workflow registry remains unverified in the user's Steward session. Notification
 - **Completeness validation:** Reconcile snapshot workflow count/IDs/revisions with the dashboard's actual workflow registry; report any missing workflows, missing renderings, failed data collection, stale captures, or partial sections explicitly rather than silently omitting them.
 - **Acceptance test:** For each workflow shown in an authenticated Steward browser session, verify its structured data **and** visual rendering appear in the snapshot and correspond to the same website view/state; verify all other required dashboard sections are present. Ensure the resulting snapshot supports recovery and handoff to another conversation.
 - **Status:** CAPTURED; do not redirect Codex from the active Grace 80B commissioning startup defect. This is a subsequent P1 item, not authorization for immediate implementation.
+
+## Steward punch-list update — 2026-10-17: Grace 80B deferred-recovery reliability
+
+| ID | Area | Observation / desired outcome | Priority | Owner | Status |
+|---|---|---|---|---|---|
+| PL-NEW-043 | Grace reasoning / deferred recovery | Deterministic provider request errors must be classified separately from provider readiness/outage, and durable deferred work must recover without identical unbounded retries or duplicate publication. Preserve the concurrent 0.6B, 30B and 80B capability routing. | P1 — reliability incident | Codex 3 (Grace runtime); coordinate model/provider ownership with Codex 1 where applicable | SOURCE IN REVIEW; operational acceptance remains open |
+
+### PL-NEW-043 — acceptance criteria and incident evidence
+
+- **Incident evidence:** Camrui dashboard journal contained 253 `grace_deferred_resume_attempt` records from 2026-10-17 20:18:12 through 20:42:33 EDT. Each logged a single 80B reasoning attempt, `outcome=failed`, sanitized `error_code=provider_error`, and router `readiness_state=UNAVAILABLE`; completion durations were sub-10 ms. The dashboard process restarted at 20:42:34 EDT and the 80B response resumed at 20:43:22 EDT. This evidence proves repeated fast completion failures followed by recovery after the dashboard release change; it does **not** prove an OctoMiner 1 reboot/unload or establish the provider's raw error, because historical OctoMiner 1 logs were unavailable.
+- **Working diagnosis:** prompt size exceeded the configured 32 KiB provider request limit and the deterministic `prompt_too_large` completion error was surfaced as `provider_error`/`UNAVAILABLE`. Confidence: high, not definitive. The active dashboard release added byte-bounded conversation context and safe `prompt_too_large` diagnostics; verify its behavior through source tests and synthetic fixtures. Do not rewrite an already working active-release correction without a failing regression test.
+- **Required acceptance:** (1) deterministic prompt overflow trims only eligible context while preserving protected instructions and current request identity, or returns an accurate non-retryable terminal disposition when safe trimming cannot fit; (2) timeout, transport, busy/503, malformed response, authorization and readiness failures retain distinct sanitized classifications; (3) transient retry/backoff is bounded and durable, with restart resumption and exactly-once correlated publication; (4) a synthetic conversation beyond 32 KiB reproduces the legacy failure and passes the corrected path; (5) disposable/mocked fault injection demonstrates one capability's failure does not mark Grace's other model capabilities unavailable; (6) focused and relevant regression tests pass, and graph/cookbook/documentation match implemented behavior.
+- **Evidence references:** Camrui `riverview-status-dashboard.service` journal, filtered to sanitized `grace_deferred_resume_attempt` metadata for 2026-10-17 20:10–20:50 EDT; deployed release identities `0450c492…` (pre-fix) and `ac707ef71335f889dd21ae28210ce9906eec9d38` (recovery release); checkout evidence to be recorded by task `RV-C3-GRACE-REASONING-RELIABILITY-001`. No conversation body, credentials, or raw provider payload is retained here.
+- **Troubleshooting references:** `docs/components/RESIDENT_CONVERSATION.md`, `docs/components/RESIDENT_CONVERSATION_FLOW.md`, and `docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md`.
+- **Dependencies / blockers:** no historical OctoMiner 1 service logs were available; host access was blocked by SSH public-key authentication. Comms5 mailbox contract changes remain Codex 1's ownership; Grace execution behavior remains coordinated with Codex 2. No production deployment, service restart, model reload, endpoint change, or live inference is authorized by this item.
+- **Exit condition:** attach immutable test evidence and source commit/PR; document unresolved host-level evidence limits; keep this item open until operational acceptance independently verifies bounded retries, durable recovery, exactly-once response publication, and per-capability readiness. This engineering work does not authorize deployment.
+
+
+### PL-NEW-043 — source verification update (2026-10-18)
+
+- **Implementation evidence:** Isolated branch `codex/grace-reasoning-reliability-active-20261017`, based on active release branch `codex/grace-conversation-ui-refinement` at `ac707ef71335f889dd21ae28210ce9906eec9d38`. Added sanitized HTTP status preservation and deterministic-vs-transient completion classification; durable retry schedule with five-attempt cap and 5/10/20/40-second backoff; terminal correlated failure for deterministic prompt/auth/contract errors; per-capability readiness isolation tests. The existing 32 KiB prompt trimming remains in place.
+- **Focused tests:** `PYTHONPATH=src python3 -m pytest -q tests/test_resident_model_router.py tests/test_local_reasoning_provider.py tests/test_resident_conversation.py tests/test_status_dashboard.py` — PASS, 91 passed, 39 skipped, 11.37s.
+- **Active suite:** `PYTHONPATH=src python3 -m pytest -q tests` — PASS, 391 passed, 203 skipped, 49.64s. PostgreSQL integration cases were skipped because `RIVERVIEW_TEST_PG_DSN` is not configured; no live database was used.
+- **Workflow and source checks:** `python3 scripts/process_graph.py generate` and `python3 scripts/process_graph.py check` — PASS (22 graphs, 555 nodes); `PYTHONPATH=src python3 -m py_compile src/riverview_core/resident_execution/conversation.py src/riverview_core/resident_execution/model_router.py` — PASS; `git diff --check` — PASS.
+- **Collection limitation:** Root `PYTHONPATH=src python3 -m pytest -q` did not collect because an archived historical test imports unavailable `runtime_baseline` from `docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py`. The active `tests/` suite passed as recorded above; archived material was not changed.
+- **Operational boundary:** OctoMiner 1 SSH access and historical logs remain unavailable; live endpoint fault injection, deployment, restart, and model inference were not performed. Acceptance of durable PostgreSQL retry/restart behavior requires the isolated integration DSN plus authorized operational review. No production changes were made.
+- **Final edge-case regression:** A post-review check found missing model bindings were being scheduled for retry and HTTP 401/403/400/422 outcomes had lost their specific terminal response class. Missing bindings now block immediately; authorization maps to `authorization_denied`, malformed input to `model_response_invalid`, with sanitized HTTP status retained. Dedicated tests cover these cases; final run results above include this correction.
+- **Source revision and evidence:** Commit `373978d0` on `codex/grace-reasoning-reliability-active-20261017`; review PR [#111](https://github.com/ppow1/Riverview-/pull/111). Checkout evidence: `evidence/checkouts/RV-C3-GRACE-REASONING-RELIABILITY-001/20261018T0256Z/checkout.md`. Keep PL-NEW-043 open pending review and operational acceptance.

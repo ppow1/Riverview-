@@ -2,12 +2,13 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_CAMRUI_DEPLOYMENT.md
 Component: COMMS5-CAMRUI-ADAPTER
-File Revision: 1.0.6
+File Revision: 1.0.7
 Status: Deployment and recovery procedure
 Date: 2026-10-17
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-OAUTH-FORWARD-HEADERS-001 | Corrected trusted marker propagation and recorded live OAuth acceptance and Comms4 upstream status.
 Changed: 2026-10-17 UTC | RV-COMMS5-DASHBOARD-READ-DEPLOY-001 | Record the merged loopback dashboard bridge deployment and rollback point.
+Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Add migration 0012 preflight and non-destructive rollback handling for policy-aware Comms5 releases.
 Previous: 2026-10-17 UTC | RV-COMMS5-SSH-HOSTKEY-CREDENTIAL-001 | Pass the pinned known-hosts file through systemd credentials for the unprivileged tunnel user.
 -->
 
@@ -68,3 +69,22 @@ See [`COMMS5_OAUTH_TROUBLESHOOTING.md`](COMMS5_OAUTH_TROUBLESHOOTING.md), [`COMM
 ## Current deployment — 2026-10-17 22:16 UTC
 
 The active immutable release is `c18b283ae7263b6fa708b80dbf179b8199ec4b64` (package SHA-256 `c2a7c5681d0f94097bed27f124a3666e6f5cc0d3959ebf4573535573fcd65371`). The service remains enabled and active on loopback. Only the Camrui Comms5 service was restarted; the reverse tunnel, Caddy, OAuth, dashboard, and inference services were not changed. A protected rollback point and exact smoke-test evidence are recorded in [`COMMS5_CAMRUI_MIGRATION.md`](COMMS5_CAMRUI_MIGRATION.md).
+
+## Policy-aware release prerequisite — migration 0012
+
+Releases implementing resource-policy status, mutation, lock enforcement or
+scheduler selection require the additive
+`0012_resource_selection_policy.sql` migration in the application schema.
+Before deployment, verify the current migration record, take and restore-test a
+fresh protected database backup, validate the migration on a disposable copy,
+and confirm the `riverview_core` role receives only the declared policy and
+event-table privileges. Then apply migration 0012 through the controlled
+migration runner before switching the immutable application pointer. Do not
+automatically treat a missing policy relation as an unset policy.
+
+Rollback after migration 0012 is non-destructive: switch the application
+pointer and service unit back to the protected predecessor, restart only the
+Comms5 service, and verify its health/auth boundary. Preserve policy and event
+tables and all records. The predecessor runtime ignores the new tables. Never
+drop migration 0012 tables as part of release rollback. If migration
+compatibility, ACL scope, or restore integrity is uncertain, do not activate.
