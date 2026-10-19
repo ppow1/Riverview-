@@ -1,6 +1,6 @@
 """Loopback Comms5 MCP compatibility endpoint.
 
-File Revision: 1.1.3
+File Revision: 1.1.4
 Component: COMMS5-CAMRUI-ADAPTER
 Authority: OAuth is validated at the Ionoge ingress; this service accepts only
            the Caddy-injected principal marker and a separate protected hop token.
@@ -222,7 +222,10 @@ class Comms5Application:
             elif name == "comms5_help":
                 value["camrui_migration_notice"] = {
                     "implemented_tools": sorted(self.implemented_tools),
-                    "not_implemented_tool_count": len(_TOOLS) - len(self.implemented_tools),
+                    "not_implemented_tool_count": (
+                        sum(1 for name in _TOOLS if not name.startswith("reasoning_exchange_"))
+                        - sum(1 for name in self.implemented_tools
+                              if not name.startswith("reasoning_exchange_"))),
                     "partially_implemented_tools": sorted(
                         name for name in self.implemented_tools
                         if self.implementation_status(name) == "PARTIALLY_IMPLEMENTED"),

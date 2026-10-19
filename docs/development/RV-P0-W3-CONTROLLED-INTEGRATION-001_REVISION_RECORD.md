@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md
 Component: P0-CONTROLLED-INTEGRATION
-Revision: 1.0.6
+Revision: 1.0.7
 Status: Offline integration evidence; no merge or deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record W3 branch assembly and isolated verification
@@ -157,3 +157,24 @@ merge or deployment occurred.
 Before this evidence edit, predecessor bytes for both controlled documents were
 backed up under task `RV-P0-W3-INTEGRATION-FINAL-EVIDENCE-001`; verify the entries
 and hashes in `.riverview-backups/manifest.jsonl`.
+
+## C4 PR #150 controlled reconciliation — 2026-10-19
+
+Steward authorization is issue #120 comment 6257187443. Starting W3 head was
+`e6fa5758df1c23bf5058afa60f0d6b3ac6e6bebf`; C4 PR #130 was already an ancestor,
+and W2 PR #140 head `5df1705da353c7acc0ffc38c95b7a7f39c462954` was already present.
+Only C4 PR #150 head `e9495343e5895f415b86e4699e030b502273469d` was reconciled.
+The exchange retains C3's immutable review-subject digest conflict checks and C4's
+Steward list/status/claim/response operations; their exchange acceptance cases are
+combined. The canonical Comms5 graph and aggregate validate at 22 graphs / 575
+nodes. Both branch backup histories are retained; exact W3 predecessor bytes for
+changed tracked files are logged in the manifest.
+
+Local focused verification in the isolated Windows test venv passed 53 tests and
+skipped 20 PostgreSQL cases because `RIVERVIEW_TEST_PG_DSN` is unset. The local
+full-suite run discovered 625 tests and reported 3 failures, 70 errors and 216
+skips; it is not acceptance evidence because this workstation lacks the disposable
+PostgreSQL service and POSIX-only permissions/TTY behavior. Hosted PostgreSQL
+acceptance on the published exact integration head is the required final test.
+No merge to main, deployment, service action, migration, credential/grant change,
+live review or connector refresh is authorized or performed.

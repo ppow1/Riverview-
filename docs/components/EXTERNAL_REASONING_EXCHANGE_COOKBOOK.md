@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md
 Component: RESIDENT-REASONING
-File Revision: 1.1.7
+File Revision: 1.1.8
 Purpose: Diagnose durable external reasoning exchange transitions safely
 Authority: Read-only diagnostics first; no production migration or transport operation
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial troubleshooting guide
@@ -279,3 +279,6 @@ checks the protected provider map's ownership/mode, confirms the exact Registry
 grant via AuthorityRegistry, then runs the service health and independent MCP
 client checks. Do not run the deployment until provider identity and exact grant
 are issued.
+## Reviewing through Comms5
+
+Use the existing authenticated Comms5 MCP session to list a bounded set of pending requests, claim one exact `(request_id, correlation_id)`, and submit the advisory against that claim. For exact proposal review, copy the returned `review_subject_sha256` unchanged into the submit call. Read status after submission to verify the durable result and actor provenance. An expired response is terminal for that attempt; re-read durable status and use the existing bounded recovery path when eligible. The tools do not approve, promote, dispatch, or wake ChatGPT automatically. Provider OAuth remains a separate authorized route, and there is no second MCP app.

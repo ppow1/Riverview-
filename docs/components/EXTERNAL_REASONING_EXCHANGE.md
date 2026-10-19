@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 Component: RESIDENT-REASONING
-File Revision: 1.1.8
+File Revision: 1.1.9
 Purpose: Define the durable transport-neutral external reasoning exchange contract
 Authority: Existing resident.reasoning.escalate exact grant; advisory-only result
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial phase-one contract
@@ -314,3 +314,8 @@ role access only to the new exchange relations and the already-authorized
 objective event write path; it does not grant access to authority ledgers or
 unrelated tables. For rollback, disable the adapter and retain the tables and
 records. Do not drop exchange history or rewrite objective events.
+## Steward review through the existing Comms5 interface
+
+The existing Comms5 connector exposes bounded list, claim, advisory-submit, and body-free status operations for durable external reasoning requests. The internal adapter uses the authenticated Steward transport principal and records that identity as the review actor. It never constructs a provider principal and never accepts a caller-supplied provider route: each request's persisted provider ID and correlation are authoritative. The distinct provider OAuth adapter remains provider-scoped.
+
+Steward review claims use the same finite lease and fencing contract as provider claims. A Steward lease excludes a simultaneous provider claim; expired claims can be recovered through the existing fenced exchange lifecycle. Submission checks the stored request and immutable review-subject digest, idempotency key, expiry, correlation, claim token, and fence. The response remains advisory and cannot approve or promote a proposal or dispatch Engineering work. No migration or second public endpoint is required.

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_exchange.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.13
+# Revision: 1.1.1
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify sanitized C2 exception receipts terminate without duplicate wake retries.
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify duplicate receipt replay remains bound to the original lease token.
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify deterministic doorbell attempt identity using disposable PostgreSQL.
@@ -21,6 +21,8 @@
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Exercise restart after proposal/evaluation persistence but before exchange acknowledgement.
 # Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Exercise typed reasoning initiation and distinguish active office from resident principal identities.
 # Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Verify digest enforcement, exact finish/revision, and successor crash recovery.
+# Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Exercise Steward discovery, delivery, fenced claim and advisory submission using the actual restricted runtime role.
+# Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Fix JSONB path escaping and verify durable Steward response provenance.
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -921,6 +923,84 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
                 f"{self.schema}.external_reasoning_exchanges",
                 f"{self.schema}.schema_migrations")).fetchone()
         self.assertEqual(result, (True, False, True, False, False))
+
+    def test_steward_comms5_review_path_is_fenced_routed_and_audited_without_dispatch(self):
+        receipt = self._submit(idem="comms5-steward-review")
+        subject_digest = "e" * 64
+        self.admin.execute(self.sql.SQL("""UPDATE {}.external_reasoning_exchanges
+            SET request_payload=jsonb_set(request_payload,'{{review_subject}}',
+                %s::jsonb,true) WHERE request_id=%s""").format(
+                    self.sql.Identifier(self.schema)),
+            (json.dumps({"schema_version": "rv.grace.proposal-review-subject.v1",
+                "subject_id": str(uuid4()), "revision": 2, "sha256": subject_digest,
+                "proposal": {"summary": "synthetic", "steps": []}}), receipt.request_id))
+
+        steward = "steward:camrui"
+        with self.ledger.db.cursor() as cur:
+            cur.execute("SET ROLE riverview_core")
+        try:
+            rows = self.exchange.steward_eligible_requests(principal_id=steward, limit=5)
+            row = next(item for item in rows if str(item["request_id"]) == receipt.request_id)
+            self.assertEqual(row["provider_id"], PROVIDER)
+            self.assertEqual(row["delivery_state"], "awaiting_delivery")
+            delivery = self.exchange.begin_delivery(receipt.request_id, row["provider_id"],
+                owner_id=steward, lease_seconds=30)
+            self.assertIsNotNone(delivery)
+            self.assertEqual(self.exchange.mark_delivered(receipt.request_id,
+                receipt.correlation_id, row["provider_id"], owner_id=steward,
+                delivery_token=delivery.claim_token, fence=delivery.fence),
+                "awaiting_external_claim")
+            claim = self.exchange.steward_claim(receipt.request_id,
+                receipt.correlation_id, principal_id=steward, lease_seconds=60)
+            with self.assertRaises(ExchangeConflict):
+                self.exchange.claim(receipt.request_id, receipt.correlation_id,
+                    provider_id=PROVIDER, principal_id=PROVIDER)
+            with self.assertRaises(ExchangeUnauthorized):
+                self.exchange.steward_claim(receipt.request_id, receipt.correlation_id,
+                    principal_id=PROVIDER)
+            response = self._response(receipt)
+            misrouted = dict(response, provider_id="untrusted:other")
+            with self.assertRaises(ExchangeUnauthorized):
+                self.exchange.steward_submit_response(receipt.request_id,
+                    receipt.correlation_id, principal_id=steward,
+                    claim_token=claim.claim_token, fence=claim.fence,
+                    idempotency_key="wrong-provider-route", response=misrouted,
+                    review_subject_sha256=subject_digest)
+            with self.assertRaises(ExchangeUnauthorized):
+                self.exchange.steward_submit_response(receipt.request_id,
+                    receipt.correlation_id, principal_id=steward,
+                    claim_token=claim.claim_token, fence=claim.fence,
+                    idempotency_key="wrong-review-digest", response=response,
+                    review_subject_sha256="0" * 64)
+            response_digest = self.exchange.steward_submit_response(receipt.request_id,
+                receipt.correlation_id, principal_id=steward,
+                claim_token=claim.claim_token, fence=claim.fence,
+                idempotency_key="comms5-steward-response", response=response,
+                review_subject_sha256=subject_digest)
+            status = self.exchange.steward_status(receipt.request_id,
+                receipt.correlation_id, principal_id=steward)
+            self.assertEqual(status["delivery_state"], "response_received")
+            self.assertEqual(status["review_subject_sha256"], subject_digest)
+            self.assertEqual(status["response_sha256"], response_digest)
+            self.assertEqual(status["response_provenance"]["reviewer_kind"], "steward")
+            self.assertEqual(status["response_provenance"]["reviewer_id"], steward)
+        finally:
+            with self.ledger.db.cursor() as cur:
+                cur.execute("RESET ROLE")
+
+        event_actors = [event["actor_id"] for event in self.exchange.events(
+            receipt.request_id, receipt.correlation_id)]
+        self.assertIn(steward, event_actors)
+        self.assertNotIn("provider:" + PROVIDER, event_actors)
+        objective = self.exchange.ledger.db.execute(
+            "SELECT status FROM " + self.schema + ".grace_objectives WHERE objective_id=%s",
+            (self.objective,)).fetchone()["status"]
+        self.assertEqual(objective, "GROUNDED")
+        dispatched = self.exchange.ledger.db.execute(
+            "SELECT count(*) FROM " + self.schema + ".grace_objective_events "
+            "WHERE objective_id=%s AND event_type='work_order.dispatched'",
+            (self.objective,)).fetchone()["count"]
+        self.assertEqual(dispatched, 0)
 
     def test_idempotency_claim_fencing_and_response_correlation(self):
         receipt = self._submit(idem="same-request")

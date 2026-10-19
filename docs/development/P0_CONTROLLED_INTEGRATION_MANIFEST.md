@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/P0_CONTROLLED_INTEGRATION_MANIFEST.md
 Component: P0-CONTROLLED-INTEGRATION
-File Revision: 1.0.6
+File Revision: 1.0.7
 Status: Disposable integration manifest; no merge/deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record exact integration parent, published component heads, ownership, order and verification state for P0 Grace-to-ChatGPT review
@@ -276,3 +276,17 @@ W1 has independently verified the W2 DB-derived trace; C1's exact-head integrate
 readiness result is still pending. The PR remains draft pending C1 handoff and final
 review; no live browser/provider wake, credential/grant change, deployment or main
 merge is authorized or claimed.
+
+
+## C4 PR #150 reconciliation — 2026-10-19
+
+Steward authorization: issue #120 comment 6257187443. The integration started at
+`e6fa5758df1c23bf5058afa60f0d6b3ac6e6bebf`; PR #130 and W2 PR #140 head
+`5df1705da353c7acc0ffc38c95b7a7f39c462954` were already included. Only C4 PR #150
+head `e9495343e5895f415b86e4699e030b502273469d` was added. C3 subject-digest checks
+and C4 Steward exchange operations/tests are both retained. Canonical graph
+validation passes: 22 graphs / 575 nodes. Focused Windows verification passed 53
+tests / 20 PostgreSQL skips. Local full-suite verification was environment-limited
+(625 discovered, 3 failures, 70 errors, 216 skipped); a hosted PostgreSQL run on
+the exact published head remains the acceptance gate. No deployment or production
+operation was performed.
