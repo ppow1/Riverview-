@@ -1,12 +1,13 @@
 """Comms5 Camrui compatibility adapter tests.
 
-File Revision: 1.1.6
+File Revision: 1.1.7
 Component: COMMS5-CAMRUI-ADAPTER-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify authenticated internal operation routing for full objective status and submission listing.
 Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify transport probes return caller and dashboard correlation evidence and reject unauthenticated direct use.
 Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify the Steward queue request uses the attested dashboard operation bridge and preserves its truthful queued state.
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Verify the 25-tool catalog, preserved legacy catalog, and authenticated reasoning bridge dispatch.
+Changed: 2026-10-19 UTC | RV-C1-COMMS5-NAMESPACE-001 | Cover connector-qualified names mapping to canonical tools without changing the catalog or authorization path.
 """
 
 import hashlib
@@ -77,6 +78,62 @@ class Comms5MCPTests(unittest.TestCase):
             "name": "reasoning_exchange_status", "arguments": args}), principal="provider")
         self.assertTrue(denied["result"]["isError"])
         self.assertEqual(denied["result"]["structuredContent"]["status"], "NOT_AUTHORIZED")
+
+    def test_registered_connector_namespace_maps_to_canonical_tools_and_preserves_authority(self):
+        class WorkBackend:
+            supported_tools = {"comms5_form_and_queue_work"}
+
+            def __init__(self):
+                self.calls = []
+
+            def call_authenticated(self, name, arguments, *, principal=None):
+                if principal != "steward":
+                    raise PermissionError("Steward required")
+                self.calls.append((name, arguments, principal))
+                return {"status": "queued_for_cme", "executed": True,
+                        "work_order_created": False, "dispatched": False}
+
+        backend = WorkBackend()
+        application = Comms5Application("x" * 48, backend=backend)
+        listed = application.handle(rpc("tools/list"))["result"]["tools"]
+        self.assertEqual(len(listed), 25)
+        self.assertTrue(all(not tool["name"].startswith("riverview_comms_1_1.")
+                            for tool in listed))
+
+        capabilities = application.handle(rpc("tools/call", {
+            "name": "riverview_comms_1_1.comms5_capabilities", "arguments": {},
+        }))
+        self.assertEqual(capabilities["result"]["structuredContent"]["contract"],
+                         "riverview-comms-contract:5.0")
+
+        arguments = {
+            "objective_id": "objective:test-existing", "stage_id": "step:test-s2",
+            "authority_id": "grant:test-existing", "idempotency_key": "queue:test-s2",
+            "explicit_steward_confirmation": True, "client_id": "test-client",
+            "client_type": "integration-test", "client_name": "Comms5 alias regression",
+        }
+        queued = application.handle(rpc("tools/call", {
+            "name": "riverview_comms_1_1.comms5_form_and_queue_work",
+            "arguments": arguments,
+        }), principal="steward")
+        self.assertEqual(queued["result"]["structuredContent"]["status"], "queued_for_cme")
+        self.assertEqual(backend.calls, [("comms5_form_and_queue_work", arguments, "steward")])
+
+        denied = application.handle(rpc("tools/call", {
+            "name": "riverview_comms_1_1.comms5_form_and_queue_work",
+            "arguments": arguments,
+        }), principal="resident:grace")
+        self.assertTrue(denied["result"]["isError"])
+        self.assertEqual(denied["result"]["structuredContent"]["status"], "NOT_AUTHORIZED")
+        self.assertEqual(len(backend.calls), 1)
+
+        for unknown in ("other_plugin.comms5_capabilities",
+                        "riverview_comms_1_1.no_such_tool"):
+            with self.subTest(name=unknown):
+                rejected = application.handle(rpc("tools/call", {
+                    "name": unknown, "arguments": {},
+                }))
+                self.assertEqual(rejected["error"]["message"], "Unknown tool")
 
     def test_help_and_describe_are_real_read_only_operations(self):
         application = app()
