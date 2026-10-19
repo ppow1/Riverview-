@@ -2,8 +2,10 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.28
+# Revision: 1.3.29
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Enforce Steward/global or exact account-owned conversation scope for objective projections
+# Changed: 2026-10-19 UTC | RV-GRACE-REREVIEW-OPERATOR-CALLER-001 | Add authenticated exact-objective rereview request route through the existing pipeline.
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Accept typed repository target provenance in source-change proposal intake.
 # Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Filter durable Engineering progress by authenticated conversation origin
 # Purpose: Serve account-authenticated operational, proposal, capability and snapshot APIs
@@ -81,6 +83,7 @@ _NOTICE_WRITE = re.compile(
 _OBJECTIVE_DETAIL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})$")
 _OBJECTIVE_PROPOSAL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/proposal$")
 _OBJECTIVE_CANCEL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/cancel$")
+_OBJECTIVE_REREVIEW = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/result-rereview$")
 _CONVERSATION_ID = re.compile(r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})$")
 _CONVERSATION_SESSION = "/api/v1/resident/conversation-session"
 _CONVERSATION_COOKIE = "rv_grace_authority"
@@ -578,6 +581,8 @@ def make_handler():
                                   if self.command == "POST" else None)
             objective_cancel = (_OBJECTIVE_CANCEL.fullmatch(parsed.path)
                                 if self.command == "POST" else None)
+            objective_rereview = (_OBJECTIVE_REREVIEW.fullmatch(parsed.path)
+                                  if self.command == "POST" else None)
             account_decision = (_ACCOUNT_ENROLLMENT_DECISION.fullmatch(parsed.path)
                                 if self.command == "POST" else None)
             account_user = (_ACCOUNT_USER_PATH.fullmatch(parsed.path)
@@ -619,6 +624,7 @@ def make_handler():
                 return
             if (self.command not in {"GET", "HEAD"} and not notification_write
                     and not objective_submit and not objective_proposal and not objective_cancel
+                    and not objective_rereview
                     and not conversation_send and not conversation_stream_send and not conversation_session and not public_auth
                     and not conversation_work_order and not proposal_create
                     and not proposal_revision and not proposal_decision
@@ -1459,6 +1465,44 @@ def make_handler():
                                     "retrieval_complete": result["evidence"].get("retrieval_complete")}}, request_id)
                         else:
                             self._error(503, "objective_grounding_unavailable", request_id)
+                elif objective_rereview:
+                    pipeline = self.server._objective_pipeline
+                    if pipeline is None:
+                        self._error(503, "objective_intake_not_initialized", request_id)
+                        return
+                    if self.headers.get("Transfer-Encoding") or not self.headers.get("Content-Length", "").isdigit():
+                        self._error(400, "objective_request_length_required", request_id)
+                        return
+                    length = int(self.headers["Content-Length"])
+                    if not 1 <= length <= _MAX_OBJECTIVE_BODY:
+                        self._error(413, "objective_request_too_large", request_id)
+                        return
+                    try:
+                        data = json.loads(self.rfile.read(length))
+                        required = {"completion_cycle", "evidence_revision", "evidence", "idempotency_key"}
+                        if not isinstance(data, dict) or set(data) != required:
+                            raise ValueError("invalid review request shape")
+                        result = pipeline.request_conversation_result_rereview(
+                            objective_rereview.group(1), data["completion_cycle"],
+                            evidence_revision=data["evidence_revision"], evidence=data["evidence"],
+                            credential=self.headers.get("X-Riverview-Authority", ""),
+                            idempotency_key=data["idempotency_key"])
+                        self._json(202, {"schema_version": "rv.grace.result-review-request.v1",
+                            "status": "reused" if result["reused"] else "requested",
+                            "objective_id": objective_rereview.group(1), **result}, request_id)
+                    except (UnicodeDecodeError, json.JSONDecodeError, ValueError, TypeError):
+                        self._error(400, "invalid_objective_review_request", request_id)
+                    except Exception as exc:
+                        from riverview_core.resident_execution import ObjectiveNotAuthorized, ObjectiveStateError
+                        from riverview_core.institutional_authority import GrantCheckUnavailable, GrantDenied
+                        if isinstance(exc, (ObjectiveNotAuthorized, GrantDenied)):
+                            self._error(403, "objective_review_not_authorized", request_id)
+                        elif isinstance(exc, GrantCheckUnavailable):
+                            self._error(503, "authority_unavailable", request_id)
+                        elif isinstance(exc, ObjectiveStateError):
+                            self._error(409, "objective_review_rejected", request_id)
+                        else:
+                            self._error(503, "objective_review_unavailable", request_id)
                 elif objective_proposal or objective_cancel:
                     pipeline = self.server._objective_pipeline
                     if pipeline is None:

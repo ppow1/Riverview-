@@ -2,12 +2,13 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.19
-Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Integrate generation-aware review recovery with active operational diagnostics.
+File Revision: 1.1.20
+Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-DIAGNOSTICS | Document sanitized response-shape diagnostics for invalid 80B result reviews.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-ARTIFACT-STATUS | Add diagnostic and recovery guidance for the bounded artifact-review availability contract.
 Changed: 2026-10-19 UTC | RV-C1-GRACE-RESULT-RECEIPT-001 | Diagnose and safely recover missing or mismatched publisher cycle metadata
 Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Diagnose exact-text verifier false negatives, preserve verifier evidence, and route the digest-checked artifact to Grace for substantive acceptance or rework decision.
+Changed: 2026-10-19 UTC | RV-GRACE-REREVIEW-OPERATOR-CALLER-001 | Document authenticated rereview request, audit receipt, failures, and safe resume.
 Changed: 2026-10-19 UTC | RV-GRACE-REVIEW-GENERATIONS-001 | Diagnose bounded evidence revision generations and recover the durable review outbox safely
 Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Document source-worker enrollment, diagnostics, and reversible disablement.
 Purpose: Diagnose and safely resume the persistent Grace execution service
@@ -51,6 +52,51 @@ psql "$RIVERVIEW_READONLY_DSN" -X -v ON_ERROR_STOP=1 -c "SELECT service_id,statu
 ```
 
 Expected: `ActiveState=active`, `SubState=running`, a recent `last_heartbeat_at`, and `status=healthy`. The observed heartbeat is stale after the configured dashboard threshold; no row means `not_initialized`, not healthy. Logs contain failure classes and durable IDs only, never bearer credentials, objective request bodies, or artifact contents.
+
+## Request one verified-result rereview generation
+
+The supported write path is the existing authenticated dashboard API:
+
+```http
+POST /api/v1/objectives/{objective_id}/result-rereview
+Authorization: Bearer <existing dashboard API credential>
+X-Riverview-Authority: <existing Steward objective.submit credential>
+Content-Type: application/json
+
+{"completion_cycle":1,"evidence_revision":"steward-evidence-rev-1","evidence":["One bounded, newly verified evidence item."],"idempotency_key":"grace-rereview:<objective-id>:cycle-1:revision-1"}
+```
+
+Use the existing approved authenticated client and protected credentials; do
+not put credential bytes in shell history, command arguments, issue comments,
+or logs. Immediately before the request, read the objective projection and
+confirm the exact objective ID, accepted verifier completion cycle, and current
+`objective.submit` grant on that objective's `scope_ref`. Evidence must be new,
+bounded, and accurately described; the caller chooses a new stable evidence
+revision and idempotency key. Do not replay a key with changed evidence.
+
+Expected success is HTTP `202` with schema
+`rv.grace.result-review-request.v1`, a generation number, evidence digest, and
+`reused=false`. HTTP `202` means the durable request was accepted; it does not
+mean Grace published a typed review or created s2. Confirm exactly one
+`conversation.result_review_requested` event with the expected actor, scope,
+completion cycle, revision, digest, and idempotency key. Then observe the
+persistent Grace service consume and acknowledge the same generation. A later
+continuation is valid only if the typed decision names the exact proposed s2
+step and the unchanged verification, scope, binding, and `assignment.create`
+checks pass; the API itself never dispatches.
+
+| Outcome | Meaning | Safe next action |
+| --- | --- | --- |
+| `403 objective_review_not_authorized` | Missing/revoked/wrong-scope `objective.submit` | Recheck grant ID and scope through the authorized authority view; do not substitute another credential. |
+| `409 objective_review_rejected` | Objective, prior generation, or key state conflicts | Read durable objective events and review receipts; preserve the existing decision and choose no retry until state is understood. |
+| `400 invalid_objective_review_request` | Shape, revision, evidence, or idempotency input is invalid | Correct the bounded request; use a new key only for genuinely new evidence. |
+| `503 authority_unavailable` / `objective_review_unavailable` | Authority or pipeline could not safely complete | Leave objective unchanged; retry the exact same request and key only after service health recovers. |
+| HTTP result missing/uncertain | Client may have lost the response after commit | Read the durable request event. If it exists, do not submit again; if absent, resend only the exact same body/key after verifying no event was committed. |
+
+The request event is the audit receipt; the follow-up typed review receipt and
+continuation event are separate evidence. Never call the Python pipeline
+directly, write objective tables, use `form_and_queue_work`, or create an
+assignment as a substitute for this route.
 
 ## Symptoms and recovery
 

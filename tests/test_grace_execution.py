@@ -2,10 +2,11 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.36
-# Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Integrate PostgreSQL qualification and active production regression coverage.
+# Revision: 1.0.37
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-RESULT-RECEIPT-001 | Exercise PostgreSQL outbox acknowledgement when publisher omits completion_cycle
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Authenticate objective detail integration read with a Steward account session
+# Changed: 2026-10-19 UTC | RV-GRACE-REREVIEW-OPERATOR-CALLER-001 | Verify authenticated HTTP rereview persistence, scope denial, idempotency, and no dispatch side effect.
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Cover mixed-capability claims, verification routing, and isolated worker failure behavior.
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Cover persistent proposal failure recording and retry limits.
 # Purpose: Exercise objective-to-authorized-worker-to-independent-verification pipeline
@@ -1690,6 +1691,39 @@ class GraceExecutionTests(unittest.TestCase):
             self.assertEqual(projected["assignment_state"], "completed")
             self.assertEqual(projected["verification"]["decision"], "ACCEPTED")
             self.assertTrue(projected["artifact"]["sha256"])
+
+            # The operator-facing route must use the exact objective.submit
+            # bearer and only append a bounded rereview request. It never dispatches.
+            self.pipeline.record_conversation_result_published(objective_id, {
+                "request_id": str(uuid4()), "provider_id": "provider:test",
+                "served_model": "model:test", "implementation_id": "implementation:test",
+                "completion_cycle": "1", "review_decision": "ADDITIONAL_EVIDENCE_REQUIRED"})
+            rereview_path = f"/api/v1/objectives/{objective_id}/result-rereview"
+            rereview_data = {"completion_cycle": 1, "evidence_revision": "steward-evidence-rev-1",
+                "evidence": ["Steward supplied one new, bounded evidence item."],
+                "idempotency_key": "grace-rereview:" + objective_id + ":cycle-1:revision-1"}
+            rereview_body = json.dumps(rereview_data, separators=(",", ":")).encode()
+            denied_rereview, _ = request("POST", rereview_path, rereview_body,
+                authority=secrets.token_urlsafe(36))
+            self.assertEqual(denied_rereview, 403)
+            authorized_rereview, rereview_receipt = request("POST", rereview_path,
+                rereview_body, authority=self.credentials["steward"])
+            self.assertEqual(authorized_rereview, 202)
+            self.assertEqual(rereview_receipt["schema_version"], "rv.grace.result-review-request.v1")
+            self.assertEqual(rereview_receipt["review_generation"], 2)
+            self.assertFalse(rereview_receipt["reused"])
+            replay_status, replay_receipt = request("POST", rereview_path,
+                rereview_body, authority=self.credentials["steward"])
+            self.assertEqual(replay_status, 202)
+            self.assertTrue(replay_receipt["reused"])
+            changed_data = {**rereview_data,
+                "evidence": ["Changed content cannot reuse the same idempotency key."]}
+            changed_status, _ = request("POST", rereview_path,
+                json.dumps(changed_data, separators=(",", ":")).encode(),
+                authority=self.credentials["steward"])
+            self.assertEqual(changed_status, 409)
+            self.assertIsNone(self.pipeline.dispatchable_step(objective_id))
+            self.assertEqual(self.pipeline.get_objective(objective_id)["assignment_id"], assignment_id)
             status_projection, details = request("GET", "/api/v1/status")
             self.assertEqual(status_projection, 200)
             self.assertEqual(details["grace_execution"]["status"], "healthy")

@@ -2799,7 +2799,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.56",
+      "graph_revision": "1.0.57",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -2854,8 +2854,7 @@
         "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
         "docs/components/GRACE_PERSISTENT_EXECUTION.md",
         "docs/standards/COMPONENT_DEFINITION_OF_DONE.md",
-        "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
-        "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md"
       ],
       "verification_evidence": [
         "tests/test_grace_conversation_result.py",

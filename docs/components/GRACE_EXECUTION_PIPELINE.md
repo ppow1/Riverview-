@@ -2,11 +2,12 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.22
-Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Reconcile bounded review generations with active production behavior and exact-scope authorization.
+File Revision: 1.1.23
+Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-ARTIFACT-STATUS | Document the sanitized optional artifact availability field in the bound 80B result-review contract.
 Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Assign artifact integrity, provenance, authorization and structure to the independent verifier; pass the actual digest-checked artifact and immutable rejection evidence to Grace for substantive acceptance/rework decisions.
 Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Specify latest-rejection review, lease-fenced same-assignment retry, verifier selection and conversation progress projection.
+Changed: 2026-10-19 UTC | RV-GRACE-REREVIEW-OPERATOR-CALLER-001 | Specify the authenticated audited dashboard entry point for evidence revision requests.
 Changed: 2026-10-19 UTC | RV-GRACE-REVIEW-GENERATIONS-001 | Add bounded durable re-review generations after additional-evidence decisions
 Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Define immutable source-target provenance and capability-fenced concurrent owner-session execution.
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
@@ -49,6 +50,24 @@ restart behavior, and the bounded-retry dispatch policy are specified in
 [`GRACE_PERSISTENT_EXECUTION.md`](GRACE_PERSISTENT_EXECUTION.md). Diagnosis and recovery
 steps are in [`GRACE_EXECUTION_COOKBOOK.md`](GRACE_EXECUTION_COOKBOOK.md). Neither document
 claims live installation or Camrui commissioning.
+
+## Authorized verified-result rereview request
+
+The supported operator entry point is the authenticated dashboard route
+`POST /api/v1/objectives/{objective_id}/result-rereview`. It requires the normal
+dashboard bearer plus the existing `X-Riverview-Authority` credential, then
+passes the exact path objective ID, completion cycle, evidence revision,
+bounded evidence list, and caller idempotency key to
+`request_conversation_result_rereview`. The pipeline rechecks the exact
+objective-scoped `objective.submit` grant and accepted verifier completion;
+the HTTP handler does not call dispatch. A successful response returns the
+durable review generation, evidence digest, and whether the idempotent request
+was reused. `403` means authority failed, `409` means objective/generation or
+idempotency state rejected the request, `400` means bounded input is invalid,
+and `503` means authority or pipeline state is unavailable. The append-only
+`conversation.result_review_requested` objective event is the audit receipt;
+its actor, scope, revision, digest, generation, and idempotency key support
+later correlation.
 
 **Source:** src/riverview_core/resident_execution/ and the existing assignment, scheduler, worker, and verifier modules.
 
