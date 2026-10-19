@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md
 Component: P0-CONTROLLED-INTEGRATION
-Revision: 1.0.8
+Revision: 1.0.9
 Status: Offline integration evidence; no merge or deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record W3 branch assembly and isolated verification
@@ -189,5 +189,8 @@ for a bad Steward digest, while the C3 provider proposal path expects
 The process-graph test also found that the index checksum had captured the Windows
 CRLF working copy of the graph schema, while Git stores LF. The worktree copy was
 restored to the exact tracked LF bytes and the sidecar now hashes that exact blob;
-the CRLF predecessor was retained and recorded. Latest graph and diff checks pass;
-the exact-head PostgreSQL workflow must rerun before acceptance.
+the CRLF predecessor was retained and recorded. A follow-up scan found 37 indexed
+JSON checksum entries, including all 22 workflow graphs, captured from Windows
+CRLF working copies. Their SHA-256 values and sizes now match the exact committed
+Git blobs; JSON payloads are unchanged. Latest graph and diff checks pass; the
+exact-head PostgreSQL workflow must rerun before acceptance.
