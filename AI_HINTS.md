@@ -1,6 +1,6 @@
 # Riverview~ AI Engineering Hints
 
-**Document Revision:** 1.0.4  
+**Document Revision:** 1.0.5  
 **Status:** Working agent guidance  
 **Date:** 2026-10-16  
 **Component:** ENG-AGENT-GUIDANCE  
@@ -20,6 +20,10 @@
 9. Review the diff, verify only intended files changed, and confirm predecessor restoration remains possible. Do not commit, push, deploy, or alter production data unless the task authorizes it.
 10. End with a precise handoff: files and revisions changed, predecessor locations, test evidence, commit/deployment status, outstanding problems, and next action.
 
+
+## Machine access and operational recovery
+
+**Before requesting SSH settings or probing hosts**, read [the canonical Riverview machine-access index](docs/operations/network/RIVERVIEW_MACHINE_ACCESS.md). It records Camrui, OctoMiner1, OctoMiner2, Windows development machine, their LAN addresses, verified aliases, and recovery links. Follow linked operational runbooks and historical records; distinguish verified details from pending inventory items.
 
 ## Institutional proposal authoring
 
@@ -56,6 +60,8 @@ If the task is to suggest, formalize, submit, review, or track a Riverview propo
 Before editing, briefly report: repository/branch/HEAD, applicable standards, task scope, relevant code/dependencies, predecessor-preservation plan, and tests to run. If the task is purely informational, do not modify files.
 
 ## Revision history
+
+- **1.0.5 — 2026-10-19:** Add direct machine-access index link for Camrui, OctoMiner1, OctoMiner2 and development workstation. Predecessor: `docs/history/AI_HINTS_rev1.0.4.md`.
 
 - **1.0.4 — 2026-10-16:** Link proposal authoring and submission playbook; clarify Steward authorization boundary. Predecessor: `docs/history/AI_HINTS_rev1.0.3.md`.
 
