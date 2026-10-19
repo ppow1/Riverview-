@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/build_camrui_package.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Build a self-contained package from an exact committed Git revision
 # Execution Model: Request-driven engineering utility
 # Observability: Source commit, file checksums and archive SHA-256
@@ -9,11 +9,13 @@
 # Authority: Writes an absent output outside checkout; excludes credentials, Git metadata and predecessor archives
 # Changed: 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Allow one reviewed Bash runner by exact path and shebang
 # Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PACKAGING | Exclude tracked .riverview-backups artifacts from release archives
+# Changed: 2026-10-19 UTC | RV-W3-INTEGRATED-RELEASE-BLOCKER-RESOLUTION | Pin gzip metadata for reproducible full-source release archives.
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: tests/test_runtime_baseline.py
 # History: docs/history/RV-M1.1-002/rev1.0.0/scripts/build_camrui_package.py
 import argparse
 import hashlib
+from gzip import GzipFile
 import io
 from pathlib import Path
 import subprocess
@@ -91,11 +93,12 @@ def build(root, output):
         checksums.append(hashlib.sha256(content).hexdigest() + "  " + name)
     files.append(("PACKAGE_SHA256SUMS", ("\n".join(checksums) + "\n").encode(), 0o644))
     with output.open("xb") as target:
-        with tarfile.open(fileobj=target, mode="w:gz") as archive:
-            for name, content, mode in files:
-                member = tarfile.TarInfo(name)
-                member.size, member.mode = len(content), mode
-                archive.addfile(member, io.BytesIO(content))
+        with GzipFile(filename="", mode="wb", fileobj=target, mtime=0) as compressed:
+            with tarfile.open(fileobj=compressed, mode="w") as archive:
+                for name, content, mode in files:
+                    member = tarfile.TarInfo(name)
+                    member.size, member.mode = len(content), mode
+                    archive.addfile(member, io.BytesIO(content))
     return commit, hashlib.sha256(output.read_bytes()).hexdigest()
 
 

@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:comms5:camrui-adapter",
-  "graph_revision": "1.0.14",
+  "graph_revision": "1.0.16",
   "component_id": "COMMS5-CAMRUI-ADAPTER",
   "workflow_id": "comms5.camrui.compatibility.v1",
   "diagram_order": 91,
@@ -18,13 +18,17 @@
     "src/riverview_core/resident_execution/pipeline.py",
     "src/riverview_core/status_dashboard/server.py",
     "src/riverview_core/assignment_scheduler/scheduler.py",
-    "src/riverview_core/resident_execution/migrations/0012_resource_selection_policy.sql"
+    "src/riverview_core/resident_execution/migrations/0012_resource_selection_policy.sql",
+    "src/riverview_core/resident_execution/external_reasoning.py",
+    "src/riverview_core/resident_execution/external_reasoning_mcp.py"
   ],
   "documentation_references": [
     "docs/components/COMMS5_CAMRUI_DEPLOYMENT.md",
     "docs/components/COMMS5_CAMRUI_MIGRATION.md",
     "docs/components/COMMS5_OAUTH_TROUBLESHOOTING.md",
-    "docs/operations/RIVERVIEW_MACHINE_CONNECTIONS_AND_COMMS5_RECOVERY_2026-10-17.md"
+    "docs/operations/RIVERVIEW_MACHINE_CONNECTIONS_AND_COMMS5_RECOVERY_2026-10-17.md",
+    "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
+    "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
   ],
   "verification_evidence": [
     "tests/test_comms5_mcp.py",
@@ -32,7 +36,8 @@
     "tests/test_comms5_current_runtime.py",
     "tests/test_proposal_work_order_lifecycle.py",
     "tests/test_comms5_resource_policy_postgres.py",
-    "tests/test_external_reasoning_exchange.py"
+    "tests/test_external_reasoning_exchange.py",
+    "tests/test_external_reasoning_mcp.py"
   ],
   "nodes": [
     {
@@ -69,9 +74,9 @@
     },
     {
       "id": "rv:comms5:camrui-adapter:catalog",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "process",
-      "label": "Serve the preserved 21-tool historical MCP catalog",
+      "label": "Serve the preserved 21-tool historical catalog plus four authenticated durable exchange tools (25 total)",
       "source_references": [
         "src/riverview_core/comms5/server.py",
         "src/riverview_core/comms5/tool_catalog.json"
@@ -348,6 +353,45 @@
       "verification_evidence": [
         "tests/test_comms5_resource_policy_postgres.py"
       ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:steward-reasoning-bridge",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Expose four durable advisory exchange operations through existing authenticated Comms5 Steward identity",
+      "source_references": [
+        "src/riverview_core/comms5/server.py",
+        "src/riverview_core/comms5/dashboard_backend.py",
+        "src/riverview_core/resident_execution/comms5_operations.py",
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/COMMS5_CAMRUI_MIGRATION.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md"
+      ],
+      "verification_evidence": [
+        "tests/test_comms5_mcp.py",
+        "tests/test_external_reasoning_mcp.py",
+        "tests/test_external_reasoning_exchange.py"
+      ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:steward-review-advisory-boundary",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Persist Steward review under request correlation, provider route, lease fence and subject digest; advisory cannot approve or dispatch",
+      "source_references": [
+        "src/riverview_core/resident_execution/external_reasoning.py",
+        "src/riverview_core/resident_execution/external_reasoning_mcp.py"
+      ],
+      "documentation_references": [
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md"
+      ],
+      "verification_evidence": [
+        "tests/test_external_reasoning_exchange.py",
+        "tests/test_external_reasoning_mcp.py"
+      ]
     }
   ],
   "edges": [
@@ -452,6 +496,22 @@
       "to": "rv:comms5:camrui-adapter:steward-cme-queue-request",
       "type": "runtime_transition",
       "label": "successor remains queued for existing Grace/CME dispatcher; no work executes in MCP handler"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:catalog",
+      "to": "rv:comms5:camrui-adapter:steward-reasoning-bridge",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:steward-reasoning-bridge",
+      "to": "rv:comms5:camrui-adapter:steward-review-advisory-boundary",
+      "type": "verification"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:steward-reasoning-bridge",
+      "to": "rv:comms5:camrui-adapter:current-runtime-operation-denial",
+      "type": "diagnostic_branch",
+      "label": "missing identity, unavailable ledger, expiry, or fence conflict returns a bounded failure"
     }
   ]
 }

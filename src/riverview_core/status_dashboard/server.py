@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.25
+# Revision: 1.3.26
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Accept typed repository target provenance in source-change proposal intake.
 # Purpose: Serve account-authenticated operational, proposal, capability and snapshot APIs
 # Execution Model: Request-driven, independent of CME assignment execution
@@ -11,6 +11,7 @@
 # Authority: Dashboard credential protects views; objective API also requires exact objective.submit grant
 # Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Add capability registry and canonical workflow inventory APIs while preserving PR #65 proposal routes
 # Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Route authenticated current-runtime Comms5 proposal/status operations through the existing service layer.
+# Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Attach the isolated durable exchange adapter to the existing authenticated Comms5 internal operation route.
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-ERROR-SEMANTICS | Preserve conflict/dependency failure distinction
 # Changed: 2026-10-11 UTC | RV-M3.2-001 | Enforce the notification-specific maximum page size
 # Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Add exact-grant resident conversation API and restart reconciliation
@@ -233,7 +234,8 @@ class _BoundedHTTPServer(HTTPServer):
 
     def __init__(self, address, handler, *, token, projection, notification_service,
                  objective_pipeline, conversation_service, account_auth_service,
-                 permission_store, static_dir, proposal_registry):
+                 permission_store, static_dir, proposal_registry,
+                 steward_review_exchange=None):
         self._token = token
         self._projection = projection
         self._notification_service = notification_service
@@ -247,10 +249,13 @@ class _BoundedHTTPServer(HTTPServer):
             from riverview_core.resident_execution.proposal_lifecycle import ProposalLifecycle
             self._proposal_lifecycle = ProposalLifecycle(proposal_registry, objective_pipeline)
         self._comms5_operations = None
-        if proposal_registry is not None:
+        if proposal_registry is not None or steward_review_exchange is not None:
             from riverview_core.resident_execution.comms5_operations import Comms5Operations
+            from riverview_core.resident_execution.external_reasoning_mcp import StewardReviewBridge
             self._comms5_operations = Comms5Operations(
-                proposal_registry, self._proposal_lifecycle, objective_pipeline)
+                proposal_registry, self._proposal_lifecycle, objective_pipeline,
+                steward_review_bridge=(StewardReviewBridge(steward_review_exchange)
+                    if steward_review_exchange is not None else None))
         self._static_dir = Path(static_dir)
         self._slots = threading.BoundedSemaphore(_MAX_THREADS)
         super().__init__(address, handler)
@@ -710,10 +715,18 @@ def make_handler():
                             ProposalConflict, ProposalNotFound, ProposalValidationError)
                         from riverview_core.resident_execution.pipeline import ObjectiveNotAuthorized
                         from riverview_core.resident_execution.comms5_operations import Comms5OperationNotFound
+                        from riverview_core.resident_execution.external_reasoning import (
+                            ExchangeConflict, ExchangeNotFound, ExchangeUnauthorized)
                         if isinstance(exc, ProposalNotFound):
                             self._error(404, "proposal_not_found", request_id)
                         elif isinstance(exc, Comms5OperationNotFound):
                             self._error(404, "objective_not_found", request_id)
+                        elif isinstance(exc, ExchangeNotFound):
+                            self._error(404, "reasoning_exchange_not_found", request_id)
+                        elif isinstance(exc, ExchangeUnauthorized):
+                            self._error(403, "reasoning_exchange_not_authorized", request_id)
+                        elif isinstance(exc, ExchangeConflict):
+                            self._error(409, "reasoning_exchange_conflict", request_id)
                         elif isinstance(exc, ObjectiveNotAuthorized):
                             self._error(403, "objective_submission_not_authorized", request_id)
                         elif isinstance(exc, ProposalConflict):
@@ -1724,7 +1737,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                  projection: DashboardProjection, static_dir: str | Path | None = None,
                  notification_service=None, objective_pipeline=None,
                  conversation_service=None, account_auth_service=None,
-                 permission_store=None, proposal_registry=None):
+                 permission_store=None, proposal_registry=None,
+                 steward_review_exchange=None):
         if host not in {"127.0.0.1", "::1"}:
             raise ValueError("dashboard bind host must be a loopback IP literal")
         if not isinstance(port, int) or not 8700 <= port <= 8799:
@@ -1738,7 +1752,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                          conversation_service=conversation_service,
                          account_auth_service=account_auth_service,
                          permission_store=permission_store,
-                         static_dir=static_dir, proposal_registry=proposal_registry)
+                         static_dir=static_dir, proposal_registry=proposal_registry,
+                         steward_review_exchange=steward_review_exchange)
 
 
 def _release_commit() -> str:
@@ -1861,6 +1876,8 @@ def main():
     repository_root = _knowledge_root()
     pinned_commit = os.environ.get("RIVERVIEW_SOURCE_COMMIT", _release_commit())
     objective_ledger = None
+    steward_review_ledger = None
+    steward_review_exchange = None
     objective_pipeline = None
     conversation_service = None
     conversation_store = None
@@ -1893,6 +1910,29 @@ def main():
                 AuthorizedAssignmentIntake(objective_ledger, objective_authorizer), knowledge)
     except psycopg.Error:
         objective_pipeline = None
+    try:
+        with psycopg.connect(dsn, connect_timeout=2) as exchange_probe, exchange_probe.cursor() as cur:
+            cur.execute("SELECT to_regclass(%s) IS NOT NULL AND to_regclass(%s) IS NOT NULL",
+                (f"{schema}.external_reasoning_exchanges",
+                 f"{schema}.external_reasoning_exchange_events"))
+            exchange_schema_present = cur.fetchone()[0]
+        if exchange_schema_present:
+            from riverview_core.reasoning_escalation import ReasoningEscalationRouter
+            from riverview_core.resident_execution.external_reasoning import DurableExternalReasoningExchange
+            from riverview_core.postgres_ledger import PostgresLedger
+            steward_review_ledger = PostgresLedger(dsn, schema=schema)
+            # Steward operations derive the provider route from each durable row;
+            # this router is intentionally empty and creates no provider identity.
+            steward_review_exchange = DurableExternalReasoningExchange(
+                steward_review_ledger, ReasoningEscalationRouter({}),
+                actor_id="comms5:steward-review")
+    except Exception as exc:
+        if steward_review_ledger is not None:
+            steward_review_ledger.close()
+            steward_review_ledger = None
+        steward_review_exchange = None
+        print(json.dumps({"event": "comms5_steward_review_exchange_unavailable",
+                          "error_type": type(exc).__name__}), flush=True)
     resident_token_path = Path(os.environ.get("CREDENTIALS_DIRECTORY", "")) / "resident-token"
     chat_office_id = os.environ.get("RIVERVIEW_GRACE_OFFICE_ID", "")
     chat_endpoint = os.environ.get("RIVERVIEW_GRACE_MODEL_ENDPOINT", "")
@@ -1976,7 +2016,8 @@ def main():
                                  conversation_service=conversation_service,
                                  account_auth_service=account_auth_service,
                                  permission_store=permission_store,
-                                 proposal_registry=proposal_registry)
+                                 proposal_registry=proposal_registry,
+                                 steward_review_exchange=steward_review_exchange)
     print(json.dumps({"event": "dashboard_started", "host": host, "port": port,
                       "source_commit": projection.source_commit,
                       "deployment_id": projection.deployment_id}), flush=True)
@@ -1986,6 +2027,8 @@ def main():
         server.server_close()
         if objective_ledger is not None:
             objective_ledger.close()
+        if steward_review_ledger is not None:
+            steward_review_ledger.close()
         if conversation_store is not None:
             conversation_store.close()
         if authority_registry is not None:

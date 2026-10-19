@@ -1,10 +1,10 @@
 {
   "files": {
     ".riverview-revisions.json": {
+      "revision": "1.1.260",
       "path": ".riverview-revisions.json",
-      "revision": "1.1.236",
-      "sha256": "db29799c026f20d431bbd748b3653235852fb32a503de7ac6bf8c05db8e78e04",
-      "size_bytes": 13389
+      "sha256": "52cb9908377791af65712ff7272e0014b8cd1af6b5f4c717f6a9e0df02d07047",
+      "size_bytes": 15924
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -116,9 +116,9 @@
     },
     "process_graphs/comms5/camrui-adapter.json": {
       "path": "process_graphs/comms5/camrui-adapter.json",
-      "revision": "1.0.14",
-      "sha256": "6ddacfa3d6d9096093566c6429c30a00a41fbc0c999ad638eea8734537636355",
-      "size_bytes": 17847
+      "revision": "1.0.16",
+      "sha256": "8e79c31f15dfb4d3e01b8a44dc70b4b5f5090c09485573d02b47300fa27ea857",
+      "size_bytes": 20500
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "path": "process_graphs/event-processor/assignment-progression.json",
@@ -128,9 +128,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.183",
-      "sha256": "0e2811e1d55e5d730bc038a5ee14dd52f4a5b71c6e570b780b5ca89b7c240163",
-      "size_bytes": 640360
+      "revision": "1.0.187",
+      "sha256": "9a722005df63fb8a5e1324d9ed6b427d65b77282cc1a8dd85aadea0e239301b9",
+      "size_bytes": 654548
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -194,9 +194,9 @@
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "path": "process_graphs/resident-reasoning/runtime.json",
-      "revision": "1.0.25",
-      "sha256": "49e8424449e001975f0774928a845500a04bbd72e557d18b819081bf045e1926",
-      "size_bytes": 53140
+      "revision": "1.0.27",
+      "sha256": "16882fcbc5b27bbe2be626677372054da1d2e29be468b71f1639c20674334e8a",
+      "size_bytes": 62906
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -236,9 +236,9 @@
     },
     "src/riverview_core/comms5/tool_catalog.json": {
       "path": "src/riverview_core/comms5/tool_catalog.json",
-      "revision": "1.0.0",
-      "sha256": "f6b082a4dbf70ca8acee093a372c3c6af1048389eda2d4231210120f8953d40d",
-      "size_bytes": 88499
+      "revision": "1.0.1",
+      "sha256": "9572c1fc46cdbe1fc1ad212877a74805be9aae987b477b876dbe37abc0dc8c86",
+      "size_bytes": 92890
     },
     "src/riverview_core/status_dashboard/static/capabilities.json": {
       "path": "src/riverview_core/status_dashboard/static/capabilities.json",
@@ -269,8 +269,104 @@
       "revision": "1.0.0",
       "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
       "size_bytes": 1226
+    },
+    "docs/components/CHATGPT_DOORBELL_STATUS.schema.json": {
+      "path": "docs/components/CHATGPT_DOORBELL_STATUS.schema.json",
+      "revision": "1.0.0",
+      "sha256": "17f1d1db5fec74663cb89c425c37781a3fce23bb7751db8cb4683742976a427e",
+      "size_bytes": 6987
+    },
+    "docs/components/CHATGPT_DOORBELL_DISPATCH.md": {
+      "path": "docs/components/CHATGPT_DOORBELL_DISPATCH.md",
+      "revision": "1.0.5",
+      "sha256": "d126dcf79ad5c1055c6faf1b96bffd8942414c7d09ed87add175540341842b2e",
+      "size_bytes": 7273
+    },
+    "docs/components/RESIDENT_REASONING_FLOW.md": {
+      "path": "docs/components/RESIDENT_REASONING_FLOW.md",
+      "revision": "1.0.19",
+      "sha256": "1756c202c5febd924434ffb3732da086371f7fdfb3f616af1f22d915a47a4821",
+      "size_bytes": 25792
+    },
+    "docs/development/RV-C2-CHATGPT-DOORBELL-DISPATCH-001_REVISION_RECORD.md": {
+      "path": "docs/development/RV-C2-CHATGPT-DOORBELL-DISPATCH-001_REVISION_RECORD.md",
+      "revision": "1.0.4",
+      "sha256": "5dd8039061fe4209c8b1d5a324b4df4dfe81ba6fb6b7188cad46a3d04be39698",
+      "size_bytes": 7161
+    },
+    "scripts/run_grace_execution_service.py": {
+      "path": "scripts/run_grace_execution_service.py",
+      "revision": "1.2.5",
+      "sha256": "924985f625e836d8c0936b6713b3d5c74a570efebe8d2f2c3ad40ec49fe3ed92",
+      "size_bytes": 39650
+    },
+    "src/riverview_core/doorbell/runtime.py": {
+      "path": "src/riverview_core/doorbell/runtime.py",
+      "revision": "1.0.0",
+      "sha256": "44237c0ce217587566c38686181eebdd6957715f909b7d655353a5b8bbbcb24f",
+      "size_bytes": 3353
+    },
+    "tests/test_grace_doorbell_runtime_wiring.py": {
+      "path": "tests/test_grace_doorbell_runtime_wiring.py",
+      "revision": "1.0.0",
+      "sha256": "15d929ab980ea1234c4f3f420acc5014f09f5f52a5a89f6a11578bd820372049",
+      "size_bytes": 5465
+    },
+    "tests/test_w2_p0_integrated_review_acceptance.py": {
+      "path": "tests/test_w2_p0_integrated_review_acceptance.py",
+      "revision": "1.0.8",
+      "sha256": "0936a13d5f1b454f5b60fef71b8c257ad335a268da36b6783e673bf9be4d02cf",
+      "size_bytes": 26074
+    },
+    "docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md": {
+      "path": "docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md",
+      "revision": "1.0.4",
+      "sha256": "122d6085fd54b5f1211706d08c918b21628fc586d7a61a3f84b77358e2167454",
+      "size_bytes": 8219
+    },
+    "docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md": {
+      "path": "docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md",
+      "revision": "1.0.11",
+      "sha256": "3f3160f8d3fb6dbef61f81ea1afd239b9a4b1aee9b2ded0ffc2785ce4698e245",
+      "size_bytes": 8705
+    },
+    ".riverview-backups/manifest.jsonl": {
+      "path": ".riverview-backups/manifest.jsonl",
+      "revision": "1.0.11",
+      "sha256": "49154a533121fd022fa2bdd7ee83579433cf944d5c6016667a15f8c5100b3d9a",
+      "size_bytes": 1085459
+    },
+    "scripts/build_camrui_package.py": {
+      "path": "scripts/build_camrui_package.py",
+      "revision": "1.0.4",
+      "sha256": "15dc15ea7705392b30e47f4c4fba81a21eabd8220b9fb4b8aa2fbab35b319bcb",
+      "size_bytes": 5490
+    },
+    "tests/test_runtime_baseline.py": {
+      "path": "tests/test_runtime_baseline.py",
+      "revision": "1.0.11",
+      "sha256": "0afd276b81635cce7d2557336969f57b1f80f61ea886325b4dd1345d405e26b7",
+      "size_bytes": 34997
+    },
+    "docs/components/RUNTIME_BASELINE.md": {
+      "path": "docs/components/RUNTIME_BASELINE.md",
+      "revision": "1.0.11",
+      "sha256": "40b3ca529b422fe54fa308a5de6cd78be79a4f5d7792dec2092de330ce5cba86",
+      "size_bytes": 20168
+    },
+    "docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md": {
+      "path": "docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md",
+      "revision": "1.0.13",
+      "sha256": "e14980b412fcd8b265e0dbef930c86ee8050717f0e76f965ebc0f9038962882a",
+      "size_bytes": 21509
+    },
+    "docs/components/GRACE_CHATGPT_REVIEW_PROVIDER_PREFLIGHT.md": {
+      "path": "docs/components/GRACE_CHATGPT_REVIEW_PROVIDER_PREFLIGHT.md",
+      "revision": "1.0.3",
+      "sha256": "a97e0c1511c9df8f30cf46a1d23b8edfddf9dbcd8c14ffa953835ffd03274ef4",
+      "size_bytes": 13840
     }
   },
-  "manifest_revision": "1.1.236",
-  "updated_at": null
+  "manifest_revision": "1.1.260",
+  "updated_at": "2026-10-19T02:12:09Z"
 }

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning_mcp.py
 # Component: EXTERNAL-REASONING-MCP-TRANSPORT
-# Revision: 1.1.2
+# Revision: 1.2.0
 # Purpose: Expose the durable advisory exchange through authenticated MCP Streamable HTTP
 # Execution Model: Request-driven, sessionless HTTP JSON-RPC adapter
 # Observability: Sanitized request outcomes; authoritative exchange state remains PostgreSQL
@@ -14,6 +14,10 @@
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Bound request sockets and strictly validate configured Host/Origin allowlists
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-MCP-ADAPTER-001 | Require both Streamable HTTP response media types in MCP client Accept
 # Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Add OAuth JWT resource-server validation and OpenAI mixed-auth tool metadata
+# Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-MCP | Expose bounded immutable review subjects and require correlated subject digest on provider replies
+# Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-TYPED-REVIEW-SUBJECT | Validate and preserve the complete typed PlanProposal/PlanStep subject
+# Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-EXPIRED-RESPONSE-MCP | Map durable expiration to an explicit non-success MCP result
+# Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Add explicit Steward-originated Comms5 operations without constructing provider OAuth identity
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # Tests: tests/test_external_reasoning_mcp.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -28,7 +32,7 @@ or override an authenticated provider identity.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import hashlib
@@ -43,6 +47,7 @@ import threading
 from typing import Any, Mapping
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+from uuid import UUID
 
 import jwt
 from jwt import PyJWKClient
@@ -51,6 +56,7 @@ from .external_reasoning import (
     DurableExternalReasoningExchange, ExchangeConflict, ExchangeError,
     ExchangeExpired, ExchangeNotFound, ExchangeUnauthorized,
 )
+from ..resident_reasoning import PlanProposal, PlanStep
 
 
 MCP_PATH = "/mcp"
@@ -58,6 +64,7 @@ PROTECTED_RESOURCE_PATH = "/.well-known/oauth-protected-resource/mcp"
 SUPPORTED_PROTOCOL_VERSIONS = frozenset({"2025-03-26", "2025-06-18", "2025-11-25"})
 MAX_HTTP_BODY_BYTES = 64 * 1024
 MAX_CONTEXT_RETURN_BYTES = 32 * 1024
+MAX_REVIEW_SUBJECT_BYTES = 16 * 1024
 MAX_TOKENS = 16
 _IDENTITY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9:._/-]{0,255}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -427,7 +434,7 @@ class ExternalReasoningMCPAdapter:
     """Expose only provider-scoped list, claim, submit and body-free status tools."""
 
     COMPONENT_ID = "external-reasoning-mcp"
-    VERSION = "1.1.0"
+    VERSION = "1.2.0"
 
     def __init__(self, exchange: DurableExternalReasoningExchange,
                  token_map: ProviderTokenMap | OAuthProviderTokenMap):
@@ -449,7 +456,7 @@ class ExternalReasoningMCPAdapter:
             "reasoning:exchange:confidential"]}]
         return [
             {"name": "reasoning_exchange_list_requests",
-             "description": "List bounded advisory requests assigned to this authenticated provider. Request context is visible only to its selected provider.",
+             "description": "List bounded advisory requests assigned to this authenticated provider. For exact-proposal review requests, the immutable review subject and digest are visible only to its selected provider.",
              "securitySchemes": auth,
              "inputSchema": {"type": "object", "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 10}}, "additionalProperties": False}},
             {"name": "reasoning_exchange_claim_request",
@@ -459,7 +466,7 @@ class ExternalReasoningMCPAdapter:
             {"name": "reasoning_exchange_submit_response",
              "description": "Submit one bounded structured advisory for the active correlated claim. Advice grants no approval or execution authority.",
              "securitySchemes": auth,
-             "inputSchema": {"type": "object", "required": ["request_id", "correlation_id", "claim_token", "fence", "idempotency_key", "response"], "properties": {"request_id": {"type": "string", "format": "uuid"}, "correlation_id": {"type": "string", "format": "uuid"}, "claim_token": {"type": "string", "minLength": 36, "maxLength": 36}, "fence": {"type": "integer", "minimum": 1}, "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 240}, "response": {"type": "object"}}, "additionalProperties": False}},
+             "inputSchema": {"type": "object", "required": ["request_id", "correlation_id", "claim_token", "fence", "idempotency_key", "response"], "properties": {"request_id": {"type": "string", "format": "uuid"}, "correlation_id": {"type": "string", "format": "uuid"}, "claim_token": {"type": "string", "minLength": 36, "maxLength": 36}, "fence": {"type": "integer", "minimum": 1}, "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 240}, "review_subject_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "response": {"type": "object"}}, "additionalProperties": False}},
             {"name": "reasoning_exchange_status",
              "description": "Read state, sanitized diagnostics, provenance and digests for this provider's exchange; response contents are never returned.",
              "securitySchemes": auth,
@@ -481,6 +488,63 @@ class ExternalReasoningMCPAdapter:
             provider_id=principal.provider_id, principal_id=principal.principal_id)
         self._require_scope(principal, status.get("classification", "institutional"))
         return status
+
+    @classmethod
+    def _review_subject(cls, row, payload):
+        """Validate and return the exact bounded subject reserved for an MCP provider."""
+        from_payload = payload.get("review_subject") if isinstance(payload, Mapping) else None
+        from_row = row.get("review_subject")
+        if from_row is not None and from_payload is not None and from_row != from_payload:
+            raise ValueError("review_subject_conflict")
+        subject = from_row if from_row is not None else from_payload
+        if subject is None:
+            return None
+        if (not isinstance(subject, Mapping) or set(subject) != {
+                "schema_version", "subject_id", "revision", "sha256", "proposal"}):
+            raise ValueError("review_subject_invalid")
+        proposal = subject["proposal"]
+        if (subject["schema_version"] != "rv.grace.proposal-review-subject.v1"
+                or not isinstance(subject["subject_id"], str)
+                or type(subject["revision"]) is not int or not 1 <= subject["revision"] <= 3
+                or not isinstance(subject["sha256"], str)
+                or not _SHA256.fullmatch(subject["sha256"])
+                or not isinstance(proposal, Mapping)
+                or set(proposal) != {"summary", "steps"}
+                or not isinstance(proposal["summary"], str)
+                or not proposal["summary"].strip() or len(proposal["summary"]) > 4000
+                or not isinstance(proposal["steps"], (list, tuple))
+                or not 1 <= len(proposal["steps"]) <= 20):
+            raise ValueError("review_subject_invalid")
+        try:
+            UUID(subject["subject_id"])
+            subject_id = str(subject["subject_id"])
+            allowed_step_keys = set(PlanStep.__dataclass_fields__)
+            normalized_steps = []
+            for step in proposal["steps"]:
+                if not isinstance(step, Mapping) or set(step) != allowed_step_keys:
+                    raise ValueError
+                step_data = dict(step)
+                for field in ("acceptance_criteria", "depends_on", "authorized_paths", "test_targets"):
+                    values = step_data[field]
+                    if not isinstance(values, (list, tuple)):
+                        raise ValueError
+                    step_data[field] = tuple(values)
+                normalized_steps.append(PlanStep(**step_data))
+            validated_proposal = PlanProposal(proposal["summary"], tuple(normalized_steps), 0)
+            normalized_proposal = {"summary": validated_proposal.summary,
+                "steps": [asdict(step) for step in validated_proposal.steps]}
+        except (TypeError, ValueError, KeyError):
+            raise ValueError("review_subject_invalid") from None
+        digest_input = {"subject_id": subject_id, "revision": subject["revision"],
+                        "proposal": normalized_proposal}
+        digest = hashlib.sha256(cls._json(digest_input).encode("utf-8")).hexdigest()
+        normalized = {"schema_version": subject["schema_version"],
+            "subject_id": subject_id, "revision": subject["revision"],
+            "sha256": subject["sha256"], "proposal": normalized_proposal}
+        encoded = cls._json(subject).encode("utf-8")
+        if digest != subject["sha256"] or len(encoded) > MAX_REVIEW_SUBJECT_BYTES:
+            raise ValueError("review_subject_digest_or_size_invalid")
+        return normalized
 
     def call_tool(self, principal: ProviderPrincipal, name: str,
                   arguments: Mapping[str, Any]) -> dict[str, Any]:
@@ -513,7 +577,8 @@ class ExternalReasoningMCPAdapter:
                 encoded = self._json(payload)
                 if len(encoded.encode("utf-8")) > MAX_CONTEXT_RETURN_BYTES:
                     continue
-                result.append({"request_id": str(row["request_id"]),
+                review_subject = self._review_subject(row, payload)
+                request_result = {"request_id": str(row["request_id"]),
                     "correlation_id": str(row["correlation_id"]),
                     "objective_id": row["objective_id"],
                     "conversation_id": str(row["conversation_id"]),
@@ -527,7 +592,13 @@ class ExternalReasoningMCPAdapter:
                     "delivery_state": ("awaiting_external_claim"
                         if row.get("delivery_state") == "awaiting_delivery"
                         else row["delivery_state"]),
-                    "request": payload})
+                    "request": payload}
+                if review_subject is not None:
+                    request_result["review_subject"] = review_subject
+                    request_result["review_subject_sha256"] = review_subject["sha256"]
+                if len(self._json(request_result).encode("utf-8")) > MAX_CONTEXT_RETURN_BYTES:
+                    continue
+                result.append(request_result)
             return {"requests": result, "count": len(result)}
         if name == "reasoning_exchange_claim_request":
             self._exact_keys(arguments, {"request_id", "correlation_id"},
@@ -547,15 +618,33 @@ class ExternalReasoningMCPAdapter:
                 "lease_until": claim.lease_until.isoformat(), "duplicate": claim.duplicate}
         if name == "reasoning_exchange_submit_response":
             self._exact_keys(arguments,
-                {"request_id", "correlation_id", "claim_token", "fence", "idempotency_key", "response"})
+                {"request_id", "correlation_id", "claim_token", "fence", "idempotency_key", "response"},
+                {"review_subject_sha256"})
             if type(arguments["fence"]) is not int or arguments["fence"] < 1:
                 raise ValueError("tool_arguments_invalid")
-            self._owned_status(principal, arguments["request_id"], arguments["correlation_id"])
+            status = self._owned_status(principal, arguments["request_id"],
+                                        arguments["correlation_id"])
+            expected_subject_digest = status.get("review_subject_sha256")
+            supplied_subject_digest = arguments.get("review_subject_sha256")
+            if expected_subject_digest is not None:
+                if (not isinstance(expected_subject_digest, str)
+                        or not _SHA256.fullmatch(expected_subject_digest)
+                        or supplied_subject_digest != expected_subject_digest):
+                    raise ValueError("review_subject_digest_mismatch")
+            elif supplied_subject_digest is not None and (
+                    not isinstance(supplied_subject_digest, str)
+                    or not _SHA256.fullmatch(supplied_subject_digest)):
+                raise ValueError("tool_arguments_invalid")
+            submit_kwargs = {}
+            if supplied_subject_digest is not None:
+                submit_kwargs["review_subject_sha256"] = supplied_subject_digest
             digest = self.exchange.submit_response(arguments["request_id"],
                 arguments["correlation_id"], provider_id=principal.provider_id,
                 principal_id=principal.principal_id, claim_token=arguments["claim_token"],
                 fence=arguments["fence"], idempotency_key=arguments["idempotency_key"],
-                response=arguments["response"])
+                response=arguments["response"], **submit_kwargs)
+            if digest == "expired":
+                return {"state": "expired", "accepted": False}
             return {"response_sha256": digest, "state": "response_received"}
         if name == "reasoning_exchange_status":
             self._exact_keys(arguments, {"request_id", "correlation_id"})
@@ -669,6 +758,138 @@ class ExternalReasoningMCPAdapter:
             result["_meta"] = {"mcp/www_authenticate": [
                 challenge + ', error="' + error + '", error_description="' + description + '"']}
         return {"jsonrpc": "2.0", "id": request_id, "result": result}
+
+
+
+class StewardReviewBridge:
+    """Comms5-only review operations authorized by the authenticated Steward.
+
+    This bridge never creates a ProviderPrincipal. It binds each call to the
+    durable request's provider route and uses the distinct Steward methods on
+    the exchange, which record the Steward as the claim/response actor.
+    """
+
+    TOOLS = frozenset({
+        "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
+        "reasoning_exchange_submit_response", "reasoning_exchange_status",
+    })
+
+    def __init__(self, exchange):
+        if not isinstance(exchange, DurableExternalReasoningExchange):
+            raise TypeError("DurableExternalReasoningExchange is required")
+        self.exchange = exchange
+
+    @staticmethod
+    def _steward(principal_id):
+        if (not isinstance(principal_id, str) or not principal_id.startswith("steward:")
+                or len(principal_id) > 256):
+            raise ExchangeUnauthorized("authenticated Steward principal required")
+        return principal_id
+
+    @staticmethod
+    def _exact_keys(arguments, required, optional=frozenset()):
+        keys = set(arguments)
+        if not required <= keys or keys - required - set(optional):
+            raise ValueError("tool_arguments_invalid")
+
+    def call_tool(self, principal_id: str, name: str,
+                  arguments: Mapping[str, Any]) -> dict[str, Any]:
+        principal_id = self._steward(principal_id)
+        if name not in self.TOOLS or not isinstance(arguments, Mapping):
+            raise ValueError("tool_arguments_invalid")
+        if name == "reasoning_exchange_list_requests":
+            self._exact_keys(arguments, set(), {"limit"})
+            limit = arguments.get("limit", 10)
+            if type(limit) is not int or not 1 <= limit <= 10:
+                raise ValueError("tool_arguments_invalid")
+            rows = self.exchange.steward_eligible_requests(
+                principal_id=principal_id, limit=limit)
+            result = []
+            for row in rows:
+                provider_id = row["provider_id"]
+                state = row["delivery_state"]
+                if state == "awaiting_delivery":
+                    lease = self.exchange.begin_delivery(row["request_id"], provider_id,
+                        owner_id=principal_id, lease_seconds=30)
+                    if lease is None:
+                        continue
+                    self.exchange.mark_delivered(row["request_id"], row["correlation_id"],
+                        provider_id, owner_id=principal_id,
+                        delivery_token=lease.claim_token, fence=lease.fence)
+                    state = "awaiting_external_claim"
+                payload = row["request_payload"]
+                if len(self._json(payload).encode("utf-8")) > MAX_CONTEXT_RETURN_BYTES:
+                    continue
+                subject = ExternalReasoningMCPAdapter._review_subject(row, payload)
+                item = {"request_id": str(row["request_id"]),
+                    "correlation_id": str(row["correlation_id"]),
+                    "objective_id": row["objective_id"],
+                    "conversation_id": str(row["conversation_id"]),
+                    "message_sequence": row["message_sequence"],
+                    "proposal_id": row["proposal_id"],
+                    "proposal_revision": row["proposal_revision"],
+                    "schema_version": row["request_schema"],
+                    "provider_id": provider_id,
+                    "classification": row["classification"],
+                    "context_sha256": row["context_sha256"],
+                    "deadline_at": row["deadline_at"].isoformat(),
+                    "delivery_state": state, "request": payload}
+                if subject is not None:
+                    item["review_subject"] = subject
+                    item["review_subject_sha256"] = subject["sha256"]
+                if len(self._json(item).encode("utf-8")) <= MAX_CONTEXT_RETURN_BYTES:
+                    result.append(item)
+            return {"requests": result, "count": len(result)}
+
+        if name == "reasoning_exchange_claim_request":
+            self._exact_keys(arguments, {"request_id", "correlation_id"}, {"lease_seconds"})
+            lease_seconds = arguments.get("lease_seconds", 120)
+            if type(lease_seconds) is not int or not 1 <= lease_seconds <= 300:
+                raise ValueError("tool_arguments_invalid")
+            status = self.exchange.steward_status(arguments["request_id"],
+                arguments["correlation_id"], principal_id=principal_id)
+            claim = self.exchange.steward_claim(arguments["request_id"],
+                arguments["correlation_id"], principal_id=principal_id,
+                lease_seconds=lease_seconds)
+            if claim is None:
+                return {"state": status["delivery_state"], "claimed": False}
+            return {"request_id": claim.request_id, "correlation_id": claim.correlation_id,
+                "claim_token": claim.claim_token, "fence": claim.fence,
+                "lease_until": claim.lease_until.isoformat(), "duplicate": claim.duplicate}
+
+        if name == "reasoning_exchange_submit_response":
+            self._exact_keys(arguments,
+                {"request_id", "correlation_id", "claim_token", "fence",
+                 "idempotency_key", "response"}, {"review_subject_sha256"})
+            if type(arguments["fence"]) is not int or arguments["fence"] < 1:
+                raise ValueError("tool_arguments_invalid")
+            status = self.exchange.steward_status(arguments["request_id"],
+                arguments["correlation_id"], principal_id=principal_id)
+            expected_digest = status.get("review_subject_sha256")
+            supplied_digest = arguments.get("review_subject_sha256")
+            if expected_digest is not None and supplied_digest != expected_digest:
+                raise ValueError("review_subject_digest_mismatch")
+            if expected_digest is None and supplied_digest is not None:
+                raise ValueError("review_subject_not_present")
+            digest = self.exchange.steward_submit_response(
+                arguments["request_id"], arguments["correlation_id"],
+                principal_id=principal_id, claim_token=arguments["claim_token"],
+                fence=arguments["fence"], idempotency_key=arguments["idempotency_key"],
+                response=arguments["response"], review_subject_sha256=supplied_digest)
+            if digest == "expired":
+                return {"state": "expired", "accepted": False}
+            return {"response_sha256": digest, "state": "response_received",
+                    "reviewer_kind": "steward"}
+
+        self._exact_keys(arguments, {"request_id", "correlation_id"})
+        return self.exchange.steward_status(arguments["request_id"],
+            arguments["correlation_id"], principal_id=principal_id)
+
+    @staticmethod
+    def _json(value):
+        return json.dumps(value, ensure_ascii=False, sort_keys=True,
+                          separators=(",", ":"), allow_nan=False)
+
 
 
 class BoundedThreadingHTTPServer(ThreadingHTTPServer):

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.9
+# Revision: 1.1.10
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
 # Execution Model: Request-driven orchestration over existing PostgreSQL authority and ledger
 # Observability: Append-only objective events linked to assignment and evidence provenance
@@ -28,6 +28,7 @@
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Persist Grace's external-advisory evaluation atomically with the resulting proposal
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Resolve failed steps only after their linked revalidation successor is independently verified
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Share the verified rework completion predicate with objective reconciliation.
+# Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Persist exact-subject review, revision and blocked decisions
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -259,7 +260,7 @@ class GraceExecutionPipeline:
                              "retrieval_complete": evidence["retrieval_complete"]})
 
     def record_proposal(self, objective_id, proposal: PlanProposal, *, actor_id="resident:grace",
-                        external_exchange=None):
+                        external_exchange=None, review_evidence=None):
         if not isinstance(proposal, PlanProposal):
             raise TypeError("proposal must satisfy the existing PlanProposal contract")
         objective = self.get_objective(objective_id)
@@ -307,6 +308,28 @@ class GraceExecutionPipeline:
                 UUID(external_exchange["correlation_id"])
             except (ValueError, TypeError, AttributeError):
                 raise ObjectiveStateError("external advisory correlation is invalid") from None
+        if review_evidence is not None:
+            required_review = {"subject_id", "revision", "subject_sha256", "response_sha256",
+                               "proposal_sha256", "decision"}
+            if (not isinstance(review_evidence, dict) or set(review_evidence) != required_review
+                    or not isinstance(review_evidence["subject_id"], str)
+                    or type(review_evidence["revision"]) is not int
+                    or not 1 <= review_evidence["revision"] <= 3
+                    or any(not isinstance(review_evidence[k], str) or not re.fullmatch(
+                        r"[0-9a-f]{64}", review_evidence[k]) for k in
+                        ("subject_sha256", "response_sha256", "proposal_sha256"))
+                    or review_evidence["decision"] != "finish"):
+                raise ObjectiveStateError("exact proposal review evidence is invalid")
+            from .external_reasoning import proposal_review_content
+            review_content = proposal_review_content(proposal)
+            review_content_sha = hashlib.sha256(_json(review_content).encode("utf-8")).hexdigest()
+            subject_sha = hashlib.sha256(_json({
+                "subject_id": review_evidence["subject_id"],
+                "revision": review_evidence["revision"],
+                "proposal": review_content}).encode("utf-8")).hexdigest()
+            if (review_content_sha != review_evidence["proposal_sha256"] or
+                    subject_sha != review_evidence["subject_sha256"]):
+                raise ObjectiveStateError("final proposal does not match its exact review subject")
         document = asdict(proposal)
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
@@ -337,7 +360,36 @@ class GraceExecutionPipeline:
                             "decision": "advisory_evaluated_as_unapproved_proposal",
                             "proposal_sha256": hashlib.sha256(
                                 _json(document).encode("utf-8")).hexdigest()})
+                if review_evidence is not None:
+                    self._event(cur, objective_id,
+                        "resident.reasoning.external_proposal_reviewed",
+                        f"external-proposal-reviewed:{external_exchange['request_id']}",
+                        actor_id, {**external_exchange, **review_evidence})
         return self.get_objective(objective_id)
+
+    def record_external_review_decision(self, objective_id, *, request_id,
+            correlation_id, event_type, payload, actor_id="office:grace"):
+        """Durably record a non-final review decision without proposing or authorizing work."""
+        allowed = {"resident.reasoning.external_proposal_revised",
+                   "resident.reasoning.external_proposal_review_blocked"}
+        if (event_type not in allowed or not isinstance(payload, dict)
+                or not isinstance(request_id, str) or not isinstance(correlation_id, str)):
+            raise ObjectiveStateError("external review decision is invalid")
+        objective = self.get_objective(objective_id)
+        if objective is None or objective["status"] != "GROUNDED":
+            raise ObjectiveStateError("review revision requires a grounded objective")
+        safe = {key: value for key, value in payload.items() if key in {
+            "subject_id", "revision", "subject_sha256", "response_sha256",
+            "proposal_sha256", "decision", "successor_request_id", "successor_correlation_id",
+            "reason_code"}}
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                suffix = ("revised" if event_type ==
+                    "resident.reasoning.external_proposal_revised" else "blocked")
+                self._event(cur, objective_id, event_type,
+                    f"external-proposal-review:{request_id}:{suffix}",
+                    actor_id, {"request_id": request_id, "correlation_id": correlation_id, **safe})
 
     def dispatchable_step(self, objective_id):
         """Return the next pending step after verified dependencies and Grace review."""
