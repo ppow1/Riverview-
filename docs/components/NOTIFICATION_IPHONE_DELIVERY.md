@@ -2,9 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_IPHONE_DELIVERY.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.0.3
+File Revision: 1.0.5
 Purpose: Define local durable mobile push delivery using ntfy and Pushover
 Authority: Push transport only; no assignment, approval, or decision authority
+Changed: 2026-10-19 UTC | RV-IPHONE-NTFY-LAN-COMMISSIONING-001 | Record verified ntfy config, ACL, and host integration boundary
 Changed: 2026-10-19 UTC | RV-IPHONE-NTFY-LAN-COMMISSIONING-001 | Align component DoD reference with active Rev 1.7
 Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial mobile delivery contract
 Changed: 2026-10-18 UTC | RV-NOTIFICATION-SELECTED-CREDENTIALS-20261018 | Document selected-provider preflight and actual status visibility boundaries
@@ -103,10 +104,12 @@ assignments. It is explicit and is never run by service startup.
 Unit tests cover config validation and provider request/response handling with
 injected transports. PostgreSQL tests use unique disposable `rvtest_*` schemas
 and verify deduplication, retry bounds, expired-lease recovery, audit events,
-and Pushover acknowledgment persistence. Production commissioning remains
-unverified until the reviewed migration/package is installed, the intended
-providers and protected credentials are configured, and a handset test records
-provider acceptance separately from actual iPhone display/acknowledgment.
+and Pushover acknowledgment persistence. The isolated ntfy v2.32.0 loopback
+service and least-privilege topic credentials are installed on Camrui. Production
+integration remains unverified until the
+existing Nginx route is approved and applied, migration 0007 and the delivery
+worker are separately approved and activated, and a handset test records provider
+acceptance separately from actual iPhone display/acknowledgment.
 
 ## Runtime status and Steward visibility
 

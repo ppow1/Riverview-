@@ -2,9 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.1.12
+File Revision: 1.1.15
 Purpose: Set up and troubleshoot ntfy/Pushover push delivery without exposing secrets
 Authority: Operational diagnosis and local setup only; no decision authority
+Changed: 2026-10-19 UTC | RV-IPHONE-NTFY-LAN-COMMISSIONING-001 | Clarify worker blocker register after ntfy-only install
 Changed: 2026-10-19 UTC | RV-IPHONE-NTFY-LAN-COMMISSIONING-001 | Make one-info-notice LAN path controlling for first acceptance
 Changed: 2026-10-19 UTC | RV-IPHONE-NTFY-LAN-COMMISSIONING-001 | Prepare LAN-only self-hosted ntfy configuration, phone test, and rollback
 Changed: 2026-10-19 UTC | RV-IPHONE-NOTIFICATIONS-001 | Correct focused test PYTHONPATH to include the runner script directory
@@ -23,16 +24,20 @@ History: Git and .riverview-backups/manifest.jsonl
 
 **Component:** NOTIFICATION-DELIVERY · **Task:** RV-IPHONE-NOTIFICATIONS-001
 **Graph:** `rv:notification-delivery:iphone-push`
-**Production status:** Source-only in this assignment; no migration, credentials,
-service installation, or provider calls have been made.
+**Operational status (2026-10-19):** ntfy v2.32.0 is installed and active on
+Camrui as an unprivileged loopback-only service, with private SQLite auth/cache
+and one private topic provisioned. The Nginx `/ntfy/` route remains proposed,
+production Nginx is unchanged, migration 0007 and the Riverview delivery worker
+remain inactive, and no live notice or iPhone test has occurred.
 
 ## LAN-only self-hosted ntfy commissioning plan
 
-**Status:** prepared procedure only. Nothing below has been installed, activated,
-written to Camrui, or tested with a phone. Execute only after the commissioning
-authorization listed at the end of this section. This path is for the native ntfy
-iOS app on the Riverview LAN; it does not require or decide the optional iOS
-upstream metadata relay.
+**Status:** isolated ntfy preparation/install is complete on Camrui; the procedure
+below describes the verified configuration and remaining LAN commissioning. The
+existing production Nginx change, migration 0007, delivery-worker activation, and
+live notice remain behind the final approval boundary. No iPhone has been tested.
+This path is for the native ntfy iOS app on the Riverview LAN; it does not require
+or decide the optional iOS upstream metadata relay.
 
 ### Definition of Ready and architecture
 
@@ -71,26 +76,31 @@ attachments, mail, web push, PostgreSQL, Docker, or an Internet-facing listener.
 Create a dedicated unprivileged `ntfy` account, root-owned `/etc/ntfy/server.yml`,
 `/var/lib/ntfy` for the auth database and `/var/cache/ntfy` for the message cache.
 The service account may write only those data directories. Proposed
-`/etc/ntfy/server.yml` (use the exact externally visible base URL without a
-trailing slash):
+`/etc/ntfy/server.yml` for ntfy v2.32.0. Its `base-url` must be the HTTPS
+origin only: v2.32.0 rejects a path in that setting. The phone custom server URL
+uses `/ntfy`; Nginx strips that prefix before forwarding. ntfy documents hosting
+on a subpath as unsupported, so the isolated API-path check is not a substitute
+for the required native iPhone check:
 
 ```yaml
-base-url: "https://192.168.1.155/ntfy"
+base-url: "https://192.168.1.155"
 listen-http: "127.0.0.1:2586"
 behind-proxy: true
+proxy-trusted-hosts: "127.0.0.1"
 web-root: "disable"
-auth-file: "/var/lib/ntfy/auth.db"
+auth-file: "/var/lib/ntfy/user.db"
 auth-default-access: "deny-all"
 cache-file: "/var/cache/ntfy/cache.db"
 cache-duration: "24h"
 ```
 
 `web-root: disable` keeps the unneeded web UI off; ntfy has documented web UI
-limitations under reverse-proxy subpaths. The mobile client will use the native
-iOS app and the exact custom server URL above. The server URL path prefix must be
-stripped by Nginx before forwarding; the ntfy API and WebSocket paths are then
-forwarded to the ntfy root. Verify this behavior in the native app before
-sending any Riverview test event.
+limitations under reverse-proxy subpaths. The native iOS app custom server URL is `https://192.168.1.155/ntfy`. The
+proposed Nginx prefix-strip rule returned HTTP 200 for health and an authenticated
+read-only topic poll in an isolated loopback test on port 18443; anonymous access
+returned 403. The actual TLS route and native app/WebSocket behavior remain
+unverified until Nginx is separately approved and the phone owner completes setup.
+Do not send a Riverview test event before that check.
 
 Use a systemd unit with `User=ntfy`, `Group=ntfy`,
 `ExecStart=/usr/local/bin/ntfy serve`, `Restart=on-failure`,
@@ -102,17 +112,16 @@ binary path and package's systemd behavior at the pinned version before staging;
 never install a second unit over an existing one without preserving and
 reviewing its predecessor.
 
-Create separate non-admin ntfy users through the interactive CLI, not by putting
-passwords on a command line:
-
-```bash
-sudo -u ntfy ntfy user add rv-camrui-publisher
-sudo -u ntfy ntfy user add rv-iphone-reader
-sudo -u ntfy ntfy access rv-camrui-publisher "$TOPIC" write-only
-sudo -u ntfy ntfy access rv-iphone-reader "$TOPIC" read-only
-sudo -u ntfy ntfy access everyone "$TOPIC" deny-all
-sudo -u ntfy ntfy token add --label=riverview-camrui rv-camrui-publisher
-```
+Create separate non-admin users `rv_notification_publisher` and
+`rv_iphone_reader`. Use `ntfy user add` with password prompts or a protected
+helper that passes `NTFY_PASSWORD` outside command arguments and logs; never put
+a password in shell history or output. Grant the exact-topic ACLs with the
+server CLI (`/usr/local/bin/ntfy access USER TOPIC write-only|read-only`) and
+explicitly deny `everyone` on that topic (`... access everyone TOPIC deny`).
+Create one token for the publisher account, whose ACL is write-only for this
+topic. Capture token command output directly into the root-only credential file
+without terminal/log output. Keep the reader password only in the private phone
+handoff file; do not print either credential.
 
 Generate a unique topic name from letters, digits, `_` or `-`; set it only in
 protected server/Riverview config and the phone app. Store the resulting
@@ -152,7 +161,7 @@ location ^~ /ntfy/ {
 }
 ```
 
-Before applying this location, inspect whether the current Host and request-origin guards are server-scoped or live only inside the dashboard `location /`. Because `^~ /ntfy/` takes precedence over the dashboard location, copy the exact existing unsafe-method Origin guard into this new location when it is location-scoped; preserve the existing approved Host values and LAN allowlist. Do not expose the route or reload if the same policy cannot be enforced. The global request-origin policy must remain unchanged. Camrui's Riverview publisher
+The currently deployed Host and request-origin guards and the `192.168.1.0/24` allow/deny are server-scoped, so this sibling location inherits them; the inspected configuration requires no guard copy and no policy change. Preserve these controls and the existing approved Host values. The proposed location was tested in an isolated loopback Nginx process and passed `nginx -t`; production Nginx has not been modified or reloaded. The global request-origin policy must remain unchanged. Camrui's Riverview publisher
 uses `http://127.0.0.1:2586` directly, so its POST does not pass through that
 browser-origin guard. The phone needs only the authenticated read-only topic
 stream (GET/WebSocket). If Nginx rejects a phone request, stop; diagnose the
@@ -273,6 +282,15 @@ notification text), not the protected message body. Until that decision, claim
 only the foreground result and leave background timeliness unverified.
 
 ### Rollback and recovery
+
+Observed ntfy v2.32.0 startup failure: a `base-url` containing `/ntfy` exits
+with “base-url must not have a path” and systemd retries. Stop only
+`ntfy.service`, preserve the exact current `/etc/ntfy/server.yml` and SHA-256,
+change `base-url` to the origin only, increment the config revision, validate by
+starting ntfy, then confirm `/v1/health` is healthy and the listener remains on
+`127.0.0.1:2586`. The protected predecessor and recovery evidence for this
+commissioning are under
+`/var/backups/riverview/ntfy-lan-commissioning/20261019T215400Z`.
 
 Before any commissioning write, preserve exact predecessors and checksums for
 the Nginx site file, any existing ntfy binary/unit/config/data path, and all
@@ -416,14 +434,15 @@ with a mock and label production delivery successful. Mocked provider and
 disposable PostgreSQL behavior are verified by the automated tests; they do not
 send phone notifications.
 
-## Source-only blocker register and status limits
+## Delivery-worker blocker register and status limits
 
-This register describes the current source-only commissioning state. It is not
-a live operational alert feed.
+This register describes the separate Riverview delivery-worker commissioning
+state. The ntfy transport is installed independently; this is not a live
+operational alert feed.
 
 | `blocker_id` | `type` | `detection_signal` | `owning_office` | `authority_required` | `timeout` | `durable_state` | `alert_destination` | `retry_resume_trigger` | `test_evidence` |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `NOTIF-COMMISSIONING-001` | commissioning | Read-only preflight finds release/unit or required migration absent | Operations / Steward | Explicit production commissioning authorization | No runtime deadline while inactive; record the approved commissioning window before start | No production runtime row; blocker is recorded in the source acceptance record | No production alert route; GitHub issue #120 is remediation tracking only | Resume after authorized backup, migration, selected credentials, release and rollback preflight pass | No production activation or phone delivery in this remediation. |
+| `NOTIF-COMMISSIONING-001` | commissioning | Read-only preflight finds release/unit or required migration absent | Operations / Steward | Explicit production commissioning authorization | No runtime deadline while inactive; record the approved commissioning window before start | No production runtime row; blocker is recorded in the source acceptance record | No production alert route; GitHub issue #120 is remediation tracking only | Resume after authorized backup, migration, selected credentials, release and rollback preflight pass | No worker activation or phone delivery in this remediation. |
 | `NOTIF-SELECTED-CREDENTIAL-001` | credential | Sanitized `notification_push_configuration_error.failure_code`; systemd may reach `start-limit-hit` | Operations | Provision only the secret for providers selected by route configuration; separate service activation approval still applies | Restart every 5 seconds; at most 3 starts within 60 seconds | systemd failure state and sanitized journal; no database row because preflight precedes manager construction | Local systemd journal only; push self-alert is unavailable before worker startup | Correct the selected file, verify root ownership/mode, then reset the unit failure and retry only in an authorized window | Focused ntfy-only, Pushover-only, selected-missing, PostgreSQL and systemd tests; no provider call. |
 | `NOTIF-HANDSET-ACCEPTANCE-001` | manual action | Provider accepts but there is no handset receipt; Pushover can report expiry; ntfy has no handset receipt contract | Phone owner / Steward | Phone-side app setup and a separately authorized live test; emergency acknowledgment requires the user to acknowledge in-app | No phone-display deadline is measurable; Pushover receipt expiry is separately configured | Provider queue state only; no Riverview proof of ntfy display, Bluetooth announcement, or Pushover app display | Provider iOS app is the intended endpoint; no server handset telemetry is configured | Resume after the phone owner enables notifications and is ready for a labeled test | Live iPhone, acknowledgment and Bluetooth outcome not tested. |
 | `NOTIF-STEWARD-VIEW-001` | dependency | Dashboard UI does not render `push_delivery`; service-none fallback omits it | Steward-facing dashboard owner; C2 integration requested on issue #120 | Existing authenticated API, read-only only; no new grant or production authority | No runtime wait exists because there is no UI consumer | Provider queue/health remain durable in PostgreSQL; the projection is computed on each authenticated GET and is not stored separately | No production alert route; issue #120 tracks source integration only | Resume when C2 integrates the contract, renders every status distinctly, and supplies the `not_initialized` fallback; production use still requires normal release authorization | C1 disposable PostgreSQL/API tests cover fresh, stale, degraded, retry, expired-lease recovery, unavailable and secret redaction; no browser panel or production acceptance. |
