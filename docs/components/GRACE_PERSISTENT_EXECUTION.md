@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_PERSISTENT_EXECUTION.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.19
+File Revision: 1.0.20
 Purpose: Define persistent model-independent Grace objective execution service
 Authority: Existing exact-grant registry and CME assignment/worker contracts
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-CONFIG-EXAMPLE | Add a secret-free environment template for exact service identity configuration
@@ -20,6 +20,7 @@ Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-MDWE-001 | Disable MDWE only 
 Changed: 2026-10-16 UTC | RV-GRACE-CODEX-OWNER-STATE-001 | Keep writable Codex runtime state service-local and bind only the existing owner auth file read-only
 Changed: 2026-10-16 UTC | RV-GRACE-OWNER-CODEX-HOME-001 | Resolve persistent Codex home from explicit service configuration and validate its private bind target
 Changed: 2026-10-19 UTC | RV-GRACE-REVIEW-GENERATIONS-001 | Define append-only evidence revision and bounded per-cycle review generations
+Changed: 2026-10-19 UTC | RV-GRACE-REVIEW-GENERATIONS-001 | Clarify generation-aware outbox acknowledgment and re-review recovery
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Consume durable external reasoning replies through the existing reasoner and preserve stale-base successor completion semantics.
 Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Admit configured model-selected advisory exchanges through active-resident exact grants and the existing CME cycle.
 -->
@@ -47,7 +48,7 @@ The owner-session process uses the existing restricted `riverview_core` PostgreS
 
 For a router-bound Grace, `configured_resident_providers()` constructs the same provider set for ResidentReasoner and the result-return conversation service. It verifies the live binding revision, explicit private-LAN router opt-in, configured model digests and allowlisted endpoint/model identities. Typed proposals require `grace.reasoning.80b`; the router does not substitute smaller models. Provider, served model, digest and stage are persisted with the proposal.
 
-After independent `ACCEPTED` verification and durable objective completion, `pending_conversation_results()` selects conversation-origin objectives without a `conversation.result_published` event. The service rechecks the current resident binding and exact `resident.conversation.send` grant, performs a bounded 80B review of completion evidence, and inserts a deterministic objective-derived assistant response in the source conversation. If insertion succeeds but outbox acknowledgment fails, retry finds the response receipt without another model call or assistant event. Failures before insertion leave the outbox eligible for retry. This is source implementation only; this increment applies no migrations and provisions no service credentials or grants.
+After independent `ACCEPTED` verification, `pending_conversation_results()` selects a conversation-origin result when its initial review is unpublished or when an append-only, authorized re-review generation is pending. The service rechecks the current resident binding and exact `resident.conversation.send` grant, performs a bounded 80B review of verified completion evidence plus the authorized evidence revision, and inserts a deterministic generation-specific assistant response in the source conversation. After insertion but before objective-event acknowledgment, retry reads the persisted response and decision receipt without another model call or assistant event, then appends the missing acknowledgment. Earlier generations remain immutable; failures before insertion leave the durable request eligible for retry. This is source implementation only; no production control endpoint or service release is commissioned by this increment.
 
 ## HTTP contract
 
