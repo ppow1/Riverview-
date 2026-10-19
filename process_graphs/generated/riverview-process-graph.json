@@ -1471,7 +1471,7 @@
     },
     {
       "graph_id": "rv:comms5:camrui-adapter",
-      "graph_revision": "1.0.16",
+      "graph_revision": "1.0.17",
       "component_id": "COMMS5-CAMRUI-ADAPTER",
       "workflow_id": "comms5.camrui.compatibility.v1",
       "diagram_order": 91,
@@ -1863,6 +1863,22 @@
             "tests/test_external_reasoning_exchange.py",
             "tests/test_external_reasoning_mcp.py"
           ]
+        },
+        {
+          "id": "rv:comms5:camrui-adapter:connector-tool-name-resolution",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Resolve only the exact registered connector namespace prefix to an existing canonical catalog tool name; preserve the catalog and authenticated principal",
+          "source_references": [
+            "src/riverview_core/comms5/server.py"
+          ],
+          "documentation_references": [
+            "docs/components/COMMS5_CAMRUI_DEPLOYMENT.md",
+            "docs/components/COMMS5_OAUTH_TROUBLESHOOTING.md"
+          ],
+          "verification_evidence": [
+            "tests/test_comms5_mcp.py"
+          ]
         }
       ],
       "edges": [
@@ -1877,12 +1893,12 @@
           "type": "runtime_transition"
         },
         {
-          "from": "rv:comms5:camrui-adapter:catalog",
+          "from": "rv:comms5:camrui-adapter:connector-tool-name-resolution",
           "to": "rv:comms5:camrui-adapter:contract-call",
           "type": "runtime_transition"
         },
         {
-          "from": "rv:comms5:camrui-adapter:catalog",
+          "from": "rv:comms5:camrui-adapter:connector-tool-name-resolution",
           "to": "rv:comms5:camrui-adapter:not-implemented",
           "type": "diagnostic_branch"
         },
@@ -1912,7 +1928,7 @@
           "type": "verification"
         },
         {
-          "from": "rv:comms5:camrui-adapter:catalog",
+          "from": "rv:comms5:camrui-adapter:connector-tool-name-resolution",
           "to": "rv:comms5:camrui-adapter:authenticated-dashboard-read",
           "type": "runtime_transition"
         },
@@ -1922,7 +1938,7 @@
           "type": "diagnostic_branch"
         },
         {
-          "from": "rv:comms5:camrui-adapter:catalog",
+          "from": "rv:comms5:camrui-adapter:connector-tool-name-resolution",
           "to": "rv:comms5:camrui-adapter:current-runtime-operations",
           "type": "runtime_transition"
         },
@@ -1969,7 +1985,7 @@
           "label": "successor remains queued for existing Grace/CME dispatcher; no work executes in MCP handler"
         },
         {
-          "from": "rv:comms5:camrui-adapter:catalog",
+          "from": "rv:comms5:camrui-adapter:connector-tool-name-resolution",
           "to": "rv:comms5:camrui-adapter:steward-reasoning-bridge",
           "type": "runtime_transition"
         },
@@ -1983,6 +1999,12 @@
           "to": "rv:comms5:camrui-adapter:current-runtime-operation-denial",
           "type": "diagnostic_branch",
           "label": "missing identity, unavailable ledger, expiry, or fence conflict returns a bounded failure"
+        },
+        {
+          "from": "rv:comms5:camrui-adapter:catalog",
+          "to": "rv:comms5:camrui-adapter:connector-tool-name-resolution",
+          "type": "runtime_transition",
+          "label": "tools/call name is canonicalized before catalog dispatch"
         }
       ]
     },
@@ -14620,6 +14642,7 @@
     "rv:comms5:camrui-adapter:authenticated-dashboard-read",
     "rv:comms5:camrui-adapter:authenticated-ingress",
     "rv:comms5:camrui-adapter:catalog",
+    "rv:comms5:camrui-adapter:connector-tool-name-resolution",
     "rv:comms5:camrui-adapter:contract-call",
     "rv:comms5:camrui-adapter:current-runtime-operation-denial",
     "rv:comms5:camrui-adapter:current-runtime-operations",

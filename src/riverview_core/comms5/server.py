@@ -1,11 +1,12 @@
 """Loopback Comms5 MCP compatibility endpoint.
 
-File Revision: 1.1.4
+File Revision: 1.1.5
 Component: COMMS5-CAMRUI-ADAPTER
 Authority: OAuth is validated at the Ionoge ingress; this service accepts only
            the Caddy-injected principal marker and a separate protected hop token.
 Purpose: Preserve the historical Comms5 tool contract while incrementally
          mapping tools to current Camrui services.
+Changed: 2026-10-19 UTC | RV-C1-COMMS5-NAMESPACE-001 | Resolve the existing connector-qualified tool namespace to canonical Comms5 catalog names
 History: New file; no predecessor existed.
 """
 
@@ -22,6 +23,7 @@ from urllib.parse import urlsplit
 _HERE = Path(__file__).resolve().parent
 _CATALOG = json.loads((_HERE / "tool_catalog.json").read_text(encoding="utf-8"))
 _TOOLS = {tool["name"]: tool for tool in _CATALOG["tools"]}
+_CONNECTOR_NAMESPACE = "riverview_comms_1_1"
 _PAYLOADS = _CATALOG["read_only_payloads"]
 _IMPLEMENTED = {
     "comms5_contract_info",
@@ -45,6 +47,20 @@ def _tool_payload(request_id: Any, value: dict[str, Any], *, is_error: bool = Fa
 
 def _error(code: int, message: str) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "error": {"code": code, "message": message}}
+
+
+def _canonical_tool_name(name: Any) -> str | None:
+    """Resolve the registered connector namespace without changing catalog names."""
+    if not isinstance(name, str):
+        return None
+    if name in _TOOLS:
+        return name
+    prefix = _CONNECTOR_NAMESPACE + "."
+    if name.startswith(prefix):
+        canonical = name[len(prefix):]
+        if canonical in _TOOLS:
+            return canonical
+    return None
 
 
 def _valid(schema: dict[str, Any], value: Any, root: dict[str, Any] | None = None) -> bool:
@@ -148,9 +164,9 @@ class Comms5Application:
         if method == "tools/list":
             return {"jsonrpc": "2.0", "id": request_id, "result": {"tools": _CATALOG["tools"]}}
         if method == "tools/call":
-            name = params.get("name")
+            name = _canonical_tool_name(params.get("name"))
             arguments = params.get("arguments", {})
-            tool = _TOOLS.get(name) if isinstance(name, str) else None
+            tool = _TOOLS.get(name) if name is not None else None
             if tool is None:
                 return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32602, "message": "Unknown tool"}}
             if not _valid(tool["inputSchema"], arguments, tool["inputSchema"]):

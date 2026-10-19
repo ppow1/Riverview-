@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_OAUTH_TROUBLESHOOTING.md
 Component: COMMS5-OAUTH-IONOGE
-File Revision: 1.0.4
+File Revision: 1.0.5
 Status: Operational troubleshooting record
 Date: 2026-10-17
 Purpose: Diagnose and recover Comms5 OAuth-to-Camrui authenticated MCP forwarding.
@@ -10,11 +10,27 @@ Changed: 2026-10-17 UTC | RV-COMMS5-OAUTH-FORWARD-HEADERS-001 | Record verified 
 Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-CREDENTIAL-001 | Explain authorization credential dependencies and guarded rotation.
 Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-CREDENTIAL-002 | Record direct-bearer inventory limits and verified helper preflight.
 Changed: 2026-10-17 UTC | RV-COMMS5-STEWARD-ROTATION-HEALTH-REPAIR | Record bounded readiness retries, sanitized failure IDs, and incident-cause limitation.
+Changed: 2026-10-19 UTC | RV-C1-COMMS5-NAMESPACE-001 | Add diagnosis and recovery for connector-qualified tool-name mismatch.
 History: New file; no predecessor existed.
 Authority: Existing OAuth and Steward authority boundaries; no grant changes.
 -->
 
 # Comms5 OAuth and authenticated forwarding troubleshooting
+
+## Connector lists tools but reports `Unknown tool`
+
+If a connector lists Comms5 operations but calls fail with an unknown name such
+as `riverview_comms_1_1.comms5_capabilities`, compare the exact tool name sent
+by the client with the deployed adapter's `tool_catalog.json` and running
+`server.py`. The catalog intentionally keeps canonical `comms5_*` names. A
+compatible adapter release may accept the exact `riverview_comms_1_1.` prefix
+as an alias only for a suffix that exists in that catalog. Confirm the active
+immutable release and package checksum before attributing a fix to production.
+Test a qualified read operation, an unknown suffix, and a foreign namespace.
+Then confirm an authorized write still uses the OAuth-attested principal and
+the ordinary exact-grant path. Refreshing a client catalog alone does not fix
+an adapter that rejects the names it sends. Do not forge ingress headers,
+change grants, or write directly to PostgreSQL to bypass this boundary.
 
 ## Symptom and cause
 

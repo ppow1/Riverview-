@@ -2,13 +2,14 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_CAMRUI_DEPLOYMENT.md
 Component: COMMS5-CAMRUI-ADAPTER
-File Revision: 1.0.7
+File Revision: 1.0.8
 Status: Deployment and recovery procedure
 Date: 2026-10-17
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-OAUTH-FORWARD-HEADERS-001 | Corrected trusted marker propagation and recorded live OAuth acceptance and Comms4 upstream status.
 Changed: 2026-10-17 UTC | RV-COMMS5-DASHBOARD-READ-DEPLOY-001 | Record the merged loopback dashboard bridge deployment and rollback point.
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Add migration 0012 preflight and non-destructive rollback handling for policy-aware Comms5 releases.
+Changed: 2026-10-19 UTC | RV-C1-COMMS5-NAMESPACE-001 | Document exact connector namespace alias behavior and deployment verification gate.
 Previous: 2026-10-17 UTC | RV-COMMS5-SSH-HOSTKEY-CREDENTIAL-001 | Pass the pinned known-hosts file through systemd credentials for the unprivileged tunnel user.
 -->
 
@@ -39,6 +40,22 @@ The adapter does not listen on a LAN address and does not connect to the databas
 8. Replace only the existing Comms5 handler block inside the current Caddy site with `deploy/comms5/caddy-comms5-oauth-block.caddy`. The fragment retains the existing static Steward bearer path and adds OAuth discovery/forward-auth. Keep the existing Comms4 `/mcp` block byte-for-byte unchanged. Validate the full Caddyfile before reloading Caddy.
 
 ## Verification gates
+
+### Connector-qualified tool names
+
+The existing ChatGPT connector may send a discovered tool as
+`riverview_comms_1_1.<catalog-name>` even though the source catalog publishes
+the canonical `comms5_*` name. The Camrui adapter resolves only that exact
+registered namespace prefix and only when the suffix is already present in the
+catalog. `tools/list` remains unchanged; no duplicate qualified entries are
+added. After deploying a release with this resolver, verify that a qualified
+read-only `comms5_capabilities` call succeeds, that an unknown suffix and any
+other namespace still return `Unknown tool`, and that authenticated
+`form_and_queue_work` preserves the OAuth-attested `steward` principal and
+existing exact grant enforcement. Never synthesize the Caddy identity marker
+or call the backend directly to work around a connector error. The current
+production release must be checked before deployment; source-level tests do
+not prove that its running adapter contains this correction.
 
 - Camrui service active; loopback `/healthz` returns 200; `ss` confirms only `127.0.0.1:11826`.
 - Direct unauthenticated POST to Camrui `/mcp` returns 401; malformed bearer/hop identity is rejected.
