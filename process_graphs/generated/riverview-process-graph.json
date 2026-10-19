@@ -6424,8 +6424,439 @@
       ]
     },
     {
+      "graph_id": "rv:notification-delivery:iphone-push",
+      "graph_revision": "1.0.3",
+      "component_id": "NOTIFICATION-DELIVERY",
+      "workflow_id": "iphone-push.v1",
+      "diagram_order": 2,
+      "source_references": [
+        "src/riverview_core/notifications/push.py",
+        "src/riverview_core/notifications/migrations/0007_external_push_delivery.sql",
+        "scripts/run_notification_delivery.py",
+        "deploy/systemd/riverview-notification-delivery.service",
+        "deploy/notification-delivery.example.json",
+        "tests/test_notification_push.py"
+      ],
+      "documentation_references": [
+        "docs/components/NOTIFICATION_DELIVERY.md",
+        "docs/components/NOTIFICATION_DELIVERY_COOKBOOK.md",
+        "docs/components/NOTIFICATION_IPHONE_DELIVERY.md",
+        "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md",
+        "docs/components/NOTIFICATION_IPHONE_DELIVERY_FLOW.md",
+        "process_graphs/README.md"
+      ],
+      "verification_evidence": [
+        "docs/development/RV-IPHONE-NOTIFICATIONS-001_REVISION_RECORD.md"
+      ],
+      "nodes": [
+        {
+          "id": "rv:notification-delivery:iphone-push:attention-source",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Existing privacy-filtered CME notice is available",
+          "source_references": [
+            "src/riverview_core/notifications/push.py",
+            "src/riverview_core/notifications/migrations/0006_durable_notifications.sql"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:severity-route",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Map source event to configured severity and provider route",
+          "source_references": [
+            "src/riverview_core/notifications/push.py",
+            "deploy/notification-delivery.example.json"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:durable-outbox",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Insert one deduplicated provider row in PostgreSQL outbox",
+          "source_references": [
+            "src/riverview_core/notifications/push.py",
+            "src/riverview_core/notifications/migrations/0007_external_push_delivery.sql"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:lease-claim",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Claim due row under a bounded lease and increment attempt count",
+          "source_references": [
+            "src/riverview_core/notifications/push.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:secret-load",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Load provider credential from protected systemd credential directory",
+          "source_references": [
+            "src/riverview_core/notifications/push.py",
+            "deploy/systemd/riverview-notification-delivery.service"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:provider-send",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Send bounded fixed-summary authenticated HTTPS or loopback HTTP provider request",
+          "source_references": [
+            "src/riverview_core/notifications/push.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:accepted-state",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Provider accepted request; handset delivery remains unverified",
+          "source_references": [
+            "src/riverview_core/notifications/push.py",
+            "src/riverview_core/notifications/migrations/0007_external_push_delivery.sql"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:bounded-retry",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Schedule bounded retry or record terminal failure",
+          "source_references": [
+            "src/riverview_core/notifications/push.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:pushover-receipt",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Poll eligible Pushover emergency receipt at a bounded interval",
+          "source_references": [
+            "src/riverview_core/notifications/push.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:ack-expire",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Persist provider-reported acknowledgment or expiry",
+          "source_references": [
+            "src/riverview_core/notifications/push.py",
+            "src/riverview_core/notifications/migrations/0007_external_push_delivery.sql"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:worker-restart",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Resume expired sending leases after worker restart",
+          "source_references": [
+            "src/riverview_core/notifications/push.py",
+            "deploy/systemd/riverview-notification-delivery.service"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:service-start",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Start worker with PostgreSQL and provider credential namespace available",
+          "source_references": [
+            "deploy/systemd/riverview-notification-delivery.service",
+            "scripts/run_notification_delivery.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "docs/development/RV-IPHONE-NOTIFICATIONS-001_REVISION_RECORD.md"
+          ]
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:credential-preflight",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Validate credentials for configured provider routes only",
+          "source_references": [
+            "src/riverview_core/notifications/push.py",
+            "scripts/run_notification_delivery.py",
+            "deploy/systemd/riverview-notification-delivery.service"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY.md",
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "docs/development/RV-IPHONE-NOTIFICATIONS-001_REVISION_RECORD.md"
+          ]
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:startup-blocked",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Selected provider credential is missing or invalid; launcher exits before manager construction",
+          "source_references": [
+            "src/riverview_core/notifications/push.py",
+            "scripts/run_notification_delivery.py",
+            "deploy/systemd/riverview-notification-delivery.service"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "docs/development/RV-IPHONE-NOTIFICATIONS-001_REVISION_RECORD.md"
+          ]
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:credential-repaired",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Provision only the selected provider credential, clear systemd start limit, then retry in authorized commissioning",
+          "source_references": [
+            "scripts/run_notification_delivery.py",
+            "deploy/systemd/riverview-notification-delivery.service"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "docs/development/RV-IPHONE-NOTIFICATIONS-001_REVISION_RECORD.md"
+          ]
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:ntfy-endpoint-gate",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Commissioning gate: loopback ntfy, topic ACL, and LAN HTTPS path verified",
+          "source_references": [
+            "deploy/notification-delivery.example.json",
+            "src/riverview_core/notifications/push.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:iphone-foreground-acceptance",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Operator confirms one info notice appears in the open iOS app",
+          "source_references": [
+            "src/riverview_core/notifications/push.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:iphone-acceptance-blocked",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Phone app cannot connect or display notice; preserve first event and diagnose",
+          "source_references": [
+            "src/riverview_core/notifications/push.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:iphone-path-recovered",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Correct CA, path, WebSocket, or ACL issue and resume read-only checks before retry authorization",
+          "source_references": [
+            "src/riverview_core/notifications/push.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:notification-delivery:iphone-push:attention-source",
+          "to": "rv:notification-delivery:iphone-push:severity-route",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:severity-route",
+          "to": "rv:notification-delivery:iphone-push:durable-outbox",
+          "type": "runtime_transition",
+          "label": "route configured"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:durable-outbox",
+          "to": "rv:notification-delivery:iphone-push:lease-claim",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:lease-claim",
+          "to": "rv:notification-delivery:iphone-push:secret-load",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:secret-load",
+          "to": "rv:notification-delivery:iphone-push:provider-send",
+          "type": "runtime_transition",
+          "label": "credential available"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:secret-load",
+          "to": "rv:notification-delivery:iphone-push:bounded-retry",
+          "type": "diagnostic_branch",
+          "label": "credential/configuration unavailable"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:provider-send",
+          "to": "rv:notification-delivery:iphone-push:accepted-state",
+          "type": "runtime_transition",
+          "label": "2xx/API accepted"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:provider-send",
+          "to": "rv:notification-delivery:iphone-push:bounded-retry",
+          "type": "diagnostic_branch",
+          "label": "network or provider failure"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:bounded-retry",
+          "to": "rv:notification-delivery:iphone-push:lease-claim",
+          "type": "recovery_route",
+          "label": "retry becomes due"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:accepted-state",
+          "to": "rv:notification-delivery:iphone-push:pushover-receipt",
+          "type": "runtime_transition",
+          "label": "Pushover critical receipt exists"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:pushover-receipt",
+          "to": "rv:notification-delivery:iphone-push:ack-expire",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:accepted-state",
+          "to": "rv:notification-delivery:iphone-push:worker-restart",
+          "type": "recovery_route",
+          "label": "process interruption"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:worker-restart",
+          "to": "rv:notification-delivery:iphone-push:lease-claim",
+          "type": "runtime_transition",
+          "label": "lease expires"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:service-start",
+          "to": "rv:notification-delivery:iphone-push:credential-preflight",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:credential-preflight",
+          "to": "rv:notification-delivery:iphone-push:attention-source",
+          "type": "runtime_transition",
+          "label": "selected credentials available; worker begins reconciliation"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:credential-preflight",
+          "to": "rv:notification-delivery:iphone-push:startup-blocked",
+          "type": "diagnostic_branch",
+          "label": "selected credential missing, unreadable, empty, or symlinked"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:startup-blocked",
+          "to": "rv:notification-delivery:iphone-push:credential-repaired",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:credential-repaired",
+          "to": "rv:notification-delivery:iphone-push:service-start",
+          "type": "recovery_route",
+          "label": "operator retries after authorized correction"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:ntfy-endpoint-gate",
+          "to": "rv:notification-delivery:iphone-push:provider-send",
+          "type": "prerequisite",
+          "label": "only after endpoint, TLS path, and topic ACL checks pass"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:accepted-state",
+          "to": "rv:notification-delivery:iphone-push:iphone-foreground-acceptance",
+          "type": "verification",
+          "label": "provider acceptance does not prove phone display"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:iphone-foreground-acceptance",
+          "to": "rv:notification-delivery:iphone-push:iphone-acceptance-blocked",
+          "type": "diagnostic_branch",
+          "label": "connection or display check fails"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:iphone-acceptance-blocked",
+          "to": "rv:notification-delivery:iphone-push:iphone-path-recovered",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:iphone-path-recovered",
+          "to": "rv:notification-delivery:iphone-push:iphone-foreground-acceptance",
+          "type": "recovery_route",
+          "label": "recheck app path before separately authorized event retry"
+        }
+      ]
+    },
+    {
       "graph_id": "rv:notification-delivery:visual-attention",
-      "graph_revision": "1.0.0",
+      "graph_revision": "1.0.1",
       "component_id": "NOTIFICATION-DELIVERY",
       "workflow_id": "visual-attention.v1",
       "diagram_order": 1,
@@ -6437,7 +6868,9 @@
         "src/riverview_core/status_dashboard/static/app.js",
         "deploy/systemd/riverview-notification-dispatcher.service",
         "scripts/run_notification_dispatcher.py",
-        "tests/test_notifications.py"
+        "tests/test_notifications.py",
+        "docs/components/NOTIFICATION_DELIVERY_API.schema.json",
+        "tests/fixtures/notification_delivery_status_examples.json"
       ],
       "documentation_references": [
         "docs/components/NOTIFICATION_DELIVERY.md",
@@ -6625,6 +7058,84 @@
             "docs/components/STATUS_DASHBOARD.md"
           ],
           "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:push-status-request",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Authenticated caller requests the bounded notification API page",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:push-status-project",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Read aggregate provider queue and health without notice content",
+          "source_references": [
+            "src/riverview_core/notifications/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:push-status-classify",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Classify provider health, freshness, and durable recovery state",
+          "source_references": [
+            "src/riverview_core/notifications/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY_API.schema.json"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:push-status-response",
+          "node_revision": "1.0.0",
+          "type": "exit",
+          "label": "Return redacted push status alongside visual notices",
+          "source_references": [
+            "src/riverview_core/notifications/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:push-status-unavailable",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Report unavailable provider status without claiming delivery",
+          "source_references": [
+            "src/riverview_core/notifications/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:visual-attention:push-status-retry",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Refresh the read-only status after the source dependency recovers",
+          "source_references": [
+            "src/riverview_core/notifications/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
         }
       ],
       "edges": [
@@ -6714,6 +7225,45 @@
           "from": "rv:notification-delivery:visual-attention:jump-dashboard",
           "to": "rv:steward-dashboard:status:ingest",
           "type": "jump"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:push-status-request",
+          "to": "rv:notification-delivery:visual-attention:push-status-project",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:push-status-project",
+          "to": "rv:notification-delivery:visual-attention:push-status-classify",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:push-status-classify",
+          "to": "rv:notification-delivery:visual-attention:push-status-response",
+          "type": "runtime_transition",
+          "label": "health and queue projection available"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:push-status-classify",
+          "to": "rv:notification-delivery:visual-attention:push-status-unavailable",
+          "type": "diagnostic_branch",
+          "label": "incomplete schema or status query unavailable"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:push-status-unavailable",
+          "to": "rv:notification-delivery:visual-attention:push-status-retry",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:push-status-retry",
+          "to": "rv:notification-delivery:visual-attention:push-status-request",
+          "type": "runtime_transition",
+          "label": "subsequent authenticated read"
+        },
+        {
+          "from": "rv:notification-delivery:visual-attention:push-status-response",
+          "to": "rv:notification-delivery:visual-attention:jump-dashboard",
+          "type": "documentation",
+          "label": "API consumer integration seam; dashboard rendering not included"
         }
       ]
     },
@@ -14207,6 +14757,25 @@
     "rv:institutional-authority:resident-permission-profiles:resource-unready",
     "rv:institutional-authority:resident-permission-profiles:save-cas",
     "rv:institutional-authority:resident-permission-profiles:steward-open",
+    "rv:notification-delivery:iphone-push:accepted-state",
+    "rv:notification-delivery:iphone-push:ack-expire",
+    "rv:notification-delivery:iphone-push:attention-source",
+    "rv:notification-delivery:iphone-push:bounded-retry",
+    "rv:notification-delivery:iphone-push:credential-preflight",
+    "rv:notification-delivery:iphone-push:credential-repaired",
+    "rv:notification-delivery:iphone-push:durable-outbox",
+    "rv:notification-delivery:iphone-push:iphone-acceptance-blocked",
+    "rv:notification-delivery:iphone-push:iphone-foreground-acceptance",
+    "rv:notification-delivery:iphone-push:iphone-path-recovered",
+    "rv:notification-delivery:iphone-push:lease-claim",
+    "rv:notification-delivery:iphone-push:ntfy-endpoint-gate",
+    "rv:notification-delivery:iphone-push:provider-send",
+    "rv:notification-delivery:iphone-push:pushover-receipt",
+    "rv:notification-delivery:iphone-push:secret-load",
+    "rv:notification-delivery:iphone-push:service-start",
+    "rv:notification-delivery:iphone-push:severity-route",
+    "rv:notification-delivery:iphone-push:startup-blocked",
+    "rv:notification-delivery:iphone-push:worker-restart",
     "rv:notification-delivery:visual-attention:ack-receipt",
     "rv:notification-delivery:visual-attention:cme-event",
     "rv:notification-delivery:visual-attention:delivery-receipt",
@@ -14215,6 +14784,12 @@
     "rv:notification-delivery:visual-attention:jump-dashboard",
     "rv:notification-delivery:visual-attention:no-authority-effect",
     "rv:notification-delivery:visual-attention:pending-request",
+    "rv:notification-delivery:visual-attention:push-status-classify",
+    "rv:notification-delivery:visual-attention:push-status-project",
+    "rv:notification-delivery:visual-attention:push-status-request",
+    "rv:notification-delivery:visual-attention:push-status-response",
+    "rv:notification-delivery:visual-attention:push-status-retry",
+    "rv:notification-delivery:visual-attention:push-status-unavailable",
     "rv:notification-delivery:visual-attention:queue-notice",
     "rv:notification-delivery:visual-attention:render",
     "rv:notification-delivery:visual-attention:retry",

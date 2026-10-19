@@ -2,10 +2,12 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_DELIVERY.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.0.1
-Purpose: Define durable visual notification and pending decision-request projection
+File Revision: 1.0.4
+Purpose: Define durable visual notice and read-only provider delivery status projections
 Authority: Records notification state only; cannot approve or resolve institutional decisions
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Normalize controlled Markdown spacing
+Changed: 2026-10-18 UTC | RV-NOTIFICATION-STATUS-PROJECTION-20261018 | Add redacted push queue/freshness projection to authenticated notification API
+Changed: 2026-10-18 UTC | RV-NOTIFICATION-STATUS-PROJECTION-20261018 | Clarify field availability when dashboard service initialization fails
 History: Git and revision/backup manifest
 -->
 # Durable notification delivery
@@ -42,8 +44,10 @@ The request remains `pending` after rendering and receipt acknowledgment.
 
 ## Visual delivery contract
 
-The only channel in this slice is `dashboard.visual.v1`; no external provider,
-purchase, SMS, audio, or paid service is introduced.
+This section describes the existing visual channel `dashboard.visual.v1`.
+Provider-based mobile delivery is a separate additive consumer of these same
+durable notices; see `NOTIFICATION_IPHONE_DELIVERY.md`. This visual path does
+not itself call an external provider.
 
 | State | Meaning | Durable evidence |
 | --- | --- | --- |
@@ -64,11 +68,15 @@ heartbeat older than 15 seconds is `stale`, and a fresh successful heartbeat is
 See `NOTIFICATION_DELIVERY_API.schema.json` for bounded response schemas and
 `NOTIFICATION_DELIVERY_COOKBOOK.md` for diagnosis/recovery steps.
 
+The optional iPhone provider delivery contract and setup/recovery instructions
+are in `NOTIFICATION_IPHONE_DELIVERY.md` and
+`NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md`.
+
 ## Routes and security
 
 | Route | Contract | Authority |
 | --- | --- | --- |
-| `GET /api/v1/notifications?limit=n` | Authenticated, read-only, maximum 50 notifications and dispatcher health. | Projection only. |
+| `GET /api/v1/notifications?limit=n` | Authenticated, read-only, maximum 50 visual notices, dispatcher health, and provider delivery status. | Projection only. |
 | `POST /api/v1/notifications/{uuid}/delivered` | Empty body; record client rendering receipt after visible render. | Receipt only. |
 | `POST /api/v1/notifications/{uuid}/acknowledge` | Empty body; requires `delivered_at`; append receipt acknowledgment. | Receipt only; cannot decide. |
 
@@ -78,6 +86,40 @@ and credentials are not logged. Other mutating methods remain rejected. A
 receipt before delivery returns conflict; malformed/unknown notices return
 not-found; database errors return unavailable. There is no endpoint that can
 change `steward_decision_requests.status`.
+
+### Provider delivery status contract
+
+When `NotificationService` is initialized, the authenticated
+`GET /api/v1/notifications` response includes a bounded `push_delivery` object
+(`rv.notification_push_status.v2`). The dashboard server's separate
+`notification_service=None` fallback still returns the legacy not-initialized
+page without this field; the dashboard owner should add a matching
+`not_initialized` fallback before rendering the projection. The field reads only
+aggregate states from migration 0007's `notification_delivery_queue` and
+`notification_delivery_health`; it does not change queue, lease, retry, event,
+or decision state. The projection reports component status (`healthy`, `stale`,
+`degraded`, `not_initialized`, `unavailable`, or `unknown`), observation time,
+heartbeat age against a 15-second threshold, counts by queue state, due retries,
+expired sending leases, recovery condition, last sanitized error code and
+aggregate worker counters.
+
+The projection intentionally excludes delivery IDs, notification titles and
+bodies, provider receipt values, message content, assignment/event details,
+provider URLs, credentials, and worker instance IDs. Error codes are constrained
+to a short identifier character set; any unexpected value is represented by
+`notification_error_code_redacted`. HTTP provider acceptance remains distinct
+from iPhone display or acknowledgment. `not_initialized` means the additive push
+schema or its worker heartbeat is absent. An incomplete schema or query
+permission failure yields an `unavailable` provider projection while preserving
+the visual notification page where its own source tables remain available.
+
+The API contract and sanitized response examples are in
+`NOTIFICATION_DELIVERY_API.schema.json` and
+`../../tests/fixtures/notification_delivery_status_examples.json`. This change
+adds a machine-readable field to the existing authenticated API only; it does
+not add or claim a Steward UI panel. The dashboard owner must integrate the
+field into the page, preserve the state distinctions, and avoid treating
+provider acceptance as handset delivery.
 
 ## Persistence and migration
 

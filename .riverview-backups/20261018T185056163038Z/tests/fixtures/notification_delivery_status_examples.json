@@ -1,0 +1,203 @@
+{
+  "fixture_revision": "1.0.1",
+  "source": "sanitized illustrative API contract fixtures; not production evidence",
+  "examples": [
+    {
+      "schema_version": "rv.notification_push_status.v2",
+      "component_id": "NOTIFICATION-DELIVERY",
+      "status": "healthy",
+      "observed_at": "2026-10-18T18:00:00Z",
+      "freshness": {
+        "state": "fresh",
+        "heartbeat_age_seconds": 2.0,
+        "threshold_seconds": 15
+      },
+      "queue": {
+        "state": "available",
+        "by_state": {
+          "queued": 2,
+          "sending": 0,
+          "retry": 0,
+          "accepted": 0,
+          "acknowledged": 0,
+          "expired": 0,
+          "failed": 0
+        },
+        "retry_due_count": 0,
+        "expired_lease_count": 0
+      },
+      "recovery": {
+        "state": "idle",
+        "retry_pending_count": 0,
+        "expired_lease_count": 0
+      },
+      "failure": {
+        "state": "none",
+        "code": null
+      },
+      "last_cycle_at": "2026-10-18T18:00:00Z",
+      "counters": {
+        "notices_scanned": 7,
+        "deliveries_queued": 2,
+        "provider_accepted": 1,
+        "emergency_acknowledged": 0
+      },
+      "read_only": true,
+      "content_included": false
+    },
+    {
+      "schema_version": "rv.notification_push_status.v2",
+      "component_id": "NOTIFICATION-DELIVERY",
+      "status": "stale",
+      "observed_at": "2026-10-18T18:00:00Z",
+      "freshness": {
+        "state": "stale",
+        "heartbeat_age_seconds": 30.0,
+        "threshold_seconds": 15
+      },
+      "queue": {
+        "state": "available",
+        "by_state": {
+          "queued": 0,
+          "sending": 0,
+          "retry": 1,
+          "accepted": 0,
+          "acknowledged": 0,
+          "expired": 0,
+          "failed": 0
+        },
+        "retry_due_count": 1,
+        "expired_lease_count": 0
+      },
+      "recovery": {
+        "state": "retry_pending",
+        "retry_pending_count": 1,
+        "expired_lease_count": 0
+      },
+      "failure": {
+        "state": "none",
+        "code": null
+      },
+      "last_cycle_at": "2026-10-18T18:00:00Z",
+      "counters": {
+        "notices_scanned": 7,
+        "deliveries_queued": 2,
+        "provider_accepted": 1,
+        "emergency_acknowledged": 0
+      },
+      "read_only": true,
+      "content_included": false
+    },
+    {
+      "schema_version": "rv.notification_push_status.v2",
+      "component_id": "NOTIFICATION-DELIVERY",
+      "status": "degraded",
+      "observed_at": "2026-10-18T18:00:00Z",
+      "freshness": {
+        "state": "fresh",
+        "heartbeat_age_seconds": 1.0,
+        "threshold_seconds": 15
+      },
+      "queue": {
+        "state": "available",
+        "by_state": {
+          "queued": 0,
+          "sending": 0,
+          "retry": 1,
+          "accepted": 0,
+          "acknowledged": 0,
+          "expired": 0,
+          "failed": 0
+        },
+        "retry_due_count": 1,
+        "expired_lease_count": 0
+      },
+      "recovery": {
+        "state": "retry_pending",
+        "retry_pending_count": 1,
+        "expired_lease_count": 0
+      },
+      "failure": {
+        "state": "recorded",
+        "code": "provider_http_503"
+      },
+      "last_cycle_at": "2026-10-18T18:00:00Z",
+      "counters": {
+        "notices_scanned": 7,
+        "deliveries_queued": 2,
+        "provider_accepted": 1,
+        "emergency_acknowledged": 0
+      },
+      "read_only": true,
+      "content_included": false
+    },
+    {
+      "schema_version": "rv.notification_push_status.v2",
+      "component_id": "NOTIFICATION-DELIVERY",
+      "status": "not_initialized",
+      "observed_at": "2026-10-18T18:00:00Z",
+      "freshness": {
+        "state": "unknown",
+        "heartbeat_age_seconds": null,
+        "threshold_seconds": 15
+      },
+      "queue": {
+        "state": "not_initialized",
+        "by_state": {
+          "queued": 0,
+          "sending": 0,
+          "retry": 0,
+          "accepted": 0,
+          "acknowledged": 0,
+          "expired": 0,
+          "failed": 0
+        },
+        "retry_due_count": 0,
+        "expired_lease_count": 0
+      },
+      "recovery": {
+        "state": "unknown",
+        "retry_pending_count": 0,
+        "expired_lease_count": 0
+      },
+      "failure": {
+        "state": "none",
+        "code": null
+      },
+      "last_cycle_at": null,
+      "counters": null,
+      "read_only": true,
+      "content_included": false
+    },
+    {
+      "schema_version": "rv.notification_push_status.v2",
+      "component_id": "NOTIFICATION-DELIVERY",
+      "status": "unavailable",
+      "observed_at": null,
+      "freshness": {
+        "state": "unavailable",
+        "heartbeat_age_seconds": null,
+        "threshold_seconds": 15
+      },
+      "queue": {
+        "state": "unavailable",
+        "by_state": {},
+        "retry_due_count": null,
+        "expired_lease_count": null
+      },
+      "recovery": {
+        "state": "unavailable",
+        "retry_pending_count": null,
+        "expired_lease_count": null
+      },
+      "failure": {
+        "state": "unavailable",
+        "code": null
+      },
+      "last_cycle_at": null,
+      "counters": null,
+      "read_only": true,
+      "content_included": false
+    }
+  ]
+}

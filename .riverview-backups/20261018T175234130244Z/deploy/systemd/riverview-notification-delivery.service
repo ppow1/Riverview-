@@ -1,0 +1,56 @@
+# =============================================================================
+# RIVERVIEW~ CONTROLLED CONFIGURATION
+# File: deploy/systemd/riverview-notification-delivery.service
+# Component: NOTIFICATION-DELIVERY
+# Revision: 1.0.0
+# Purpose: Supervise provider delivery from the local durable notification outbox
+# Execution Model: Continuous bounded reconciliation, retry, and Pushover receipt polling
+# Observability: Sanitized journal and PostgreSQL delivery state/event ledger
+# Dependencies: PostgreSQL; migrations 0006/0007; protected systemd credentials
+# Authority: Notification delivery only; no assignment or decision state changes
+# Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial isolated systemd unit
+# Contracts: docs/components/NOTIFICATION_IPHONE_DELIVERY.md
+# Tests: tests/test_notification_push.py
+# History: Git + .riverview-backups/manifest.jsonl
+# =============================================================================
+[Unit]
+Description=Riverview notification provider delivery worker
+After=postgresql.service riverview-notification-dispatcher.service
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=riverview
+Group=riverview
+WorkingDirectory=/opt/riverview-notification-delivery/current
+Environment=PYTHONPATH=/opt/riverview-notification-delivery/current/src:/opt/riverview-notification-delivery/current/scripts
+Environment="RIVERVIEW_DATABASE_DSN=host=127.0.0.1 port=5432 dbname=riverview user=riverview_core application_name=riverview-notification-delivery"
+Environment=RIVERVIEW_NOTIFICATION_SCHEMA=riverview_dev
+Environment=RIVERVIEW_NOTIFICATION_PUSH_CONFIG=/etc/riverview/notification-delivery.json
+Environment=RIVERVIEW_NOTIFICATION_PUSH_POLL_SECONDS=15
+RuntimeDirectory=riverview-notification-delivery
+RuntimeDirectoryMode=0700
+LoadCredential=pgpass:/etc/riverview/pgpass
+LoadCredential=ntfy_token:/etc/riverview/notification/ntfy_token
+LoadCredential=pushover_app_token:/etc/riverview/notification/pushover_app_token
+LoadCredential=pushover_user_key:/etc/riverview/notification/pushover_user_key
+ExecStart=/usr/bin/python3 /opt/riverview-notification-delivery/current/scripts/run_notification_delivery.py
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+TimeoutStartSec=20
+
+[Install]
+WantedBy=multi-user.target

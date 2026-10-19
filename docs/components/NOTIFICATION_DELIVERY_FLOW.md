@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_DELIVERY_FLOW.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Focused notification lifecycle flow generated from canonical JSON
 Authority: Documentation only
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Register visual attention flow
@@ -30,6 +30,12 @@ flowchart LR
     g_rv_notification_delivery_visual_attention_retry_635d6b92["Re-scan durable CME source after recovery"]
     g_rv_notification_delivery_visual_attention_jump_cme_68ab309e["CME source workflow"]
     g_rv_notification_delivery_visual_attention_jump_dashboard_f63d918e["Dashboard authenticated receipt client"]
+    g_rv_notification_delivery_visual_attention_push_status_request_57ca7560(["Authenticated caller requests the bounded notification API page"])
+    g_rv_notification_delivery_visual_attention_push_status_project_d3631ea2["Read aggregate provider queue and health without notice content"]
+    g_rv_notification_delivery_visual_attention_push_status_classify_e6305a9b{"Classify provider health, freshness, and durable recovery state"}
+    g_rv_notification_delivery_visual_attention_push_status_response_039784d9(["Return redacted push status alongside visual notices"])
+    g_rv_notification_delivery_visual_attention_push_status_unavailable_6976d5d5[["Report unavailable provider status without claiming delivery"]]
+    g_rv_notification_delivery_visual_attention_push_status_retry_d1d87b38["Refresh the read-only status after the source dependency recovers"]
   end
   g_rv_cme_progress_and_recovery_monitor_start_3c5b8496["Registered target<br/>rv:cme:progress-and-recovery"]
   g_rv_steward_dashboard_status_ingest_66a3387a["Registered target<br/>rv:steward-dashboard:status"]
@@ -49,5 +55,12 @@ flowchart LR
   g_rv_notification_delivery_visual_attention_render_6a316d15 -->|documentation| g_rv_notification_delivery_visual_attention_jump_dashboard_f63d918e
   g_rv_notification_delivery_visual_attention_jump_cme_68ab309e -->|jump| g_rv_cme_progress_and_recovery_monitor_start_3c5b8496
   g_rv_notification_delivery_visual_attention_jump_dashboard_f63d918e -->|jump| g_rv_steward_dashboard_status_ingest_66a3387a
+  g_rv_notification_delivery_visual_attention_push_status_request_57ca7560 --> g_rv_notification_delivery_visual_attention_push_status_project_d3631ea2
+  g_rv_notification_delivery_visual_attention_push_status_project_d3631ea2 --> g_rv_notification_delivery_visual_attention_push_status_classify_e6305a9b
+  g_rv_notification_delivery_visual_attention_push_status_classify_e6305a9b -->|health and queue projection available| g_rv_notification_delivery_visual_attention_push_status_response_039784d9
+  g_rv_notification_delivery_visual_attention_push_status_classify_e6305a9b -->|diagnostic_branch: incomplete schema or status query unavailable| g_rv_notification_delivery_visual_attention_push_status_unavailable_6976d5d5
+  g_rv_notification_delivery_visual_attention_push_status_unavailable_6976d5d5 -->|recovery_route| g_rv_notification_delivery_visual_attention_push_status_retry_d1d87b38
+  g_rv_notification_delivery_visual_attention_push_status_retry_d1d87b38 -->|subsequent authenticated read| g_rv_notification_delivery_visual_attention_push_status_request_57ca7560
+  g_rv_notification_delivery_visual_attention_push_status_response_039784d9 -->|documentation: API consumer integration seam; dashboard rendering not included| g_rv_notification_delivery_visual_attention_jump_dashboard_f63d918e
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

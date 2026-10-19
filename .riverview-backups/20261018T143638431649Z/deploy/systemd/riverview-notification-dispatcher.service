@@ -1,0 +1,51 @@
+# RIVERVIEW~ CONTROLLED CONFIGURATION
+# File: deploy/systemd/riverview-notification-dispatcher.service
+# Component: NOTIFICATION-DELIVERY
+# Revision: 1.0.0
+# Purpose: Supervise durable in-app attention notification projection
+# Execution Model: Continuous idempotent polling with bounded retry and restart recovery
+# Observability: Structured journal plus PostgreSQL dispatcher health and notification events
+# Dependencies: PostgreSQL 16; CME migration 0005; notification migration 0006
+# Authority: Reads CME/assignment state; writes notification-owned tables only
+# Changed: 2026-10-11 UTC | RV-M3.2-001 | Initial isolated dispatcher unit
+# Contracts: docs/components/NOTIFICATION_DELIVERY.md
+# Tests: tests/test_notification_service.py
+# History: New file; Git and .riverview-backups/manifest.jsonl
+[Unit]
+Description=Riverview durable visual notification dispatcher
+After=postgresql.service riverview-cme-monitor.service
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=riverview
+Group=riverview
+WorkingDirectory=/opt/riverview-notification-dispatcher/current
+Environment=PYTHONPATH=/opt/riverview-notification-dispatcher/current/src:/opt/riverview-notification-dispatcher/current/scripts
+Environment="RIVERVIEW_DATABASE_DSN=host=127.0.0.1 port=5432 dbname=riverview user=riverview_core application_name=riverview-notification-dispatcher"
+Environment=RIVERVIEW_NOTIFICATION_SCHEMA=riverview_dev
+Environment=RIVERVIEW_NOTIFICATION_POLL_SECONDS=2
+Environment=RIVERVIEW_NOTIFICATION_MAX_BACKOFF_SECONDS=30
+RuntimeDirectory=riverview-notification-dispatcher
+RuntimeDirectoryMode=0700
+LoadCredential=pgpass:/etc/riverview/pgpass
+ExecStart=/usr/bin/python3 /opt/riverview-notification-dispatcher/current/scripts/run_notification_dispatcher.py
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET
+TimeoutStartSec=20
+
+[Install]
+WantedBy=multi-user.target

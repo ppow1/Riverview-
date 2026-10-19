@@ -1,0 +1,30 @@
+{
+  "event_severity": {
+    "attention_resolved": "info",
+    "assignment_stalled": "warning",
+    "deadline_missed": "critical",
+    "assignment_attention": "warning",
+    "recovery_requested": "critical",
+    "monitor_failed": "critical"
+  },
+  "routes": {
+    "info": ["ntfy"],
+    "warning": ["ntfy", "pushover"],
+    "critical": ["pushover"]
+  },
+  "ntfy": {
+    "base_url": "https://ntfy.example.invalid",
+    "topic": "replace-with-private-topic",
+    "credential": "provider_ntfy_token"
+  },
+  "pushover": {
+    "app_credential": "provider_pushover_app_token",
+    "user_credential": "provider_pushover_user_key"
+  },
+  "retry_limit": 5,
+  "lease_seconds": 60,
+  "retry_base_seconds": 5,
+  "retry_max_seconds": 300,
+  "emergency_retry_seconds": 60,
+  "emergency_expire_seconds": 1800
+}

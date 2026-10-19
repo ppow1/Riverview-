@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_notifications.py
 # Component: NOTIFICATION-DELIVERY
-# Revision: 1.0.3
-# Purpose: Verify durable visual notice projection, recovery, privacy, and receipt authority
+# Revision: 1.0.8
+# Purpose: Verify notification API privacy, provider status projection, recovery, and receipt authority
 # Execution Model: Isolated PostgreSQL integration tests against unique rvtest_* schemas
-# Observability: CME source events, notification rows, receipt ledger, decision request status
+# Observability: CME events, notice/receipt records, decision state, and redacted push status
 # Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL 16 test database
 # Authority: Creates and drops only unique rvtest_* schemas; no shared state
-# Changed: 2026-10-11 UTC | RV-M3.2-001 | Normalize final file termination
+# Changed: 2026-10-18 UTC | RV-NOTIFICATION-STATUS-PROJECTION-20261018 | Keep stale and future heartbeat values schema-valid
 # Contracts: docs/components/NOTIFICATION_DELIVERY.md
 # Tests: This file
 # History: New file; Git and revision/backup manifest
@@ -47,6 +47,16 @@ class _FakeNotificationService:
     def list_notifications(self, *, limit=25):
         return {"schema_version": "rv.notifications.v1", "status": "available",
                 "observed_at": "2026-10-11T00:00:00+00:00", "dispatcher": {"status": "healthy"},
+                "push_delivery": {"schema_version":"rv.notification_push_status.v2",
+                    "component_id":"NOTIFICATION-DELIVERY","status":"not_initialized",
+                    "observed_at":"2026-10-11T00:00:00+00:00",
+                    "freshness":{"state":"unknown","heartbeat_age_seconds":None,"threshold_seconds":15},
+                    "queue":{"state":"not_initialized","by_state":{"queued":0,"sending":0,"retry":0,
+                        "accepted":0,"acknowledged":0,"expired":0,"failed":0},
+                        "retry_due_count":0,"expired_lease_count":0},
+                    "recovery":{"state":"unknown","retry_pending_count":0,"expired_lease_count":0},
+                    "failure":{"state":"none","code":None},"last_cycle_at":None,"counters":None,
+                    "read_only":True,"content_included":False},
                 "items": [], "limit": limit}
 
     def confirm_delivery(self, notice):
@@ -103,9 +113,14 @@ class NotificationHTTPTests(unittest.TestCase):
         status, body = self.request("GET", "/api/v1/notifications?limit=999", token=self.token)
         self.assertEqual(status, 200)
         self.assertEqual(body["limit"], 50)
+        self.assertEqual(body["push_delivery"]["status"], "not_initialized")
         from jsonschema import Draft202012Validator
         schema = json.loads((ROOT / "docs/components/NOTIFICATION_DELIVERY_API.schema.json").read_text())
         Draft202012Validator(schema).validate(body)
+        status_schema = schema["$defs"]["pushDelivery"]
+        examples = json.loads((ROOT / "tests/fixtures/notification_delivery_status_examples.json").read_text())
+        for example in examples["examples"]:
+            Draft202012Validator(status_schema).validate(example)
         status, body = self.request("POST", f"/api/v1/notifications/{notice}/acknowledge", token=self.token)
         self.assertEqual(status, 200)
         self.assertEqual(body["authority_effect"], "none")
@@ -233,6 +248,100 @@ class NotificationPostgresTests(unittest.TestCase):
         missing = NotificationService(DSN, schema="rvtest_absent_notifications")
         page = missing.list_notifications()
         self.assertEqual(page["status"], "not_initialized")
+        self.assertEqual(page["push_delivery"]["status"], "not_initialized")
+
+    def test_provider_status_projection_reports_fresh_queue_state_without_content(self):
+        with self.admin.cursor() as cur:
+            cur.execute("""INSERT INTO cme_monitor_events
+                (event_key,service_id,assignment_id,event_type,details)
+                VALUES (%s,'notification_status_fixture',NULL,'assignment_stalled','{}'::jsonb)
+                RETURNING event_id""", ("status:" + uuid4().hex,))
+            source_event = cur.fetchone()["event_id"]
+            cur.execute("""INSERT INTO attention_notifications
+                (source_event_id,event_type,summary_code,source_recorded_at)
+                VALUES (%s,'assignment_stalled','assignment_stalled',clock_timestamp())
+                RETURNING notification_id""", (source_event,))
+            notice_id = cur.fetchone()["notification_id"]
+            cur.execute("""INSERT INTO notification_delivery_queue
+                (notification_id,provider,severity,title,message,idempotency_key,max_attempts,provider_receipt)
+                VALUES (%s,'ntfy','warning','PRIVATE_TITLE_SENTINEL','PRIVATE_BODY_SENTINEL',%s,3,
+                    'PRIVATE_RECEIPT_SENTINEL')""", (notice_id, str(notice_id) + ':ntfy'))
+            cur.execute("""INSERT INTO notification_delivery_health
+                (service_id,instance_id,status,last_heartbeat_at,last_cycle_at)
+                VALUES ('notification.delivery.v1',%s,'healthy',clock_timestamp(),clock_timestamp())""",
+                (uuid4(),))
+        projection = self.service.list_notifications()["push_delivery"]
+        self.assertEqual(projection["status"], "healthy")
+        self.assertEqual(projection["freshness"]["state"], "fresh")
+        self.assertEqual(projection["queue"]["by_state"]["queued"], 1)
+        self.assertEqual(projection["recovery"]["state"], "idle")
+        self.assertTrue(projection["read_only"])
+        self.assertFalse(projection["content_included"])
+        self.assertNotIn("last_heartbeat_at", projection)
+        serialized = json.dumps(projection)
+        for private in ("PRIVATE_TITLE_SENTINEL", "PRIVATE_BODY_SENTINEL",
+                        "PRIVATE_RECEIPT_SENTINEL", str(notice_id)):
+            self.assertNotIn(private, serialized)
+
+        with self.admin.cursor() as cur:
+            cur.execute("""UPDATE notification_delivery_queue SET state='retry',
+                next_attempt_at=clock_timestamp()-interval '1 second' WHERE notification_id=%s""",
+                (notice_id,))
+            cur.execute("""UPDATE notification_delivery_health SET status='degraded',
+                last_heartbeat_at=clock_timestamp(),last_error_code='provider_http_503'
+                WHERE service_id='notification.delivery.v1'""")
+        degraded = self.service.push_delivery_status()
+        self.assertEqual(degraded["status"], "degraded")
+        self.assertEqual(degraded["failure"], {"state":"recorded","code":"provider_http_503"})
+        self.assertEqual(degraded["queue"]["retry_due_count"], 1)
+        self.assertEqual(degraded["recovery"]["state"], "retry_pending")
+
+        with self.admin.cursor() as cur:
+            cur.execute("""UPDATE notification_delivery_health SET last_heartbeat_at=
+                clock_timestamp()-interval '30 seconds' WHERE service_id='notification.delivery.v1'""")
+        stale_degraded = self.service.push_delivery_status()
+        self.assertEqual(stale_degraded["status"], "degraded")
+        self.assertEqual(stale_degraded["freshness"]["state"], "stale")
+
+        with self.admin.cursor() as cur:
+            cur.execute("""UPDATE notification_delivery_health SET status='healthy',
+                last_heartbeat_at=clock_timestamp()-interval '30 seconds',last_error_code=NULL
+                WHERE service_id='notification.delivery.v1'""")
+        stale = self.service.push_delivery_status()
+        self.assertEqual(stale["status"], "stale")
+        self.assertEqual(stale["freshness"]["state"], "stale")
+        self.assertEqual(stale["recovery"]["state"], "retry_pending")
+
+        with self.admin.cursor() as cur:
+            cur.execute("""UPDATE notification_delivery_queue SET state='sending',lease_id=%s,
+                lease_until=clock_timestamp()-interval '1 second' WHERE notification_id=%s""",
+                (uuid4(), notice_id))
+            cur.execute("""UPDATE notification_delivery_health SET status='healthy',
+                last_heartbeat_at=clock_timestamp(),last_error_code=%s
+                WHERE service_id='notification.delivery.v1'""",
+                ("credential=DO_NOT_EXPOSE_SENTINEL",))
+        lease = self.service.push_delivery_status()
+        self.assertEqual(lease["queue"]["expired_lease_count"], 1)
+        self.assertEqual(lease["recovery"]["state"], "lease_recovery_pending")
+        self.assertEqual(lease["failure"]["code"], "notification_error_code_redacted")
+        self.assertNotIn("DO_NOT_EXPOSE_SENTINEL", json.dumps(lease))
+
+        with self.admin.cursor() as cur:
+            cur.execute("""UPDATE notification_delivery_health SET status='healthy',
+                last_heartbeat_at=clock_timestamp()+interval '30 seconds',last_error_code=NULL
+                WHERE service_id='notification.delivery.v1'""")
+        future = self.service.push_delivery_status()
+        self.assertEqual(future["status"], "unknown")
+        self.assertEqual(future["freshness"]["state"], "unknown")
+        self.assertIsNone(future["freshness"]["heartbeat_age_seconds"])
+
+    def test_provider_status_reports_unavailable_without_leaking_database_errors(self):
+        offline = NotificationService(
+            "host=127.0.0.1 port=1 dbname=unavailable user=unavailable connect_timeout=1",
+            schema=self.schema).push_delivery_status()
+        self.assertEqual(offline["status"], "unavailable")
+        self.assertEqual(offline["freshness"]["state"], "unavailable")
+        self.assertEqual(offline["failure"], {"state":"unavailable","code":None})
 
     def test_receipt_history_is_append_only_and_stopped_dispatcher_becomes_stale(self):
         assignment = self.create_assignment("stale-health")
