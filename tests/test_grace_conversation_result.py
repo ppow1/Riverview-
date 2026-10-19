@@ -1,16 +1,21 @@
 # Riverview~ controlled test
 # File: tests/test_grace_conversation_result.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.3
+# Revision: 1.0.8
+# Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Verify both accepted and rejected review paths provide the actual digest-checked artifact to Grace.
+# Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Prove Grace sees the digest-verified artifact and may decide substantive satisfaction without scheduling rework; reject forged review material before inference.
 # Purpose: Verify 80B result review is authorized, bounded and idempotently linked to chat
 # Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Cover typed completion decisions and same-scope continuation handoff
 # Changed: 2026-10-16 UTC | RV-GRACE-RESULT-RETURN-DIAGNOSTICS-001 | Verify deferred result-review diagnostics are bounded and content-free
+# Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Verify bounded 80B rejection decisions, scope rejection and idempotent source-conversation return
 # Execution Model: Deterministic in-memory adapters; no database or inference endpoint
 # Observability: Assert source identity, provider provenance and single durable response
 # Authority: Fakes exact-grant decisions; live authority remains PostgreSQL enforced
 """Isolated tests for Grace's verified Engineering result return path."""
 
 import unittest
+import json
+import hashlib
 from types import SimpleNamespace
 
 from riverview_core.resident_execution.conversation import ResidentConversationService
@@ -107,6 +112,9 @@ class GraceConversationResultTests(unittest.TestCase):
         self.service.providers = {self.router.provider_id:self.router}
         self.service.max_response_tokens = 128
         self.service.continuation_handler = None
+        self.rework_decisions = []
+        self.service.rework_handler = lambda context, decision: self.rework_decisions.append(
+            (context, decision)) or {"verification_id": context["completion"]["verification_id"]}
         self.actions = []
         self.service._authorize = lambda credential, action: self.actions.append((credential, action))
         self.service._registry_lock = __import__("threading").RLock()
@@ -124,11 +132,34 @@ class GraceConversationResultTests(unittest.TestCase):
         self.assertEqual(row["source_sequence"], context["origin"]["source_sequence"])
         self.assertEqual(row["principal_id"], context["submitter_id"])
         self.assertEqual(row["metadata"]["verification_decision"], "ACCEPTED")
-        self.assertEqual(row["metadata"]["artifact"], context["completion"]["artifact"])
+        self.assertEqual(row["metadata"]["artifact"], {
+            "artifact_sha256": context["completion"]["artifact"]["artifact_sha256"]})
         repeated = self.service.review_verified_work_order(context)
         self.assertEqual(repeated["status"], "already_published")
         self.assertEqual(len(self.router.calls), 1)
         self.assertEqual(len(self.store.responses), 1)
+
+    def test_verified_codex_result_gives_digest_checked_artifact_to_grace(self):
+        body = "# Review\n\nThe implementation is present; production activation was not tested.\n"
+        digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
+        artifact_name = "codex-" + "e" * 64 + ".md"
+        context = valid_context()
+        context["completion"]["artifact"] = {"status": "SUCCEEDED",
+            "artifact_schema": "rv.codex-cli.deliverable.v2",
+            "capability": "engineering.codex-cli-artifact.v1",
+            "assignment_id": context["assignment_id"], "source_artifact_name": "deliverable.md",
+            "changed_files": ["deliverable.md"], "artifact_name": artifact_name,
+            "artifact_bytes": len(body.encode("utf-8")), "artifact_sha256": digest}
+        context["artifact_review"] = {"artifact_name": artifact_name,
+            "sha256": digest, "body": body}
+
+        result = self.service.review_verified_work_order(context)
+
+        self.assertEqual(result["status"], "published")
+        payload = json.loads(self.router.calls[0][0][1]["content"])
+        evidence = payload["verified_work_order_result"]
+        self.assertEqual(evidence["artifact_for_grace_review"]["body"], body)
+        self.assertEqual(evidence["artifact_for_grace_review"]["sha256"], digest)
 
     def test_unverified_or_wrong_scope_result_never_reaches_provider(self):
         context = valid_context()
@@ -214,6 +245,151 @@ class GraceConversationResultTests(unittest.TestCase):
             self.service.review_verified_work_order(valid_context())
         self.assertEqual(handled, [])
         self.assertEqual(self.store.responses, {})
+
+    def test_rejected_result_uses_80b_and_returns_governed_rework_to_original_conversation_once(self):
+        context = {key: value for key, value in valid_context().items() if key != "completion_cycle"}
+        context.update({"step_id": "s1", "step_objective": "Create deliverable",
+            "step_acceptance_criteria": ["criterion one", "criterion two"],
+            "completion": {"decision": "REJECTED", "assignment_id": "assignment:grace:demo",
+                "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
+                "criteria": {"acceptance_criteria_are_present": False},
+                "summary": "Required acceptance criteria were absent."}})
+        self.router.content = json.dumps({"decision": "REWORK_PROPOSED",
+            "rationale": "The artifact omitted both required criteria.",
+            "correction_instruction": "Include each selected criterion verbatim in the artifact.",
+            "criteria_to_address": ["criterion one", "criterion two"]})
+        result = self.service.review_rejected_work_order(context)
+        self.assertEqual(result["status"], "published")
+        self.assertEqual(self.router.calls[0][3], "grace.reasoning.80b")
+        self.assertEqual(len(self.rework_decisions), 1)
+        saved = next(iter(self.store.responses.values()))
+        self.assertEqual(saved["conversation_id"], context["origin"]["conversation_id"])
+        self.assertEqual(saved["source_sequence"], context["origin"]["source_sequence"])
+        self.assertEqual(saved["metadata"]["verification_decision"], "REJECTED")
+        self.assertEqual(saved["metadata"]["review_decision"], "REWORK_PROPOSED")
+        repeated = self.service.review_rejected_work_order(context)
+        self.assertEqual(repeated["status"], "already_published")
+        self.assertEqual(len(self.router.calls), 1)
+        self.assertEqual(len(self.rework_decisions), 1)
+
+    def test_rejected_result_cannot_direct_out_of_scope_criteria(self):
+        context = {key: value for key, value in valid_context().items() if key != "completion_cycle"}
+        context.update({"step_id": "s1", "step_objective": "Create deliverable",
+            "step_acceptance_criteria": ["criterion one"],
+            "completion": {"decision": "REJECTED", "assignment_id": "assignment:grace:demo",
+                "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
+                "criteria": {"failed": True}, "summary": "Rejected."}})
+        self.router.content = json.dumps({"decision": "REWORK_PROPOSED", "rationale": "Fix it.",
+            "correction_instruction": "Change more scope.",
+            "criteria_to_address": ["unapproved criterion"]})
+        with self.assertRaisesRegex(ConversationUnavailable, "exceeded the original assignment scope"):
+            self.service.review_rejected_work_order(context)
+        self.assertEqual(self.rework_decisions, [])
+        self.assertEqual(self.store.responses, {})
+
+    def test_grace_reviews_digest_verified_artifact_and_can_accept_substantive_content(self):
+        body = ("# Production evidence\n\nThe checked-in files describe implementation only; "
+                "no live deployment was tested.\n")
+        digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
+        artifact_name = "codex-" + "a" * 64 + ".md"
+        context = {key: value for key, value in valid_context().items()
+                   if key != "completion_cycle"}
+        context.update({"step_id": "s1", "step_objective": "Write the evidence report",
+            "step_acceptance_criteria": [
+                "Explain that source implementation does not establish production commissioning."],
+            "completion": {"decision": "REJECTED", "assignment_id": "assignment:grace:demo",
+                "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
+                "attempt_id": "attempt:grace:demo", "verifier_id": "verifier:independent",
+                "verifier_revision": "1.0.1",
+                "criteria": {"authorized_acceptance_criteria_bound": True,
+                             "legacy_exact_phrase_check": False},
+                "summary": "Legacy verifier required exact wording.",
+                "artifact_sha256": digest,
+                "artifact": {"status": "SUCCEEDED", "artifact_schema": "rv.codex-cli.deliverable.v2",
+                    "capability": "engineering.codex-cli-artifact.v1",
+                    "assignment_id": "assignment:grace:demo",
+                    "source_artifact_name": "deliverable.md", "changed_files": ["deliverable.md"],
+                    "artifact_name": artifact_name, "artifact_bytes": len(body.encode("utf-8")),
+                    "artifact_sha256": digest}}})
+        context["artifact_review"] = {"artifact_name": artifact_name, "sha256": digest, "body": body}
+        self.router.content = json.dumps({"decision": "OBJECTIVE_SATISFIED",
+            "rationale": "The report addresses the criterion substantively despite using different wording.",
+            "correction_instruction": None, "criteria_to_address": []})
+
+        result = self.service.review_rejected_work_order(context)
+
+        self.assertEqual(result["status"], "published")
+        user_payload = json.loads(self.router.calls[0][0][1]["content"])
+        self.assertEqual(user_payload["artifact"]["body"], body)
+        self.assertEqual(user_payload["artifact"]["sha256"], digest)
+        self.assertEqual(user_payload["independent_rejection"]["criteria"][
+            "legacy_exact_phrase_check"], False)
+        self.assertEqual(self.rework_decisions[0][1]["decision"], "OBJECTIVE_SATISFIED")
+        saved = next(iter(self.store.responses.values()))
+        self.assertEqual(saved["metadata"]["artifact_sha256_reviewed"], digest)
+        self.assertEqual(saved["metadata"]["review_decision"], "OBJECTIVE_SATISFIED")
+
+    def test_grace_rejection_review_rejects_forged_artifact_digest_before_reasoning(self):
+        body = "# Report\n\nSubstantive response.\n"
+        digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
+        artifact_name = "codex-" + "b" * 64 + ".md"
+        context = {key: value for key, value in valid_context().items()
+                   if key != "completion_cycle"}
+        context.update({"step_id": "s1", "step_objective": "Write report",
+            "step_acceptance_criteria": ["Address the objective."],
+            "completion": {"decision": "REJECTED", "assignment_id": "assignment:grace:demo",
+                "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
+                "artifact": {"capability": "engineering.codex-cli-artifact.v1",
+                    "artifact_name": artifact_name, "artifact_sha256": digest,
+                    "artifact_bytes": len(body.encode("utf-8"))}}})
+        context["artifact_review"] = {"artifact_name": artifact_name,
+            "sha256": digest, "body": body + "tampered"}
+        with self.assertRaisesRegex(ConversationUnavailable, "failed its integrity bound"):
+            self.service.review_rejected_work_order(context)
+        self.assertEqual(self.router.calls, [])
+        self.assertEqual(self.rework_decisions, [])
+
+    def test_unreadable_rejected_artifact_is_exposed_as_verifier_evidence_not_trusted_text(self):
+        context = {key: value for key, value in valid_context().items()
+                   if key != "completion_cycle"}
+        context.update({"step_id": "s1", "step_objective": "Write report",
+            "step_acceptance_criteria": ["Address the objective."],
+            "artifact_review_unavailable": "integrity_check_failed",
+            "completion": {"decision": "REJECTED", "assignment_id": "assignment:grace:demo",
+                "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
+                "criteria": {"artifact_digest_matches": False},
+                "summary": "Artifact digest changed.",
+                "artifact": {"capability": "engineering.codex-cli-artifact.v1",
+                    "artifact_name": "codex-" + "c" * 64 + ".md",
+                    "artifact_sha256": "d" * 64, "artifact_bytes": 20}}})
+        self.router.content = json.dumps({"decision": "OBJECTIVE_SATISFIED",
+            "rationale": "The metadata suggests success.",
+            "correction_instruction": None, "criteria_to_address": []})
+        with self.assertRaisesRegex(ConversationUnavailable, "exceeded the original assignment scope"):
+            self.service.review_rejected_work_order(context)
+        user_payload = json.loads(self.router.calls[0][0][1]["content"])
+        self.assertEqual(user_payload["artifact_review_status"], "integrity_check_failed")
+        self.assertIsNone(user_payload["artifact"])
+        self.assertEqual(user_payload["independent_rejection"]["criteria"][
+            "artifact_digest_matches"], False)
+        self.assertEqual(self.rework_decisions, [])
+
+    def test_execution_service_keeps_verifier_failure_context_when_artifact_cannot_be_reopened(self):
+        class Verifier:
+            def read_artifact_for_grace_review(self, *_args):
+                raise ValueError("artifact digest mismatch")
+
+        service = object.__new__(GraceExecutionService)
+        service.verifiers = {"engineering.codex-cli-artifact.v1": Verifier()}
+        context = {"assignment_id": "assignment:grace:demo", "completion": {
+            "decision": "REJECTED", "summary": "Digest verification failed.",
+            "criteria": {"artifact_digest_matches": False},
+            "artifact": {"capability": "engineering.codex-cli-artifact.v1",
+                "status": "SUCCEEDED", "artifact_schema": "rv.codex-cli.deliverable.v2"}}}
+        forwarded = service._with_grace_artifact_review(context)
+        self.assertEqual(forwarded["artifact_review"], None)
+        self.assertEqual(forwarded["artifact_review_unavailable"], "integrity_check_failed")
+        self.assertEqual(forwarded["completion"], context["completion"])
 
     def test_persistent_outbox_acknowledges_only_after_chat_publisher_receipt(self):
         class Pipeline:

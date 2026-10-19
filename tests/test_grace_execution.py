@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.28
+# Revision: 1.0.33
+# Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Authenticate objective detail integration read with a Steward account session
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Cover mixed-capability claims, verification routing, and isolated worker failure behavior.
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Cover persistent proposal failure recording and retry limits.
 # Purpose: Exercise objective-to-authorized-worker-to-independent-verification pipeline
@@ -28,6 +29,9 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Verify dependent step assignments wait for independent predecessor verification
 # Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Verify same-objective continuation is durable, scoped, and dispatched through CME
 # Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Scope expired recovery and verify a late Codex artifact proceeds through independent verification
+# Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Exercise same-objective rejection/rework/acceptance and repeated-rejection stop with real PostgreSQL authority and ledger
+# Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-FIX-001 | Cover rework after assignment workflow_step has been replaced by the verifier transition label
+# Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Require Grace's durable substantive-satisfaction decision before same-attempt Codex verifier revalidation; preserve legacy rejection.
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Verify late artifact recovery, preserved rejection, and restart-safe accepted revalidation
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Reject source-change proposals whose exact paths were not included in the Steward's request or accepted criteria
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-REASONING-BUDGET-001 | Guard the default completion budget needed for typed multi-step plans
@@ -481,7 +485,8 @@ class GraceExecutionTests(unittest.TestCase):
         objective_id = "objective:late-codex:" + uuid4().hex
         criterion = "artifact contains the exact late output"
         self.pipeline.submit_objective(objective_id, "produce one bounded report", [criterion],
-            credential=self.credentials["steward"], scope_ref=self.scope)
+            credential=self.credentials["steward"], scope_ref=self.scope,
+            origin={"conversation_id": str(uuid4()), "source_sequence": 6})
         self.pipeline.ground_objective(objective_id)
         self.pipeline.record_proposal(objective_id, PlanProposal("Produce a bounded report", (
             PlanStep("report", "Create a Markdown report", (criterion,)),), 0))
@@ -559,7 +564,15 @@ class GraceExecutionTests(unittest.TestCase):
                 verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
                 artifact_root=artifact_root, verifier=CodexMarkdownVerifier(artifact_root),
                 execution_capability=CAPABILITY)
-            corrected_key = (f"grace-verifier-revalidation:{recovered[0]['attempt_id']}:1.0.1")
+            self.assertFalse(service.revalidate_rejected_one(assignment_id))
+            rejected_context = self.pipeline.pending_rejected_work_order_reviews()[0]
+            satisfied = {"decision": "OBJECTIVE_SATISFIED",
+                "rationale": "Grace assessed the actual bounded report as substantively satisfying the assigned requirement.",
+                "correction_instruction": None, "criteria_to_address": []}
+            self.pipeline.record_rework_decision(rejected_context, satisfied,
+                credential=self.credentials["steward"])
+            self.assertEqual(self.ledger.get(assignment_id)["state"], "rework_required")
+            corrected_key = (f"grace-verifier-revalidation:{recovered[0]['attempt_id']}:1.0.2")
             with patch.object(self.adapter.ledger, "transition",
                               side_effect=RuntimeError("simulated transition interruption")):
                 with self.assertRaisesRegex(RuntimeError, "transition interruption"):
@@ -573,7 +586,7 @@ class GraceExecutionTests(unittest.TestCase):
             self.assertEqual(self.ledger.get(assignment_id)["state"], "completed")
             rows = self.admin.execute(f'SELECT verifier_revision,decision FROM "{self.schema}".verification_records '
                 "WHERE attempt_id=%s ORDER BY verifier_revision", (recovered[0]["attempt_id"],)).fetchall()
-            self.assertEqual(rows, [("1.0.0", "REJECTED"), ("1.0.1", "ACCEPTED")])
+            self.assertEqual(rows, [("1.0.0", "REJECTED"), ("1.0.2", "ACCEPTED")])
             self.assertEqual(self.admin.execute(f'SELECT count(*) FROM "{self.schema}".worker_attempts '
                 "WHERE assignment_id=%s", (assignment_id,)).fetchone()[0], 1)
         finally:
@@ -685,6 +698,185 @@ class GraceExecutionTests(unittest.TestCase):
         completions = [event for event in self.pipeline.objective_events(objective_id)
                        if event["event_type"] == "objective.completed"]
         self.assertEqual([event["payload"]["completion_cycle"] for event in completions], [2, 3])
+
+    def _create_rework_fixture(self, suffix, *, conversation_id=None):
+        objective_id = "objective:governed-rework:" + suffix
+        assignment_id = "assignment:grace:governed-rework:" + suffix
+        criteria = ["criterion " + str(index) + " must be preserved exactly"
+                    for index in range(1, 5)]
+        self.pipeline.submit_objective(objective_id, "Create a bounded acceptance artifact", criteria,
+            credential=self.credentials["steward"], scope_ref=self.scope,
+            origin={"conversation_id": conversation_id or str(uuid4()), "source_sequence": 6})
+        self.pipeline.ground_objective(objective_id)
+        self.pipeline.record_proposal(objective_id,
+            PlanProposal("Create acceptance artifact", (PlanStep("s1",
+                "Create deliverable.md", tuple(criteria)),), 0))
+        self.pipeline.authorize_and_dispatch(objective_id, assignment_id,
+            credential=self.credentials["steward"], authority_ref=self.scope,
+            idempotency_key="rework-dispatch:" + suffix)
+        self.ledger.transition(assignment_id, "ready", "event_processor_ready",
+            "rework-ready:" + suffix, actor_id="event-processor")
+
+        class ReworkAction:
+            def __init__(_self, pipeline):
+                _self.pipeline = pipeline
+                _self.calls = []
+            def __call__(_self, assignment, _grounded):
+                instruction = _self.pipeline.latest_rework_instruction(assignment["id"])
+                _self.calls.append(instruction)
+                return {"status": "SUCCEEDED", "artifact_schema": "rv.test.rework.v1",
+                    "artifact_name": "attempt-" + str(len(_self.calls)) + ".json",
+                    "acceptance_criteria": list(criteria),
+                    "correction_instruction": (instruction or {}).get("correction_instruction"),
+                    "criteria_to_address": (instruction or {}).get("criteria_to_address", [])}
+
+        class RejectUntilCorrectedVerifier:
+            REVISION = "test-governed-rework-1"
+            def verify(_self, _assignment, attempt, result):
+                from riverview_core.worker_adapter.verifier import VerificationResult, VerificationStatus
+                fixed = result.get("correction_instruction") == \
+                    "Include all four exact criteria in deliverable.md."
+                accepted = fixed
+                flags = {"acceptance_criteria_are_present": bool(accepted),
+                    "result_is_bound_to_assignment": result.get("acceptance_criteria") == criteria}
+                return VerificationResult(VerificationStatus.ACCEPTED if accepted else
+                    VerificationStatus.REJECTED, flags,
+                    ("urn:rv:worker-attempt:" + str(attempt["attempt_id"]),),
+                    _self.REVISION, "accepted" if accepted else "required exact criteria are absent")
+
+        action = ReworkAction(self.pipeline)
+        worker = ContinuousWorker(self.adapter, self.worker_id, self.credentials["worker"],
+            knowledge=self.knowledge, action=action, action_effect_class="retry_safe",
+            action_capability="engineering.bounded-artifact.v1")
+        return objective_id, assignment_id, criteria, action, worker, RejectUntilCorrectedVerifier()
+
+    def test_rejected_assignment_rework_preserves_rejection_and_reaches_independent_acceptance(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+        objective_id, assignment_id, criteria, action, worker, verifier = self._create_rework_fixture("accept")
+        service = GraceExecutionService(self.pipeline, self.adapter, worker,
+            dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
+            verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
+            artifact_root=self.root / "rework-artifacts", verifier=verifier,
+            execution_capability="engineering.bounded-artifact.v1")
+        first = worker.run_once(assignment_id=assignment_id)
+        self.assertEqual(first["status"], "AWAITING_VERIFICATION")
+        first_generation = self.admin.execute("SELECT generation FROM " + self.schema +
+            ".assignment_leases WHERE assignment_id=%s", (assignment_id,)).fetchone()[0]
+        self.assertTrue(service.verify_one(assignment_id))
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "rework_required")
+        context = self.pipeline.pending_rejected_work_order_reviews()[0]
+        self.assertEqual(context["objective_id"], objective_id)
+        self.assertEqual(context["assignment_id"], assignment_id)
+        # The assignment transition records "verification_rejected" in the
+        # legacy workflow_step field; the objective-step link remains canonical.
+        self.assertEqual(self.ledger.get(assignment_id)["workflow_step"],
+                         "verification_rejected")
+        self.assertEqual(context["step_id"], "s1")
+        self.assertEqual(context["step_acceptance_criteria"], criteria)
+        decision = {"decision": "REWORK_PROPOSED", "rationale": "The artifact omitted the exact criteria.",
+            "correction_instruction": "Include all four exact criteria in deliverable.md.",
+            "criteria_to_address": criteria}
+        persisted = self.pipeline.record_rework_decision(context, decision,
+            credential=self.credentials["steward"])
+        self.assertEqual(persisted["verification_id"], context["completion"]["verification_id"])
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "ready")
+        self.assertEqual(self.ledger.get(assignment_id)["workflow_step"], "s1")
+        self.assertEqual(self.pipeline.get_objective(objective_id)["assignment_id"], assignment_id)
+        retried = worker.run_once(assignment_id=assignment_id)
+        self.assertEqual(retried["status"], "AWAITING_VERIFICATION")
+        retry_generation = self.admin.execute("SELECT generation FROM " + self.schema +
+            ".assignment_leases WHERE assignment_id=%s", (assignment_id,)).fetchone()[0]
+        self.assertEqual(retry_generation, first_generation + 1)
+        self.assertEqual(action.calls[-1]["verification_id"], context["completion"]["verification_id"])
+        self.assertTrue(service.verify_one(assignment_id))
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "completed")
+        completion = self.pipeline.record_verified_completion(objective_id, assignment_id)
+        self.assertEqual(completion["status"], "COMPLETED")
+        table = self.schema + ".verification_records"
+        rows = self.admin.execute("SELECT decision FROM " + table +
+            " WHERE assignment_id=%s ORDER BY recorded_at,verification_id", (assignment_id,)).fetchall()
+        self.assertEqual(rows, [("REJECTED",), ("ACCEPTED",)])
+        self.assertEqual(self.admin.execute("SELECT count(*) FROM " + self.schema +
+            ".assignments WHERE objective_ref=%s", (objective_id,)).fetchone()[0], 1)
+        self.assertEqual(self.admin.execute("SELECT count(*) FROM " + self.schema +
+            ".worker_attempts WHERE assignment_id=%s", (assignment_id,)).fetchone()[0], 2)
+        self.assertEqual(self.pipeline.get_objective(objective_id)["acceptance_criteria"], criteria)
+        events = self.pipeline.objective_events(objective_id)
+        rework_events = [event for event in events if event["event_type"] == "engineering.rework_decided"]
+        self.assertEqual(len(rework_events), 1)
+        repeated = self.pipeline.record_rework_decision(context, decision,
+            credential=self.credentials["steward"])
+        self.assertEqual(repeated, rework_events[0]["payload"])
+
+    def test_repeated_rejection_can_stop_without_automatic_retry_threshold(self):
+        objective_id, assignment_id, criteria, _action, worker, verifier = self._create_rework_fixture("stop")
+        first = worker.run_once(assignment_id=assignment_id)
+        self.adapter.verify_attempt(assignment_id, first["attempt_id"], self.verifier_id,
+            self.credentials["verifier"], verifier,
+            idempotency_key="governed-rework-first:" + assignment_id)
+        first_context = self.pipeline.pending_rejected_work_order_reviews()[0]
+        rework = {"decision": "REWORK_PROPOSED", "rationale": "Attempt the bounded correction.",
+            "correction_instruction": "Use the exact accepted criteria, but this fixture still omits them.",
+            "criteria_to_address": criteria}
+        self.pipeline.record_rework_decision(first_context, rework,
+            credential=self.credentials["steward"])
+        second = worker.run_once(assignment_id=assignment_id)
+        self.adapter.verify_attempt(assignment_id, second["attempt_id"], self.verifier_id,
+            self.credentials["verifier"], verifier,
+            idempotency_key="governed-rework-second:" + assignment_id)
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "rework_required")
+        second_context = self.pipeline.pending_rejected_work_order_reviews()[0]
+        self.assertNotEqual(first_context["completion"]["verification_id"],
+                            second_context["completion"]["verification_id"])
+        stop = {"decision": "STEWARD_AUTHORIZATION_REQUIRED",
+            "rationale": "The second independently rejected result needs Steward direction.",
+            "correction_instruction": None, "criteria_to_address": []}
+        self.pipeline.record_rework_decision(second_context, stop,
+            credential=self.credentials["steward"])
+        repeated = self.pipeline.record_rework_decision(second_context, stop,
+            credential=self.credentials["steward"])
+        self.assertEqual(repeated["decision"], "STEWARD_AUTHORIZATION_REQUIRED")
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "rework_required")
+        self.assertEqual(len([event for event in self.pipeline.objective_events(objective_id)
+            if event["event_type"] == "engineering.rework_decided"]), 2)
+        self.assertEqual(self.admin.execute("SELECT count(*) FROM " + self.schema +
+            ".verification_records WHERE assignment_id=%s AND decision='REJECTED'",
+            (assignment_id,)).fetchone()[0], 2)
+        self.assertEqual(self.pipeline.get_objective(objective_id)["assignment_id"], assignment_id)
+
+    def test_dashboard_projects_current_rejection_and_steward_rework_decision_by_conversation(self):
+        from riverview_core.status_dashboard.projection import DashboardProjection
+        conversation_id = str(uuid4())
+        objective_id, assignment_id, criteria, _action, worker, verifier = \
+            self._create_rework_fixture("projection-rejected", conversation_id=conversation_id)
+        result = worker.run_once(assignment_id=assignment_id)
+        self.adapter.verify_attempt(assignment_id, result["attempt_id"], self.verifier_id,
+            self.credentials["verifier"], verifier,
+            idempotency_key="progress-projection-verify:" + assignment_id)
+        projection = DashboardProjection(DSN, schema=self.schema,
+            source_commit=self.commit, deployment_id="test-governed-rework")
+        initial = projection.objectives(conversation_id=conversation_id)["items"]
+        self.assertEqual(len(initial), 1)
+        item = initial[0]
+        self.assertEqual(item["objective_id"], objective_id)
+        self.assertEqual(item["assignment_id"], assignment_id)
+        self.assertEqual(item["origin"]["source_sequence"], 6)
+        self.assertEqual(item["lifecycle_status"], "waiting")
+        self.assertEqual(item["lifecycle_stage"], "Grace reviewing verifier rejection")
+        self.assertEqual(item["verification"]["decision"], "REJECTED")
+        self.assertIn("required exact criteria are absent", item["verification"]["summary"])
+        self.assertEqual(item["rework"]["rejected_results"], 1)
+        self.assertFalse(item["steward_action_required"])
+        self.assertEqual(projection.objectives(conversation_id=str(uuid4()))["items"], [])
+        context = self.pipeline.pending_rejected_work_order_reviews()[0]
+        stop = {"decision": "STEWARD_AUTHORIZATION_REQUIRED",
+            "rationale": "The rejection requires Steward direction.",
+            "correction_instruction": None, "criteria_to_address": []}
+        self.pipeline.record_rework_decision(context, stop,
+            credential=self.credentials["steward"])
+        blocked = projection.objectives(conversation_id=conversation_id)["items"][0]
+        self.assertEqual(blocked["lifecycle_status"], "blocked")
+        self.assertTrue(blocked["steward_action_required"])
 
     def test_source_change_paths_must_be_explicit_in_steward_scope(self):
         from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
@@ -1284,10 +1476,20 @@ class GraceExecutionTests(unittest.TestCase):
             except OSError:
                 continue
         self.assertIsNotNone(server)
+        class StewardAccountAuth:
+            def authenticate(self, credential, *, csrf_token, state_changing):
+                if credential != "test-account-session":
+                    from riverview_core.account_auth import AuthDenied
+                    raise AuthDenied("session denied")
+                return {"roles": ["steward"], "authority_principal_id": "steward:camrui"}
+            def status(self):
+                return {"status": "available"}
+
+        server._account_auth_service = StewardAccountAuth()
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
 
-        def request(method, path, payload=None, *, authority=None):
+        def request(method, path, payload=None, *, authority=None, account_session=False):
             conn = HTTPConnection("127.0.0.1", server.server_port, timeout=3)
             headers = {"Authorization": "Bearer " + dashboard_token}
             if payload is not None:
@@ -1295,6 +1497,8 @@ class GraceExecutionTests(unittest.TestCase):
                 headers["Content-Length"] = str(len(payload))
             if authority:
                 headers["X-Riverview-Authority"] = authority
+            if account_session:
+                headers["Cookie"] = "rv_account_session=test-account-session"
             conn.request(method, path, body=payload, headers=headers)
             response = conn.getresponse()
             result = (response.status, json.loads(response.read() or b"{}"))
@@ -1367,7 +1571,8 @@ class GraceExecutionTests(unittest.TestCase):
                 cur.execute("SELECT count(*) AS n FROM verification_records WHERE assignment_id=%s",
                             (assignment_id,))
                 self.assertEqual(cur.fetchone()["n"], 1)
-            projected_status, projected = request("GET", f"/api/v1/objectives/{objective_id}")
+            projected_status, projected = request("GET", f"/api/v1/objectives/{objective_id}",
+                                                  account_session=True)
             self.assertEqual(projected_status, 200)
             self.assertEqual(projected["status"], "COMPLETED")
             self.assertEqual(projected["assignment_state"], "completed")

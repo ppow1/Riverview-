@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:steward-dashboard:status",
-  "graph_revision": "1.1.17",
+  "graph_revision": "1.1.18",
   "component_id": "STEWARD-DASHBOARD",
   "workflow_id": "status-projection.v1",
   "diagram_order": 1,
@@ -12,6 +12,7 @@
     "scripts/verify_diagnostic_snapshot_browser.py",
     "src/riverview_core/account_auth/__init__.py",
     "src/riverview_core/account_auth/migrations/0001_account_authentication.sql",
+    "src/riverview_core/resident_execution/conversation.py",
     "src/riverview_core/status_dashboard/markdown.py",
     "src/riverview_core/status_dashboard/projection.py",
     "src/riverview_core/status_dashboard/server.py",
@@ -86,6 +87,24 @@
         "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
       ],
       "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:objective-scope",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Steward global view or exact account-owned conversation progress?",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/projection.py",
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
     },
     {
       "id": "rv:steward-dashboard:status:read-ledger",
@@ -1046,6 +1065,24 @@
       "to": "rv:steward-dashboard:status:render-process-graph",
       "type": "runtime_transition",
       "label": "No jump selected; continue viewing this workflow"
+    },
+    {
+      "from": "rv:steward-dashboard:status:authenticate",
+      "to": "rv:steward-dashboard:status:objective-scope",
+      "type": "runtime_transition",
+      "label": "Objective projection request"
+    },
+    {
+      "from": "rv:steward-dashboard:status:objective-scope",
+      "to": "rv:steward-dashboard:status:read-ledger",
+      "type": "runtime_transition",
+      "label": "Steward global access or owner and exact read grant verified"
+    },
+    {
+      "from": "rv:steward-dashboard:status:objective-scope",
+      "to": "rv:steward-dashboard:status:deny-request",
+      "type": "diagnostic_branch",
+      "label": "Missing Steward role, account principal, owner match, or read grant"
     }
   ]
 }

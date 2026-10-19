@@ -1,0 +1,1051 @@
+{
+  "graph_id": "rv:steward-dashboard:status",
+  "graph_revision": "1.1.17",
+  "component_id": "STEWARD-DASHBOARD",
+  "workflow_id": "status-projection.v1",
+  "diagram_order": 1,
+  "source_references": [
+    "deploy/riverview-status-dashboard.service",
+    "scripts/bootstrap_account_steward.py",
+    "scripts/run_status_dashboard.py",
+    "scripts/runtime_baseline.py",
+    "scripts/verify_diagnostic_snapshot_browser.py",
+    "src/riverview_core/account_auth/__init__.py",
+    "src/riverview_core/account_auth/migrations/0001_account_authentication.sql",
+    "src/riverview_core/status_dashboard/markdown.py",
+    "src/riverview_core/status_dashboard/projection.py",
+    "src/riverview_core/status_dashboard/server.py",
+    "src/riverview_core/status_dashboard/static/app.js",
+    "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js",
+    "src/riverview_core/status_dashboard/static/workflow.js",
+    "tests/test_account_auth.py",
+    "tests/test_account_auth_http.py",
+    "tests/test_status_dashboard.py"
+  ],
+  "documentation_references": [
+    "docs/components/STATUS_DASHBOARD.md",
+    "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+    "docs/components/STATUS_DASHBOARD_FLOW.md",
+    "process_graphs/README.md",
+    "docs/components/ACCOUNT_AUTHENTICATION.md",
+    "docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md"
+  ],
+  "verification_evidence": [
+    "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/commissioning.md",
+    "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/live-dashboard.json",
+    "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/browser-observation.json",
+    "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/test-suite.log",
+    "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/systemd-restart.json",
+    "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/process-graph-validation.json",
+    "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/revision-audit.json",
+    "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/artifacts.json",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-observation.json",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-recovery.json",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-snapshot-post-recovery.json",
+    "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/attention-503-diagnosis.json"
+  ],
+  "nodes": [
+    {
+      "id": "rv:steward-dashboard:status:ingest",
+      "node_revision": "1.1.0",
+      "type": "entry",
+      "label": "Browser shell and status request",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:authenticate",
+      "node_revision": "1.1.0",
+      "type": "decision",
+      "label": "Host, loopback and bearer or active account session valid?",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:deny-request",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject unauthorized or mutating request",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:read-ledger",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Read bounded PostgreSQL projection",
+      "source_references": [
+        "src/riverview_core/status_dashboard/projection.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/live-dashboard.json",
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/test-suite.log"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:source-health",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Observe source and CME freshness",
+      "source_references": [
+        "src/riverview_core/status_dashboard/projection.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/live-dashboard.json",
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/test-suite.log"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:source-available",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Ledger available and initialized?",
+      "source_references": [
+        "src/riverview_core/status_dashboard/projection.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:source-failure",
+      "node_revision": "1.0.1",
+      "type": "failure",
+      "label": "Show unavailable or not-initialized state as explicit domain status",
+      "source_references": [
+        "src/riverview_core/status_dashboard/projection.py",
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:privacy-filter",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Filter private rows and payloads",
+      "source_references": [
+        "src/riverview_core/status_dashboard/projection.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:render-cached",
+      "node_revision": "1.0.3",
+      "type": "process",
+      "label": "Render shell and current local view",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py",
+        "evidence/checkouts/WEBSITE-CLARITY/20261015T215000Z-guidance-and-controls/browser-acceptance.json",
+        "evidence/checkouts/WEBSITE-PL019/20261015T224500Z-conversation-layout/browser-acceptance.json",
+        "evidence/checkouts/WEBSITE-PL036/20261015T231000Z-collapsible-navigation/browser-acceptance.json",
+        "evidence/checkouts/WEBSITE-PL029/20261016T001000Z-notification-state-clarity/browser-acceptance.json"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:navigate",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Switch tabs without inference or full reconstruction",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/browser-observation.json"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:page-events",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Fetch bounded event and assignment pages",
+      "source_references": [
+        "src/riverview_core/status_dashboard/projection.py",
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py",
+        "evidence/checkouts/WEBSITE-PL003/20261015T233000Z-canonical-task-title/browser-acceptance.json"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:inspect-detail",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Lazy-load assignment attempts and verifier evidence",
+      "source_references": [
+        "src/riverview_core/status_dashboard/projection.py",
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/test-suite.log",
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/dashboard-isolated-cme-test.png"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:export-snapshot",
+      "node_revision": "1.0.6",
+      "type": "process",
+      "label": "Download self-describing offline website and workflow snapshot",
+      "source_references": [
+        "scripts/verify_diagnostic_snapshot_browser.py",
+        "src/riverview_core/status_dashboard/projection.py",
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/static/capabilities.json",
+        "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+        "docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-actual-dashboard-final9/browser-acceptance.json",
+        "evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-actual-dashboard-final9/archive-inspection.json",
+        "evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final4/production-readiness.json"
+      ],
+      "extension": {
+        "snapshot_schema": "rv.website.diagnostic-snapshot.v1",
+        "workflow_definitions": "version-controlled process_graphs/*/*.json",
+        "runtime_status_source": "authenticated graph API execution_position projection",
+        "global_combined_workflow_visualization": "deferred parking-lot initiative",
+        "verification_boundary": "Isolated Firefox used actual repository dashboard HTML/CSS/scripts and canonical graphs with synthetic read-only APIs; all pages and workflows complete at desktop and 720px. Production account/session acceptance remains unverified.",
+        "page_capture_limits": {
+          "maximum_css_height": 50000,
+          "detail_tile_css_height": 1800,
+          "detail_tile_overlap_css_height": 80
+        }
+      }
+    },
+    {
+      "id": "rv:steward-dashboard:status:database-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Database request failed or exceeded timeout",
+      "source_references": [
+        "src/riverview_core/status_dashboard/projection.py",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:reconnect",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Retry read after service or database recovery",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "deploy/riverview-status-dashboard.service"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/systemd-restart.json"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:jump-ledger",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "Authoritative assignment and event ledger",
+      "jump_target_id": "rv:postgres-ledger:assignment-lifecycle:intake",
+      "source_references": [
+        "src/riverview_core/status_dashboard/projection.py"
+      ],
+      "documentation_references": [
+        "docs/components/POSTGRES_LEDGER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:jump-cme",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "CME monitoring, health and attention source",
+      "jump_target_id": "rv:cme:progress-and-recovery:monitor-start",
+      "source_references": [
+        "src/riverview_core/status_dashboard/projection.py"
+      ],
+      "documentation_references": [
+        "docs/components/CME_MONITOR.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:service-start",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "systemd starts the dashboard service",
+      "source_references": [
+        "deploy/riverview-status-dashboard.service"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:prepare-passfile",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Validate systemd pgpass and copy to private runtime storage",
+      "source_references": [
+        "scripts/run_status_dashboard.py",
+        "scripts/runtime_baseline.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/systemd-state.json",
+        "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/test-suite.log"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:credential-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject unsafe or unavailable runtime credential",
+      "source_references": [
+        "scripts/run_status_dashboard.py",
+        "scripts/runtime_baseline.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:list-workers",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Page worker lease-heartbeat freshness and active leases; process liveness is not reported",
+      "source_references": [
+        "src/riverview_core/status_dashboard/projection.py",
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:workers-unavailable",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Report missing worker relations or unreadable health as not initialized or unavailable",
+      "source_references": [
+        "src/riverview_core/status_dashboard/projection.py",
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:attention-relation-check",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Is the optional CME attention relation initialized?",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-observation.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-recovery.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-snapshot-post-recovery.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/attention-503-diagnosis.json"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:attention-uninitialized",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Render not_initialized domain state and defer attention polling",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/server.py",
+        "tests/test_status_dashboard.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:read-attention",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Fetch bounded authoritative CME attention rows when the relation exists",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/projection.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/commissioning.md",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-observation.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/browser-recovery.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/live-snapshot-post-recovery.json",
+        "evidence/checkouts/M3.1-CME-LIVE/20261010T223049Z-702f5db/attention-503-diagnosis.json"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:render-documentation",
+      "node_revision": "1.0.3",
+      "type": "process",
+      "label": "Render allowlisted cookbooks as safe readable HTML",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/markdown.py",
+        "src/riverview_core/status_dashboard/static/app.js",
+        "src/riverview_core/status_dashboard/static/index.html",
+        "src/riverview_core/status_dashboard/static/app.css",
+        "tests/test_status_dashboard.py",
+        "scripts/verify_worker_inventory_browser.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+        "docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py",
+        "evidence/checkouts/WEBSITE-PL016/20261015T212500Z-documentation-navigation/browser-acceptance.json",
+        "evidence/checkouts/WEBSITE-PL038/20261016T020000Z-searchable-workflow-catalog/browser-acceptance.json",
+        "evidence/checkouts/WEBSITE-PL038/20261016T023000Z-post-PR45-regression/browser-acceptance.json"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:documentation-unavailable",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Keep missing or unapproved documentation unavailable",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:browse-process-graphs",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Browse workflow index from canonical graph JSON",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:read-canonical-graph",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Read registered focused workflow definition",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:render-process-graph",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render nodes, typed edges and decisions in read-only SVG",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:graph-source-unavailable",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Show graph source unavailable without inferred workflow state",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:live-position-check",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Use only an exact persisted process-node identity for live highlighting",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:live-position-unknown",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Show unknown when the ledger has no process-node mapping",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:account-session",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Recheck account session, disablement, role and CSRF before protected writes",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py",
+        "tests/test_account_auth_http.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:account-health",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Project bounded account schema and email readiness without personal data",
+      "source_references": [
+        "src/riverview_core/account_auth/__init__.py",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:account-login",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "Visitor opens account sign-in and access request",
+      "jump_target_id": "rv:website-account-auth:account-lifecycle:visitor-request",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/index.html",
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth_http.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:account-management",
+      "node_revision": "1.0.0",
+      "type": "jump",
+      "label": "Steward opens account approval and management",
+      "jump_target_id": "rv:website-account-auth:account-lifecycle:steward-management",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/index.html",
+        "src/riverview_core/status_dashboard/static/app.js"
+      ],
+      "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_account_auth_http.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:workflow-session-transport",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Fetch canonical graph index and definition with either the recovery bearer or active same-origin account session",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/workflow.js",
+        "src/riverview_core/status_dashboard/server.py",
+        "tests/test_status_dashboard.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:select-cross-workflow-jump",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Steward selects a registered cross-workflow destination?",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:navigate-to-jump-target",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Load destination workflow and focus the exact target node",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:jump-target-unavailable",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Show target unavailable and retain the source return path",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:return-to-source-jump",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Return to the source workflow and focus its originating jump node",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/workflow.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:steward-dashboard:status:ingest",
+      "to": "rv:steward-dashboard:status:authenticate",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:steward-dashboard:status:authenticate",
+      "to": "rv:steward-dashboard:status:deny-request",
+      "type": "diagnostic_branch",
+      "label": "No / invalid host or bearer; write verb"
+    },
+    {
+      "from": "rv:steward-dashboard:status:authenticate",
+      "to": "rv:steward-dashboard:status:read-ledger",
+      "type": "runtime_transition",
+      "label": "Authorized GET"
+    },
+    {
+      "from": "rv:steward-dashboard:status:read-ledger",
+      "to": "rv:steward-dashboard:status:source-health",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:steward-dashboard:status:source-health",
+      "to": "rv:steward-dashboard:status:source-available",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:steward-dashboard:status:source-available",
+      "to": "rv:steward-dashboard:status:source-failure",
+      "type": "diagnostic_branch",
+      "label": "Unavailable / stale / uninitialized"
+    },
+    {
+      "from": "rv:steward-dashboard:status:source-available",
+      "to": "rv:steward-dashboard:status:privacy-filter",
+      "type": "runtime_transition",
+      "label": "Readable rows"
+    },
+    {
+      "from": "rv:steward-dashboard:status:privacy-filter",
+      "to": "rv:steward-dashboard:status:render-cached",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-cached",
+      "to": "rv:steward-dashboard:status:navigate",
+      "type": "runtime_transition",
+      "label": "Local view change"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-cached",
+      "to": "rv:steward-dashboard:status:page-events",
+      "type": "runtime_transition",
+      "label": "Bounded refresh"
+    },
+    {
+      "from": "rv:steward-dashboard:status:page-events",
+      "to": "rv:steward-dashboard:status:inspect-detail",
+      "type": "runtime_transition",
+      "label": "Explicit inspect"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-cached",
+      "to": "rv:steward-dashboard:status:export-snapshot",
+      "type": "runtime_transition",
+      "label": "Explicit snapshot"
+    },
+    {
+      "from": "rv:steward-dashboard:status:read-ledger",
+      "to": "rv:steward-dashboard:status:database-failure",
+      "type": "diagnostic_branch",
+      "label": "Connection/query failure"
+    },
+    {
+      "from": "rv:steward-dashboard:status:database-failure",
+      "to": "rv:steward-dashboard:status:reconnect",
+      "type": "recovery_route"
+    },
+    {
+      "from": "rv:steward-dashboard:status:reconnect",
+      "to": "rv:steward-dashboard:status:read-ledger",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:steward-dashboard:status:jump-ledger",
+      "to": "rv:postgres-ledger:assignment-lifecycle:intake",
+      "type": "jump"
+    },
+    {
+      "from": "rv:steward-dashboard:status:jump-cme",
+      "to": "rv:cme:progress-and-recovery:monitor-start",
+      "type": "jump"
+    },
+    {
+      "from": "rv:steward-dashboard:status:read-ledger",
+      "to": "rv:steward-dashboard:status:jump-ledger",
+      "type": "documentation"
+    },
+    {
+      "from": "rv:steward-dashboard:status:source-health",
+      "to": "rv:steward-dashboard:status:jump-cme",
+      "type": "documentation"
+    },
+    {
+      "from": "rv:steward-dashboard:status:service-start",
+      "to": "rv:steward-dashboard:status:prepare-passfile",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:steward-dashboard:status:prepare-passfile",
+      "to": "rv:steward-dashboard:status:credential-failure",
+      "type": "diagnostic_branch",
+      "label": "Credential validation or private copy failed"
+    },
+    {
+      "from": "rv:steward-dashboard:status:prepare-passfile",
+      "to": "rv:steward-dashboard:status:ingest",
+      "type": "prerequisite",
+      "label": "Runtime credential available before requests"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-cached",
+      "to": "rv:steward-dashboard:status:list-workers",
+      "type": "runtime_transition",
+      "label": "Refresh bounded worker page"
+    },
+    {
+      "from": "rv:steward-dashboard:status:list-workers",
+      "to": "rv:steward-dashboard:status:workers-unavailable",
+      "type": "diagnostic_branch",
+      "label": "Worker relation missing or source unavailable"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-cached",
+      "to": "rv:steward-dashboard:status:attention-relation-check",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:steward-dashboard:status:attention-relation-check",
+      "to": "rv:steward-dashboard:status:attention-uninitialized",
+      "type": "diagnostic_branch",
+      "label": "Relation absent; return domain state without repeated request"
+    },
+    {
+      "from": "rv:steward-dashboard:status:attention-relation-check",
+      "to": "rv:steward-dashboard:status:read-attention",
+      "type": "runtime_transition",
+      "label": "Relation present"
+    },
+    {
+      "from": "rv:steward-dashboard:status:attention-uninitialized",
+      "to": "rv:steward-dashboard:status:list-workers",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:steward-dashboard:status:read-attention",
+      "to": "rv:steward-dashboard:status:list-workers",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-cached",
+      "to": "rv:steward-dashboard:status:browse-process-graphs",
+      "type": "runtime_transition",
+      "label": "Steward opens workflow viewer"
+    },
+    {
+      "from": "rv:steward-dashboard:status:browse-process-graphs",
+      "to": "rv:steward-dashboard:status:read-canonical-graph",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:steward-dashboard:status:read-canonical-graph",
+      "to": "rv:steward-dashboard:status:render-process-graph",
+      "type": "runtime_transition",
+      "label": "Registered graph definition returned"
+    },
+    {
+      "from": "rv:steward-dashboard:status:read-canonical-graph",
+      "to": "rv:steward-dashboard:status:graph-source-unavailable",
+      "type": "diagnostic_branch",
+      "label": "Unknown ID or graph source unavailable"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-process-graph",
+      "to": "rv:steward-dashboard:status:live-position-check",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:steward-dashboard:status:live-position-check",
+      "to": "rv:steward-dashboard:status:live-position-unknown",
+      "type": "diagnostic_branch",
+      "label": "No exact durable graph-node identity is stored; render no highlight"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-cached",
+      "to": "rv:steward-dashboard:status:render-documentation",
+      "type": "runtime_transition",
+      "label": "Steward opens a diagnostic reference"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-documentation",
+      "to": "rv:steward-dashboard:status:documentation-unavailable",
+      "type": "diagnostic_branch",
+      "label": "Missing or unapproved document"
+    },
+    {
+      "from": "rv:steward-dashboard:status:authenticate",
+      "to": "rv:steward-dashboard:status:account-session",
+      "type": "runtime_transition",
+      "label": "Account cookie presented"
+    },
+    {
+      "from": "rv:steward-dashboard:status:account-session",
+      "to": "rv:steward-dashboard:status:read-ledger",
+      "type": "runtime_transition",
+      "label": "Current session and read role valid"
+    },
+    {
+      "from": "rv:steward-dashboard:status:account-session",
+      "to": "rv:steward-dashboard:status:deny-request",
+      "type": "diagnostic_branch",
+      "label": "Revoked, disabled, expired or CSRF invalid"
+    },
+    {
+      "from": "rv:steward-dashboard:status:read-ledger",
+      "to": "rv:steward-dashboard:status:account-health",
+      "type": "runtime_transition",
+      "label": "Include bounded account readiness"
+    },
+    {
+      "from": "rv:steward-dashboard:status:ingest",
+      "to": "rv:steward-dashboard:status:account-login",
+      "type": "runtime_transition",
+      "label": "Visitor selects account login"
+    },
+    {
+      "from": "rv:steward-dashboard:status:account-login",
+      "to": "rv:website-account-auth:account-lifecycle:visitor-request",
+      "type": "jump",
+      "label": "Account enrollment or sign-in"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-cached",
+      "to": "rv:steward-dashboard:status:account-management",
+      "type": "runtime_transition",
+      "label": "Steward opens account controls"
+    },
+    {
+      "from": "rv:steward-dashboard:status:account-management",
+      "to": "rv:website-account-auth:account-lifecycle:steward-management",
+      "type": "jump",
+      "label": "Steward account management"
+    },
+    {
+      "from": "rv:steward-dashboard:status:browse-process-graphs",
+      "to": "rv:steward-dashboard:status:workflow-session-transport",
+      "type": "runtime_transition",
+      "label": "Open the workflow viewer"
+    },
+    {
+      "from": "rv:steward-dashboard:status:workflow-session-transport",
+      "to": "rv:steward-dashboard:status:read-canonical-graph",
+      "type": "runtime_transition",
+      "label": "Authenticated same-origin graph request"
+    },
+    {
+      "from": "rv:steward-dashboard:status:workflow-session-transport",
+      "to": "rv:steward-dashboard:status:deny-request",
+      "type": "diagnostic_branch",
+      "label": "Expired or absent account session; return authorization denial"
+    },
+    {
+      "from": "rv:steward-dashboard:status:render-process-graph",
+      "to": "rv:steward-dashboard:status:select-cross-workflow-jump",
+      "type": "runtime_transition",
+      "label": "Steward selects a jump destination"
+    },
+    {
+      "from": "rv:steward-dashboard:status:select-cross-workflow-jump",
+      "to": "rv:steward-dashboard:status:navigate-to-jump-target",
+      "type": "runtime_transition",
+      "label": "Registered target selected"
+    },
+    {
+      "from": "rv:steward-dashboard:status:navigate-to-jump-target",
+      "to": "rv:steward-dashboard:status:jump-target-unavailable",
+      "type": "diagnostic_branch",
+      "label": "Destination graph or exact node unavailable"
+    },
+    {
+      "from": "rv:steward-dashboard:status:navigate-to-jump-target",
+      "to": "rv:steward-dashboard:status:return-to-source-jump",
+      "type": "runtime_transition",
+      "label": "Return to source requested"
+    },
+    {
+      "from": "rv:steward-dashboard:status:jump-target-unavailable",
+      "to": "rv:steward-dashboard:status:return-to-source-jump",
+      "type": "recovery_route",
+      "label": "Use the preserved return control"
+    },
+    {
+      "from": "rv:steward-dashboard:status:return-to-source-jump",
+      "to": "rv:steward-dashboard:status:render-process-graph",
+      "type": "runtime_transition",
+      "label": "Source graph and jump node restored"
+    },
+    {
+      "from": "rv:steward-dashboard:status:select-cross-workflow-jump",
+      "to": "rv:steward-dashboard:status:render-process-graph",
+      "type": "runtime_transition",
+      "label": "No jump selected; continue viewing this workflow"
+    }
+  ]
+}

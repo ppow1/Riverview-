@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.10
+# Revision: 1.1.13
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
 # Execution Model: Request-driven orchestration over existing PostgreSQL authority and ledger
 # Observability: Append-only objective events linked to assignment and evidence provenance
@@ -24,6 +24,9 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Require Grace 80B review of each verified predecessor before dispatching dependent work
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Expose each verified objective step to the existing Grace result-review outbox
 # Changed: 2026-10-16 UTC | RV-GRACE-REVIEW-OBJECTIVE-PROGRESS | Include authoritative objective and step state in Grace's verified-result review context
+# Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Persist Grace's bounded same-assignment rework decision and recovery receipt against the original verifier rejection
+# Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-FIX-001 | Resolve rejected steps from objective links, fence completed leases, and resume only the current rejection decision
+# Changed: 2026-10-19 UTC | RV-GRACE-REVIEW-ROLE-SEPARATION-001 | Persist verifier identity/criteria/evidence for Grace review and gate Codex rechecks on a durable objective-satisfied decision
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Persist immutable proposal revision, approval, source and exact-grant correlation on objective intake
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Persist Grace's external-advisory evaluation atomically with the resulting proposal
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Resolve failed steps only after their linked revalidation successor is independently verified
@@ -611,9 +614,10 @@ class GraceExecutionPipeline:
             raise ObjectiveStateError("completed assignment is not independently verified")
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
-            cur.execute("""SELECT decision,verifier_revision,evidence_references
+            cur.execute("""SELECT verification_id,decision,verifier_id,criteria,
+                    verifier_revision,evidence_references,summary
                 FROM verification_records WHERE assignment_id=%s AND decision='ACCEPTED'
-                ORDER BY verification_id DESC LIMIT 1""", (assignment_id,))
+                ORDER BY recorded_at DESC,verification_id DESC LIMIT 1""", (assignment_id,))
             verification = cur.fetchone()
         if not verification:
             raise ObjectiveStateError("persisted independent verification is required")
@@ -636,8 +640,12 @@ class GraceExecutionPipeline:
         completion_cycle = step_row["step_order"]
         payload = {"assignment_id": assignment_id, "step_id": step_row["step_id"],
                    "completion_cycle": completion_cycle,
+                   "verification_id": str(verification["verification_id"]),
                    "decision": verification["decision"],
+                   "verifier_id": verification["verifier_id"],
                    "verifier_revision": verification["verifier_revision"],
+                   "verification_criteria": verification["criteria"],
+                   "verification_summary": verification["summary"],
                    "evidence_references": list(verification["evidence_references"])}
         if all_steps:
             payload["proposal"] = objective.get("proposal")
@@ -652,7 +660,9 @@ class GraceExecutionPipeline:
         if isinstance(artifact, dict):
             allowed_evidence = ("artifact_name", "artifact_path", "artifact_sha256",
                 "artifact_bytes", "capability", "changed_files", "patch_sha256",
-                "patch_bytes", "test_status", "repository_reference", "repository_revision")
+                "patch_bytes", "test_status", "repository_reference", "repository_revision",
+                "assignment_id", "objective_id", "artifact_schema", "source_artifact_name",
+                "source_revision", "source_sha256", "rework_verification_id", "status")
             payload["artifact"] = {key: artifact[key] for key in allowed_evidence
                                     if key in artifact}
         with self.ledger.db.transaction():
@@ -851,6 +861,247 @@ class GraceExecutionPipeline:
                 self._event(cur, objective_id, "conversation.result_published",
                     f"grace-conversation-result-published:{objective_id}:{receipt['completion_cycle']}",
                     "office:grace", receipt)
+        return True
+
+    def pending_rejected_work_order_reviews(self, *, limit=10):
+        """Return durable conversation-origin verifier rejections for Grace review.
+
+        A saved Grace decision is returned without another model call until its
+        source-conversation receipt is acknowledged. Otherwise only the current
+        latest rejected attempt is eligible. Earlier verification records remain
+        append-only and are never rewritten.
+        """
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("rejected work-order review limit must be between 1 and 100")
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT o.objective_id,o.assignment_id,o.request,
+                    o.acceptance_criteria,o.proposal,o.status,
+                    received.payload AS received_payload,received.actor_id AS submitter_id
+                FROM grace_objectives o
+                JOIN LATERAL (SELECT payload,actor_id FROM grace_objective_events e
+                    WHERE e.objective_id=o.objective_id AND e.event_type='objective.received'
+                      AND e.payload ? 'origin' ORDER BY e.sequence LIMIT 1) received ON true
+                WHERE o.status='WORK_ORDER_CREATED' AND o.assignment_id IS NOT NULL
+                ORDER BY o.updated_at,o.objective_id LIMIT %s""", (limit,))
+            objectives = cur.fetchall()
+        pending = []
+        for row in objectives:
+            origin_payload = row["received_payload"] or {}
+            origin = origin_payload.get("origin") if isinstance(origin_payload, dict) else None
+            if (not isinstance(origin, dict) or set(origin) != {"conversation_id", "source_sequence"}
+                    or type(origin.get("source_sequence")) is not int):
+                continue
+            objective_id, assignment_id = row["objective_id"], row["assignment_id"]
+            events = self.objective_events(objective_id)
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("""SELECT vr.verification_id,vr.attempt_id,vr.decision,
+                        vr.criteria,vr.evidence_references,vr.verifier_id,
+                        vr.verifier_revision,vr.summary,wa.status AS attempt_status,
+                        wr.result,wr.result_sha256,a.workflow_step,a.authority_ref
+                    FROM verification_records vr
+                    JOIN assignments a ON a.id=vr.assignment_id
+                    JOIN worker_attempts wa ON wa.attempt_id=vr.attempt_id
+                    LEFT JOIN worker_results wr ON wr.attempt_id=vr.attempt_id
+                    WHERE vr.assignment_id=%s
+                    ORDER BY vr.recorded_at DESC,vr.verification_id DESC LIMIT 1""",
+                    (assignment_id,))
+                verification = cur.fetchone()
+            if (not verification or verification["decision"] != "REJECTED" or
+                    verification["attempt_status"] != "succeeded" or
+                    verification["result"] is None):
+                continue
+            verification_id = str(verification["verification_id"])
+            if any(event["event_type"] == "conversation.rework_review_published" and
+                    event["payload"].get("verification_id") == verification_id for event in events):
+                continue
+            matching_decisions = [event for event in events if event["event_type"] in {
+                "engineering.rework_decided", "engineering.rejection_reviewed"} and
+                event["payload"].get("assignment_id") == assignment_id and
+                event["payload"].get("verification_id") == verification_id]
+            decision_event = matching_decisions[-1] if matching_decisions else None
+            if (not verification or verification["decision"] != "REJECTED" or
+                    verification["attempt_status"] != "succeeded" or
+                    verification["result"] is None):
+                continue
+            step = self.proposal_step_for_assignment(objective_id, assignment_id)
+            # The assignment scheduler writes transition names (for example
+            # ``verification_rejected``) into assignments.workflow_step. The
+            # durable objective-step/assignment link is the authoritative plan
+            # step after execution transitions, so do not compare against that
+            # overloaded field here.
+            if not step:
+                continue
+            result = verification["result"]
+            if isinstance(result, str):
+                try:
+                    result = json.loads(result)
+                except (ValueError, TypeError):
+                    result = None
+            completion = {"decision": "REJECTED", "assignment_id": assignment_id,
+                "verification_id": str(verification["verification_id"]),
+                "attempt_id": str(verification["attempt_id"]),
+                "verifier_id": verification["verifier_id"],
+                "verifier_revision": verification["verifier_revision"],
+                "criteria": verification["criteria"],
+                "evidence_references": list(verification["evidence_references"] or []),
+                "summary": verification["summary"],
+                "artifact": result if isinstance(result, dict) else {},
+                "artifact_sha256": verification["result_sha256"]}
+            item = {"objective_id": objective_id, "assignment_id": assignment_id,
+                "request": row["request"], "acceptance_criteria": list(row["acceptance_criteria"]),
+                "proposal": row["proposal"], "objective_status": row["status"],
+                "step_id": step["step_id"], "step_objective": step["objective"],
+                "step_acceptance_criteria": list(step["acceptance_criteria"]),
+                "submitter_id": row["submitter_id"], "origin": origin,
+                "completion": completion}
+            if decision_event:
+                item["persisted_decision"] = decision_event["payload"]
+            pending.append(item)
+            if len(pending) >= limit:
+                break
+        return pending
+
+    def record_rework_decision(self, context, decision, *, credential):
+        """Persist Grace's bounded reject/stop decision and governed same-assignment requeue."""
+        if (not isinstance(context, dict) or not isinstance(decision, dict) or
+                set(decision) != {"decision", "rationale", "correction_instruction",
+                                  "criteria_to_address"}):
+            raise ObjectiveStateError("rework decision contract is invalid")
+        verification_id = context.get("completion", {}).get("verification_id")
+        objective_id, assignment_id = context.get("objective_id"), context.get("assignment_id")
+        criteria = context.get("step_acceptance_criteria")
+        if (not isinstance(verification_id, str) or not isinstance(objective_id, str) or
+                not isinstance(assignment_id, str) or not isinstance(criteria, list) or
+                not criteria or decision["decision"] not in {
+                    "OBJECTIVE_SATISFIED", "REWORK_PROPOSED",
+                    "STEWARD_AUTHORIZATION_REQUIRED"} or
+                not isinstance(decision["rationale"], str) or
+                not decision["rationale"].strip() or len(decision["rationale"]) > 1000 or
+                not isinstance(decision["criteria_to_address"], list) or
+                len(decision["criteria_to_address"]) > len(criteria) or
+                any(not isinstance(item, str) or not item for item in decision["criteria_to_address"]) or
+                any(item not in criteria for item in decision["criteria_to_address"]) or
+                len(set(decision["criteria_to_address"])) != len(decision["criteria_to_address"])):
+            raise ObjectiveStateError("rework decision exceeds the persisted assignment scope")
+        instruction = decision["correction_instruction"]
+        if decision["decision"] == "REWORK_PROPOSED":
+            if (not isinstance(instruction, str) or not instruction.strip() or
+                    len(instruction) > 512 or not decision["criteria_to_address"]):
+                raise ObjectiveStateError("bounded corrective instructions are required")
+        elif instruction is not None or decision["criteria_to_address"]:
+            raise ObjectiveStateError("a non-rework decision cannot carry executable instructions")
+        payload = {"verification_id": verification_id, "assignment_id": assignment_id,
+            "attempt_id": str(context.get("completion", {}).get("attempt_id", "")),
+            "decision": decision["decision"], "rationale": decision["rationale"].strip(),
+            "correction_instruction": instruction.strip() if isinstance(instruction, str) else None,
+            "criteria_to_address": list(decision["criteria_to_address"]),
+            "acceptance_criteria_sha256": hashlib.sha256(
+                _json(criteria).encode("utf-8")).hexdigest()}
+        satisfied = decision["decision"] == "OBJECTIVE_SATISFIED"
+        idem = (f"grace-rejection-review:{verification_id}" if satisfied else
+                f"grace-rework-decision:{verification_id}")
+        event_type = "engineering.rejection_reviewed" if satisfied else "engineering.rework_decided"
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("SELECT status,assignment_id FROM grace_objectives "
+                    "WHERE objective_id=%s FOR UPDATE", (objective_id,))
+                objective = cur.fetchone()
+                cur.execute("SELECT state,authority_ref,workflow_step,objective_ref "
+                    "FROM assignments WHERE id=%s FOR UPDATE", (assignment_id,))
+                assignment = cur.fetchone()
+                if (not objective or objective["assignment_id"] != assignment_id or not assignment or
+                        assignment["objective_ref"] != objective_id):
+                    raise ObjectiveStateError("same objective assignment is not eligible for rework")
+                cur.execute("SELECT payload FROM grace_objective_events WHERE objective_id=%s "
+                    "AND idempotency_key=%s", (objective_id, idem))
+                existing = cur.fetchone()
+                if existing:
+                    existing_payload = dict(existing["payload"])
+                    comparable_existing = {key: value for key, value in existing_payload.items()
+                                           if key != "authorization_principal_id"}
+                    if comparable_existing != payload:
+                        raise ObjectiveStateError("rework decision idempotency conflict")
+                    return existing_payload
+                if (objective["status"] != "WORK_ORDER_CREATED" or
+                        assignment["state"] not in {"rework_required", "ready"}):
+                    raise ObjectiveStateError("same objective assignment is not eligible for rework")
+                cur.execute("""SELECT vr.decision,vr.attempt_id,wa.status
+                    FROM verification_records vr JOIN worker_attempts wa
+                      ON wa.attempt_id=vr.attempt_id
+                    WHERE vr.verification_id=%s AND vr.assignment_id=%s
+                    ORDER BY vr.recorded_at DESC LIMIT 1""", (verification_id, assignment_id))
+                verification = cur.fetchone()
+                cur.execute("""SELECT verification_id FROM verification_records
+                    WHERE assignment_id=%s ORDER BY recorded_at DESC,verification_id DESC LIMIT 1""",
+                    (assignment_id,))
+                latest = cur.fetchone()
+                if (not verification or verification["decision"] != "REJECTED" or
+                        verification["status"] != "succeeded" or not latest or
+                        str(latest["verification_id"]) != verification_id):
+                    raise ObjectiveStateError("current independent rejection is required")
+                cur.execute("SELECT step_id,step_objective,acceptance_criteria,status,assignment_id "
+                    "FROM grace_objective_steps WHERE objective_id=%s AND assignment_id=%s FOR UPDATE",
+                    (objective_id, assignment_id))
+                step = cur.fetchone()
+                if (not step or step["step_id"] != context.get("step_id") or
+                        list(step["acceptance_criteria"]) != criteria or step["status"] != "assigned"):
+                    raise ObjectiveStateError("persisted assignment criteria changed")
+                principal = self.assignment_intake.authorizer.require(
+                    cur, credential, self.assignment_intake.ACTION, assignment["authority_ref"])
+                payload["authorization_principal_id"] = principal["principal_id"]
+                if decision["decision"] == "REWORK_PROPOSED":
+                    # Verification only runs after the worker action has
+                    # completed, but the scheduler retains its lease until
+                    # expiry. Fence that completed generation now so the
+                    # approved rework can be claimed immediately as the next
+                    # generation instead of sitting ready behind its own lease.
+                    cur.execute("UPDATE assignment_leases SET expires_at=clock_timestamp() "
+                        "WHERE assignment_id=%s AND expires_at>clock_timestamp()",
+                        (assignment_id,))
+                    self.ledger.transition(assignment_id, "ready", context["step_id"],
+                        f"grace-rework-ready:{verification_id}", actor_id="office:grace")
+                self._event(cur, objective_id, event_type, idem,
+                    "office:grace", payload)
+                cur.execute("SELECT payload FROM grace_objective_events WHERE objective_id=%s "
+                    "AND idempotency_key=%s", (objective_id, idem))
+                recorded = cur.fetchone()
+                if not recorded or recorded["payload"] != payload:
+                    raise ObjectiveStateError("rework decision event could not be confirmed")
+        return payload
+
+    def latest_rework_instruction(self, assignment_id):
+        """Return the latest persisted bounded rework instruction for this assignment."""
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT e.payload FROM grace_objective_events e
+                WHERE e.event_type='engineering.rework_decided'
+                  AND e.payload->>'assignment_id'=%s
+                  AND e.payload->>'decision'='REWORK_PROPOSED'
+                ORDER BY e.sequence DESC LIMIT 1""", (assignment_id,))
+            row = cur.fetchone()
+        return row["payload"] if row else None
+
+    def record_rework_review_published(self, objective_id, verification_id, request_id):
+        """Acknowledge the idempotent Grace response only after source-chat persistence."""
+        if not all(isinstance(value, str) and value for value in
+                   (objective_id, verification_id, request_id)):
+            raise ValueError("rework response receipt is invalid")
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("SELECT payload FROM grace_objective_events WHERE objective_id=%s "
+                    "AND idempotency_key=ANY(%s)", (objective_id,
+                    [f"grace-rework-decision:{verification_id}",
+                     f"grace-rejection-review:{verification_id}"]))
+                row = cur.fetchone()
+                if not row or row["payload"].get("verification_id") != verification_id:
+                    raise ObjectiveStateError("durable Grace rejection decision is required before response receipt")
+                self._event(cur, objective_id, "conversation.rework_review_published",
+                    f"grace-rework-review-published:{verification_id}", "office:grace",
+                    {"verification_id": verification_id, "request_id": request_id})
         return True
 
     def propose_continuation(self, objective_id, parent_assignment_id, step, *, actor_id="office:grace"):

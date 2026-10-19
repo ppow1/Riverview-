@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.51
+**Document Revision:** 1.0.53
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -133,6 +133,14 @@ flowchart LR
     g_rv_grace_operational_integration_source_target_dispatch_binding_bbd0e791["ISOLATED IMPLEMENTATION — dispatch snapshots an explicitly Steward-authorized repository reference, immutable commit, paths, tests and proposal-step digest; resident grounding revision remains separate"]
     g_rv_grace_operational_integration_dual_capability_owner_loops_afceaa17["ISOLATED IMPLEMENTATION — owner-session retains its artifact worker and optionally runs a distinct source worker; claims and verifier routing use persisted attempt capability"]
     g_rv_grace_operational_integration_source_enrollment_fail_closed_7bba0087[["Source capability stays unavailable when separate credential, exact grants, registration, allowlist, repository mapping or pinned checkout is missing; artifact worker continues"]]
+    g_rv_grace_operational_integration_latest_verifier_rejection_ca00fc0d[["Latest independent REJECTED result remains immutable and is resolved through its durable objective-step assignment link"]]
+    g_rv_grace_operational_integration_grace_rejection_review_9f70861f{"The persistent owner cycle exposes the immutable verifier rejection and digest-checked artifact to Grace's bound 80B; Grace chooses substantive satisfaction, bounded rework, or Steward direction"}
+    g_rv_grace_operational_integration_grace_satisfied_verifier_recheck_a1e20956["Only an explicit durable Grace OBJECTIVE_SATISFIED decision permits the same immutable attempt to be rechecked under a corrected verifier revision; preserve the original rejection"]
+    g_rv_grace_operational_integration_same_assignment_governed_rework_9ebc8fcf["Recheck assignment.create, fence the completed lease, and transition the same assignment to ready with a new scheduler generation"]
+    g_rv_grace_operational_integration_rework_worker_cycle_8998f04d["The existing assignment lease and worker cycle executes the same assignment under its new fenced generation and records a distinct attempt before verification"]
+    g_rv_grace_operational_integration_rework_attempt_verification_ba069bce["Independently verify the new successful attempt only once; preserve prior artifacts and rejection records; latest rejection becomes the next decision target"]
+    g_rv_grace_operational_integration_rework_steward_direction_b806bf42[["A bounded STEWARD_AUTHORIZATION_REQUIRED decision keeps work incomplete and records the precise decision boundary"]]
+    g_rv_grace_operational_integration_conversation_engineering_progress_eaa2fbc0["Authenticated conversation-scoped dashboard projection shows durable receipt, objective/assignment stage, latest event, verifier/rework state and Steward action without transcript bodies"]
   end
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_cme_progress_and_recovery_observe_428defda["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -234,6 +242,18 @@ flowchart LR
   g_rv_grace_operational_integration_source_target_dispatch_binding_bbd0e791 -->|A source assignment is eligible only for the separately registered and credentialed source worker| g_rv_grace_operational_integration_dual_capability_owner_loops_afceaa17
   g_rv_grace_operational_integration_dual_capability_owner_loops_afceaa17 -->|diagnostic_branch: Source enrollment is incomplete; source work remains undispatched while the artifact worker continues| g_rv_grace_operational_integration_source_enrollment_fail_closed_7bba0087
   g_rv_grace_operational_integration_source_enrollment_fail_closed_7bba0087 -->|recovery_route: Resume only after separate credential, exact grants, registration, approved paths and pinned target configuration are verified| g_rv_grace_operational_integration_dual_capability_owner_loops_afceaa17
+  g_rv_grace_operational_integration_evidence_review_600fe7b4 -->|diagnostic_branch: The verifier records a durable rejection; it is not converted into acceptance| g_rv_grace_operational_integration_latest_verifier_rejection_ca00fc0d
+  g_rv_grace_operational_integration_latest_verifier_rejection_ca00fc0d -->|The existing owner-session cycle resolves the latest rejection in the originating objective context| g_rv_grace_operational_integration_grace_rejection_review_9f70861f
+  g_rv_grace_operational_integration_grace_rejection_review_9f70861f -->|verification: Grace records OBJECTIVE_SATISFIED; no worker retry occurs, and only independent same-attempt verifier recheck may complete it| g_rv_grace_operational_integration_grace_satisfied_verifier_recheck_a1e20956
+  g_rv_grace_operational_integration_grace_rejection_review_9f70861f -->|Only Grace's explicit bounded REWORK_PROPOSED decision plus the existing exact assignment.create grant requeues the same assignment| g_rv_grace_operational_integration_same_assignment_governed_rework_9ebc8fcf
+  g_rv_grace_operational_integration_grace_rejection_review_9f70861f -->|escalation: Grace's explicit STEWARD_AUTHORIZATION_REQUIRED decision preserves the verifier rejection and stops automatic execution| g_rv_grace_operational_integration_rework_steward_direction_b806bf42
+  g_rv_grace_operational_integration_same_assignment_governed_rework_9ebc8fcf -->|recovery_route: Normal worker leasing claims the same assignment under a new fenced generation| g_rv_grace_operational_integration_rework_worker_cycle_8998f04d
+  g_rv_grace_operational_integration_rework_worker_cycle_8998f04d -->|After a distinct successful attempt is recorded, existing verifier processing independently evaluates it| g_rv_grace_operational_integration_rework_attempt_verification_ba069bce
+  g_rv_grace_operational_integration_rework_attempt_verification_ba069bce -->|diagnostic_branch: A new REJECTED result becomes the latest decision target without rewriting prior history| g_rv_grace_operational_integration_latest_verifier_rejection_ca00fc0d
+  g_rv_grace_operational_integration_rework_attempt_verification_ba069bce -->|verification: An ACCEPTED rework result advances through the existing completion reconciliation| g_rv_grace_operational_integration_evidence_review_600fe7b4
+  g_rv_grace_operational_integration_objective_intake_55567c14 -->|The source-conversation receipt becomes visible in the durable objective panel| g_rv_grace_operational_integration_conversation_engineering_progress_eaa2fbc0
+  g_rv_grace_operational_integration_rework_attempt_verification_ba069bce -->|Verifier decisions and rework status are read from authoritative PostgreSQL records| g_rv_grace_operational_integration_conversation_engineering_progress_eaa2fbc0
+  g_rv_grace_operational_integration_rework_steward_direction_b806bf42 -->|diagnostic_branch: The panel explicitly identifies the persisted Steward action requirement| g_rv_grace_operational_integration_conversation_engineering_progress_eaa2fbc0
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

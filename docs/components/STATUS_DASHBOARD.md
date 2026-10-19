@@ -2,7 +2,9 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.7
+File Revision: 1.1.9
+Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Document role-gated objective access, owner checks, and minimized conversation progress
+Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Add conversation-origin-filtered durable Engineering progress and authenticated UI refresh contract.
 Purpose: Specify operational projections and exact-grant Grace objective and conversation interfaces
 Authority: Reads require dashboard authentication; objective and resident conversation operations require exact institutional grants
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
@@ -86,9 +88,10 @@ verification decision and pinned source revision.
 
 | Route | Purpose | Parameters and limit |
 | --- | --- | --- |
+| `GET /api/v1/objectives?conversation_id=<uuid>&limit=<n>` | The bounded, progress-only objective projection filtered by immutable conversation origin; includes lifecycle stage, latest meaningful event, verifier summary/rework state and Steward-action-needed flag for the persistent Talk with Grace activity panel. No request text, scope, submitter, acceptance criteria, artifact path/digest, source digest, transcript body or artifact content. | Requires an active account session. A non-Steward account must provide a conversation it owns; the route validates ownership through the existing `ConversationService.history()` exact read-authority and owner check, then filters objectives by that principal and exact conversation. Default 25, max 100. |
 | `GET /api/v1/status` | Database/schema/migration identity, event cursor and lifecycle counts, CME heartbeat/freshness, aggregate per-worker health counts, verifier relation presence, source/deployment identity. | Fixed size. |
-| `GET /api/v1/objectives?limit=<n>` | Bounded objective, assignment, artifact, verification and source-revision summaries. | Default 25, max 100. |
-| `GET /api/v1/objectives/<id>` | One objective's persisted lifecycle and verified result summary. | Fixed summary; no artifact body. |
+| `GET /api/v1/objectives?limit=<n>` | Bounded objective, assignment, artifact, verification and source-revision summaries. | Steward account role required for the global list. Dashboard bearer alone and non-Steward account sessions are denied. Default 25, max 100. |
+| `GET /api/v1/objectives/<id>` | One objective's persisted lifecycle and verified result summary. | Steward account role receives the existing summary. A non-Steward account is filtered by its principal and receives the progress-only shape only after the originating conversation passes the existing exact `resident.conversation.read` grant and conversation-owner check. No artifact body. |
 | `POST /api/v1/objectives` | Persist a bounded human request and attempt commit-pinned grounding. | Dashboard bearer plus `X-Riverview-Authority` exact `objective.submit` grant for supplied scope; maximum JSON body 16 KiB. |
 | `POST /api/v1/objectives/<id>/proposal` | Persist a typed PlanProposal after grounding and human-criteria validation. | Dashboard bearer plus `X-Riverview-Authority` exact `assignment.create` grant for the objective scope. A proposal is not authority. |
 | `POST /api/v1/objectives/<id>/cancel` | Cancel only queued/ready pre-execution work. | Dashboard bearer plus exact `assignment.cancel` grant for the objective scope. |

@@ -2,8 +2,10 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.26
+# Revision: 1.3.28
+# Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Enforce Steward/global or exact account-owned conversation scope for objective projections
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Accept typed repository target provenance in source-change proposal intake.
+# Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Filter durable Engineering progress by authenticated conversation origin
 # Purpose: Serve account-authenticated operational, proposal, capability and snapshot APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -59,7 +61,7 @@ import secrets
 import stat
 import threading
 import time
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid5
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -444,6 +446,52 @@ def make_handler():
             self._account_auth_failed = False
             self._account_cookie_authenticated = self._account_identity is not None
             return self._account_cookie_authenticated
+
+        def _objective_account_identity(self):
+            """Resolve an account session for sensitive objective projections.
+
+            The dashboard bearer authenticates the general API but carries no
+            account role. When a browser sends that bearer and its account
+            cookie together, validate the cookie independently for this route.
+            """
+            if self._account_cookie_authenticated and self._account_identity:
+                return self._account_identity
+            service = self.server._account_auth_service
+            raw_cookie = self.headers.get("Cookie", "")
+            if service is None or len(raw_cookie) > 8192:
+                return None
+            values = []
+            for item in raw_cookie.split(";"):
+                key, sep, value = item.strip().partition("=")
+                if sep and key == _ACCOUNT_SESSION_COOKIE:
+                    values.append(value)
+            if len(values) != 1:
+                return None
+            from riverview_core.account_auth import AuthDenied
+            try:
+                return service.authenticate(values[0],
+                    csrf_token=self.headers.get("X-Riverview-CSRF"),
+                    state_changing=False)
+            except AuthDenied:
+                return None
+
+        def _authorize_objective_conversation(self, identity, conversation_id):
+            """Apply the existing conversation read grant and owner check."""
+            from riverview_core.institutional_authority.grants import InstitutionalPrincipal
+            from riverview_core.resident_execution.conversation import (
+                ConversationDenied, ConversationNotFound, ConversationUnavailable)
+            service = self.server._conversation_service
+            if service is None:
+                raise ConversationUnavailable("conversation ownership check unavailable")
+            principal_id = identity.get("authority_principal_id")
+            if not isinstance(principal_id, str) or not principal_id.strip():
+                raise ConversationDenied("account has no institutional principal")
+            try:
+                service.history(InstitutionalPrincipal(principal_id), conversation_id)
+            except (ConversationDenied, ConversationNotFound, ConversationUnavailable):
+                raise
+            except Exception as exc:
+                raise ConversationUnavailable("conversation ownership check unavailable") from exc
 
         @staticmethod
         def _account_cookie(value, *, clear=False):
@@ -949,8 +997,50 @@ def make_handler():
                     page = self.server._projection.attention(limit=_bounded_limit(query.get("limit", [25])[0]))
                     self._json(200, page, request_id)
                 elif parsed.path == "/api/v1/objectives" and self.command in {"GET", "HEAD"}:
+                    if (set(query) - {"limit", "conversation_id"} or
+                            any(len(values) != 1 for values in query.values())):
+                        self._error(400, "invalid_query", request_id)
+                        return
+                    conversation_id = query.get("conversation_id", [None])[0]
+                    if conversation_id is not None:
+                        conversation_id = str(UUID(conversation_id))
+                    try:
+                        identity = self._objective_account_identity()
+                    except Exception:
+                        self._error(503, "account_auth_unavailable", request_id)
+                        return
+                    if not identity:
+                        self._error(403, "account_session_required", request_id)
+                        return
+                    roles = identity.get("roles", ())
+                    is_steward = isinstance(roles, (list, tuple, set)) and "steward" in roles
+                    owner_principal_id = None
+                    progress_only = conversation_id is not None
+                    if not is_steward:
+                        owner_principal_id = identity.get("authority_principal_id")
+                        if (not conversation_id or not isinstance(owner_principal_id, str)
+                                or not owner_principal_id.strip()):
+                            self._error(403, "steward_or_owned_conversation_required", request_id)
+                            return
+                        try:
+                            self._authorize_objective_conversation(identity, conversation_id)
+                        except Exception as exc:
+                            from riverview_core.resident_execution.conversation import (
+                                ConversationDenied, ConversationNotFound, ConversationUnavailable)
+                            if isinstance(exc, ConversationDenied):
+                                self._error(403, "conversation_read_not_authorized", request_id)
+                            elif isinstance(exc, ConversationNotFound):
+                                self._error(404, "conversation_not_found", request_id)
+                            elif isinstance(exc, ConversationUnavailable):
+                                self._error(503, "conversation_owner_check_unavailable", request_id)
+                            else:
+                                self._error(503, "conversation_owner_check_unavailable", request_id)
+                            return
                     self._json(200, self.server._projection.objectives(
-                        limit=_bounded_limit(query.get("limit", [25])[0])), request_id)
+                        limit=_bounded_limit(query.get("limit", [25])[0]),
+                        conversation_id=conversation_id,
+                        owner_principal_id=owner_principal_id,
+                        progress_only=progress_only), request_id)
                 elif conversation_work_order:
                     # Only an explicit authenticated Steward action can promote a
                     # specific persisted Grace user message. Ordinary chat stays chat.
@@ -1648,9 +1738,46 @@ def make_handler():
                     result = self.server._projection.assignment_detail(assignment_id)
                     self._json(200, result, request_id) if result else self._error(404, "assignment_not_found", request_id)
                 elif (match := _OBJECTIVE_DETAIL.fullmatch(parsed.path)) and self.command in {"GET", "HEAD"}:
-                    rows = self.server._projection.objectives(
-                        limit=1, objective_id=match.group(1)).get("items", [])
+                    if query:
+                        self._error(400, "invalid_query", request_id)
+                        return
+                    try:
+                        identity = self._objective_account_identity()
+                    except Exception:
+                        self._error(503, "account_auth_unavailable", request_id)
+                        return
+                    if not identity:
+                        self._error(403, "account_session_required", request_id)
+                        return
+                    roles = identity.get("roles", ())
+                    is_steward = isinstance(roles, (list, tuple, set)) and "steward" in roles
+                    owner_principal_id = None if is_steward else identity.get("authority_principal_id")
+                    if not is_steward and (not isinstance(owner_principal_id, str)
+                                           or not owner_principal_id.strip()):
+                        self._error(403, "steward_or_owned_conversation_required", request_id)
+                        return
+                    rows = self.server._projection.objectives(limit=1,
+                        objective_id=match.group(1), owner_principal_id=owner_principal_id,
+                        progress_only=not is_steward).get("items", [])
                     item = next((entry for entry in rows if entry["objective_id"] == match.group(1)), None)
+                    if item is not None and not is_steward:
+                        conversation_id = (item.get("origin") or {}).get("conversation_id")
+                        if not conversation_id:
+                            item = None
+                        else:
+                            try:
+                                self._authorize_objective_conversation(identity, conversation_id)
+                            except Exception as exc:
+                                from riverview_core.resident_execution.conversation import (
+                                    ConversationDenied, ConversationNotFound, ConversationUnavailable)
+                                if isinstance(exc, (ConversationDenied, ConversationNotFound)):
+                                    item = None
+                                elif isinstance(exc, ConversationUnavailable):
+                                    self._error(503, "conversation_owner_check_unavailable", request_id)
+                                    return
+                                else:
+                                    self._error(503, "conversation_owner_check_unavailable", request_id)
+                                    return
                     self._json(200, item, request_id) if item else self._error(404, "objective_not_found", request_id)
                 else:
                     self._error(404, "not_found", request_id)

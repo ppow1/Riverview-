@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.12
+**Document Revision:** 1.0.13
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -15,6 +15,7 @@ flowchart LR
     g_rv_steward_dashboard_status_ingest_66a3387a(["Browser shell and status request"])
     g_rv_steward_dashboard_status_authenticate_64fc5881{"Host, loopback and bearer or active account session valid?"}
     g_rv_steward_dashboard_status_deny_request_776de47b[["Reject unauthorized or mutating request"]]
+    g_rv_steward_dashboard_status_objective_scope_db1133cf{"Steward global view or exact account-owned conversation progress?"}
     g_rv_steward_dashboard_status_read_ledger_6f000d0e["Read bounded PostgreSQL projection"]
     g_rv_steward_dashboard_status_source_health_3cc042e8["Observe source and CME freshness"]
     g_rv_steward_dashboard_status_source_available_1fba9227{"Ledger available and initialized?"}
@@ -114,6 +115,9 @@ flowchart LR
   g_rv_steward_dashboard_status_jump_target_unavailable_a040d015 -->|recovery_route: Use the preserved return control| g_rv_steward_dashboard_status_return_to_source_jump_c0627ef6
   g_rv_steward_dashboard_status_return_to_source_jump_c0627ef6 -->|Source graph and jump node restored| g_rv_steward_dashboard_status_render_process_graph_d97ae980
   g_rv_steward_dashboard_status_select_cross_workflow_jump_34868639 -->|No jump selected; continue viewing this workflow| g_rv_steward_dashboard_status_render_process_graph_d97ae980
+  g_rv_steward_dashboard_status_authenticate_64fc5881 -->|Objective projection request| g_rv_steward_dashboard_status_objective_scope_db1133cf
+  g_rv_steward_dashboard_status_objective_scope_db1133cf -->|Steward global access or owner and exact read grant verified| g_rv_steward_dashboard_status_read_ledger_6f000d0e
+  g_rv_steward_dashboard_status_objective_scope_db1133cf -->|diagnostic_branch: Missing Steward role, account principal, owner match, or read grant| g_rv_steward_dashboard_status_deny_request_776de47b
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

@@ -1,8 +1,9 @@
 <!-- Riverview~ controlled asset; component STEWARD-DASHBOARD. -->
 <!-- Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Expose capability-registry-driven downloadable offline diagnostic ZIP. -->
-<!-- Revision: 1.1.21 -->
+<!-- Revision: 1.1.22 -->
 <!-- Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Clarify worker registry and lease-heartbeat signals do not establish process liveness. -->
 <!-- Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Expose existing authenticated institutional proposal lifecycle controls. -->
+<!-- Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Show persistent conversation-linked objective and verifier/rework progress from the authenticated dashboard projection. -->
 <!-- Changed: 2026-10-16 UTC | RV-WEBSITE-PL-NEW-042 | Add fit, reset, zoom, pan and fullscreen workflow viewer controls. -->
 <!-- Changed: 2026-10-16 UTC | RV-WEBSITE-PL038 | Add searchable workflow/documentation provenance catalog view. -->
 <!-- Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RETRY-003 | Explain original-criteria reuse on a same-source retry -->
@@ -76,6 +77,11 @@
             <div class="panel-head chat-heading"><div><h3 id="chat-title">Grace conversation</h3><span id="chat-state" class="muted" role="status" aria-live="polite">Connect to load authorized conversation history.</span></div><div class="chat-heading-actions"><button id="chat-new" class="secondary" type="button">New conversation</button><button id="chat-refresh" class="secondary" type="button">Refresh history</button><button id="chat-disconnect" class="secondary" type="button" hidden>Disconnect</button></div></div>
             <p id="chat-controls-guidance" class="row-meta">Disconnect ends this browser's Grace session and hides the transcript; saved history remains. Refresh history reloads the current saved conversation. Enter sends a message; Shift+Enter or Insert line break adds a newline.</p>
             <div id="chat-history" class="conversation-timeline" role="log" aria-label="Conversation messages" aria-live="polite" aria-relevant="additions text" tabindex="0">No conversation loaded.</div>
+            <section class="engineering-progress" aria-labelledby="engineering-progress-title" aria-live="polite">
+              <div class="panel-head"><div><h3 id="engineering-progress-title">Engineering progress</h3><span id="engineering-progress-state" class="muted" role="status">Connect to load durable progress.</span></div><button id="refresh-engineering-progress" class="secondary" type="button">Refresh</button></div>
+              <div id="engineering-progress-list" class="engineering-progress-list muted">Objective receipts and work-order state appear here after submission.</div>
+              <p class="row-meta">Progress is read from persisted objectives, assignments, lifecycle events and independent verifier records linked to this conversation. Chat response text does not establish execution or acceptance.</p>
+            </section>
             <form id="chat-form" class="chat-composer"><label for="chat-message">Message Grace</label><textarea id="chat-message" rows="2" maxlength="8192" required autocomplete="off" placeholder="Write a message to Grace…"></textarea><div class="composer-help"><span>Enter sends · Shift+Enter adds a line</span><button id="chat-newline" type="button" class="quiet-button" aria-label="Insert a new line">Insert line break</button></div><div class="composer-actions"><details class="chat-more"><summary aria-label="More conversation options" title="More options">⋯</summary><div class="chat-more-menu" role="menu" aria-label="Conversation options"><button type="button" role="menuitem" data-chat-option="details">Chat details</button><button type="button" role="menuitem" data-chat-option="copy-selected">Copy selected message</button><button type="button" role="menuitem" data-chat-option="copy-conversation">Copy conversation</button><button type="button" role="menuitem" disabled>Edit submitted message — future capability</button><button type="button" role="menuitem" disabled>Forward to Riverview — unavailable</button><button type="button" role="menuitem" disabled>Image generation — coming later</button><button type="button" role="menuitem" disabled>Attachments — coming later</button></div></details><button id="chat-send" class="primary" type="submit">Send message</button></div></form>
             <div id="chat-error" class="inline-error" role="status" aria-live="polite"></div>
           </div>
