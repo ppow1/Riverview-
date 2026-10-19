@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.1.11
+File Revision: 1.1.12
 Purpose: Set up and troubleshoot ntfy/Pushover push delivery without exposing secrets
 Authority: Operational diagnosis and local setup only; no decision authority
-Changed: 2026-10-19 UTC | RV-IPHONE-NTFY-LAN-COMMISSIONING-001 | Use exact ntfy deny-all ACL name
+Changed: 2026-10-19 UTC | RV-IPHONE-NTFY-LAN-COMMISSIONING-001 | Make one-info-notice LAN path controlling for first acceptance
 Changed: 2026-10-19 UTC | RV-IPHONE-NTFY-LAN-COMMISSIONING-001 | Prepare LAN-only self-hosted ntfy configuration, phone test, and rollback
 Changed: 2026-10-19 UTC | RV-IPHONE-NOTIFICATIONS-001 | Correct focused test PYTHONPATH to include the runner script directory
 Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial push recovery cookbook
@@ -319,6 +319,11 @@ Before execution, the Steward/operator must authorize these scoped actions:
 The upstream iOS relay is **not** part of those prerequisites for foreground
 acceptance. Any relay decision is separate and can be deferred. This plan grants
 no deployment or notification authority.
+
+For Camrui LAN first acceptance, this section is the controlling procedure. The
+later provider-general acceptance checklist, three-severity SQL block, and
+Pushover receipt check are not part of the first pass and must not be run unless
+separately authorized.
 
 ## Setup after separately authorized commissioning
 
