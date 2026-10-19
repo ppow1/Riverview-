@@ -1,7 +1,8 @@
 # Riverview~ controlled test
 # File: tests/test_grace_conversation_result.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.8
+# Revision: 1.0.9
+# Changed: 2026-10-19 UTC | RV-C1-GRACE-RESULT-RECEIPT-001 | Cover publisher receipts without cycle metadata and fail-closed mismatches
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Verify both accepted and rejected review paths provide the actual digest-checked artifact to Grace.
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Prove Grace sees the digest-verified artifact and may decide substantive satisfaction without scheduling rework; reject forged review material before inference.
 # Purpose: Verify 80B result review is authorized, bounded and idempotently linked to chat
@@ -391,13 +392,44 @@ class GraceConversationResultTests(unittest.TestCase):
         self.assertEqual(forwarded["artifact_review_unavailable"], "integrity_check_failed")
         self.assertEqual(forwarded["completion"], context["completion"])
 
-    def test_persistent_outbox_acknowledges_only_after_chat_publisher_receipt(self):
+    def test_persistent_outbox_uses_durable_cycle_when_publisher_omits_it_and_does_not_retry(self):
         class Pipeline:
             def __init__(self):
                 self.receipts = []
 
             def pending_conversation_results(self, *, limit):
-                return [{"objective_id": "objective:outbox-1"}]
+                if self.receipts:
+                    return []
+                return [{"objective_id": "objective:outbox-1", "completion_cycle": 4}]
+
+            def record_conversation_result_published(self, objective_id, receipt):
+                self.receipts.append((objective_id, receipt))
+
+        pipeline = Pipeline()
+        service = object.__new__(GraceExecutionService)
+        service.pipeline = pipeline
+        publisher_calls = []
+        service.conversation_result_publisher = lambda context: (publisher_calls.append(
+            context["completion_cycle"]) or {
+            "status": "published", "request_id": "request-1",
+            "provider_id": "local.inference.v1", "served_model": "qwen-80b",
+            "implementation_id": "implementation:grace:router"})
+        self.assertEqual(service.publish_conversation_results(), 1)
+        self.assertEqual(pipeline.receipts, [("objective:outbox-1", {
+            "request_id": "request-1", "provider_id": "local.inference.v1",
+            "served_model": "qwen-80b", "implementation_id": "implementation:grace:router",
+            "completion_cycle": "4"})])
+        self.assertEqual(publisher_calls, [4])
+        self.assertEqual(service.publish_conversation_results(), 0)
+        self.assertEqual(publisher_calls, [4], "durable acknowledgement must prevent a repeat publish")
+
+    def test_persistent_outbox_rejects_conflicting_publisher_cycle_without_acknowledging(self):
+        class Pipeline:
+            def __init__(self):
+                self.receipts = []
+
+            def pending_conversation_results(self, *, limit):
+                return [{"objective_id": "objective:outbox-cycle-mismatch", "completion_cycle": 4}]
 
             def record_conversation_result_published(self, objective_id, receipt):
                 self.receipts.append((objective_id, receipt))
@@ -406,14 +438,11 @@ class GraceConversationResultTests(unittest.TestCase):
         service = object.__new__(GraceExecutionService)
         service.pipeline = pipeline
         service.conversation_result_publisher = lambda _context: {
-            "status": "published", "request_id": "request-1",
+            "status": "published", "request_id": "request-mismatch",
             "provider_id": "local.inference.v1", "served_model": "qwen-80b",
-            "implementation_id": "implementation:grace:router", "completion_cycle": "1"}
-        self.assertEqual(service.publish_conversation_results(), 1)
-        self.assertEqual(pipeline.receipts, [("objective:outbox-1", {
-            "request_id": "request-1", "provider_id": "local.inference.v1",
-            "served_model": "qwen-80b", "implementation_id": "implementation:grace:router",
-            "completion_cycle": "1"})])
+            "implementation_id": "implementation:grace:router", "completion_cycle": "3"}
+        self.assertEqual(service.publish_conversation_results(), 0)
+        self.assertEqual(pipeline.receipts, [])
 
     def test_failed_result_publisher_leaves_durable_outbox_unacknowledged(self):
         class Pipeline:

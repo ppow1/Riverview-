@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.26
+# Revision: 1.0.27
+# Changed: 2026-10-19 UTC | RV-C1-GRACE-RESULT-RECEIPT-001 | Derive publication acknowledgement cycle from the durable outbox and reject mismatched receipt cycles
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Select the latest verifier record identity for exact Grace-review gating and same-attempt revalidation.
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Preserve the durable verifier rejection for Grace even when unsafe artifact bytes cannot be reopened for substantive review.
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Poll optional injected ChatGPT wake worker in Grace owner cycle.
@@ -578,14 +579,23 @@ class GraceExecutionService:
         published = 0
         for context in self.pipeline.pending_conversation_results(limit=limit):
             try:
+                completion_cycle = context.get("completion_cycle")
+                if type(completion_cycle) is not int or completion_cycle < 1:
+                    raise ValueError("durable conversation result cycle is invalid")
                 review_context = self._with_grace_artifact_review(context)
                 receipt = self.conversation_result_publisher(review_context)
                 if (not isinstance(receipt, dict)
                         or receipt.get("status") not in {"published", "already_published"}):
                     continue
+                receipt_cycle = receipt.get("completion_cycle")
+                if receipt_cycle is not None and not (
+                        (type(receipt_cycle) is int and receipt_cycle == completion_cycle)
+                        or (isinstance(receipt_cycle, str)
+                            and receipt_cycle == str(completion_cycle))):
+                    raise ValueError("conversation result receipt cycle does not match outbox")
                 durable_receipt = {key: receipt.get(key) for key in
-                    ("request_id", "provider_id", "served_model", "implementation_id",
-                     "completion_cycle")}
+                    ("request_id", "provider_id", "served_model", "implementation_id")}
+                durable_receipt["completion_cycle"] = str(completion_cycle)
                 self.pipeline.record_conversation_result_published(
                     context["objective_id"], durable_receipt)
                 published += 1
