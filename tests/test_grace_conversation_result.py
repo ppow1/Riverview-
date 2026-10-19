@@ -1,7 +1,8 @@
 # Riverview~ controlled test
 # File: tests/test_grace_conversation_result.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.9
+# Revision: 1.0.10
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-DIAGNOSTICS | Verify safe structured-review diagnostics reveal shape only and never generated text
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-RESULT-RECEIPT-001 | Cover publisher receipts without cycle metadata and fail-closed mismatches
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Verify both accepted and rejected review paths provide the actual digest-checked artifact to Grace.
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Prove Grace sees the digest-verified artifact and may decide substantive satisfaction without scheduling rework; reject forged review material before inference.
@@ -162,6 +163,33 @@ class GraceConversationResultTests(unittest.TestCase):
         self.assertEqual(evidence["artifact_for_grace_review"]["body"], body)
         self.assertEqual(evidence["artifact_for_grace_review"]["sha256"], digest)
 
+    def test_verified_codex_result_accepts_unavailable_review_without_trusting_artifact_text(self):
+        context = valid_context()
+        context["completion"]["artifact"].update({
+            "capability": "engineering.codex-cli-artifact.v1",
+            "artifact_name": "codex-" + "e" * 64 + ".md",
+            "artifact_bytes": 128,
+            "changed_files": ["report.md"],
+            "repository_revision": "a" * 40})
+        context["artifact_review_unavailable"] = "integrity_check_failed"
+
+        result = self.service.review_verified_work_order(context)
+
+        self.assertEqual(result["status"], "published")
+        payload = json.loads(self.router.calls[0][0][1]["content"])
+        evidence = payload["verified_work_order_result"]
+        self.assertEqual(evidence["artifact_review_unavailable"], "integrity_check_failed")
+        self.assertNotIn("artifact_for_grace_review", evidence)
+        self.assertNotIn("artifact_path", evidence["artifact"])
+
+    def test_verified_result_rejects_unknown_artifact_review_status(self):
+        context = valid_context()
+        context["artifact_review_unavailable"] = "provider_credentials_missing"
+        with self.assertRaises(ValueError):
+            self.service.review_verified_work_order(context)
+        self.assertEqual(self.router.calls, [])
+        self.assertEqual(self.store.responses, {})
+
     def test_unverified_or_wrong_scope_result_never_reaches_provider(self):
         context = valid_context()
         context["completion"]["decision"] = "REJECTED"
@@ -193,6 +221,20 @@ class GraceConversationResultTests(unittest.TestCase):
         self.assertNotIn("PRIVATE-COMPLETION", diagnostic)
         self.assertNotIn("PRIVATE-CREDENTIAL", diagnostic)
         self.assertEqual(self.store.responses, {})
+
+    def test_invalid_verified_result_review_logs_shape_without_generated_text(self):
+        from riverview_core.resident_execution.conversation import ConversationUnavailable
+        self.router.content = json.dumps({"decision": "OBJECTIVE_COMPLETE",
+            "rationale": "PRIVATE-GENERATED-RATIONALE", "additional_evidence": [],
+            "proposed_step": None, "unexpected": "PRIVATE-EXTRA"})
+        with self.assertLogs("riverview_core.resident_execution.conversation",
+                             level="WARNING") as captured:
+            with self.assertRaises(ConversationUnavailable):
+                self.service.review_verified_work_order(valid_context())
+        self.assertIn('"failure_stage": "decision_shape"', captured.output[0])
+        self.assertIn('"unexpected_field_count": 1', captured.output[0])
+        self.assertNotIn("PRIVATE-GENERATED-RATIONALE", captured.output[0])
+        self.assertNotIn("PRIVATE-EXTRA", captured.output[0])
 
     def test_smaller_direct_model_cannot_review_substantive_result(self):
         small = SimpleNamespace(model="qwen3-0.6b", model_sha256="r" * 64)
@@ -450,7 +492,7 @@ class GraceConversationResultTests(unittest.TestCase):
                 self.acks = 0
 
             def pending_conversation_results(self, *, limit):
-                return [{"objective_id": "objective:retry-1"}]
+                return [{"objective_id": "objective:retry-1", "completion_cycle": 1}]
 
             def record_conversation_result_published(self, *_args):
                 self.acks += 1
@@ -463,8 +505,12 @@ class GraceConversationResultTests(unittest.TestCase):
             raise RuntimeError("model unavailable")
 
         service.conversation_result_publisher = unavailable
-        self.assertEqual(service.publish_conversation_results(), 0)
+        with self.assertLogs("riverview.grace_execution", level="WARNING") as captured:
+            self.assertEqual(service.publish_conversation_results(), 0)
         self.assertEqual(pipeline.acks, 0)
+        self.assertIn('"failure_stage": "resident_result_review"', captured.output[0])
+        self.assertIn('"failure_location": "unavailable:', captured.output[0])
+        self.assertNotIn("model unavailable", captured.output[0])
 
 
 if __name__ == "__main__":

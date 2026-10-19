@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.20
+File Revision: 1.1.21
+Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-ARTIFACT-STATUS | Document the sanitized optional artifact availability field in the bound 80B result-review contract.
 Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Assign artifact integrity, provenance, authorization and structure to the independent verifier; pass the actual digest-checked artifact and immutable rejection evidence to Grace for substantive acceptance/rework decisions.
 Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Specify latest-rejection review, lease-fenced same-assignment retry, verifier selection and conversation progress projection.
 Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Define immutable source-target provenance and capability-fenced concurrent owner-session execution.
@@ -351,3 +352,10 @@ proposal API and lifecycle. Approval applies to one revision and purpose;
 promotion separately calls the existing pipeline under exact `objective.submit`.
 The existing “Create Engineering work order” conversation action remains a
 direct authenticated objective intake path and is not a proposal approval.
+
+Verified Codex result return accepts the outbox's optional
+`artifact_review_unavailable` status only when it is null or the fixed value
+`integrity_check_failed`. The status is included as sanitized verifier context.
+If artifact bytes cannot be reopened and digest-checked, Grace receives no
+artifact text; verifier metadata remains available for its governed review.
+Unknown status values and any unverified artifact text fail closed.

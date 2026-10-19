@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.54
+**Document Revision:** 1.0.55
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -125,7 +125,7 @@ flowchart LR
     g_rv_grace_operational_integration_verifier_revision_revalidation_9411c472{"For a previously rejected successful attempt, revalidate only after a newer verifier revision, current exact verifier grant, same assignment/attempt, and deterministic revision idempotency key; preserve the old decision"}
     g_rv_grace_operational_integration_verifier_revision_accepted_7a0fa5d2["Corrected verifier reopens the same immutable worker result and appends a new revision decision; assignment completes only after persisted ACCEPTED evidence"]
     g_rv_grace_operational_integration_verifier_revision_retry_15b1db87["On revalidation rejection or authorization/schema failure, preserve both evidence and assignment state; do not rerun Codex or replace the objective"]
-    g_rv_grace_operational_integration_verified_result_review_decision_58c1884b{"After independently verified work, the bound 80B chooses complete, request evidence, propose a same-objective step within approved scope, or require Steward authorization; it cannot grant authority"}
+    g_rv_grace_operational_integration_verified_result_review_decision_58c1884b{"After independently verified work, the bound 80B reviews verifier evidence and only digest-checked artifact text; sanitized artifact unavailability is an accepted status, while unknown fields fail closed"}
     g_rv_grace_operational_integration_internal_tool_call_340d40b0["IMPLEMENTED — Grace 80B may emit one strict bounded read-tool request; Comms5Application dispatches it through the existing dashboard backend, preserving published schemas, validation, and result shaping"]
     g_rv_grace_operational_integration_internal_tool_consume_a8336489["IMPLEMENTED — Grace receives the structured tool result in a bounded follow-up completion; the result is persisted with the assistant conversation event; malformed or failed calls return sanitized errors"]
     g_rv_grace_operational_integration_codex_persisted_criteria_verification_3aad2766["Verify the Codex deliverable against acceptance criteria resolved from the pre-dispatch PostgreSQL objective step linked to this assignment; missing durable criteria fail closed"]

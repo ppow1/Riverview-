@@ -2,7 +2,10 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.2.19
+# Revision: 1.2.22
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-DIAGNOSTICS | Record safe structured-review failure categories and response shape without exposing generated text
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-DIAGNOSTICS | Record safe structured-review failure categories and response shape without exposing generated text
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-ARTIFACT-STATUS | Accept the sanitized artifact-review availability field from the durable result outbox
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Give Grace the digest-verified artifact for substantive review; never trust unreadable bytes or accept them without content.
 # Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Preserve prompt_too_large as a safe deferred-resume diagnostic.
 # Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Persist capped deferred retries, terminalize deterministic provider errors, and distinguish terminal auth/input failures.
@@ -116,6 +119,36 @@ def _validated_artifact_review(artifact, review, *, allow_unavailable=False):
         raise ConversationUnavailable("Codex artifact review snapshot failed its integrity bound")
     return {"artifact_name": review["artifact_name"], "sha256": review["sha256"],
             "body": review["body"]}
+
+
+def _safe_verified_result_review_shape(review):
+    """Describe only fixed structural attributes of an untrusted model response."""
+    expected = {"decision", "rationale", "additional_evidence", "proposed_step"}
+    if not isinstance(review, dict):
+        return {"json_object": False}
+    decision = review.get("decision")
+    decisions = {"OBJECTIVE_COMPLETE", "ADDITIONAL_EVIDENCE_REQUIRED",
+                 "ENGINEERING_STEP_PROPOSED", "STEWARD_AUTHORIZATION_REQUIRED"}
+    rationale = review.get("rationale")
+    evidence = review.get("additional_evidence")
+    step = review.get("proposed_step")
+    step_required = {"step_id", "objective", "acceptance_criteria", "depends_on"}
+    return {"json_object": True,
+        "missing_fields": sorted(expected - set(review)),
+        "unexpected_field_count": len(set(review) - expected),
+        "decision": decision if isinstance(decision, str) and decision in decisions
+            else "unrecognized",
+        "rationale_type": type(rationale).__name__,
+        "rationale_length": len(rationale) if isinstance(rationale, str) else None,
+        "additional_evidence_type": type(evidence).__name__,
+        "additional_evidence_count": len(evidence) if isinstance(evidence, list) else None,
+        "proposed_step_type": type(step).__name__,
+        "proposed_step_missing_fields": (sorted(step_required - set(step))
+            if isinstance(step, dict) else None),
+        "proposed_step_unexpected_field_count": (len(set(step) - (step_required | {
+            "execution_capability", "authorized_paths", "test_targets",
+            "repository_reference", "repository_revision"}))
+            if isinstance(step, dict) else None)}
 
 
 def _deferred_retry_delay(attempt_count):
@@ -1459,7 +1492,8 @@ class ResidentConversationService:
         """Have Grace review verifier-accepted evidence and return it to chat."""
         required = {"objective_id", "assignment_id", "request", "acceptance_criteria",
                     "proposal", "submitter_id", "origin", "completion", "completion_cycle"}
-        optional = {"objective_status", "step_progress", "artifact_review"}
+        optional = {"objective_status", "step_progress", "artifact_review",
+                    "artifact_review_unavailable"}
         if (not isinstance(context, dict) or not required.issubset(context)
                 or set(context) - required - optional):
             raise ValueError("verified Engineering result context is invalid")
@@ -1485,8 +1519,14 @@ class ResidentConversationService:
                 or set(origin) != {"conversation_id", "source_sequence"}
                 or not isinstance(context["acceptance_criteria"], list)):
             raise ValueError("independent verification and source conversation are required")
+        artifact_review_unavailable = context.get("artifact_review_unavailable")
+        if artifact_review_unavailable not in {None, "integrity_check_failed"} or (
+                artifact_review_unavailable is not None and
+                context.get("artifact_review") is not None):
+            raise ValueError("verified result artifact review status is invalid")
         artifact_review = _validated_artifact_review(
-            verified_result.get("artifact"), context.get("artifact_review"))
+            verified_result.get("artifact"), context.get("artifact_review"),
+            allow_unavailable=artifact_review_unavailable == "integrity_check_failed")
         verifier_evidence = {key: verified_result.get(key) for key in (
             "verification_id", "decision", "verifier_id", "verifier_revision",
             "verification_criteria", "verification_summary", "evidence_references",
@@ -1496,6 +1536,8 @@ class ResidentConversationService:
             verifier_evidence["artifact"] = {key: artifact_metadata.get(key) for key in (
                 "artifact_name", "artifact_sha256", "artifact_bytes", "capability",
                 "changed_files", "repository_revision") if key in artifact_metadata}
+        if artifact_review_unavailable:
+            verifier_evidence["artifact_review_unavailable"] = artifact_review_unavailable
         if artifact_review:
             verifier_evidence["artifact_for_grace_review"] = artifact_review
         self._authorize(self._resident_credential, self.SEND_ACTION)
@@ -1587,8 +1629,11 @@ class ResidentConversationService:
                 or not isinstance(served_model, str) or not served_model):
             raise ConversationUnavailable("verified result review was incomplete")
         continuation_step = None
+        review = None
+        validation_stage = "json_parse"
         try:
             review = json.loads(raw_body)
+            validation_stage = "decision_shape"
             if (not isinstance(review, dict) or set(review) != {
                     "decision", "rationale", "additional_evidence", "proposed_step"} or
                     review["decision"] not in {"OBJECTIVE_COMPLETE",
@@ -1603,6 +1648,7 @@ class ResidentConversationService:
                 raise ValueError
             proposed_step = review["proposed_step"]
             if review["decision"] == "ENGINEERING_STEP_PROPOSED":
+                validation_stage = "proposed_step_shape"
                 required = {"step_id", "objective", "acceptance_criteria", "depends_on"}
                 allowed = required | {"execution_capability", "authorized_paths", "test_targets",
                                      "repository_reference", "repository_revision"}
@@ -1690,10 +1736,17 @@ class ResidentConversationService:
                             proposed_step.get("repository_reference"),
                             proposed_step.get("repository_revision"))
             elif proposed_step is not None:
+                validation_stage = "decision_payload_consistency"
                 raise ValueError
             if review["decision"] == "ADDITIONAL_EVIDENCE_REQUIRED" and not review["additional_evidence"]:
+                validation_stage = "evidence_payload_consistency"
                 raise ValueError
         except (json.JSONDecodeError, TypeError, ValueError):
+            _LOG.warning("%s", json.dumps({
+                "event": "grace_verified_result_review_rejected",
+                "objective_id": context["objective_id"],
+                "failure_stage": validation_stage,
+                "response_shape": _safe_verified_result_review_shape(review)}, sort_keys=True))
             raise ConversationUnavailable("verified result review decision was invalid") from None
         continuation_status = "not_requested"
         if review["decision"] == "ENGINEERING_STEP_PROPOSED":
