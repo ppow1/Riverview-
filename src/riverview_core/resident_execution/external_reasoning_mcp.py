@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning_mcp.py
 # Component: EXTERNAL-REASONING-MCP-TRANSPORT
-# Revision: 1.1.5
+# Revision: 1.2.0
 # Purpose: Expose the durable advisory exchange through authenticated MCP Streamable HTTP
 # Execution Model: Request-driven, sessionless HTTP JSON-RPC adapter
 # Observability: Sanitized request outcomes; authoritative exchange state remains PostgreSQL
@@ -17,6 +17,7 @@
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-MCP | Expose bounded immutable review subjects and require correlated subject digest on provider replies
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-TYPED-REVIEW-SUBJECT | Validate and preserve the complete typed PlanProposal/PlanStep subject
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-EXPIRED-RESPONSE-MCP | Map durable expiration to an explicit non-success MCP result
+# Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Add explicit Steward-originated Comms5 operations without constructing provider OAuth identity
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # Tests: tests/test_external_reasoning_mcp.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -757,6 +758,138 @@ class ExternalReasoningMCPAdapter:
             result["_meta"] = {"mcp/www_authenticate": [
                 challenge + ', error="' + error + '", error_description="' + description + '"']}
         return {"jsonrpc": "2.0", "id": request_id, "result": result}
+
+
+
+class StewardReviewBridge:
+    """Comms5-only review operations authorized by the authenticated Steward.
+
+    This bridge never creates a ProviderPrincipal. It binds each call to the
+    durable request's provider route and uses the distinct Steward methods on
+    the exchange, which record the Steward as the claim/response actor.
+    """
+
+    TOOLS = frozenset({
+        "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
+        "reasoning_exchange_submit_response", "reasoning_exchange_status",
+    })
+
+    def __init__(self, exchange):
+        if not isinstance(exchange, DurableExternalReasoningExchange):
+            raise TypeError("DurableExternalReasoningExchange is required")
+        self.exchange = exchange
+
+    @staticmethod
+    def _steward(principal_id):
+        if (not isinstance(principal_id, str) or not principal_id.startswith("steward:")
+                or len(principal_id) > 256):
+            raise ExchangeUnauthorized("authenticated Steward principal required")
+        return principal_id
+
+    @staticmethod
+    def _exact_keys(arguments, required, optional=frozenset()):
+        keys = set(arguments)
+        if not required <= keys or keys - required - set(optional):
+            raise ValueError("tool_arguments_invalid")
+
+    def call_tool(self, principal_id: str, name: str,
+                  arguments: Mapping[str, Any]) -> dict[str, Any]:
+        principal_id = self._steward(principal_id)
+        if name not in self.TOOLS or not isinstance(arguments, Mapping):
+            raise ValueError("tool_arguments_invalid")
+        if name == "reasoning_exchange_list_requests":
+            self._exact_keys(arguments, set(), {"limit"})
+            limit = arguments.get("limit", 10)
+            if type(limit) is not int or not 1 <= limit <= 10:
+                raise ValueError("tool_arguments_invalid")
+            rows = self.exchange.steward_eligible_requests(
+                principal_id=principal_id, limit=limit)
+            result = []
+            for row in rows:
+                provider_id = row["provider_id"]
+                state = row["delivery_state"]
+                if state == "awaiting_delivery":
+                    lease = self.exchange.begin_delivery(row["request_id"], provider_id,
+                        owner_id=principal_id, lease_seconds=30)
+                    if lease is None:
+                        continue
+                    self.exchange.mark_delivered(row["request_id"], row["correlation_id"],
+                        provider_id, owner_id=principal_id,
+                        delivery_token=lease.claim_token, fence=lease.fence)
+                    state = "awaiting_external_claim"
+                payload = row["request_payload"]
+                if len(self._json(payload).encode("utf-8")) > MAX_CONTEXT_RETURN_BYTES:
+                    continue
+                subject = ExternalReasoningMCPAdapter._review_subject(row, payload)
+                item = {"request_id": str(row["request_id"]),
+                    "correlation_id": str(row["correlation_id"]),
+                    "objective_id": row["objective_id"],
+                    "conversation_id": str(row["conversation_id"]),
+                    "message_sequence": row["message_sequence"],
+                    "proposal_id": row["proposal_id"],
+                    "proposal_revision": row["proposal_revision"],
+                    "schema_version": row["request_schema"],
+                    "provider_id": provider_id,
+                    "classification": row["classification"],
+                    "context_sha256": row["context_sha256"],
+                    "deadline_at": row["deadline_at"].isoformat(),
+                    "delivery_state": state, "request": payload}
+                if subject is not None:
+                    item["review_subject"] = subject
+                    item["review_subject_sha256"] = subject["sha256"]
+                if len(self._json(item).encode("utf-8")) <= MAX_CONTEXT_RETURN_BYTES:
+                    result.append(item)
+            return {"requests": result, "count": len(result)}
+
+        if name == "reasoning_exchange_claim_request":
+            self._exact_keys(arguments, {"request_id", "correlation_id"}, {"lease_seconds"})
+            lease_seconds = arguments.get("lease_seconds", 120)
+            if type(lease_seconds) is not int or not 1 <= lease_seconds <= 300:
+                raise ValueError("tool_arguments_invalid")
+            status = self.exchange.steward_status(arguments["request_id"],
+                arguments["correlation_id"], principal_id=principal_id)
+            claim = self.exchange.steward_claim(arguments["request_id"],
+                arguments["correlation_id"], principal_id=principal_id,
+                lease_seconds=lease_seconds)
+            if claim is None:
+                return {"state": status["delivery_state"], "claimed": False}
+            return {"request_id": claim.request_id, "correlation_id": claim.correlation_id,
+                "claim_token": claim.claim_token, "fence": claim.fence,
+                "lease_until": claim.lease_until.isoformat(), "duplicate": claim.duplicate}
+
+        if name == "reasoning_exchange_submit_response":
+            self._exact_keys(arguments,
+                {"request_id", "correlation_id", "claim_token", "fence",
+                 "idempotency_key", "response"}, {"review_subject_sha256"})
+            if type(arguments["fence"]) is not int or arguments["fence"] < 1:
+                raise ValueError("tool_arguments_invalid")
+            status = self.exchange.steward_status(arguments["request_id"],
+                arguments["correlation_id"], principal_id=principal_id)
+            expected_digest = status.get("review_subject_sha256")
+            supplied_digest = arguments.get("review_subject_sha256")
+            if expected_digest is not None and supplied_digest != expected_digest:
+                raise ValueError("review_subject_digest_mismatch")
+            if expected_digest is None and supplied_digest is not None:
+                raise ValueError("review_subject_not_present")
+            digest = self.exchange.steward_submit_response(
+                arguments["request_id"], arguments["correlation_id"],
+                principal_id=principal_id, claim_token=arguments["claim_token"],
+                fence=arguments["fence"], idempotency_key=arguments["idempotency_key"],
+                response=arguments["response"], review_subject_sha256=supplied_digest)
+            if digest == "expired":
+                return {"state": "expired", "accepted": False}
+            return {"response_sha256": digest, "state": "response_received",
+                    "reviewer_kind": "steward"}
+
+        self._exact_keys(arguments, {"request_id", "correlation_id"})
+        return self.exchange.steward_status(arguments["request_id"],
+            arguments["correlation_id"], principal_id=principal_id)
+
+    @staticmethod
+    def _json(value):
+        return json.dumps(value, ensure_ascii=False, sort_keys=True,
+                          separators=(",", ":"), allow_nan=False)
+
 
 
 class BoundedThreadingHTTPServer(ThreadingHTTPServer):

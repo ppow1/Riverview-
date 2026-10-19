@@ -2,7 +2,7 @@
   "files": {
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.237",
+      "revision": "1.1.238",
       "sha256": "db29799c026f20d431bbd748b3653235852fb32a503de7ac6bf8c05db8e78e04",
       "size_bytes": 13389
     },
@@ -116,9 +116,9 @@
     },
     "process_graphs/comms5/camrui-adapter.json": {
       "path": "process_graphs/comms5/camrui-adapter.json",
-      "revision": "1.0.14",
-      "sha256": "6ddacfa3d6d9096093566c6429c30a00a41fbc0c999ad638eea8734537636355",
-      "size_bytes": 17847
+      "revision": "1.0.15",
+      "sha256": "86470aff3740f22fd6fd0484a48b20353118782732202f861c6b315e66ff546a",
+      "size_bytes": 20446
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "path": "process_graphs/event-processor/assignment-progression.json",
@@ -128,9 +128,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.184",
-      "sha256": "e76bc9da959619b624474dd38b49b9e6983897ed11563a45dd5f9a26828d4d5e",
-      "size_bytes": 640761
+      "revision": "1.0.185",
+      "sha256": "eeb0e25432638e012ef477c994bdc274351d80db08a817a65ac174194c2f2ab4",
+      "size_bytes": 643722
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -236,9 +236,9 @@
     },
     "src/riverview_core/comms5/tool_catalog.json": {
       "path": "src/riverview_core/comms5/tool_catalog.json",
-      "revision": "1.0.0",
-      "sha256": "f6b082a4dbf70ca8acee093a372c3c6af1048389eda2d4231210120f8953d40d",
-      "size_bytes": 88499
+      "revision": "1.0.1",
+      "sha256": "9572c1fc46cdbe1fc1ad212877a74805be9aae987b477b876dbe37abc0dc8c86",
+      "size_bytes": 92890
     },
     "src/riverview_core/status_dashboard/static/capabilities.json": {
       "path": "src/riverview_core/status_dashboard/static/capabilities.json",
@@ -271,6 +271,6 @@
       "size_bytes": 1226
     }
   },
-  "manifest_revision": "1.1.237",
+  "manifest_revision": "1.1.238",
   "updated_at": null
 }

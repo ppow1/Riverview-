@@ -222,7 +222,10 @@ class Comms5Application:
             elif name == "comms5_help":
                 value["camrui_migration_notice"] = {
                     "implemented_tools": sorted(self.implemented_tools),
-                    "not_implemented_tool_count": len(_TOOLS) - len(self.implemented_tools),
+                    "not_implemented_tool_count": (
+                        sum(1 for name in _TOOLS if not name.startswith("reasoning_exchange_"))
+                        - sum(1 for name in self.implemented_tools
+                              if not name.startswith("reasoning_exchange_"))),
                     "partially_implemented_tools": sorted(
                         name for name in self.implemented_tools
                         if self.implementation_status(name) == "PARTIALLY_IMPLEMENTED"),

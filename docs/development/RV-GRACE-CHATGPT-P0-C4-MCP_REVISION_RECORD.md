@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/RV-GRACE-CHATGPT-P0-C4-MCP_REVISION_RECORD.md
 Component: EXTERNAL-REASONING-MCP-TRANSPORT
-File Revision: 1.0.4
+File Revision: 1.0.6
 Purpose: Record C4 exact-proposal MCP integration, isolated verification, and live gates
 Authority: Existing provider-scoped MCP identity and resident.reasoning.escalate grant only
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-MCP | Initial implementation record
@@ -10,6 +10,7 @@ Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-MCP | Record exact-head CI and 
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-TYPED-REVIEW-SUBJECT | Reconcile MCP validation with the typed resident proposal contract
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-TYPED-REVIEW-SUBJECT-CI | Record exact-head CI for the typed subject correction
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-EXPIRED-RESPONSE-MCP | Correct expired response mapping, document recovery, and verify terminal non-success
+Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Add a single-Comms5 authenticated Steward bridge for four durable advisory exchange tools.
 History: Git; source predecessors retained in .riverview-backups/manifest.jsonl
 -->
 # RV-GRACE-CHATGPT-P0-C4-MCP — provider MCP exact-review binding
@@ -117,3 +118,13 @@ grant, reachable MCP route, healthy services, and a Steward-approved harmless
 subject, destination, effects, and time window. This PR authorizes no external
 send, credential or grant change, service start, deployment, merge, or
 production migration.
+
+## Single-Comms5 25-tool Steward review bridge
+
+The existing Comms5 catalog now advertises 25 tools (the historical 21 plus four `reasoning_exchange_*` operations). The Comms5 backend authenticates the existing Steward identity and routes these operations through `StewardReviewBridge`; the bridge records the authenticated Steward as the review actor and derives provider routing only from the locked durable request. It does not construct `ProviderPrincipal` or alter provider OAuth. The same exchange correlation, finite delivery/claim lease, fencing token, expiry, idempotency and immutable subject-digest checks apply. Advice remains non-authoritative and cannot approve, promote, or dispatch. No migration, second MCP app, or public endpoint is introduced.
+
+Before editing, predecessor copies were made with `scripts/revision_control.py backup --task RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE`. The full path/SHA ledger is `.riverview-backups/manifest.jsonl`; notably the prior Comms5 server, migration/operator docs, exchange docs, canonical Comms5 graph, and this revision record are backed up under `20261018T235714*Z`. All earlier source, adapter, test, catalog, dashboard, and Comms5 operation predecessors are also recorded in the same manifest.
+
+Focused offline evidence: `PYTHONPATH=src python3 -m pytest -q tests/test_external_reasoning_mcp.py tests/test_comms5_mcp.py tests/test_comms5_current_runtime.py` — **54 passed, 0 failed**. This covers the existing provider OAuth MCP tools and the Steward bridge tool list, auth boundary, authenticated internal operation routing and dispatch. PostgreSQL-backed restricted-runtime-role exchange acceptance ran in a disposable PostgreSQL 16 cluster: `pg_virtualenv -t sh -c 'RIVERVIEW_TEST_PG_DSN=... PYTHONPATH=src python3 -m pytest -q tests/test_external_reasoning_exchange.py'` — **15 passed, 0 failed, 0 skipped**. The Comms5 tests exercised migration setup, restricted runtime role ACLs, durable correlation, Steward delivery and fenced claim, route and subject-digest rejection, audit provenance, and no objective dispatch. The canonical Comms5 process graph is revision 1.0.15; graph validation is **22 graphs / 567 nodes PASS**. Revision/predecessor check against the branch baseline: **PASS, zero issues**. The repository canonical full command `PYTHONPATH=src python3 -m unittest discover -s tests -v` completed: **635 tests run, 421 passed, 214 skipped, 0 failed**. The skipped cases require a configured integration DSN; the new PostgreSQL module was run separately in the disposable cluster above. A preliminary `pytest -q` recursive collection attempt hit an existing archived-doc test import error (`docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py` cannot import archived `runtime_baseline`); canonical test discovery is scoped to `tests/` and passed. Exact-head CI is pending.
+
+Connector refresh must use the existing Comms5 MCP registration so the 25-tool catalog is discovered. No autonomous ChatGPT browser wake, live review, external credential change, grant change, service activation, migration, merge, or deployment is included.

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_mcp.py
 # Component: EXTERNAL-REASONING-MCP-TRANSPORT
-# Revision: 1.1.0
+# Revision: 1.2.0
 # Purpose: Exercise MCP Streamable HTTP and OAuth provider identity mapping independently
 # Execution Model: Local ephemeral HTTP server; stdlib client independent of adapter dispatch
 # Observability: HTTP status, protocol negotiation, tool names and sanitized denials
@@ -17,6 +17,7 @@
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-MCP | Verify bounded exact-proposal exposure and digest-bound provider response submission
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-TYPED-REVIEW-SUBJECT | Verify C3 typed proposal shape, source provenance preservation, and structural rejection
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-EXPIRED-RESPONSE-MCP | Verify expired submit is explicitly non-success without a response digest
+# Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Verify the Steward-originated Comms5 bridge remains distinct from provider OAuth operations
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -38,7 +39,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from riverview_core.resident_execution.external_reasoning import DurableExternalReasoningExchange
 from riverview_core.resident_execution.external_reasoning_mcp import (
     ExternalReasoningMCPAdapter, MCPAuthenticationError, MCPConfigurationError,
-    OAuthProviderTokenMap, ProviderTokenMap,
+    OAuthProviderTokenMap, ProviderTokenMap, StewardReviewBridge,
     create_server,
 )
 
@@ -70,6 +71,7 @@ class _ReviewFixtureExchange(_FixtureExchange):
         return [{"request_id": self.request_id, "correlation_id": self.correlation_id,
             "objective_id": "objective-1", "conversation_id": self.correlation_id,
             "message_sequence": 1,
+            "provider_id": PROVIDER,
             "proposal_id": self.subject["subject_id"] if self.subject else None,
             "proposal_revision": self.subject["revision"] if self.subject else None,
             "request_schema": "rv.external-reasoning.request.v1",
@@ -91,6 +93,52 @@ class _ReviewFixtureExchange(_FixtureExchange):
 
     def submit_response(self, request_id, correlation_id, **kwargs):
         self.submitted.append((request_id, correlation_id, kwargs))
+        return self.submit_result
+
+
+class _StewardReviewFixture(_ReviewFixtureExchange):
+    def __init__(self, subject):
+        super().__init__(subject)
+        self.steward_submissions = []
+        self.delivery_calls = []
+        self.claim = SimpleNamespace(request_id=self.request_id,
+            correlation_id=self.correlation_id, claim_token="s" * 36, fence=2,
+            lease_until=datetime.now(timezone.utc) + timedelta(minutes=1), duplicate=False)
+
+    def steward_eligible_requests(self, *, principal_id, limit):
+        if principal_id != "steward:camrui":
+            raise ValueError("steward_required")
+        row = self.eligible_requests(PROVIDER, principal_id=PRINCIPAL, limit=limit)[0]
+        row["delivery_state"] = "awaiting_delivery"
+        row["request_payload"] = {"reason": "synthetic review"}
+        return [row]
+
+    def begin_delivery(self, request_id, provider_id, *, owner_id, lease_seconds):
+        self.delivery_calls.append(("begin", request_id, provider_id, owner_id, lease_seconds))
+        return SimpleNamespace(claim_token="d" * 36, fence=1)
+
+    def mark_delivered(self, request_id, correlation_id, provider_id, *, owner_id,
+                       delivery_token, fence):
+        self.delivery_calls.append(("mark", request_id, correlation_id, provider_id,
+                                    owner_id, delivery_token, fence))
+        return "awaiting_external_claim"
+
+    def steward_status(self, request_id, correlation_id, *, principal_id):
+        if (principal_id != "steward:camrui" or request_id != self.request_id
+                or correlation_id != self.correlation_id):
+            raise ValueError("exchange_identity_mismatch")
+        return {"request_id": request_id, "correlation_id": correlation_id,
+            "provider_id": PROVIDER, "classification": "institutional",
+            "delivery_state": "awaiting_response",
+            "review_subject_sha256": self.subject["sha256"] if self.subject else None}
+
+    def steward_claim(self, request_id, correlation_id, *, principal_id, lease_seconds):
+        if principal_id != "steward:camrui":
+            raise ValueError("steward_required")
+        return self.claim
+
+    def steward_submit_response(self, request_id, correlation_id, **kwargs):
+        self.steward_submissions.append((request_id, correlation_id, kwargs))
         return self.submit_result
 
 
@@ -367,6 +415,79 @@ class IndependentMCPClientTests(unittest.TestCase):
             ExternalReasoningMCPAdapter._review_subject(
                 {"review_subject": {**subject, "revision": 3}},
                 {"review_subject": subject})
+
+
+class StewardReviewBridgeTests(unittest.TestCase):
+    def setUp(self):
+        self.subject = _review_subject()
+        self.exchange = _StewardReviewFixture(self.subject)
+        self.bridge = StewardReviewBridge(self.exchange)
+        self.request_id = self.exchange.request_id
+        self.correlation_id = self.exchange.correlation_id
+
+    def test_steward_lists_exact_routed_subject_and_records_delivery_as_steward(self):
+        result = self.bridge.call_tool("steward:camrui",
+            "reasoning_exchange_list_requests", {"limit": 1})
+        self.assertEqual(result["count"], 1)
+        item = result["requests"][0]
+        self.assertEqual(item["provider_id"], PROVIDER)
+        self.assertEqual(item["review_subject_sha256"], self.subject["sha256"])
+        self.assertEqual(item["delivery_state"], "awaiting_external_claim")
+        self.assertEqual(self.exchange.delivery_calls[0],
+            ("begin", self.request_id, PROVIDER, "steward:camrui", 30))
+        self.assertEqual(self.exchange.delivery_calls[1][4], "steward:camrui")
+
+    def test_steward_claim_and_digest_bound_response_use_distinct_audit_identity(self):
+        claim = self.bridge.call_tool("steward:camrui",
+            "reasoning_exchange_claim_request", {"request_id": self.request_id,
+                "correlation_id": self.correlation_id, "lease_seconds": 45})
+        self.assertEqual(claim["fence"], 2)
+        response = {"schema_version": "rv.external-reasoning.response.v1",
+            "request_id": self.request_id, "correlation_id": self.correlation_id,
+            "response_id": "steward-review-1", "advisory": "Synthetic advisory only",
+            "evidence_references": [], "provider_id": PROVIDER,
+            "provider_model": "synthetic-chatgpt"}
+        result = self.bridge.call_tool("steward:camrui",
+            "reasoning_exchange_submit_response", {"request_id": self.request_id,
+                "correlation_id": self.correlation_id, "claim_token": "s" * 36,
+                "fence": 2, "idempotency_key": "steward-review-1",
+                "review_subject_sha256": self.subject["sha256"], "response": response})
+        self.assertEqual(result["reviewer_kind"], "steward")
+        call = self.exchange.steward_submissions[0][2]
+        self.assertEqual(call["principal_id"], "steward:camrui")
+        self.assertEqual(call["review_subject_sha256"], self.subject["sha256"])
+        self.assertNotIn("comms5_confirm_and_promote_seed", self.bridge.TOOLS)
+
+    def test_bad_digest_principal_route_and_expiry_fail_closed(self):
+        args = {"request_id": self.request_id, "correlation_id": self.correlation_id,
+            "claim_token": "s" * 36, "fence": 2, "idempotency_key": "review-1",
+            "review_subject_sha256": "0" * 64,
+            "response": {"schema_version": "rv.external-reasoning.response.v1",
+                "request_id": self.request_id, "correlation_id": self.correlation_id,
+                "response_id": "r1", "advisory": "bounded", "evidence_references": [],
+                "provider_id": PROVIDER, "provider_model": "synthetic"}}
+        with self.assertRaisesRegex(ValueError, "review_subject_digest_mismatch"):
+            self.bridge.call_tool("steward:camrui", "reasoning_exchange_submit_response", args)
+        with self.assertRaises(Exception):
+            self.bridge.call_tool("test:provider", "reasoning_exchange_status",
+                {"request_id": self.request_id, "correlation_id": self.correlation_id})
+        args["review_subject_sha256"] = self.subject["sha256"]
+        self.exchange.submit_result = "expired"
+        expired = self.bridge.call_tool("steward:camrui",
+            "reasoning_exchange_submit_response", args)
+        self.assertEqual(expired, {"state": "expired", "accepted": False})
+
+    def test_existing_operations_dispatch_through_comms5_steward_operation_layer(self):
+        from riverview_core.resident_execution.comms5_operations import Comms5Operations
+        operations = Comms5Operations(None, None, steward_review_bridge=self.bridge)
+        status = operations.execute("reasoning_exchange_status", {
+            "request_id": self.request_id, "correlation_id": self.correlation_id},
+            principal_id="steward:camrui")
+        self.assertEqual(status["provider_id"], PROVIDER)
+        with self.assertRaises(PermissionError):
+            operations.execute("reasoning_exchange_status", {
+                "request_id": self.request_id, "correlation_id": self.correlation_id},
+                principal_id="provider:test")
 
 
 class OAuthProviderTokenMapTests(unittest.TestCase):

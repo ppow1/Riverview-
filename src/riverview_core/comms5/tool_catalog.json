@@ -1153,6 +1153,173 @@
           ]
         }
       ]
+    },
+    {
+      "name": "reasoning_exchange_list_requests",
+      "description": "List bounded durable advisory requests routed to a provider for authenticated Steward review. Returns the exact request/correlation and immutable review subject when present.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "reasoning_exchange_claim_request",
+      "description": "Claim one exact routed advisory request with a finite lease and fencing identity. The claim is recorded as authenticated Steward activity.",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "correlation_id"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "correlation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lease_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 300
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "reasoning_exchange_submit_response",
+      "description": "Submit one bounded advisory against the active correlated Steward claim and exact immutable review digest. Advice grants no proposal approval or execution authority.",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "correlation_id",
+          "claim_token",
+          "fence",
+          "idempotency_key",
+          "response"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "correlation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "claim_token": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36
+          },
+          "fence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "review_subject_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "response": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "reasoning_exchange_status",
+      "description": "Read state, sanitized diagnostics, provenance and digests for one exact correlated exchange. Response contents are never returned.",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "correlation_id"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "correlation_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
     }
   ],
   "read_only_payloads": {
