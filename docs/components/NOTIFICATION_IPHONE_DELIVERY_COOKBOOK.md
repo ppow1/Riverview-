@@ -2,9 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.1.7
+File Revision: 1.1.8
 Purpose: Set up and troubleshoot ntfy/Pushover push delivery without exposing secrets
 Authority: Operational diagnosis and local setup only; no decision authority
+Changed: 2026-10-19 UTC | RV-IPHONE-NOTIFICATIONS-001 | Correct focused test PYTHONPATH to include the runner script directory
 Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial push recovery cookbook
 Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATION-COMMISSIONING-READINESS-001 | Add checksum-pinned operator commissioning and phone acceptance steps
 Changed: 2026-10-18 UTC | RV-NOTIFICATION-QUEUE-RETRY-ACCEPTANCE-20261018 | Document disposable PostgreSQL queue/retry acceptance command
@@ -532,7 +533,7 @@ failure. Provider acceptance does not prove handset delivery. Run the focused
 suite against an ephemeral PostgreSQL 16 cluster with:
 
 ```bash
-pg_virtualenv -v 16 bash -c 'export PYTHONPATH="$PWD/src"; export RIVERVIEW_TEST_PG_DSN="host=$PGHOST port=$PGPORT dbname=$PGDATABASE user=$PGUSER password=$PGPASSWORD"; pytest -q tests/test_notification_push.py tests/test_notifications.py'
+pg_virtualenv -v 16 bash -c 'export PYTHONPATH="$PWD/src:$PWD/scripts"; export RIVERVIEW_TEST_PG_DSN="host=$PGHOST port=$PGPORT dbname=$PGDATABASE user=$PGUSER password=$PGPASSWORD"; pytest -q tests/test_notification_push.py tests/test_notifications.py'
 ```
 
 This command starts and drops a disposable cluster; it does not connect to the
