@@ -1,8 +1,9 @@
 # Riverview Steward Punch List
 
-**File Revision:** 1.0.2
+**File Revision:** 1.0.3
 **Updated:** 2026-10-17 UTC  
-**Task:** PL-NEW-043; predecessor preserved; prior RV-ENG-REV-BASELINE-104
+**Task:** PL-NEW-043 model URL clarification; predecessor preserved; prior RV-ENG-REV-BASELINE-104
+**Changed:** 2026-10-19 UTC | PL-NEW-043 | Record observed model hosts/ports, two candidate browser URLs and 0.6B exclusion; predecessor at docs/steward/backups/Riverview_Steward_Punch_List_2026-10-13.pre-PL-NEW-043-URLs.md
 **Changed:** 2026-10-19 UTC | PL-NEW-043 | Capture direct model-chat links request; predecessor preserved at docs/steward/backups/Riverview_Steward_Punch_List_2026-10-13.pre-PL-NEW-043.md
 
 
@@ -140,12 +141,21 @@ Workflow registry remains unverified in the user's Steward session. Notification
 
 | ID | Area | Observation / desired outcome | Priority |
 |---|---|---|---|
-| PL-NEW-043 | Website / Models / Navigation | Provide direct, labeled browser links from the authenticated Riverview website to the already-deployed interactive chat interfaces for Grace's 0.6B router, 30B vision, and 80B reasoning models. | High — website enhancement; capture without interrupting active commissioning |
+| PL-NEW-043 | Website / Models / Navigation | Add **two** plainly labeled direct browser links to the existing 30B Vision and 80B Reasoning llama-server interfaces on OctoMiner1. Leave Camrui's internal 0.6B service untouched and **do not** expose it as a public or Steward chat link. | High — website enhancement; capture without interrupting active commissioning |
+
+### PL-NEW-043 — known addresses and intended website labels
+
+| Website label | Model / purpose | Host | Listening port | Browser URL | Evidence and qualification |
+|---|---|---|---|---|---|
+| **30B Vision Chat** | Huihui Qwen3-VL-30B-A3B Instruct, vision/image-capable assistant for image interpretation | **OctoMiner1** `192.168.1.160` | `18080` | **[Open 30B Vision Chat](http://192.168.1.160:18080/)** | Observed `grace-vision.service` active/running; `llama-server` process bound to `0.0.0.0:18080`. Browser UI reachability and successful typed/image prompt **not yet verified**. |
+| **80B Reasoning Chat** | Qwen3-Next-80B-A3B-Instruct, large reasoning/general chat model used by Grace | **OctoMiner1** `192.168.1.160` | `8080` | **[Open 80B Reasoning Chat](http://192.168.1.160:8080/)** | Observed `llama-server.service` active/running; `llama-server` process bound to `0.0.0.0:8080`. Browser UI reachability and successful prompt **not yet verified**. Service description misleadingly says OCTOMINER2, but actual SSH hostname was OCTOMINER1. |
+
+**Internal service — deliberately excluded from website chat links:** Camrui `192.168.1.155`, Qwen3-0.6B-Q8_0, `riverview-grace-cpu-inference.service`, port `18796`. Observed command binds `127.0.0.1:18796` with `--no-webui`; it is Grace's internal/subconscious inference component. The Steward explicitly directed leaving it unchanged and **not** adding a 0.6B chat link.
 
 ### PL-NEW-043 — acceptance specification
-- Inventory the actual running model-chat web services, hosts, listening ports, browser UI routes, and authentication/access requirements for all three models. Distinguish interactive chat UI from inference API, model health endpoint, and Grace's main conversation interface; do not assume an API root is a usable chat page.
-- Record three verified, clickable direct chat URLs (0.6B, 30B, 80B) accessible from the Steward's intended network/browser. If a service is not running or not accessible, explicitly mark it unavailable and document the real blocker rather than inventing a URL.
-- Add three plainly labeled links to the existing Riverview website, preferably in the Models/Resources or global navigation surface; use existing authentication and access controls, avoid exposing private inference services to the public Internet.
-- Test each link in a browser with a real prompt and confirm the response comes from the intended model. Record actual model identity, service/host/port, reachable URL, response evidence, and any limitations (e.g. vision/image support for 30B).
-- Reuse existing services and UI patterns; no duplicate inference servers or unrelated infrastructure. Coordinate with PL-NEW-037 (model readiness) and PL-NEW-035 (Resources).
-- **Status:** CAPTURED for website punch list; verify actual live URLs immediately as a separate read-only inventory task. Do not redirect active Grace commissioning or authorize deployment merely by capturing this item.
+
+- Implement exactly the **two** requested links, with labels **30B Vision Chat** and **80B Reasoning Chat**, their descriptions, and the literal URLs above. Use existing website navigation/Models/Resources conventions. These LAN-only HTTP URLs are for access from the trusted LAN, **not** for public Internet exposure; remote HTTPS website users may not be able to reach them.
+- Before marking the links operational, open each in the Steward's intended browser and verify the built-in interactive chat UI loads and returns a response from the expected model. Record successful prompt/model evidence and any browser access restrictions; the process inventory alone does not establish browser success.
+- Do not change or restart any of the three inference services. Do not add Ollama/Open WebUI or modify the 0.6B internal interface as part of this item.
+- Coordinate with PL-NEW-037 (model readiness) and PL-NEW-035 (Resources), but do not interrupt the active Grace commissioning work.
+- **Status:** CAPTURED, with host/port/process evidence recorded; browser verification and website implementation pending.
