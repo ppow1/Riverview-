@@ -1,6 +1,6 @@
 # Riverview~ M1.1 runtime baseline commissioning
 
-**Document Revision:** 1.0.10
+**Document Revision:** 1.0.11
 **Component:** RUNTIME-BASELINE
 **Repair task:** RV-M1.1-011
 **Task:** RV-M1.1-001 / GitHub Issue #1
@@ -77,6 +77,13 @@ again, and run its fixed installer from that staging directory. The installer
 creates an immutable root-owned release, preserves the prior service unit and
 release link in a protected rollback record, and starts only the baseline
 service. Do not run from a mutable checkout or unverified staging content.
+`scripts/build_camrui_package.py` produces byte-reproducible gzip/tar archives
+from committed Git blobs: the gzip timestamp and embedded filename are fixed,
+archive member metadata is normalized, and the manifest pins each file hash.
+Build twice from the same clean commit and compare archive SHA-256 before
+retaining the release artifact. The component-specific Comms5 archive uses
+`scripts/package_comms5_camrui.py`; it remains a narrower package from the same
+source commit and has its own manifest and archive digest.
 Rollback uses the exact root-owned record emitted by the installer and the
 versioned rollback script; it retains credentials, accounts, releases and prior
 records and does not alter PostgreSQL.

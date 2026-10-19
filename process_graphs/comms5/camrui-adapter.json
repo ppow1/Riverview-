@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:comms5:camrui-adapter",
-  "graph_revision": "1.0.15",
+  "graph_revision": "1.0.16",
   "component_id": "COMMS5-CAMRUI-ADAPTER",
   "workflow_id": "comms5.camrui.compatibility.v1",
   "diagram_order": 91,
@@ -74,9 +74,9 @@
     },
     {
       "id": "rv:comms5:camrui-adapter:catalog",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "process",
-      "label": "Serve the preserved 21-tool historical MCP catalog",
+      "label": "Serve the preserved 21-tool historical catalog plus four authenticated durable exchange tools (25 total)",
       "source_references": [
         "src/riverview_core/comms5/server.py",
         "src/riverview_core/comms5/tool_catalog.json"

@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_runtime_baseline.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.10
+# Revision: 1.0.11
 # Purpose: Identity/credential security, DB contract, observer and package regression tests
 # Execution Model: Request-driven tests; simulated DB explicitly distinct from live proof
 # Observability: unittest counts and failures
@@ -10,6 +10,7 @@
 # Changed: 2026-10-13 UTC | RV-M1.1-PACKAGE-BASH-001 | Cover allowlisted Bash packaging and safe runner behavior
 # Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PACKAGING | Ensure tracked predecessor archives never enter release packages
 # Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Guard full Camrui packages include the Grace exchange initiation and policy migration components.
+# Changed: 2026-10-19 UTC | RV-W3-INTEGRATED-RELEASE-BLOCKER-RESOLUTION | Require byte-identical full-source archives for the same clean commit.
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: This file
 # History: docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py
@@ -326,6 +327,11 @@ class RuntimeBaselineTests(unittest.TestCase):
             output = Path(folder) / "package.tar.gz"
             commit, digest = build(root, output)
             self.assertEqual(digest, hashlib.sha256(output.read_bytes()).hexdigest())
+            repeated_output = Path(folder) / "package-repeated.tar.gz"
+            repeated_commit, repeated_digest = build(root, repeated_output)
+            self.assertEqual(repeated_commit, commit)
+            self.assertEqual(repeated_digest, digest)
+            self.assertEqual(repeated_output.read_bytes(), output.read_bytes())
             with tarfile.open(output) as archive:
                 self.assertNotIn("untracked-secret", archive.getnames())
                 self.assertFalse(any(name.startswith(".riverview-backups/")

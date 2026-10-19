@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md
 Component: P0-CONTROLLED-INTEGRATION
-Revision: 1.0.10
+Revision: 1.0.11
 Status: Offline integration evidence; no merge or deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record W3 branch assembly and isolated verification
@@ -229,3 +229,54 @@ protected configuration, and service activation. A live commissioning/review
 requires separate Steward authorization. PR #139 remains draft and unmerged; no
 deployment, service restart, migration, credential/grant change or production
 action occurred.
+
+
+## 2026-10-19 — Integrated release blocker resolution (source only)
+
+Steward NEXT #6257872514 authorizes W3 to reconcile the PR base chain without
+merging, correct the Comms5 graph's stale 21-tool label and retain a
+reproducible package plan. PR #139 remains stacked on the open PR #119 head
+`97128626df967bc992696dca38eaa7116f3616e9`. PR #130 head
+`45807c642040ba3b48fdb51e6f5f3d1219e23a06` is already an ancestor of W3; PR
+#150 is stacked on #130 and its bridge delta is integrated in W3 merge commit
+`f367747de09da4a1c1c526f03fa72f17f67a0806`. Keep #130/#150 out of any second
+merge. The open base branch `codex/riverview-final-reasoning-integration-20261018`
+must be settled before the #119 → #139 stack is accepted. No merge is authorized.
+
+The canonical Comms5 graph advances to graph revision 1.0.16 and catalog node
+revision 1.0.1. It describes the preserved 21 historical tools plus four
+authenticated durable-exchange tools (25 total). The generated aggregate graph
+and its revision sidecars are regenerated from that source. Original graph,
+package builder, package test, runtime-baseline document, and this record have
+predecessor copies captured under task `RV-W3-INTEGRATED-RELEASE-BLOCKER-RESOLUTION`; checksums are in `.riverview-backups/manifest.jsonl`.
+
+`build_camrui_package.py` now fixes gzip timestamp and embedded filename, so
+identical clean committed trees produce byte-identical full-source archives; a
+regression test compares two archive bytes/hashes. The reproducible component
+plan is: build one full-source archive from the final accepted commit and stage
+that same verified artifact independently for dashboard and Grace; build the
+scoped Comms5 archive from that same commit with `package_comms5_camrui.py`.
+For each retain `SOURCE_COMMIT`, `PACKAGE_SHA256SUMS`, archive SHA-256, unit/config
+hashes and a captured service-specific predecessor pointer. The final hashes
+are generated only after this source edit is committed, because any later source
+commit necessarily changes the release pin.
+
+C1 read-only preflight #6257845820 verifies application migration 0011 is
+applied with the expected checksum; migrations 0012 and 0013 are absent. The
+controlled runner is `riverview_core.postgres_migrations.apply_migrations`,
+using schema `riverview_dev` and
+`src/riverview_core/resident_execution/migrations`; after a fresh protected
+backup and isolated restore verification, expected pending order is 0012 then
+0013. Never apply through this source-only task. C1 also verifies the normal
+`riverview-grace-execution.service` is not installed and its source unit points
+to absent `/etc/riverview/residents/grace-office.credential`; the separate
+owner-session unit uses existing canonical `/etc/riverview/grace/resident.credential`.
+C1 owns confirmation of the correct identity/unit wiring. Missing migrations,
+Grace unit/credential mapping, fresh backup, and current-pointer rollback
+records remain hard commissioning blockers.
+
+Local package reproducibility, graph synchronization, and revision/predecessor
+checks will be recorded in the final #120 handoff. Exact-head hosted CI is
+required after push; its result and final candidate SHA are published in issue
+#120. No production service, database, credential, grant, connector, or release
+pointer was changed.

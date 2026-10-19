@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.254",
+      "revision": "1.1.257",
       "path": ".riverview-revisions.json",
       "sha256": "52cb9908377791af65712ff7272e0014b8cd1af6b5f4c717f6a9e0df02d07047",
       "size_bytes": 15924
@@ -116,9 +116,9 @@
     },
     "process_graphs/comms5/camrui-adapter.json": {
       "path": "process_graphs/comms5/camrui-adapter.json",
-      "revision": "1.0.15",
-      "sha256": "86470aff3740f22fd6fd0484a48b20353118782732202f861c6b315e66ff546a",
-      "size_bytes": 20446
+      "revision": "1.0.16",
+      "sha256": "8e79c31f15dfb4d3e01b8a44dc70b4b5f5090c09485573d02b47300fa27ea857",
+      "size_bytes": 20500
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "path": "process_graphs/event-processor/assignment-progression.json",
@@ -128,9 +128,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.186",
-      "sha256": "3eb57fec1c5769a01e973b5106c798c28bbd7536290df670c5ae3fe442d14d0d",
-      "size_bytes": 654494
+      "revision": "1.0.187",
+      "sha256": "9a722005df63fb8a5e1324d9ed6b427d65b77282cc1a8dd85aadea0e239301b9",
+      "size_bytes": 654548
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -335,8 +335,32 @@
       "revision": "1.0.11",
       "sha256": "49154a533121fd022fa2bdd7ee83579433cf944d5c6016667a15f8c5100b3d9a",
       "size_bytes": 1085459
+    },
+    "scripts/build_camrui_package.py": {
+      "path": "scripts/build_camrui_package.py",
+      "revision": "1.0.4",
+      "sha256": "15dc15ea7705392b30e47f4c4fba81a21eabd8220b9fb4b8aa2fbab35b319bcb",
+      "size_bytes": 5490
+    },
+    "tests/test_runtime_baseline.py": {
+      "path": "tests/test_runtime_baseline.py",
+      "revision": "1.0.11",
+      "sha256": "0afd276b81635cce7d2557336969f57b1f80f61ea886325b4dd1345d405e26b7",
+      "size_bytes": 34997
+    },
+    "docs/components/RUNTIME_BASELINE.md": {
+      "path": "docs/components/RUNTIME_BASELINE.md",
+      "revision": "1.0.11",
+      "sha256": "40b3ca529b422fe54fa308a5de6cd78be79a4f5d7792dec2092de330ce5cba86",
+      "size_bytes": 20168
+    },
+    "docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md": {
+      "path": "docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md",
+      "revision": "1.0.11",
+      "sha256": "ccc85f2be2f612b6eacbfac9404be8cddebe10171f0f953fc4f684ac40b295b9",
+      "size_bytes": 17178
     }
   },
-  "manifest_revision": "1.1.254",
-  "updated_at": "2026-10-19T00:59:53Z"
+  "manifest_revision": "1.1.257",
+  "updated_at": "2026-10-19T01:52:18Z"
 }
