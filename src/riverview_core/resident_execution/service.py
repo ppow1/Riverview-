@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.20
+# Revision: 1.0.26
+# Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Select the latest verifier record identity for exact Grace-review gating and same-attempt revalidation.
+# Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Preserve the durable verifier rejection for Grace even when unsafe artifact bytes cannot be reopened for substantive review.
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Poll optional injected ChatGPT wake worker in Grace owner cycle.
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Persist and rate-limit failed resident proposals.
 # Purpose: Reconcile durable Grace work orders through existing CME worker contracts
@@ -27,6 +29,10 @@
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Reconcile existing assignments, execution state and verifier evidence to proposal revisions
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Consume correlated durable external advisory responses in Grace's persistent cycle
 # Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Resolve current resident principal and admit typed model-selected advisory requests from grounded reasoning
+# Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Resume durable verifier rejection review before another worker poll and acknowledge after source-chat persistence
+# Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-FIX-001 | Verify only successful attempts without an existing verifier record so rework attempts receive independent review
+# Changed: 2026-10-19 UTC | RV-GRACE-REVIEW-ROLE-SEPARATION-001 | Give Grace digest-verified bounded Codex artifact text and verifier evidence for substantive review
+# Changed: 2026-10-19 UTC | RV-GRACE-REVIEW-ROLE-SEPARATION-001 | Require Grace's durable objective-satisfied assessment before rechecking an old Codex content rejection
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -70,7 +76,7 @@ class GraceExecutionService:
                  conversation_result_publisher=None, proposal_lifecycle=None,
                  external_reasoning_exchange=None, external_reasoning_authorize=None,
                  external_reasoning_principal=None, execution_workers=None, verifiers=None,
-                 doorbell_worker=None):
+                 doorbell_worker=None, rejected_work_order_publisher=None):
         if not 1 <= max_dispatch_failures <= 10:
             raise ValueError("dispatch failure limit must be between 1 and 10")
         if type(resident_token_budget) is not int or not 1 <= resident_token_budget <= 4096:
@@ -118,6 +124,10 @@ class GraceExecutionService:
         if conversation_result_publisher is not None and not callable(conversation_result_publisher):
             raise ValueError("conversation result publisher must be callable")
         self.conversation_result_publisher = conversation_result_publisher
+        if (rejected_work_order_publisher is not None and
+                not callable(rejected_work_order_publisher)):
+            raise ValueError("rejected work-order publisher must be callable")
+        self.rejected_work_order_publisher = rejected_work_order_publisher
         if proposal_lifecycle is not None and not callable(
                 getattr(proposal_lifecycle, "reconcile_links", None)):
             raise ValueError("proposal lifecycle reconciliation contract is invalid")
@@ -162,6 +172,30 @@ class GraceExecutionService:
         if requested in configured:
             return requested
         return configured[0] if len(configured) == 1 else None
+
+    def _with_grace_artifact_review(self, context):
+        """Attach bounded reopened Codex artifact text, never a host path alone."""
+        completion = context.get("completion") if isinstance(context, Mapping) else None
+        artifact = completion.get("artifact") if isinstance(completion, Mapping) else None
+        if not isinstance(artifact, Mapping):
+            return context
+        capability = artifact.get("capability")
+        if capability != "engineering.codex-cli-artifact.v1":
+            return context
+        verifier = self.verifiers.get(capability)
+        reader = getattr(verifier, "read_artifact_for_grace_review", None)
+        if not callable(reader):
+            return {**context, "artifact_review": None,
+                    "artifact_review_unavailable": "integrity_check_failed"}
+        try:
+            review_material = reader(context.get("assignment_id"), artifact)
+        except (OSError, UnicodeError, ValueError):
+            # Keep the immutable verifier failure visible to Grace even when the
+            # artifact itself is unsafe to pass as trusted review text.
+            return {**context, "artifact_review": None,
+                    "artifact_review_unavailable": "integrity_check_failed"}
+        return {**context, "artifact_review": review_material,
+                "artifact_review_unavailable": None}
 
     def reason_one_grounded_objective(self, objective_id=None):
         """Propose for one verified objective; office authority never dispatches work."""
@@ -292,8 +326,8 @@ class GraceExecutionService:
             return False
         with self.adapter.ledger.db.cursor() as cur:
             self.adapter.ledger._set_search_path(cur)
-            cur.execute("""SELECT a.id AS assignment_id,wa.attempt_id,wa.capability,
-                    latest.decision,latest.verifier_revision,
+            cur.execute("""SELECT a.id AS assignment_id,a.objective_ref,wa.attempt_id,wa.capability,
+                    latest.verification_id,latest.decision,latest.verifier_revision,
                     EXISTS (SELECT 1 FROM verification_records previous
                         WHERE previous.attempt_id=wa.attempt_id
                           AND previous.verifier_id=%s AND previous.decision='REJECTED'
@@ -301,13 +335,16 @@ class GraceExecutionService:
                 FROM assignments a
                 JOIN worker_attempts wa ON wa.assignment_id=a.id
                 JOIN LATERAL (
-                    SELECT decision,verifier_id,verifier_revision
+                    SELECT verification_id,decision,verifier_id,verifier_revision
                     FROM verification_records vr WHERE vr.attempt_id=wa.attempt_id
                     ORDER BY recorded_at DESC,verification_id DESC LIMIT 1
                 ) latest ON true
                 WHERE a.state='rework_required' AND wa.status='succeeded'
                   AND wa.capability=ANY(%s) AND latest.verifier_id=%s
                   AND latest.decision IN ('REJECTED','ACCEPTED')
+                  AND NOT EXISTS (SELECT 1 FROM worker_attempts newer
+                    WHERE newer.assignment_id=wa.assignment_id
+                      AND (newer.started_at,newer.attempt_id)>(wa.started_at,wa.attempt_id))
                   AND (%s::text IS NULL OR a.id=%s)
                 ORDER BY a.updated_at,wa.started_at,wa.attempt_id LIMIT 10""",
                 (self.verifier_id, list(available), self.verifier_id,
@@ -319,6 +356,16 @@ class GraceExecutionService:
             if selected_verifier is None:
                 continue
             verifier_revision = selected_verifier.REVISION
+            if capability == "engineering.codex-cli-artifact.v1":
+                reviewed = any(event["event_type"] == "engineering.rejection_reviewed" and
+                    (event.get("payload") or {}).get("decision") == "OBJECTIVE_SATISFIED" and
+                    (event.get("payload") or {}).get("attempt_id") == str(candidate["attempt_id"]) and
+                    (candidate["decision"] != "REJECTED" or
+                     (event.get("payload") or {}).get("verification_id") ==
+                        str(candidate["verification_id"]))
+                    for event in self.pipeline.objective_events(candidate["objective_ref"]))
+                if not reviewed:
+                    continue
             if (candidate["decision"] == "REJECTED" and
                     candidate["verifier_revision"] == verifier_revision):
                 continue
@@ -448,9 +495,11 @@ class GraceExecutionService:
                 JOIN worker_results wr USING(attempt_id)
                 WHERE a.state='awaiting_verification' AND wa.status='succeeded'
                   AND wa.capability=ANY(%s)
+                  AND NOT EXISTS (SELECT 1 FROM verification_records prior
+                      WHERE prior.attempt_id=wa.attempt_id AND prior.verifier_id=%s)
                   AND (%s::text IS NULL OR a.id=%s)
                 ORDER BY a.updated_at,wa.started_at,wa.attempt_id LIMIT 25""",
-                (capabilities, assignment_id, assignment_id))
+                (capabilities, self.verifier_id, assignment_id, assignment_id))
             candidates = cur.fetchall()
         for candidate in candidates:
             attempt_id = str(candidate["attempt_id"])
@@ -529,7 +578,8 @@ class GraceExecutionService:
         published = 0
         for context in self.pipeline.pending_conversation_results(limit=limit):
             try:
-                receipt = self.conversation_result_publisher(context)
+                review_context = self._with_grace_artifact_review(context)
+                receipt = self.conversation_result_publisher(review_context)
                 if (not isinstance(receipt, dict)
                         or receipt.get("status") not in {"published", "already_published"}):
                     continue
@@ -542,6 +592,31 @@ class GraceExecutionService:
             except Exception as exc:
                 LOG.warning(json.dumps({"event": "grace_conversation_result_return_failed",
                     "objective_id": context.get("objective_id"),
+                    "failure_type": type(exc).__name__}, sort_keys=True))
+        return published
+
+    def publish_rejected_work_order_reviews(self, limit=10):
+        """Resume rejected work only after Grace's durable decision and chat receipt."""
+        if self.rejected_work_order_publisher is None:
+            return 0
+        published = 0
+        for context in self.pipeline.pending_rejected_work_order_reviews(limit=limit):
+            try:
+                review_context = self._with_grace_artifact_review(context)
+                receipt = self.rejected_work_order_publisher(review_context)
+                if (not isinstance(receipt, dict) or
+                        receipt.get("status") not in {"published", "already_published"} or
+                        receipt.get("verification_id") !=
+                            context["completion"]["verification_id"]):
+                    continue
+                self.pipeline.record_rework_review_published(context["objective_id"],
+                    context["completion"]["verification_id"], receipt["request_id"])
+                published += 1
+            except Exception as exc:
+                LOG.warning(json.dumps({"event": "grace_rejected_result_review_failed",
+                    "objective_id": context.get("objective_id"),
+                    "assignment_id": context.get("assignment_id"),
+                    "verification_id": context.get("completion", {}).get("verification_id"),
                     "failure_type": type(exc).__name__}, sort_keys=True))
         return published
 
@@ -771,6 +846,7 @@ class GraceExecutionService:
         """Run bounded dispatch, advisory reasoning, independent workers and verification."""
         try:
             doorbell = self._run_doorbell_worker()
+            rejected_reviewed = self.publish_rejected_work_order_reviews()
             external_reasoned = self.consume_external_reasoning()
             reasoned = self.reason_one_grounded_objective()
             dispatched = self.dispatch_proposed()
@@ -785,6 +861,7 @@ class GraceExecutionService:
             self._heartbeat("degraded" if worker_failures else "healthy",
                              "WorkerCycleFailure" if worker_failures else None)
             return {"external_reasoned": external_reasoned, "reasoned": reasoned,
+                    "rejected_reviewed": rejected_reviewed,
                     "dispatched": dispatched, "worker": worker_result, "verified": verified,
                     "completed": completed, "returned": returned,
                     "proposal_updates": proposal_updates, "doorbell": doorbell}

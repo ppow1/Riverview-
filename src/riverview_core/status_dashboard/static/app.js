@@ -1,6 +1,7 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
 // Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record bounded same-origin request and SSE response metadata without bodies or auth headers.
-// Revision: 1.4.20
+// Revision: 1.4.21
+// Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Show persistent authenticated objective and assignment progress linked to the active Grace conversation.
 // Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Label assignment-lease freshness separately from worker process liveness.
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
 // Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Use linked Steward account session for exact-grant Grace connection
@@ -41,7 +42,7 @@
     recentErrors: [], navSamples: [], lastFetch: 0, timer: null, workOrderSourceSequence: null,
     chatConversationId: localStorage.getItem("rv.grace.conversation") || "", chatEvents: [], chatMeta: null, selectedEventId: null, chatInFlight: false, chatDialogReturnFocus: null, chatAuthRejected:false, chatLoading:false,
     streamBuffers:{},streamStates:{},streamMetrics:{},activeStreams:new Set(),chatPollTimer:null,
-    chatHistoryRefreshing:false};
+    chatHistoryRefreshing:false,engineeringProgressLoading:false,engineeringProgressConversationId:""};
   const assignmentTitleCache = new Map();
   const esc = (value) => String(value ?? "—").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   const human = (value) => String(value || "unknown").replaceAll("_", " ").replaceAll(".", " · ");
@@ -650,6 +651,52 @@
       if(history.conversation_id===state.chatConversationId){renderConversation(history.events||[]);watchPendingResponses(history.events||[]);}
     }catch(_){}finally{state.chatHistoryRefreshing=false;}
   }
+  function renderEngineeringProgress(items, status) {
+    const summary=$("engineering-progress-state"),host=$("engineering-progress-list");
+    if(!state.chatConversationId||state.chatAuthRejected){
+      summary.textContent="Connect to load durable progress linked to this conversation.";
+      host.innerHTML=noData("No conversation-linked Engineering status is available.");return;
+    }
+    if(status!=="available"){
+      summary.textContent=`Objective source ${human(status)}.`;
+      host.innerHTML=noData(status==="not_initialized"?"Grace objective storage is not initialized.":"Durable Engineering progress is unavailable.");return;
+    }
+    if(!items.length){
+      summary.textContent="No linked Engineering objective observed.";
+      host.innerHTML=noData("An objective receipt will remain visible here after it is submitted from this conversation.");return;
+    }
+    summary.textContent=`${items.length} linked objective${items.length===1?"":"s"} · refreshed ${new Date().toLocaleTimeString()}`;
+    host.innerHTML=items.map((item)=>{
+      const progress=item.lifecycle_status||"waiting", rework=item.rework||{}, verification=item.verification||{};
+      const badge=`<span class="pill ${stateClass(progress)}">${esc(human(progress))}</span>`;
+      const latest=item.latest_event?`${human(item.latest_event.event_type)} · ${when(item.latest_event.occurred_at)}`:"No lifecycle event recorded";
+      const origin=item.origin?.source_sequence?`Source conversation message ${esc(item.origin.source_sequence)}`:"Conversation origin unavailable";
+      const verificationText=verification.decision?`${esc(verification.decision)}${verification.summary?` · ${esc(verification.summary)}`:""}`:"No independent verification recorded";
+      const reworkText=rework.rejected_results?`${esc(rework.rejected_results)} rejected result${rework.rejected_results===1?"":"s"}; ${esc(rework.attempts||0)} rework attempt${rework.attempts===1?"":"s"}${rework.decision?` · ${esc(human(rework.decision))}`:""}`:"No rework recorded";
+      return `<article class="engineering-progress-item"><div class="engineering-progress-title"><strong>Objective ${esc(item.objective_id)}</strong>${badge}</div><div class="row-meta">${origin}</div><div class="engineering-progress-grid"><span>Assignment</span><span>${esc(item.assignment_id||"Not created")}</span><span>Stage</span><span>${esc(item.lifecycle_stage||human(item.status))}</span><span>Latest activity</span><span>${esc(latest)}</span><span>Verification</span><span>${verificationText}</span><span>Rework</span><span>${reworkText}</span><span>Steward action</span><span>${item.steward_action_required?"Required":"Not currently required"}</span></div></article>`;
+    }).join("");
+  }
+  async function loadConversationEngineeringProgress() {
+    if(state.engineeringProgressLoading)return;
+    if(!state.chatConversationId||state.chatAuthRejected||(!state.token&&!state.accountIdentity)){
+      renderEngineeringProgress([],"unavailable");return;
+    }
+    const conversationId=state.chatConversationId;
+    state.engineeringProgressLoading=true;
+    try{
+      const page=await api(`/api/v1/objectives?limit=25&conversation_id=${encodeURIComponent(conversationId)}`,8000);
+      if(conversationId===state.chatConversationId){
+        state.engineeringProgressConversationId=conversationId;
+        renderEngineeringProgress(page.items||[],page.status);
+      }
+    }catch(error){
+      if(conversationId===state.chatConversationId){
+        const label=error.payload?.error||error.message;
+        $("engineering-progress-state").textContent=`Objective progress unavailable (${label}).`;
+        $("engineering-progress-list").innerHTML=noData("Saved objectives remain durable; reconnect or refresh to retry this read-only projection.");
+      }
+    }finally{state.engineeringProgressLoading=false;}
+  }
   function watchPendingResponses(events) {
     const terminal=new Set(events.filter((item)=>["assistant_message","response_failed","response_interrupted"].includes(item.event_type)).map((item)=>item.request_id));
     for(const item of events.filter((event)=>event.event_type==="user_message"&&!terminal.has(event.request_id))) {
@@ -660,8 +707,9 @@
       // A verified Engineering result may be appended after the original chat
       // response is terminal. Refresh the active conversation so that durable
       // work-order reviews appear without requiring a manual page refresh.
-      if(state.activeView==="grace-chat"&&document.visibilityState==="visible")
-        refreshConversationHistory();
+      if(state.activeView==="grace-chat"&&document.visibilityState==="visible") {
+        refreshConversationHistory();loadConversationEngineeringProgress();
+      }
     },4000);
   }
   function openChatDetails() {
@@ -747,7 +795,7 @@
     const submit=$("work-order-submit");submit.disabled=true;submit.textContent="Submitting…";$("work-order-error").textContent="";
     try{
       const result=await api(`/api/v1/resident/conversations/${encodeURIComponent(state.chatConversationId)}/work-orders`,10000,"POST",{body:{source_sequence:state.workOrderSourceSequence,acceptance_criteria:criteria}});
-      $("work-order-dialog").close();toast(result.reused_existing_objective?`Existing objective ${result.objective_id} resumed (${result.status}); its original acceptance criteria were retained.`:`Objective ${result.objective_id} recorded (${result.status}).`);await loadObjectives();
+      $("work-order-dialog").close();toast(result.reused_existing_objective?`Existing objective ${result.objective_id} resumed (${result.status}); its original acceptance criteria were retained.`:`Objective ${result.objective_id} recorded (${result.status}).`);await Promise.all([loadObjectives(),loadConversationEngineeringProgress()]);
     }catch(error){
       const message=error.payload?.error==="engineering_work_order_submission_not_authorized"?"The authenticated Steward lacks objective.submit on work-order:engineering. No work order was created.":`Work-order intake failed (${error.payload?.error||error.message}). No approval or execution is implied.`;
       $("work-order-error").textContent=message;
@@ -783,6 +831,7 @@
         $("chat-title").textContent = `Conversation ${history.conversation_id}`;
         renderConversation(history.events || []);
         watchPendingResponses(history.events||[]);
+        await loadConversationEngineeringProgress();
         if (!$("chat-message").value) $("chat-message").value=sessionStorage.getItem("rv.grace.draft."+state.chatConversationId)||"";
         resizeChatComposer();
       }
@@ -810,14 +859,17 @@
   $("chat-disconnect").addEventListener("click",async()=>{
     try{await api("/api/v1/resident/conversation-session",5000,"DELETE");}catch(_){}
     state.chatAuthRejected=true;state.chatEvents=[];$("chat-history").innerHTML=noData("Connect to load private conversation history.");
+    renderEngineeringProgress([],"unavailable");
     $("chat-auth-form").hidden=false;$("chat-disconnect").hidden=true;$("chat-state").textContent="Disconnected from Grace.";
     $("chat-error").textContent="";$("chat-authority").focus();
   });
   $("chat-refresh").addEventListener("click", loadGraceConversation);
+  $("refresh-engineering-progress").addEventListener("click",loadConversationEngineeringProgress);
   $("chat-new").addEventListener("click", () => {
     state.chatConversationId = "";state.chatMeta=null;state.chatEvents=[]; localStorage.removeItem("rv.grace.conversation");
     $("chat-title").textContent = "New Grace conversation";
     $("chat-history").innerHTML = noData("A new persisted conversation will begin with your next message.");
+    renderEngineeringProgress([],"unavailable");
     $("chat-error").textContent = "";
   });
   $("chat-form").addEventListener("submit", async (event) => {

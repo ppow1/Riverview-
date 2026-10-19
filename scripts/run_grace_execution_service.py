@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.5
+# Revision: 1.2.6
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -31,6 +31,7 @@
 # Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Resolve external-reasoning authority through the active institutional office snapshot
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Attach the persistent Grace cycle to existing provider-scoped external reasoning exchanges
 # Changed: 2026-10-18 UTC | RV-C2-DOORBELL-RUNTIME-WIRING-001 | Optionally compose the C2 wake worker into the existing Grace owner cycle
+# Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Bind rejection review to the same exact dispatch grant and persistent conversation result path
 # Contracts: docs/components/GRACE_PERSISTENT_EXECUTION.md
 # Tests: tests/test_grace_runtime_provider_wiring.py; tests/test_grace_execution.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -336,6 +337,8 @@ def main() -> int:
         conversation_service.continuation_handler = lambda context, step: pipeline.propose_continuation(
             context["objective_id"], context["assignment_id"], step,
             actor_id="office:" + office_id)
+        conversation_service.rework_handler = lambda context, decision: pipeline.record_rework_decision(
+            context, decision, credential=dispatch_token)
         adapter_mode = os.environ.get("RIVERVIEW_ENGINEERING_ADAPTER", "bounded-artifact")
         execution_capability = "engineering.bounded-artifact.v1"
         execution_action = BoundedLocalCodingWorker(pipeline, artifact_root)
@@ -534,6 +537,7 @@ def main() -> int:
             verifier=outcome_verifier, execution_capability=execution_capability,
             execution_workers=execution_workers, verifiers=outcome_verifiers,
             conversation_result_publisher=conversation_service.review_verified_work_order,
+            rejected_work_order_publisher=conversation_service.review_rejected_work_order,
             proposal_lifecycle=proposal_lifecycle,
             external_reasoning_exchange=external_exchange,
             external_reasoning_authorize=external_authorize,

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.10
+# Revision: 1.2.13
+# Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Separate independent artifact integrity/provenance checks from Grace's substantive acceptance review and expose only a digest-verified bounded artifact snapshot.
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Validate source execution against dispatch-time target snapshot, checkout HEAD, and verifier result provenance.
 # Purpose: Adapt bounded Codex production and independent Markdown verification to CME
 # Execution Model: Existing leased worker action and independent verifier contract
@@ -21,6 +22,8 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CAPABILITY-COMMISSIONING | Recover completed source patch artifacts after interrupted worker-result persistence
 # Changed: 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-OBJECTIVE-CONTEXT | Carry the accepted objective into each bounded source-change step without widening file scope
 # Changed: 2026-10-17 UTC | RV-GRACE-ACCEPTANCE-CRITERIA-001 | Verify Codex artifacts against criteria resolved from the durable dispatched objective step
+# Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Attach only durable same-assignment correction guidance while preserving the pinned step and exact acceptance criteria
+# Changed: 2026-10-19 UTC | RV-GRACE-REVIEW-ROLE-SEPARATION-001 | Keep independent checks on artifact integrity, provenance, scope and structure; defer substantive criteria to Grace with digest-verified artifact text
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_codex_workflow.py
 # History: Git
@@ -112,6 +115,31 @@ class CodexWorkAction:
             step = objective["proposal"]["steps"][0]
         if step is None:
             raise CodexActionFailure("persisted_work_order_step_missing")
+        rework_reader = getattr(self.pipeline, "latest_rework_instruction", None)
+        rework = rework_reader(assignment["id"]) if callable(rework_reader) else None
+        task_scope = step["objective"]
+        artifact_revision = None
+        rework_verification_id = None
+        if rework is not None:
+            expected_criteria_sha = hashlib.sha256(json.dumps(
+                list(step["acceptance_criteria"]), ensure_ascii=False, sort_keys=True,
+                separators=(",", ":")).encode("utf-8")).hexdigest()
+            if (not isinstance(rework, Mapping) or
+                    rework.get("decision") != "REWORK_PROPOSED" or
+                    rework.get("assignment_id") != assignment["id"] or
+                    rework.get("acceptance_criteria_sha256") != expected_criteria_sha or
+                    not isinstance(rework.get("correction_instruction"), str) or
+                    not rework["correction_instruction"].strip() or
+                    len(rework["correction_instruction"]) > 512):
+                raise CodexActionFailure("persisted_rework_scope_invalid")
+            rework_verification_id = rework.get("verification_id")
+            if not isinstance(rework_verification_id, str):
+                raise CodexActionFailure("persisted_rework_identity_invalid")
+            artifact_revision = hashlib.sha256(
+                rework_verification_id.encode("utf-8")).hexdigest()[:12]
+            task_scope += "\n\nGrace's bounded corrective instruction from the persisted verifier rejection: " + rework["correction_instruction"]
+            task_scope += "\nAddress only these unchanged acceptance criteria: " + json.dumps(
+                rework["criteria_to_address"], ensure_ascii=False, separators=(",", ":"))
         try:
             repository_revision = self.adapter.repository_revision()
         except Exception as exc:
@@ -123,9 +151,10 @@ class CodexWorkAction:
             # Knowledge-source provenance and the code revision used to execute
             # the assignment are separate immutable facts.
             repository_revision=repository_revision,
-            task_scope=step["objective"],
+            task_scope=task_scope,
             acceptance_criteria=tuple(step["acceptance_criteria"]),
-            timeout_seconds=self.timeout_seconds)
+            timeout_seconds=self.timeout_seconds, artifact_revision=artifact_revision,
+            rework_verification_id=rework_verification_id)
         result = self.adapter.execute(request)
         if result.status != "DELIVERABLE_PRODUCED" or not result.artifact_name:
             raise CodexActionFailure(result.detail_code,
@@ -144,6 +173,7 @@ class CodexWorkAction:
             "source_artifact_name": result.source_artifact_name,
             "changed_files": list(result.changed_files),
             "acceptance_criteria": list(request.acceptance_criteria),
+            "rework_verification_id": result.rework_verification_id,
             "detail_code": result.detail_code,
         }
 
@@ -183,91 +213,11 @@ class CodexWorkAction:
 class CodexMarkdownVerifier:
     """Independently reopen artifact and verify assignment binding, digest and contract."""
 
-    REVISION = "1.0.1"
+    REVISION = "1.0.2"
     MAX_BYTES = 32 * 1024
+    MAX_GRACE_REVIEW_BYTES = 12 * 1024
 
-    @staticmethod
-    def _criteria_satisfied(criteria, body, result):
-        """Check document requirements without treating task instructions as prose."""
-        if (result.get("source_artifact_name") is None and
-                result.get("changed_files") is None and
-                result.get("capability") == CAPABILITY and
-                result.get("artifact_schema") == "rv.codex-cli.deliverable.v2"):
-            # Before these fields were added, this exact capability's immutable
-            # contract admitted only deliverable.md and persisted a result only
-            # after checking the pinned clone's complete changed-path set.
-            result = {**result, "source_artifact_name": "deliverable.md",
-                      "changed_files": ["deliverable.md"]}
-        if (result.get("source_artifact_name") != "deliverable.md" or
-                result.get("changed_files") != ["deliverable.md"]):
-            return False
-        lower = body.lower()
-        path_items = []
-        expected_path_count = None
-        for item in criteria:
-            if not isinstance(item, str) or not item:
-                return False
-            for raw_line in item.splitlines():
-                stripped = raw_line.strip()
-                if not stripped:
-                    continue
-                if stripped.startswith("# "):
-                    if stripped not in body.splitlines():
-                        return False
-                elif re.fullmatch(
-                        r"Cite these (\d+|one|two|three|four|five|six|seven|eight|nine|ten) files?:",
-                        stripped, re.IGNORECASE):
-                    count_text = re.fullmatch(
-                        r"Cite these (\d+|one|two|three|four|five|six|seven|eight|nine|ten) files?:",
-                        stripped, re.IGNORECASE).group(1).lower()
-                    count = {"one": 1, "two": 2, "three": 3, "four": 4,
-                             "five": 5, "six": 6, "seven": 7, "eight": 8,
-                             "nine": 9, "ten": 10}.get(count_text)
-                    if count is None:
-                        count = int(count_text)
-                    if expected_path_count is not None:
-                        return False
-                    expected_path_count = count
-                elif re.fullmatch(r"-\s*`[^`]+`", stripped):
-                    reference = stripped.lstrip("- ").strip("`")
-                    if not reference or reference in path_items or reference not in body:
-                        return False
-                    path_items.append(reference)
-                elif stripped.lower().startswith("include the exact phrase:"):
-                    match = re.search(r"`([^`]+)`", stripped)
-                    if match is None or match.group(1) not in body:
-                        return False
-                elif stripped.startswith("Create `deliverable.md`"):
-                    # The adapter records this only after checking the pinned clone's
-                    # exact changed-file set; it is execution evidence, not body text.
-                    if result.get("source_artifact_name") != "deliverable.md":
-                        return False
-                elif stripped.startswith("Document the source-implemented path"):
-                    required = ("steward website", "grace", "engineering/cme",
-                                "codex cli", "independent verification",
-                                "original conversation")
-                    if not all(term in lower for term in required):
-                        return False
-                elif stripped.startswith("Only modify `deliverable.md`"):
-                    if result.get("changed_files") != ["deliverable.md"]:
-                        return False
-                    if "distinguish source implementation" in stripped.lower() and (
-                            "source implementation" not in lower or "production" not in lower or
-                            not any(term in lower for term in
-                                    ("verified", "commissioning", "live behavior"))):
-                        return False
-                elif stripped.startswith("Distinguish source implementation"):
-                    if ("source implementation" not in lower or
-                            "production" not in lower or
-                            not any(term in lower for term in
-                                    ("verified", "commissioning", "live behavior"))):
-                        return False
-                else:
-                    normalized = " ".join(stripped.split())
-                    if normalized not in " ".join(body.split()):
-                        return False
-        return expected_path_count is None or len(path_items) == expected_path_count
-    _NAME = re.compile(r"^codex-[0-9a-f]{64}\.md$")
+    _NAME = re.compile(r"^codex-[0-9a-f]{64}(?:-r[0-9a-f]{12})?\.md$")
 
     def __init__(self, artifact_root: str | Path, pipeline=None):
         self.artifact_root = Path(artifact_root)
@@ -291,16 +241,29 @@ class CodexMarkdownVerifier:
             "artifact_owner_mode_and_size_valid": False,
             "artifact_digest_matches": False,
             "markdown_deliverable_matches_objective": False,
-            "acceptance_criteria_are_present": False,
+            "authorized_acceptance_criteria_bound": False,
             "source_provenance_is_pinned": False,
             "repository_provenance_is_pinned": False,
         }
         raw = None
-        expected_name = "codex-" + hashlib.sha256(
-            assignment["id"].encode("utf-8")).hexdigest() + ".md"
+        assignment_key = hashlib.sha256(assignment["id"].encode("utf-8")).hexdigest()
+        rework_verification_id = result.get("rework_verification_id") if isinstance(result, dict) else None
+        if rework_verification_id is not None:
+            instruction = (self.pipeline.latest_rework_instruction(assignment["id"])
+                           if self.pipeline is not None else None)
+            expected_revision = hashlib.sha256(str(rework_verification_id).encode("utf-8")).hexdigest()[:12]
+            if (not instruction or instruction.get("verification_id") != rework_verification_id or
+                    instruction.get("acceptance_criteria_sha256") != hashlib.sha256(
+                        json.dumps(list(result.get("acceptance_criteria", ())), ensure_ascii=False,
+                            sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()):
+                expected_revision = None
+            expected_name = (f"codex-{assignment_key}-r{expected_revision}.md"
+                             if expected_revision else "")
+        else:
+            expected_name = f"codex-{assignment_key}.md"
         path = self.artifact_root / expected_name
         criteria["artifact_path_is_assignment_bound"] = bool(
-            name == expected_name and self._NAME.fullmatch(str(name)) and
+            expected_name and name == expected_name and self._NAME.fullmatch(str(name)) and
             result.get("artifact_path") == str(path))
         try:
             root_info = self.artifact_root.lstat()
@@ -335,11 +298,16 @@ class CodexMarkdownVerifier:
                             assignment.get("objective_ref"), assignment.get("id"))
                         expected_criteria = (step.get("acceptance_criteria")
                                              if isinstance(step, Mapping) else None)
-                    criteria["acceptance_criteria_are_present"] = bool(
+                    # The verifier confirms that the executor's criteria snapshot
+                    # exactly matches the immutable assigned step. It does not
+                    # decide whether prose substantively satisfies those criteria;
+                    # Grace's bound reasoning model receives the artifact below.
+                    criteria["authorized_acceptance_criteria_bound"] = bool(
                         isinstance(expected_criteria, (list, tuple)) and expected_criteria and
                         all(isinstance(item, str) and item.strip()
                             for item in expected_criteria) and
-                        self._criteria_satisfied(expected_criteria, body, result))
+                        ("acceptance_criteria" not in result or
+                         list(result.get("acceptance_criteria", ())) == list(expected_criteria)))
                     evidence += ("workspace://" + name,
                                  "sha256:" + result["artifact_sha256"])
             criteria["source_provenance_is_pinned"] = bool(
@@ -357,8 +325,54 @@ class CodexMarkdownVerifier:
         return VerificationResult(
             VerificationStatus.ACCEPTED if accepted else VerificationStatus.REJECTED,
             criteria, evidence if raw is not None else evidence[:1], self.REVISION,
-            "Codex Markdown artifact independently verified" if accepted else
-            "Codex Markdown artifact failed independent verification")
+            ("Codex artifact integrity, provenance, authorization scope and required structure verified; "
+             "substantive acceptance criteria remain for Grace's review") if accepted else
+            "Codex Markdown artifact failed independent integrity, provenance, scope or structure verification")
+
+    def read_artifact_for_grace_review(self, assignment_id, result):
+        """Return bounded artifact text only after repeating its persisted integrity checks."""
+        if (not isinstance(assignment_id, str) or not isinstance(result, Mapping) or
+                result.get("status") != "SUCCEEDED" or
+                result.get("artifact_schema") != "rv.codex-cli.deliverable.v2" or
+                result.get("capability") != CAPABILITY or
+                result.get("assignment_id") != assignment_id or
+                result.get("source_artifact_name") != "deliverable.md" or
+                result.get("changed_files") != ["deliverable.md"]):
+            raise ValueError("verified Codex artifact identity is required for Grace review")
+        key = hashlib.sha256(assignment_id.encode("utf-8")).hexdigest()
+        rework_id = result.get("rework_verification_id")
+        suffix = ("-r" + hashlib.sha256(rework_id.encode("utf-8")).hexdigest()[:12]
+                  if isinstance(rework_id, str) and rework_id else "")
+        expected_name = f"codex-{key}{suffix}.md"
+        expected_path = self.artifact_root / expected_name
+        if (result.get("artifact_name") != expected_name or
+                result.get("artifact_path") != str(expected_path) or
+                type(result.get("artifact_bytes")) is not int or
+                not 0 < result["artifact_bytes"] <= self.MAX_GRACE_REVIEW_BYTES or
+                not re.fullmatch(r"[0-9a-f]{64}", str(result.get("artifact_sha256", "")))):
+            raise ValueError("Codex artifact exceeds Grace review bounds or identity")
+        root_info = self.artifact_root.lstat()
+        if (not stat.S_ISDIR(root_info.st_mode) or self.artifact_root.is_symlink() or
+                root_info.st_uid != os.geteuid() or stat.S_IMODE(root_info.st_mode) != 0o700 or
+                self.artifact_root.resolve() != self.artifact_root.absolute()):
+            raise ValueError("Codex artifact root is not protected for Grace review")
+        fd = os.open(expected_path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        try:
+            info = os.fstat(fd)
+            if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or
+                    stat.S_IMODE(info.st_mode) != 0o600 or
+                    info.st_size != result["artifact_bytes"] or
+                    info.st_size > self.MAX_GRACE_REVIEW_BYTES):
+                raise ValueError("Codex artifact protection metadata changed before Grace review")
+            raw = os.read(fd, self.MAX_GRACE_REVIEW_BYTES + 1)
+        finally:
+            os.close(fd)
+        if (len(raw) != result["artifact_bytes"] or
+                hashlib.sha256(raw).hexdigest() != result["artifact_sha256"]):
+            raise ValueError("Codex artifact digest changed before Grace review")
+        return {"artifact_name": expected_name,
+                "sha256": result["artifact_sha256"],
+                "body": raw.decode("utf-8")}
 
 
 class CodexSourceChangeWorkAction:

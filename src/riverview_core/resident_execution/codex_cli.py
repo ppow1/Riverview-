@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_cli.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.5
+# Revision: 1.1.6
 # Purpose: Run a bounded Codex CLI assignment in an isolated pinned repository copy
 # Execution Model: One noninteractive sandboxed Codex invocation per durable assignment
 # Observability: Typed result and artifact digest; prompt and CLI output are not logged
@@ -20,6 +20,7 @@
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-ENABLE-001 | Enable the supported Codex code_mode_host feature when the persistent adapter requires its companion executable
 # Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-ENABLE-001 | Enable code_mode and code_mode_host and expose only the pinned CLI package directory for companion discovery
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Persist source filename and exact modified-file inventory after pinned-worktree scope validation
+# Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Give each verifier-authorized same-assignment rework a rejection-bound immutable artifact path
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; process_graphs/grace/operational-integration.json
 # Tests: tests/test_codex_cli_adapter.py
 # History: Git
@@ -69,6 +70,8 @@ class CodexAssignment:
     task_scope: str
     acceptance_criteria: tuple[str, ...]
     timeout_seconds: int = 180
+    artifact_revision: str | None = None
+    rework_verification_id: str | None = None
 
     def __post_init__(self):
         if (not isinstance(self.assignment_id, str) or not self.assignment_id or
@@ -85,6 +88,11 @@ class CodexAssignment:
                 not 1 <= len(self.acceptance_criteria) <= 20 or
                 any(not isinstance(item, str) or not item.strip() or len(item) > 1000
                     for item in self.acceptance_criteria) or
+                ((self.artifact_revision is None) != (self.rework_verification_id is None)) or
+                (self.artifact_revision is not None and
+                    (not re.fullmatch(r"[0-9a-f]{12}", self.artifact_revision) or
+                     not isinstance(self.rework_verification_id, str) or
+                     not re.fullmatch(r"[0-9a-f-]{36}", self.rework_verification_id))) or
                 type(self.timeout_seconds) is not int or
                 not 1 <= self.timeout_seconds <= 300):
             raise ValueError("Codex assignment exceeds its bounded contract")
@@ -105,6 +113,7 @@ class CodexArtifactResult:
     execution_started: bool = False
     source_artifact_name: str | None = None
     changed_files: tuple[str, ...] = ()
+    rework_verification_id: str | None = None
 
 
 class CodexAdapterError(RuntimeError):
@@ -356,7 +365,8 @@ class CodexCLIExecutionAdapter:
             return self._result(assignment, "UNAVAILABLE", exc.code)
 
         key = hashlib.sha256(assignment.assignment_id.encode("utf-8")).hexdigest()
-        artifact_path = self.artifact_root / f"codex-{key}.md"
+        suffix = "-r" + assignment.artifact_revision if assignment.artifact_revision else ""
+        artifact_path = self.artifact_root / f"codex-{key}{suffix}.md"
         if artifact_path.exists() or artifact_path.is_symlink():
             return self._result(assignment, "BLOCKED", "artifact_already_exists")
 
@@ -437,7 +447,8 @@ class CodexCLIExecutionAdapter:
                     artifact_path.name, hashlib.sha256(raw).hexdigest(), len(raw),
                     assignment.repository_revision, "independent_verification_required",
                     execution_started=True, source_artifact_name=self.OUTPUT_NAME,
-                    changed_files=tuple(sorted(changed_paths)))
+                    changed_files=tuple(sorted(changed_paths)),
+                    rework_verification_id=assignment.rework_verification_id)
         except CodexAdapterError as exc:
             return self._result(assignment, "UNAVAILABLE", exc.code,
                                 execution_started=locals().get("process") is not None)

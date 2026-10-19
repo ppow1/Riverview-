@@ -2,8 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.26
+# Revision: 1.3.27
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Accept typed repository target provenance in source-change proposal intake.
+# Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Filter durable Engineering progress by authenticated conversation origin
 # Purpose: Serve account-authenticated operational, proposal, capability and snapshot APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -59,7 +60,7 @@ import secrets
 import stat
 import threading
 import time
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid5
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -949,8 +950,16 @@ def make_handler():
                     page = self.server._projection.attention(limit=_bounded_limit(query.get("limit", [25])[0]))
                     self._json(200, page, request_id)
                 elif parsed.path == "/api/v1/objectives" and self.command in {"GET", "HEAD"}:
+                    if (set(query) - {"limit", "conversation_id"} or
+                            any(len(values) != 1 for values in query.values())):
+                        self._error(400, "invalid_query", request_id)
+                        return
+                    conversation_id = query.get("conversation_id", [None])[0]
+                    if conversation_id is not None:
+                        conversation_id = str(UUID(conversation_id))
                     self._json(200, self.server._projection.objectives(
-                        limit=_bounded_limit(query.get("limit", [25])[0])), request_id)
+                        limit=_bounded_limit(query.get("limit", [25])[0]),
+                        conversation_id=conversation_id), request_id)
                 elif conversation_work_order:
                     # Only an explicit authenticated Steward action can promote a
                     # specific persisted Grace user message. Ordinary chat stays chat.

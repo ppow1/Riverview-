@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_PERSISTENT_EXECUTION.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.18
+File Revision: 1.0.19
 Purpose: Define persistent model-independent Grace objective execution service
 Authority: Existing exact-grant registry and CME assignment/worker contracts
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-CONFIG-EXAMPLE | Add a secret-free environment template for exact service identity configuration
@@ -21,8 +21,15 @@ Changed: 2026-10-16 UTC | RV-GRACE-CODEX-OWNER-STATE-001 | Keep writable Codex r
 Changed: 2026-10-16 UTC | RV-GRACE-OWNER-CODEX-HOME-001 | Resolve persistent Codex home from explicit service configuration and validate its private bind target
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Consume durable external reasoning replies through the existing reasoner and preserve stale-base successor completion semantics.
 Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Admit configured model-selected advisory exchanges through active-resident exact grants and the existing CME cycle.
+Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Resume the latest verifier rejection through Grace's bounded decision and expose durable progress in Talk with Grace.
 -->
 # Grace Persistent Execution Service
+
+## Rejected work and durable conversation progress
+
+When independent verification rejects a successful attempt, Grace reviews the latest decision on the next owner-session cycle. She may propose a bounded correction against the persisted criteria or request Steward direction. Rework preserves the original objective, assignment, acceptance criteria, artifact, and rejected verification record. The exact assignment creation grant is rechecked before the existing assignment is requeued, and the scheduler's previous lease generation is fenced. Every subsequent attempt is independently verified; repeated rejection is not silently treated as success.
+
+Talk with Grace reads the existing authenticated `GET /api/v1/objectives?conversation_id=<uuid>` projection. The durable `objective.received` source binds each receipt to its conversation and source message sequence. The response summarizes lifecycle stage, assignment ID/state, latest event time, verifier decision/reason, rework count/status, and explicit Steward-action requirement. The dashboard polls while the conversation is visible and reloads from PostgreSQL after reconnect or page refresh; it does not infer progress from chat response text. The projection excludes conversation bodies, worker artifact contents, and credentials.
 
 **Status:** Source integration of external exchange consumption and stale-base successor handling is isolated-PostgreSQL verified. Production release activation and live provider/rework acceptance remain unverified; service readiness must be checked against current systemd state.
 

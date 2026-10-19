@@ -2,8 +2,9 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.54
+# Revision: 1.0.55
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Verify institutional proposal dashboard actions remain distinct from Engineering intake.
+# Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Verify authenticated conversation-scoped Engineering progress projection and invalid filters
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Verify Steward proposal UI uses distinct draft, approval and objective-promotion actions.
 # Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Assert UI distinguishes lease heartbeat status from worker process liveness.
 # Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Assert inactive retired registrations do not affect active worker health counts.
@@ -72,6 +73,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class _FakeProjection:
     def __init__(self):
         self.last_limit = None
+        self.last_conversation_id = None
         self.execution_position = {"status": "unknown", "reason": "No recorded node."}
 
     def graph_execution_position(self, graph_id):
@@ -98,6 +100,12 @@ class _FakeProjection:
     def attention(self, *, limit=25):
         return {"status":"available", "items":[], "limit":limit}
 
+    def objectives(self, *, limit=25, objective_id=None, conversation_id=None):
+        self.last_limit = limit
+        self.last_conversation_id = conversation_id
+        return {"schema_version":"rv.dashboard.objectives.v1", "status":"available",
+                "items":[], "limit":limit}
+
     def snapshot(self):
         return {"schema_version":"rv.dashboard.snapshot.v1", "redaction":{"credentials":"excluded"}}
 
@@ -106,6 +114,18 @@ class _FakeProjection:
 
 
 class DashboardDeploymentContractTests(unittest.TestCase):
+    def test_talk_with_grace_has_persistent_objective_progress_panel(self):
+        static = ROOT / "src/riverview_core/status_dashboard/static"
+        html = (static / "index.html").read_text(encoding="utf-8")
+        app = (static / "app.js").read_text(encoding="utf-8")
+        self.assertIn('id="engineering-progress-list"', html)
+        self.assertIn('aria-labelledby="engineering-progress-title"', html)
+        self.assertIn("/api/v1/objectives?limit=25&conversation_id=", app)
+        self.assertIn("lifecycle_stage", app)
+        self.assertIn("steward_action_required", app)
+        self.assertIn("refresh-engineering-progress", app)
+        self.assertIn("loadConversationEngineeringProgress();", app)
+
     def test_institutional_proposal_ui_keeps_draft_approval_and_engineering_intake_distinct(self):
         static = ROOT / "src/riverview_core/status_dashboard/static"
         html = (static / "index.html").read_text(encoding="utf-8")
@@ -426,6 +446,23 @@ class DashboardHTTPTests(unittest.TestCase):
         status, _, body = self.request("GET", "/api/v1/status", token="B" * 43)
         self.assertEqual(status, 401)
         self.assertNotIn(self.token.encode(), body)
+
+    def test_objective_progress_projection_is_authenticated_and_conversation_scoped(self):
+        conversation_id = "00000000-0000-4000-8000-000000000001"
+        status, _, body = self.request("GET",
+            "/api/v1/objectives?limit=7&conversation_id=" + conversation_id,
+            token=self.token)
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["status"], "available")
+        self.assertEqual(self.projection.last_limit, 7)
+        self.assertEqual(self.projection.last_conversation_id, conversation_id)
+        for path in (
+                "/api/v1/objectives?conversation_id=not-a-uuid",
+                "/api/v1/objectives?conversation_id=" + conversation_id + "&unexpected=1",
+                "/api/v1/objectives?conversation_id=" + conversation_id + "&limit=1&limit=2"):
+            status, _, body = self.request("GET", path, token=self.token)
+            self.assertEqual(status, 400, path)
+            self.assertEqual(json.loads(body)["error"], "invalid_query")
 
     def test_conversation_work_order_requires_account_steward_not_recovery_token(self):
         path = "/api/v1/resident/conversations/00000000-0000-4000-8000-000000000001/work-orders"

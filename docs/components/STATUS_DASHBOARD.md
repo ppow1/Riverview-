@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.7
+File Revision: 1.1.8
+Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Add conversation-origin-filtered durable Engineering progress and authenticated UI refresh contract.
 Purpose: Specify operational projections and exact-grant Grace objective and conversation interfaces
 Authority: Reads require dashboard authentication; objective and resident conversation operations require exact institutional grants
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
@@ -86,6 +87,7 @@ verification decision and pinned source revision.
 
 | Route | Purpose | Parameters and limit |
 | --- | --- | --- |
+| `GET /api/v1/objectives?conversation_id=<uuid>&limit=<n>` | The bounded objective projection filtered by immutable conversation origin; includes lifecycle stage, latest meaningful event, verifier summary/rework state and Steward-action-needed flag for the persistent Talk with Grace activity panel. No transcript body or artifact content. | Authenticated dashboard read; one UUID and one bounded limit only; default 25, max 100. |
 | `GET /api/v1/status` | Database/schema/migration identity, event cursor and lifecycle counts, CME heartbeat/freshness, aggregate per-worker health counts, verifier relation presence, source/deployment identity. | Fixed size. |
 | `GET /api/v1/objectives?limit=<n>` | Bounded objective, assignment, artifact, verification and source-revision summaries. | Default 25, max 100. |
 | `GET /api/v1/objectives/<id>` | One objective's persisted lifecycle and verified result summary. | Fixed summary; no artifact body. |

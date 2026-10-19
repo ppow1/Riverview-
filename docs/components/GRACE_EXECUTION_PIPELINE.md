@@ -2,7 +2,9 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.18
+File Revision: 1.1.20
+Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Assign artifact integrity, provenance, authorization and structure to the independent verifier; pass the actual digest-checked artifact and immutable rejection evidence to Grace for substantive acceptance/rework decisions.
+Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Specify latest-rejection review, lease-fenced same-assignment retry, verifier selection and conversation progress projection.
 Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Define immutable source-target provenance and capability-fenced concurrent owner-session execution.
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
 Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Document corrected acceptance interpretation and append-only same-attempt verifier recovery
@@ -56,7 +58,7 @@ claims live installation or Camrui commissioning.
 4. authorize_and_dispatch(...) requires exact assignment.create, the same scope as intake, and complete verified evidence. It uses AuthorizedAssignmentIntake; assignment + creation event + objective/work-order link are one PostgreSQL transaction. The event processor remains responsible for queued-to-ready.
    Acceptance criteria originate in authenticated objective intake, are checked against Grace's typed proposal, and are persisted with both the proposal and `grace_objective_steps` before dispatch. The `work_order.dispatched` event links the assignment to that durable step.
 5. ContinuousWorker obtains a lease and rechecks the registered capability and exact authority. The existing bounded-artifact capability writes one small assignment-derived work product. The separate source-change adapter can produce a patch for explicitly allowlisted files in a pinned disposable clone; it returns patch evidence only and never applies changes to the configured checkout or production.
-6. The verifier independently reopens the bounded artifact or reapplies a source patch in a separate clean clone, checks scope, digest and provenance, and reruns fixed tests. For Codex Markdown it resolves acceptance criteria from the persisted step linked to the assignment, then checks the artifact against those criteria. A worker-result criteria echo is redundant evidence, not the criteria authority. Missing durable step criteria remain a rejection; the verifier does not derive criteria from the completed artifact. A dependent objective step is not dispatched until its predecessor has an independently accepted verification.
+6. The verifier independently reopens the bounded artifact or reapplies a source patch in a separate clean clone, checks scope, digest and provenance, and reruns fixed tests. For Codex Markdown it resolves criteria from the persisted step linked to the assignment and confirms any worker echo matches that binding; missing durable criteria remain a rejection. It does not grade substantive prose. Grace receives the verifier record and, for Codex Markdown only, the bounded digest-rechecked artifact text for substantive review. A dependent objective step is not dispatched until its predecessor has an independently accepted verification.
 7. For a `grace.readiness_router.v1` binding, ResidentReasoner proposals use the router's typed `propose()` method, which checks the router revision and calls only the authorized 80B provider. The 0.6B and 30B cannot substitute for an Engineering proposal. Provider, served model, digest and reasoning stage are persisted with the plan.
 8. Conversation-origin objectives with an independently accepted completion enter a PostgreSQL-backed result outbox. The persistent service rechecks Grace's current office binding and exact `resident.conversation.send` grant, asks the bound 80B to review verifier evidence, and appends one assistant response to the original conversation. A stable objective-derived response ID makes retries idempotent; the outbox is acknowledged only after the conversation event is durable. Provider or authorization failure leaves it pending for retry.
 9. The structured review may return `OBJECTIVE_COMPLETE`, `ADDITIONAL_EVIDENCE_REQUIRED`, `ENGINEERING_STEP_PROPOSED`, or `STEWARD_AUTHORIZATION_REQUIRED`. A continuation is accepted only within the original objective and accepted-criteria envelope; the current binding is revalidated before and after model reasoning. It appends a durable step and uses the ordinary CME assignment-creation authorization and lease/verification path. Model output never supplies authority.
@@ -103,7 +105,14 @@ flowchart TD
     E -- Yes --> G[Existing assignment.create intake and CME]
     G --> H[Authorized Codex executor]
     H --> I[Independent artifact verifier]
-    I --> J[Objective completion and result outbox]
+    I -- ACCEPTED --> J[Objective completion and result outbox]
+    I -- REJECTED --> R[Grace receives verifier evidence and digest-checked artifact]
+    R --> Q{80B substantive decision}
+    Q -- OBJECTIVE_SATISFIED --> V[Persist review; recheck same attempt under current verifier]
+    Q -- REWORK_PROPOSED --> X[Recheck existing assignment.create grant; queue same assignment]
+    Q -- STEWARD_AUTHORIZATION_REQUIRED --> W
+    X --> H
+    V --> I
     J --> K{Current binding and resident.conversation.send?}
     K -- No --> W
     K -- Yes --> L[Bound 80B reviews verifier evidence]
@@ -288,6 +297,14 @@ Completion still requires a persisted ACCEPTED verifier record. PostgreSQL
 integration tests exercise the schema change, rejection preservation,
 idempotency, and same-attempt revalidation. Production migration and
 revalidation remain pending deployment.
+
+### Governed verifier rejection and same-assignment rework
+
+A rejected verifier result remains immutable and is exposed to Grace with its verifier identity/revision, failed checks, summary, evidence references and artifact digest. The independent verifier enforces artifact identity, integrity, provenance, authorized scope, criteria binding and mandatory structure; it does not decide whether prose substantively satisfies acceptance criteria. For Codex Markdown, the persistent Grace owner cycle reopens only the assignment-bound artifact whose owner, mode, size and digest still match, then gives the bounded text and verifier evidence to the currently bound 80B. If artifact bytes cannot safely be reopened, Grace receives the rejection evidence without the bytes and cannot declare the objective satisfied. Grace decides `OBJECTIVE_SATISFIED`, `REWORK_PROPOSED`, or `STEWARD_AUTHORIZATION_REQUIRED`; a verifier rejection alone never queues Codex rework. A satisfaction decision is durable and authorizes only an independent recheck of that same immutable attempt; it does not change the rejection or mark the objective complete. A rework proposal must reference a subset of the original step criteria and pass the existing exact `assignment.create` grant check. Model output never grants authority.
+
+An authorized rework decision is appended under an idempotency key derived from the original verification ID. The completed worker lease is expired/fenced before the same assignment transitions from `rework_required` to `ready`; the next scheduler claim receives a new lease generation. Codex writes a verification-specific artifact filename so the rejected predecessor is preserved. Independent verification selects the new successful attempt only when no verifier record already exists for that attempt. A later rejection becomes a new Grace decision target; no retry threshold is invented. A stop decision leaves the assignment rework-required and records that Steward direction is needed.
+
+`GET /api/v1/objectives?conversation_id=<uuid>` is the persistent authenticated progress projection used by Talk with Grace. It filters by the immutable `objective.received` origin and returns bounded IDs, lifecycle stage, latest event type/time, verifier summary, rework counts/decision, and explicit Steward-action-needed state. It never reads conversation message bodies. The browser refreshes the panel with the existing 4-second conversation refresh cadence; reload rehydrates it from PostgreSQL. A toast or chat response is not execution evidence.
 
 The generated workflow below is a projection of process_graphs/grace/operational-integration.json. Regenerate with python3 scripts/process_graph.py generate; verify with python3 scripts/process_graph.py check.
 

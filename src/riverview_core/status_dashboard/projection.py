@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/projection.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.5
+# Revision: 1.0.7
 # Purpose: Project authoritative PostgreSQL/CME state into bounded safe views
 # Execution Model: Request-driven read-only API dependency
 # Observability: Versioned status, assignment, event, attention and snapshot JSON
@@ -10,6 +10,8 @@
 # Authority: SELECT-only projection; never mutates CME or assignment state
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION-ISOLATION | Include durable dispatch/verifier failure summaries
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Project persisted verified artifact path with objective result
+# Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Project durable objective-linked Engineering progress and verifier/rework status to the authenticated conversation UI
+# Changed: 2026-10-19 UTC | RV-GRACE-REVIEW-ROLE-SEPARATION-001 | Distinguish Grace's substantive satisfied assessment awaiting structural verifier recheck
 # Changed: 2026-10-13 UTC | RV-LEDGER-GRAPH-POSITION | Project only ledger-recorded graph and node identities
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_status_dashboard.py
@@ -22,6 +24,7 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 from typing import Any
+from uuid import UUID
 
 import psycopg
 from psycopg import sql
@@ -499,9 +502,19 @@ class DashboardProjection:
             return {"status": "available", "items": items, "limit": limit}
         return self._read(query)
 
-    def objectives(self, *, limit: int = 25, objective_id: str | None = None):
-        """Read bounded objective, work-order, artifact and verification summaries."""
+    def objectives(self, *, limit: int = 25, objective_id: str | None = None,
+                   conversation_id: str | None = None):
+        """Read bounded objective and Engineering progress summaries.
+
+        Conversation filtering uses only the durable objective.received origin;
+        transcript bodies are neither selected nor returned.
+        """
         limit = self._page_limit(limit)
+        if conversation_id is not None:
+            try:
+                conversation_id = str(UUID(conversation_id))
+            except (ValueError, TypeError, AttributeError):
+                raise ValueError("conversation_id must be a UUID") from None
         def query(cur):
             present = self._relations(cur, [f"{self.schema}.grace_objectives"])
             if not next(iter(present.values())):
@@ -512,7 +525,12 @@ class DashboardProjection:
                     o.source_sha256,o.revision,o.created_at,o.updated_at,
                     a.state AS assignment_state,wa.attempt_id,wr.result AS artifact,
                     wr.result_sha256,vr.decision AS verification_decision,
-                    vr.verification_id,vr.verifier_revision,de.failure_count,
+                    vr.verification_id,vr.verifier_revision,vr.summary AS verification_summary,
+                    received.payload AS received_payload,
+                    activity.event_type AS latest_event_type,activity.activity_at AS latest_event_at,
+                    attempt_count.attempt_count,rejections.rejection_count,
+                    rework.payload AS latest_rework,rework.occurred_at AS rework_at,
+                    de.failure_count,
                     de.last_failure_at,ve.failure_count AS verification_failure_count,
                     ve.last_failure_at AS last_verification_failure_at
                 FROM grace_objectives o
@@ -521,8 +539,30 @@ class DashboardProjection:
                     WHERE x.assignment_id=a.id ORDER BY x.started_at DESC LIMIT 1) wa ON true
                 LEFT JOIN worker_results wr ON wr.attempt_id=wa.attempt_id
                 LEFT JOIN LATERAL (SELECT verification_id,decision,verifier_revision
+                        ,summary
                     FROM verification_records v WHERE v.assignment_id=a.id
-                    ORDER BY v.verification_id DESC LIMIT 1) vr ON true
+                    ORDER BY v.recorded_at DESC,v.verification_id DESC LIMIT 1) vr ON true
+                LEFT JOIN LATERAL (SELECT payload FROM grace_objective_events e
+                    WHERE e.objective_id=o.objective_id AND e.event_type='objective.received'
+                    ORDER BY e.sequence LIMIT 1) received ON true
+                LEFT JOIN LATERAL (
+                    SELECT event_type,activity_at FROM (
+                        SELECT e.event_type,e.occurred_at AS activity_at
+                        FROM grace_objective_events e WHERE e.objective_id=o.objective_id
+                        UNION ALL
+                        SELECT e.event_type,e.recorded_at AS activity_at FROM events e
+                        WHERE e.assignment_id=a.id AND e.privacy_domain='institution'
+                    ) activity_events ORDER BY activity_at DESC,event_type LIMIT 1
+                ) activity ON true
+                LEFT JOIN LATERAL (SELECT count(*)::bigint AS attempt_count
+                    FROM worker_attempts x WHERE x.assignment_id=a.id) attempt_count ON true
+                LEFT JOIN LATERAL (SELECT count(*)::bigint AS rejection_count
+                    FROM verification_records x WHERE x.assignment_id=a.id AND x.decision='REJECTED') rejections ON true
+                LEFT JOIN LATERAL (SELECT e.payload,e.occurred_at FROM grace_objective_events e
+                    WHERE e.objective_id=o.objective_id
+                      AND e.event_type IN ('engineering.rework_decided','engineering.rejection_reviewed')
+                      AND e.payload->>'assignment_id'=a.id
+                    ORDER BY e.sequence DESC LIMIT 1) rework ON true
                 LEFT JOIN LATERAL (SELECT count(*) AS failure_count,max(occurred_at) AS last_failure_at
                     FROM grace_objective_events e WHERE e.objective_id=o.objective_id
                       AND e.event_type='execution.dispatch_failed') de ON true
@@ -530,17 +570,58 @@ class DashboardProjection:
                     FROM grace_objective_events e WHERE e.objective_id=o.objective_id
                       AND e.event_type='execution.verification_failed') ve ON true
                 WHERE (%s::text IS NULL OR o.objective_id=%s)
+                  AND (%s::uuid IS NULL OR received.payload #>> '{origin,conversation_id}'=%s)
                 ORDER BY o.updated_at DESC,o.objective_id LIMIT %s""",
-                (objective_id, objective_id, limit))
+                (objective_id, objective_id, conversation_id, conversation_id, limit))
             items=[]
             for row in cur.fetchall():
                 artifact = row["artifact"] if isinstance(row["artifact"], dict) else None
+                received_payload = row["received_payload"] if isinstance(row["received_payload"], dict) else {}
+                origin = received_payload.get("origin") if isinstance(received_payload.get("origin"), dict) else {}
+                rework = row["latest_rework"] if isinstance(row["latest_rework"], dict) else None
+                verification_id = str(row["verification_id"]) if row["verification_id"] else None
+                rework_is_current = bool(rework and rework.get("verification_id") == verification_id)
+                action_needed = bool(rework_is_current and
+                    rework.get("decision") == "STEWARD_AUTHORIZATION_REQUIRED")
+                assignment_state = row["assignment_state"]
+                if row["status"] == "COMPLETED":
+                    lifecycle_status, lifecycle_stage = "completed", "Objective completed"
+                elif action_needed:
+                    lifecycle_status, lifecycle_stage = "blocked", "Steward action required"
+                elif rework_is_current and rework.get("decision") == "OBJECTIVE_SATISFIED":
+                    lifecycle_status, lifecycle_stage = "waiting", "Grace review complete; verifier recheck pending"
+                elif assignment_state == "rework_required":
+                    lifecycle_status, lifecycle_stage = "waiting", "Grace reviewing verifier rejection"
+                elif assignment_state == "awaiting_verification":
+                    lifecycle_status, lifecycle_stage = "waiting", "Independent verification"
+                elif assignment_state == "blocked" or row["status"] in {"FAILED", "CANCELLED"}:
+                    lifecycle_status, lifecycle_stage = "blocked", "Blocked"
+                elif assignment_state in {"queued", "ready", "running"}:
+                    lifecycle_status, lifecycle_stage = "working", {
+                        "queued": "Queued for Engineering",
+                        "ready": "Ready for worker",
+                        "running": "Engineering executing"}[assignment_state]
+                elif row["status"] == "WAITING_FOR_EVIDENCE":
+                    lifecycle_status, lifecycle_stage = "waiting", "Waiting for verified evidence"
+                elif row["status"] in {"RECEIVED", "GROUNDED", "PROPOSED"}:
+                    lifecycle_status, lifecycle_stage = "waiting", "Awaiting authorized work order"
+                else:
+                    lifecycle_status, lifecycle_stage = "waiting", str(row["status"])
                 items.append({"objective_id": row["objective_id"],
                     "request": str(row["request"])[:512], "scope_ref": row["scope_ref"],
                     "submitter_id": row["submitter_id"],
                     "acceptance_criteria": row["acceptance_criteria"],
                     "status": row["status"], "assignment_id": row["assignment_id"],
-                    "assignment_state": row["assignment_state"],
+                    "assignment_state": assignment_state,
+                    "origin": ({"conversation_id": origin.get("conversation_id"),
+                                "source_sequence": origin.get("source_sequence")}
+                               if origin.get("conversation_id") and
+                                  type(origin.get("source_sequence")) is int else None),
+                    "lifecycle_status": lifecycle_status,
+                    "lifecycle_stage": lifecycle_stage,
+                    "latest_event": ({"event_type": row["latest_event_type"],
+                                      "occurred_at": self._iso(row["latest_event_at"])}
+                                     if row["latest_event_type"] else None),
                     "attempt_id": str(row["attempt_id"]) if row["attempt_id"] else None,
                     "artifact": ({"sha256": row["result_sha256"],
                                   "reference": artifact.get("artifact_name"),
@@ -548,9 +629,18 @@ class DashboardProjection:
                                   "status": artifact.get("status")}
                                  if artifact else None),
                     "verification": ({"decision": row["verification_decision"],
-                                      "verification_id": str(row["verification_id"]),
-                                      "verifier_revision": row["verifier_revision"]}
+                                      "verification_id": verification_id,
+                                      "verifier_revision": row["verifier_revision"],
+                                      "summary": str(row["verification_summary"] or "")[:500]}
                                      if row["verification_decision"] else None),
+                    "rework": {"rejected_results": int(row["rejection_count"] or 0),
+                               "attempts": max(0, int(row["attempt_count"] or 0) - 1),
+                               "decision": (rework.get("decision") if rework_is_current else None),
+                               "rationale": (str(rework.get("rationale", ""))[:500]
+                                             if rework_is_current else None),
+                               "occurred_at": (self._iso(row["rework_at"])
+                                               if rework_is_current else None)},
+                    "steward_action_required": action_needed,
                     "dispatch_failures": int(row["failure_count"] or 0),
                     "last_dispatch_failure_at": self._iso(row["last_failure_at"]),
                     "verification_failures": int(row["verification_failure_count"] or 0),

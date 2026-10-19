@@ -2799,24 +2799,34 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.50",
+      "graph_revision": "1.0.53",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
       "source_references": [
         "deploy/systemd/riverview-grace-execution-owner-session.service",
+        "deploy/systemd/riverview-grace-execution.service",
         "docs/ROADMAP.md",
         "docs/architecture/CORE_CONTRACT.md",
         "docs/architecture/EVENT_AND_ASSIGNMENT_CONTRACT_v0.1.md",
+        "docs/components/STATUS_DASHBOARD.md",
         "docs/standards/COMPONENT_DEFINITION_OF_DONE.md",
+        "scripts/install_grace_owner_session.py",
+        "scripts/provision_grace_engineering_demo.py",
         "scripts/run_grace_execution_service.py",
         "scripts/run_supervised_grace_execution.sh",
         "src/riverview_core/assignment_scheduler/scheduler.py",
+        "src/riverview_core/comms5/dashboard_backend.py",
+        "src/riverview_core/comms5/server.py",
         "src/riverview_core/institutional_authority/db_boundary.py",
         "src/riverview_core/institutional_authority/migrations/0003_resident_office_state_api.sql",
         "src/riverview_core/local_reasoning_provider.py",
         "src/riverview_core/resident_execution/codex_cli.py",
+        "src/riverview_core/resident_execution/codex_source_change.py",
+        "src/riverview_core/resident_execution/codex_workflow.py",
         "src/riverview_core/resident_execution/conversation.py",
+        "src/riverview_core/resident_execution/external_reasoning.py",
+        "src/riverview_core/resident_execution/migrations/0009_durable_objective_steps.sql",
         "src/riverview_core/resident_execution/model_router.py",
         "src/riverview_core/resident_execution/pipeline.py",
         "src/riverview_core/resident_execution/service.py",
@@ -2830,19 +2840,10 @@
         "src/riverview_core/worker_adapter/recovery.py",
         "src/riverview_core/worker_adapter/service.py",
         "tests/test_codex_cli_adapter.py",
-        "tests/test_supervised_codex_dispatch.py",
-        "scripts/provision_grace_engineering_demo.py",
-        "scripts/install_grace_owner_session.py",
-        "tests/test_grace_engineering_demo_provisioning.py",
-        "src/riverview_core/resident_execution/codex_source_change.py",
-        "src/riverview_core/resident_execution/migrations/0009_durable_objective_steps.sql",
         "tests/test_codex_source_change.py",
-        "src/riverview_core/comms5/server.py",
-        "src/riverview_core/comms5/dashboard_backend.py",
-        "deploy/systemd/riverview-grace-execution.service",
-        "src/riverview_core/resident_execution/codex_workflow.py",
-        "src/riverview_core/resident_execution/external_reasoning.py",
-        "src/riverview_core/resident_execution/service.py"
+        "tests/test_grace_engineering_demo_provisioning.py",
+        "tests/test_status_dashboard.py",
+        "tests/test_supervised_codex_dispatch.py"
       ],
       "documentation_references": [
         "docs/ROADMAP.md",
@@ -3960,6 +3961,166 @@
             "tests/test_grace_runtime_provider_wiring.py",
             "tests/test_grace_execution.py"
           ]
+        },
+        {
+          "id": "rv:grace:operational-integration:latest-verifier-rejection",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Latest independent REJECTED result remains immutable and is resolved through its durable objective-step assignment link",
+          "source_references": [
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/service.py",
+            "src/riverview_core/worker_adapter/adapter.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_execution.py",
+            "tests/test_grace_conversation_result.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:grace-rejection-review",
+          "node_revision": "1.0.1",
+          "type": "decision",
+          "label": "The persistent owner cycle exposes the immutable verifier rejection and digest-checked artifact to Grace's bound 80B; Grace chooses substantive satisfaction, bounded rework, or Steward direction",
+          "source_references": [
+            "src/riverview_core/resident_execution/service.py",
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/resident_execution/pipeline.py",
+            "scripts/run_grace_execution_service.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_execution.py",
+            "tests/test_grace_conversation_result.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:grace-satisfied-verifier-recheck",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Only an explicit durable Grace OBJECTIVE_SATISFIED decision permits the same immutable attempt to be rechecked under a corrected verifier revision; preserve the original rejection",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_conversation_result.py",
+            "tests/test_grace_execution.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:same-assignment-governed-rework",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Recheck assignment.create, fence the completed lease, and transition the same assignment to ready with a new scheduler generation",
+          "source_references": [
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/postgres_ledger.py",
+            "src/riverview_core/assignment_scheduler/scheduler.py",
+            "src/riverview_core/worker_adapter/continuous.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_execution.py",
+            "tests/test_grace_conversation_result.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:rework-worker-cycle",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "The existing assignment lease and worker cycle executes the same assignment under its new fenced generation and records a distinct attempt before verification",
+          "source_references": [
+            "src/riverview_core/assignment_scheduler/scheduler.py",
+            "src/riverview_core/worker_adapter/continuous.py",
+            "src/riverview_core/resident_execution/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_execution.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:rework-attempt-verification",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Independently verify the new successful attempt only once; preserve prior artifacts and rejection records; latest rejection becomes the next decision target",
+          "source_references": [
+            "src/riverview_core/resident_execution/service.py",
+            "src/riverview_core/worker_adapter/adapter.py",
+            "src/riverview_core/resident_execution/pipeline.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_execution.py",
+            "tests/test_grace_conversation_result.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:rework-steward-direction",
+          "node_revision": "1.0.0",
+          "type": "escalation",
+          "label": "A bounded STEWARD_AUTHORIZATION_REQUIRED decision keeps work incomplete and records the precise decision boundary",
+          "source_references": [
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/conversation.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_execution.py",
+            "tests/test_grace_conversation_result.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:conversation-engineering-progress",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Authenticated conversation-scoped dashboard projection shows durable receipt, objective/assignment stage, latest event, verifier/rework state and Steward action without transcript bodies",
+          "source_references": [
+            "src/riverview_core/status_dashboard/projection.py",
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/status_dashboard/static/app.js",
+            "src/riverview_core/status_dashboard/static/index.html",
+            "src/riverview_core/status_dashboard/static/app.css"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_status_dashboard.py",
+            "tests/test_grace_execution.py"
+          ]
         }
       ],
       "edges": [
@@ -4510,6 +4671,78 @@
           "to": "rv:grace:operational-integration:dual-capability-owner-loops",
           "type": "recovery_route",
           "label": "Resume only after separate credential, exact grants, registration, approved paths and pinned target configuration are verified"
+        },
+        {
+          "from": "rv:grace:operational-integration:evidence-review",
+          "to": "rv:grace:operational-integration:latest-verifier-rejection",
+          "type": "diagnostic_branch",
+          "label": "The verifier records a durable rejection; it is not converted into acceptance"
+        },
+        {
+          "from": "rv:grace:operational-integration:latest-verifier-rejection",
+          "to": "rv:grace:operational-integration:grace-rejection-review",
+          "type": "runtime_transition",
+          "label": "The existing owner-session cycle resolves the latest rejection in the originating objective context"
+        },
+        {
+          "from": "rv:grace:operational-integration:grace-rejection-review",
+          "to": "rv:grace:operational-integration:grace-satisfied-verifier-recheck",
+          "type": "verification",
+          "label": "Grace records OBJECTIVE_SATISFIED; no worker retry occurs, and only independent same-attempt verifier recheck may complete it"
+        },
+        {
+          "from": "rv:grace:operational-integration:grace-rejection-review",
+          "to": "rv:grace:operational-integration:same-assignment-governed-rework",
+          "type": "runtime_transition",
+          "label": "Only Grace's explicit bounded REWORK_PROPOSED decision plus the existing exact assignment.create grant requeues the same assignment"
+        },
+        {
+          "from": "rv:grace:operational-integration:grace-rejection-review",
+          "to": "rv:grace:operational-integration:rework-steward-direction",
+          "type": "escalation",
+          "label": "Grace's explicit STEWARD_AUTHORIZATION_REQUIRED decision preserves the verifier rejection and stops automatic execution"
+        },
+        {
+          "from": "rv:grace:operational-integration:same-assignment-governed-rework",
+          "to": "rv:grace:operational-integration:rework-worker-cycle",
+          "type": "recovery_route",
+          "label": "Normal worker leasing claims the same assignment under a new fenced generation"
+        },
+        {
+          "from": "rv:grace:operational-integration:rework-worker-cycle",
+          "to": "rv:grace:operational-integration:rework-attempt-verification",
+          "type": "runtime_transition",
+          "label": "After a distinct successful attempt is recorded, existing verifier processing independently evaluates it"
+        },
+        {
+          "from": "rv:grace:operational-integration:rework-attempt-verification",
+          "to": "rv:grace:operational-integration:latest-verifier-rejection",
+          "type": "diagnostic_branch",
+          "label": "A new REJECTED result becomes the latest decision target without rewriting prior history"
+        },
+        {
+          "from": "rv:grace:operational-integration:rework-attempt-verification",
+          "to": "rv:grace:operational-integration:evidence-review",
+          "type": "verification",
+          "label": "An ACCEPTED rework result advances through the existing completion reconciliation"
+        },
+        {
+          "from": "rv:grace:operational-integration:objective-intake",
+          "to": "rv:grace:operational-integration:conversation-engineering-progress",
+          "type": "runtime_transition",
+          "label": "The source-conversation receipt becomes visible in the durable objective panel"
+        },
+        {
+          "from": "rv:grace:operational-integration:rework-attempt-verification",
+          "to": "rv:grace:operational-integration:conversation-engineering-progress",
+          "type": "runtime_transition",
+          "label": "Verifier decisions and rework status are read from authoritative PostgreSQL records"
+        },
+        {
+          "from": "rv:grace:operational-integration:rework-steward-direction",
+          "to": "rv:grace:operational-integration:conversation-engineering-progress",
+          "type": "diagnostic_branch",
+          "label": "The panel explicitly identifies the persisted Steward action requirement"
         }
       ]
     },
@@ -14382,6 +14615,7 @@
     "rv:grace:operational-integration:codex-resource-check",
     "rv:grace:operational-integration:codex-source-change",
     "rv:grace:operational-integration:codex-source-scope-failure",
+    "rv:grace:operational-integration:conversation-engineering-progress",
     "rv:grace:operational-integration:conversation-origin-intake",
     "rv:grace:operational-integration:dashboard-objective-projection",
     "rv:grace:operational-integration:dependency-ready-dispatch",
@@ -14392,9 +14626,12 @@
     "rv:grace:operational-integration:evidence-review",
     "rv:grace:operational-integration:external-advisory-consumer",
     "rv:grace:operational-integration:governed-objective-api",
+    "rv:grace:operational-integration:grace-rejection-review",
+    "rv:grace:operational-integration:grace-satisfied-verifier-recheck",
     "rv:grace:operational-integration:independent-artifact-check",
     "rv:grace:operational-integration:internal-tool-call",
     "rv:grace:operational-integration:internal-tool-consume",
+    "rv:grace:operational-integration:latest-verifier-rejection",
     "rv:grace:operational-integration:objective-check",
     "rv:grace:operational-integration:objective-complete",
     "rv:grace:operational-integration:objective-intake",
@@ -14408,7 +14645,11 @@
     "rv:grace:operational-integration:proposal-validation",
     "rv:grace:operational-integration:reason-decompose",
     "rv:grace:operational-integration:replan",
+    "rv:grace:operational-integration:rework-attempt-verification",
+    "rv:grace:operational-integration:rework-steward-direction",
+    "rv:grace:operational-integration:rework-worker-cycle",
     "rv:grace:operational-integration:router-backed-grace-proposal",
+    "rv:grace:operational-integration:same-assignment-governed-rework",
     "rv:grace:operational-integration:source-enrollment-fail-closed",
     "rv:grace:operational-integration:source-target-dispatch-binding",
     "rv:grace:operational-integration:stale-resident-denied",
