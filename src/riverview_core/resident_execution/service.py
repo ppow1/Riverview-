@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.28
+# Revision: 1.0.29
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Reconcile bounded review generations with active production behavior and exact-scope authorization.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-DIAGNOSTICS | Record sanitized failing return stage and code location for bounded live remediation
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-RESULT-RECEIPT-001 | Derive publication acknowledgement cycle from the durable outbox and reject mismatched receipt cycles
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Select the latest verifier record identity for exact Grace-review gating and same-attempt revalidation.
@@ -602,6 +603,12 @@ class GraceExecutionService:
                     ("request_id", "provider_id", "served_model", "implementation_id")}
                 durable_receipt["completion_cycle"] = str(completion_cycle)
                 failure_stage = "durable_acknowledgement"
+                if receipt.get("review_generation") is not None:
+                    durable_receipt.update({key: receipt.get(key) for key in
+                        ("review_generation", "review_evidence_revision",
+                         "review_evidence_sha256")})
+                if receipt.get("review_decision") is not None:
+                    durable_receipt["review_decision"] = receipt["review_decision"]
                 self.pipeline.record_conversation_result_published(
                     context["objective_id"], durable_receipt)
                 published += 1

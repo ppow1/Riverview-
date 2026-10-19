@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.34
+# Revision: 1.0.35
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Reconcile bounded review generations with active production behavior and exact-scope authorization.
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-RESULT-RECEIPT-001 | Exercise PostgreSQL outbox acknowledgement when publisher omits completion_cycle
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Authenticate objective detail integration read with a Steward account session
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Cover mixed-capability claims, verification routing, and isolated worker failure behavior.
@@ -28,6 +29,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-REGROUND-001 | Verify successful evidence retry advances a waiting objective exactly once
 # Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-CONTEXT-001 | Verify grounded objective context resolves resident knowledge contract
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Verify dependent step assignments wait for independent predecessor verification
+# Changed: 2026-10-19 UTC | RV-GRACE-REVIEW-GENERATIONS-001 | Cover authorized durable review revision request and bounded receipt
 # Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Verify same-objective continuation is durable, scoped, and dispatched through CME
 # Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Scope expired recovery and verify a late Codex artifact proceeds through independent verification
 # Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Exercise same-objective rejection/rework/acceptance and repeated-rejection stop with real PostgreSQL authority and ledger
@@ -652,6 +654,38 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(service.publish_conversation_results(), 0,
                          "persisted publication event must prevent repeated publisher calls")
         self.assertEqual(publisher.cycles, [1])
+        self.pipeline.record_conversation_result_published(objective_id, {
+            "request_id": str(uuid4()), "provider_id": "provider:test",
+            "served_model": "model:test", "implementation_id": "implementation:test",
+            "completion_cycle": "1"})
+        revision = self.pipeline.request_conversation_result_rereview(objective_id, 1,
+            evidence_revision="steward-evidence-rev-1",
+            evidence=["Read-only historical assignment aggregates were shared with Grace."],
+            credential=self.credentials["steward"],
+            idempotency_key="review-evidence-revision:" + objective_id + ":1")
+        self.assertEqual(revision["review_generation"], 2)
+        self.assertFalse(revision["reused"])
+        retried_revision = self.pipeline.request_conversation_result_rereview(objective_id, 1,
+            evidence_revision="steward-evidence-rev-1",
+            evidence=["Read-only historical assignment aggregates were shared with Grace."],
+            credential=self.credentials["steward"],
+            idempotency_key="review-evidence-revision:" + objective_id + ":1")
+        self.assertTrue(retried_revision["reused"])
+        review_context = self.pipeline.pending_conversation_results()
+        self.assertEqual(review_context[0]["review_generation"], 2)
+        self.assertEqual(review_context[0]["review_evidence_revision"],
+                         "steward-evidence-rev-1")
+        self.assertEqual(review_context[0]["review_evidence_sha256"],
+                         revision["evidence_sha256"])
+        self.assertIsNone(self.pipeline.dispatchable_step(objective_id),
+                          "requesting a new review generation must not dispatch a dependent step")
+        self.pipeline.record_conversation_result_published(objective_id, {
+            "request_id": str(uuid4()), "provider_id": "provider:test",
+            "served_model": "model:test", "implementation_id": "implementation:test",
+            "completion_cycle": "1", "review_generation": "2",
+            "review_evidence_revision": "steward-evidence-rev-1",
+            "review_evidence_sha256": revision["evidence_sha256"]})
+        self.assertEqual(self.pipeline.pending_conversation_results(), [])
         self.pipeline.propose_continuation(objective_id, first,
             PlanStep("followup", "Prepare the dependent bounded work product",
                      ("second step artifact is accepted",), depends_on=("prepare",)))

@@ -1,6 +1,7 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.55
+**Document Revision:** 1.0.56
+Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Reconcile bounded review generations with active production behavior and exact-scope authorization.
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -141,6 +142,7 @@ flowchart LR
     g_rv_grace_operational_integration_rework_attempt_verification_ba069bce["Independently verify the new successful attempt only once; preserve prior artifacts and rejection records; latest rejection becomes the next decision target"]
     g_rv_grace_operational_integration_rework_steward_direction_b806bf42[["A bounded STEWARD_AUTHORIZATION_REQUIRED decision keeps work incomplete and records the precise decision boundary"]]
     g_rv_grace_operational_integration_conversation_engineering_progress_eaa2fbc0["Authenticated conversation-scoped dashboard projection shows durable receipt, objective/assignment stage, latest event, verifier/rework state and Steward action without transcript bodies"]
+    g_rv_grace_operational_integration_verified_result_rereview_request_86251ab8["Append a bounded evidence revision for a verified-result review; exact objective.submit authority and per-generation idempotency apply, with no automatic dispatch"]
   end
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_cme_progress_and_recovery_observe_428defda["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -254,6 +256,11 @@ flowchart LR
   g_rv_grace_operational_integration_objective_intake_55567c14 -->|The source-conversation receipt becomes visible in the durable objective panel| g_rv_grace_operational_integration_conversation_engineering_progress_eaa2fbc0
   g_rv_grace_operational_integration_rework_attempt_verification_ba069bce -->|Verifier decisions and rework status are read from authoritative PostgreSQL records| g_rv_grace_operational_integration_conversation_engineering_progress_eaa2fbc0
   g_rv_grace_operational_integration_rework_steward_direction_b806bf42 -->|diagnostic_branch: The panel explicitly identifies the persisted Steward action requirement| g_rv_grace_operational_integration_conversation_engineering_progress_eaa2fbc0
+  g_rv_grace_operational_integration_verified_result_review_decision_58c1884b -->|Persist the model decision and append a deterministic response to the originating conversation.| g_rv_grace_operational_integration_verified_result_chat_return_108e1033
+  g_rv_grace_operational_integration_verified_result_review_decision_58c1884b -->|diagnostic_branch: Provider, binding, scope, or persistence failure leaves the verified result in the durable retry outbox.| g_rv_grace_operational_integration_verified_result_return_retry_ce159ed9
+  g_rv_grace_operational_integration_verified_result_return_retry_ce159ed9 -->|recovery_route: Retry the same completion cycle idempotently after dependencies recover.| g_rv_grace_operational_integration_verified_result_review_decision_58c1884b
+  g_rv_grace_operational_integration_verified_result_review_decision_58c1884b -->|Only a new evidence revision with exact objective-scoped authority can request the next bounded generation| g_rv_grace_operational_integration_verified_result_rereview_request_86251ab8
+  g_rv_grace_operational_integration_verified_result_rereview_request_86251ab8 -->|recovery_route: Resume the same verified completion cycle with its next deterministic review generation; existing exact-step and dispatch gates remain separate| g_rv_grace_operational_integration_verified_result_review_decision_58c1884b
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 
