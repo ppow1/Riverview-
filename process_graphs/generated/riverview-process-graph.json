@@ -2821,7 +2821,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.54",
+      "graph_revision": "1.0.55",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -3845,15 +3845,17 @@
           "source_references": [
             "src/riverview_core/resident_execution/conversation.py",
             "src/riverview_core/resident_execution/pipeline.py",
-            "src/riverview_core/resident_execution/service.py"
+            "src/riverview_core/resident_execution/service.py",
+            "src/riverview_core/status_dashboard/server.py"
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_PIPELINE.md",
             "docs/components/GRACE_PERSISTENT_EXECUTION.md"
           ],
           "verification_evidence": [
+            "tests/test_grace_execution.py",
             "tests/test_resident_conversation.py",
-            "tests/test_grace_execution.py"
+            "tests/test_status_dashboard.py"
           ]
         },
         {
@@ -4142,6 +4144,45 @@
           ],
           "verification_evidence": [
             "tests/test_status_dashboard.py",
+            "tests/test_grace_execution.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:typed-continuation-handler",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Production dashboard binds Grace’s typed result-review decision to the existing objective pipeline; pipeline validates the exact persisted dependent step and CME rechecks assignment.create at dispatch",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/resident_execution/pipeline.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_status_dashboard.py",
+            "tests/test_resident_conversation.py",
+            "tests/test_grace_execution.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:continuation-handler-rejected",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Missing pipeline, invalid continuation context, or scope/state rejection writes no continuation event and returns a bounded non-dispatch result",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/resident_execution/pipeline.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md"
+          ],
+          "verification_evidence": [
+            "tests/test_status_dashboard.py",
+            "tests/test_resident_conversation.py",
             "tests/test_grace_execution.py"
           ]
         }
@@ -4619,12 +4660,6 @@
         },
         {
           "from": "rv:grace:operational-integration:verified-result-review-decision",
-          "to": "rv:grace:operational-integration:objective-step-persistence",
-          "type": "runtime_transition",
-          "label": "ENGINEERING_STEP_PROPOSED appends a dependent step only inside the original human-approved scope; assignment.create is rechecked at dispatch."
-        },
-        {
-          "from": "rv:grace:operational-integration:verified-result-review-decision",
           "to": "rv:grace:operational-integration:verified-result-return-retry",
           "type": "diagnostic_branch",
           "label": "Provider, binding, persistence, or publisher-cycle mismatch leaves the verified result in the durable retry outbox"
@@ -4766,6 +4801,30 @@
           "to": "rv:grace:operational-integration:conversation-engineering-progress",
           "type": "diagnostic_branch",
           "label": "The panel explicitly identifies the persisted Steward action requirement"
+        },
+        {
+          "from": "rv:grace:operational-integration:verified-result-review-decision",
+          "to": "rv:grace:operational-integration:typed-continuation-handler",
+          "type": "runtime_transition",
+          "label": "Only an 80B ENGINEERING_STEP_PROPOSED decision with a typed existing-scope step reaches the configured callback"
+        },
+        {
+          "from": "rv:grace:operational-integration:typed-continuation-handler",
+          "to": "rv:grace:operational-integration:objective-step-persistence",
+          "type": "runtime_transition",
+          "label": "Dashboard delegates to GraceExecutionPipeline.propose_continuation; exact persisted parent/dependency/scope checks remain authoritative"
+        },
+        {
+          "from": "rv:grace:operational-integration:typed-continuation-handler",
+          "to": "rv:grace:operational-integration:continuation-handler-rejected",
+          "type": "diagnostic_branch",
+          "label": "No pipeline, malformed callback context, stale state or scope mismatch creates no continuation"
+        },
+        {
+          "from": "rv:grace:operational-integration:continuation-handler-rejected",
+          "to": "rv:grace:operational-integration:verified-result-chat-return",
+          "type": "runtime_transition",
+          "label": "Grace reports the bounded decision; no assignment is dispatched"
         }
       ]
     },
@@ -14711,6 +14770,7 @@
     "rv:grace:operational-integration:codex-resource-check",
     "rv:grace:operational-integration:codex-source-change",
     "rv:grace:operational-integration:codex-source-scope-failure",
+    "rv:grace:operational-integration:continuation-handler-rejected",
     "rv:grace:operational-integration:conversation-engineering-progress",
     "rv:grace:operational-integration:conversation-origin-intake",
     "rv:grace:operational-integration:dashboard-objective-projection",
@@ -14750,6 +14810,7 @@
     "rv:grace:operational-integration:source-target-dispatch-binding",
     "rv:grace:operational-integration:stale-resident-denied",
     "rv:grace:operational-integration:steward-escalation",
+    "rv:grace:operational-integration:typed-continuation-handler",
     "rv:grace:operational-integration:typed-proposal-api",
     "rv:grace:operational-integration:verification-failure-isolation",
     "rv:grace:operational-integration:verification-feedback",

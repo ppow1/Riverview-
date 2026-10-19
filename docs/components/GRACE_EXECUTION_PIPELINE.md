@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.20
+File Revision: 1.1.21
+Changed: 2026-10-19 UTC | RV-C1-GRACE-CONTINUATION-WIRING-001 | Bind production conversation result review to the existing durable typed continuation pipeline; the pipeline still enforces exact persisted step scope and dispatch rechecks assignment.create.
 Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Assign artifact integrity, provenance, authorization and structure to the independent verifier; pass the actual digest-checked artifact and immutable rejection evidence to Grace for substantive acceptance/rework decisions.
 Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Specify latest-rejection review, lease-fenced same-assignment retry, verifier selection and conversation progress projection.
 Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Define immutable source-target provenance and capability-fenced concurrent owner-session execution.
@@ -92,7 +93,7 @@ already has an objective. Ordinary chat is never promoted automatically. This
 is objective intake; it is not a Grace proposal, assignment dispatch, worker
 authorization, or proof of execution.
 
-The return-to-chat path is source implemented, not production commissioned. It returns artifact reference, digest and independent verifier evidence for Grace's 80B review; the reviewer does not reopen arbitrary files. PostgreSQL integration tests require `RIVERVIEW_TEST_PG_DSN`; this checkout has no such DSN. The execution service and exact resident-send, assignment-create, executor and verifier grants remain commissioning prerequisites. No code in this increment creates or broadens grants.
+The return-to-chat path is source implemented, not production commissioned. It returns artifact reference, digest and independent verifier evidence for Grace's 80B review; the reviewer does not reopen arbitrary files. The production dashboard must provide the result review's typed continuation callback, which delegates to the same `GraceExecutionPipeline.propose_continuation` operation used by the existing workflow. That operation accepts only an exact pending persisted dependent step after its verified parent, preserves the original objective and criteria, and leaves `assignment.create` to be rechecked by CME at dispatch. If the pipeline is absent or rejects the typed proposal, no continuation event is written. PostgreSQL integration tests require `RIVERVIEW_TEST_PG_DSN`; this checkout has no such DSN. The execution service and exact resident-send, assignment-create, executor and verifier grants remain commissioning prerequisites. No code in this increment creates or broadens grants.
 
 ```mermaid
 flowchart TD
@@ -105,7 +106,7 @@ flowchart TD
     E -- Yes --> G[Existing assignment.create intake and CME]
     G --> H[Authorized Codex executor]
     H --> I[Independent artifact verifier]
-    I -- ACCEPTED --> J[Objective completion and result outbox]
+    I -- ACCEPTED --> J[Persist verified step and objective progress]
     I -- REJECTED --> R[Grace receives verifier evidence and digest-checked artifact]
     R --> Q{80B substantive decision}
     Q -- OBJECTIVE_SATISFIED --> V[Persist review; recheck same attempt under current verifier]
@@ -113,11 +114,17 @@ flowchart TD
     Q -- STEWARD_AUTHORIZATION_REQUIRED --> W
     X --> H
     V --> I
-    J --> K{Current binding and resident.conversation.send?}
+    J --> L{All persisted steps verified?}
+    L -- No --> M[Bound 80B reviews verifier evidence and durable step progress]
+    M --> N{Exact pending dependent step proposed?}
+    N -- Yes --> O[Dashboard continuation callback delegates to existing pipeline scope checks]
+    O --> G
+    N -- No or invalid --> W
+    L -- Yes --> P[Bound 80B reviews completed objective]
+    P --> K{Current binding and resident.conversation.send?}
     K -- No --> W
-    K -- Yes --> L[Bound 80B reviews verifier evidence]
-    L --> M[Idempotent result appended to source chat]
-    M --> N[Durable outbox receipt; history reloadable]
+    K -- Yes --> Q[Idempotent final result appended to source chat]
+    Q --> R[Durable outbox receipt; history reloadable]
     W --> J
 ```
 
