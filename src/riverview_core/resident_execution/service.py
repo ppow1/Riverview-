@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.27
+# Revision: 1.0.28
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-DIAGNOSTICS | Record sanitized failing return stage and code location for bounded live remediation
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-RESULT-RECEIPT-001 | Derive publication acknowledgement cycle from the durable outbox and reject mismatched receipt cycles
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Select the latest verifier record identity for exact Grace-review gating and same-attempt revalidation.
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Preserve the durable verifier rejection for Grace even when unsafe artifact bytes cannot be reopened for substantive review.
@@ -578,15 +579,19 @@ class GraceExecutionService:
             return 0
         published = 0
         for context in self.pipeline.pending_conversation_results(limit=limit):
+            failure_stage = "outbox_validation"
             try:
                 completion_cycle = context.get("completion_cycle")
                 if type(completion_cycle) is not int or completion_cycle < 1:
                     raise ValueError("durable conversation result cycle is invalid")
+                failure_stage = "artifact_review"
                 review_context = self._with_grace_artifact_review(context)
+                failure_stage = "resident_result_review"
                 receipt = self.conversation_result_publisher(review_context)
                 if (not isinstance(receipt, dict)
                         or receipt.get("status") not in {"published", "already_published"}):
                     continue
+                failure_stage = "receipt_validation"
                 receipt_cycle = receipt.get("completion_cycle")
                 if receipt_cycle is not None and not (
                         (type(receipt_cycle) is int and receipt_cycle == completion_cycle)
@@ -596,13 +601,21 @@ class GraceExecutionService:
                 durable_receipt = {key: receipt.get(key) for key in
                     ("request_id", "provider_id", "served_model", "implementation_id")}
                 durable_receipt["completion_cycle"] = str(completion_cycle)
+                failure_stage = "durable_acknowledgement"
                 self.pipeline.record_conversation_result_published(
                     context["objective_id"], durable_receipt)
                 published += 1
             except Exception as exc:
+                frame = exc.__traceback__
+                location = None
+                while frame is not None:
+                    code = frame.tb_frame.f_code
+                    location = f"{code.co_name}:{frame.tb_lineno}"
+                    frame = frame.tb_next
                 LOG.warning(json.dumps({"event": "grace_conversation_result_return_failed",
                     "objective_id": context.get("objective_id"),
-                    "failure_type": type(exc).__name__}, sort_keys=True))
+                    "failure_type": type(exc).__name__, "failure_stage": failure_stage,
+                    "failure_location": location}, sort_keys=True))
         return published
 
     def publish_rejected_work_order_reviews(self, limit=10):

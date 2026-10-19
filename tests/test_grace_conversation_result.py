@@ -450,7 +450,7 @@ class GraceConversationResultTests(unittest.TestCase):
                 self.acks = 0
 
             def pending_conversation_results(self, *, limit):
-                return [{"objective_id": "objective:retry-1"}]
+                return [{"objective_id": "objective:retry-1", "completion_cycle": 1}]
 
             def record_conversation_result_published(self, *_args):
                 self.acks += 1
@@ -463,8 +463,12 @@ class GraceConversationResultTests(unittest.TestCase):
             raise RuntimeError("model unavailable")
 
         service.conversation_result_publisher = unavailable
-        self.assertEqual(service.publish_conversation_results(), 0)
+        with self.assertLogs("riverview.grace_execution", level="WARNING") as captured:
+            self.assertEqual(service.publish_conversation_results(), 0)
         self.assertEqual(pipeline.acks, 0)
+        self.assertIn('"failure_stage": "resident_result_review"', captured.output[0])
+        self.assertIn('"failure_location": "unavailable:', captured.output[0])
+        self.assertNotIn("model unavailable", captured.output[0])
 
 
 if __name__ == "__main__":
