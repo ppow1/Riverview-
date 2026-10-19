@@ -2,7 +2,11 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_exchange.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.8
+# Revision: 1.0.13
+# Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify sanitized C2 exception receipts terminate without duplicate wake retries.
+# Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify duplicate receipt replay remains bound to the original lease token.
+# Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify deterministic doorbell attempt identity using disposable PostgreSQL.
+# Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify body-free doorbell claims, single-use receipts, retries, and ambiguity fencing.
 # Purpose: Verify durable external advisory exchange, leases, recovery and idempotency
 # Execution Model: Isolated PostgreSQL integration plus deterministic simulated provider
 # Observability: State, correlation, event, digest and sanitized diagnostic assertions
@@ -16,6 +20,7 @@
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Initiate the accepted exchange through Grace's persistent service and resume MCP replies through Grace after recovery.
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Exercise restart after proposal/evaluation persistence but before exchange acknowledgement.
 # Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Exercise typed reasoning initiation and distinguish active office from resident principal identities.
+# Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Verify digest enforcement, exact finish/revision, and successor crash recovery.
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -107,16 +112,70 @@ class _GraceReasoningProvider:
     def __init__(self, *, initiate_external=False):
         self.requests = []
         self.initiate_external = initiate_external
+        self.revise_once = False
 
     def propose(self, request):
         from riverview_core.resident_reasoning import PlanProposal, PlanStep
         self.requests.append(request)
+        if request.review_subject is not None:
+            reviewed = request.review_subject["proposal"]
+            steps = []
+            for item in reviewed["steps"]:
+                item = dict(item)
+                for key in ("acceptance_criteria", "depends_on", "authorized_paths", "test_targets"):
+                    item[key] = tuple(item[key])
+                steps.append(PlanStep(**item))
+            summary = reviewed["summary"]
+            if self.revise_once:
+                self.revise_once = False
+                summary = "synthetic reviewed revision"
+            return PlanProposal(summary, tuple(steps), 5,
+                provider_id=self.provider_id, served_model="fixture-reasoner",
+                model_revision="c" * 64, reasoning_stage="reasoning")
         return PlanProposal("evaluate advisory", (PlanStep("review", "Review advice",
             ("record a proposal only",)),), 5, provider_id=self.provider_id,
             served_model="fixture-reasoner", model_revision="c" * 64,
             reasoning_stage="reasoning",
             external_escalation=(ExternalEscalationIntent("task_complexity", PROVIDER)
                 if self.initiate_external and request.external_advisory is None else None))
+
+
+class ReviewSubjectUnitTests(unittest.TestCase):
+    def test_subject_uses_agreed_canonical_hash_and_rejects_tampering(self):
+        from riverview_core.resident_execution.external_reasoning import (
+            build_review_subject, validate_review_subject)
+        from riverview_core.resident_reasoning import PlanProposal, PlanStep
+        subject_id = str(uuid4())
+        proposal = PlanProposal("bounded proposal", (PlanStep("step-1", "review",
+            ("keep advisory unapproved",)),), 19, provider_id="model:local",
+            served_model="fixture", model_revision="c" * 64, reasoning_stage="reasoning")
+        subject = build_review_subject(subject_id, 1, proposal)
+        canonical = json.dumps({"subject_id": subject_id, "revision": 1,
+            "proposal": subject["proposal"]}, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"), allow_nan=False).encode("utf-8")
+        self.assertEqual(subject["sha256"], hashlib.sha256(canonical).hexdigest())
+        self.assertEqual(validate_review_subject(subject), subject)
+        changed = {**subject, "proposal": {**subject["proposal"], "summary": "changed"}}
+        with self.assertRaisesRegex(ValueError, "digest mismatch"):
+            validate_review_subject(changed)
+        malformed = {**subject, "proposal": {**subject["proposal"],
+            "steps": [{**subject["proposal"]["steps"][0], "unexpected": "x"}]}}
+        with self.assertRaisesRegex(ValueError, "review subject content is invalid"):
+            validate_review_subject(malformed)
+
+    def test_grace_execution_service_polls_optional_doorbell_worker(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+
+        class Worker:
+            def run_once(self):
+                return {"status": "SUBMITTED", "request_id": "private-id"}
+
+        service = GraceExecutionService(None, None, object(), dispatch_credential="d",
+            authority_ref="work-order:test", verifier_id="v", verifier_credential="v",
+            artifact_root="/tmp/unused", doorbell_worker=Worker())
+        self.assertEqual(service._run_doorbell_worker(), {"status": "SUBMITTED"})
+        service.doorbell_worker = None
+        self.assertEqual(service._run_doorbell_worker(), {"status": "NOT_CONFIGURED"})
 
 
 @unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")
@@ -498,26 +557,93 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         self.assertEqual(grace.pipeline.get_objective(self.objective)["status"], "GROUNDED")
         self.assertTrue(self.exchange.has_active_for_objective(self.objective))
         row = self.admin.execute(self.sql.SQL("""SELECT request_id,correlation_id,
-                delivery_state,originating_resident_id,conversation_id,message_sequence
+                delivery_state,originating_resident_id,conversation_id,message_sequence,request_payload
             FROM {}.external_reasoning_exchanges WHERE objective_id=%s""").format(
                 self.sql.Identifier(self.schema)), (self.objective,)).fetchone()
         self.assertIsNotNone(row)
         self.assertEqual(row[3], RESIDENT)
         self.assertEqual(str(row[4]), self.conversation_id)
         self.assertEqual(row[5], 4)
+        subject = row[6]["review_subject"]
+        self.assertEqual(subject["revision"], 1)
+        self.assertEqual(self.exchange.status(str(row[0]), str(row[1]))[
+            "review_subject_sha256"], subject["sha256"])
+        self.assertNotIn(self.objective,
+            self.reasoning_state.state.get("resident_reasoning_v1", {}).get("plans", {}))
         receipt = type("Receipt", (), {"request_id": str(row[0]),
             "correlation_id": str(row[1]), "delivery_state": row[2]})()
         claim = self._deliver_and_claim(receipt)
         response = self._response(receipt)
+        with self.assertRaisesRegex(ExchangeConflict, "review_subject_digest_mismatch"):
+            self.exchange.submit_response(receipt.request_id, receipt.correlation_id,
+                provider_id=PROVIDER, principal_id=PROVIDER, claim_token=claim.claim_token,
+                fence=claim.fence, idempotency_key="response:missing-review-digest",
+                response=response)
         self.exchange.submit_response(receipt.request_id, receipt.correlation_id,
             provider_id=PROVIDER, principal_id=PROVIDER, claim_token=claim.claim_token,
             fence=claim.fence, idempotency_key="response:reasoning-initiated",
-            response=response)
+            response=response, review_subject_sha256=subject["sha256"])
         self.assertEqual(grace.consume_external_reasoning(), 1)
         self.assertEqual(self.exchange.status(receipt.request_id,
             receipt.correlation_id)["delivery_state"], "grace_consumed")
         self.assertEqual(grace.pipeline.get_objective(self.objective)["status"], "PROPOSED")
         self.assertFalse(self.exchange.has_active_for_objective(self.objective))
+        events = grace.pipeline.objective_events(self.objective)
+        reviewed = [event for event in events if event["event_type"] ==
+                    "resident.reasoning.external_proposal_reviewed"]
+        self.assertEqual(len(reviewed), 1)
+        self.assertEqual(reviewed[0]["payload"]["subject_sha256"], subject["sha256"])
+        self.assertEqual(reviewed[0]["payload"]["decision"], "finish")
+
+    def test_exact_review_can_revise_then_finish_with_a_new_correlated_subject(self):
+        grace = self._grace_service(self.exchange, initiate_external=True,
+                                    targets=(PROVIDER,))
+        self.grace_provider.revise_once = True
+        self.assertTrue(grace.reason_one_grounded_objective(self.objective))
+        first = self.admin.execute(self.sql.SQL("""SELECT request_id::text,correlation_id::text,
+                request_payload FROM {}.external_reasoning_exchanges WHERE objective_id=%s""").format(
+                    self.sql.Identifier(self.schema)), (self.objective,)).fetchone()
+        self.assertEqual(first[2]["review_subject"]["revision"], 1)
+        receipt = type("Receipt", (), {"request_id": first[0], "correlation_id": first[1]})()
+        claim = self._deliver_and_claim(receipt)
+        self.exchange.submit_response(first[0], first[1], provider_id=PROVIDER,
+            principal_id=PROVIDER, claim_token=claim.claim_token, fence=claim.fence,
+            idempotency_key="response:review-revise-1", response=self._response(receipt),
+            review_subject_sha256=first[2]["review_subject"]["sha256"])
+        record_decision = grace.pipeline.record_external_review_decision
+        def interrupt_after_child_admission(*args, **kwargs):
+            raise RuntimeError("synthetic_restart_after_successor_admission")
+        grace.pipeline.record_external_review_decision = interrupt_after_child_admission
+        self.assertEqual(grace.consume_external_reasoning(), 0)
+        grace.pipeline.record_external_review_decision = record_decision
+        reasoner_calls = len(self.grace_provider.requests)
+        self.assertEqual(grace.consume_external_reasoning(), 1)
+        self.assertEqual(len(self.grace_provider.requests), reasoner_calls)
+        child = self.admin.execute(self.sql.SQL("""SELECT request_id::text,correlation_id::text,
+                request_payload FROM {}.external_reasoning_exchanges
+            WHERE request_payload->'review_parent'->>'request_id'=%s""").format(
+                self.sql.Identifier(self.schema)), (first[0],)).fetchone()
+        self.assertIsNotNone(child)
+        self.assertEqual(child[2]["review_subject"]["revision"], 2)
+        self.assertFalse(self.exchange.has_terminal_review_for_objective(self.objective))
+        revised_events = [event for event in grace.pipeline.objective_events(self.objective)
+            if event["event_type"] == "resident.reasoning.external_proposal_revised"]
+        self.assertEqual(len(revised_events), 1)
+        child_receipt = type("Receipt", (), {"request_id": child[0],
+            "correlation_id": child[1]})()
+        child_claim = self._deliver_and_claim(child_receipt)
+        self.exchange.submit_response(child[0], child[1], provider_id=PROVIDER,
+            principal_id=PROVIDER, claim_token=child_claim.claim_token,
+            fence=child_claim.fence, idempotency_key="response:review-revise-2",
+            response=self._response(child_receipt, advisory="synthetic second review"),
+            review_subject_sha256=child[2]["review_subject"]["sha256"])
+        self.assertEqual(grace.consume_external_reasoning(), 1)
+        self.assertEqual(grace.pipeline.get_objective(self.objective)["status"], "PROPOSED")
+        final_events = [event for event in grace.pipeline.objective_events(self.objective)
+            if event["event_type"] == "resident.reasoning.external_proposal_reviewed"]
+        self.assertEqual(len(final_events), 1)
+        self.assertEqual(final_events[0]["payload"]["revision"], 2)
+        self.assertTrue(self.exchange.has_terminal_review_for_objective(self.objective))
 
     def test_real_authority_registry_allows_only_bound_principal_and_exact_provider_scope(self):
         from riverview_core.institutional_authority import GrantDenied
@@ -587,12 +713,13 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         self.exchange = exchange
         self.assertTrue(grace.reason_one_grounded_objective(self.objective))
         row = self.admin.execute(self.sql.SQL("""SELECT request_id,correlation_id,provider_id,
-            delivery_state,originating_resident_id,conversation_id,message_sequence
+            delivery_state,originating_resident_id,conversation_id,message_sequence,request_payload
             FROM {}.external_reasoning_exchanges WHERE objective_id=%s""").format(
                 self.sql.Identifier(self.schema)), (self.objective,)).fetchone()
         self.assertEqual(row[2:5], (PROVIDER, "awaiting_delivery", principal))
         self.assertEqual(str(row[5]), self.conversation_id)
         self.assertEqual(row[6], 4)
+        self.assertIn("review_subject", row[7])
         receipt = type("Receipt", (), {"request_id": str(row[0]),
             "correlation_id": str(row[1]), "delivery_state": row[3]})()
         provider_principal = "provider:external-test"
@@ -603,7 +730,8 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
             provider_id=PROVIDER, principal_id=provider_principal,
             claim_token=claim.claim_token, fence=claim.fence,
             idempotency_key="response:real-authority:" + uuid4().hex,
-            response=response)
+            response=response, review_subject_sha256=exchange.status(
+                receipt.request_id, receipt.correlation_id)["review_subject_sha256"])
         self.assertEqual(grace.consume_external_reasoning(), 1)
         self.assertEqual(exchange.status(receipt.request_id,
             receipt.correlation_id)["delivery_state"], "grace_consumed")
@@ -619,7 +747,7 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
             self._real_grace_service())
         self.exchange = exchange
         self.assertTrue(grace.reason_one_grounded_objective(self.objective))
-        row = self.admin.execute(self.sql.SQL("""SELECT request_id,correlation_id
+        row = self.admin.execute(self.sql.SQL("""SELECT request_id,correlation_id,request_payload
             FROM {}.external_reasoning_exchanges WHERE objective_id=%s""").format(
                 self.sql.Identifier(self.schema)), (self.objective,)).fetchone()
         receipt = type("Receipt", (), {"request_id": str(row[0]),
@@ -631,7 +759,8 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
             provider_id=PROVIDER, principal_id=provider_principal,
             claim_token=claim.claim_token, fence=claim.fence,
             idempotency_key="response:restart-before-consume:" + uuid4().hex,
-            response=self._response(receipt))
+            response=self._response(receipt),
+            review_subject_sha256=row[2]["review_subject"]["sha256"])
 
         self.ledger.close()
         self.ledger = PostgresLedger(DSN, schema=self.schema)
@@ -702,6 +831,82 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         self.assertGreater(retry.fence, delivery.fence)
         self.assertEqual(self.exchange.status(receipt.request_id,
             receipt.correlation_id)["delivery_attempts"], 2)
+
+    def test_doorbell_claim_is_body_free_and_receipt_is_idempotent(self):
+        receipt = self._submit(idem="doorbell-receipt-success")
+        claim = self.exchange.claim_next_doorbell_request(PROVIDER, "doorbell:test", 90)
+        self.assertIsNotNone(claim)
+        self.assertEqual((claim.request_id, claim.correlation_id, claim.provider_id),
+                         (receipt.request_id, receipt.correlation_id, PROVIDER))
+        self.assertTrue(claim.attempt_id)
+        self.assertNotIn("request_payload", repr(claim))
+        self.assertEqual(self.exchange.claim_next_doorbell_request(
+            PROVIDER, "other-doorbell", 90), None)
+        transition = self.exchange.record_doorbell_receipt(
+            claim.request_id, claim.correlation_id, PROVIDER, "doorbell:test",
+            claim.attempt_id, claim.lease_token, claim.fence, "submitted", None)
+        self.assertEqual(transition, "awaiting_external_claim")
+        self.assertEqual(self.exchange.record_doorbell_receipt(
+            claim.request_id, claim.correlation_id, PROVIDER, "doorbell:test",
+            claim.attempt_id, claim.lease_token, claim.fence, "submitted", None), transition)
+        self.assertEqual(self.exchange.status(receipt.request_id,
+            receipt.correlation_id)["delivery_state"], "awaiting_external_claim")
+        with self.ledger.db.cursor() as cur:
+            self.exchange._set_path(cur)
+            cur.execute("""SELECT count(*) AS count FROM external_reasoning_exchange_events
+                WHERE request_id=%s AND event_type='doorbell_receipt'""", (receipt.request_id,))
+            self.assertEqual(cur.fetchone()["count"], 1)
+        with self.assertRaises(ExchangeConflict):
+            self.exchange.record_doorbell_receipt(claim.request_id, claim.correlation_id,
+                PROVIDER, "doorbell:test", claim.attempt_id, claim.lease_token,
+                claim.fence, "ambiguous", "RIV-PLY-0009")
+
+    def test_doorbell_known_pre_send_failure_uses_existing_bounded_retry(self):
+        receipt = self._submit(idem="doorbell-pre-send-failure")
+        claim = self.exchange.claim_next_doorbell_request(PROVIDER, "doorbell:test", 90)
+        self.assertEqual(self.exchange.record_doorbell_receipt(
+            claim.request_id, claim.correlation_id, PROVIDER, "doorbell:test",
+            claim.attempt_id, claim.lease_token, claim.fence, "failed", "RIV-PLY-0007"),
+            "awaiting_delivery")
+        self.assertEqual(self.exchange.status(receipt.request_id,
+            receipt.correlation_id)["last_error_code"], "riv_ply_0007")
+        self.assertIsNone(self.exchange.claim_next_doorbell_request(
+            PROVIDER, "doorbell:test", 90))
+        self.clock_value += timedelta(seconds=3)
+        retried = self.exchange.claim_next_doorbell_request(PROVIDER, "doorbell:test", 90)
+        self.assertGreater(retried.fence, claim.fence)
+        self.assertNotEqual(retried.attempt_id, claim.attempt_id)
+
+    def test_doorbell_ambiguous_failure_is_terminal_and_fenced(self):
+        receipt = self._submit(idem="doorbell-ambiguous")
+        claim = self.exchange.claim_next_doorbell_request(PROVIDER, "doorbell:test", 90)
+        self.assertEqual(self.exchange.record_doorbell_receipt(
+            claim.request_id, claim.correlation_id, PROVIDER, "doorbell:test",
+            claim.attempt_id, claim.lease_token, claim.fence, "ambiguous", "RIV-PLY-0009"),
+            "failed")
+        self.assertIsNone(self.exchange.claim_next_doorbell_request(
+            PROVIDER, "doorbell:test", 90))
+        status = self.exchange.status(receipt.request_id, receipt.correlation_id)
+        self.assertEqual((status["delivery_state"], status["last_error_code"]),
+                         ("failed", "riv_ply_0009"))
+        with self.assertRaises(ExchangeConflict):
+            self.exchange.record_doorbell_receipt(claim.request_id, claim.correlation_id,
+                PROVIDER, "doorbell:test", claim.attempt_id, "wrong-token",
+                claim.fence, "ambiguous", "RIV-PLY-0009")
+
+    def test_doorbell_sanitized_bridge_exception_codes_are_terminal(self):
+        for error_code in ("doorbell_exception", "doorbell_failure"):
+            with self.subTest(error_code=error_code):
+                receipt = self._submit(idem="doorbell-exception:" + error_code)
+                claim = self.exchange.claim_next_doorbell_request(PROVIDER, "doorbell:test", 90)
+                self.assertEqual(self.exchange.record_doorbell_receipt(
+                    claim.request_id, claim.correlation_id, PROVIDER, "doorbell:test",
+                    claim.attempt_id, claim.lease_token, claim.fence,
+                    "ambiguous", error_code), "failed")
+                status = self.exchange.status(receipt.request_id, receipt.correlation_id)
+                self.assertEqual(status["last_error_code"], error_code)
+                self.assertIsNone(self.exchange.claim_next_doorbell_request(
+                    PROVIDER, "doorbell:test", 90))
 
     def test_migration_grants_only_exchange_runtime_access(self):
         result = self.admin.execute(self.sql.SQL("""SELECT

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.18
+# Revision: 1.0.19
 # Purpose: Regound institutional resident requests and route bounded plan proposals
 # Execution Model: Request-driven in-process runtime with replaceable reasoning providers
 # Observability: Office-scoped durable state stores grounding and provider outcomes
@@ -25,6 +25,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-AUTHORIZED-SNAPSHOT-001 | Revalidate office through the restricted runtime function after inference
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Accept bounded advisory input separately from verified knowledge
 # Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Add typed model-selected external advisory intent at the existing reasoning boundary
+# Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Keep escalated candidates out of final plan state and bind exact review subject
 # Contracts: docs/components/RESIDENT_REASONING.md
 # Tests: tests/test_resident_reasoning.py
 # History: .riverview-backups/manifest.jsonl
@@ -170,6 +171,7 @@ class ReasoningRequest:
     prior_plan: Mapping[str, Any] | None
     external_advisory: Mapping[str, Any] | None = None
     external_reasoning_targets: tuple[str, ...] = ()
+    review_subject: Mapping[str, Any] | None = None
 
 
 class AssignmentContextReader(Protocol):
@@ -275,7 +277,9 @@ class ResidentReasoner:
         outcomes.append(observation)
         runtime["outcomes"] = outcomes[-32:]
         plans = dict(runtime.get("plans", {}))
-        if proposal is not None:
+        # An escalated candidate is not an institutional proposal until Grace
+        # evaluates the provider's advice against the exact durable subject.
+        if proposal is not None and proposal.external_escalation is None:
             plans[assignment_id] = asdict(proposal)
         runtime["plans"] = plans
         state[self.STATE_KEY] = runtime
@@ -382,12 +386,16 @@ class ResidentReasoner:
         return dict(value)
 
     def propose(self, assignment_id: str, *, trigger: str, token_budget: int,
-                external_advisory: Mapping[str, Any] | None = None) -> ReasoningResult:
+                external_advisory: Mapping[str, Any] | None = None,
+                review_subject: Mapping[str, Any] | None = None) -> ReasoningResult:
         request_id = str(uuid4())
         if (not assignment_id or not trigger or len(trigger) > 80
                 or type(token_budget) is not int or not 1 <= token_budget <= 100_000):
             raise ValueError("assignment, bounded trigger, and token budget are required")
         external_advisory = self._validate_external_advisory(external_advisory)
+        if review_subject is not None:
+            from .resident_execution.external_reasoning import validate_review_subject
+            review_subject = validate_review_subject(review_subject)
         try:
             snapshot = self.registry.authorize_office_state(
                 self._credential, self.office_id)
@@ -487,6 +495,7 @@ class ResidentReasoner:
                 {"value": grounded.value, **self._knowledge_record(grounded)},
                 {"value": regrounded.value, **self._knowledge_record(regrounded)}),
             prior_plan=prior_plan, external_advisory=external_advisory,
+            review_subject=review_subject,
             external_reasoning_targets=self.external_reasoning_targets)
 
         for provider_id in route:
@@ -540,7 +549,8 @@ class ResidentReasoner:
             revision = self._record(latest, assignment_id, request_id,
                                     ReasoningStatus.PROPOSED, trigger, grounded, regrounded,
                                     provider_id=provider_id, code="PROPOSAL_ONLY",
-                                    proposal=result, external_advisory=external_advisory)
+                                    proposal=(result if request.review_subject is None else None),
+                                    external_advisory=external_advisory)
             final = self._result_after_record(revision, ReasoningStatus.PROPOSED,
                                               request_id, "PROPOSAL_ONLY", provider_id)
             if final.status is not ReasoningStatus.PROPOSED:
