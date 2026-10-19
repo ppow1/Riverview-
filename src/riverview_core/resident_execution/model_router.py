@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.2.6
+# Revision: 1.2.7
 # Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Trim oldest conversational context to the provider byte limit while preserving system instructions and the active turn.
 # Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Preserve sanitized HTTP failure classes for bounded deferred recovery.
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Require tool-backed current-status answers.
@@ -22,6 +22,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-AUTONOMIC-CONTEXT-BOUND-001 | Keep 0.6B acknowledgment prompts minimal while retaining full institutional context for substantive stages
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Route validated text deltas through the same capability and fallback policy
 # Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-INTERNAL-TOOLS-001 | Execute one bounded internal read tool and consume its structured result
+# Changed: 2026-10-19 UTC | RV-GRACE-TOOL-CATALOG-CONTEXT-001 | Include only the selected internal tool schema when the request requires a current lookup
 # =============================================================================
 """Small readiness-aware router for Grace's three existing model resources."""
 
@@ -207,12 +208,20 @@ class GraceModelRouter:
                 if removable is None:
                     break
                 provider_context.pop(removable)
-        tool_catalog = (self.internal_tools.catalog()
-                        if stage == "reasoning" and self.internal_tools is not None else [])
-        required_tool = self._required_internal_tool(messages, tool_catalog)
+        available_tools = (self.internal_tools.catalog()
+                           if stage == "reasoning" and self.internal_tools is not None else [])
+        required_tool = self._required_internal_tool(messages, available_tools)
+        # Tool definitions are large and are not needed for ordinary reasoning.
+        # Keep the full registry in-process for deterministic matching, but add
+        # only the exact selected schema to the model prompt when a current lookup
+        # is required. This keeps unrelated schemas out of the protected system
+        # context and leaves the provider byte guard as a final fail-closed bound.
+        tool_catalog = ([tool for tool in available_tools
+                         if isinstance(tool, dict) and tool.get("name") == required_tool]
+                        if required_tool is not None else [])
         routed = [{"role": "system", "content": system},
                   *provider_context]
-        if stage == "reasoning" and self.internal_tools is not None:
+        if tool_catalog:
             catalog = json.dumps(tool_catalog, sort_keys=True,
                                  separators=(",", ":"), ensure_ascii=False)
             routed[0]["content"] += "\n\n" + (

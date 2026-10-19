@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.16
+# Revision: 1.0.18
 # Purpose: Verify primary 80B routing, capability-pinned recovery, bounded fallback and diagnostics
 # Execution Model: Deterministic provider doubles; no database or model endpoint
 # Observability: Assert selected provider and served-model provenance
@@ -17,6 +17,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
 # Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Regress byte-bounded prompt trimming and safe irreducible-context reporting.
 # Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Prove legacy over-limit failure and independent three-capability readiness.
+# Changed: 2026-10-19 UTC | RV-GRACE-TOOL-CATALOG-CONTEXT-001 | Regress large internal tool catalogs and selected-schema prompting
 # =============================================================================
 """Focused tests for Grace's readiness-aware three-stage router."""
 
@@ -25,6 +26,8 @@ import json
 
 from riverview_core.local_reasoning_provider import (ChatCompletion,
     LocalReasoningProvider, LocalReasoningUnavailable, ProviderReadiness)
+from riverview_core.comms5.dashboard_backend import DashboardReadBackend
+from riverview_core.resident_execution.internal_tools import GraceInternalTools
 from riverview_core.resident_execution.model_router import GraceModelRouter, ReasoningDeferred
 from riverview_core.resident_reasoning import PlanProposal, PlanStep, ReasoningRequest
 
@@ -139,6 +142,87 @@ class GraceModelRouterTests(unittest.TestCase):
             max_tokens=24, expected_revision=self.router.model_sha256)
         self.assertEqual(self.cpu.token_limits, [24])
         self.assertEqual(self.cpu.timeout_values, [60])
+
+    def test_large_internal_catalog_is_omitted_from_ordinary_reasoning_turns(self):
+        class CatalogBackend:
+            supported_tools = tuple(DashboardReadBackend.IMPLEMENTATION_STATUS)
+
+        tools = GraceInternalTools(backend=CatalogBackend())
+        catalog = tools.catalog()
+        self.assertEqual(len(catalog), 25)
+        self.assertEqual(len(json.dumps(catalog, sort_keys=True,
+            separators=(",", ":"), ensure_ascii=False).encode()), 22238)
+        self.router.internal_tools = tools
+        self.reasoner.chat_prefix = "/no_think\n"
+        # These bounded, synthetic system messages mirror the live 12 KiB base
+        # conversation without including any production conversation text.
+        messages = [
+            {"role": "system", "content": "R" * 3092},
+            {"role": "user", "content": "x" * 540},
+            {"role": "system", "content": "O" * 7702},
+        ]
+
+        # Test both the original ordinary proposal-sized request and a short
+        # single-word substantive request in sequence.
+        for request in (messages, [*messages[:-2], {"role": "user",
+                "content": "supercalifragilistic"}, messages[-1]]):
+            self.router.complete_chat(request, max_tokens=512,
+                expected_revision=self.router.model_sha256)
+            routed = self.reasoner.calls[-1][0]
+            rendered = json.dumps(routed, ensure_ascii=False,
+                                  separators=(",", ":")).encode()
+            self.assertLessEqual(len(rendered), LocalReasoningProvider.MAX_PROMPT_BYTES)
+            self.assertNotIn("Available internal tools:", routed[0]["content"])
+            self.assertNotIn("comms5_objective_status", routed[0]["content"])
+        self.assertEqual(len(self.reasoner.calls), 2)
+
+    def test_current_lookup_prompt_contains_only_the_selected_tool_schema(self):
+        class CatalogBackend:
+            supported_tools = tuple(DashboardReadBackend.IMPLEMENTATION_STATUS)
+
+        catalog = GraceInternalTools(backend=CatalogBackend()).catalog()
+
+        class Tools:
+            def __init__(self):
+                self.calls = []
+            def catalog(self):
+                return catalog
+            def call(self, name, arguments):
+                self.calls.append((name, arguments))
+                return {"schema_version": "rv.grace.tool-result.v1", "status": "ok",
+                        "tool": name, "result": {"cme": {"status": "healthy"}}}
+
+        class RespondingProvider(_Provider):
+            def __init__(self, model):
+                super().__init__(model)
+                self.responses = [
+                    '<rv-tool-call>{"name":"comms5_cme_status","arguments":{}}</rv-tool-call>',
+                    "The current CME tool result reports healthy.",
+                ]
+            def complete_chat(self, messages, *, max_tokens, expected_revision,
+                              timeout_seconds=120):
+                self.calls.append((messages, expected_revision))
+                self.token_limits.append(max_tokens)
+                rendered = json.dumps(messages, ensure_ascii=False,
+                                      separators=(",", ":")).encode()
+                if len(rendered) > LocalReasoningProvider.MAX_PROMPT_BYTES:
+                    raise LocalReasoningUnavailable("prompt_too_large")
+                return ChatCompletion(self.responses.pop(0), self.model, 2, 3, "stop")
+
+        tools = Tools()
+        reasoner = RespondingProvider("qwen-80b")
+        router = GraceModelRouter(autonomic=_Provider("qwen-0.6b"),
+            vision=_Provider("huihui-30b"), reasoning=reasoner, internal_tools=tools)
+        result = router.complete_chat([{"role": "user", "content":
+            "Use comms5_cme_status to report the actual current CME status."}],
+            max_tokens=512, expected_revision=router.model_sha256)
+
+        self.assertEqual(len(reasoner.calls), 2)
+        self.assertEqual(tools.calls, [("comms5_cme_status", {})])
+        self.assertEqual(result.content, "The current CME tool result reports healthy.")
+        first_prompt = reasoner.calls[0][0][0]["content"]
+        self.assertIn("comms5_cme_status", first_prompt)
+        self.assertNotIn("comms5_objective_status", first_prompt)
 
     def test_long_conversation_preserves_system_context_and_latest_user_within_provider_limit(self):
         # Mirrors production: role context, sixteen persisted turns, an operational

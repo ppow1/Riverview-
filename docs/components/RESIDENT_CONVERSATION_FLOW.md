@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION_FLOW.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.22
+File Revision: 1.0.23
 Purpose: Generated focused flow for persistent Grace browser conversation
 Authority: Canonical graph JSON; diagram generated and not hand-edited
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Register generated chat workflow view
@@ -25,8 +25,8 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_provider_match_6e2180eb{"Does the registered provider match the exact implementation revision?"}
     g_rv_resident_conversation_browser_chat_model_readiness_diagnostic_90a0703b["Optional read-only readiness probe verifies health and exact served model; HTTP unavailability does not identify host power state"]
     g_rv_resident_conversation_browser_chat_persist_user_50079953["Append user event and idempotency key before inference"]
-    g_rv_resident_conversation_browser_chat_context_bound_672d08c9["Assemble recent history; preserve every system instruction and active user turn, trim oldest eligible conversation context to the exact serialized 32 KiB provider limit, and terminalize irreducible overflow as context_too_large"]
-    g_rv_resident_conversation_browser_chat_stage_context_policy_b35672ba["For 0.6B acknowledgments use concise Director of Operations identity context and current user turn; retain full canonical context for substantive stages"]
+    g_rv_resident_conversation_browser_chat_context_bound_672d08c9["Assemble recent history; preserve system context and active turn, trim oldest eligible conversation context to the exact serialized 32 KiB provider limit, and reject irreducible protected-context overflow before inference"]
+    g_rv_resident_conversation_browser_chat_stage_context_policy_b35672ba["Apply model-stage context policy and retain full canonical identity context for substantive stages"]
     g_rv_resident_conversation_browser_chat_inference_8bca7614["Call the office-bound local model adapter; only loopback or explicitly allowlisted OCTO1 routes are accepted, with served-model and binding checks"]
     g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79[["Persist a sanitized unavailable or incomplete response outcome"]]
     g_rv_resident_conversation_browser_chat_binding_recheck_06e5ffdc["Reject a result if the office implementation changed during inference"]
@@ -66,6 +66,7 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_provider_error_classification_00b2aa90{"Is this a transient readiness/transport/server failure, or a deterministic request/authentication/response failure?"}
     g_rv_resident_conversation_browser_chat_deferred_retry_budget_cd9dc00c["Persist retry attempt and next-attempt time; use 5/10/20/40 second delays and block after five automatic resume attempts while retaining the original request"]
     g_rv_resident_conversation_browser_chat_deferred_retry_blocked_785d668a[["Keep the correlated user request and response_deferred event durable; expose blocked status and stop automatic retries after exhaustion or authority denial"]]
+    g_rv_resident_conversation_browser_chat_required_tool_context_23ba6950{"Does this 80B request require a current Comms5 lookup? Include only the selected tool schema; omit all tool schemas for ordinary reasoning."}
   end
   g_rv_grace_operational_integration_objective_intake_55567c14["Registered target<br/>rv:grace:operational-integration"]
   g_rv_resident_conversation_browser_chat_browser_submit_e4a0bb86 --> g_rv_resident_conversation_browser_chat_dashboard_auth_1ec7b499
@@ -118,7 +119,6 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_context_bound_672d08c9 --> g_rv_resident_conversation_browser_chat_grace_role_context_dbeb08cc
   g_rv_resident_conversation_browser_chat_grace_role_context_dbeb08cc -->|Use existing read-only institutional projections; do not expose direct database or action tools| g_rv_resident_conversation_browser_chat_operations_snapshot_a7547e58
   g_rv_resident_conversation_browser_chat_operations_snapshot_a7547e58 -->|Router applies the selected capability's bounded context policy before provider invocation| g_rv_resident_conversation_browser_chat_stage_context_policy_b35672ba
-  g_rv_resident_conversation_browser_chat_stage_context_policy_b35672ba -->|Use concise identity context for autonomic acknowledgments; retain full supplied context for substantive stages| g_rv_resident_conversation_browser_chat_inference_8bca7614
   g_rv_resident_conversation_browser_chat_stage_context_policy_b35672ba -->|diagnostic_branch: Malformed context or no current user turn; reject before inference| g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79
   g_rv_resident_conversation_browser_chat_browser_submit_e4a0bb86 --> g_rv_resident_conversation_browser_chat_stream_capability_check_1c5ad149
   g_rv_resident_conversation_browser_chat_stream_capability_check_1c5ad149 -->|Streaming available; authenticated POST preserves original conversation and request IDs| g_rv_resident_conversation_browser_chat_stream_submit_10a9739e
@@ -140,5 +140,9 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_provider_error_classification_00b2aa90 -->|diagnostic_branch: Transient timeout/transport/loading/busy, HTTP 408/409/425/429, or any 5xx failure| g_rv_resident_conversation_browser_chat_deferred_retry_budget_cd9dc00c
   g_rv_resident_conversation_browser_chat_deferred_retry_budget_cd9dc00c -->|recovery_route: A scheduled retry is due and fewer than five automatic attempts have failed| g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14
   g_rv_resident_conversation_browser_chat_deferred_retry_budget_cd9dc00c -->|diagnostic_branch: Five automatic attempts exhausted; retain durable request and expose blocked state| g_rv_resident_conversation_browser_chat_deferred_retry_blocked_785d668a
+  g_rv_resident_conversation_browser_chat_stage_context_policy_b35672ba -->|Select only the exact required internal tool schema after request matching| g_rv_resident_conversation_browser_chat_required_tool_context_23ba6950
+  g_rv_resident_conversation_browser_chat_required_tool_context_23ba6950 -->|No current lookup is required; omit the internal tool catalog| g_rv_resident_conversation_browser_chat_inference_8bca7614
+  g_rv_resident_conversation_browser_chat_required_tool_context_23ba6950 -->|Current lookup is required; include only the selected schema| g_rv_resident_conversation_browser_chat_inference_8bca7614
+  g_rv_resident_conversation_browser_chat_required_tool_context_23ba6950 -->|diagnostic_branch: Protected context plus one selected schema cannot fit the exact provider byte limit; reject before inference| g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
