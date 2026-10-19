@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.55
+**Document Revision:** 1.0.54
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -141,8 +141,6 @@ flowchart LR
     g_rv_grace_operational_integration_rework_attempt_verification_ba069bce["Independently verify the new successful attempt only once; preserve prior artifacts and rejection records; latest rejection becomes the next decision target"]
     g_rv_grace_operational_integration_rework_steward_direction_b806bf42[["A bounded STEWARD_AUTHORIZATION_REQUIRED decision keeps work incomplete and records the precise decision boundary"]]
     g_rv_grace_operational_integration_conversation_engineering_progress_eaa2fbc0["Authenticated conversation-scoped dashboard projection shows durable receipt, objective/assignment stage, latest event, verifier/rework state and Steward action without transcript bodies"]
-    g_rv_grace_operational_integration_typed_continuation_handler_b9052f44["Production dashboard binds Grace’s typed result-review decision to the existing objective pipeline; pipeline validates the exact persisted dependent step and CME rechecks assignment.create at dispatch"]
-    g_rv_grace_operational_integration_continuation_handler_rejected_ea787b7f[["Missing pipeline, invalid continuation context, or scope/state rejection writes no continuation event and returns a bounded non-dispatch result"]]
   end
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_cme_progress_and_recovery_observe_428defda["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -231,6 +229,7 @@ flowchart LR
   g_rv_grace_operational_integration_verifier_revision_accepted_7a0fa5d2 -->|Persisted accepted verifier revision permits normal completion reconciliation| g_rv_grace_operational_integration_objective_complete_a6f22d23
   g_rv_grace_operational_integration_objective_complete_a6f22d23 -->|Only durable verifier-accepted evidence enters the bound 80B result review.| g_rv_grace_operational_integration_verified_result_review_decision_58c1884b
   g_rv_grace_operational_integration_verified_result_review_decision_58c1884b -->|Persist the model decision and append a deterministic response; derive the durable publication acknowledgement cycle from the pending outbox| g_rv_grace_operational_integration_verified_result_chat_return_108e1033
+  g_rv_grace_operational_integration_verified_result_review_decision_58c1884b -->|ENGINEERING_STEP_PROPOSED appends a dependent step only inside the original human-approved scope; assignment.create is rechecked at dispatch.| g_rv_grace_operational_integration_objective_step_persistence_dd2c700f
   g_rv_grace_operational_integration_verified_result_review_decision_58c1884b -->|diagnostic_branch: Provider, binding, persistence, or publisher-cycle mismatch leaves the verified result in the durable retry outbox| g_rv_grace_operational_integration_verified_result_return_retry_ce159ed9
   g_rv_grace_operational_integration_verified_result_return_retry_ce159ed9 -->|recovery_route: Retry the same completion cycle idempotently; the outbox cycle supplies ack identity and a successful durable event stops further publication retries| g_rv_grace_operational_integration_verified_result_review_decision_58c1884b
   g_rv_grace_operational_integration_internal_tool_call_340d40b0 -->|Dispatch one registered read operation, return its structured result to Grace, and persist that result with the completed conversation turn| g_rv_grace_operational_integration_internal_tool_consume_a8336489
@@ -255,10 +254,6 @@ flowchart LR
   g_rv_grace_operational_integration_objective_intake_55567c14 -->|The source-conversation receipt becomes visible in the durable objective panel| g_rv_grace_operational_integration_conversation_engineering_progress_eaa2fbc0
   g_rv_grace_operational_integration_rework_attempt_verification_ba069bce -->|Verifier decisions and rework status are read from authoritative PostgreSQL records| g_rv_grace_operational_integration_conversation_engineering_progress_eaa2fbc0
   g_rv_grace_operational_integration_rework_steward_direction_b806bf42 -->|diagnostic_branch: The panel explicitly identifies the persisted Steward action requirement| g_rv_grace_operational_integration_conversation_engineering_progress_eaa2fbc0
-  g_rv_grace_operational_integration_verified_result_review_decision_58c1884b -->|Only an 80B ENGINEERING_STEP_PROPOSED decision with a typed existing-scope step reaches the configured callback| g_rv_grace_operational_integration_typed_continuation_handler_b9052f44
-  g_rv_grace_operational_integration_typed_continuation_handler_b9052f44 -->|Dashboard delegates to GraceExecutionPipeline.propose_continuation; exact persisted parent/dependency/scope checks remain authoritative| g_rv_grace_operational_integration_objective_step_persistence_dd2c700f
-  g_rv_grace_operational_integration_typed_continuation_handler_b9052f44 -->|diagnostic_branch: No pipeline, malformed callback context, stale state or scope mismatch creates no continuation| g_rv_grace_operational_integration_continuation_handler_rejected_ea787b7f
-  g_rv_grace_operational_integration_continuation_handler_rejected_ea787b7f -->|Grace reports the bounded decision; no assignment is dispatched| g_rv_grace_operational_integration_verified_result_chat_return_108e1033
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

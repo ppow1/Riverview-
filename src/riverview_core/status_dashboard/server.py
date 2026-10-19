@@ -2,11 +2,10 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.29
+# Revision: 1.3.28
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Enforce Steward/global or exact account-owned conversation scope for objective projections
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Accept typed repository target provenance in source-change proposal intake.
 # Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Filter durable Engineering progress by authenticated conversation origin
-# Changed: 2026-10-19 UTC | RV-C1-GRACE-CONTINUATION-WIRING-001 | Wire production Grace result reviews to the existing durable typed continuation pipeline
 # Purpose: Serve account-authenticated operational, proposal, capability and snapshot APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -1954,25 +1953,6 @@ def _conversation_objective_response(objective, *, reused_existing=False):
     return result
 
 
-def _make_grace_continuation_handler(pipeline, office_id):
-    """Bind Grace's typed result decision to the existing objective pipeline."""
-    if pipeline is None or not isinstance(office_id, str) or not office_id:
-        return None
-
-    def persist(context, step):
-        if (not isinstance(context, dict) or
-                not isinstance(context.get("objective_id"), str) or
-                not context["objective_id"] or
-                not isinstance(context.get("assignment_id"), str) or
-                not context["assignment_id"]):
-            raise ValueError("Grace continuation context is incomplete")
-        return pipeline.propose_continuation(
-            context["objective_id"], context["assignment_id"], step,
-            actor_id="office:" + office_id)
-
-    return persist
-
-
 def main():
     token_path = os.environ.get("CREDENTIALS_DIRECTORY", "")
     if not token_path:
@@ -2131,9 +2111,7 @@ def main():
                 authorizer=ExactGrantAuthorizer(authority_schema), office_id=chat_office_id,
                 resident_credential=resident_token,
                 providers=providers,
-                operational_context=GraceOperationalContext(projection),
-                continuation_handler=_make_grace_continuation_handler(
-                    objective_pipeline, chat_office_id))
+                operational_context=GraceOperationalContext(projection))
             conversation_store.recover_pending()
             conversation_service.resume_streams(limit=20)
             if routed:

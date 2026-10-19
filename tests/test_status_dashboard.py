@@ -2,11 +2,10 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.58
+# Revision: 1.0.57
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Cover Steward and conversation-owner objective access, redaction, and PostgreSQL scoping
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Verify institutional proposal dashboard actions remain distinct from Engineering intake.
 # Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Verify authenticated conversation-scoped Engineering progress projection and invalid filters
-# Changed: 2026-10-19 UTC | RV-C1-GRACE-CONTINUATION-WIRING-001 | Verify production conversation service binds typed Grace continuation to the existing objective pipeline
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Verify Steward proposal UI uses distinct draft, approval and objective-promotion actions.
 # Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Assert UI distinguishes lease heartbeat status from worker process liveness.
 # Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Assert inactive retired registrations do not affect active worker health counts.
@@ -65,8 +64,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from riverview_core.status_dashboard.projection import DashboardProjection
-from riverview_core.status_dashboard.server import (
-    DashboardHTTPServer, _knowledge_root, _make_grace_continuation_handler, _read_token)
+from riverview_core.status_dashboard.server import DashboardHTTPServer, _knowledge_root, _read_token
 from riverview_core.status_dashboard.markdown import render_markdown
 
 DSN = os.environ.get("RIVERVIEW_TEST_PG_DSN")
@@ -138,27 +136,6 @@ class _FakeProjection:
 
 
 class DashboardDeploymentContractTests(unittest.TestCase):
-    def test_grace_continuation_handler_uses_existing_pipeline_and_office_actor(self):
-        class Pipeline:
-            def __init__(self):
-                self.calls = []
-
-            def propose_continuation(self, objective_id, parent_assignment_id, step, *, actor_id):
-                self.calls.append((objective_id, parent_assignment_id, step, actor_id))
-                return {"status": "WORK_ORDER_CREATED"}
-
-        pipeline = Pipeline()
-        handler = _make_grace_continuation_handler(pipeline, "grace")
-        self.assertIsNotNone(handler)
-        step = object()
-        result = handler({"objective_id": "objective:accepted", "assignment_id": "assignment:s1"}, step)
-        self.assertEqual(result, {"status": "WORK_ORDER_CREATED"})
-        self.assertEqual(pipeline.calls, [("objective:accepted", "assignment:s1", step, "office:grace")])
-        with self.assertRaises(ValueError):
-            handler({"objective_id": "objective:accepted", "assignment_id": ""}, step)
-        self.assertEqual(len(pipeline.calls), 1)
-        self.assertIsNone(_make_grace_continuation_handler(None, "grace"))
-
     def test_talk_with_grace_has_persistent_objective_progress_panel(self):
         static = ROOT / "src/riverview_core/status_dashboard/static"
         html = (static / "index.html").read_text(encoding="utf-8")
