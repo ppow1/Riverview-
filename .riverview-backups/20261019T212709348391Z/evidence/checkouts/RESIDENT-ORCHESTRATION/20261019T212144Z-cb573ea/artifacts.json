@@ -1,0 +1,50 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-GRACE-REVIEW-GENERATIONS-001",
+  "component_id": "RESIDENT-ORCHESTRATION",
+  "source_commit": "cb573ea30335eed5f3efc7d74b55711a412ca40b",
+  "artifacts": [
+    {
+      "path": "evidence/checkouts/RESIDENT-ORCHESTRATION/20261019T212144Z-cb573ea/checkout.md",
+      "revision": "1.0.0",
+      "sha256": "b7285fb20ae1ccf105e3b4ed9406471194dd048987abb90336f4574b4a496141",
+      "size_bytes": 7211
+    },
+    {
+      "path": "evidence/checkouts/RESIDENT-ORCHESTRATION/20261019T212144Z-cb573ea/diff-check.txt",
+      "revision": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    {
+      "path": "evidence/checkouts/RESIDENT-ORCHESTRATION/20261019T212144Z-cb573ea/postgres-initdb.log",
+      "revision": null,
+      "sha256": "15de11c8b51a35b959fafb2351e28b135a8f5482b3da2ede1190490db5bc78ee",
+      "size_bytes": 856
+    },
+    {
+      "path": "evidence/checkouts/RESIDENT-ORCHESTRATION/20261019T212144Z-cb573ea/postgres-start.log",
+      "revision": null,
+      "sha256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "size_bytes": 52
+    },
+    {
+      "path": "evidence/checkouts/RESIDENT-ORCHESTRATION/20261019T212144Z-cb573ea/postgres-stop.log",
+      "revision": null,
+      "sha256": "d526b68e6c97d0ba6a6c48b96f5bb0265343d46289c1f7c5e9f6b684d3ade1a5",
+      "size_bytes": 75
+    },
+    {
+      "path": "evidence/checkouts/RESIDENT-ORCHESTRATION/20261019T212144Z-cb573ea/process-graph-check.json",
+      "revision": null,
+      "sha256": "42c083dfb601bbe83831d7b7901e3e151e295e9ac01131bb2a01ceab9ab6b87f",
+      "size_bytes": 55
+    },
+    {
+      "path": "evidence/checkouts/RESIDENT-ORCHESTRATION/20261019T212144Z-cb573ea/test-output.log",
+      "revision": null,
+      "sha256": "29ccc5b11f91e292b6903264d5caca052d877f1d4c06dfb3d4e67a2325877e5d",
+      "size_bytes": 1164
+    }
+  ]
+}
