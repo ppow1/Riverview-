@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md
 Component: P0-CONTROLLED-INTEGRATION
-Revision: 1.0.11
+Revision: 1.0.12
 Status: Offline integration evidence; no merge or deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record W3 branch assembly and isolated verification
@@ -280,3 +280,48 @@ checks will be recorded in the final #120 handoff. Exact-head hosted CI is
 required after push; its result and final candidate SHA are published in issue
 #120. No production service, database, credential, grant, connector, or release
 pointer was changed.
+
+
+## 2026-10-19 — Existing owner-session and fresh bounded trial plan
+
+Steward GO #6258108851 corrects the previous commissioning interpretation.
+Operator-reported metadata says
+`riverview-grace-execution-owner-session.service` is already loaded, active,
+and running, while the generic `riverview-grace-execution.service` is absent;
+dashboard and Comms5 are active. Reported current pointers were dashboard
+`ac707ef7` and Grace/Comms5 `6b44b39`. This is operator evidence on issue #120,
+not a W3 live recheck. Preserve the active unit, existing environment file,
+protected credentials, owner state, and pointer; do not install the generic
+unit, run the owner-session provisioner, replace config, or restart Grace for a
+readiness check. Source confirms the owner-session unit uses the existing
+canonical resident credential path. `GraceExecutionService.run_forever()` calls
+`run_once()` immediately, so a restart can dispatch/poll existing work.
+
+The aggregate Engineering records reported by the Steward (one objective each
+in `COMPLETED` and `WORK_ORDER_CREATED`; one assignment each in `completed`
+and `rework_required`; one step `verified`, one `assigned`, and three `pending`)
+are failed/incomplete historical trials, not proof of success or authority to
+resume. C1 owns record-level inspection of IDs, provenance, exact authority,
+failure/dispatch/retry eligibility and a non-destructive replay guard proposal.
+W3 does not select or mutate those rows. Any unresolved eligible old work is a
+hard stop before a new trial.
+
+Updated `docs/components/GRACE_CHATGPT_REVIEW_PROVIDER_PREFLIGHT.md` to use the
+active owner-session metadata path and replace the generic-unit smoke check.
+Added one future trial proposal only: after separately approved PR acceptance,
+backup/restore, migrations, source/release activation and verification, queue
+review, and a distinct live-trial GO, run one fresh harmless authorized
+objective with new subject/request/correlation/idempotency identifiers. Bound
+the trial to two review rounds total (at most one revision), the existing finite
+exchange deadlines, and body-free correlated evidence. A timeout, ambiguous
+wake, unexpected row, mismatch, terminal failure, or second revision stops the
+trial. The external answer remains advisory; no assignment creation, approval,
+grant/config change, or service restart is part of the trial plan.
+
+This is documentation-only; the existing process graph and resident code are
+unchanged because no new runtime transition is implemented. Existing synthetic
+tests and CI do not prove a real provider/ChatGPT round. No objective/request
+was created and no wake, dispatch, backup, restore, migration, merge, deployment,
+service/config/credential/grant or production write occurred. Current active
+queue safety still depends on C1's record-level metadata report and later
+separate authorization.
