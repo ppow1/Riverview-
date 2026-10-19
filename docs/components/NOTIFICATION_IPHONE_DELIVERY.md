@@ -2,9 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_IPHONE_DELIVERY.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.0.2
+File Revision: 1.0.3
 Purpose: Define local durable mobile push delivery using ntfy and Pushover
 Authority: Push transport only; no assignment, approval, or decision authority
+Changed: 2026-10-19 UTC | RV-IPHONE-NTFY-LAN-COMMISSIONING-001 | Align component DoD reference with active Rev 1.7
 Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial mobile delivery contract
 Changed: 2026-10-18 UTC | RV-NOTIFICATION-SELECTED-CREDENTIALS-20261018 | Document selected-provider preflight and actual status visibility boundaries
 Changed: 2026-10-18 UTC | RV-NOTIFICATION-STATUS-PROJECTION-20261018 | Link provider health to authenticated status API contract
@@ -121,7 +122,7 @@ schema and sanitized fixtures are documented in
 `NOTIFICATION_DELIVERY.md`. This exposes a machine-readable API contract, but
 the dashboard UI has not yet been changed to render it; that integration belongs
 to the dashboard owner. The component remains **NOT DONE** under the active
-main DoD Rev 1.6: no production Steward view, unattended production recovery,
+active Component Definition of Done Rev 1.7 (eight deliverables): no production Steward view, unattended production recovery,
 or handset acceptance is claimed.
 
 See `NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md` for setup, diagnostics, and

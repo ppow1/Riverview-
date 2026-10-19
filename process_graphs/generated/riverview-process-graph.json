@@ -6425,7 +6425,7 @@
     },
     {
       "graph_id": "rv:notification-delivery:iphone-push",
-      "graph_revision": "1.0.1",
+      "graph_revision": "1.0.3",
       "component_id": "NOTIFICATION-DELIVERY",
       "workflow_id": "iphone-push.v1",
       "diagram_order": 2,
@@ -6522,7 +6522,7 @@
           "id": "rv:notification-delivery:iphone-push:provider-send",
           "node_revision": "1.0.0",
           "type": "process",
-          "label": "Send bounded fixed-summary HTTPS provider request",
+          "label": "Send bounded fixed-summary authenticated HTTPS or loopback HTTP provider request",
           "source_references": [
             "src/riverview_core/notifications/push.py"
           ],
@@ -6665,6 +6665,59 @@
           "verification_evidence": [
             "docs/development/RV-IPHONE-NOTIFICATIONS-001_REVISION_RECORD.md"
           ]
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:ntfy-endpoint-gate",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Commissioning gate: loopback ntfy, topic ACL, and LAN HTTPS path verified",
+          "source_references": [
+            "deploy/notification-delivery.example.json",
+            "src/riverview_core/notifications/push.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:iphone-foreground-acceptance",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Operator confirms one info notice appears in the open iOS app",
+          "source_references": [
+            "src/riverview_core/notifications/push.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:iphone-acceptance-blocked",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Phone app cannot connect or display notice; preserve first event and diagnose",
+          "source_references": [
+            "src/riverview_core/notifications/push.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:notification-delivery:iphone-push:iphone-path-recovered",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Correct CA, path, WebSocket, or ACL issue and resume read-only checks before retry authorization",
+          "source_references": [
+            "src/riverview_core/notifications/push.py"
+          ],
+          "documentation_references": [
+            "docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md"
+          ],
+          "verification_evidence": []
         }
       ],
       "edges": [
@@ -6769,6 +6822,35 @@
           "to": "rv:notification-delivery:iphone-push:service-start",
           "type": "recovery_route",
           "label": "operator retries after authorized correction"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:ntfy-endpoint-gate",
+          "to": "rv:notification-delivery:iphone-push:provider-send",
+          "type": "prerequisite",
+          "label": "only after endpoint, TLS path, and topic ACL checks pass"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:accepted-state",
+          "to": "rv:notification-delivery:iphone-push:iphone-foreground-acceptance",
+          "type": "verification",
+          "label": "provider acceptance does not prove phone display"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:iphone-foreground-acceptance",
+          "to": "rv:notification-delivery:iphone-push:iphone-acceptance-blocked",
+          "type": "diagnostic_branch",
+          "label": "connection or display check fails"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:iphone-acceptance-blocked",
+          "to": "rv:notification-delivery:iphone-push:iphone-path-recovered",
+          "type": "recovery_route"
+        },
+        {
+          "from": "rv:notification-delivery:iphone-push:iphone-path-recovered",
+          "to": "rv:notification-delivery:iphone-push:iphone-foreground-acceptance",
+          "type": "recovery_route",
+          "label": "recheck app path before separately authorized event retry"
         }
       ]
     },
@@ -14682,7 +14764,11 @@
     "rv:notification-delivery:iphone-push:credential-preflight",
     "rv:notification-delivery:iphone-push:credential-repaired",
     "rv:notification-delivery:iphone-push:durable-outbox",
+    "rv:notification-delivery:iphone-push:iphone-acceptance-blocked",
+    "rv:notification-delivery:iphone-push:iphone-foreground-acceptance",
+    "rv:notification-delivery:iphone-push:iphone-path-recovered",
     "rv:notification-delivery:iphone-push:lease-claim",
+    "rv:notification-delivery:iphone-push:ntfy-endpoint-gate",
     "rv:notification-delivery:iphone-push:provider-send",
     "rv:notification-delivery:iphone-push:pushover-receipt",
     "rv:notification-delivery:iphone-push:secret-load",

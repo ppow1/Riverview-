@@ -2,9 +2,11 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_IPHONE_DELIVERY_COOKBOOK.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.1.8
+File Revision: 1.1.11
 Purpose: Set up and troubleshoot ntfy/Pushover push delivery without exposing secrets
 Authority: Operational diagnosis and local setup only; no decision authority
+Changed: 2026-10-19 UTC | RV-IPHONE-NTFY-LAN-COMMISSIONING-001 | Use exact ntfy deny-all ACL name
+Changed: 2026-10-19 UTC | RV-IPHONE-NTFY-LAN-COMMISSIONING-001 | Prepare LAN-only self-hosted ntfy configuration, phone test, and rollback
 Changed: 2026-10-19 UTC | RV-IPHONE-NOTIFICATIONS-001 | Correct focused test PYTHONPATH to include the runner script directory
 Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATIONS-001 | Initial push recovery cookbook
 Changed: 2026-10-18 UTC | RV-IPHONE-NOTIFICATION-COMMISSIONING-READINESS-001 | Add checksum-pinned operator commissioning and phone acceptance steps
@@ -23,6 +25,300 @@ History: Git and .riverview-backups/manifest.jsonl
 **Graph:** `rv:notification-delivery:iphone-push`
 **Production status:** Source-only in this assignment; no migration, credentials,
 service installation, or provider calls have been made.
+
+## LAN-only self-hosted ntfy commissioning plan
+
+**Status:** prepared procedure only. Nothing below has been installed, activated,
+written to Camrui, or tested with a phone. Execute only after the commissioning
+authorization listed at the end of this section. This path is for the native ntfy
+iOS app on the Riverview LAN; it does not require or decide the optional iOS
+upstream metadata relay.
+
+### Definition of Ready and architecture
+
+- **Task/owner/component:** `RV-IPHONE-NTFY-LAN-COMMISSIONING-001`, C1,
+  `NOTIFICATION-DELIVERY`.
+- **Classification/scope:** operational commissioning preparation and controlled
+  documentation/process-graph update. No implementation, production change, or
+  notification is authorized in this assignment.
+- **Execution model:** ntfy is a persistent systemd HTTP/WebSocket server;
+  Riverview's delivery worker is a persistent scheduled outbox reconciler;
+  the single handset check is an operator-triggered acceptance action.
+- **Dependencies:** Camrui x86_64 Linux; the existing Nginx TLS listener on
+  `192.168.1.155:443` and its existing `192.168.1.0/24` allowlist; PostgreSQL
+  notification migration `0007` for Riverview delivery; an iPhone on that LAN.
+  There is no active off-LAN/VPN route recorded. Do not change the existing
+  dispatcher, dashboard root proxy, Host/Origin guard, firewall, or listener
+  addresses.
+- **Acceptance criteria:** ntfy health returns HTTP 200 on loopback; `ss` shows
+  its listener only on `127.0.0.1:2586`; anonymous topic access is denied; the
+  dedicated publisher can write only the acceptance topic and the phone user
+  can read only it; Nginx retains the LAN allowlist and serves the native app's
+  topic stream over HTTPS/WebSocket on port 443; the phone visibly receives one
+  info notice while the app is open; the Riverview outbox records provider
+  acceptance separately from phone observation. A failed app-path, certificate,
+  or WebSocket check is a stop-and-diagnose condition, not grounds to widen
+  access or expose another port.
+
+### ntfy server install and configuration
+
+Use the official ntfy Linux amd64 release artifact, pinned to a reviewed version
+and verified against its published SHA-256 before installation. The static
+binary needs no external database or paid account. Use local SQLite files for
+the private auth/access database and persistent message cache; do not configure
+attachments, mail, web push, PostgreSQL, Docker, or an Internet-facing listener.
+
+Create a dedicated unprivileged `ntfy` account, root-owned `/etc/ntfy/server.yml`,
+`/var/lib/ntfy` for the auth database and `/var/cache/ntfy` for the message cache.
+The service account may write only those data directories. Proposed
+`/etc/ntfy/server.yml` (use the exact externally visible base URL without a
+trailing slash):
+
+```yaml
+base-url: "https://192.168.1.155/ntfy"
+listen-http: "127.0.0.1:2586"
+behind-proxy: true
+web-root: "disable"
+auth-file: "/var/lib/ntfy/auth.db"
+auth-default-access: "deny-all"
+cache-file: "/var/cache/ntfy/cache.db"
+cache-duration: "24h"
+```
+
+`web-root: disable` keeps the unneeded web UI off; ntfy has documented web UI
+limitations under reverse-proxy subpaths. The mobile client will use the native
+iOS app and the exact custom server URL above. The server URL path prefix must be
+stripped by Nginx before forwarding; the ntfy API and WebSocket paths are then
+forwarded to the ntfy root. Verify this behavior in the native app before
+sending any Riverview test event.
+
+Use a systemd unit with `User=ntfy`, `Group=ntfy`,
+`ExecStart=/usr/local/bin/ntfy serve`, `Restart=on-failure`,
+`NoNewPrivileges=yes`, `ProtectSystem=strict`, `ProtectHome=yes`, `PrivateTmp=yes`,
+`CapabilityBoundingSet=`, `UMask=0077`, and
+`ReadWritePaths=/var/lib/ntfy /var/cache/ntfy`. Do not add `CAP_NET_BIND_SERVICE`;
+ntfy binds only to unprivileged loopback port 2586. Confirm the actual official
+binary path and package's systemd behavior at the pinned version before staging;
+never install a second unit over an existing one without preserving and
+reviewing its predecessor.
+
+Create separate non-admin ntfy users through the interactive CLI, not by putting
+passwords on a command line:
+
+```bash
+sudo -u ntfy ntfy user add rv-camrui-publisher
+sudo -u ntfy ntfy user add rv-iphone-reader
+sudo -u ntfy ntfy access rv-camrui-publisher "$TOPIC" write-only
+sudo -u ntfy ntfy access rv-iphone-reader "$TOPIC" read-only
+sudo -u ntfy ntfy access everyone "$TOPIC" deny-all
+sudo -u ntfy ntfy token add --label=riverview-camrui rv-camrui-publisher
+```
+
+Generate a unique topic name from letters, digits, `_` or `-`; set it only in
+protected server/Riverview config and the phone app. Store the resulting
+publisher token only as `/etc/riverview/notification/ntfy_token` using the
+existing protected prompt; require root-owned directory mode `0700` and token
+file mode `0600`. The iPhone uses its separate read-only ntfy username/password
+entered in the app. Do not make either user an ntfy administrator. ntfy access
+tokens act as the user's account credential (they are not independently
+scoped); therefore the publisher token belongs only to this dedicated
+non-admin, write-only user. Do not reuse it on the phone. Verify the anonymous
+request is denied and inspect ACL output without printing passwords or tokens.
+
+### Existing Nginx HTTPS route (no new port)
+
+The current Nginx `443` server allows only `192.168.1.0/24`, checks its
+recognized Host values, and proxies `/` to the dashboard. Keep all those rules.
+Add the following location inside that same TLS server block, before the existing
+`location /`. The trailing slash on both the location and `proxy_pass` strips
+the `/ntfy/` prefix; the public ntfy base URL above has no trailing slash.
+
+```nginx
+location ^~ /ntfy/ {
+    proxy_pass http://127.0.0.1:2586/;
+    proxy_http_version 1.1;
+    proxy_buffering off;
+    proxy_request_buffering off;
+    proxy_redirect off;
+    proxy_set_header Host $http_host;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_connect_timeout 5s;
+    proxy_send_timeout 180s;
+    proxy_read_timeout 180s;
+}
+```
+
+Before applying this location, inspect whether the current Host and request-origin guards are server-scoped or live only inside the dashboard `location /`. Because `^~ /ntfy/` takes precedence over the dashboard location, copy the exact existing unsafe-method Origin guard into this new location when it is location-scoped; preserve the existing approved Host values and LAN allowlist. Do not expose the route or reload if the same policy cannot be enforced. The global request-origin policy must remain unchanged. Camrui's Riverview publisher
+uses `http://127.0.0.1:2586` directly, so its POST does not pass through that
+browser-origin guard. The phone needs only the authenticated read-only topic
+stream (GET/WebSocket). If Nginx rejects a phone request, stop; diagnose the
+actual method/origin and do not weaken the global guard. Keep the existing
+32 KiB request limit: the acceptance uses no attachments. Before reload,
+preserve the exact site file and SHA-256 under the controlled backup procedure,
+run `sudo nginx -t`, confirm the diff contains only this path, then reload Nginx
+(no restart). Verify `ss -ltn` still shows only the original listeners plus
+ntfy on loopback; never add a firewall rule or public port.
+
+### Riverview ntfy-only configuration
+
+Copy `deploy/notification-delivery.example.json` to the protected
+`/etc/riverview/notification-delivery.json` only during authorized worker
+commissioning. Set all routes to ntfy so the selected-credential preflight does
+not require Pushover:
+
+```json
+"routes": {
+  "info": ["ntfy"],
+  "warning": ["ntfy"],
+  "critical": ["ntfy"]
+},
+"ntfy": {
+  "base_url": "http://127.0.0.1:2586",
+  "topic": "<same-generated-private-topic>",
+  "credential": "provider_ntfy_token"
+}
+```
+
+Replace the topic placeholder with the same generated topic before saving JSON.
+Keep the JSON root-owned and mode `0600`; never commit it. The provider code
+POSTs to `base_url + '/' + topic` with a bearer token. Its configuration loader
+explicitly allows HTTP only for `127.0.0.1`; non-loopback endpoints must use
+HTTPS and `ntfy.sh` is rejected. Keep the credential filename `ntfy_token` so
+the worker's `LoadCredential=provider:/etc/riverview/notification/` exposes it as
+`provider_ntfy_token`. Do not create Pushover credential files or route to
+Pushover. Migration 0007 and worker installation remain in the existing reviewed
+Riverview backup, restore, package, and deployment procedure below.
+
+### iPhone setup before a live notice
+
+The phone must be connected to the Riverview LAN. The configured certificate is
+issued by the private Riverview Camrui LAN Root CA and covers `192.168.1.155`.
+Transfer the public CA certificate only through an already authenticated
+channel; the documented Camrui file is
+`/usr/local/share/ca-certificates/riverview-camrui-lan.crt` with fingerprint
+`D7823E13473A2F1F86A50781071CA7D6E08CA0B8D960C327739C85BA14DDC32D`. The phone
+owner installs and enables trust for this CA using iOS certificate-profile and
+full-trust settings. Never bypass TLS validation. Install the ntfy iOS app,
+configure custom server `https://192.168.1.155/ntfy`, add the chosen topic with
+the separate read-only credentials, and enable notification permission. Keep
+the app open for the initial acceptance check. Open the topic and verify its
+connection indicator is healthy before authorizing the event insert.
+
+A compatible AirPods/Beats headset and Siri **Settings → Notifications → Announce
+Notifications** are a separate optional manual test. Pair and wear the headset,
+lock the phone, enable announcement for ntfy if iOS exposes the app switch, and
+observe the audio result. Do not treat server/provider acceptance as proof of
+audible delivery.
+
+### One harmless info-level acceptance test
+
+This is a production database write and sends one real phone notice. Run only
+after explicit authorization for the Riverview worker, migration 0007, ntfy
+server/Nginx route, and this exact labeled test. Confirm the phone owner is ready
+and ntfy app is open. Insert one unassigned `attention_resolved` test event;
+do not run the existing three-severity block for this initial test:
+
+```bash
+sudo -n -u postgres psql -X --set=ON_ERROR_STOP=1 -d riverview <<'SQL'
+BEGIN;
+SELECT replace(gen_random_uuid()::text,'-','') AS run_id \gset
+INSERT INTO riverview_dev.cme_monitor_events
+    (event_key,service_id,assignment_id,event_type,details)
+VALUES
+    ('iphone-lan-test:' || :'run_id','notification_acceptance_test',NULL,
+     'attention_resolved',jsonb_build_object(
+       'test_only',true,'test_id',:'run_id','acceptance_scope','lan-foreground-info'))
+RETURNING event_key,event_id;
+COMMIT;
+\echo LAN info test run ID: :run_id
+SQL
+```
+
+The active existing notification dispatcher projects the supported source event;
+the separately authorized new delivery worker submits it through loopback ntfy.
+Correlate using IDs and status only, never select message bodies, bearer tokens,
+or provider response bodies:
+
+```sql
+BEGIN READ ONLY;
+SELECT e.event_key,e.event_id,n.notification_id,q.delivery_id,
+       q.provider,q.severity,q.state,q.attempt_count,q.last_error_code,
+       q.provider_accepted_at
+FROM riverview_dev.cme_monitor_events e
+JOIN riverview_dev.attention_notifications n ON n.source_event_id=e.event_id
+JOIN riverview_dev.notification_delivery_queue q ON q.notification_id=n.notification_id
+WHERE e.event_key='iphone-lan-test:<RUN_ID>'
+ORDER BY q.provider;
+ROLLBACK;
+```
+
+Expected: one `ntfy` / `info` queue row with one attempt and provider state
+`accepted`; the phone owner separately records whether the notification appeared
+in the ntfy app. A `401/403` means credential or topic ACL/path policy failure;
+`502/504` means the Nginx route could not reach loopback ntfy; no row means inspect
+the existing dispatcher projection and worker health read-only. Do not insert a
+second event to paper over a missing first event. Ntfy has no server-side handset
+acknowledgment; its `accepted` status does not change after viewing the phone.
+
+This is a **foreground LAN** acceptance only. Do not configure or wait for
+`upstream-base-url` during it. On iOS, background execution prevents a
+self-hosted service from reliably waking the native app without an upstream
+APNS/Firebase relay. The server owner can later separately authorize a relay
+choice; ntfy's relay sends poll metadata (topic hash/message ID and generic
+notification text), not the protected message body. Until that decision, claim
+only the foreground result and leave background timeliness unverified.
+
+### Rollback and recovery
+
+Before any commissioning write, preserve exact predecessors and checksums for
+the Nginx site file, any existing ntfy binary/unit/config/data path, and all
+Riverview unit/config/release pointers. Abort rather than replace an unexpected
+existing ntfy installation. If acceptance fails:
+
+1. Stop and disable only the newly commissioned
+   `riverview-notification-delivery.service` and `ntfy.service`; do not stop or
+   restart the existing visual dispatcher, dashboard, Nginx, PostgreSQL, CME,
+   or unrelated services.
+2. Restore the Nginx site file byte-for-byte from its recorded predecessor,
+   verify its recorded SHA-256, run `sudo nginx -t`, then reload Nginx only if
+   validation passes. This removes only `/ntfy/` and returns `/` to its prior
+   dashboard behavior.
+3. Restore the recorded Riverview delivery config, service unit, and `current`
+   symlink predecessors if any existed. For a first install, remove only files
+   created by this commissioning; never remove a pre-existing file.
+4. Revoke the temporary ntfy publisher token and phone credential through ntfy's
+   authenticated admin procedure. Preserve the ntfy SQLite databases and the
+   Riverview migration 0007/outbox/event rows for diagnosis; do not drop schema,
+   delete test rows, or erase evidence as rollback.
+5. Confirm the ntfy listener is absent, port 443 and its original Nginx policy
+   are restored, the visual dispatcher remains active, and the Riverview worker
+   remains inactive. Record the failed check and resume only from the failed
+   commissioning step after a reviewed correction.
+
+### Commissioning authorization boundary
+
+Before execution, the Steward/operator must authorize these scoped actions:
+
+- Install one reviewed, checksum-pinned ntfy binary and its dedicated loopback
+  systemd unit/data files on Camrui.
+- Add the `/ntfy/` location to the existing Nginx TLS site and reload after
+  backup and `nginx -t`; preserve port 443, the Host/Origin guard, and the
+  `192.168.1.0/24` allowlist.
+- Provision the private topic, two non-admin ntfy users, read/write ACLs,
+  publisher token, the iPhone read credential, and the protected Riverview
+  ntfy-only JSON/token files.
+- Separately authorize the Riverview migration 0007/release/worker activation
+  under the existing backup, restore-verification, and rollback procedure.
+- Authorize the one labeled info event and real phone notice after the owner
+  confirms the app is ready.
+
+The upstream iOS relay is **not** part of those prerequisites for foreground
+acceptance. Any relay decision is separate and can be deferred. This plan grants
+no deployment or notification authority.
 
 ## Setup after separately authorized commissioning
 
