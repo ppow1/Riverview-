@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.250",
+      "revision": "1.1.252",
       "path": ".riverview-revisions.json",
       "sha256": "52cb9908377791af65712ff7272e0014b8cd1af6b5f4c717f6a9e0df02d07047",
       "size_bytes": 15924
@@ -207,8 +207,8 @@
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "path": "process_graphs/schema/riverview-process-graph.schema.json",
       "revision": "1.0.1",
-      "sha256": "95596d4def44a2ff201b2b32be7ebe1890a2903c2beff8cdabbc857e31c1b41f",
-      "size_bytes": 3257
+      "sha256": "0c03d29216d6d3cb08e58ab7bff12b545211f78fbdffb0767118553b52025da7",
+      "size_bytes": 3203
     },
     "process_graphs/steward-dashboard/status.json": {
       "path": "process_graphs/steward-dashboard/status.json",
@@ -332,11 +332,11 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.7",
-      "sha256": "7119112781d413441645cc2d9fd8986a9b8827f76cc2ca45d28b9f305a15d14e",
-      "size_bytes": 1080548
+      "revision": "1.0.9",
+      "sha256": "b3ad300127d9542ccb04475bc8048b94c6ce9a4a65c715eb771b7c1115c5d2f1",
+      "size_bytes": 1083012
     }
   },
-  "manifest_revision": "1.1.250",
-  "updated_at": "2026-10-19T00:48:23Z"
+  "manifest_revision": "1.1.252",
+  "updated_at": "2026-10-19T00:51:11Z"
 }

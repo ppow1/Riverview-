@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.0
+# Revision: 1.1.1
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Accept sanitized C2 bridge exception codes as terminal ambiguous receipts.
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Bind duplicate receipt replay to a one-way lease-token digest.
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Import namespace UUID function for stable doorbell attempt identity.
@@ -18,6 +18,7 @@
 # Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Provide pending-objective guard and make retry identity independent of first-delivery deadline
 # Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Persist immutable review subject and expose its digest in provider status
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Add explicit Steward-originated list/claim/response/status operations with durable actor provenance and review-subject digest binding
+# Changed: 2026-10-19 UTC | RV-P0-W3-PR150-COMBINED-CI-CORRECTION | Preserve C3 conflict semantics for provider reviews and C4 unauthorized semantics for Steward digest failures.
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # Tests: tests/test_external_reasoning_exchange.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -829,8 +830,12 @@ class DurableExternalReasoningExchange:
                 if expected_subject_digest is not None:
                     if (not isinstance(review_subject_sha256, str)
                             or review_subject_sha256 != expected_subject_digest):
+                        if reviewer_kind == "steward":
+                            raise ExchangeUnauthorized("review_subject_digest_mismatch")
                         raise ExchangeConflict("review_subject_digest_mismatch")
                 elif review_subject_sha256 is not None:
+                    if reviewer_kind == "steward":
+                        raise ExchangeUnauthorized("review_subject_not_present")
                     raise ExchangeConflict("unexpected_review_subject_digest")
                 if row["response_sha256"]:
                     if row["response_sha256"] == digest and row["response_idempotency_key"] == idempotency_key:

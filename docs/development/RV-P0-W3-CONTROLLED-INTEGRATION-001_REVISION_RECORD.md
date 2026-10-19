@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/RV-P0-W3-CONTROLLED-INTEGRATION-001_REVISION_RECORD.md
 Component: P0-CONTROLLED-INTEGRATION
-Revision: 1.0.7
+Revision: 1.0.8
 Status: Offline integration evidence; no merge or deployment authority
 Date: 2026-10-18 UTC
 Purpose: Record W3 branch assembly and isolated verification
@@ -178,3 +178,16 @@ PostgreSQL service and POSIX-only permissions/TTY behavior. Hosted PostgreSQL
 acceptance on the published exact integration head is the required final test.
 No merge to main, deployment, service action, migration, credential/grant change,
 live review or connector refresh is authorized or performed.
+
+## Exact-head PostgreSQL correction — 2026-10-19
+
+Hosted run [#39182240680](https://github.com/ppow1/Riverview-/actions/runs/39182240680)
+on `f367747de09da4a1c1c526f03fa72f17f67a0806` ran 701 tests / 4 skips and failed
+with two errors. The Steward exchange test correctly expects `ExchangeUnauthorized`
+for a bad Steward digest, while the C3 provider proposal path expects
+`ExchangeConflict`; the integration now preserves those caller-specific results.
+The process-graph test also found that the index checksum had captured the Windows
+CRLF working copy of the graph schema, while Git stores LF. The worktree copy was
+restored to the exact tracked LF bytes and the sidecar now hashes that exact blob;
+the CRLF predecessor was retained and recorded. Latest graph and diff checks pass;
+the exact-head PostgreSQL workflow must rerun before acceptance.
