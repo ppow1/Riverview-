@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/development/RV-GRACE-CHATGPT-P0-C4-MCP_REVISION_RECORD.md
 Component: EXTERNAL-REASONING-MCP-TRANSPORT
-File Revision: 1.0.5
+File Revision: 1.0.6
 Purpose: Record C4 exact-proposal MCP integration, isolated verification, and live gates
 Authority: Existing provider-scoped MCP identity and resident.reasoning.escalate grant only
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-MCP | Initial implementation record
