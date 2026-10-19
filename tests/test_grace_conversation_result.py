@@ -1,8 +1,9 @@
 # Riverview~ controlled test
 # File: tests/test_grace_conversation_result.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.12
+# Revision: 1.0.13
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Integrate PostgreSQL qualification and active production regression coverage.
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Verify generation-two evidence preserves the active digest-checked artifact-review contract.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-DIAGNOSTICS | Verify safe structured-review diagnostics reveal shape only and never generated text
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-RESULT-RECEIPT-001 | Cover publisher receipts without cycle metadata and fail-closed mismatches
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Verify both accepted and rejected review paths provide the actual digest-checked artifact to Grace.
@@ -166,10 +167,20 @@ class GraceConversationResultTests(unittest.TestCase):
             "artifact_bytes": len(body.encode("utf-8")), "artifact_sha256": digest}
         context["artifact_review"] = {"artifact_name": artifact_name,
             "sha256": digest, "body": body}
+        review_evidence = ["A newly verified evidence reference was added."]
+        evidence_revision = "steward-evidence-revision-2"
+        evidence_sha256 = hashlib.sha256(json.dumps({"evidence_revision":evidence_revision,
+            "evidence":review_evidence}, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":")).encode()).hexdigest()
+        context.update({"review_generation":2,
+            "review_evidence_revision":evidence_revision,
+            "review_evidence":review_evidence,
+            "review_evidence_sha256":evidence_sha256})
 
         result = self.service.review_verified_work_order(context)
 
         self.assertEqual(result["status"], "published")
+        self.assertEqual(result["review_generation"], "2")
         payload = json.loads(self.router.calls[0][0][1]["content"])
         evidence = payload["verified_work_order_result"]
         self.assertEqual(evidence["artifact_for_grace_review"]["body"], body)

@@ -2,8 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.15
+# Revision: 1.1.16
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Integrate PostgreSQL qualification and active production regression coverage.
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Fail closed on globally reused event keys and select due review generations before applying the batch limit.
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
 # Execution Model: Request-driven orchestration over existing PostgreSQL authority and ledger
 # Observability: Append-only objective events linked to assignment and evidence provenance
@@ -799,6 +800,23 @@ class GraceExecutionPipeline:
                           AND r.payload ? 'origin')
                     ORDER BY e.sequence DESC LIMIT 1) c ON true
                 WHERE o.status IN ('COMPLETED','WORK_ORDER_CREATED')
+                  AND (
+                    NOT EXISTS (SELECT 1 FROM grace_objective_events initial_publication
+                        WHERE initial_publication.objective_id=o.objective_id
+                          AND initial_publication.event_type='conversation.result_published'
+                          AND initial_publication.payload->>'completion_cycle'=c.payload->>'completion_cycle'
+                          AND COALESCE(initial_publication.payload->>'review_generation','1')='1')
+                    OR EXISTS (SELECT 1 FROM grace_objective_events review_request
+                        WHERE review_request.objective_id=o.objective_id
+                          AND review_request.event_type='conversation.result_review_requested'
+                          AND review_request.payload->>'completion_cycle'=c.payload->>'completion_cycle'
+                          AND NOT EXISTS (SELECT 1 FROM grace_objective_events review_publication
+                            WHERE review_publication.objective_id=o.objective_id
+                              AND review_publication.event_type='conversation.result_review_published'
+                              AND review_publication.payload->>'completion_cycle'=c.payload->>'completion_cycle'
+                              AND review_publication.payload->>'review_generation'=
+                                  review_request.payload->>'review_generation'))
+                  )
                 ORDER BY o.updated_at,o.objective_id LIMIT %s""", (limit,))
             objective_rows = cur.fetchall()
         results = []
@@ -914,11 +932,13 @@ class GraceExecutionPipeline:
                     (objective_id, str(completion_cycle)))
                 if not cur.fetchone():
                     raise ObjectiveStateError("matching accepted verified result is required")
-                cur.execute("""SELECT event_type,payload FROM grace_objective_events
-                    WHERE objective_id=%s AND idempotency_key=%s""",
-                    (objective_id, idempotency_key))
+                cur.execute("""SELECT objective_id,event_type,payload FROM grace_objective_events
+                    WHERE idempotency_key=%s""", (idempotency_key,))
                 prior = cur.fetchone()
                 if prior:
+                    if prior["objective_id"] != objective_id:
+                        raise ObjectiveStateError(
+                            "review revision idempotency key belongs to another objective")
                     payload = prior["payload"] or {}
                     if (prior["event_type"] != "conversation.result_review_requested"
                             or payload.get("completion_cycle") != completion_cycle
@@ -955,6 +975,13 @@ class GraceExecutionPipeline:
                     "actor_principal_id": actor["principal_id"]}
                 self._event(cur, objective_id, "conversation.result_review_requested",
                     idempotency_key, actor["principal_id"], payload)
+                cur.execute("""SELECT objective_id,event_type,payload FROM grace_objective_events
+                    WHERE idempotency_key=%s""", (idempotency_key,))
+                stored = cur.fetchone()
+                if (not stored or stored["objective_id"] != objective_id
+                        or stored["event_type"] != "conversation.result_review_requested"
+                        or stored["payload"] != payload):
+                    raise ObjectiveStateError("review revision idempotency key conflicts")
         return {"review_generation": generation, "evidence_revision": evidence_revision,
                 "evidence_sha256": evidence_sha256, "reused": False}
 

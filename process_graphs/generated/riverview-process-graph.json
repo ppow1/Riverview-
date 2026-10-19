@@ -2799,7 +2799,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.57",
+      "graph_revision": "1.0.58",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -4124,9 +4124,9 @@
         },
         {
           "id": "rv:grace:operational-integration:verified-result-rereview-request",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
-          "label": "Append a bounded evidence revision for a verified-result review; exact objective.submit authority and per-generation idempotency apply, with no automatic dispatch",
+          "label": "Append a bounded evidence revision for a verified-result review; exact objective.submit authority, globally unique per-generation idempotency and due-before-batch selection apply, with no automatic dispatch",
           "source_references": [
             "src/riverview_core/resident_execution/pipeline.py",
             "src/riverview_core/resident_execution/conversation.py"

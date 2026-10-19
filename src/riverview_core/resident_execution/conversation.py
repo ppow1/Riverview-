@@ -2,8 +2,10 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.2.23
+# Revision: 1.2.25
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Reconcile bounded review generations with active production behavior and exact-scope authorization.
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve active artifact-review fields alongside generation-specific review inputs.
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Permit empty generation metadata on persisted governed-rework receipts while requiring substantive provenance.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-DIAGNOSTICS | Record safe structured-review failure categories and response shape without exposing generated text
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-DIAGNOSTICS | Record safe structured-review failure categories and response shape without exposing generated text
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-ARTIFACT-STATUS | Accept the sanitized artifact-review availability field from the durable result outbox
@@ -1500,8 +1502,7 @@ class ResidentConversationService:
         required = {"objective_id", "assignment_id", "request", "acceptance_criteria",
                     "proposal", "submitter_id", "origin", "completion", "completion_cycle"}
         optional = {"objective_status", "step_progress", "artifact_review",
-                    "artifact_review_unavailable"}
-        optional = {"objective_status", "step_progress", "review_generation",
+                    "artifact_review_unavailable", "review_generation",
                     "review_evidence_revision", "review_evidence", "review_evidence_sha256"}
         if (not isinstance(context, dict) or not required.issubset(context)
                 or set(context) - required - optional):
@@ -1933,7 +1934,9 @@ class ResidentConversationService:
             context["assignment_id"] + ":" + verification_id)
         if self.store.has_assistant_response(request_id):
             receipt = self.store.assistant_response_receipt(request_id)
-            if not receipt or not all(receipt.values()):
+            if not receipt or not all(receipt.get(key) for key in (
+                    "provider_id", "served_model", "implementation_id",
+                    "completion_cycle", "review_decision")):
                 raise ConversationUnavailable("persisted rework response provenance is incomplete")
             return {"status": "already_published", "request_id": str(request_id), **receipt}
         model_completion = None

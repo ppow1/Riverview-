@@ -2,8 +2,10 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.37
+# Revision: 1.0.39
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Verify generation-two evidence preserves the active digest-checked artifact-review contract.
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Cover global review-key collision, bounded due-review selection and persisted rework receipt recovery.
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-RESULT-RECEIPT-001 | Exercise PostgreSQL outbox acknowledgement when publisher omits completion_cycle
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Authenticate objective detail integration read with a Steward account session
 # Changed: 2026-10-19 UTC | RV-GRACE-REREVIEW-OPERATOR-CALLER-001 | Verify authenticated HTTP rereview persistence, scope denial, idempotency, and no dispatch side effect.
@@ -651,29 +653,22 @@ class GraceExecutionTests(unittest.TestCase):
                          ["verified", "pending"])
         self.assertIsNone(self.pipeline.dispatchable_step(objective_id),
                           "dependent work must wait for model-directed result review")
-        self.assertEqual(service.publish_conversation_results(), 1,
-                         "publisher may omit completion_cycle; durable outbox owns it")
-        self.assertEqual(service.publish_conversation_results(), 0,
-                         "persisted publication event must prevent repeated publisher calls")
-        self.assertEqual(publisher.cycles, [1])
-        self.pipeline.record_conversation_result_published(objective_id, {
-            "request_id": str(uuid4()), "provider_id": "provider:test",
-            "served_model": "model:test", "implementation_id": "implementation:test",
-            "completion_cycle": "1"})
-
         class DurableReviewPublisher:
             def __init__(self):
-                self.receipt = None
-                self.calls = 0
+                self.receipts = {}
+                self.calls = {}
+                self.cycles = []
             def __call__(self, context):
-                self.calls += 1
-                if self.receipt is None:
-                    self.receipt = {"request_id":"test-result:cycle:1",
+                cycle = context["completion_cycle"]
+                self.cycles.append(cycle)
+                self.calls[cycle] = self.calls.get(cycle, 0) + 1
+                if cycle not in self.receipts:
+                    self.receipts[cycle] = {"request_id":f"test-result:cycle:{cycle}",
                         "provider_id":"provider:test", "served_model":"model:test",
-                        "implementation_id":"implementation:test", "completion_cycle":"1",
+                        "implementation_id":"implementation:test",
                         "review_decision":"ADDITIONAL_EVIDENCE_REQUIRED"}
-                return {"status":"published" if self.calls == 1 else "already_published",
-                        **self.receipt}
+                return {"status":"published" if self.calls[cycle] == 1 else "already_published",
+                        **self.receipts[cycle]}
         publisher = DurableReviewPublisher()
         service.conversation_result_publisher = publisher
         record_receipt = self.pipeline.record_conversation_result_published
@@ -685,14 +680,14 @@ class GraceExecutionTests(unittest.TestCase):
             return record_receipt(obj_id, receipt)
         self.pipeline.record_conversation_result_published = fail_before_ack
         self.assertEqual(service.publish_conversation_results(), 0)
-        self.assertEqual(publisher.calls, 1)
+        self.assertEqual(publisher.calls[1], 1)
         self.assertFalse(any(event["event_type"] == "conversation.result_published"
                              for event in self.pipeline.objective_events(objective_id)))
         self.pipeline.record_conversation_result_published = record_receipt
         self.assertEqual(service.publish_conversation_results(), 1)
-        self.assertEqual(publisher.calls, 2)
+        self.assertEqual(publisher.calls[1], 2)
         self.assertEqual(service.publish_conversation_results(), 0)
-        self.assertEqual(publisher.calls, 2)
+        self.assertEqual(publisher.calls[1], 2)
         wrong_scope_credential = secrets.token_urlsafe(36)
         wrong_scope_principal = "steward:wrong-scope:" + uuid4().hex
         self.admin.execute(f'INSERT INTO "{self.schema}".institutional_principals '
@@ -779,7 +774,7 @@ class GraceExecutionTests(unittest.TestCase):
                          ["verified", "verified"])
         self.assertEqual(service.publish_conversation_results(), 1)
         self.assertEqual(service.publish_conversation_results(), 0)
-        self.assertEqual(publisher.cycles, [1, 2])
+        self.assertEqual(publisher.cycles, [1, 1, 2])
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
             cur.execute("""SELECT step_id,status,assignment_id FROM grace_objective_steps
@@ -1390,6 +1385,7 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertTrue(service.verify_one(second_assignment))
         self.assertEqual(service.reconcile_completions(objective_id=objective_id), 1)
         self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "COMPLETED")
+
         self.assertEqual(service.publish_conversation_results(), 1)
         self.assertEqual(service.publish_conversation_results(), 0)
         self.assertEqual(publisher.cycles, [1, 2])
@@ -1411,6 +1407,74 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(final_event["payload"]["artifact"]["repository_reference"], repo_ref)
         self.assertEqual(final_event["payload"]["artifact"]["repository_revision"], pinned)
 
+
+    def test_rereview_key_collision_across_objectives_fails_closed(self):
+        from riverview_core.resident_execution import ObjectiveStateError
+
+        objective_id = "objective:rereview-key-owner"
+        other_id = "objective:rereview-key-other"
+        origin = {"conversation_id": str(uuid4()), "source_sequence": 1}
+        for candidate in (objective_id, other_id):
+            self.pipeline.submit_objective(candidate, "Review accepted evidence",
+                ["the accepted result remains within scope"], credential=self.credentials["steward"],
+                scope_ref=self.scope, origin=origin)
+        self.admin.execute(f'UPDATE "{self.schema}".grace_objectives '
+            "SET status='WORK_ORDER_CREATED',assignment_id=%s WHERE objective_id=%s",
+            ("assignment:" + objective_id, objective_id))
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                self.pipeline._event(cur, objective_id, "execution.step_verified",
+                    "verified:" + objective_id, "verifier:test", {
+                        "assignment_id":"assignment:" + objective_id,
+                        "completion_cycle":1, "decision":"ACCEPTED"})
+                self.pipeline._event(cur, objective_id, "conversation.result_published",
+                    "published:" + objective_id, "office:grace", {
+                        "completion_cycle":1, "review_generation":1})
+                foreign_key = "global-rereview-key:" + uuid4().hex
+                self.pipeline._event(cur, other_id, "objective.test_key_reserved",
+                    foreign_key, "steward:test", {"owner":other_id})
+        with self.assertRaisesRegex(ObjectiveStateError, "another objective"):
+            self.pipeline.request_conversation_result_rereview(objective_id, 1,
+                evidence_revision="new-evidence-revision", evidence=["bounded new evidence"],
+                credential=self.credentials["steward"], idempotency_key=foreign_key)
+
+    def test_pending_rereview_is_not_starved_by_older_published_objectives(self):
+        old_ids = ["objective:reviewed-prefix:" + str(index) for index in range(2)]
+        pending_id = "objective:review-pending-after-prefix"
+        origin = {"conversation_id": str(uuid4()), "source_sequence": 1}
+        for objective_id in old_ids + [pending_id]:
+            self.pipeline.submit_objective(objective_id, "Review accepted evidence",
+                ["the accepted result remains within scope"], credential=self.credentials["steward"],
+                scope_ref=self.scope, origin=origin)
+            assignment_id = "assignment:" + objective_id
+            self.admin.execute(f'UPDATE "{self.schema}".grace_objectives '
+                "SET status='WORK_ORDER_CREATED',assignment_id=%s WHERE objective_id=%s",
+                (assignment_id, objective_id))
+            with self.ledger.db.transaction():
+                with self.ledger.db.cursor() as cur:
+                    self.ledger._set_search_path(cur)
+                    self.pipeline._event(cur, objective_id, "execution.step_verified",
+                        "verified:" + objective_id, "verifier:test", {
+                            "assignment_id":assignment_id, "completion_cycle":1,
+                            "decision":"ACCEPTED"})
+                    self.pipeline._event(cur, objective_id, "conversation.result_published",
+                        "published:" + objective_id, "office:grace", {
+                            "completion_cycle":1, "review_generation":1})
+                    if objective_id == pending_id:
+                        evidence = ["new durable evidence"]
+                        revision = "batch-review-revision"
+                        digest = hashlib.sha256(json.dumps({"evidence_revision":revision,
+                            "evidence":evidence}, ensure_ascii=False, sort_keys=True,
+                            separators=(",", ":")).encode()).hexdigest()
+                        self.pipeline._event(cur, objective_id,
+                            "conversation.result_review_requested", "request:" + objective_id,
+                            "steward:test", {"completion_cycle":1,"review_generation":2,
+                                "evidence_revision":revision,"evidence":evidence,
+                                "evidence_sha256":digest})
+        due = self.pipeline.pending_conversation_results(limit=1)
+        self.assertEqual([row["objective_id"] for row in due], [pending_id])
+        self.assertEqual(due[0]["review_generation"], 2)
     def test_missing_or_oversized_evidence_fails_closed(self):
         from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
 

@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.57
+**Document Revision:** 1.0.58
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
@@ -142,7 +142,7 @@ flowchart LR
     g_rv_grace_operational_integration_rework_attempt_verification_ba069bce["Independently verify the new successful attempt only once; preserve prior artifacts and rejection records; latest rejection becomes the next decision target"]
     g_rv_grace_operational_integration_rework_steward_direction_b806bf42[["A bounded STEWARD_AUTHORIZATION_REQUIRED decision keeps work incomplete and records the precise decision boundary"]]
     g_rv_grace_operational_integration_conversation_engineering_progress_eaa2fbc0["Authenticated conversation-scoped dashboard projection shows durable receipt, objective/assignment stage, latest event, verifier/rework state and Steward action without transcript bodies"]
-    g_rv_grace_operational_integration_verified_result_rereview_request_86251ab8["Append a bounded evidence revision for a verified-result review; exact objective.submit authority and per-generation idempotency apply, with no automatic dispatch"]
+    g_rv_grace_operational_integration_verified_result_rereview_request_86251ab8["Append a bounded evidence revision for a verified-result review; exact objective.submit authority, globally unique per-generation idempotency and due-before-batch selection apply, with no automatic dispatch"]
   end
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_cme_progress_and_recovery_observe_428defda["Registered target<br/>rv:cme:progress-and-recovery"]
