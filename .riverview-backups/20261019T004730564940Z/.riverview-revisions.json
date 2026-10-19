@@ -1,0 +1,342 @@
+{
+  "files": {
+    ".riverview-revisions.json": {
+      "revision": "1.1.247",
+      "path": ".riverview-revisions.json",
+      "sha256": "52cb9908377791af65712ff7272e0014b8cd1af6b5f4c717f6a9e0df02d07047",
+      "size_bytes": 15924
+    },
+    "dist/knowledge-provider-v1.0.0.zip": {
+      "path": "dist/knowledge-provider-v1.0.0.zip",
+      "revision": "1.0.0",
+      "sha256": "a5f35c86cfb649eb7259829879f3375bf832c482b4ec8db67bd160f35176fce3",
+      "size_bytes": 19479
+    },
+    "docs/components/NOTIFICATION_DELIVERY_API.schema.json": {
+      "path": "docs/components/NOTIFICATION_DELIVERY_API.schema.json",
+      "revision": "1.0.0",
+      "sha256": "9db7798669f1f94fb6f364226096265f5af3686c2ca0e200cbe34d835bcb9cbe",
+      "size_bytes": 3017
+    },
+    "docs/components/STATUS_DASHBOARD_API.schema.json": {
+      "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
+      "revision": "1.0.5",
+      "sha256": "c977b82dd825b0dc1ec840c86b264dc9e1a8705af2e75c05f40de1cf7cd21a22",
+      "size_bytes": 12736
+    },
+    "docs/development/JOURNAL.md": {
+      "path": "docs/development/JOURNAL.md",
+      "revision": "1.0.174",
+      "sha256": "5348dd19d8e114f5fc025a5ac4e9b8e648e972564658604f1ba2b304aecb2f81",
+      "size_bytes": 226833
+    },
+    "docs/development/RV-COMMS5-ESCALATION-INITIATION-001_REVISION_RECORD.md": {
+      "path": "docs/development/RV-COMMS5-ESCALATION-INITIATION-001_REVISION_RECORD.md",
+      "revision": "1.0.1",
+      "sha256": "7bab5488953be1fc1694e90228214696fe433cf23fd487d72779f9abdba148ca",
+      "size_bytes": 5306
+    },
+    "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md": {
+      "path": "docs/development/RV-EXTERNAL-MCP-ADAPTER-001_REVISION_RECORD.md",
+      "revision": "1.0.2",
+      "sha256": "fe9a7aaf2d14e0309a6e221ff751c92bbccf4bb7ba584c12b691f7e6bd2712cf",
+      "size_bytes": 5000
+    },
+    "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json": {
+      "path": "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+      "revision": "1.0.0",
+      "sha256": "1295405d99d40405bdb52897d98f087843edba3aa8579fc8c65607ab28043821",
+      "size_bytes": 567
+    },
+    "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json": {
+      "path": "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json",
+      "revision": "1.0.0",
+      "sha256": "b48917aa91eaa1705377de8b8d2b9198ce01279239c01e3b1846ea05e9b82887",
+      "size_bytes": 742
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/ci_results.json": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/ci_results.json",
+      "revision": "1.0.0",
+      "sha256": "722bd59c3231da21b2ee5555627ffa822d05035d5c3ba37edfd6c2216f2b4a7f",
+      "size_bytes": 413
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/package_verification.json": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/package_verification.json",
+      "revision": "1.0.0",
+      "sha256": "e14e1a05f02fa3a0ff96bfb89f3d4a6da56935e07ea109eabea9bf0e76f43b80",
+      "size_bytes": 907
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json",
+      "revision": "1.0.2",
+      "sha256": "ac00f414f3477e979953868be0bb661c582ff7e87b9a5a1c1d3f11183bfee123",
+      "size_bytes": 6204
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/test_results.json": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/test_results.json",
+      "revision": "1.0.1",
+      "sha256": "b72a8efbc41bb798fdb373deb1af234dc8bc4b09c075f5e8a71fd67bed3561ad",
+      "size_bytes": 561
+    },
+    "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/revision-baseline.json": {
+      "path": "evidence/checkouts/EXTERNAL-MCP-ADAPTER/20261016T225107Z-7611210/revision-baseline.json",
+      "revision": "1.0.0",
+      "sha256": "fd6fcded853dd08410f4e705746f5a7dbb6dbddc485dfd2a72748858d47adb09",
+      "size_bytes": 283679
+    },
+    "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json": {
+      "path": "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json",
+      "revision": "1.0.0",
+      "sha256": "8720044861dd18f30207bd36b272bc3d05dc0adc2afe12e4e680550e998dfe60",
+      "size_bytes": 768
+    },
+    "process_graphs/account-authentication/account-lifecycle.json": {
+      "path": "process_graphs/account-authentication/account-lifecycle.json",
+      "revision": "1.1.0",
+      "sha256": "211c5056c898d89e2925d531d8ab8834bb14597de92c0a6ffffdf37ae96e3aee",
+      "size_bytes": 19597
+    },
+    "process_graphs/assignment-intake/governed-request.json": {
+      "path": "process_graphs/assignment-intake/governed-request.json",
+      "revision": "1.0.0",
+      "sha256": "010995c5d03e0470bb4e83f04f136e5510b80c7023867960451b8f069762fc4e",
+      "size_bytes": 8684
+    },
+    "process_graphs/assignment-scheduler/independent-claims.json": {
+      "path": "process_graphs/assignment-scheduler/independent-claims.json",
+      "revision": "1.0.4",
+      "sha256": "a069b4ed3a30ec6ca6e3edc322be55d0a520dde3fa3ecbe5500b0fc0403265d8",
+      "size_bytes": 10261
+    },
+    "process_graphs/cme/progress-and-recovery.json": {
+      "path": "process_graphs/cme/progress-and-recovery.json",
+      "revision": "1.0.4",
+      "sha256": "b0f25923837c472760dc001648b7decf3a26743ad87cb5c17d8faa57a5efc8d5",
+      "size_bytes": 17596
+    },
+    "process_graphs/comms5/camrui-adapter.json": {
+      "path": "process_graphs/comms5/camrui-adapter.json",
+      "revision": "1.0.15",
+      "sha256": "86470aff3740f22fd6fd0484a48b20353118782732202f861c6b315e66ff546a",
+      "size_bytes": 20446
+    },
+    "process_graphs/event-processor/assignment-progression.json": {
+      "path": "process_graphs/event-processor/assignment-progression.json",
+      "revision": "1.0.4",
+      "sha256": "773f5eafe315a9628b90bcc8a3dc9220a633f684a0c6ebf4f8b34c0e67f570a7",
+      "size_bytes": 13898
+    },
+    "process_graphs/generated/riverview-process-graph.json": {
+      "path": "process_graphs/generated/riverview-process-graph.json",
+      "revision": "1.0.186",
+      "sha256": "3eb57fec1c5769a01e973b5106c798c28bbd7536290df670c5ae3fe442d14d0d",
+      "size_bytes": 654494
+    },
+    "process_graphs/grace/institutional-proposal-lifecycle.json": {
+      "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
+      "revision": "1.0.2",
+      "sha256": "5488d789358fbe5aaec27c2a44c5e23386e8ac8d5bf61c56bcca598ee7a13fbc",
+      "size_bytes": 17891
+    },
+    "process_graphs/grace/operational-integration.json": {
+      "path": "process_graphs/grace/operational-integration.json",
+      "revision": "1.0.50",
+      "sha256": "af4e56a695106e608ea47f7fa94d2fc613c0a7dd542892ced5afb2243f7bcc83",
+      "size_bytes": 78666
+    },
+    "process_graphs/institutional-authority/identity-and-grants.json": {
+      "path": "process_graphs/institutional-authority/identity-and-grants.json",
+      "revision": "1.0.13",
+      "sha256": "75282809d1e1f1ef6d4cfca72ab1ca45ef9bfda4b335a0bb6a9acc065dc5b315",
+      "size_bytes": 43806
+    },
+    "process_graphs/institutional-authority/resident-permission-profiles.json": {
+      "path": "process_graphs/institutional-authority/resident-permission-profiles.json",
+      "revision": "1.0.5",
+      "sha256": "6854efebbd14a3f668c550b5f336deeeb0cc0fbbe3761d86cefc9d18a909f932",
+      "size_bytes": 27243
+    },
+    "process_graphs/knowledge-provider/repository-contracts.json": {
+      "path": "process_graphs/knowledge-provider/repository-contracts.json",
+      "revision": "1.0.3",
+      "sha256": "10c90e607433f85175a12bb234fa9f82666bcc25278f64a6706fb763acc5d879",
+      "size_bytes": 12079
+    },
+    "process_graphs/notification-delivery/visual-attention.json": {
+      "path": "process_graphs/notification-delivery/visual-attention.json",
+      "revision": "1.0.0",
+      "sha256": "935b9356ebda7dcbbef30a38d9de540d855933a41b6a2a42db688e2edc631aed",
+      "size_bytes": 8618
+    },
+    "process_graphs/outcome-verifier/independent-result.json": {
+      "path": "process_graphs/outcome-verifier/independent-result.json",
+      "revision": "1.0.1",
+      "sha256": "c88613cf21185fbfacf2300149f5f7194d747cc1b50e5d0b8fcbca7240191c01",
+      "size_bytes": 8254
+    },
+    "process_graphs/postgres-ledger/assignment-lifecycle.json": {
+      "path": "process_graphs/postgres-ledger/assignment-lifecycle.json",
+      "revision": "1.0.2",
+      "sha256": "1418151d6ef5e24836463ca51201cfb6cfeeaba48ee432df2d21bb9c0c56fb14",
+      "size_bytes": 10905
+    },
+    "process_graphs/postgres-ledger/migration.json": {
+      "path": "process_graphs/postgres-ledger/migration.json",
+      "revision": "1.0.2",
+      "sha256": "aa3f8f8cd62dbf44aef399c06c374f37df882d2f371aac1534157e170bb546e2",
+      "size_bytes": 13883
+    },
+    "process_graphs/resident-conversation/browser-chat.json": {
+      "path": "process_graphs/resident-conversation/browser-chat.json",
+      "revision": "1.0.22",
+      "sha256": "fb699fa23f8aa62371a1538ce9fba41c0120de06d340b4f894969aa1fd9166fd",
+      "size_bytes": 56171
+    },
+    "process_graphs/resident-reasoning/runtime.json": {
+      "path": "process_graphs/resident-reasoning/runtime.json",
+      "revision": "1.0.27",
+      "sha256": "16882fcbc5b27bbe2be626677372054da1d2e29be468b71f1639c20674334e8a",
+      "size_bytes": 62906
+    },
+    "process_graphs/runtime-baseline/runtime-baseline.json": {
+      "path": "process_graphs/runtime-baseline/runtime-baseline.json",
+      "revision": "1.0.1",
+      "sha256": "52bc8b0071c810fdfcd98b1493c346e856ad27efc32a5b22909d15d7c70ab9b9",
+      "size_bytes": 14494
+    },
+    "process_graphs/schema/riverview-process-graph.schema.json": {
+      "path": "process_graphs/schema/riverview-process-graph.schema.json",
+      "revision": "1.0.1",
+      "sha256": "95596d4def44a2ff201b2b32be7ebe1890a2903c2beff8cdabbc857e31c1b41f",
+      "size_bytes": 3257
+    },
+    "process_graphs/steward-dashboard/status.json": {
+      "path": "process_graphs/steward-dashboard/status.json",
+      "revision": "1.0.29",
+      "sha256": "207d2e0b974a935f13c0258f840c3cf82b8de2d8c0c9d8589122be56a0ec29a7",
+      "size_bytes": 40869
+    },
+    "process_graphs/worker-adapter/deterministic-attempt.json": {
+      "path": "process_graphs/worker-adapter/deterministic-attempt.json",
+      "revision": "1.0.16",
+      "sha256": "8361aaceb679b5320aead71f38e297284f031f400d0a4480c9148cf657556d38",
+      "size_bytes": 44859
+    },
+    "process_graphs/worker-adapter/registration-retirement.json": {
+      "path": "process_graphs/worker-adapter/registration-retirement.json",
+      "revision": "1.0.10",
+      "sha256": "dd9dff22f069e2f0247320ee478ff22234ad4198e7e7a3df6ef29bbcc18d98f3",
+      "size_bytes": 13834
+    },
+    "process_graphs/worker-adapter/supervised-services.json": {
+      "path": "process_graphs/worker-adapter/supervised-services.json",
+      "revision": "1.0.1",
+      "sha256": "518273637f4dfdb96c0046acba47480a71922cc7b0c2eb9247bafb76b6a62e55",
+      "size_bytes": 19013
+    },
+    "src/riverview_core/comms5/tool_catalog.json": {
+      "path": "src/riverview_core/comms5/tool_catalog.json",
+      "revision": "1.0.1",
+      "sha256": "9572c1fc46cdbe1fc1ad212877a74805be9aae987b477b876dbe37abc0dc8c86",
+      "size_bytes": 92890
+    },
+    "src/riverview_core/status_dashboard/static/capabilities.json": {
+      "path": "src/riverview_core/status_dashboard/static/capabilities.json",
+      "revision": "1.0.1",
+      "sha256": "d721876e6fa3ba0423e10967499824201c46b29ffd082f6bc09937acd217a261",
+      "size_bytes": 23820
+    },
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json": {
+      "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json",
+      "revision": "1.0.0",
+      "sha256": "5d1952e24f2bfa388fb24504f0d3538e595247d39d9817854e1039ba3a12fd80",
+      "size_bytes": 683
+    },
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/manifest.json": {
+      "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/manifest.json",
+      "revision": "1.0.2",
+      "sha256": "7686adb56f1962363a60c9ee5cef83b7159f018f5742ef79633b88087ca92237",
+      "size_bytes": 1616
+    },
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/outcome.schema.json": {
+      "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/outcome.schema.json",
+      "revision": "1.0.0",
+      "sha256": "e565a3148990321366d7e0fdc2f64f955b24fee4f5f7539dbb929fa09b6c9035",
+      "size_bytes": 340
+    },
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/schema.json": {
+      "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/schema.json",
+      "revision": "1.0.0",
+      "sha256": "a282412964e98058673b9fa945c1ecf20ef3f090933be4fd3035bebc770fbb44",
+      "size_bytes": 1243
+    },
+    "docs/components/CHATGPT_DOORBELL_STATUS.schema.json": {
+      "path": "docs/components/CHATGPT_DOORBELL_STATUS.schema.json",
+      "revision": "1.0.0",
+      "sha256": "fa300ecc2e7f071ab21f65233fc67b2ba6749ee4c7022de286ca2c66e740c3a7",
+      "size_bytes": 7326
+    },
+    "docs/components/CHATGPT_DOORBELL_DISPATCH.md": {
+      "path": "docs/components/CHATGPT_DOORBELL_DISPATCH.md",
+      "revision": "1.0.5",
+      "sha256": "d126dcf79ad5c1055c6faf1b96bffd8942414c7d09ed87add175540341842b2e",
+      "size_bytes": 7273
+    },
+    "docs/components/RESIDENT_REASONING_FLOW.md": {
+      "path": "docs/components/RESIDENT_REASONING_FLOW.md",
+      "revision": "1.0.19",
+      "sha256": "1756c202c5febd924434ffb3732da086371f7fdfb3f616af1f22d915a47a4821",
+      "size_bytes": 25792
+    },
+    "docs/development/RV-C2-CHATGPT-DOORBELL-DISPATCH-001_REVISION_RECORD.md": {
+      "path": "docs/development/RV-C2-CHATGPT-DOORBELL-DISPATCH-001_REVISION_RECORD.md",
+      "revision": "1.0.4",
+      "sha256": "5dd8039061fe4209c8b1d5a324b4df4dfe81ba6fb6b7188cad46a3d04be39698",
+      "size_bytes": 7161
+    },
+    "scripts/run_grace_execution_service.py": {
+      "path": "scripts/run_grace_execution_service.py",
+      "revision": "1.2.5",
+      "sha256": "924985f625e836d8c0936b6713b3d5c74a570efebe8d2f2c3ad40ec49fe3ed92",
+      "size_bytes": 39650
+    },
+    "src/riverview_core/doorbell/runtime.py": {
+      "path": "src/riverview_core/doorbell/runtime.py",
+      "revision": "1.0.0",
+      "sha256": "44237c0ce217587566c38686181eebdd6957715f909b7d655353a5b8bbbcb24f",
+      "size_bytes": 3353
+    },
+    "tests/test_grace_doorbell_runtime_wiring.py": {
+      "path": "tests/test_grace_doorbell_runtime_wiring.py",
+      "revision": "1.0.0",
+      "sha256": "15d929ab980ea1234c4f3f420acc5014f09f5f52a5a89f6a11578bd820372049",
+      "size_bytes": 5465
+    },
+    "tests/test_w2_p0_integrated_review_acceptance.py": {
+      "path": "tests/test_w2_p0_integrated_review_acceptance.py",
+      "revision": "1.0.8",
+      "sha256": "0936a13d5f1b454f5b60fef71b8c257ad335a268da36b6783e673bf9be4d02cf",
+      "size_bytes": 26074
+    },
+    "docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md": {
+      "path": "docs/development/W2_P0_CONTROLLED_ACCEPTANCE.md",
+      "revision": "1.0.4",
+      "sha256": "122d6085fd54b5f1211706d08c918b21628fc586d7a61a3f84b77358e2167454",
+      "size_bytes": 8219
+    },
+    "docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md": {
+      "path": "docs/development/RV-W2-P0-INTEGRATED-ACCEPTANCE_REVISION_RECORD.md",
+      "revision": "1.0.11",
+      "sha256": "3f3160f8d3fb6dbef61f81ea1afd239b9a4b1aee9b2ded0ffc2785ce4698e245",
+      "size_bytes": 8705
+    },
+    ".riverview-backups/manifest.jsonl": {
+      "path": ".riverview-backups/manifest.jsonl",
+      "revision": "1.0.4",
+      "sha256": "4966583063054e4afbb5eb66f167b92945bf280afcfb1d2ff8dad480600776d3",
+      "size_bytes": 1078049
+    }
+  },
+  "manifest_revision": "1.1.247",
+  "updated_at": "2026-10-19T00:47:11Z"
+}
