@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/projection.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.7
+# Revision: 1.0.9
+# Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Add principal-scoped, minimized Engineering progress projections
 # Purpose: Project authoritative PostgreSQL/CME state into bounded safe views
 # Execution Model: Request-driven read-only API dependency
 # Observability: Versioned status, assignment, event, attention and snapshot JSON
@@ -503,22 +504,32 @@ class DashboardProjection:
         return self._read(query)
 
     def objectives(self, *, limit: int = 25, objective_id: str | None = None,
-                   conversation_id: str | None = None):
+                   conversation_id: str | None = None,
+                   owner_principal_id: str | None = None,
+                   progress_only: bool = False):
         """Read bounded objective and Engineering progress summaries.
 
         Conversation filtering uses only the durable objective.received origin;
         transcript bodies are neither selected nor returned.
         """
         limit = self._page_limit(limit)
+        if (owner_principal_id is not None and
+                (not isinstance(owner_principal_id, str) or not owner_principal_id.strip()
+                 or len(owner_principal_id) > 256)):
+            raise ValueError("owner_principal_id must be a bounded principal identifier")
+        if type(progress_only) is not bool:
+            raise ValueError("progress_only must be a boolean")
         if conversation_id is not None:
             try:
                 conversation_id = str(UUID(conversation_id))
             except (ValueError, TypeError, AttributeError):
                 raise ValueError("conversation_id must be a UUID") from None
+        schema_version = ("rv.dashboard.objective_progress.v1" if progress_only
+                          else "rv.dashboard.objectives.v1")
         def query(cur):
             present = self._relations(cur, [f"{self.schema}.grace_objectives"])
             if not next(iter(present.values())):
-                return {"schema_version": "rv.dashboard.objectives.v1",
+                return {"schema_version": schema_version,
                         "status": "not_initialized", "items": [], "limit": limit}
             cur.execute("""SELECT o.objective_id,o.request,o.scope_ref,o.submitter_id,
                     o.acceptance_criteria,o.status,o.assignment_id,o.source_revision,
@@ -571,8 +582,10 @@ class DashboardProjection:
                       AND e.event_type='execution.verification_failed') ve ON true
                 WHERE (%s::text IS NULL OR o.objective_id=%s)
                   AND (%s::uuid IS NULL OR received.payload #>> '{origin,conversation_id}'=%s)
+                  AND (%s::text IS NULL OR o.submitter_id=%s)
                 ORDER BY o.updated_at DESC,o.objective_id LIMIT %s""",
-                (objective_id, objective_id, conversation_id, conversation_id, limit))
+                (objective_id, objective_id, conversation_id, conversation_id,
+                 owner_principal_id, owner_principal_id, limit))
             items=[]
             for row in cur.fetchall():
                 artifact = row["artifact"] if isinstance(row["artifact"], dict) else None
@@ -607,7 +620,7 @@ class DashboardProjection:
                     lifecycle_status, lifecycle_stage = "waiting", "Awaiting authorized work order"
                 else:
                     lifecycle_status, lifecycle_stage = "waiting", str(row["status"])
-                items.append({"objective_id": row["objective_id"],
+                item = {"objective_id": row["objective_id"],
                     "request": str(row["request"])[:512], "scope_ref": row["scope_ref"],
                     "submitter_id": row["submitter_id"],
                     "acceptance_criteria": row["acceptance_criteria"],
@@ -648,8 +661,17 @@ class DashboardProjection:
                     "source_revision": row["source_revision"],
                     "source_sha256": row["source_sha256"], "revision": row["revision"],
                     "created_at": self._iso(row["created_at"]),
-                    "updated_at": self._iso(row["updated_at"])})
-            return {"schema_version": "rv.dashboard.objectives.v1", "status": "available",
+                    "updated_at": self._iso(row["updated_at"])}
+                if progress_only:
+                    item = {key: item[key] for key in (
+                        "objective_id", "status", "assignment_id", "assignment_state",
+                        "origin", "lifecycle_status", "lifecycle_stage", "latest_event",
+                        "verification", "rework", "steward_action_required",
+                        "dispatch_failures", "last_dispatch_failure_at",
+                        "verification_failures", "last_verification_failure_at",
+                        "created_at", "updated_at")}
+                items.append(item)
+            return {"schema_version": schema_version, "status": "available",
                     "observed_at": datetime.now(UTC).isoformat(), "items": items,
                     "limit": limit, "truncated": len(items) == limit}
         return self._read(query)

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.32
+# Revision: 1.0.33
+# Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Authenticate objective detail integration read with a Steward account session
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Cover mixed-capability claims, verification routing, and isolated worker failure behavior.
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Cover persistent proposal failure recording and retry limits.
 # Purpose: Exercise objective-to-authorized-worker-to-independent-verification pipeline
@@ -1475,10 +1476,20 @@ class GraceExecutionTests(unittest.TestCase):
             except OSError:
                 continue
         self.assertIsNotNone(server)
+        class StewardAccountAuth:
+            def authenticate(self, credential, *, csrf_token, state_changing):
+                if credential != "test-account-session":
+                    from riverview_core.account_auth import AuthDenied
+                    raise AuthDenied("session denied")
+                return {"roles": ["steward"], "authority_principal_id": "steward:camrui"}
+            def status(self):
+                return {"status": "available"}
+
+        server._account_auth_service = StewardAccountAuth()
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
 
-        def request(method, path, payload=None, *, authority=None):
+        def request(method, path, payload=None, *, authority=None, account_session=False):
             conn = HTTPConnection("127.0.0.1", server.server_port, timeout=3)
             headers = {"Authorization": "Bearer " + dashboard_token}
             if payload is not None:
@@ -1486,6 +1497,8 @@ class GraceExecutionTests(unittest.TestCase):
                 headers["Content-Length"] = str(len(payload))
             if authority:
                 headers["X-Riverview-Authority"] = authority
+            if account_session:
+                headers["Cookie"] = "rv_account_session=test-account-session"
             conn.request(method, path, body=payload, headers=headers)
             response = conn.getresponse()
             result = (response.status, json.loads(response.read() or b"{}"))
@@ -1558,7 +1571,8 @@ class GraceExecutionTests(unittest.TestCase):
                 cur.execute("SELECT count(*) AS n FROM verification_records WHERE assignment_id=%s",
                             (assignment_id,))
                 self.assertEqual(cur.fetchone()["n"], 1)
-            projected_status, projected = request("GET", f"/api/v1/objectives/{objective_id}")
+            projected_status, projected = request("GET", f"/api/v1/objectives/{objective_id}",
+                                                  account_session=True)
             self.assertEqual(projected_status, 200)
             self.assertEqual(projected["status"], "COMPLETED")
             self.assertEqual(projected["assignment_state"], "completed")

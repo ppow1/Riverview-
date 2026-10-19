@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.55
+# Revision: 1.0.57
+# Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Cover Steward and conversation-owner objective access, redaction, and PostgreSQL scoping
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Verify institutional proposal dashboard actions remain distinct from Engineering intake.
 # Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Verify authenticated conversation-scoped Engineering progress projection and invalid filters
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Verify Steward proposal UI uses distinct draft, approval and objective-promotion actions.
@@ -74,6 +75,9 @@ class _FakeProjection:
     def __init__(self):
         self.last_limit = None
         self.last_conversation_id = None
+        self.last_owner_principal_id = None
+        self.last_progress_only = None
+        self.objective_items = []
         self.execution_position = {"status": "unknown", "reason": "No recorded node."}
 
     def graph_execution_position(self, graph_id):
@@ -100,11 +104,29 @@ class _FakeProjection:
     def attention(self, *, limit=25):
         return {"status":"available", "items":[], "limit":limit}
 
-    def objectives(self, *, limit=25, objective_id=None, conversation_id=None):
+    def objectives(self, *, limit=25, objective_id=None, conversation_id=None,
+                   owner_principal_id=None, progress_only=False):
         self.last_limit = limit
         self.last_conversation_id = conversation_id
-        return {"schema_version":"rv.dashboard.objectives.v1", "status":"available",
-                "items":[], "limit":limit}
+        self.last_owner_principal_id = owner_principal_id
+        self.last_progress_only = progress_only
+        items = list(self.objective_items)
+        if objective_id is not None:
+            items = [item for item in items if item.get("objective_id") == objective_id]
+        if conversation_id is not None:
+            items = [item for item in items
+                     if (item.get("origin") or {}).get("conversation_id") == conversation_id]
+        if progress_only:
+            safe = {"objective_id", "status", "assignment_id", "assignment_state", "origin",
+                    "lifecycle_status", "lifecycle_stage", "latest_event", "verification",
+                    "rework", "steward_action_required", "dispatch_failures",
+                    "last_dispatch_failure_at", "verification_failures",
+                    "last_verification_failure_at", "created_at", "updated_at"}
+            items = [{key: value for key, value in item.items() if key in safe}
+                     for item in items]
+        return {"schema_version":("rv.dashboard.objective_progress.v1" if progress_only
+                                    else "rv.dashboard.objectives.v1"),
+                "status":"available", "items":items, "limit":limit}
 
     def snapshot(self):
         return {"schema_version":"rv.dashboard.snapshot.v1", "redaction":{"credentials":"excluded"}}
@@ -125,6 +147,23 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn("steward_action_required", app)
         self.assertIn("refresh-engineering-progress", app)
         self.assertIn("loadConversationEngineeringProgress();", app)
+
+    def test_objective_progress_contract_is_versioned_and_role_scoped(self):
+        schema = json.loads((ROOT / "docs/components/STATUS_DASHBOARD_API.schema.json")
+                            .read_text(encoding="utf-8"))
+        self.assertEqual(schema["$defs"]["objectiveProgressPage"]["properties"]
+                         ["schema_version"]["const"], "rv.dashboard.objective_progress.v1")
+        allowed = schema["$defs"]["objectiveProgressItem"]["properties"]
+        for sensitive in ("request", "scope_ref", "submitter_id", "acceptance_criteria",
+                          "artifact", "source_sha256"):
+            self.assertNotIn(sensitive, allowed)
+        graph = json.loads((ROOT / "process_graphs/steward-dashboard/status.json")
+                           .read_text(encoding="utf-8"))
+        node_ids = {node["id"] for node in graph["nodes"]}
+        self.assertIn("rv:steward-dashboard:status:objective-scope", node_ids)
+        self.assertTrue(any(edge["from"] == "rv:steward-dashboard:status:objective-scope"
+                            and edge["to"] == "rv:steward-dashboard:status:deny-request"
+                            for edge in graph["edges"]))
 
     def test_institutional_proposal_ui_keeps_draft_approval_and_engineering_intake_distinct(self):
         static = ROOT / "src/riverview_core/status_dashboard/static"
@@ -449,20 +488,139 @@ class DashboardHTTPTests(unittest.TestCase):
 
     def test_objective_progress_projection_is_authenticated_and_conversation_scoped(self):
         conversation_id = "00000000-0000-4000-8000-000000000001"
+        principal_id = "principal:viewer-one"
+
+        class AccountAuth:
+            def authenticate(self, credential, *, csrf_token, state_changing):
+                if credential != "session":
+                    from riverview_core.account_auth import AuthDenied
+                    raise AuthDenied("session denied")
+                return {"roles": ["viewer"], "authority_principal_id": principal_id}
+
+        class ConversationService:
+            def __init__(self):
+                self.last_principal = None
+                self.last_conversation_id = None
+            def history(self, credential, requested_conversation_id):
+                self.last_principal = credential.principal_id
+                self.last_conversation_id = requested_conversation_id
+                if requested_conversation_id != conversation_id:
+                    from riverview_core.resident_execution.conversation import ConversationNotFound
+                    raise ConversationNotFound("conversation not found")
+                return {"conversation_id": conversation_id, "events": []}
+
+        self.server._account_auth_service = AccountAuth()
+        conversation_service = ConversationService()
+        self.server._conversation_service = conversation_service
+
+        # A valid dashboard bearer is not an account identity and cannot retrieve
+        # the unfiltered objective list.
+        status, _, body = self.request("GET", "/api/v1/objectives", token=self.token)
+        self.assertEqual(status, 403)
+        self.assertEqual(json.loads(body)["error"], "account_session_required")
+
+        # A non-Steward account cannot omit the conversation scope.
+        status, _, body = self.request("GET", "/api/v1/objectives?limit=7",
+            token=self.token, cookie="rv_account_session=session")
+        self.assertEqual(status, 403)
+        self.assertEqual(json.loads(body)["error"], "steward_or_owned_conversation_required")
+
         status, _, body = self.request("GET",
             "/api/v1/objectives?limit=7&conversation_id=" + conversation_id,
-            token=self.token)
+            token=self.token, cookie="rv_account_session=session")
         self.assertEqual(status, 200)
         self.assertEqual(json.loads(body)["status"], "available")
+        self.assertEqual(json.loads(body)["schema_version"], "rv.dashboard.objective_progress.v1")
         self.assertEqual(self.projection.last_limit, 7)
         self.assertEqual(self.projection.last_conversation_id, conversation_id)
+        self.assertEqual(self.projection.last_owner_principal_id, principal_id)
+        self.assertTrue(self.projection.last_progress_only)
+        self.assertEqual(conversation_service.last_principal, principal_id)
+        self.assertEqual(conversation_service.last_conversation_id, conversation_id)
+
+        # Existing ConversationService ownership checks reject a foreign
+        # conversation before the objective projection is queried.
+        projection_calls = self.projection.last_limit
+        foreign = "00000000-0000-4000-8000-000000000002"
+        status, _, body = self.request("GET",
+            "/api/v1/objectives?conversation_id=" + foreign,
+            token=self.token, cookie="rv_account_session=session")
+        self.assertEqual(status, 404)
+        self.assertEqual(json.loads(body)["error"], "conversation_not_found")
+        self.assertEqual(self.projection.last_limit, projection_calls)
+
+        # Malformed filters are rejected before any projection is returned.
         for path in (
                 "/api/v1/objectives?conversation_id=not-a-uuid",
                 "/api/v1/objectives?conversation_id=" + conversation_id + "&unexpected=1",
                 "/api/v1/objectives?conversation_id=" + conversation_id + "&limit=1&limit=2"):
-            status, _, body = self.request("GET", path, token=self.token)
+            status, _, body = self.request("GET", path, token=self.token,
+                cookie="rv_account_session=session")
             self.assertEqual(status, 400, path)
             self.assertEqual(json.loads(body)["error"], "invalid_query")
+
+    def test_steward_account_can_read_global_objective_projection(self):
+        class AccountAuth:
+            def authenticate(self, credential, *, csrf_token, state_changing):
+                return {"roles": ["steward"], "authority_principal_id": "steward:camrui"}
+
+        self.server._account_auth_service = AccountAuth()
+        status, _, body = self.request("GET", "/api/v1/objectives?limit=7",
+            token=self.token, cookie="rv_account_session=session")
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["schema_version"], "rv.dashboard.objectives.v1")
+        self.assertEqual(self.projection.last_owner_principal_id, None)
+        self.assertFalse(self.projection.last_progress_only)
+        conversation_id = "00000000-0000-4000-8000-000000000003"
+        status, _, body = self.request("GET",
+            "/api/v1/objectives?conversation_id=" + conversation_id,
+            token=self.token, cookie="rv_account_session=session")
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["schema_version"], "rv.dashboard.objective_progress.v1")
+        self.assertEqual(self.projection.last_conversation_id, conversation_id)
+        self.assertEqual(self.projection.last_owner_principal_id, None)
+        self.assertTrue(self.projection.last_progress_only)
+
+    def test_non_steward_objective_detail_is_owner_filtered_and_progress_only(self):
+        principal_id = "principal:viewer-one"
+        conversation_id = "00000000-0000-4000-8000-000000000001"
+        objective_id = "objective:viewer-owned"
+
+        class AccountAuth:
+            def authenticate(self, credential, *, csrf_token, state_changing):
+                return {"roles": ["viewer"], "authority_principal_id": principal_id}
+
+        class ConversationService:
+            def history(self, credential, requested_conversation_id):
+                self.assertion = (credential.principal_id, requested_conversation_id)
+                if requested_conversation_id != conversation_id:
+                    from riverview_core.resident_execution.conversation import ConversationNotFound
+                    raise ConversationNotFound("conversation not found")
+                return {"conversation_id": conversation_id, "events": []}
+
+        self.server._account_auth_service = AccountAuth()
+        conversation_service = ConversationService()
+        self.server._conversation_service = conversation_service
+        self.projection.objective_items = [{
+            "objective_id": objective_id, "request": "private request text",
+            "scope_ref": "private scope", "submitter_id": principal_id,
+            "acceptance_criteria": ["private criteria"], "source_sha256": "secret-digest",
+            "origin": {"conversation_id": conversation_id, "source_sequence": 6},
+            "status": "RECEIVED", "assignment_id": None,
+            "lifecycle_status": "waiting", "lifecycle_stage": "Awaiting authorized work order"}]
+        status, _, body = self.request("GET", "/api/v1/objectives/" + objective_id,
+            token=self.token, cookie="rv_account_session=session")
+        self.assertEqual(status, 200)
+        value = json.loads(body)
+        self.assertEqual(value["objective_id"], objective_id)
+        self.assertNotIn("request", value)
+        self.assertNotIn("scope_ref", value)
+        self.assertNotIn("acceptance_criteria", value)
+        self.assertNotIn("submitter_id", value)
+        self.assertNotIn("source_sha256", value)
+        self.assertEqual(self.projection.last_owner_principal_id, principal_id)
+        self.assertTrue(self.projection.last_progress_only)
+        self.assertEqual(conversation_service.assertion, (principal_id, conversation_id))
 
     def test_conversation_work_order_requires_account_steward_not_recovery_token(self):
         path = "/api/v1/resident/conversations/00000000-0000-4000-8000-000000000001/work-orders"
@@ -1003,6 +1161,55 @@ class DashboardPostgresTests(unittest.TestCase):
                             item["assignment_id"] == stalled for item in attention))
         events = self.projection.events(limit=100)["items"]
         self.assertTrue(any(event["correlation_id"] == f"corr:{progressing}" for event in events))
+
+    def test_objective_progress_projection_filters_submitter_and_omits_request_content(self):
+        from uuid import uuid4
+
+        # Install only the authoritative objective/conversation table definitions
+        # in this disposable schema; the surrounding dashboard fixture owns all
+        # assignment and verifier tables used by the projection joins.
+        self.admin.execute((self.core / "resident_execution/migrations/0001_grace_objectives.sql")
+                           .read_text(encoding="utf-8"))
+        self.admin.execute((self.core / "resident_execution/migrations/0003_resident_conversation.sql")
+                           .read_text(encoding="utf-8"))
+        owner = "principal:viewer-one"
+        other = "principal:viewer-two"
+        own_conversation = str(uuid4())
+        other_conversation = str(uuid4())
+        own_objective = "objective:" + uuid4().hex
+        other_objective = "objective:" + uuid4().hex
+        with self.admin.cursor() as cur:
+            cur.execute("""INSERT INTO resident_conversations
+                (conversation_id,office_id,owner_principal_id)
+                VALUES (%s,'grace',%s),(%s,'grace',%s)""",
+                (own_conversation, owner, other_conversation, other))
+            for objective_id, principal_id, conversation_id, marker in (
+                    (own_objective, owner, own_conversation, "owner-private-request"),
+                    (other_objective, other, other_conversation, "other-private-request")):
+                cur.execute("""INSERT INTO grace_objectives
+                    (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status)
+                    VALUES (%s,%s,'work-order:engineering',%s,%s::jsonb,'RECEIVED')""",
+                    (objective_id, marker, principal_id, json.dumps(["private acceptance criterion"])))
+                cur.execute("""INSERT INTO grace_objective_events
+                    (objective_id,event_type,idempotency_key,actor_id,payload)
+                    VALUES (%s,'objective.received',%s,%s,%s::jsonb)""",
+                    (objective_id, "receive:" + objective_id, principal_id,
+                     json.dumps({"origin": {"conversation_id": conversation_id,
+                                             "source_sequence": 6}})))
+
+        page = self.projection.objectives(limit=10, conversation_id=own_conversation,
+            owner_principal_id=owner, progress_only=True)
+        self.assertEqual(page["schema_version"], "rv.dashboard.objective_progress.v1")
+        self.assertEqual([row["objective_id"] for row in page["items"]], [own_objective])
+        item = page["items"][0]
+        self.assertEqual(item["origin"], {"conversation_id": own_conversation, "source_sequence": 6})
+        self.assertNotIn("request", item)
+        self.assertNotIn("scope_ref", item)
+        self.assertNotIn("submitter_id", item)
+        self.assertNotIn("acceptance_criteria", item)
+        self.assertNotIn("source_sha256", item)
+        self.assertEqual(self.projection.objectives(limit=10, conversation_id=other_conversation,
+            owner_principal_id=owner, progress_only=True)["items"], [])
 
     def test_stale_and_future_cme_heartbeat_are_never_healthy(self):
         self.create("stale")

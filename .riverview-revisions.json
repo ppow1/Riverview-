@@ -2,13 +2,13 @@
   "files": {
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.11",
-      "sha256": "49154a533121fd022fa2bdd7ee83579433cf944d5c6016667a15f8c5100b3d9a",
-      "size_bytes": 1085459
+      "revision": "1.0.13",
+      "sha256": "6082e5d106f375a65984130a15c98da16fb0521c1970b0da082ecd6b7ce80532",
+      "size_bytes": 1146097
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.264",
+      "revision": "1.1.267",
       "sha256": "52cb9908377791af65712ff7272e0014b8cd1af6b5f4c717f6a9e0df02d07047",
       "size_bytes": 15924
     },
@@ -56,9 +56,9 @@
     },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
-      "revision": "1.0.5",
-      "sha256": "0b97b787445ce1605fbf719c112df03fc14787448303348e4e59445651c80a16",
-      "size_bytes": 12204
+      "revision": "1.0.6",
+      "sha256": "3a42fe1b5c5a618c45ff7edfa0195207644da8c62a714d1a41c961bedb205d04",
+      "size_bytes": 14453
     },
     "docs/development/JOURNAL.md": {
       "path": "docs/development/JOURNAL.md",
@@ -188,9 +188,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.190",
-      "sha256": "43f1c2482ae92863caa64bace9c76f86552d24da8e80c0c341edd3e0f9b760b3",
-      "size_bytes": 668482
+      "revision": "1.0.191",
+      "sha256": "a7aa00418aeccf9ff662850f27f7ab8f3a0a4c0f685214f4d1c70fcd2371ed9c",
+      "size_bytes": 670110
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -272,9 +272,9 @@
     },
     "process_graphs/steward-dashboard/status.json": {
       "path": "process_graphs/steward-dashboard/status.json",
-      "revision": "1.0.29",
-      "sha256": "c853fb5b41c79ab2c6b8352741e6d0681dfa0f9071b3954768dc08e5127ff6ec",
-      "size_bytes": 39818
+      "revision": "1.0.30",
+      "sha256": "06be9f228ab2922985753f610e0aec7ba7d018a4ffec4ee959fb19e7c64d3f8f",
+      "size_bytes": 41247
     },
     "process_graphs/worker-adapter/deterministic-attempt.json": {
       "path": "process_graphs/worker-adapter/deterministic-attempt.json",
@@ -367,6 +367,6 @@
       "size_bytes": 26074
     }
   },
-  "manifest_revision": "1.1.264",
-  "updated_at": "2026-10-19T13:42:00Z"
+  "manifest_revision": "1.1.267",
+  "updated_at": "2026-10-19T14:43:36.066172+00:00"
 }
