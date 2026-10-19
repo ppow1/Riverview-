@@ -1,9 +1,9 @@
 # Riverview Steward Punch List
 
-**File Revision:** 1.0.1
+**File Revision:** 1.0.2
 **Updated:** 2026-10-17 UTC  
-**Task:** PL-NEW-042; revision repair RV-ENG-REV-BASELINE-104
-**Changed:** 2026-10-18 UTC | RV-ENG-REV-BASELINE-104 | Normalize revision header; preserve verified historical predecessors
+**Task:** PL-NEW-043; predecessor preserved; prior RV-ENG-REV-BASELINE-104
+**Changed:** 2026-10-19 UTC | PL-NEW-043 | Capture direct model-chat links request; predecessor preserved at docs/steward/backups/Riverview_Steward_Punch_List_2026-10-13.pre-PL-NEW-043.md
 
 
 Captured: 2026-10-13. Proposed IDs only; not yet registered in GitHub or Riverview's database. This backlog must not interrupt the active Grace-to-Engineering work-production campaign.
@@ -134,3 +134,18 @@ Workflow registry remains unverified in the user's Steward session. Notification
 - **Integration:** Reuse existing dashboard polling/authentication, canonical process-graph identities, and operational diagnostics. Do not introduce a parallel monitoring database, seven unrelated endpoints, or an independent dashboard. Use stable component IDs and explicit source timestamps/error semantics. Keep permissions read-only for this indicator.
 - **Acceptance:** In an authenticated Steward browser session, confirm all seven segments render with correct descriptions and current authoritative status; verify healthy, service stopped, degraded, stale/unreachable, and recovering conditions; verify keyboard/touch accessibility and narrow layouts. Tests must demonstrate that a failed probe cannot be silently represented as green. Record actual unit mapping, source APIs, test evidence, and unresolved limitations.
 - **Scope/status:** CAPTURED for future website work. This is not authorization to interrupt Codex 1/2/3 or to deploy changes now. Coordinate with existing PL-NEW-037 (model/host readiness) and PL-NEW-014 (status freshness); the seven-service health display is a distinct indicator from GPU/model availability and the seven registered CME workers.
+
+
+## Steward punch-list update — 2026-10-19: Direct model chat links
+
+| ID | Area | Observation / desired outcome | Priority |
+|---|---|---|---|
+| PL-NEW-043 | Website / Models / Navigation | Provide direct, labeled browser links from the authenticated Riverview website to the already-deployed interactive chat interfaces for Grace's 0.6B router, 30B vision, and 80B reasoning models. | High — website enhancement; capture without interrupting active commissioning |
+
+### PL-NEW-043 — acceptance specification
+- Inventory the actual running model-chat web services, hosts, listening ports, browser UI routes, and authentication/access requirements for all three models. Distinguish interactive chat UI from inference API, model health endpoint, and Grace's main conversation interface; do not assume an API root is a usable chat page.
+- Record three verified, clickable direct chat URLs (0.6B, 30B, 80B) accessible from the Steward's intended network/browser. If a service is not running or not accessible, explicitly mark it unavailable and document the real blocker rather than inventing a URL.
+- Add three plainly labeled links to the existing Riverview website, preferably in the Models/Resources or global navigation surface; use existing authentication and access controls, avoid exposing private inference services to the public Internet.
+- Test each link in a browser with a real prompt and confirm the response comes from the intended model. Record actual model identity, service/host/port, reachable URL, response evidence, and any limitations (e.g. vision/image support for 30B).
+- Reuse existing services and UI patterns; no duplicate inference servers or unrelated infrastructure. Coordinate with PL-NEW-037 (model readiness) and PL-NEW-035 (Resources).
+- **Status:** CAPTURED for website punch list; verify actual live URLs immediately as a separate read-only inventory task. Do not redirect active Grace commissioning or authorize deployment merely by capturing this item.
