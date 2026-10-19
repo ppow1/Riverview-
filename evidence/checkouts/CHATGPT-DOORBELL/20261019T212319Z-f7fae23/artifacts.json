@@ -1,0 +1,73 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-C2-DOORBELL-RESUME-20261019",
+  "component_id": "CHATGPT-DOORBELL",
+  "artifacts": {
+    "attempts.md": {
+      "path": "attempts.md",
+      "revision": "1.0.0",
+      "sha256": "c168ab5b3805b46988cf3ff4dffca8bbb5951bee82d4fbd87af09d8d34a47aac",
+      "size_bytes": 1924
+    },
+    "checkout.json": {
+      "path": "checkout.json",
+      "revision": "1.0.0",
+      "sha256": "962b18bb44b3b082f851793efaef181718e3602c15404d70fd54fb5202f5297d",
+      "size_bytes": 4506
+    },
+    "combined_c2_doorbell_postgres.py": {
+      "path": "combined_c2_doorbell_postgres.py",
+      "revision": "1.0.1",
+      "sha256": "66c9fbf8a93171fdf7fc3c2a7e050d3ef6082bd98ebea5b4b736d041dbf4c8de",
+      "size_bytes": 6399
+    },
+    "combined_c2_doorbell_postgres.log": {
+      "path": "combined_c2_doorbell_postgres.log",
+      "revision": "1.0.0",
+      "sha256": "d757ad1a27cf13edcd1cd6ed639a3c979d342fba0009316ba58f3f98c86cca01",
+      "size_bytes": 277
+    },
+    "combined_suite.log": {
+      "path": "combined_suite.log",
+      "revision": "1.0.0",
+      "sha256": "c0976fda298b38c529aa3d16e81da0f278aa7d4a9f76e4701a80ff1406fe48d3",
+      "size_bytes": 10712
+    },
+    "combined_suite_first_attempt_admin1.log": {
+      "path": "combined_suite_first_attempt_admin1.log",
+      "revision": "1.0.0",
+      "sha256": "81320d08e0887c5a300ecad82c1d0179bf64e6470580645b44e721a421139e1a",
+      "size_bytes": 11568
+    },
+    "c2_focused_tests.log": {
+      "path": "c2_focused_tests.log",
+      "revision": "1.0.0",
+      "sha256": "7c91f666a0f00a2f494a97b3d195b637c15397267440427005f573d016e5e226",
+      "size_bytes": 5175
+    },
+    "node_bridge_contract.log": {
+      "path": "node_bridge_contract.log",
+      "revision": "1.0.0",
+      "sha256": "2c0648b47846b3d854f353bcebfa2dd9263b88f116577bd28b2c74929ff47902",
+      "size_bytes": 1156
+    },
+    "compileall.log": {
+      "path": "compileall.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "git_diff_check.log": {
+      "path": "git_diff_check.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "process_graph_check.log": {
+      "path": "process_graph_check.log",
+      "revision": "1.0.0",
+      "sha256": "18881a99c3554a0bfb2dfb33b1b63f4c9eee3e6f77166925ec4dd3036d88bdfa",
+      "size_bytes": 55
+    }
+  }
+}

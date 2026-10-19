@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.241"
+      "revision": "1.1.242"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -275,9 +275,9 @@
     },
     "docs/components/CHATGPT_DOORBELL_DISPATCH.md": {
       "path": "docs/components/CHATGPT_DOORBELL_DISPATCH.md",
-      "revision": "1.0.5",
-      "sha256": "d126dcf79ad5c1055c6faf1b96bffd8942414c7d09ed87add175540341842b2e",
-      "size_bytes": 7273
+      "revision": "1.0.6",
+      "sha256": "6aa701ecfa1583a5db4850b64947c451538f8cc9fa0d44187aa68a8ca32e13e5",
+      "size_bytes": 8340
     },
     "docs/components/RESIDENT_REASONING_FLOW.md": {
       "path": "docs/components/RESIDENT_REASONING_FLOW.md",
@@ -287,9 +287,9 @@
     },
     "docs/development/RV-C2-CHATGPT-DOORBELL-DISPATCH-001_REVISION_RECORD.md": {
       "path": "docs/development/RV-C2-CHATGPT-DOORBELL-DISPATCH-001_REVISION_RECORD.md",
-      "revision": "1.0.4",
-      "sha256": "5dd8039061fe4209c8b1d5a324b4df4dfe81ba6fb6b7188cad46a3d04be39698",
-      "size_bytes": 7161
+      "revision": "1.0.5",
+      "sha256": "88d213d089f10680cf700d9c3ccd78452574b1f1e20eead299fa0ce10f67687b",
+      "size_bytes": 14243
     },
     "scripts/run_grace_execution_service.py": {
       "path": "scripts/run_grace_execution_service.py",
@@ -308,8 +308,86 @@
       "revision": "1.0.0",
       "sha256": "15d929ab980ea1234c4f3f420acc5014f09f5f52a5a89f6a11578bd820372049",
       "size_bytes": 5465
+    },
+    "docs/components/CHATGPT_DOORBELL_COOKBOOK.md": {
+      "path": "docs/components/CHATGPT_DOORBELL_COOKBOOK.md",
+      "revision": "1.0.0",
+      "sha256": "7bd43a30a2093316e5b3560c54d3576279ade7c0c632d8931e44949757392023",
+      "size_bytes": 11129
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/attempts.md": {
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/attempts.md",
+      "revision": "1.0.0",
+      "sha256": "c168ab5b3805b46988cf3ff4dffca8bbb5951bee82d4fbd87af09d8d34a47aac",
+      "size_bytes": 1924
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/checkout.json": {
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/checkout.json",
+      "revision": "1.0.0",
+      "sha256": "962b18bb44b3b082f851793efaef181718e3602c15404d70fd54fb5202f5297d",
+      "size_bytes": 4506
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/combined_c2_doorbell_postgres.py": {
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/combined_c2_doorbell_postgres.py",
+      "revision": "1.0.1",
+      "sha256": "66c9fbf8a93171fdf7fc3c2a7e050d3ef6082bd98ebea5b4b736d041dbf4c8de",
+      "size_bytes": 6399
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/combined_c2_doorbell_postgres.log": {
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/combined_c2_doorbell_postgres.log",
+      "revision": "1.0.0",
+      "sha256": "d757ad1a27cf13edcd1cd6ed639a3c979d342fba0009316ba58f3f98c86cca01",
+      "size_bytes": 277
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/combined_suite.log": {
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/combined_suite.log",
+      "revision": "1.0.0",
+      "sha256": "c0976fda298b38c529aa3d16e81da0f278aa7d4a9f76e4701a80ff1406fe48d3",
+      "size_bytes": 10712
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/combined_suite_first_attempt_admin1.log": {
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/combined_suite_first_attempt_admin1.log",
+      "revision": "1.0.0",
+      "sha256": "81320d08e0887c5a300ecad82c1d0179bf64e6470580645b44e721a421139e1a",
+      "size_bytes": 11568
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/c2_focused_tests.log": {
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/c2_focused_tests.log",
+      "revision": "1.0.0",
+      "sha256": "7c91f666a0f00a2f494a97b3d195b637c15397267440427005f573d016e5e226",
+      "size_bytes": 5175
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/node_bridge_contract.log": {
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/node_bridge_contract.log",
+      "revision": "1.0.0",
+      "sha256": "2c0648b47846b3d854f353bcebfa2dd9263b88f116577bd28b2c74929ff47902",
+      "size_bytes": 1156
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/compileall.log": {
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/compileall.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/git_diff_check.log": {
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/git_diff_check.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/process_graph_check.log": {
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/process_graph_check.log",
+      "revision": "1.0.0",
+      "sha256": "18881a99c3554a0bfb2dfb33b1b63f4c9eee3e6f77166925ec4dd3036d88bdfa",
+      "size_bytes": 55
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/artifacts.json": {
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/artifacts.json",
+      "revision": "1.0.0",
+      "sha256": "87eee41ed83afd49a08f1ca5c2dae346c091bcf8cc51d7b9ff2c44d2a6f51f83",
+      "size_bytes": 2505
     }
   },
-  "manifest_revision": "1.1.241",
-  "updated_at": "2026-10-18T20:55:00+00:00"
+  "manifest_revision": "1.1.242",
+  "updated_at": "2026-10-19T21:25:26Z"
 }

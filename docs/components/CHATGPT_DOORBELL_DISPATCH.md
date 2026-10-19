@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED DOCUMENT
 # File: docs/components/CHATGPT_DOORBELL_DISPATCH.md
 # Component: CHATGPT-DOORBELL
-# Revision: 1.0.5
+# Revision: 1.0.6
+# Changed: 2026-10-19 UTC | RV-C2-DOORBELL-RESUME-20261019 | Reconcile the published C3 exchange and owner-loop contracts; add combined PostgreSQL evidence and recovery boundaries.
 # Changed: 2026-10-18 UTC | RV-C2-DOORBELL-INTEGRATED-CI-FIX | Document full-suite fake-claim lease expiry diagnosis and safe fixture correction.
 # Purpose: Contract for waking the provider-scoped external review mailbox
 # Authority: No production activation or live ChatGPT send is authorized by this document
@@ -77,11 +78,17 @@ not a credential or grant. The worker is injected into Grace's existing
 `GraceExecutionService` owner cycle. If the service release does not expose the
 optional `doorbell_worker` hook, opted-in startup fails closed.
 
-This opt-in is not deployment authorization. Do not enable it until the
-Steward-approved provider map, exact target binding, C3 atomic exchange
-implementation, local browser session, and deployment controls have been
-verified. With the flag disabled, no target file is read and no browser action
-is possible.
+The C3 exchange methods and `GraceExecutionService.doorbell_worker` hook are
+published in PR #135 and are present with C2 in the W3 assembled branch at
+`f7fae23d446ae62a95ca87791c54de421f03c290`. They are a runtime dependency of
+this worker, not code owned by this component. The C2 source branch remains
+stacked on PR #119 and does not itself contain the C3 implementation.
+
+This opt-in is not deployment authorization. Do not enable it until the exact
+release contains the C3 exchange and owner-loop contract, the Steward-approved
+provider map and exact target binding are verified, the local browser session
+is available, and deployment controls are reviewed. With the flag disabled, no
+target file is read and no browser action is possible.
 
 ## Troubleshooting
 
@@ -118,8 +125,18 @@ PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_chatgpt_doorbell.p
 node tests/test_riverview_doorbell_bridge_node.cjs
 ```
 
-These tests do not connect to PostgreSQL, Chrome/CDP, the ChatGPT website, or an
-external provider. They demonstrate adapter behavior only. A disposable database
-integration test must be supplied by the exchange owner for lease fencing and
-receipt persistence. A separately authorized smoke test is required to prove a
-real ChatGPT review; this worker's implementation or tests do not send one.
+These focused tests use a synthetic bridge and do not connect to Chrome/CDP, the
+ChatGPT website, or an external provider. The combined PostgreSQL checkout ran
+on the W3 assembled head listed above. It exercised the real C3 exchange and C2
+worker with a synthetic bridge, plus W2's recovery scenario. Exact commands and
+logs are retained in
+`evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/`.
+
+The combined run validates disposable development behavior only. It does not
+prove a deployed worker, production provider identity, local authenticated
+browser readiness, or a real ChatGPT review. Keep the worker default-off; a
+real browser wake or production activation requires separate Steward
+authorization.
+
+Read-only diagnosis and safe restart/retry procedures are in
+[`CHATGPT_DOORBELL_COOKBOOK.md`](CHATGPT_DOORBELL_COOKBOOK.md).

@@ -1,0 +1,114 @@
+{
+  "file_revision": "1.0.0",
+  "task_id": "RV-C2-DOORBELL-RESUME-20261019",
+  "component_id": "CHATGPT-DOORBELL",
+  "owner": "C2",
+  "classification": "integration verification and documentation correction",
+  "recorded_at_utc": "2026-10-19T21:25:26Z",
+  "source": {
+    "c2_pr": 131,
+    "c2_head": "13d1730054628994daa8e2f46ee0bbe789ebd8f6",
+    "assembled_head": "f7fae23d446ae62a95ca87791c54de421f03c290",
+    "c3_pr": 135,
+    "c3_head": "d9506bf858ff72b2942f64171eb8c15b740cee20",
+    "w2_pr": 140,
+    "w2_head": "5df1705da353c7acc0ffc38c95b7a7f39c462954",
+    "owned_c2_code_diff_between_c2_and_assembled_heads": []
+  },
+  "environment": {
+    "host": "local Linux development host",
+    "database": "unique disposable database rvtest_c2_doorbell_20261019; dropped after test",
+    "postgresql": "PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+    "database_test_os_user": "postgres",
+    "browser": "not invoked",
+    "external_provider": "not contacted",
+    "production": "not accessed"
+  },
+  "results": [
+    {
+      "name": "combined_c2_doorbell_postgres.py",
+      "command": "sudo -u postgres env RIVERVIEW_TEST_PG_DSN='dbname=rvtest_c2_doorbell_20261019' RIVERVIEW_TEST_SOURCE_ROOT='/tmp/riverview-w3-c2-validation' PYTHONPATH='/tmp/riverview-w3-c2-validation/src' /usr/bin/python3 - < evidence/checkouts/CHATGPT-DOORBELL/20261019T212319Z-f7fae23/combined_c2_doorbell_postgres.py",
+      "exit_code": 0,
+      "tests": 1,
+      "passed": 1,
+      "skipped": 0,
+      "failed": 0,
+      "duration_seconds": 4.803,
+      "coverage": [
+        "durable request creation",
+        "provider-scoped C2 claim",
+        "synthetic bridge invocation with unchanged IDs and exact target",
+        "owner-attributed fenced receipts",
+        "known pre-send RIV-PLY-0007 retry after exchange backoff",
+        "no immediate duplicate claim",
+        "idempotent successful receipt replay with one event per attempt",
+        "ledger/exchange restart with no third bridge call"
+      ]
+    },
+    {
+      "name": "combined_exchange_w2_and_c2_suites",
+      "command": "sudo -u postgres env RIVERVIEW_TEST_PG_DSN='dbname=rvtest_c2_doorbell_20261019' PYTHONPATH=/tmp/riverview-w3-c2-validation/src /usr/bin/python3 -m unittest -v tests.test_external_reasoning_exchange tests.test_w2_p0_review_recovery tests.test_external_reasoning_doorbell_dispatcher tests.test_grace_doorbell_runtime_wiring tests.test_chatgpt_doorbell",
+      "exit_code": 0,
+      "tests": 49,
+      "passed": 49,
+      "skipped": 0,
+      "failed": 0,
+      "duration_seconds": 142.531
+    },
+    {
+      "name": "c2_focused_unit_regressions",
+      "command": "PYTHONPATH=src python3 -m unittest -v tests.test_external_reasoning_doorbell_dispatcher tests.test_grace_doorbell_runtime_wiring tests.test_chatgpt_doorbell",
+      "exit_code": 0,
+      "tests": 26,
+      "passed": 26,
+      "skipped": 0,
+      "failed": 0
+    },
+    {
+      "name": "node_bridge_contract",
+      "command": "node tests/test_riverview_doorbell_bridge_node.cjs",
+      "exit_code": 0,
+      "tests": 5,
+      "passed": 5,
+      "skipped": 0,
+      "failed": 0
+    },
+    {
+      "name": "compileall",
+      "command": "python3 -m compileall -q src/riverview_core/doorbell",
+      "exit_code": 0
+    },
+    {
+      "name": "canonical_process_graph",
+      "command": "python3 scripts/process_graph.py check",
+      "exit_code": 0,
+      "graphs": 22,
+      "nodes": 573,
+      "status": "PASS"
+    },
+    {
+      "name": "git_diff_check",
+      "command": "git diff --check",
+      "exit_code": 0,
+      "status": "PASS"
+    }
+  ],
+  "failed_attempts": [
+    {
+      "name": "combined_suite_admin1_attempt",
+      "exit_code": 1,
+      "tests": 49,
+      "errors": 1,
+      "reason": "admin1 cannot SET ROLE riverview_core; no source defect; exact output retained in combined_suite_first_attempt_admin1.log; rerun unchanged as postgres passed 49/49."
+    },
+    {
+      "name": "first_standalone_harness_import",
+      "reason": "temporary harness imported nonexistent WakeResult; corrected to exported DoorbellResult before final test."
+    },
+    {
+      "name": "postgres_script_path_attempt",
+      "reason": "OS user postgres cannot traverse /home/admin1; final successful command streams source via stdin without changing permissions."
+    }
+  ],
+  "scope_boundary": "Synthetic disposable verification only; no production activation, service operation, real browser wake, ChatGPT/provider call, C3 contract change, or C4 re-review change."
+}
