@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:grace:operational-integration",
-  "graph_revision": "1.0.54",
+  "graph_revision": "1.0.55",
   "component_id": "RESIDENT-ORCHESTRATION",
   "workflow_id": "grace-engineering-objective.v1",
   "diagram_order": 9,
@@ -1018,9 +1018,9 @@
     },
     {
       "id": "rv:grace:operational-integration:verified-result-review-decision",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "decision",
-      "label": "After independently verified work, the bound 80B chooses complete, request evidence, propose a same-objective step within approved scope, or require Steward authorization; it cannot grant authority",
+      "label": "After independently verified work, the bound 80B reviews verifier evidence and only digest-checked artifact text; sanitized artifact unavailability is an accepted status, while unknown fields fail closed",
       "source_references": [
         "src/riverview_core/resident_execution/conversation.py",
         "src/riverview_core/resident_execution/pipeline.py",

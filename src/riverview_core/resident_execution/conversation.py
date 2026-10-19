@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.2.19
+# Revision: 1.2.20
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-ARTIFACT-STATUS | Accept the sanitized artifact-review availability field from the durable result outbox
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Give Grace the digest-verified artifact for substantive review; never trust unreadable bytes or accept them without content.
 # Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Preserve prompt_too_large as a safe deferred-resume diagnostic.
 # Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Persist capped deferred retries, terminalize deterministic provider errors, and distinguish terminal auth/input failures.
@@ -1459,7 +1460,8 @@ class ResidentConversationService:
         """Have Grace review verifier-accepted evidence and return it to chat."""
         required = {"objective_id", "assignment_id", "request", "acceptance_criteria",
                     "proposal", "submitter_id", "origin", "completion", "completion_cycle"}
-        optional = {"objective_status", "step_progress", "artifact_review"}
+        optional = {"objective_status", "step_progress", "artifact_review",
+                    "artifact_review_unavailable"}
         if (not isinstance(context, dict) or not required.issubset(context)
                 or set(context) - required - optional):
             raise ValueError("verified Engineering result context is invalid")
@@ -1485,8 +1487,14 @@ class ResidentConversationService:
                 or set(origin) != {"conversation_id", "source_sequence"}
                 or not isinstance(context["acceptance_criteria"], list)):
             raise ValueError("independent verification and source conversation are required")
+        artifact_review_unavailable = context.get("artifact_review_unavailable")
+        if artifact_review_unavailable not in {None, "integrity_check_failed"} or (
+                artifact_review_unavailable is not None and
+                context.get("artifact_review") is not None):
+            raise ValueError("verified result artifact review status is invalid")
         artifact_review = _validated_artifact_review(
-            verified_result.get("artifact"), context.get("artifact_review"))
+            verified_result.get("artifact"), context.get("artifact_review"),
+            allow_unavailable=artifact_review_unavailable == "integrity_check_failed")
         verifier_evidence = {key: verified_result.get(key) for key in (
             "verification_id", "decision", "verifier_id", "verifier_revision",
             "verification_criteria", "verification_summary", "evidence_references",
@@ -1496,6 +1504,8 @@ class ResidentConversationService:
             verifier_evidence["artifact"] = {key: artifact_metadata.get(key) for key in (
                 "artifact_name", "artifact_sha256", "artifact_bytes", "capability",
                 "changed_files", "repository_revision") if key in artifact_metadata}
+        if artifact_review_unavailable:
+            verifier_evidence["artifact_review_unavailable"] = artifact_review_unavailable
         if artifact_review:
             verifier_evidence["artifact_for_grace_review"] = artifact_review
         self._authorize(self._resident_credential, self.SEND_ACTION)

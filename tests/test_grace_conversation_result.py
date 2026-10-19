@@ -162,6 +162,33 @@ class GraceConversationResultTests(unittest.TestCase):
         self.assertEqual(evidence["artifact_for_grace_review"]["body"], body)
         self.assertEqual(evidence["artifact_for_grace_review"]["sha256"], digest)
 
+    def test_verified_codex_result_accepts_unavailable_review_without_trusting_artifact_text(self):
+        context = valid_context()
+        context["completion"]["artifact"].update({
+            "capability": "engineering.codex-cli-artifact.v1",
+            "artifact_name": "codex-" + "e" * 64 + ".md",
+            "artifact_bytes": 128,
+            "changed_files": ["report.md"],
+            "repository_revision": "a" * 40})
+        context["artifact_review_unavailable"] = "integrity_check_failed"
+
+        result = self.service.review_verified_work_order(context)
+
+        self.assertEqual(result["status"], "published")
+        payload = json.loads(self.router.calls[0][0][1]["content"])
+        evidence = payload["verified_work_order_result"]
+        self.assertEqual(evidence["artifact_review_unavailable"], "integrity_check_failed")
+        self.assertNotIn("artifact_for_grace_review", evidence)
+        self.assertNotIn("artifact_path", evidence["artifact"])
+
+    def test_verified_result_rejects_unknown_artifact_review_status(self):
+        context = valid_context()
+        context["artifact_review_unavailable"] = "provider_credentials_missing"
+        with self.assertRaises(ValueError):
+            self.service.review_verified_work_order(context)
+        self.assertEqual(self.router.calls, [])
+        self.assertEqual(self.store.responses, {})
+
     def test_unverified_or_wrong_scope_result_never_reaches_provider(self):
         context = valid_context()
         context["completion"]["decision"] = "REJECTED"
