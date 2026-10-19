@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.2.16
+# Revision: 1.2.17
 # Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Preserve prompt_too_large as a safe deferred-resume diagnostic.
 # Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Persist capped deferred retries, terminalize deterministic provider errors, and distinguish terminal auth/input failures.
 # Changed: 2026-10-18 UTC | RV-GRACE-DEFERRED-STREAM-COMPLETION | Start the durable stream generation before non-streaming tool-router resumption.
@@ -64,6 +64,8 @@ from .operational_context import CAPABILITY_ID as OPERATIONAL_CONTEXT_CAPABILITY
 _SCHEMA = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,62}$")
 _CONTEXT_LIMIT = 32 * 1024
 _MESSAGE_LIMIT = 8 * 1024
+_MAX_VERIFIED_RESULT_REVIEW_GENERATIONS = 4
+_MAX_REVIEW_EVIDENCE_BYTES = 4096
 _HISTORY_CONTEXT_MESSAGES = 16
 _LOG = logging.getLogger(__name__)
 _DIAGNOSTIC_FIELDS = ("selected_provider", "selected_model", "reasoning_stage",
@@ -460,7 +462,11 @@ class ConversationStore:
             return {"provider_id": metadata.get("final_served_provider") or row["provider_ref"],
                 "served_model": row["model_id"],
                 "implementation_id": row["implementation_id"],
-                "completion_cycle": str(metadata.get("completion_cycle", 1))}
+                "completion_cycle": str(metadata.get("completion_cycle", 1)),
+                "review_generation": str(metadata.get("review_generation", 1)),
+                "review_evidence_revision": str(metadata.get("review_evidence_revision", "")),
+                "review_evidence_sha256": str(metadata.get("review_evidence_sha256", "")),
+                "review_decision": metadata.get("review_decision")}
 
     @_serialized_store_operation
     def finish_work_order_review(self, conversation_id, request_id, *,
@@ -1428,7 +1434,8 @@ class ResidentConversationService:
         """Have Grace review verifier-accepted evidence and return it to chat."""
         required = {"objective_id", "assignment_id", "request", "acceptance_criteria",
                     "proposal", "submitter_id", "origin", "completion", "completion_cycle"}
-        optional = {"objective_status", "step_progress"}
+        optional = {"objective_status", "step_progress", "review_generation",
+                    "review_evidence_revision", "review_evidence", "review_evidence_sha256"}
         if (not isinstance(context, dict) or not required.issubset(context)
                 or set(context) - required - optional):
             raise ValueError("verified Engineering result context is invalid")
@@ -1474,13 +1481,48 @@ class ResidentConversationService:
             raise ConversationUnavailable("80B result review capability unavailable")
         if type(context["completion_cycle"]) is not int or context["completion_cycle"] < 1:
             raise ValueError("verified result completion cycle is invalid")
-        request_id = uuid5(NAMESPACE_URL,
-            "riverview:grace-engineering-review:" + context["objective_id"] +
+        review_generation = context.get("review_generation", 1)
+        if (type(review_generation) is not int or not 1 <= review_generation <=
+                _MAX_VERIFIED_RESULT_REVIEW_GENERATIONS):
+            raise ValueError("verified result review generation is invalid")
+        review_evidence = context.get("review_evidence", [])
+        review_evidence_revision = context.get("review_evidence_revision", "")
+        if (not isinstance(review_evidence, list) or len(review_evidence) > 6
+                or any(not isinstance(item, str) or not item.strip() or len(item) > 1000
+                       for item in review_evidence)
+                or len(json.dumps(review_evidence, ensure_ascii=False, sort_keys=True,
+                                  separators=(",", ":")).encode("utf-8")) >
+                    _MAX_REVIEW_EVIDENCE_BYTES):
+            raise ValueError("verified result re-review evidence is invalid")
+        if review_generation == 1:
+            if review_evidence or review_evidence_revision:
+                raise ValueError("initial verified result review cannot carry a re-review revision")
+        elif (not review_evidence and not review_evidence_revision
+                or not isinstance(review_evidence_revision, str)
+                or len(review_evidence_revision) > 128):
+            raise ValueError("a bounded evidence revision is required for re-review")
+        review_evidence_sha256 = context.get("review_evidence_sha256", "")
+        if review_generation > 1:
+            expected_evidence_sha = hashlib.sha256(json.dumps({
+                "evidence_revision": review_evidence_revision,
+                "evidence": review_evidence}, ensure_ascii=False, sort_keys=True,
+                separators=(",", ":")).encode("utf-8")).hexdigest()
+            if (not isinstance(review_evidence_sha256, str)
+                    or review_evidence_sha256 != expected_evidence_sha):
+                raise ValueError("verified result re-review evidence digest is invalid")
+        request_name = ("riverview:grace-engineering-review:" + context["objective_id"] +
             ":" + str(context["completion_cycle"]))
+        if review_generation > 1:
+            request_name += ":generation:" + str(review_generation)
+        request_id = uuid5(NAMESPACE_URL, request_name)
         if self.store.has_assistant_response(request_id):
             receipt = self.store.assistant_response_receipt(request_id)
-            if not receipt or not all(receipt.values()):
+            if not receipt or not all(receipt.get(key) for key in (
+                    "provider_id", "served_model", "implementation_id", "completion_cycle")):
                 raise ConversationUnavailable("persisted Engineering review provenance is incomplete")
+            if (int(receipt.get("review_generation", "1")) != review_generation
+                    or receipt.get("review_evidence_sha256", "") != review_evidence_sha256):
+                raise ConversationUnavailable("review generation was already used for another evidence revision")
             return {"status": "already_published", "request_id": str(request_id), **receipt}
         messages = [
             {"role": "system", "content": build_grace_role_context() +
@@ -1515,7 +1557,10 @@ class ResidentConversationService:
                 "assignment_id": context["assignment_id"],
                 "objective_id": context["objective_id"],
                 "objective_status": objective_status,
-                "step_progress": step_progress},
+                "step_progress": step_progress,
+                "review_generation": review_generation,
+                "review_evidence_revision": review_evidence_revision,
+                "review_evidence": review_evidence},
                 ensure_ascii=False, sort_keys=True, separators=(",", ":"))}]
         if len(json.dumps(messages, ensure_ascii=False).encode("utf-8")) > _CONTEXT_LIMIT:
             raise ConversationContextTooLarge("verified result context exceeds conversation limit")
@@ -1706,7 +1751,10 @@ class ResidentConversationService:
             "additional_evidence": review["additional_evidence"],
             "proposed_step": review["proposed_step"],
             "continuation_status": continuation_status,
-            "completion_cycle": str(context.get("completion_cycle", 1))})
+            "completion_cycle": str(context.get("completion_cycle", 1)),
+            "review_generation": str(review_generation),
+            "review_evidence_revision": review_evidence_revision,
+            "review_evidence_sha256": review_evidence_sha256})
         written = self.store.finish_work_order_review(
             origin["conversation_id"], request_id,
             source_sequence=origin["source_sequence"], principal_id=context["submitter_id"],
@@ -1718,7 +1766,11 @@ class ResidentConversationService:
                              or provider_ref),
             "served_model": served_model,
             "implementation_id": implementation["implementation_id"],
-            "completion_cycle": str(context["completion_cycle"])}
+            "completion_cycle": str(context["completion_cycle"]),
+            "review_generation": str(review_generation),
+            "review_evidence_revision": review_evidence_revision,
+            "review_evidence_sha256": review_evidence_sha256,
+            "review_decision": review["decision"]}
 
     def send(self, credential, *, message, conversation_id=None, client_message_id=None):
         lock_key = str(conversation_id or client_message_id or uuid4())

@@ -1,0 +1,11 @@
+.{"capability": "engineering.codex-cli-artifact.v1", "event": "grace_capability_worker_failed", "failure_type": "RuntimeError"}
+..........{"assignment_id": "assignment:grace:fec9ab456a06cb6517875e869c3d64ad69519220", "attempt_id": "4a3c931c-a74f-45c6-b246-ab8fe31047a1", "event": "grace_verification_failed", "failure_type": "RuntimeError", "retry": 1}
+{"assignment_id": "assignment:grace:fec9ab456a06cb6517875e869c3d64ad69519220", "attempt_id": "4a3c931c-a74f-45c6-b246-ab8fe31047a1", "event": "grace_verification_failed", "failure_type": "RuntimeError", "retry": 2}
+...{"event": "grace_conversation_result_return_failed", "failure_type": "RuntimeError", "objective_id": "objective:dependent-steps"}
+.......{"assignment_id": "assignment:d7874000431548d29f4139fb0ce9d248", "durable_artifact_created": null, "event": "worker_action_failed", "execution_started": null, "failure_code": null, "failure_type": "OSError"}
+...{"event": "grace_conversation_result_return_failed", "failure_type": "RuntimeError", "objective_id": "objective:retry-1"}
+......................
+----------------------------------------------------------------------
+Ran 46 tests in 185.724s
+
+OK

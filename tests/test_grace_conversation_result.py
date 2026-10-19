@@ -1,8 +1,10 @@
 # Riverview~ controlled test
 # File: tests/test_grace_conversation_result.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.3
+# Revision: 1.0.5
 # Purpose: Verify 80B result review is authorized, bounded and idempotently linked to chat
+# Changed: 2026-10-19 UTC | RV-GRACE-REREVIEW-PG-QUALIFICATION | Assert expanded typed review never invokes continuation handler
+# Changed: 2026-10-19 UTC | RV-GRACE-REVIEW-GENERATIONS-001 | Cover bounded evidence revision generations and per-generation idempotency
 # Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Cover typed completion decisions and same-scope continuation handoff
 # Changed: 2026-10-16 UTC | RV-GRACE-RESULT-RETURN-DIAGNOSTICS-001 | Verify deferred result-review diagnostics are bounded and content-free
 # Execution Model: Deterministic in-memory adapters; no database or inference endpoint
@@ -11,6 +13,8 @@
 """Isolated tests for Grace's verified Engineering result return path."""
 
 import unittest
+import hashlib
+import json
 from types import SimpleNamespace
 
 from riverview_core.resident_execution.conversation import ResidentConversationService
@@ -39,7 +43,13 @@ class FakeStore:
             "receipt": {"provider_id": fields["metadata"]["final_served_provider"],
                 "served_model": fields["model_id"],
                 "implementation_id": fields["implementation"]["implementation_id"],
-                "completion_cycle": fields["metadata"]["completion_cycle"]}}
+                "completion_cycle": fields["metadata"]["completion_cycle"],
+                "review_generation": fields["metadata"].get("review_generation", "1"),
+                "review_evidence_revision": fields["metadata"].get(
+                    "review_evidence_revision", ""),
+                "review_evidence_sha256": fields["metadata"].get(
+                    "review_evidence_sha256", ""),
+                "review_decision": fields["metadata"].get("review_decision")}}
         return True
 
 
@@ -127,6 +137,7 @@ class GraceConversationResultTests(unittest.TestCase):
         self.assertEqual(row["metadata"]["artifact"], context["completion"]["artifact"])
         repeated = self.service.review_verified_work_order(context)
         self.assertEqual(repeated["status"], "already_published")
+        self.assertEqual(repeated["review_decision"], row["metadata"]["review_decision"])
         self.assertEqual(len(self.router.calls), 1)
         self.assertEqual(len(self.store.responses), 1)
 
@@ -199,7 +210,67 @@ class GraceConversationResultTests(unittest.TestCase):
         self.assertEqual(handled, [])
         row = self.store.responses[result["request_id"]]
         self.assertEqual(row["metadata"]["review_decision"], "STEWARD_AUTHORIZATION_REQUIRED")
+        self.assertEqual(result["review_decision"], "STEWARD_AUTHORIZATION_REQUIRED")
         self.assertIsNone(row["metadata"]["proposed_step"])
+        self.assertEqual(row["metadata"]["continuation_status"], "not_requested")
+
+    def test_new_evidence_revision_gets_one_bounded_durable_review_generation(self):
+        import json
+        self.router.content = json.dumps({"decision":"ADDITIONAL_EVIDENCE_REQUIRED",
+            "rationale":"More evidence is still required.",
+            "additional_evidence":["A second independent source."], "proposed_step":None})
+        context = valid_context()
+        context.update({"review_generation":2,
+            "review_evidence_revision":"steward-evidence-rev-1",
+            "review_evidence":["Read-only historical assignment aggregates were shared."],
+            "review_evidence_sha256":hashlib.sha256(json.dumps({
+                "evidence_revision":"steward-evidence-rev-1",
+                "evidence":["Read-only historical assignment aggregates were shared."]},
+                ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()})
+        first = self.service.review_verified_work_order(context)
+        self.assertEqual(first["status"], "published")
+        self.assertEqual(first["review_generation"], "2")
+        self.assertNotEqual(first["request_id"], str(__import__("uuid").uuid5(
+            __import__("uuid").NAMESPACE_URL,
+            "riverview:grace-engineering-review:" + context["objective_id"] + ":1")))
+        request_messages = self.router.calls[0][0][1]["content"]
+        self.assertIn("steward-evidence-rev-1", request_messages)
+        self.assertIn("Read-only historical assignment aggregates were shared.", request_messages)
+        self.assertEqual(self.store.responses[first["request_id"]]["metadata"]["review_decision"],
+                         "ADDITIONAL_EVIDENCE_REQUIRED")
+        self.assertEqual(len(self.store.responses), 1)
+
+        repeated = self.service.review_verified_work_order(context)
+        self.assertEqual(repeated["status"], "already_published")
+        self.assertEqual(repeated["request_id"], first["request_id"])
+        self.assertEqual(len(self.router.calls), 1)
+        self.assertEqual(len(self.store.responses), 1)
+
+        changed_same_generation = dict(context)
+        changed_same_generation["review_evidence"] = ["Different evidence in same generation."]
+        changed_same_generation["review_evidence_sha256"] = hashlib.sha256(json.dumps({
+            "evidence_revision":"steward-evidence-rev-1",
+            "evidence":changed_same_generation["review_evidence"]}, ensure_ascii=False,
+            sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        with self.assertRaisesRegex(ConversationUnavailable, "already used"):
+            self.service.review_verified_work_order(changed_same_generation)
+        self.assertEqual(len(self.router.calls), 1)
+
+    def test_re_review_requires_durable_revision_and_generation_is_bounded(self):
+        context = valid_context()
+        context["review_generation"] = 2
+        with self.assertRaisesRegex(ValueError, "evidence revision"):
+            self.service.review_verified_work_order(context)
+        context.update({"review_evidence_revision":"rev-1",
+            "review_evidence":["Additional sourced evidence."],
+            "review_evidence_sha256":"f" * 64})
+        with self.assertRaisesRegex(ValueError, "digest"):
+            self.service.review_verified_work_order(context)
+        context["review_generation"] = 5
+        with self.assertRaisesRegex(ValueError, "generation"):
+            self.service.review_verified_work_order(context)
+        self.assertEqual(self.router.calls, [])
+        self.assertEqual(self.store.responses, {})
 
     def test_binding_change_during_reasoning_blocks_continuation_mutation(self):
         import json

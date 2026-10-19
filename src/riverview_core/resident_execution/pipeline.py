@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.10
+# Revision: 1.1.12
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
 # Execution Model: Request-driven orchestration over existing PostgreSQL authority and ledger
 # Observability: Append-only objective events linked to assignment and evidence provenance
@@ -28,6 +28,7 @@
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Persist Grace's external-advisory evaluation atomically with the resulting proposal
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Resolve failed steps only after their linked revalidation successor is independently verified
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Share the verified rework completion predicate with objective reconciliation.
+# Changed: 2026-10-19 UTC | RV-GRACE-REREVIEW-PG-QUALIFICATION | Normalize integer and string completion-cycle receipt values
 # Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Persist exact-subject review, revision and blocked decisions
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
@@ -770,7 +771,7 @@ class GraceExecutionPipeline:
             return cur.fetchall()
 
     def pending_conversation_results(self, *, limit=10):
-        """Return verified conversation-origin steps not yet reviewed by Grace."""
+        """Return verified results with an initial review or requested review generation due."""
         if type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError("conversation result limit must be between 1 and 100")
         with self.ledger.db.cursor() as cur:
@@ -785,10 +786,6 @@ class GraceExecutionPipeline:
                       AND EXISTS (SELECT 1 FROM grace_objective_events r
                         WHERE r.objective_id=o.objective_id AND r.event_type='objective.received'
                           AND r.payload ? 'origin')
-                      AND NOT EXISTS (SELECT 1 FROM grace_objective_events p
-                        WHERE p.objective_id=o.objective_id
-                          AND p.event_type='conversation.result_published'
-                          AND p.payload->>'completion_cycle'=e.payload->>'completion_cycle')
                     ORDER BY e.sequence DESC LIMIT 1) c ON true
                 WHERE o.status IN ('COMPLETED','WORK_ORDER_CREATED')
                 ORDER BY o.updated_at,o.objective_id LIMIT %s""", (limit,))
@@ -806,13 +803,41 @@ class GraceExecutionPipeline:
                     or not isinstance(completion, dict)
                     or not completion.get("assignment_id")):
                 continue
+            cycle = int(objective_row["completion_cycle"] or 1)
+            same_cycle = [event for event in events
+                if str((event.get("payload") or {}).get("completion_cycle")) == str(cycle)]
+            published_generations = set()
+            requested_generations = {}
+            for event in same_cycle:
+                payload = event.get("payload") or {}
+                if event["event_type"] == "conversation.result_published":
+                    published_generations.add(int(payload.get("review_generation") or 1))
+                elif event["event_type"] == "conversation.result_review_published":
+                    published_generations.add(int(payload.get("review_generation") or 0))
+                elif event["event_type"] == "conversation.result_review_requested":
+                    generation = int(payload.get("review_generation") or 0)
+                    if generation > 1:
+                        requested_generations[generation] = payload
+            pending_reviews = sorted(g for g in requested_generations
+                                     if g not in published_generations)
+            if pending_reviews:
+                review_generation = pending_reviews[0]
+                review_request = requested_generations[review_generation]
+                # Do not let a later re-review skip an earlier outstanding generation.
+                if len(pending_reviews) != 1:
+                    continue
+            elif 1 not in published_generations:
+                review_generation = 1
+                review_request = None
+            else:
+                continue
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
                 cur.execute("""SELECT step_id,status FROM grace_objective_steps
                     WHERE objective_id=%s ORDER BY step_order""", (objective_id,))
                 step_progress = [{"step_id": row["step_id"], "status": row["status"]}
                                  for row in cur.fetchall()]
-            results.append({"objective_id": objective_id,
+            result = {"objective_id": objective_id,
                 "assignment_id": completion["assignment_id"],
                 "request": objective["request"],
                 "acceptance_criteria": list(objective["acceptance_criteria"]),
@@ -821,18 +846,130 @@ class GraceExecutionPipeline:
                 "step_progress": step_progress,
                 "submitter_id": received.get("actor_id"),
                 "origin": origin,
-                "completion_cycle": int(objective_row["completion_cycle"] or 1),
-                "completion": completion})
+                "completion_cycle": cycle,
+                "completion": completion,
+                "review_generation": review_generation}
+            if review_request is not None:
+                result.update({"review_evidence_revision": review_request["evidence_revision"],
+                    "review_evidence": list(review_request["evidence"]),
+                    "review_evidence_sha256": review_request["evidence_sha256"]})
+            results.append(result)
         return results
+
+    MAX_RESULT_REVIEW_GENERATIONS = 4
+    MAX_REVIEW_EVIDENCE_BYTES = 4096
+
+    def request_conversation_result_rereview(self, objective_id, completion_cycle, *,
+            evidence_revision, evidence, credential, idempotency_key):
+        """Append a Steward-authorized, bounded new review generation for verified evidence.
+
+        objective.submit authorizes this evidence revision only. Assignment creation
+        remains independently gated by the persistent dispatcher's assignment.create check.
+        """
+        if (type(completion_cycle) is not int or completion_cycle < 1
+                or not isinstance(evidence_revision, str)
+                or not re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", evidence_revision)
+                or not isinstance(evidence, (list, tuple)) or not 1 <= len(evidence) <= 6
+                or any(not isinstance(item, str) or not item.strip() or len(item) > 1000
+                       for item in evidence)
+                or len(_json(list(evidence)).encode("utf-8")) > self.MAX_REVIEW_EVIDENCE_BYTES
+                or not isinstance(idempotency_key, str) or not idempotency_key.strip()
+                or len(idempotency_key) > 200):
+            raise ValueError("verified-result review revision is invalid")
+        evidence = list(evidence)
+        evidence_sha256 = hashlib.sha256(_json({
+            "evidence_revision": evidence_revision, "evidence": evidence
+        }).encode("utf-8")).hexdigest()
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("SELECT status,scope_ref FROM grace_objectives "
+                    "WHERE objective_id=%s FOR UPDATE", (objective_id,))
+                objective = cur.fetchone()
+                if not objective or objective["status"] not in {"WORK_ORDER_CREATED", "COMPLETED"}:
+                    raise ObjectiveStateError("a verified conversation objective is required")
+                try:
+                    actor = self.authorizer.require(cur, credential, "objective.submit",
+                                                    objective["scope_ref"])
+                except Exception as exc:
+                    if type(exc).__name__ == "GrantDenied":
+                        raise ObjectiveNotAuthorized("objective.submit is not authorized for evidence revision") from None
+                    raise
+                cur.execute("""SELECT 1 FROM grace_objective_events
+                    WHERE objective_id=%s
+                      AND event_type IN ('execution.step_verified','objective.completed')
+                      AND payload->>'completion_cycle'=%s
+                      AND payload->>'decision'='ACCEPTED' LIMIT 1""",
+                    (objective_id, str(completion_cycle)))
+                if not cur.fetchone():
+                    raise ObjectiveStateError("matching accepted verified result is required")
+                cur.execute("""SELECT event_type,payload FROM grace_objective_events
+                    WHERE objective_id=%s AND idempotency_key=%s""",
+                    (objective_id, idempotency_key))
+                prior = cur.fetchone()
+                if prior:
+                    payload = prior["payload"] or {}
+                    if (prior["event_type"] != "conversation.result_review_requested"
+                            or payload.get("completion_cycle") != completion_cycle
+                            or payload.get("evidence_revision") != evidence_revision
+                            or payload.get("evidence_sha256") != evidence_sha256):
+                        raise ObjectiveStateError("review revision idempotency key conflicts")
+                    return {"review_generation": payload["review_generation"],
+                            "evidence_revision": evidence_revision,
+                            "evidence_sha256": evidence_sha256, "reused": True}
+                cur.execute("""SELECT event_type,payload FROM grace_objective_events
+                    WHERE objective_id=%s AND payload->>'completion_cycle'=%s
+                      AND event_type IN ('conversation.result_published',
+                         'conversation.result_review_published',
+                         'conversation.result_review_requested')
+                    ORDER BY sequence""", (objective_id, str(completion_cycle)))
+                review_events = cur.fetchall()
+                published = {int((row["payload"] or {}).get("review_generation") or 1)
+                    for row in review_events if row["event_type"] in {
+                        "conversation.result_published", "conversation.result_review_published"}}
+                requested = {int((row["payload"] or {}).get("review_generation") or 0)
+                    for row in review_events if row["event_type"] == "conversation.result_review_requested"}
+                if 1 not in published:
+                    raise ObjectiveStateError("the initial verified-result review must publish first")
+                pending = requested - published
+                if pending:
+                    raise ObjectiveStateError("a review generation is already pending")
+                generation = max({1, *published, *requested}) + 1
+                if generation > self.MAX_RESULT_REVIEW_GENERATIONS:
+                    raise ObjectiveStateError("verified-result review generation limit reached")
+                payload = {"completion_cycle": completion_cycle,
+                    "review_generation": generation, "evidence_revision": evidence_revision,
+                    "evidence": evidence, "evidence_sha256": evidence_sha256,
+                    "authorization": "objective.submit evidence revision",
+                    "actor_principal_id": actor["principal_id"]}
+                self._event(cur, objective_id, "conversation.result_review_requested",
+                    idempotency_key, actor["principal_id"], payload)
+        return {"review_generation": generation, "evidence_revision": evidence_revision,
+                "evidence_sha256": evidence_sha256, "reused": False}
 
     def record_conversation_result_published(self, objective_id, receipt):
         """Acknowledge a durable chat reply after the conversation insert succeeds."""
-        if (not isinstance(receipt, dict) or set(receipt) != {
+        base_fields = {
                 "request_id", "provider_id", "served_model", "implementation_id",
                 "completion_cycle"}
-                or any(not isinstance(value, str) or not value for value in receipt.values())
+        optional_fields = {"review_generation", "review_evidence_revision",
+                           "review_evidence_sha256", "review_decision"}
+        if (not isinstance(receipt, dict) or not base_fields <= set(receipt)
+                or set(receipt) - base_fields - optional_fields
+                or any(not isinstance(value, str) for value in receipt.values())
+                or any(not receipt[key] for key in base_fields)
                 or not receipt["completion_cycle"].isdigit()):
             raise ValueError("conversation result receipt is invalid")
+        generation = int(receipt.get("review_generation", "1"))
+        if (receipt.get("review_decision") is not None and receipt["review_decision"] not in {
+                "OBJECTIVE_COMPLETE", "ADDITIONAL_EVIDENCE_REQUIRED",
+                "ENGINEERING_STEP_PROPOSED", "STEWARD_AUTHORIZATION_REQUIRED"}):
+            raise ValueError("conversation result review decision is invalid")
+        if (not 1 <= generation <= self.MAX_RESULT_REVIEW_GENERATIONS
+                or (generation > 1 and (not receipt.get("review_evidence_revision")
+                    or not re.fullmatch(r"[0-9a-f]{64}",
+                        receipt.get("review_evidence_sha256", ""))))):
+            raise ValueError("conversation result review receipt is invalid")
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
@@ -848,9 +985,30 @@ class GraceExecutionPipeline:
                     (objective_id, receipt["completion_cycle"]))
                 if not cur.fetchone():
                     raise ObjectiveStateError("matching verified completion cycle is required before chat return")
-                self._event(cur, objective_id, "conversation.result_published",
-                    f"grace-conversation-result-published:{objective_id}:{receipt['completion_cycle']}",
-                    "office:grace", receipt)
+                if generation > 1:
+                    cur.execute("""SELECT payload FROM grace_objective_events
+                        WHERE objective_id=%s AND payload->>'completion_cycle'=%s
+                          AND event_type IN ('conversation.result_review_requested',
+                                             'conversation.result_review_published')
+                          AND (payload->>'review_generation')::integer=%s
+                        ORDER BY sequence DESC LIMIT 1""",
+                        (objective_id, receipt["completion_cycle"], generation))
+                    review_request = cur.fetchone()
+                    request_payload = (review_request or {}).get("payload") or {}
+                    if (request_payload.get("evidence_revision") !=
+                            receipt.get("review_evidence_revision") or
+                            request_payload.get("evidence_sha256") !=
+                            receipt.get("review_evidence_sha256")):
+                        raise ObjectiveStateError("matching durable re-review request is required")
+                elif "review_generation" in receipt and generation != 1:
+                    raise ValueError("initial review receipt generation is invalid")
+                event_type = ("conversation.result_published" if generation == 1
+                              else "conversation.result_review_published")
+                event_key = (f"grace-conversation-result-published:{objective_id}:"
+                    f"{receipt['completion_cycle']}" if generation == 1 else
+                    f"grace-conversation-result-review-published:{objective_id}:"
+                    f"{receipt['completion_cycle']}:{generation}")
+                self._event(cur, objective_id, event_type, event_key, "office:grace", receipt)
         return True
 
     def propose_continuation(self, objective_id, parent_assignment_id, step, *, actor_id="office:grace"):

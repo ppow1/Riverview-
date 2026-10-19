@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.51
+**Document Revision:** 1.0.53
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
 **Generation:** `python3 scripts/process_graph.py generate`; do not edit the Mermaid projection manually.
@@ -133,6 +133,7 @@ flowchart LR
     g_rv_grace_operational_integration_source_target_dispatch_binding_bbd0e791["ISOLATED IMPLEMENTATION — dispatch snapshots an explicitly Steward-authorized repository reference, immutable commit, paths, tests and proposal-step digest; resident grounding revision remains separate"]
     g_rv_grace_operational_integration_dual_capability_owner_loops_afceaa17["ISOLATED IMPLEMENTATION — owner-session retains its artifact worker and optionally runs a distinct source worker; claims and verifier routing use persisted attempt capability"]
     g_rv_grace_operational_integration_source_enrollment_fail_closed_7bba0087[["Source capability stays unavailable when separate credential, exact grants, registration, allowlist, repository mapping or pinned checkout is missing; artifact worker continues"]]
+    g_rv_grace_operational_integration_verified_result_rereview_request_86251ab8["Append a bounded evidence revision for a verified-result review; exact objective.submit authority and per-generation idempotency apply, with no automatic dispatch"]
   end
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_cme_progress_and_recovery_observe_428defda["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -234,6 +235,8 @@ flowchart LR
   g_rv_grace_operational_integration_source_target_dispatch_binding_bbd0e791 -->|A source assignment is eligible only for the separately registered and credentialed source worker| g_rv_grace_operational_integration_dual_capability_owner_loops_afceaa17
   g_rv_grace_operational_integration_dual_capability_owner_loops_afceaa17 -->|diagnostic_branch: Source enrollment is incomplete; source work remains undispatched while the artifact worker continues| g_rv_grace_operational_integration_source_enrollment_fail_closed_7bba0087
   g_rv_grace_operational_integration_source_enrollment_fail_closed_7bba0087 -->|recovery_route: Resume only after separate credential, exact grants, registration, approved paths and pinned target configuration are verified| g_rv_grace_operational_integration_dual_capability_owner_loops_afceaa17
+  g_rv_grace_operational_integration_verified_result_review_decision_58c1884b -->|Only a new evidence revision with exact objective-scoped authority can request the next bounded generation| g_rv_grace_operational_integration_verified_result_rereview_request_86251ab8
+  g_rv_grace_operational_integration_verified_result_rereview_request_86251ab8 -->|recovery_route: Resume the same verified completion cycle with its next deterministic review generation; existing exact-step and dispatch gates remain separate| g_rv_grace_operational_integration_verified_result_review_decision_58c1884b
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.20
+# Revision: 1.0.21
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Poll optional injected ChatGPT wake worker in Grace owner cycle.
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Persist and rate-limit failed resident proposals.
 # Purpose: Reconcile durable Grace work orders through existing CME worker contracts
@@ -536,6 +536,12 @@ class GraceExecutionService:
                 durable_receipt = {key: receipt.get(key) for key in
                     ("request_id", "provider_id", "served_model", "implementation_id",
                      "completion_cycle")}
+                if receipt.get("review_generation") is not None:
+                    durable_receipt.update({key: receipt.get(key) for key in
+                        ("review_generation", "review_evidence_revision",
+                         "review_evidence_sha256")})
+                if receipt.get("review_decision") is not None:
+                    durable_receipt["review_decision"] = receipt["review_decision"]
                 self.pipeline.record_conversation_result_published(
                     context["objective_id"], durable_receipt)
                 published += 1
