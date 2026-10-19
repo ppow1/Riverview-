@@ -1,0 +1,6 @@
+test_request_claim_bridge_fenced_receipt_retry_dedup_and_restart (__main__.CombinedC2DoorbellPostgresTests.test_request_claim_bridge_fenced_receipt_retry_dedup_and_restart) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 4.803s
+
+OK
