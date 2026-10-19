@@ -2739,7 +2739,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.50",
+      "graph_revision": "1.0.51",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -3900,6 +3900,24 @@
             "tests/test_grace_runtime_provider_wiring.py",
             "tests/test_grace_execution.py"
           ]
+        },
+        {
+          "id": "rv:grace:operational-integration:verified-result-rereview-request",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Append a bounded evidence revision for a verified-result review; exact objective.submit authority and per-generation idempotency apply, with no automatic dispatch",
+          "source_references": [
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/conversation.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_conversation_result.py",
+            "tests/test_grace_execution.py"
+          ]
         }
       ],
       "edges": [
@@ -4450,6 +4468,18 @@
           "to": "rv:grace:operational-integration:dual-capability-owner-loops",
           "type": "recovery_route",
           "label": "Resume only after separate credential, exact grants, registration, approved paths and pinned target configuration are verified"
+        },
+        {
+          "from": "rv:grace:operational-integration:verified-result-review-decision",
+          "to": "rv:grace:operational-integration:verified-result-rereview-request",
+          "type": "runtime_transition",
+          "label": "Only a new evidence revision with exact objective-scoped authority can request the next bounded generation"
+        },
+        {
+          "from": "rv:grace:operational-integration:verified-result-rereview-request",
+          "to": "rv:grace:operational-integration:verified-result-review-decision",
+          "type": "recovery_route",
+          "label": "Resume the same verified completion cycle with its next deterministic review generation; existing exact-step and dispatch gates remain separate"
         }
       ]
     },
@@ -14126,6 +14156,7 @@
     "rv:grace:operational-integration:verification-failure-isolation",
     "rv:grace:operational-integration:verification-feedback",
     "rv:grace:operational-integration:verified-result-chat-return",
+    "rv:grace:operational-integration:verified-result-rereview-request",
     "rv:grace:operational-integration:verified-result-return-retry",
     "rv:grace:operational-integration:verified-result-review-decision",
     "rv:grace:operational-integration:verifier-revision-accepted",

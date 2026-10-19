@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.28
+# Revision: 1.0.29
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Cover mixed-capability claims, verification routing, and isolated worker failure behavior.
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Cover persistent proposal failure recording and retry limits.
 # Purpose: Exercise objective-to-authorized-worker-to-independent-verification pipeline
@@ -26,6 +26,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-REGROUND-001 | Verify successful evidence retry advances a waiting objective exactly once
 # Changed: 2026-10-15 UTC | RV-GRACE-OBJECTIVE-CONTEXT-001 | Verify grounded objective context resolves resident knowledge contract
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Verify dependent step assignments wait for independent predecessor verification
+# Changed: 2026-10-19 UTC | RV-GRACE-REVIEW-GENERATIONS-001 | Cover authorized durable review revision request and bounded receipt
 # Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Verify same-objective continuation is durable, scoped, and dispatched through CME
 # Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Scope expired recovery and verify a late Codex artifact proceeds through independent verification
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Verify late artifact recovery, preserved rejection, and restart-safe accepted revalidation
@@ -627,6 +628,34 @@ class GraceExecutionTests(unittest.TestCase):
             "request_id": str(uuid4()), "provider_id": "provider:test",
             "served_model": "model:test", "implementation_id": "implementation:test",
             "completion_cycle": "1"})
+        revision = self.pipeline.request_conversation_result_rereview(objective_id, 1,
+            evidence_revision="steward-evidence-rev-1",
+            evidence=["Read-only historical assignment aggregates were shared with Grace."],
+            credential=self.credentials["steward"],
+            idempotency_key="review-evidence-revision:" + objective_id + ":1")
+        self.assertEqual(revision["review_generation"], 2)
+        self.assertFalse(revision["reused"])
+        retried_revision = self.pipeline.request_conversation_result_rereview(objective_id, 1,
+            evidence_revision="steward-evidence-rev-1",
+            evidence=["Read-only historical assignment aggregates were shared with Grace."],
+            credential=self.credentials["steward"],
+            idempotency_key="review-evidence-revision:" + objective_id + ":1")
+        self.assertTrue(retried_revision["reused"])
+        review_context = self.pipeline.pending_conversation_results()
+        self.assertEqual(review_context[0]["review_generation"], 2)
+        self.assertEqual(review_context[0]["review_evidence_revision"],
+                         "steward-evidence-rev-1")
+        self.assertEqual(review_context[0]["review_evidence_sha256"],
+                         revision["evidence_sha256"])
+        self.assertIsNone(self.pipeline.dispatchable_step(objective_id),
+                          "requesting a new review generation must not dispatch a dependent step")
+        self.pipeline.record_conversation_result_published(objective_id, {
+            "request_id": str(uuid4()), "provider_id": "provider:test",
+            "served_model": "model:test", "implementation_id": "implementation:test",
+            "completion_cycle": "1", "review_generation": "2",
+            "review_evidence_revision": "steward-evidence-rev-1",
+            "review_evidence_sha256": revision["evidence_sha256"]})
+        self.assertEqual(self.pipeline.pending_conversation_results(), [])
         self.pipeline.propose_continuation(objective_id, first,
             PlanStep("followup", "Prepare the dependent bounded work product",
                      ("second step artifact is accepted",), depends_on=("prepare",)))

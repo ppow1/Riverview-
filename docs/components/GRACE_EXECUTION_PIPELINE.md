@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.18
+File Revision: 1.1.19
+Changed: 2026-10-19 UTC | RV-GRACE-REVIEW-GENERATIONS-001 | Add bounded durable re-review generations after additional-evidence decisions
 Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Define immutable source-target provenance and capability-fenced concurrent owner-session execution.
 Purpose: Specify the deterministic, governed objective-to-work-order infrastructure slice
 Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Document corrected acceptance interpretation and append-only same-attempt verifier recovery
@@ -60,6 +61,7 @@ claims live installation or Camrui commissioning.
 7. For a `grace.readiness_router.v1` binding, ResidentReasoner proposals use the router's typed `propose()` method, which checks the router revision and calls only the authorized 80B provider. The 0.6B and 30B cannot substitute for an Engineering proposal. Provider, served model, digest and reasoning stage are persisted with the plan.
 8. Conversation-origin objectives with an independently accepted completion enter a PostgreSQL-backed result outbox. The persistent service rechecks Grace's current office binding and exact `resident.conversation.send` grant, asks the bound 80B to review verifier evidence, and appends one assistant response to the original conversation. A stable objective-derived response ID makes retries idempotent; the outbox is acknowledged only after the conversation event is durable. Provider or authorization failure leaves it pending for retry.
 9. The structured review may return `OBJECTIVE_COMPLETE`, `ADDITIONAL_EVIDENCE_REQUIRED`, `ENGINEERING_STEP_PROPOSED`, or `STEWARD_AUTHORIZATION_REQUIRED`. A continuation is accepted only within the original objective and accepted-criteria envelope; the current binding is revalidated before and after model reasoning. It appends a durable step and uses the ordinary CME assignment-creation authorization and lease/verification path. Model output never supplies authority.
+10. A durable verified-result review may be reconsidered only after a new evidence revision is submitted with the exact objective-scoped `objective.submit` grant. At most four generations exist per completion cycle. Each request stores evidence, revision, digest, actor, and idempotency key as an append-only objective event; generation-specific deterministic response IDs preserve earlier decisions and receipts while retries within a generation remain idempotent. Evidence revision does not create a continuation or dispatch work. Any later `ENGINEERING_STEP_PROPOSED` remains subject to the existing exact-step, binding, verification, and `assignment.create` checks.
 
 `read_reasoning_context(...)` includes the exact `repo://riverview/resident-engineering.v1`
 contract reference expected by the resident knowledge adapter. Without it, the
