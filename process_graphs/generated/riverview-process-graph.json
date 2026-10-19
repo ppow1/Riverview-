@@ -2799,7 +2799,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.53",
+      "graph_revision": "1.0.54",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -3570,9 +3570,9 @@
         },
         {
           "id": "rv:grace:operational-integration:verified-result-chat-return",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
-          "label": "SOURCE IMPLEMENTED — Independently accepted objective result is reviewed by bound 80B and appended once to its source conversation with durable provenance",
+          "label": "SOURCE IMPLEMENTED — Independently accepted objective result is reviewed by bound 80B and appended once; the durable outbox completion cycle keys its publication acknowledgement",
           "source_references": [
             "src/riverview_core/resident_execution/pipeline.py",
             "src/riverview_core/resident_execution/service.py",
@@ -3584,14 +3584,15 @@
           ],
           "verification_evidence": [
             "tests/test_grace_conversation_result.py",
-            "tests/test_resident_conversation.py"
+            "tests/test_resident_conversation.py",
+            "tests/test_grace_execution.py"
           ]
         },
         {
           "id": "rv:grace:operational-integration:verified-result-return-retry",
-          "node_revision": "1.0.2",
+          "node_revision": "1.0.3",
           "type": "recovery",
-          "label": "Candidate path reuses the durable same-objective result review; retries preserve the originating conversation and stable completion-cycle response identity",
+          "label": "Retries retain the source conversation and outbox cycle; publisher receipts may omit cycle metadata, but a supplied mismatch fails closed and a durable acknowledgement ends retries",
           "source_references": [
             "src/riverview_core/resident_execution/pipeline.py",
             "src/riverview_core/resident_execution/service.py",
@@ -4592,7 +4593,7 @@
           "from": "rv:grace:operational-integration:verified-result-review-decision",
           "to": "rv:grace:operational-integration:verified-result-chat-return",
           "type": "runtime_transition",
-          "label": "Persist the model decision and append a deterministic response to the originating conversation."
+          "label": "Persist the model decision and append a deterministic response; derive the durable publication acknowledgement cycle from the pending outbox"
         },
         {
           "from": "rv:grace:operational-integration:verified-result-review-decision",
@@ -4604,13 +4605,13 @@
           "from": "rv:grace:operational-integration:verified-result-review-decision",
           "to": "rv:grace:operational-integration:verified-result-return-retry",
           "type": "diagnostic_branch",
-          "label": "Provider, binding, scope, or persistence failure leaves the verified result in the durable retry outbox."
+          "label": "Provider, binding, persistence, or publisher-cycle mismatch leaves the verified result in the durable retry outbox"
         },
         {
           "from": "rv:grace:operational-integration:verified-result-return-retry",
           "to": "rv:grace:operational-integration:verified-result-review-decision",
           "type": "recovery_route",
-          "label": "Retry the same completion cycle idempotently after dependencies recover."
+          "label": "Retry the same completion cycle idempotently; the outbox cycle supplies ack identity and a successful durable event stops further publication retries"
         },
         {
           "from": "rv:grace:operational-integration:internal-tool-call",

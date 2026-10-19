@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.33
+# Revision: 1.0.34
+# Changed: 2026-10-19 UTC | RV-C1-GRACE-RESULT-RECEIPT-001 | Exercise PostgreSQL outbox acknowledgement when publisher omits completion_cycle
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Authenticate objective detail integration read with a Steward account session
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Cover mixed-capability claims, verification routing, and isolated worker failure behavior.
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Cover persistent proposal failure recording and retry limits.
@@ -606,6 +607,15 @@ class GraceExecutionTests(unittest.TestCase):
                          ("first step artifact is accepted",)),
                 PlanStep("followup", "Prepare the dependent bounded work product",
                          ("second step artifact is accepted",), depends_on=("prepare",))), 0))
+        class ResultPublisher:
+            def __init__(self):
+                self.cycles = []
+            def __call__(self, context):
+                self.cycles.append(context["completion_cycle"])
+                return {"status": "published", "request_id": f"result:{context['completion_cycle']}",
+                    "provider_id": "provider:test", "served_model": "model:test",
+                    "implementation_id": "implementation:test"}
+        publisher = ResultPublisher()
         worker = ContinuousWorker(self.adapter, self.worker_id, self.credentials["worker"],
             knowledge=RepositoryKnowledgeProvider(self.repo, self.commit),
             action=BoundedLocalCodingWorker(self.pipeline, self.root / "step-artifacts"),
@@ -613,7 +623,8 @@ class GraceExecutionTests(unittest.TestCase):
         service = GraceExecutionService(self.pipeline, self.adapter, worker,
             dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
             verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
-            artifact_root=self.root / "step-artifacts")
+            artifact_root=self.root / "step-artifacts",
+            conversation_result_publisher=publisher)
 
         self.assertEqual(service.dispatch_proposed(objective_id), 1)
         first = self.pipeline.get_objective(objective_id)["assignment_id"]
@@ -636,10 +647,11 @@ class GraceExecutionTests(unittest.TestCase):
                          ["verified", "pending"])
         self.assertIsNone(self.pipeline.dispatchable_step(objective_id),
                           "dependent work must wait for model-directed result review")
-        self.pipeline.record_conversation_result_published(objective_id, {
-            "request_id": str(uuid4()), "provider_id": "provider:test",
-            "served_model": "model:test", "implementation_id": "implementation:test",
-            "completion_cycle": "1"})
+        self.assertEqual(service.publish_conversation_results(), 1,
+                         "publisher may omit completion_cycle; durable outbox owns it")
+        self.assertEqual(service.publish_conversation_results(), 0,
+                         "persisted publication event must prevent repeated publisher calls")
+        self.assertEqual(publisher.cycles, [1])
         self.pipeline.propose_continuation(objective_id, first,
             PlanStep("followup", "Prepare the dependent bounded work product",
                      ("second step artifact is accepted",), depends_on=("prepare",)))
@@ -663,10 +675,9 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(pending[0]["objective_status"], "COMPLETED")
         self.assertEqual([step["status"] for step in pending[0]["step_progress"]],
                          ["verified", "verified"])
-        self.pipeline.record_conversation_result_published(objective_id, {
-            "request_id": str(uuid4()), "provider_id": "provider:test",
-            "served_model": "model:test", "implementation_id": "implementation:test",
-            "completion_cycle": "2"})
+        self.assertEqual(service.publish_conversation_results(), 1)
+        self.assertEqual(service.publish_conversation_results(), 0)
+        self.assertEqual(publisher.cycles, [1, 2])
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
             cur.execute("""SELECT step_id,status,assignment_id FROM grace_objective_steps

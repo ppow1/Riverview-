@@ -2,13 +2,13 @@
   "files": {
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.13",
-      "sha256": "6082e5d106f375a65984130a15c98da16fb0521c1970b0da082ecd6b7ce80532",
-      "size_bytes": 1146097
+      "revision": "1.0.14",
+      "sha256": "aab571fdc0bf638beada485046152495c2f28b0565f094f6ebaa2a76d7494c0b",
+      "size_bytes": 1158010
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.267",
+      "revision": "1.1.269",
       "sha256": "52cb9908377791af65712ff7272e0014b8cd1af6b5f4c717f6a9e0df02d07047",
       "size_bytes": 15924
     },
@@ -35,6 +35,24 @@
       "revision": "1.0.3",
       "sha256": "a97e0c1511c9df8f30cf46a1d23b8edfddf9dbcd8c14ffa953835ffd03274ef4",
       "size_bytes": 13840
+    },
+    "docs/components/GRACE_EXECUTION_COOKBOOK.md": {
+      "path": "docs/components/GRACE_EXECUTION_COOKBOOK.md",
+      "revision": "1.1.16",
+      "sha256": "3d869496984946d81d65df94faa03f070139b68faaf30404962e376889373495",
+      "size_bytes": 34815
+    },
+    "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md": {
+      "path": "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+      "revision": "1.0.54",
+      "sha256": "5506d3ca73721dccc95136a47d884c5bb8de31f0f249b42b1dbf83aacf6aaf80",
+      "size_bytes": 47198
+    },
+    "docs/components/GRACE_PERSISTENT_EXECUTION.md": {
+      "path": "docs/components/GRACE_PERSISTENT_EXECUTION.md",
+      "revision": "1.0.20",
+      "sha256": "2feb408120dc23014fd49281c15e9a56efee3a119313a82477153ffdd85fc364",
+      "size_bytes": 24113
     },
     "docs/components/NOTIFICATION_DELIVERY_API.schema.json": {
       "path": "docs/components/NOTIFICATION_DELIVERY_API.schema.json",
@@ -188,9 +206,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.191",
-      "sha256": "a7aa00418aeccf9ff662850f27f7ab8f3a0a4c0f685214f4d1c70fcd2371ed9c",
-      "size_bytes": 670110
+      "revision": "1.0.192",
+      "sha256": "91bee8053ea892887adaa7d62352d84bff696e7e3b2cc2b8d129cc2374b74829",
+      "size_bytes": 670335
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -200,9 +218,9 @@
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
-      "revision": "1.0.52",
-      "sha256": "fa0e447af01bd55539e3725b8ad6e2edcd0848669c84f69f166ea1337ed9ee1b",
-      "size_bytes": 87614
+      "revision": "1.0.54",
+      "sha256": "abb845c23beddffbe56eded78069c7271615dd8540ba1aa3714bea030cc08dd4",
+      "size_bytes": 87835
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
@@ -318,6 +336,12 @@
       "sha256": "44237c0ce217587566c38686181eebdd6957715f909b7d655353a5b8bbbcb24f",
       "size_bytes": 3353
     },
+    "src/riverview_core/resident_execution/service.py": {
+      "path": "src/riverview_core/resident_execution/service.py",
+      "revision": "1.0.27",
+      "sha256": "21a14345b131c1cc37e476fa763656748ca9b898bba1a83e314070078076ad43",
+      "size_bytes": 63058
+    },
     "src/riverview_core/status_dashboard/static/capabilities.json": {
       "path": "src/riverview_core/status_dashboard/static/capabilities.json",
       "revision": "1.0.1",
@@ -348,11 +372,23 @@
       "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
       "size_bytes": 1226
     },
+    "tests/test_grace_conversation_result.py": {
+      "path": "tests/test_grace_conversation_result.py",
+      "revision": "1.0.9",
+      "sha256": "edc76bd0a8452606e5274432d99200472d7747dc41c6f439ed7f1e1726b06ead",
+      "size_bytes": 27514
+    },
     "tests/test_grace_doorbell_runtime_wiring.py": {
       "path": "tests/test_grace_doorbell_runtime_wiring.py",
       "revision": "1.0.0",
       "sha256": "15d929ab980ea1234c4f3f420acc5014f09f5f52a5a89f6a11578bd820372049",
       "size_bytes": 5465
+    },
+    "tests/test_grace_execution.py": {
+      "path": "tests/test_grace_execution.py",
+      "revision": "1.0.34",
+      "sha256": "9c50e99404d84a9999c3af9652f03cffca10940435465e5bcad267fec0872881",
+      "size_bytes": 123617
     },
     "tests/test_runtime_baseline.py": {
       "path": "tests/test_runtime_baseline.py",
@@ -367,6 +403,6 @@
       "size_bytes": 26074
     }
   },
-  "manifest_revision": "1.1.267",
-  "updated_at": "2026-10-19T14:43:36.066172+00:00"
+  "manifest_revision": "1.1.269",
+  "updated_at": "2026-10-19T16:29:32.998164+00:00"
 }

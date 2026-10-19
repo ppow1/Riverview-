@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_PERSISTENT_EXECUTION.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.19
+File Revision: 1.0.20
+Changed: 2026-10-19 UTC | RV-C1-GRACE-RESULT-RECEIPT-001 | Source the durable publication acknowledgement cycle from the persisted result outbox
 Purpose: Define persistent model-independent Grace objective execution service
 Authority: Existing exact-grant registry and CME assignment/worker contracts
 Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-CONFIG-EXAMPLE | Add a secret-free environment template for exact service identity configuration
@@ -53,7 +54,7 @@ The owner-session process uses the existing restricted `riverview_core` PostgreS
 
 For a router-bound Grace, `configured_resident_providers()` constructs the same provider set for ResidentReasoner and the result-return conversation service. It verifies the live binding revision, explicit private-LAN router opt-in, configured model digests and allowlisted endpoint/model identities. Typed proposals require `grace.reasoning.80b`; the router does not substitute smaller models. Provider, served model, digest and stage are persisted with the proposal.
 
-After independent `ACCEPTED` verification and durable objective completion, `pending_conversation_results()` selects conversation-origin objectives without a `conversation.result_published` event. The service rechecks the current resident binding and exact `resident.conversation.send` grant, performs a bounded 80B review of completion evidence, and inserts a deterministic objective-derived assistant response in the source conversation. If insertion succeeds but outbox acknowledgment fails, retry finds the response receipt without another model call or assistant event. Failures before insertion leave the outbox eligible for retry. This is source implementation only; this increment applies no migrations and provisions no service credentials or grants.
+After independent `ACCEPTED` verification and durable objective completion, `pending_conversation_results()` selects conversation-origin objectives without a `conversation.result_published` event. The service rechecks the current resident binding and exact `resident.conversation.send` grant, performs a bounded 80B review of completion evidence, and inserts a deterministic objective-derived assistant response in the source conversation. The pending outbox's numeric `completion_cycle` is authoritative for the durable acknowledgement; publisher receipts may omit this field. If a publisher includes it, a mismatched value is rejected. A successful insert followed by acknowledgement records one cycle-specific event, so the next service poll no longer retries that result. If insertion succeeds but acknowledgement fails, retry finds the response receipt without another model call or assistant event. Failures before insertion leave the outbox eligible for retry. This is source implementation only; this increment applies no migrations and provisions no service credentials or grants.
 
 ## HTTP contract
 
