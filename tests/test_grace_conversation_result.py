@@ -1,8 +1,9 @@
 # Riverview~ controlled test
 # File: tests/test_grace_conversation_result.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Verify 80B result review is authorized, bounded and idempotently linked to chat
+# Changed: 2026-10-19 UTC | RV-GRACE-REREVIEW-PG-QUALIFICATION | Assert expanded typed review never invokes continuation handler
 # Changed: 2026-10-19 UTC | RV-GRACE-REVIEW-GENERATIONS-001 | Cover bounded evidence revision generations and per-generation idempotency
 # Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Cover typed completion decisions and same-scope continuation handoff
 # Changed: 2026-10-16 UTC | RV-GRACE-RESULT-RETURN-DIAGNOSTICS-001 | Verify deferred result-review diagnostics are bounded and content-free
@@ -211,6 +212,7 @@ class GraceConversationResultTests(unittest.TestCase):
         self.assertEqual(row["metadata"]["review_decision"], "STEWARD_AUTHORIZATION_REQUIRED")
         self.assertEqual(result["review_decision"], "STEWARD_AUTHORIZATION_REQUIRED")
         self.assertIsNone(row["metadata"]["proposed_step"])
+        self.assertEqual(row["metadata"]["continuation_status"], "not_requested")
 
     def test_new_evidence_revision_gets_one_bounded_durable_review_generation(self):
         import json
