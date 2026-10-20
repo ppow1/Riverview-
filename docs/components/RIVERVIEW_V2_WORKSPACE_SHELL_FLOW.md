@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.10
+File Revision: 1.0.11
 Purpose: Show LAN preview security, same-origin authenticated Grace chat, Comms5 diagnostics, snapshot, and recovery paths
 Authority: Presentation-only process flow; edit canonical JSON graph only
 Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-002 | Regenerate the graph for the same-origin Dashboard chat integration
@@ -19,7 +19,7 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_open_preview_624fa602(["Start loopback or authenticated LAN preview"])
     g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e["Apply Host, client subnet, and password session checks before serving assets"]
     g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409["Render clearly labeled local preview fixtures"]
-    g_rv_riverview_v2_workspace_shell_choose_view_161dc67b{"Choose shell view or resident"}
+    g_rv_riverview_v2_workspace_shell_choose_view_161dc67b{"Choose Overview, fixture view, or a resident workspace"}
     g_rv_riverview_v2_workspace_shell_retain_context_f40171d8["Retain selected resident in browser memory across views"]
     g_rv_riverview_v2_workspace_shell_unsafe_method_4b803134[["Reject mutating preview methods and out-of-root paths"]]
     g_rv_riverview_v2_workspace_shell_restart_preview_b905f3f1["Restart preview, revoke sessions, and reset in-memory UI state"]
@@ -40,7 +40,7 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_restore_sidebars_f1b4862e["Restore a hidden sidebar using its accessible floating control"]
     g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227["Historical cross-origin chat barrier before authorized same-origin integration; not a current runtime state"]
     g_rv_riverview_v2_workspace_shell_snapshot_click_c7b14d94(["Click Snapshot in the active V2 view"])
-    g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b["Collect allowlisted V2 view, fixture context, browser state, and redacted integration diagnostics"]
+    g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b["Capture the selected view and safe connection metadata without message contents"]
     g_rv_riverview_v2_workspace_shell_snapshot_manifest_bae7acec["Hash structured members and build bounded ZIP manifest"]
     g_rv_riverview_v2_workspace_shell_snapshot_download_2aeb1eaf["Download local ZIP; no network upload"]
     g_rv_riverview_v2_workspace_shell_snapshot_verify_0d5c9c66["Inspect ZIP members and hashes against active V2 state"]
@@ -58,6 +58,8 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_grace_response_state_996c19ef{"Check durable response status and matched assistant event without inferring completion from acceptance"}
     g_rv_riverview_v2_workspace_shell_grace_reply_persisted_a711c1c3["Render real persisted Grace response, event sequence, timestamp, and durable history after reload"]
     g_rv_riverview_v2_workspace_shell_grace_recovery_a7678f56["Refresh durable history and resume read-only status checks; never automatically repeat uncertain send"]
+    g_rv_riverview_v2_workspace_shell_route_resident_selection_89cc4007{"Choose selected resident: Grace or a synthetic preview record"}
+    g_rv_riverview_v2_workspace_shell_render_grace_center_9f9b903c["Render authenticated Grace conversation in the center workspace; keep right panel contextual"]
   end
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e --> g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
@@ -123,6 +125,11 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_grace_chat_handoff_29224207 -->|documentation: Superseded by same-origin V2 route| g_rv_riverview_v2_workspace_shell_open_v2_route_83acf28c
   g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227 -->|documentation: Historical blocker resolved by Steward GO| g_rv_riverview_v2_workspace_shell_open_v2_route_83acf28c
   g_rv_riverview_v2_workspace_shell_open_v2_route_83acf28c -->|Grace API is integrated; Comms5 event ledger remains unavailable| g_rv_riverview_v2_workspace_shell_comms5_unverified_fbb092d5
+  g_rv_riverview_v2_workspace_shell_choose_view_161dc67b -->|Select a resident from Overview or Residents| g_rv_riverview_v2_workspace_shell_route_resident_selection_89cc4007
+  g_rv_riverview_v2_workspace_shell_route_resident_selection_89cc4007 -->|Grace selected| g_rv_riverview_v2_workspace_shell_render_grace_center_9f9b903c
+  g_rv_riverview_v2_workspace_shell_route_resident_selection_89cc4007 -->|Synthetic resident selected; retain fixture-only directory| g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
+  g_rv_riverview_v2_workspace_shell_render_grace_center_9f9b903c -->|Existing authenticated conversation client checks Dashboard session| g_rv_riverview_v2_workspace_shell_dashboard_session_62b93d74
+  g_rv_riverview_v2_workspace_shell_choose_view_161dc67b -->|Overview or fixture view selected| g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

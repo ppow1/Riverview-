@@ -2,14 +2,14 @@
 # Riverview~ Controlled Source
 # File: scripts/verify_v2_workspace_browser.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.10
-# Purpose: Exercise V2 theme, sidebars, tooltips, responsive layout, and the secure Grace chat route guard
+# Revision: 1.0.11
+# Purpose: Exercise V2 navigation, center Grace workspace, Snapshot label, sidebars, theme, and route guard
 # Execution Model: Request-driven acceptance utility; starts/stops only its own geckodriver
 # Observability: Sanitized JSON stdout; no credentials or write operations
 # Dependencies: Python 3.10+, Firefox, geckodriver, local V2 preview
 # Inputs/Outputs: Loopback preview URL; navigation timings and viewport-fit metrics
 # Authority: Browser-only interaction with local fixture preview; no API or writes
-# Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-002 | Verify live-chat controls and reject API use from HTTP preview origin
+# Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-WORKSPACE-003 | Verify center chat placement and Overview return
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: scripts/verify_v2_workspace_browser.py
 # History: Git and revision/backup manifest
@@ -93,6 +93,7 @@ def main():
         theme["reload_restored"] = js(session, "return {theme:document.querySelector('#theme-select').value,effective:document.documentElement.dataset.theme}")
         sidebars = js(session, "const shell=document.querySelector('.app-shell');const cycle=id=>{const b=document.getElementById(id);const values=[];for(let i=0;i<3;i++){b.click();values.push(shell.dataset[id==='left-state'?'leftState':'rightState']);}return values};const left=cycle('left-state'),right=cycle('right-state');document.querySelector('#left-restore').click();document.querySelector('#right-restore').click();return {left,right,leftRestored:shell.dataset.leftState==='expanded',rightRestored:shell.dataset.rightState==='expanded'}")
         integration = js(session, "const s=document.querySelector('#snapshot-action');const nav=document.querySelector('[data-view=overview]');const chat=document.querySelector('#grace-chat-root');return {tooltip:nav.getAttribute('aria-description'),navName:nav.getAttribute('aria-label'),snapshotLabel:s.textContent.trim(),snapshotDisabled:s.disabled,snapshotExplanation:document.querySelector('#snapshot-status').textContent.trim(),graceState:chat.dataset.state,loginHidden:document.querySelector('#grace-login-form').hidden,chatHistoryLabel:document.querySelector('#grace-chat-history').getAttribute('aria-label'),commsState:document.querySelector('#comms5-status').dataset.state,commsText:document.querySelector('#comms5-diagnostics').innerText}")
+        center_workspace = js(session, "document.querySelector('[data-view=residents]').click();document.querySelector('[data-resident-id=grace-preview]').click();const chat=document.querySelector('#grace-chat-root'),box=chat.getBoundingClientRect();const selected={view:document.querySelector('#workspace-main').dataset.currentView,title:document.querySelector('#page-title').textContent,insideCenter:document.querySelector('#workspace-main').contains(chat),insideContext:document.querySelector('#right-sidebar').contains(chat),chatWidth:Math.round(box.width),residentsActive:document.querySelector('[data-view=residents]').getAttribute('aria-current')};document.querySelector('[data-view=overview]').click();selected.overviewRestored=document.querySelector('#workspace-main').dataset.currentView==='overview'&&!document.querySelector('#overview-content').hidden&&document.querySelector('#grace-workspace').hidden;return selected")
         desktop = js(session, "return {width:innerWidth,scrollWidth:document.documentElement.scrollWidth,overflow:document.documentElement.scrollWidth>innerWidth}")
         request("POST", f"/session/{session}/window/rect", {"x": 0, "y": 0, "width": 390, "height": 844})
         mobile = js(session, "return {width:innerWidth,scrollWidth:document.documentElement.scrollWidth,overflow:document.documentElement.scrollWidth>innerWidth,navButton:getComputedStyle(document.querySelector('#mobile-menu')).display}")
@@ -102,12 +103,12 @@ def main():
         report = {"browser": subprocess.check_output(["firefox", "--version"], text=True).strip(), "url": args.base_url, "authenticated_preview": authenticated,
                   "navigation_calls_ms": {"count": len(samples), "median": sorted(samples)[len(samples)//2], "max": max(samples)},
                   "resident_selection": {"before": selected_before, "selected": selected_after, "retained_after_view_switch": context_retained},
-                  "http_chat_security_guard": chat_guard, "theme": theme, "sidebars": sidebars,
+                  "http_chat_security_guard": chat_guard, "theme": theme, "sidebars": sidebars, "grace_center_workspace": center_workspace,
                   "integration_boundaries": integration, "desktop": desktop, "mobile": mobile,
                   "disabled_mutation_controls_present": disabled, "fixture_banner": fixture_banner,
                   "browser_errors": js(session, "return window.__errors"), "document_time_origin": reloads}
         print(json.dumps(report, sort_keys=True))
-        if selected_after != "Resident fixture 02" or context_retained != selected_after or chat_guard["state"] != "unavailable" or not chat_guard["loginHidden"] or "HTTPS" not in chat_guard["status"] or theme["dark"] != "dark" or theme["light"] != "light" or theme["saved"] != "light" or theme["systemEffective"] != theme["systemOS"] or theme["storedBeforeReload"] != "dark" or theme["reload_restored"]["theme"] != "dark" or theme["reload_restored"]["effective"] != "dark" or len(sidebars["left"]) != 3 or len(sidebars["right"]) != 3 or not sidebars["leftRestored"] or not sidebars["rightRestored"] or not integration["tooltip"] or integration["navName"] != "Overview" or integration["snapshotLabel"] != "Snapshot" or integration["snapshotDisabled"] or "fixture view" not in integration["snapshotExplanation"] or integration["graceState"] != "unavailable" or not integration["loginHidden"] or integration["chatHistoryLabel"] != "Persisted messages with Grace" or integration["commsState"] != "unverified" or "Traffic counts: UNVERIFIED" not in integration["commsText"] or "not reported as zero" not in integration["commsText"] or desktop["overflow"] or mobile["overflow"] or mobile["navButton"] == "none" or not disabled or report["browser_errors"]:
+        if selected_after != "Resident fixture 02" or context_retained != selected_after or chat_guard["state"] != "unavailable" or not chat_guard["loginHidden"] or "HTTPS" not in chat_guard["status"] or theme["dark"] != "dark" or theme["light"] != "light" or theme["saved"] != "light" or theme["systemEffective"] != theme["systemOS"] or theme["storedBeforeReload"] != "dark" or theme["reload_restored"]["theme"] != "dark" or theme["reload_restored"]["effective"] != "dark" or len(sidebars["left"]) != 3 or len(sidebars["right"]) != 3 or not sidebars["leftRestored"] or not sidebars["rightRestored"] or not integration["tooltip"] or integration["navName"] != "Overview" or integration["snapshotLabel"] != "Snapshot" or integration["snapshotDisabled"] or "current V2 view" not in integration["snapshotExplanation"] or integration["graceState"] != "unavailable" or not integration["loginHidden"] or integration["chatHistoryLabel"] != "Persisted messages with Grace" or integration["commsState"] != "unverified" or "Traffic counts: UNVERIFIED" not in integration["commsText"] or "not reported as zero" not in integration["commsText"] or not center_workspace["insideCenter"] or center_workspace["insideContext"] or center_workspace["chatWidth"] < 600 or not center_workspace["overviewRestored"] or desktop["overflow"] or mobile["overflow"] or mobile["navButton"] == "none" or not disabled or report["browser_errors"]:
             raise RuntimeError("v2_browser_check_failed")
     finally:
         if session:

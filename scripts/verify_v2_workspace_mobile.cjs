@@ -2,14 +2,14 @@
 Riverview~ Controlled Source
 File: scripts/verify_v2_workspace_mobile.cjs
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.6
-Purpose: Verify responsive behavior at an actual 390 by 844 CSS-pixel viewport
+Revision: 1.0.7
+Purpose: Verify Grace center-workspace navigation and desktop/mobile Chrome layout
 Execution Model: Request-driven acceptance utility; starts and stops its own Chrome process
 Observability: JSON stdout containing viewport fit and browser errors; no credentials or remote requests
 Dependencies: Node.js, Google Chrome, system-installed ws module, local V2 preview
 Inputs/Outputs: --url; writes no files; drives only the specified local preview
 Authority: Browser test only; no production API, persistent storage, or state mutation
-Changed: 2026-10-20 UTC | RV-WEB-V2-SNAPSHOT-001 | Assert enabled V2 ZIP control remains available at phone width
+Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-WORKSPACE-003 | Verify Grace chat placement, navigation, Snapshot state, and responsive Chrome layout
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: scripts/verify_v2_workspace_mobile.cjs
 History: Git and revision/backup manifest
@@ -23,8 +23,12 @@ const net = require("net");
 const { spawn } = require("child_process");
 const WebSocket = require("ws");
 
-const baseUrl = process.argv.includes("--url") ? process.argv[process.argv.indexOf("--url") + 1] : "http://127.0.0.1:8877/";
+const arg = (name, fallback) => process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : fallback;
+const baseUrl = arg("--url", "http://127.0.0.1:8877/");
+const width = Number(arg("--width", "390"));
+const height = Number(arg("--height", "844"));
 if (!/^http:\/\/127\.0\.0\.1:\d+\//.test(baseUrl)) throw new Error("preview_url_must_be_loopback");
+if (!Number.isInteger(width) || !Number.isInteger(height) || width < 320 || height < 500) throw new Error("invalid_viewport");
 let profile;
 let browserProcess;
 
@@ -83,23 +87,46 @@ async function main() {
     await send("Page.enable");
     await send("Runtime.enable");
     await send("Log.enable");
-    await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: width <= 760 });
     await send("Page.navigate", { url: baseUrl });
     for (let i = 0; i < 100; i += 1) {
       if (await evaluate("document.readyState === 'complete' && !!window.RIVERVIEW_V2_FIXTURES")) break;
       await sleep(100);
     }
-    const samples = [];
-    for (const view of ["residents", "work", "resources", "knowledge", "overview"]) {
-      samples.push(await evaluate(`(()=>{const b=document.querySelector('[data-view="${view}"]');const t=performance.now();b.click();return performance.now()-t})()`));
-    }
-    const result = await evaluate(`(()=>{document.querySelector('[data-resident-id="fixture-resident-02"]').click();document.querySelector('[data-view="work"]').click();const theme=document.querySelector('#theme-select');theme.value='dark';theme.dispatchEvent(new Event('change'));document.querySelector('#left-state').click();document.querySelector('#right-state').click();const checked={width:innerWidth,height:innerHeight,scrollWidth:document.documentElement.scrollWidth,overflow:document.documentElement.scrollWidth>innerWidth,menuDisplay:getComputedStyle(document.querySelector('#mobile-menu')).display,stateControlsVisible:getComputedStyle(document.querySelector('#left-state')).display!=='none'&&getComputedStyle(document.querySelector('#right-state')).display!=='none',navName:document.querySelector('[data-view="overview"]').getAttribute('aria-label'),resident:document.querySelector('#selected-resident b').textContent,contextRetained:document.querySelector('#selected-resident b').textContent==='Resident fixture 02',fixtureBanner:document.querySelector('.preview-banner').innerText,disabledButtons:[...document.querySelectorAll('button:disabled')].length,theme:document.documentElement.dataset.theme,leftState:document.querySelector('.app-shell').dataset.leftState,rightState:document.querySelector('.app-shell').dataset.rightState,snapshotDisabled:document.querySelector('#snapshot-action').disabled};document.querySelector('#left-restore').click();document.querySelector('#right-restore').click();return checked})()`);
-    const sorted = [...samples].sort((a, b) => a - b);
-    const report = { chrome: debuggerVersion.Browser, viewport: result,
-      navigation_call_ms: { count: samples.length, median: Number(sorted[Math.floor(sorted.length / 2)].toFixed(3)), max: Number(Math.max(...samples).toFixed(3)) },
-      browser_errors: errors };
+    const result = await evaluate(`(()=>{
+      const checks={};
+      checks.initialView=document.querySelector('#workspace-main').dataset.currentView;
+      checks.overviewTitle=document.querySelector('#page-title').textContent;
+      document.querySelector('[data-view="residents"]').click();
+      document.querySelector('[data-resident-id="grace-preview"]').click();
+      const chat=document.querySelector('#grace-chat-root');
+      const box=chat.getBoundingClientRect();
+      const context=document.querySelector('#right-sidebar');
+      const composer=document.querySelector('#grace-chat-form');
+      checks.graceView={view:document.querySelector('#workspace-main').dataset.currentView,title:document.querySelector('#page-title').textContent,visible:!document.querySelector('#grace-workspace').hidden,insideCenter:document.querySelector('#workspace-main').contains(chat),insideContext:context.contains(chat),width:Math.round(box.width),height:Math.round(box.height),history:!!document.querySelector('#grace-chat-history'),composer:!!composer,placeholder:composer.querySelector('textarea').getAttribute('placeholder'),state:chat.dataset.state};
+      checks.selectedResident=document.querySelector('#selected-resident b').textContent;
+      document.querySelector('[data-view="overview"]').click();
+      checks.overviewRestored=document.querySelector('#workspace-main').dataset.currentView==='overview'&&!document.querySelector('#overview-content').hidden&&document.querySelector('#grace-workspace').hidden;
+      document.querySelector('[data-view="residents"]').click();
+      document.querySelector('[data-resident-id="fixture-resident-02"]').click();
+      checks.fixtureDoesNotOpenLiveChat=document.querySelector('#workspace-main').dataset.currentView==='residents'&&document.querySelector('#grace-workspace').hidden;
+      checks.fixtureStatus=document.querySelector('[data-resident-id="fixture-resident-02"] .item-meta').textContent;
+      document.querySelector('[data-resident-id="grace-preview"]').click();
+      const snapshot=document.querySelector('#snapshot-action');
+      const integration={label:snapshot.textContent.trim(),status:document.querySelector('#snapshot-status').textContent.trim(),chatHistoryLabel:document.querySelector('#grace-chat-history').getAttribute('aria-label'),chatStatus:document.querySelector('#grace-chat-state').textContent.trim()};
+      const theme=document.querySelector('#theme-select');theme.value='dark';theme.dispatchEvent(new Event('change'));
+      document.querySelector('#left-state').click();document.querySelector('#right-state').click();
+      const app=document.querySelector('.app-shell');
+      const states={left:app.dataset.leftState,right:app.dataset.rightState};
+      document.querySelector('#left-restore').click();document.querySelector('#right-restore').click();
+      const bounds=chat.getBoundingClientRect();
+      const viewport={width:innerWidth,height:innerHeight,scrollWidth:document.documentElement.scrollWidth,overflow:document.documentElement.scrollWidth>innerWidth,menuDisplay:getComputedStyle(document.querySelector('#mobile-menu')).display,stateControlsVisible:getComputedStyle(document.querySelector('#left-state')).display!=='none'&&getComputedStyle(document.querySelector('#right-state')).display!=='none',chatWidth:Math.round(bounds.width),chatLeft:Math.round(bounds.left),chatRight:Math.round(bounds.right)};
+      return {checks,integration,states,viewport};
+    })()`);
+    const report = { chrome: debuggerVersion.Browser, url: baseUrl, viewport: result.viewport, checks: result.checks, integration: result.integration, sidebar_states: result.states, browser_errors: errors };
     process.stdout.write(`${JSON.stringify(report)}\n`);
-    if (result.width !== 390 || result.height !== 844 || result.overflow || result.menuDisplay === "none" || !result.stateControlsVisible || result.navName !== "Overview" || !result.contextRetained || result.disabledButtons < 2 || result.theme !== "dark" || result.leftState !== "compact" || result.rightState !== "compact" || result.snapshotDisabled || errors.length) throw new Error("mobile_viewport_check_failed");
+    const minimumChatWidth = width <= 760 ? 300 : 600;
+    if (result.checks.initialView !== "overview" || result.checks.overviewTitle !== "Workspace overview" || result.checks.graceView.view !== "grace" || result.checks.graceView.title !== "Grace conversation" || !result.checks.graceView.visible || !result.checks.graceView.insideCenter || result.checks.graceView.insideContext || !result.checks.graceView.history || !result.checks.graceView.composer || result.checks.selectedResident !== "Grace" || !result.checks.overviewRestored || !result.checks.fixtureDoesNotOpenLiveChat || !result.checks.fixtureStatus.includes("Example workspace") || result.integration.label !== "Snapshot" || result.integration.chatHistoryLabel !== "Persisted messages with Grace" || result.integration.chatStatus !== "Open the LAN HTTPS Dashboard at /v2/ to use authenticated Grace chat" || result.viewport.width !== width || result.viewport.height !== height || result.viewport.overflow || result.viewport.chatWidth < minimumChatWidth || (width <= 760 ? result.viewport.menuDisplay === "none" : result.viewport.menuDisplay !== "none") || !result.viewport.stateControlsVisible || result.states.left !== "compact" || result.states.right !== "compact" || errors.length) throw new Error("grace_workspace_browser_check_failed");
   } finally {
     ws.close();
   }

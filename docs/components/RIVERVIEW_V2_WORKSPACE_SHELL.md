@@ -2,15 +2,15 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.16
-Purpose: Specify V2 fixture workspace, authenticated same-origin Grace chat, and bounded LAN routes
+File Revision: 1.0.17
+Purpose: Specify V2 workspace, center-mounted authenticated Grace chat, and bounded LAN routes
 Authority: Fixture presentation; chat account/session and exact grants remain Dashboard-authorized
-Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-002 | Record mounted route, authenticated API integration, and current browser acceptance prerequisite
+Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-WORKSPACE-003 | Document Grace center workspace selection and responsive acceptance
 History: Git and revision/backup manifest
 -->
 # Riverview V2 workspace shell
 
-**Tasks:** `RV-WEB-V2-SHELL-001` (fixture shell), `RV-WEB-V2-LAN-PREVIEW-001` (authenticated LAN access), `RV-WEB-V2-SNAPSHOT-001` (V2 local snapshot), and `RV-WEB-V2-GRACE-CHAT-002` (same-origin authenticated Grace chat) · **Owner:** Windows C1 · **Classification:** isolated frontend enhancement / LAN route integration.
+**Tasks:** `RV-WEB-V2-SHELL-001` (fixture shell), `RV-WEB-V2-LAN-PREVIEW-001` (authenticated LAN access), `RV-WEB-V2-SNAPSHOT-001` (V2 local snapshot), and `RV-WEB-V2-GRACE-CHAT-002` (same-origin authenticated Grace chat), and `RV-WEB-V2-GRACE-WORKSPACE-003` (center workspace layout) · **Owner:** Windows C1 · **Classification:** isolated frontend enhancement / LAN route integration.
 
 **Component:** `RIVERVIEW-V2-WORKSPACE-SHELL` · **Milestone:** issue #164 parallel V2 shell.
 
@@ -25,6 +25,12 @@ V2 has two intentionally different delivery routes. The optional Python preview 
 The V2 chat UI uses the existing Dashboard account API directly at the same HTTPS origin. It checks the current account session with `GET /api/v1/auth/session`; when absent, the user signs in via `POST /api/v1/auth/session`. Dashboard sets an HttpOnly account cookie and a SameSite CSRF cookie. V2 never reads or stores the account cookie/password/token. It sends the CSRF value in `X-Riverview-CSRF` for state-changing requests and establishes a conversation session using `POST /api/v1/resident/conversation-session`. The existing Dashboard server verifies the Steward account, current binding, and exact `resident.conversation.read` and `.send` grants. V2 then calls the existing list/history, streamed send, and response-status endpoints. Durable append-only Dashboard events are authoritative. Browser localStorage contains only the selected conversation ID; message bodies remain in Dashboard persistence and are rendered with text nodes. Failed or uncertain sends are never automatically repeated. Pending responses are inspected with read-only status requests and resume after reload by examining durable history.
 
 Theme selection (`Light`, `Dark`, `System`) is persisted under `rv.v2.theme`; resident selection and sidebar state remain in memory. Sidebars independently cycle through expanded, icon-only/compact, and hidden states. Controls expose keyboard-visible descriptions and focus outlines. ChatGPT remains a separate external link, while Comms5 remains **UNVERIFIED** because the live contract still has no independently recorded, correlated send/receive event projection. The enabled `Snapshot` button builds a local bounded ZIP from the active V2 view. Its communication metadata reports the observed Grace connection/history state without message content, IDs, identity, credentials, or error payloads; Comms5 counts remain null. The 2 MiB hard limit and SHA-256 manifest remain in force. Snapshot makes no API request of its own and does not claim GitHub archive success.
+
+## Grace center workspace (RV-WEB-V2-GRACE-WORKSPACE-003)
+
+The overview remains an overview when its navigation item is selected. From **Residents**, selecting the real Grace entry opens a dedicated center-column conversation workspace; the authenticated chat section is mounted under `#workspace-main`, never inside `#right-sidebar`. The persistent right sidebar retains selected-resident and ChatGPT/Comms5 support context. Selecting either synthetic resident keeps the fixture directory active and never opens or implies a live conversation. The Residents navigation item remains selected while the Grace conversation is displayed, and selecting Overview returns to the overview.
+
+The existing `grace-chat.js` client and Dashboard contracts are unchanged: cookie/CSRF authentication, Steward identity, exact read/send grants, durable event history, send receipt, read-only response status, and reload recovery still belong to the same-origin Dashboard API. The larger center layout gives history the available vertical space and keeps the composer at the bottom of its chat card. Mobile Chrome uses the same single-column chat with a viewport-contained history and composer. The V2 Snapshot records `grace-conversation` versus the chosen fixture view and the observed chat connection status; it excludes transcript text, IDs, account identity, and credentials.
 
 ## V1 parity and integration boundary
 
@@ -77,8 +83,8 @@ Future authoritative residents, assignments, work, model/resource controls, and 
 3. LAN mode binds only to the explicit Camrui IPv4 address, checks the configured /24 and Host, and requires password auth before serving any shell asset. Login requires a fresh, client-bound, one-use CSRF token; a present non-null Origin must match the exact HTTP authority, while absent or `null` Origin is accepted only with that token.
 4. Password storage contains only algorithm/work factor, random salt, and derived hash in an owner-only file; failures are rate-limited and authenticated responses are non-cacheable.
 5. Authentication uses an eight-hour signed HttpOnly/SameSite cookie with in-memory key; no secret appears in source, browser storage, command arguments, or request logs.
-6. Navigation and resident selection work in browser memory; view switching retains selected context.
-7. Grace API calls are same-origin HTTPS only and use the existing Dashboard session, CSRF protection, resident binding, and exact grants. The HTTP fixture preview makes no API calls. Desktop and phone layouts fit their viewport.
+6. Navigation and resident selection work in browser memory; view switching retains selected context. Selecting Grace from Residents opens the full-size center conversation while Overview and synthetic residents stay in their own views.
+7. Grace API calls are same-origin HTTPS only and use the existing Dashboard session, CSRF protection, resident binding, and exact grants. The HTTP fixture preview makes no API calls. Desktop and phone layouts place the chat in the center workspace without horizontal overflow.
 8. Recovery is local: stop and restart only the preview command. No migration or rollback of V1 is involved.
 
 Run the offline and browser checks from the checkout root:
@@ -105,7 +111,7 @@ See [troubleshooting and recovery](RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md) and
 | Design | Fixture-only shell; default loopback mode; explicit-IP LAN mode; salted password hash; Origin/Host/subnet checks; bounded sessions, rate-limits and request concurrency; HTTP privacy boundary; local recovery. | PASS |
 | Pre-change preservation | Exact prior bytes and SHA-256 are recorded per controlled file in `.riverview-backups/manifest.jsonl`; changed existing files have revision-specific restoration copies. Initial files have no predecessor on the clean base and start at 1.0.0. | PASS; check with `scripts/revision_control.py` |
 | Implementation | Shell, loopback/LAN preview, local password setup, authentication and subnet checks, tests, cookbook, graph, and generated views are implemented together. | PASS for isolated preview code |
-| Automated checkout | Offline auth/security tests, syntax, browser layout, graph consistency, revision/backup audit, and V1 isolation smoke are recorded per source commit. | PASS for this local checkout; headless Chrome on Camrui authenticated to LAN V2 and verified the handoff/telemetry UI and ZIP. Windows Chrome verification of this delta remains pending. |
+| Automated checkout | Offline auth/security tests, syntax, browser layout, graph consistency, revision/backup audit, and V1 isolation checks are recorded per source commit. | See the RV-WEB-V2-GRACE-WORKSPACE-003 acceptance record below; real authenticated live chat is not retested from the isolated HTTP runner. |
 | Code review | Author self-review covers browser authority, network, method, path, and production isolation boundaries. | PARTIAL; independent review requested through the draft PR if an authorized reviewer is available |
 | Deployment / acceptance | Steward authorized this isolated LAN preview. No V1, Nginx, firewall, systemd, traffic, production API, or live data change is included. Actual Windows browser acceptance requires local password setup and a user-side test. | PARTIAL pending the Windows test |
 | Operations / maintenance | The foreground preview can be stopped/restarted locally; sessions and lockouts reset on restart. No durable queue or autonomous work exists. | N/A for the static preview; document explicit resume/rollback in the cookbook |
@@ -125,9 +131,28 @@ The Rev 1.6 eight-deliverable table below is the component applicability matrix.
 | 7. Operational autonomy and blocker clearance | N/A for an interactive static preview | It performs no recurring institutional work and owns no durable queue, worker, heartbeat, or escalation. Manual local startup is only for the preview. Integration/acceptance blockers are recorded in issue #164. |
 | 8. Registered canonical process graph | PASS | `process_graphs/riverview-v2/workspace-shell.json` validates with globally unique IDs and typed runtime/diagnostic/recovery edges; generated views pass `process_graph.py check`. |
 
-The prior Snapshot increment adds the V2-only local ZIP flow. This communication increment adds a direct Dashboard handoff and truthful V2 integration metadata in the ZIP. It does not connect V2 to the Dashboard API or Comms5. Real Grace messages/history remain available in V1; direct V2 chat and Comms5 counters/payload inspection remain blocked at the authentication and telemetry boundaries above.
+The prior Snapshot increment adds the V2-only local ZIP flow. The authenticated chat increment adds a direct Dashboard connection; this layout increment moves its unchanged client into the center workspace and records the actual selected view in Snapshot metadata. The Dashboard API connection is implemented through the existing authenticated same-origin contract described above. Comms5 counters/payload inspection remain unavailable and are still reported as UNVERIFIED.
 
-**Overall:** the preview remains **PARTIAL / not a production release**. LAN login and basic navigation were previously accepted by the Steward on `d1cd6f3`; Snapshot ZIP acceptance is complete; this increment's handoff and truthful Comms5 state pass authenticated Chrome on Camrui. Windows Chrome confirmation of this new handoff/telemetry UI and independent code review remain pending. No V2 Grace message was sent.
+**Overall:** the preview remains **PARTIAL / not a production release**. LAN login and basic navigation were previously accepted by the Steward on `d1cd6f3`; Snapshot ZIP acceptance is complete; this increment verifies the center layout and selected-view ZIP in desktop/mobile Chrome. The source-session attempt is blocked by a LAN CA trust error in the existing Camrui Chrome profile; the read-only local runner intentionally uses HTTP and cannot test authenticated sending. The Steward already verified a real durable user/Grace exchange (events 6 and 7) in Windows Chrome before this layout change. No additional live message was sent.
+
+### RV-WEB-V2-GRACE-WORKSPACE-003 acceptance record
+
+**Owner:** Windows C1 · **Classification:** focused frontend enhancement · **Execution:** interactive, browser-owned layout and request-driven existing Dashboard chat API · **Scope:** move the existing Grace client from the supporting right sidebar to the main workspace, correct the obsolete navigation event binding, keep fixture views separate, and report the selected view in the existing redacted Snapshot. No API/backend, database, Nginx, V1, public route, or production service change.
+
+The eight Rev 1.6 deliverables for this assignment are recorded individually:
+
+| Deliverable | Status | Evidence |
+| --- | --- | --- |
+| 1. Code and contracts | PASS for this UI change | Existing `grace-chat.js`, account cookies, CSRF, server grant checks, durable event order/history, and read-only response polling are unchanged; moved DOM remains under the same V2 center workspace. The stale binding to the removed `conversation-toggle` was deleted. Independent code review remains open at PR #166. |
+| 2. Functionality demonstrated | PARTIAL | Chrome 155 on loopback preview exercised Overview → Residents → Grace, main-vs-context placement, fixture separation, Overview return, no console errors, desktop 1440×1000 and emulated mobile 390×844 with no horizontal overflow. Snapshot ZIP verified the selected Grace view and no transcript. This HTTP preview deliberately refuses Dashboard API access; no live send/reply/reload was performed in this run. Steward Windows Chrome already verified durable message events 6/7 on the preceding same-origin implementation. |
+| 3. Complete versioned documentation | PASS for this scope | This specification and the recovery cookbook document selection, origin/security boundary, responsive behavior, Snapshot privacy and limitations. |
+| 4. Troubleshooting and recovery cookbook | PASS for this scope | Cookbook includes view/asset and mobile-overflow symptoms, diagnostics, expected center placement, and safe local resume. |
+| 5. Versioned visualization flowcharts | PASS | Canonical graph now records resident routing, Grace center rendering, fixture continuation, Dashboard session check, and Snapshot metadata behavior. |
+| 6. Steward-level live operational visualization | N/A | A frontend layout owns no authoritative operational state; it continues to expose the existing real Grace state through the account UI and safe Snapshot diagnostics, not a new dashboard. |
+| 7. Operational autonomy and blocker clearance | N/A | The UI has no recurring work, worker, queue, heartbeat, or autonomous recovery responsibilities. Durable chat and pending-response recovery remain Dashboard-owned and unchanged. |
+| 8. Registered canonical process graph | PASS | `process_graph.py validate` and `process_graph.py check` both pass with 14 graphs and 298 nodes. |
+
+Predecessor copies and SHA-256 values are registered in `.riverview-backups/manifest.jsonl`; each modified text file has a revision increase and the graph JSON has an updated sidecar entry. `revision_control.py check --baseline /tmp/rv-v2-workspace-003-baseline.json` passes. Browser test reports and ZIP are retained in the checkout evidence package linked from issue #164 and PR #166. V2 preview deployment was not updated during this assignment. The existing Camrui Chrome page at `/v2/` shows a certificate privacy error, so this run did not claim a live authenticated exchange on the corrected layout.
 
 ### Cross-cutting gates
 

@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.8
-Purpose: Diagnose and recover the isolated preview and same-origin HTTPS V2 Grace chat
+File Revision: 1.0.9
+Purpose: Diagnose and recover the isolated preview and center-workspace same-origin HTTPS V2 Grace chat
 Authority: Read-only diagnostics except the authorized V2 route rollback and Steward-initiated chat
-Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-002 | Add same-origin chat, Dashboard grants, and LAN Nginx recovery
+Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-WORKSPACE-003 | Add center-workspace selection and browser recovery checks
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
@@ -28,6 +28,14 @@ sudo nginx -t
 ```
 
 Do not use `curl -k` to conceal certificate failures. Without credentials, `GET /api/v1/resident/conversations` must return `401`; a state-changing conversation-session request without account cookie/CSRF must also return `401`. The V2 page itself may be visible to LAN clients, as is V1's login page, but conversation content and send authority require Dashboard authentication and exact grants.
+
+### Open and verify the Grace center workspace
+
+1. In V2, select **Residents** in the left navigation. Select the Grace row; the page title becomes **Grace conversation** and the chat card appears in the center content column. The right sidebar contains only supporting resident/integration context.
+2. Select **Overview** to return to the overview. Selecting a synthetic resident keeps the fixture directory visible and must not display a Grace composer. Reopen Grace from Residents.
+3. At a desktop viewport, the conversation card should occupy the available center-column width and its history should scroll inside the card. At phone width (390 CSS px), no horizontal document overflow should appear; the history remains scrollable and the composer stays visible below it.
+4. The HTTP loopback/LAN fixture preview intentionally says HTTPS is required and does not connect to Dashboard; the sign-in, conversation, durable history and sending remain available only through same-origin HTTPS `/v2/` with an authorized Dashboard session.
+5. Snapshot records the selected `grace-conversation` view and connection state, but never conversation content. A not-connected HTTP fixture snapshot is expected to report Grace chat as unavailable.
 
 ### Sign-in, history, and message lifecycle
 
@@ -65,7 +73,7 @@ The default loopback preview is:
 python3 scripts/serve_v2_workspace_preview.py --host 127.0.0.1 --port 8877
 ```
 
-Expected output identifies `http://127.0.0.1:8877/` and says loopback only. Open that URL on the checkout host. Stop with Ctrl-C. Restart with the same command; selection state is intentionally in memory and resets to Grace.
+Expected output identifies `http://127.0.0.1:8877/` and says loopback only. Open that URL on the checkout host. Stop with Ctrl-C. Restart with the same command; resident selection is intentionally in memory and defaults to Grace while the active view starts at Overview.
 
 ### Start trusted-LAN access
 
@@ -117,6 +125,8 @@ The login page warns that HTTP does not encrypt the password or cookie in transi
 | Snapshot hash check fails in browser | Inspect status only; do not copy browser storage or credentials into diagnostics | Snapshot either completes with the local ZIP size or reports it could not be created; no server write occurred | Retry once. If it persists, save sanitized browser console error metadata and use the Chrome acceptance runner. No service restart is relevant. |
 | Grace chat cannot send from V2 | Open `https://192.168.1.155/v2/`; inspect the visible state and `GET /api/v1/auth/session` result | The HTTPS V2 route uses the existing Dashboard account cookie, CSRF token, conversation session and exact grants. The HTTP fixture preview remains disconnected. | Sign in through the V2 same-origin form with the authorized Steward account. If the API denies exact grants, stop and use normal permission review. Never copy bearer values or cookies. |
 | Comms5 counts or messages appear unavailable | Inspect the Comms5 card and the Snapshot `communication_diagnostics` object | Expected: `status=unverified`, outbound/inbound counts `null`, inspectable messages `false`; unknown is not zero. The Comms5 v5 capability list has no general message ledger operation for V2. | Do not infer counters from the Dashboard event list or unrelated Comms5 operations. Resume only when an independently recorded, authorized Comms5 event projection is available. |
+| Grace chat appears in the right sidebar or disappears on navigation | Open Residents, select Grace, then inspect `#workspace-main` and `#right-sidebar` in DevTools | `#grace-chat-root` is inside `#workspace-main`; the right sidebar contains supporting context only | Select Residents then Grace again. If the center panel is missing, verify the served `workspace.js` and `index.html` belong to the same V2 release; do not change API, Nginx or V1 to repair a static UI issue. |
+| Mobile Grace workspace overflows horizontally | At 390 CSS px inspect `document.documentElement.scrollWidth` and `innerWidth` | Scroll width is no greater than viewport width; history scrolls internally | Reload the current V2 assets, reset sidebar widths and rerun the Chrome viewport check. Do not modify the global LAN route for a CSS defect. |
 | Mobile menu does not close automatically | Tap the menu button again | Navigation rail returns off-canvas | This preview has no router or automatic navigation state. |
 
 The fixture preview uses no SQL, migration, service manager, Nginx, firewall, or production API. The integrated route uses only the authorized `/v2/` Nginx static include and existing Dashboard APIs; it changes no database or service. The preview password hash is local and never copied into Git.
@@ -136,7 +146,8 @@ The fixture preview uses no SQL, migration, service manager, Nginx, firewall, or
 python3 -m unittest tests.test_v2_workspace_shell -v
 python3 scripts/verify_v2_workspace_browser.py --base-url http://192.168.1.155:8877 --password-prompt
 python3 scripts/verify_v2_workspace_snapshot_chrome.py --base-url http://192.168.1.155:8877/ --evidence-dir <evidence-dir> --password-prompt
-node scripts/verify_v2_workspace_mobile.cjs --url http://127.0.0.1:8877/
+node scripts/verify_v2_workspace_mobile.cjs --url http://127.0.0.1:8877/ --width 1440 --height 1000
+node scripts/verify_v2_workspace_mobile.cjs --url http://127.0.0.1:8877/ --width 390 --height 844
 python3 scripts/process_graph.py validate
 python3 scripts/process_graph.py check
 ```

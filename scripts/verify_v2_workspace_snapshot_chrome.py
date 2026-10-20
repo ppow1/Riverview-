@@ -2,14 +2,14 @@
 # Riverview~ Controlled Source
 # File: scripts/verify_v2_workspace_snapshot_chrome.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.10
-# Purpose: Verify authenticated Chrome Snapshot ZIP and honest Grace/Comms5 integration status
+# Revision: 1.0.11
+# Purpose: Verify Chrome Snapshot ZIP matches the selected center Grace view without chat content
 # Execution Model: Request-driven Chrome DevTools Protocol acceptance runner
 # Observability: Sanitized JSON report, downloaded package, and screenshot
 # Dependencies: Python 3.10+, Node.js ws module, Google Chrome, local V2 preview
 # Inputs/Outputs: Preview URL and hidden password prompt; local evidence directory
 # Authority: Browser-only read access to V2 preview; no upload or server mutation
-# Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-002 | Verify V2 Grace panel and secure-route guard in Snapshot acceptance
+# Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-WORKSPACE-003 | Verify Grace center view and metadata-safe Snapshot ZIP in Chrome
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: scripts/verify_v2_workspace_snapshot_chrome.py
 # History: Git and revision/backup manifest
@@ -49,15 +49,12 @@ async function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
  await call('Page.enable');await call('Runtime.enable');await call('Page.setDownloadBehavior',{behavior:'allow',downloadPath,eventsEnabled:true});
  stage='open LAN preview';await call('Page.navigate',{url:process.env.RV_V2_BASE_URL});await sleep(900);
  const auth=await evaluate('document.querySelector("#password")!==null');
- if(!auth)throw Error('LAN_preview_did_not_require_password');
- stage='submit password form';
- try{await evaluate('(()=>{const p=document.querySelector("#password");p.value='+JSON.stringify(previewPassword)+';document.querySelector("form").requestSubmit();return true})()');}catch(_){/* The expected 303 navigation can destroy the submitting document context. */}
- previewPassword='';await sleep(1800);
+ if(auth){if(!previewPassword)throw Error('preview_authentication_required');stage='submit password form';try{await evaluate('(()=>{const p=document.querySelector("#password");p.value='+JSON.stringify(previewPassword)+';document.querySelector("form").requestSubmit();return true})()');}catch(_){/* The expected 303 navigation can destroy the submitting document context. */}previewPassword='';await sleep(1800);}else if(new URL(process.env.RV_V2_BASE_URL).hostname!=='127.0.0.1')throw Error('unauthenticated_preview_must_be_loopback');
  stage='verify authenticated page';const title=await evaluate('document.title');if(title!=='Riverview V2 Workspace Preview')throw Error('preview_login_or_page_failed');
  stage='select representative V2 state';
- await evaluate('(()=>{document.querySelector("[data-resident-id=fixture-resident-02]").click();document.querySelector("[data-view=work]").click();document.querySelector("#theme-select").value="dark";document.querySelector("#theme-select").dispatchEvent(new Event("change"));document.querySelector("#right-state").click();return true})()');
- const expected=await evaluate('(()=>{const chat=document.querySelector("#grace-chat-root"),status=document.querySelector("#comms5-status"),details=document.querySelector("#comms5-diagnostics");return {view:document.querySelector("#primary-nav [aria-current=page]").dataset.view,resident:document.querySelector("#selected-resident b").textContent,theme:document.querySelector("#theme-select").value,right:document.querySelector(".app-shell").dataset.rightState,button:document.querySelector("#snapshot-action").disabled,graceState:chat.dataset.state,graceStatus:document.querySelector("#grace-chat-state").textContent.trim(),loginHidden:document.querySelector("#grace-login-form").hidden,commsState:status.dataset.state,commsText:details.textContent.trim(),commsVisible:details.getClientRects().length>0&&getComputedStyle(details).display!=="none"}})()');
- const mismatches=[];if(expected.view!=='work')mismatches.push('view');if(expected.resident!=='Resident fixture 02')mismatches.push('resident');if(expected.theme!=='dark')mismatches.push('theme');if(expected.right!=='compact')mismatches.push('sidebar');if(expected.button)mismatches.push('snapshot_disabled');if(expected.graceState!=='unavailable')mismatches.push('http_grace_guard');if(!expected.loginHidden||!expected.graceStatus.includes('HTTPS'))mismatches.push('https_only_message');if(expected.commsState!=='unverified')mismatches.push('comms_state');if(!expected.commsVisible)mismatches.push('comms_not_visible');if(!expected.commsText.includes('Traffic counts: UNVERIFIED'))mismatches.push('comms_unverified_label');if(!expected.commsText.includes('not reported as zero'))mismatches.push('unknown_count_copy');if(mismatches.length)throw Error('prepared_v2_state_mismatch:'+mismatches.join(','));
+ await evaluate('(()=>{document.querySelector("[data-resident-id=fixture-resident-02]").click();document.querySelector("[data-view=work]").click();document.querySelector("[data-view=residents]").click();document.querySelector("[data-resident-id=grace-preview]").click();document.querySelector("#theme-select").value="dark";document.querySelector("#theme-select").dispatchEvent(new Event("change"));document.querySelector("#right-state").click();return true})()');
+ const expected=await evaluate('(()=>{const chat=document.querySelector("#grace-chat-root"),status=document.querySelector("#comms5-status"),details=document.querySelector("#comms5-diagnostics");return {view:document.querySelector("#workspace-main").dataset.currentView,centerChat:document.querySelector("#workspace-main").contains(chat),contextChat:document.querySelector("#right-sidebar").contains(chat),resident:document.querySelector("#selected-resident b").textContent,theme:document.querySelector("#theme-select").value,right:document.querySelector(".app-shell").dataset.rightState,button:document.querySelector("#snapshot-action").disabled,graceState:chat.dataset.state,graceStatus:document.querySelector("#grace-chat-state").textContent.trim(),loginHidden:document.querySelector("#grace-login-form").hidden,commsState:status.dataset.state,commsText:details.textContent.trim(),commsVisible:details.getClientRects().length>0&&getComputedStyle(details).display!=="none"}})()');
+ const mismatches=[];if(expected.view!=='grace')mismatches.push('view');if(expected.resident!=='Grace')mismatches.push('resident');if(!expected.centerChat||expected.contextChat)mismatches.push('center_placement');if(expected.theme!=='dark')mismatches.push('theme');if(expected.right!=='compact')mismatches.push('sidebar');if(expected.button)mismatches.push('snapshot_disabled');if(expected.graceState!=='unavailable')mismatches.push('http_grace_guard');if(!expected.loginHidden||!expected.graceStatus.includes('HTTPS'))mismatches.push('https_only_message');if(expected.commsState!=='unverified')mismatches.push('comms_state');if(!expected.commsVisible)mismatches.push('comms_not_visible');if(!expected.commsText.includes('Traffic counts: UNVERIFIED'))mismatches.push('comms_unverified_label');if(!expected.commsText.includes('not reported as zero'))mismatches.push('unknown_count_copy');if(mismatches.length)throw Error('prepared_v2_state_mismatch:'+mismatches.join(','));
  stage='click Snapshot';const before=events.length,rect=await evaluate('(()=>{const r=document.querySelector("#snapshot-action").getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2}})()');
  await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:rect.x,y:rect.y});await call('Input.dispatchMouseEvent',{type:'mousePressed',x:rect.x,y:rect.y,button:'left',clickCount:1});await call('Input.dispatchMouseEvent',{type:'mouseReleased',x:rect.x,y:rect.y,button:'left',clickCount:1});let event;
  for(let i=0;i<100&&!event;i++){await sleep(100);event=events.slice(before).find(x=>x.method==='Page.downloadWillBegin');}
@@ -78,13 +75,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://192.168.1.155:8877/")
     parser.add_argument("--evidence-dir", required=True)
-    parser.add_argument("--password-prompt", action="store_true", help="read preview password without echo")
+    parser.add_argument("--password-prompt", action="store_true", help="read LAN preview password without echo; loopback preview needs no password")
     args = parser.parse_args()
-    if not args.password_prompt:
-        parser.error("--password-prompt is required; password is never accepted as a command argument")
-    password = getpass.getpass("V2 preview password (hidden): ")
-    if not password:
-        raise SystemExit("empty preview password")
+    password = getpass.getpass("V2 preview password (hidden): ") if args.password_prompt else ""
     evidence = Path(args.evidence_dir).resolve()
     evidence.mkdir(parents=True, exist_ok=True)
     downloads = evidence / "downloads"
@@ -125,9 +118,9 @@ def main():
             content = package.read(name)
             if hashlib.sha256(content).hexdigest() != records[name]["sha256"] or len(content) != records[name]["size_bytes"]:
                 raise SystemExit(f"member SHA-256/size mismatch: {name}")
-        if state["current_view"] != "work" or state["selected_context"]["resident_name"] != "Resident fixture 02" or state["appearance"]["selected_theme"] != "dark" or state["sidebars"]["context"] != "compact":
+        if state["current_view"] != "grace-conversation" or state["selected_context"]["resident_name"] != "Grace" or state["appearance"]["selected_theme"] != "dark" or state["sidebars"]["context"] != "compact":
             raise SystemExit("ZIP state does not match the selected Chrome workspace view")
-        if state["data_connection"]["live_backend_connected"] is not False or state["server_diagnostics"]["status"] != "not available":
+        if state["data_connection"]["live_backend_connected"] is not False or state["data_connection"]["mode"] != "authenticated Grace conversation" or state["server_diagnostics"]["status"] != "not available":
             raise SystemExit("ZIP overstates live/server data")
         diagnostics = state.get("communication_diagnostics", {})
         grace = diagnostics.get("grace_chat", {})
@@ -147,7 +140,7 @@ def main():
     report.update({"zip_name": archive.name, "zip_size_bytes": archive.stat().st_size,
                    "zip_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(), "zip_members": sorted(expected),
                    "manifest_member_checks": "PASS", "state_matches_selected_view": True,
-                   "communication_diagnostics": "PASS: HTTP preview guard reports Grace unavailable; Comms5 counts null and UNVERIFIED; no messages captured",
+                   "communication_diagnostics": "PASS: Snapshot identifies selected Grace center view; HTTP guard reports chat unavailable; transcript absent; Comms5 counts null and UNVERIFIED",
                    "chrome_version": report.get("browser"), "elapsed_seconds": round(time.time() - started, 3)})
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     print(json.dumps(report, sort_keys=True))

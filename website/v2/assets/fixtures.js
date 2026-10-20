@@ -2,21 +2,21 @@
 Riverview~ Controlled Source
 File: website/v2/assets/fixtures.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.1
+Revision: 1.0.2
 Purpose: Provide synthetic non-production preview content
 Execution Model: Interactive browser data module
 Observability: Fixture labels rendered by the owning shell; no runtime service
 Dependencies: Browser JavaScript; loaded before workspace.js
 Inputs/Outputs: Fixed fixture objects exported on window.RIVERVIEW_V2_FIXTURES
 Authority: Fixture data only; no API, credential, storage, or production authority
-Changed: 2026-10-20 UTC | RV-WEB-V2-SHELL-001 | Add standard controlled-source contract header
+Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-WORKSPACE-003 | Identify Grace as authenticated chat, with synthetic fixture status retained
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_browser.py, scripts/verify_v2_workspace_mobile.cjs
 History: Git and revision/backup manifest
 */
 window.RIVERVIEW_V2_FIXTURES = Object.freeze({
   residents: Object.freeze([
-    Object.freeze({ id: "grace-preview", name: "Grace", role: "Verified identity · preview", initials: "G", status: "Workspace shell only", realIdentity: true }),
+    Object.freeze({ id: "grace-preview", name: "Grace", role: "Verified identity · preview", initials: "G", status: "Authenticated chat · sign-in required", realIdentity: true }),
     Object.freeze({ id: "fixture-resident-02", name: "Resident fixture 02", role: "Synthetic preview record", initials: "02", status: "Example workspace", realIdentity: false }),
     Object.freeze({ id: "fixture-resident-03", name: "Resident fixture 03", role: "Synthetic preview record", initials: "03", status: "Example workspace", realIdentity: false })
   ]),

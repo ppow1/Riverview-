@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:riverview-v2:workspace-shell",
-  "graph_revision": "1.0.11",
+  "graph_revision": "1.0.12",
   "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
   "workflow_id": "local-static-preview",
   "diagram_order": 80,
@@ -76,9 +76,9 @@
     },
     {
       "id": "rv:riverview-v2:workspace-shell:choose-view",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "decision",
-      "label": "Choose shell view or resident",
+      "label": "Choose Overview, fixture view, or a resident workspace",
       "source_references": [
         "website/v2/assets/workspace.js"
       ],
@@ -86,7 +86,8 @@
         "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
       ],
       "verification_evidence": [
-        "scripts/verify_v2_workspace_browser.py"
+        "scripts/verify_v2_workspace_browser.py",
+        "scripts/verify_v2_workspace_mobile.cjs"
       ]
     },
     {
@@ -416,9 +417,9 @@
     },
     {
       "id": "rv:riverview-v2:workspace-shell:snapshot-capture",
-      "node_revision": "1.0.2",
+      "node_revision": "1.0.1",
       "type": "process",
-      "label": "Collect allowlisted V2 view, fixture context, browser state, and redacted integration diagnostics",
+      "label": "Capture the selected view and safe connection metadata without message contents",
       "source_references": [
         "website/v2/assets/snapshot.js"
       ],
@@ -427,6 +428,7 @@
         "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
       ],
       "verification_evidence": [
+        "scripts/verify_v2_workspace_mobile.cjs",
         "scripts/verify_v2_workspace_snapshot_chrome.py",
         "tests/test_v2_workspace_shell.py"
       ]
@@ -730,6 +732,43 @@
       "verification_evidence": [
         "tests/test_v2_workspace_shell.py",
         "scripts/verify_v2_grace_chat_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:route-resident-selection",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Choose selected resident: Grace or a synthetic preview record",
+      "source_references": [
+        "website/v2/assets/workspace.js",
+        "website/v2/assets/fixtures.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_mobile.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:render-grace-center",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render authenticated Grace conversation in the center workspace; keep right panel contextual",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/workspace.js",
+        "website/v2/assets/workspace.css"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_mobile.cjs"
       ]
     }
   ],
@@ -1106,6 +1145,36 @@
       "to": "rv:riverview-v2:workspace-shell:comms5-unverified",
       "type": "runtime_transition",
       "label": "Grace API is integrated; Comms5 event ledger remains unavailable"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:route-resident-selection",
+      "type": "runtime_transition",
+      "label": "Select a resident from Overview or Residents"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:route-resident-selection",
+      "to": "rv:riverview-v2:workspace-shell:render-grace-center",
+      "type": "runtime_transition",
+      "label": "Grace selected"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:route-resident-selection",
+      "to": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "type": "runtime_transition",
+      "label": "Synthetic resident selected; retain fixture-only directory"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:render-grace-center",
+      "to": "rv:riverview-v2:workspace-shell:dashboard-session",
+      "type": "runtime_transition",
+      "label": "Existing authenticated conversation client checks Dashboard session"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "type": "runtime_transition",
+      "label": "Overview or fixture view selected"
     }
   ]
 }
