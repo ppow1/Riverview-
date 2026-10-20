@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/verify_diagnostic_snapshot_browser.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.1.1
+# Revision: 1.1.10
 # Purpose: Verify one-click offline diagnostic ZIP in isolated Firefox with synthetic read-only APIs
 # Execution Model: Request-driven isolated fixture; owns only a temporary HTTP server and geckodriver
 # Observability: Sanitized JSON report and downloaded ZIP; no real account or production data
@@ -17,6 +17,12 @@
 # Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Require complete real-dashboard page capture and readable long-page tiles.
 # Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Allow the bounded full export time for the second-viewport comparison too.
 # Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Require the responsive narrow-viewport package to be complete as well.
+# Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Stress bounded raster omission and verify canonical offline payloads survive
+# Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Allow the oversized raster test under the actual-dashboard Content Security Policy
+# Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Assert separate raster, structured-member, and manifest reserves under overflow
+# Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Retain full browser acceptance for the integrated bounded snapshot source.
+# Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Assert unauthenticated archive failure is clear and retains local ZIP download.
+# Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Serve stress hook as a CSP-allowed same-origin fixture asset
 # Tests: scripts/verify_diagnostic_snapshot_browser.py
 # History: Git
 """Exercise the downloadable diagnostic snapshot without connecting to Riverview services."""
@@ -97,9 +103,13 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True, help="New directory for report and downloaded fixture ZIP")
     parser.add_argument("--full-source-fixture", action="store_true", help="Use the repository capability registry and every canonical process graph")
     parser.add_argument("--actual-dashboard-fixture", action="store_true", help="Serve the repository dashboard HTML/CSS/scripts with synthetic read-only API responses")
+    parser.add_argument("--package-bound-stress-fixture", action="store_true", help="Pad synthetic canvas output to force the current ZIP raster budget without production data")
+    parser.add_argument("--single-capture", action="store_true", help="Skip the second-viewport comparison")
     args = parser.parse_args()
     if args.actual_dashboard_fixture:
         args.full_source_fixture = True
+    if args.package_bound_stress_fixture and not args.actual_dashboard_fixture:
+        raise SystemExit("package_bound_stress_requires_actual_dashboard_fixture")
     source_graphs = None
     source_graph_paths = {}
     if args.full_source_fixture:
@@ -169,6 +179,12 @@ def main() -> int:
         ).encode()
     if args.actual_dashboard_fixture:
         page = (STATIC / "index.html").read_bytes()
+        if args.package_bound_stress_fixture:
+            stress = b'<script src="/assets/snapshot-stress.js"></script>'
+            marker = b'<script src="/assets/diagnostic-snapshot.js"'
+            if marker not in page:
+                raise SystemExit("snapshot_script_injection_point_missing")
+            page = page.replace(marker, stress + marker, 1)
     else:
         page = b'''<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Snapshot fixture</title>
         <style>.shell{font:16px Arial;background:#112;color:#fff;width:900px;min-height:1600px}.rail{padding:15px}.view{padding:30px;min-height:400px;background:#223}.snapshot-banner{padding:8px}button{padding:10px}</style>
@@ -203,6 +219,8 @@ def main() -> int:
 
         def do_GET(self):
             requests.append({"path": self.path, "cookie_present": bool(self.headers.get("Cookie"))})
+            if args.package_bound_stress_fixture and self.path == "/assets/snapshot-stress.js":
+                return self.send_body(200, b'''window.__snapshotStressHook=true;(function(){const native=HTMLCanvasElement.prototype.toBlob;HTMLCanvasElement.prototype.toBlob=function(callback,type,...args){native.call(this,blob=>{if(!blob)return callback(blob);blob.arrayBuffer().then(buffer=>{const original=new Uint8Array(buffer),padded=new Uint8Array(Math.max(original.length,2*1024*1024));padded.set(original);callback(new Blob([padded],{type:type||blob.type}));});},type,...args);};})();''', "text/javascript; charset=utf-8")
             if self.path == "/":
                 return self.send_body(200, page, "text/html; charset=utf-8")
             if args.actual_dashboard_fixture and self.path.startswith("/assets/"):
@@ -421,6 +439,9 @@ def main() -> int:
             report["probe_download_saved"] = (download_dir/"download-probe.zip").is_file()
             (args.output / "browser-acceptance-debug.json").write_text(json.dumps(report, indent=2)+"\n")
             raise RuntimeError("snapshot_zip_download_timeout")
+        archive_toast=js("return document.querySelector('#toast')?.textContent||''")
+        report["archive_local_fallback"]={"clear_failure_message":"GitHub archival failed (steward_account_session_required)" in archive_toast,
+            "local_zip_downloaded":bool(archives),"github_request_skipped_without_csrf":"/api/v1/snapshot/archive" not in [item.get("path") for item in requests]}
         archive = archives[0]
         evidence_archive = args.output / "downloads" / archive.name
         evidence_archive.parent.mkdir(mode=0o700, exist_ok=True)
@@ -449,7 +470,8 @@ def main() -> int:
             workflow_status = json.loads(bundle.read(workflow_file(first_graph_id, "status.json")))
             page_inventory = json.loads(bundle.read(f"website/pages/{first_page_id}.json"))
             svg_a = ElementTree.fromstring(bundle.read(workflow_file(first_graph_id, "svg")))
-            png_a = bundle.read(workflow_file(first_graph_id, "png"))
+            first_png_path = workflow_file(first_graph_id, "png")
+            png_a = bundle.read(first_png_path) if first_png_path in names else b""
             page_a = bundle.read(f"website/pages/{first_page_id}.html").decode()
             page_b = bundle.read(f"website/pages/{second_page_id}.html").decode()
             page_svg_a = ElementTree.fromstring(bundle.read(f"website/pages/{first_page_id}.svg"))
@@ -469,14 +491,14 @@ def main() -> int:
             for item in workflow_index["workflows"]:
                 graph = GRAPHS[item["graph_id"]]
                 svg = ElementTree.fromstring(bundle.read(item["svg"]))
-                png = bundle.read(item["png"])
+                png = bundle.read(item["png"]) if item.get("png") in names else b""
                 status = json.loads(bundle.read(item["status"]))
                 svg_nodes = [node.attrib.get("data-node-id") for node in svg.findall(".//*[@data-node-id]")]
                 svg_edges = [(edge.attrib.get("data-edge-from"), edge.attrib.get("data-edge-to"), edge.attrib.get("data-edge-type"))
                              for edge in svg.findall(".//*[@data-edge-from]")]
                 graph_edges = [(edge["from"], edge["to"], edge["type"]) for edge in graph.get("edges", [])]
                 visual_checks.append(svg_nodes == [node["id"] for node in graph.get("nodes", [])]
-                    and svg_edges == graph_edges and png.startswith(b"\x89PNG\r\n\x1a\n")
+                    and svg_edges == graph_edges and (not item.get("png") or png.startswith(b"\x89PNG\r\n\x1a\n"))
                     and status.get("graph_id") == graph["graph_id"])
             archive_payloads=[bundle.read(name) for name in names]
             report["synthetic_cookie_not_exported"] = not any(b"synthetic-only" in value for value in archive_payloads)
@@ -486,12 +508,13 @@ def main() -> int:
             captured_pages = [page["id"] for page in REGISTRY["pages"]]
             page_htmls = [bundle.read(f"website/pages/{page}.html").decode() for page in captured_pages]
             page_svg_text = [bundle.read(f"website/pages/{page}.svg").decode() for page in captured_pages]
-            page_pngs = [bundle.read(f"website/pages/{page}.png") for page in captured_pages]
+            page_pngs = [bundle.read(f"website/pages/{page}.png") if f"website/pages/{page}.png" in names else b"" for page in captured_pages]
             page_svgs = [ElementTree.fromstring(bundle.read(f"website/pages/{page}.svg")) for page in captured_pages]
             page_jsons = [json.loads(bundle.read(f"website/pages/{page}.json")) for page in captured_pages]
             report["all_registered_pages_captured"] = (manifest["inventory"]["captured_pages"] == len(captured_pages)
-                and all(f"website/pages/{page}.png" in names and f"website/pages/{page}.svg" in names for page in captured_pages)
-                and all(png.startswith(b"\x89PNG\r\n\x1a\n") for png in page_pngs))
+                and all(f"website/pages/{page}.html" in names and f"website/pages/{page}.svg" in names and f"website/pages/{page}.json" in names for page in captured_pages)
+                and all(png.startswith(b"\x89PNG\r\n\x1a\n") for png in page_pngs if png))
+            report["documentation_full_extent_tiles_complete"] = False
             if "documentation" in captured_pages:
                 documentation_capture=json.loads(bundle.read("website/pages/documentation.json"))
                 documentation_tiles=documentation_capture["representations"].get("detail_tiles",[])
@@ -557,55 +580,101 @@ def main() -> int:
                        "node_identity_preserved": canonical_json_matches and len(set(json_node_ids))==len(json_node_ids),
                        "edge_identity_preserved": canonical_json_matches,
                        "page_visuals_are_full_rendered_captures": report["page_visuals_are_full_rendered_captures"],
-                       "offline_index_has_file_refs": all(x["json"] in names and x["svg"] in names and x["png"] in names for x in workflow_index["workflows"]),
+                       "offline_index_has_file_refs": all(x["json"] in names and x["svg"] in names and (not x.get("png") or x["png"] in names) for x in workflow_index["workflows"]),
                        "browser_errors": js("return window.RiverviewDiagnostics.snapshot().errors")})
-        first_svg_payload = zipfile.ZipFile(archive).read(workflow_file(first_graph_id, "svg"))
-        webdriver("POST", f"/session/{session}/window/rect", {"x": 0, "y": 0, "width": 720, "height": 500})
-        second_view = js("window.scrollTo(0,document.body.scrollHeight);return {width:innerWidth,scroll_y:scrollY}")
-        existing_downloads = {item.name for item in download_dir.glob("*.zip")}
-        js("document.querySelector('#snapshot').scrollIntoView({block:'center',inline:'center'})")
-        click_css("#snapshot")
-        second_deadline = time.monotonic() + 180
-        second_archives = []
-        while time.monotonic() < second_deadline:
-            second_archives = [item for item in download_dir.glob("*.zip") if item.name not in existing_downloads]
-            if second_archives and not list(download_dir.glob("*.part")):
-                break
-            time.sleep(.25)
-        if not second_archives:
-            raise RuntimeError("second_viewport_snapshot_timeout")
-        second_archive = max(second_archives, key=lambda item: item.stat().st_mtime_ns)
-        second_evidence = args.output / "downloads" / "viewport-2.zip"
-        shutil.copy2(second_archive, second_evidence)
-        with zipfile.ZipFile(second_archive) as second_bundle:
-            second_svg_payload = second_bundle.read(workflow_file(first_graph_id, "svg"))
-            second_manifest=json.loads(second_bundle.read("manifest.json"))
-            second_documentation=json.loads(second_bundle.read("website/pages/documentation.json"))
-        report["second_capture"] = {"viewport": second_view, "package_bytes": second_archive.stat().st_size,
-            "workflow_svg_matches_first_viewport": second_svg_payload == first_svg_payload,
-            "workflow_json_matches_first_viewport": zipfile.ZipFile(second_archive).read(workflow_file(first_graph_id, "json")) == workflow_a_bytes,
-            "manifest_capture_complete": second_manifest["capture_complete"],
-            "documentation_capture_complete": not second_documentation["capture_truncated"] and second_documentation["visual_status"]=="complete",
-            "documentation_detail_tile_count": len(second_documentation["representations"].get("detail_tiles",[]))}
-        report["workflow_visual_independent_of_viewport_and_scroll"] = (report["second_capture"]["viewport"]["width"] < 1280 and report["second_capture"]["viewport"]["scroll_y"] > 0 and report["second_capture"]["workflow_svg_matches_first_viewport"] and report["second_capture"]["workflow_json_matches_first_viewport"])
+        if not args.single_capture:
+            first_svg_payload = zipfile.ZipFile(archive).read(workflow_file(first_graph_id, "svg"))
+            webdriver("POST", f"/session/{session}/window/rect", {"x": 0, "y": 0, "width": 720, "height": 500})
+            second_view = js("window.scrollTo(0,document.body.scrollHeight);return {width:innerWidth,scroll_y:scrollY}")
+            existing_downloads = {item.name for item in download_dir.glob("*.zip")}
+            js("document.querySelector('#snapshot').scrollIntoView({block:'center',inline:'center'})")
+            click_css("#snapshot")
+            second_deadline = time.monotonic() + 180
+            second_archives = []
+            while time.monotonic() < second_deadline:
+                second_archives = [item for item in download_dir.glob("*.zip") if item.name not in existing_downloads]
+                if second_archives and not list(download_dir.glob("*.part")):
+                    break
+                time.sleep(.25)
+            if not second_archives:
+                raise RuntimeError("second_viewport_snapshot_timeout")
+            second_archive = max(second_archives, key=lambda item: item.stat().st_mtime_ns)
+            second_evidence = args.output / "downloads" / "viewport-2.zip"
+            shutil.copy2(second_archive, second_evidence)
+            with zipfile.ZipFile(second_archive) as second_bundle:
+                second_svg_payload = second_bundle.read(workflow_file(first_graph_id, "svg"))
+                second_manifest=json.loads(second_bundle.read("manifest.json"))
+                second_documentation=json.loads(second_bundle.read("website/pages/documentation.json"))
+            report["second_capture"] = {"viewport": second_view, "package_bytes": second_archive.stat().st_size,
+                "workflow_svg_matches_first_viewport": second_svg_payload == first_svg_payload,
+                "workflow_json_matches_first_viewport": zipfile.ZipFile(second_archive).read(workflow_file(first_graph_id, "json")) == workflow_a_bytes,
+                "manifest_capture_complete": second_manifest["capture_complete"],
+                "documentation_capture_complete": not second_documentation["capture_truncated"] and second_documentation["visual_status"]=="complete",
+                "documentation_detail_tile_count": len(second_documentation["representations"].get("detail_tiles",[]))}
+            report["workflow_visual_independent_of_viewport_and_scroll"] = (report["second_capture"]["viewport"]["width"] < 1280 and report["second_capture"]["viewport"]["scroll_y"] > 0 and report["second_capture"]["workflow_svg_matches_first_viewport"] and report["second_capture"]["workflow_json_matches_first_viewport"])
         report["passed"] = all([report["zip_integrity_test"], report["manifest_files_valid"],
             report["manifest_workflows"]==len(GRAPHS), report["manifest_nodes"]==expected_nodes, report["manifest_edges"]==expected_edges,
             report["alpha_svg_edge_count"]==len(GRAPH_A.get("edges", [])),
             report["alpha_png_signature_valid"], report["page_private_content_redacted"],
             report["sensitive_form_value_redacted"], report["page_pngs_complete"],
             report["captured_interactions"]>=2, report["cross_workflow_target_preserved"],
-            report["cross_workflow_index_complete"], report["workflow_index_unresolved_references_complete"], report["node_identity_preserved"], report["edge_identity_preserved"], report["all_canonical_workflow_json_matches"], report["page_visuals_are_full_rendered_captures"], report["offline_index_has_file_refs"], report["offline_json_node_edge_inventory_reconciles"], report["page_control_correlation"], report["workflow_runtime_status_exported"], report["synthetic_cookie_not_exported"], report["all_workflow_visuals_valid"], report["offline_html_is_inert"], not report["browser_errors"]])
+            report["cross_workflow_index_complete"], report["workflow_index_unresolved_references_complete"], report["node_identity_preserved"], report["edge_identity_preserved"], report["all_canonical_workflow_json_matches"], report["page_visuals_are_full_rendered_captures"], report["offline_index_has_file_refs"], report["offline_json_node_edge_inventory_reconciles"], report["page_control_correlation"], report["workflow_runtime_status_exported"], report["synthetic_cookie_not_exported"], report["all_workflow_visuals_valid"], report["offline_html_is_inert"], not report["browser_errors"], report["archive_local_fallback"]["clear_failure_message"], report["archive_local_fallback"]["local_zip_downloaded"], report["archive_local_fallback"]["github_request_skipped_without_csrf"]])
         report["passed"] = bool(report["passed"] and all(report["workflow_viewer"][key] for key in ("initial_fit_applied","zoom_in_increased_scale","reset_restored_unit_scale","fit_button_restored_fit","pan_changed_transform","fullscreen_behavior_ok")))
         (args.output / "browser-acceptance.json").write_text(json.dumps(report, indent=2)+"\n")
         report["package_sha256"] = hashlib.sha256(archive.read_bytes()).hexdigest()
-        report["passed"] = bool(report["passed"] and report["workflow_visual_independent_of_viewport_and_scroll"])
+        if not args.single_capture:
+            report["passed"] = bool(report["passed"] and report["workflow_visual_independent_of_viewport_and_scroll"])
         report["passed"] = bool(report["passed"] and report["request_metadata_captured"] and report["navigation_timing_captured"] and report["diagnostic_privacy_filter_passed"])
         report["passed"] = bool(report["passed"] and report["actual_dashboard_assets_served"] and report["actual_dashboard_page_content_captured"])
-        if args.actual_dashboard_fixture:
+        if args.package_bound_stress_fixture:
+            report["stress_hook_loaded"] = js("return window.__snapshotStressHook === true")
+        if args.package_bound_stress_fixture:
+            with zipfile.ZipFile(archive) as bundle:
+                names = set(bundle.namelist())
+                uncompressed_bytes = sum(entry.file_size for entry in bundle.infolist())
+                non_raster_bytes = sum(entry.file_size for entry in bundle.infolist() if not entry.filename.endswith(".png"))
+                page_refs_valid = all((not item["representations"].get("png") or item["representations"]["png"] in names)
+                                      and all(path in names for path in item["representations"].get("detail_tiles", []))
+                                      for item in page_jsons)
+                workflow_refs_valid = all(item["json"] in names and item["svg"] in names and item["status"] in names
+                                          and (not item.get("png") or item["png"] in names)
+                                          and all(path in names for path in item.get("detail_tiles", []))
+                                          for item in workflow_index["workflows"])
+                diagnostic_members_present = all(path in names for path in (
+                    "manifest.json", "website/capabilities.json", "diagnostics/operational-snapshot.json",
+                    "diagnostics/browser-history.json", "diagnostics/control-coverage.json",
+                    "workflows/workflow-index.json"))
+            omitted = manifest["package_bounds"].get("omitted_raster_visual_count", 0)
+            raster_omissions = [item for item in manifest["omissions"] if item.get("kind") == "raster_visual"]
+            omission_paths = [item["path"] for item in raster_omissions]
+            report["package_bound_stress"] = {"current_limit_bytes": manifest["package_bounds"]["max_uncompressed_bytes"],
+                "uncompressed_archive_bytes": uncompressed_bytes, "omitted_raster_visual_count": omitted,
+                "manifest_lists_visual_omissions": any(item.get("kind") == "raster_visual" for item in manifest["omissions"]),
+                "raster_budget_respected": manifest["package_bounds"]["raster_visual_bytes"] <= manifest["package_bounds"]["raster_visual_budget_bytes"],
+                "structured_and_manifest_reserves_respected": non_raster_bytes <= manifest["package_bounds"]["structured_reserve_bytes"] + manifest["package_bounds"]["manifest_reserve_bytes"],
+                "omitted_paths_absent_from_archive": len(omission_paths) == len(set(omission_paths)) and all(path not in names for path in omission_paths),
+                "canonical_page_and_workflow_references_valid": page_refs_valid and workflow_refs_valid,
+                "diagnostic_members_present": diagnostic_members_present,
+                "capture_complete_truthfully_false": manifest["capture_complete"] is False}
+            report["passed"] = all([report["zip_integrity_test"], report["manifest_files_valid"],
+                report["package_bytes"] < manifest["package_bounds"]["max_uncompressed_bytes"], omitted > 0,
+                report["package_bound_stress"]["manifest_lists_visual_omissions"],
+                report["package_bound_stress"]["raster_budget_respected"],
+                report["package_bound_stress"]["structured_and_manifest_reserves_respected"],
+                report["package_bound_stress"]["omitted_paths_absent_from_archive"],
+                report["stress_hook_loaded"],
+                report["package_bound_stress"]["canonical_page_and_workflow_references_valid"],
+                report["package_bound_stress"]["diagnostic_members_present"],
+                report["package_bound_stress"]["capture_complete_truthfully_false"],
+                report["all_canonical_workflow_json_matches"], report["offline_json_node_edge_inventory_reconciles"],
+                report["page_private_content_redacted"], report["sensitive_form_value_redacted"],
+                report["synthetic_cookie_not_exported"], report["diagnostic_privacy_filter_passed"],
+                report["archive_local_fallback"]["clear_failure_message"], report["archive_local_fallback"]["local_zip_downloaded"], report["archive_local_fallback"]["github_request_skipped_without_csrf"]])
+        elif args.actual_dashboard_fixture:
             report["passed"] = bool(report["passed"] and report.get("manifest_capture_complete")
                 and report.get("documentation_full_extent_tiles_complete")
-                and report["second_capture"].get("manifest_capture_complete")
-                and report["second_capture"].get("documentation_capture_complete"))
+                and (args.single_capture or report["second_capture"].get("manifest_capture_complete"))
+                and (args.single_capture or report["second_capture"].get("documentation_capture_complete")))
         report["package_file"] = f"downloads/{archive.name}"
         (args.output / "snapshot.zip.sha256").write_text(report["package_sha256"]+"  "+archive.name+"\n")
         (args.output / "browser-acceptance.json").write_text(json.dumps(report, indent=2)+"\n")

@@ -1,7 +1,7 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.27
+File Revision: 1.1.31
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
@@ -36,6 +36,9 @@ Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Link final exact-source brow
 Changed: 2026-10-16 UTC | RV-WEBSITE-PR71-PRODUCTION-ACCEPTANCE | Record immutable Camrui release, strict-TLS snapshot verification, permission-bounded completeness, and rollback evidence
 Changed: 2026-10-16 UTC | RV-WEBSITE-PR67-SNAPSHOT-CSP-FIX | Record f957 production installation, migration evidence, partial live acceptance and the CSP rasterization correction.
 Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record real-dashboard DOM verification and complete responsive long-page tile captures
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Document raster budget fallback, package-size diagnostics, and ZIP recovery checks
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Document the 76 MiB raster ceiling and structured-content reserve
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Document optional private GitHub Release archive provisioning, errors, retention and recovery.
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -125,9 +128,10 @@ The ZIP schema is `rv.website.diagnostic-snapshot.v1`. It contains the live
 capability registry, per-page inventories, sanitized offline HTML with dashboard
 CSS, full-content SVG/PNG visual maps, bounded recent browser diagnostics, the
 existing redacted operational snapshot, and one original canonical graph JSON,
-runtime-status JSON, full-extent SVG, and PNG per workflow. Large graph PNGs have
-overlapping detail tiles. `workflow-index.json` includes counts, source paths,
-file references, available runtime state, and outbound/incoming jump references.
+runtime-status JSON, and full-extent SVG per workflow. PNG previews and overlapping
+detail tiles are included while they fit the raster budget. `workflow-index.json`
+includes counts, source paths, file references, available runtime state, and
+outbound/incoming jump references.
 The graph JSON is copied from the authenticated API with its transient status
 projection kept separately; node and edge IDs and all represented fields stay
 unchanged. Page visual maps annotate controls with their registry IDs and each
@@ -140,6 +144,51 @@ features; it does not assert that actions work. Coverage reports controls as
 rendered, available, disabled, unavailable, or not observed, and lists rendered
 controls with no registry entry. Current account permissions are respected.
 
+### Private GitHub snapshot archive
+
+Archival is enabled only when the dashboard unit is deliberately configured
+with `RIVERVIEW_SNAPSHOT_GITHUB_REPOSITORY=OWNER/PRIVATE_REPOSITORY` and a
+systemd `LoadCredential` named `snapshot-github-token`. Keep the token in a
+root-owned protected source file (for example
+`/etc/riverview/snapshot-github-token`); never put it in an environment file,
+repository, command line, dashboard HTML, JavaScript, or browser storage. Use a
+fine-grained token scoped only to the dedicated private repository with
+contents read/write permission. Releases are created as drafts, uploaded, and
+then published; the backend verifies that GitHub reports the repository as
+private before creating a release. Do not configure a public repository.
+
+Install the optional example as a reviewed systemd drop-in only after the
+private repository and credential are provisioned:
+
+```sh
+sudo install -d -o root -g root -m 0755 /etc/systemd/system/riverview-status-dashboard.service.d
+sudo install -o root -g root -m 0644 deploy/systemd/riverview-status-dashboard-snapshot-archive.conf.example \\
+  /etc/systemd/system/riverview-status-dashboard.service.d/snapshot-archive.conf
+sudo systemd-analyze verify /etc/systemd/system/riverview-status-dashboard.service
+```
+
+Edit the repository slug in the installed drop-in, run `daemon-reload`, and
+restart the dashboard only in a separately approved deployment window. The
+credential must exist before enabling the drop-in. Missing or invalid archive
+configuration makes only archival unavailable; the dashboard itself continues
+to start. No background worker or server-side file staging is used. Successful
+Releases are permanent and are not automatically expired.
+
+The browser sends its generated ZIP to the authenticated dashboard backend
+over the same origin. The endpoint requires a Steward account cookie and CSRF
+token, validates the package bound, ZIP CRC, every manifest SHA-256/size and the
+manifest redaction declaration, then calls GitHub. It returns a UTC timestamp
+plus random identifier, release URL, asset name, archive size and SHA-256. The
+Release body stores these metadata fields for historical lookup. On failure,
+the browser reports a safe error and downloads the same ZIP locally. Do not
+retry by copying ZIPs into the repository or committing them to Git.
+
+If cleanup of a failed draft is unsuccessful, locate it by the generated
+`rvdiag-...` tag and inspect its assets. Delete only that draft and its exact
+generated tag after confirming no asset was published. A successfully
+published release is the durable archive and must not be removed as part of a
+retry.
+
 The bounded interaction history stores at most 120 interactions, 200 API request
 summaries, and 50 browser errors in tab session storage. Request summaries contain
 method, sanitized endpoint, response status, elapsed time, safe correlation ID,
@@ -151,13 +200,22 @@ raw URLs and document names are excluded.
 Page HTML and visuals redact account rows and conversation/request content; form
 values and selected values are cleared. Offline HTML is inert: scripts, form
 actions, and link destinations are removed, and non-data external media is omitted
-and reported. The package is limited to 96 MiB and any history, external-media, or
-page-extent omission is stated in the manifest. Full page captures are bounded
-to 50,000 CSS pixels; taller content is explicitly marked incomplete. Pages
-taller than 1,800 CSS pixels include overlapping readable PNG detail tiles
-under `website/pages/<page-id>/details/`; the page JSON links each tile. If a required graph
-or visual cannot be exported within that bound, the error is reported instead
-of claiming a complete workflow capture.
+and reported. The package is limited to 96 MiB of uncompressed member data. PNG previews and
+detail tiles have a 76 MiB cumulative ceiling. At that ceiling, 16 MiB remains
+available for structured HTML/JSON/SVG/status/diagnostics and 4 MiB is reserved
+for the manifest; unused raster headroom also remains available to required
+members. ZIP headers add small overhead to the downloaded file and are outside
+the uncompressed member check. The manifest reports uncompressed bytes by
+category and lists every omitted raster path and reason. If the raster budget is
+reached, the exporter retains diagnostics, sanitized HTML, page/workflow JSON,
+workflow status and SVG while omitting only PNG previews or detail tiles.
+Affected page/workflow visual status is `incomplete` and the top-level
+`capture_complete` flag is false; canonical workflow data remains usable. Full
+page captures are bounded to 50,000 CSS pixels; taller content is explicitly
+marked incomplete. Pages taller than 1,800 CSS pixels include overlapping
+readable PNG detail tiles under `website/pages/<page-id>/details/` while budget
+allows. A mandatory non-raster member that alone causes the hard package ceiling
+to be exceeded fails with `snapshot_package_bound_exceeded:<member>:<attempted>/<limit>`; inspect the named source/category before retrying.
 
 The registry is a versioned static JSON contract served through the authenticated
 capability API; each page and control declares a capability version. The collector
@@ -174,6 +232,41 @@ and [`archive inspection`](../../evidence/checkouts/WEBSITE-SNAPSHOT-041/2026101
 These fixture-only API and session responses are not evidence of authenticated
 production acceptance or a deployed PR #67 release. The Camrui readiness facts are
 in `evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final4/production-readiness.json`.
+
+### RV-WEBSITE-SNAPSHOT-BOUND-20261020 repair evidence
+
+The deployed exporter failed when cumulative uncompressed ZIP members exceeded
+96 MiB. The bound was checked in `ZipStore.add` for every member; it was not a
+record-count limit. A baseline full-source Firefox fixture on the deployed
+source commit captured 10 pages and 22 workflows at 71,115,604 uncompressed
+bytes: workflow visuals 50,113,354 bytes, page visuals 18,836,817 bytes, page
+records 1,308,874 bytes, workflow records 631,897 bytes, and registry/diagnostic/
+manifest material 224,662 bytes. This fixture has empty operational rows and
+synthetic browser history; it demonstrates visual dominance but does not measure
+the Steward's current production download. Browser-history retention is bounded
+to 120 interactions, 200 requests, and 50 errors, and conversation/request
+bodies are excluded by the exporter.
+
+When the raster budget is exceeded, the exporter now omits only redundant PNG
+previews/detail tiles. Canonical JSON, SVG, sanitized HTML and diagnostics remain
+in the archive; the manifest names omitted raster members, reports category
+byte totals, and marks the package incomplete. If a mandatory non-raster
+member exceeds the hard bound, the displayed error includes the path and byte
+threshold.
+
+Run the isolated full-source bound regression without production access:
+
+```sh
+python3 scripts/verify_diagnostic_snapshot_browser.py \
+  --actual-dashboard-fixture --package-bound-stress-fixture --single-capture \
+  --output evidence/checkouts/STEWARD-DASHBOARD/<new-run-directory>
+```
+
+Expected: exit 0, valid ZIP CRCs and manifest hashes, package below 96 MiB, one
+or more raster omissions listed, every canonical graph JSON/SVG and sanitized
+page HTML/JSON present, diagnostics present, and no synthetic cookie, private
+conversation text or form value in the package. The harness uses an isolated
+synthetic cookie and synthetic APIs; it does not establish deployed acceptance.
 
 If a deployed snapshot manifest reports `Invalid image request` for every PNG,
 check the dashboard's `img-src` Content Security Policy before changing the

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.39
+# Revision: 1.0.42
+# Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Cover verifier-accepted dependent dispatch without second-model gating and bounded durable rejection escalation.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Verify generation-two evidence preserves the active digest-checked artifact-review contract.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Cover global review-key collision, bounded due-review selection and persisted rework receipt recovery.
@@ -599,20 +600,23 @@ class GraceExecutionTests(unittest.TestCase):
         finally:
             recovery.close()
 
-    def test_multistep_dispatch_waits_for_prior_step_verification(self):
+    def test_multistep_dispatch_follows_independent_acceptance_without_second_model_gate(self):
         from riverview_core.resident_execution.service import GraceExecutionService
-        objective_id = "objective:dependent-steps"
-        self.pipeline.submit_objective(objective_id, "create two verified work products",
-            ["first step artifact is accepted", "second step artifact is accepted"],
+        objective_id = "objective:project-status-report"
+        self.pipeline.submit_objective(objective_id,
+            "Assess whether a simple project-status report should be standard for new Riverview Engineering assignments; identify useful fields, stalled-work value, and risks.",
+            ["deliverable.md answers the assessment using only the original request and verified records",
+             "deliverable.md discloses when historical assignment analysis was not performed"],
             credential=self.credentials["steward"], scope_ref=self.scope,
             origin={"conversation_id": str(uuid4()), "source_sequence": 1})
         self.pipeline.ground_objective(objective_id)
         self.pipeline.record_proposal(objective_id, PlanProposal(
-            "Create dependent work products", (
-                PlanStep("prepare", "Prepare the first bounded work product",
-                         ("first step artifact is accepted",)),
-                PlanStep("followup", "Prepare the dependent bounded work product",
-                         ("second step artifact is accepted",), depends_on=("prepare",))), 0))
+            "Draft a project-status report and map its fields", (
+                PlanStep("prepare", "Create deliverable.md with the requested project-status assessment",
+                         ("deliverable.md answers the assessment using only the original request and verified records",)),
+                PlanStep("followup", "Map report fields from verified assignment records",
+                         ("deliverable.md discloses when historical assignment analysis was not performed",),
+                         depends_on=("prepare",))), 0))
         class ResultPublisher:
             def __init__(self):
                 self.cycles = []
@@ -651,8 +655,18 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(pending_step_review[0]["objective_status"], "WORK_ORDER_CREATED")
         self.assertEqual([step["status"] for step in pending_step_review[0]["step_progress"]],
                          ["verified", "pending"])
-        self.assertIsNone(self.pipeline.dispatchable_step(objective_id),
-                          "dependent work must wait for model-directed result review")
+        self.assertEqual(self.pipeline.dispatchable_step(objective_id)["step_id"], "followup",
+                         "independent ACCEPTED s1 advances through the persisted dependency graph")
+        assignments_before = self.admin.execute("SELECT count(*) FROM " + self.schema +
+            ".assignments WHERE objective_ref=%s", (objective_id,)).fetchone()[0]
+        self.assertEqual(service.dispatch_proposed(objective_id), 1)
+        second = self.pipeline.get_objective(objective_id)["assignment_id"]
+        self.assertEqual(self.ledger.get(second)["workflow_step"], "followup")
+        self.assertEqual(service.dispatch_proposed(objective_id), 0)
+        self.assertEqual(self.admin.execute("SELECT count(*) FROM " + self.schema +
+            ".assignments WHERE objective_ref=%s", (objective_id,)).fetchone()[0], assignments_before + 1)
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "WORK_ORDER_CREATED",
+                         "one accepted step must not complete the multi-step objective")
         class DurableReviewPublisher:
             def __init__(self):
                 self.receipts = {}
@@ -733,7 +747,7 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(review_context[0]["review_evidence_sha256"],
                          revision["evidence_sha256"])
         self.assertIsNone(self.pipeline.dispatchable_step(objective_id),
-                          "requesting a new review generation must not dispatch a dependent step")
+                          "the only dependent step is already durably assigned")
         self.pipeline.record_conversation_result_published(objective_id, {
             "request_id": str(uuid4()), "provider_id": "provider:test",
             "served_model": "model:test", "implementation_id": "implementation:test",
@@ -747,16 +761,9 @@ class GraceExecutionTests(unittest.TestCase):
             self.pipeline.propose_continuation(objective_id, first, expanded_step)
         self.assertFalse(any(event["event_type"] == "work_order.continuation_proposed"
                              for event in self.pipeline.objective_events(objective_id)))
-        self.assertIsNone(self.pipeline.dispatchable_step(objective_id),
-                          "an expanded typed step must neither persist nor dispatch")
-        self.pipeline.propose_continuation(objective_id, first,
-            PlanStep("followup", "Prepare the dependent bounded work product",
-                     ("second step artifact is accepted",), depends_on=("prepare",)))
-        self.assertEqual(self.pipeline.dispatchable_step(objective_id)["step_id"], "followup")
-
-        self.assertEqual(service.dispatch_proposed(objective_id), 1)
-        second = self.pipeline.get_objective(objective_id)["assignment_id"]
-        self.assertNotEqual(first, second)
+        self.assertFalse(any(event["event_type"] == "work_order.continuation_proposed"
+                             and event["payload"].get("step_id") == "supplemental"
+                             for event in self.pipeline.objective_events(objective_id)))
         assignment = self.ledger.get(second)
         self.assertEqual(assignment["workflow_step"], "followup")
         self.ledger.transition(second, "ready", "event_processor_ready", "ready:" + second,
@@ -783,29 +790,6 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual([row["step_id"] for row in rows], ["prepare", "followup"])
         self.assertEqual([row["status"] for row in rows], ["verified", "verified"])
         self.assertNotEqual(rows[0]["assignment_id"], rows[1]["assignment_id"])
-
-        continued = self.pipeline.propose_continuation(objective_id, second,
-            PlanStep("supplemental", "Supplement the accepted evidence",
-                     ("first step artifact is accepted",), depends_on=("followup",)))
-        self.assertEqual(continued["objective_id"], objective_id)
-        self.assertEqual(continued["status"], "WORK_ORDER_CREATED")
-        self.assertEqual(service.dispatch_proposed(objective_id), 1)
-        third = self.pipeline.get_objective(objective_id)["assignment_id"]
-        self.assertNotEqual(third, second)
-        self.assertEqual(self.ledger.get(third)["objective_ref"], objective_id)
-        self.ledger.transition(third, "ready", "event_processor_ready", "ready:" + third,
-                               actor_id="event-processor")
-        result = worker.run_once(assignment_id=third)
-        self.assertEqual(result["status"], "AWAITING_VERIFICATION")
-        self.assertTrue(service.verify_one(third))
-        self.assertEqual(self.pipeline.record_verified_completion(objective_id, third)["status"],
-                         "COMPLETED")
-        pending = self.pipeline.pending_conversation_results()
-        self.assertEqual(len(pending), 1)
-        self.assertEqual(pending[0]["completion_cycle"], 3)
-        completions = [event for event in self.pipeline.objective_events(objective_id)
-                       if event["event_type"] == "objective.completed"]
-        self.assertEqual([event["payload"]["completion_cycle"] for event in completions], [2, 3])
 
     def _create_rework_fixture(self, suffix, *, conversation_id=None):
         objective_id = "objective:governed-rework:" + suffix
@@ -916,7 +900,7 @@ class GraceExecutionTests(unittest.TestCase):
             credential=self.credentials["steward"])
         self.assertEqual(repeated, rework_events[0]["payload"])
 
-    def test_repeated_rejection_can_stop_without_automatic_retry_threshold(self):
+    def test_repeated_rejection_can_stop_within_bounded_retry_limit(self):
         objective_id, assignment_id, criteria, _action, worker, verifier = self._create_rework_fixture("stop")
         first = worker.run_once(assignment_id=assignment_id)
         self.adapter.verify_attempt(assignment_id, first["attempt_id"], self.verifier_id,
@@ -951,6 +935,90 @@ class GraceExecutionTests(unittest.TestCase):
             ".verification_records WHERE assignment_id=%s AND decision='REJECTED'",
             (assignment_id,)).fetchone()[0], 2)
         self.assertEqual(self.pipeline.get_objective(objective_id)["assignment_id"], assignment_id)
+
+    def test_rework_retry_exhaustion_persists_actionable_pending_without_dispatch(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+        objective_id, assignment_id, criteria, _action, worker, _verifier = \
+            self._create_rework_fixture("retry-exhaustion")
+
+        class AlwaysReject:
+            REVISION = "test-project-status-report-rejection-1"
+            def verify(_self, _assignment, _attempt, _result):
+                from riverview_core.worker_adapter.verifier import VerificationResult, VerificationStatus
+                return VerificationResult(VerificationStatus.REJECTED,
+                    {"criterion_missing": True}, ("urn:rv:worker-attempt:rejected",),
+                    _self.REVISION, "deliverable.md omitted a scoped acceptance criterion")
+
+        service = GraceExecutionService(self.pipeline, self.adapter, worker,
+            dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
+            verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
+            artifact_root=self.root / "rework-artifacts", verifier=AlwaysReject())
+        for index in range(self.pipeline.MAX_GOVERNED_REWORK_ATTEMPTS):
+            outcome = worker.run_once(assignment_id=assignment_id)
+            self.assertEqual(outcome["status"], "AWAITING_VERIFICATION")
+            self.assertTrue(service.verify_one(assignment_id))
+            context = self.pipeline.pending_rejected_work_order_reviews()[0]
+            self.assertEqual(context["step_acceptance_criteria"], criteria)
+            decision = {"decision": "REWORK_PROPOSED",
+                "rationale": "Correct only the listed project-status acceptance criterion.",
+                "correction_instruction": "Update deliverable.md for the exact rejected criterion.",
+                "criteria_to_address": [criteria[index % len(criteria)]]}
+            saved = self.pipeline.record_rework_decision(context, decision,
+                credential=self.credentials["steward"])
+            self.assertEqual(saved["decision"], "REWORK_PROPOSED")
+
+        final_outcome = worker.run_once(assignment_id=assignment_id)
+        self.assertEqual(final_outcome["status"], "AWAITING_VERIFICATION")
+        self.assertTrue(service.verify_one(assignment_id))
+        exhausted = self.pipeline.pending_rejected_work_order_reviews()[0]
+        self.assertEqual(exhausted["rework_attempt_count"],
+                         self.pipeline.MAX_GOVERNED_REWORK_ATTEMPTS)
+        self.assertEqual(service.publish_rejected_work_order_reviews(), 0)
+        events = self.pipeline.objective_events(objective_id)
+        pending = [event for event in events
+            if event["event_type"] == "engineering.rework_escalation_pending"]
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["payload"]["decision"], "ESCALATION_PENDING")
+        self.assertEqual(pending[0]["payload"]["reason_code"], "retry_limit_exhausted")
+        self.assertEqual(pending[0]["payload"]["step_id"], "s1")
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "rework_required")
+        self.assertEqual(self.admin.execute("SELECT count(*) FROM " + self.schema +
+            ".assignments WHERE objective_ref=%s", (objective_id,)).fetchone()[0], 1)
+        forbidden = {"decision": "REWORK_PROPOSED",
+            "rationale": "Attempt beyond bound.",
+            "correction_instruction": "Repeat the same scoped correction.",
+            "criteria_to_address": [criteria[0]]}
+        with self.assertRaisesRegex(ObjectiveStateError, "retry limit is exhausted"):
+            self.pipeline.record_rework_decision(exhausted, forbidden,
+                credential=self.credentials["steward"])
+
+        from riverview_core.status_dashboard.projection import DashboardProjection
+        projection = DashboardProjection(DSN, schema=self.schema,
+            source_commit=self.commit, deployment_id="test-rework-escalation")
+        item = projection.objectives(objective_id=objective_id)["items"][0]
+        self.assertEqual(item["lifecycle_status"], "blocked")
+        self.assertTrue(item["steward_action_required"])
+
+    def test_uncommissioned_rejection_review_provider_records_pending_without_requeue(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+        objective_id, assignment_id, _criteria, _action, worker, verifier = \
+            self._create_rework_fixture("provider-uncommissioned")
+        service = GraceExecutionService(self.pipeline, self.adapter, worker,
+            dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
+            verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
+            artifact_root=self.root / "rework-artifacts", verifier=verifier,
+            rejected_work_order_publisher=None)
+        attempt = worker.run_once(assignment_id=assignment_id)
+        self.assertEqual(attempt["status"], "AWAITING_VERIFICATION")
+        self.assertTrue(service.verify_one(assignment_id))
+        self.assertEqual(service.publish_rejected_work_order_reviews(), 0)
+        pending = [event for event in self.pipeline.objective_events(objective_id)
+            if event["event_type"] == "engineering.rework_escalation_pending"]
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["payload"]["reason_code"], "review_provider_uncommissioned")
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "rework_required")
+        self.assertEqual(self.admin.execute("SELECT count(*) FROM " + self.schema +
+            ".assignments WHERE objective_ref=%s", (objective_id,)).fetchone()[0], 1)
 
     def test_dashboard_projects_current_rejection_and_steward_rework_decision_by_conversation(self):
         from riverview_core.status_dashboard.projection import DashboardProjection
@@ -1345,13 +1413,13 @@ class GraceExecutionTests(unittest.TestCase):
         first_decision = self.admin.execute(f'SELECT decision FROM "{self.schema}".verification_records '
             "WHERE assignment_id=%s", (first_assignment,)).fetchone()[0]
         self.assertEqual(first_decision, "ACCEPTED")
-        self.assertEqual(service.publish_conversation_results(), 1)
-        self.assertEqual(publisher.cycles, [1])
-        self.assertIsNone(self.pipeline.dispatchable_step(objective_id))
-        self.pipeline.propose_continuation(objective_id, first_assignment, second)
+        self.assertEqual(self.pipeline.dispatchable_step(objective_id)["step_id"], "step2")
         self.assertEqual(service.dispatch_proposed(objective_id), 1)
         second_assignment = self.pipeline.get_objective(objective_id)["assignment_id"]
         self.assertNotEqual(second_assignment, first_assignment)
+        self.assertEqual(service.dispatch_proposed(objective_id), 0)
+        self.assertEqual(service.publish_conversation_results(), 1)
+        self.assertEqual(publisher.cycles, [1])
         self.ledger.transition(second_assignment, "ready", "event_processor_ready",
             "pr62-ready:" + second_assignment, actor_id="event-processor")
         # Reconstruct the source worker and Grace service after the assignment is

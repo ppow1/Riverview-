@@ -2,9 +2,12 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.9
+File Revision: 1.1.13
 Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Document role-gated objective access, owner checks, and minimized conversation progress
 Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Add conversation-origin-filtered durable Engineering progress and authenticated UI refresh contract.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Specify bounded raster omission while preserving snapshot records and vector representations.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Separate the fixed raster ceiling from structured-content and manifest headroom.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Specify private Release archival, Steward/CSRF gate, protected credential and local fallback.
 Purpose: Specify operational projections and exact-grant Grace objective and conversation interfaces
 Authority: Reads require dashboard authentication; objective and resident conversation operations require exact institutional grants
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
@@ -104,6 +107,7 @@ verification decision and pinned source revision.
 | `POST /api/v1/notifications/<uuid>/delivered` | Record successful visible rendering by the dashboard client. | Empty body; service bearer only; not human identity or Steward authority. |
 | `POST /api/v1/notifications/<uuid>/acknowledge` | Explicit receipt acknowledgment after delivery. | Empty body; cannot alter the linked decision request or assignment. |
 | `GET /api/v1/snapshot` | Bounded server-observed operational snapshot. | At most 50 assignments and 25 events/attention/worker rows. |
+| `POST /api/v1/snapshot/archive` | Validate and archive the generated redacted diagnostic ZIP as a timestamped asset in a private GitHub Release; return release URL and metadata. | Steward account session plus CSRF; `application/zip`; one concurrent upload; maximum 97 MiB request and 96 MiB uncompressed members. Dashboard bearer alone is insufficient. Requires `RIVERVIEW_SNAPSHOT_GITHUB_REPOSITORY` and systemd `snapshot-github-token`; errors retain browser local-download fallback. |
 | `GET /api/v1/graphs` | Index of registered canonical focused process graphs. | Reads versioned package registry; bounded by checked-in graph count. |
 | `GET /api/v1/graphs/<graph_id>` | Canonical nodes, typed edges, decisions, references, and execution-position state. | One registered focused workflow; no graph mutation. |
 | `POST /api/v1/auth/enrollment` / `.../enrollment/verify` | Request access and verify a single-use email challenge. | Generic anti-enumeration request response; 15-minute challenge; email delivery must be configured. |
@@ -209,6 +213,21 @@ timings from the current tab. It contains no token, headers, database DSN,
 payload body, unrestricted conversations, resident session, work-order or
 capability-registry data. Fields not implemented are named in `client_state` or
 omitted; absence is never represented as an empty healthy registry.
+
+The browser ZIP exporter caps total uncompressed member payload at 96 MiB and
+reserves 4 MiB for the manifest. ZIP headers add small overhead to the final
+download and are not part of the uncompressed member-byte check. It always preserves the bounded
+operational/browser diagnostics, sanitized HTML, page/workflow JSON, workflow
+status and SVG. PNG previews and detail tiles have a 76 MiB cumulative ceiling within the 96 MiB
+uncompressed member cap. At that ceiling, 16 MiB remains available for structured
+HTML/JSON/SVG/status/diagnostics and 4 MiB is reserved for the manifest; unused
+raster headroom is also available to required members. If a PNG would cross either
+limit, only that raster preview or tile is omitted; each omitted path and reason
+is recorded, affected visual status is `incomplete`, and `capture_complete` is
+false. The manifest reports uncompressed bytes by component category. A mandatory
+non-raster member that exceeds the hard package ceiling fails with its member
+path and attempted/cap byte counts. No server limit or diagnostic redaction
+rule changes.
 
 ## Grace resident conversation integration
 

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.29
+# Revision: 1.3.33
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Enforce Steward/global or exact account-owned conversation scope for objective projections
 # Changed: 2026-10-19 UTC | RV-GRACE-REREVIEW-OPERATOR-CALLER-001 | Add authenticated exact-objective rereview request route through the existing pipeline.
@@ -49,6 +49,8 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RECOVERY-001 | Ground against the active immutable release and make conversation intake recoverable/idempotent.
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Add authenticated revision decisions, explicit conversational commands, and existing-pipeline promotion API
 # Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-CHAT-WIRING | Attach the existing internal Comms5 read tools to the dashboard Grace router
+# Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Add Steward-only bounded private Release archival endpoint.
+# Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Fail archival closed when optional repository credential configuration is invalid.
 # =============================================================================
 """Loopback-only Steward dashboard with read projections and receipt-only writes."""
 
@@ -101,6 +103,7 @@ _PROPOSAL_DECISION = re.compile(r"^/api/v1/institutional-proposals/(proposal:[0-
 _PROPOSAL_WORK_ORDERS = re.compile(r"^/api/v1/institutional-proposals/(proposal:[0-9a-f-]{36})/work-orders$")
 _PROPOSAL_COMMAND = "/api/v1/institutional-proposals/conversational-command"
 _COMMS5_OPERATION = "/api/v1/internal/comms5/operation"
+_SNAPSHOT_ARCHIVE = "/api/v1/snapshot/archive"
 
 
 class WorkOrderOriginConflict(Exception):
@@ -240,7 +243,7 @@ class _BoundedHTTPServer(HTTPServer):
     def __init__(self, address, handler, *, token, projection, notification_service,
                  objective_pipeline, conversation_service, account_auth_service,
                  permission_store, static_dir, proposal_registry,
-                 steward_review_exchange=None):
+                 steward_review_exchange=None, snapshot_archive=None):
         self._token = token
         self._projection = projection
         self._notification_service = notification_service
@@ -249,6 +252,8 @@ class _BoundedHTTPServer(HTTPServer):
         self._account_auth_service = account_auth_service
         self._permission_store = permission_store
         self._proposal_registry = proposal_registry
+        self._snapshot_archive = snapshot_archive
+        self._snapshot_archive_slots = threading.BoundedSemaphore(1)
         self._proposal_lifecycle = None
         if proposal_registry is not None and objective_pipeline is not None:
             from riverview_core.resident_execution.proposal_lifecycle import ProposalLifecycle
@@ -617,6 +622,7 @@ def make_handler():
                                     if self.command == "POST" else None)
             proposal_command = (parsed.path == _PROPOSAL_COMMAND and self.command == "POST")
             comms5_operation = parsed.path == _COMMS5_OPERATION and self.command == "POST"
+            snapshot_archive = parsed.path == _SNAPSHOT_ARCHIVE and self.command == "POST"
             conversation_session = (parsed.path == _CONVERSATION_SESSION
                                      and self.command in {"POST", "DELETE"})
             if not self._host_ok():
@@ -630,6 +636,7 @@ def make_handler():
                     and not proposal_revision and not proposal_decision
                     and not proposal_work_orders and not proposal_command
                     and not comms5_operation
+                    and not snapshot_archive
                     and not auth_logout and not account_decision and not account_user
                     and not permission_profile and not permission_transition
                     and not account_email_save and not account_email_test):
@@ -726,6 +733,8 @@ def make_handler():
                     self._account_error(exc, request_id)
                 return
             if not self._authorized():
+                if snapshot_archive:
+                    self.close_connection = True
                 if getattr(self, "_account_auth_denied", False):
                     self._error(403, "csrf_or_session_check_failed", request_id)
                     return
@@ -741,6 +750,52 @@ def make_handler():
                 self.end_headers()
                 if self.command != "HEAD":
                     self.wfile.write(body)
+                return
+            if snapshot_archive:
+                identity = getattr(self, "_account_identity", None)
+                if (not getattr(self, "_account_cookie_authenticated", False) or not identity
+                        or "steward" not in identity.get("roles", ())):
+                    self.close_connection = True
+                    self._error(403, "snapshot_archive_steward_session_required", request_id)
+                    return
+                if self.server._snapshot_archive is None:
+                    self.close_connection = True
+                    self._error(503, "snapshot_archive_not_configured", request_id)
+                    return
+                if not self.server._snapshot_archive_slots.acquire(blocking=False):
+                    self.close_connection = True
+                    self._error(503, "snapshot_archive_busy", request_id)
+                    return
+                try:
+                    if (self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/zip"
+                            or self.headers.get("Transfer-Encoding")
+                            or not self.headers.get("Content-Length", "").isdigit()):
+                        self.close_connection = True
+                        self._error(400, "snapshot_archive_invalid_request", request_id)
+                        return
+                    length = int(self.headers["Content-Length"])
+                    from riverview_core.status_dashboard.snapshot_archive import MAX_UPLOAD_BYTES
+                    if not 1 <= length <= MAX_UPLOAD_BYTES:
+                        self.close_connection = True
+                        self._error(413, "snapshot_archive_too_large", request_id)
+                        return
+                    payload = self.rfile.read(length)
+                    if len(payload) != length:
+                        self.close_connection = True
+                        self._error(400, "snapshot_archive_invalid_request", request_id)
+                        return
+                    try:
+                        result = self.server._snapshot_archive.archive(payload)
+                    except Exception as exc:
+                        from riverview_core.status_dashboard.snapshot_archive import SnapshotArchiveError
+                        if isinstance(exc, SnapshotArchiveError):
+                            self._error(exc.status, exc.code, request_id)
+                        else:
+                            self._error(502, "snapshot_archive_failed", request_id)
+                        return
+                    self._json(201, result, request_id)
+                finally:
+                    self.server._snapshot_archive_slots.release()
                 return
             try:
                 query = parse_qs(parsed.query, keep_blank_values=False, max_num_fields=12)
@@ -1909,7 +1964,7 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                  notification_service=None, objective_pipeline=None,
                  conversation_service=None, account_auth_service=None,
                  permission_store=None, proposal_registry=None,
-                 steward_review_exchange=None):
+                 steward_review_exchange=None, snapshot_archive=None):
         if host not in {"127.0.0.1", "::1"}:
             raise ValueError("dashboard bind host must be a loopback IP literal")
         if not isinstance(port, int) or not 8700 <= port <= 8799:
@@ -1924,7 +1979,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                          account_auth_service=account_auth_service,
                          permission_store=permission_store,
                          static_dir=static_dir, proposal_registry=proposal_registry,
-                         steward_review_exchange=steward_review_exchange)
+                         steward_review_exchange=steward_review_exchange,
+                         snapshot_archive=snapshot_archive)
 
 
 def _release_commit() -> str:
@@ -2181,6 +2237,13 @@ def main():
             conversation_service = None
     host = os.environ.get("RIVERVIEW_DASHBOARD_HOST", "127.0.0.1")
     port = int(os.environ.get("RIVERVIEW_DASHBOARD_PORT", "8766"))
+    from riverview_core.status_dashboard.snapshot_archive import (
+        GitHubReleaseArchive, UnavailableSnapshotArchive)
+    try:
+        snapshot_archive = GitHubReleaseArchive.from_environment()
+    except (OSError, ValueError):
+        snapshot_archive = UnavailableSnapshotArchive("snapshot_archive_configuration_unavailable")
+        print(json.dumps({"event": "snapshot_archive_configuration_unavailable"}), flush=True)
     server = DashboardHTTPServer(host, port, token_path, projection,
                                  notification_service=notification_service,
                                  objective_pipeline=objective_pipeline,
@@ -2188,7 +2251,8 @@ def main():
                                  account_auth_service=account_auth_service,
                                  permission_store=permission_store,
                                  proposal_registry=proposal_registry,
-                                 steward_review_exchange=steward_review_exchange)
+                                 steward_review_exchange=steward_review_exchange,
+                                 snapshot_archive=snapshot_archive)
     print(json.dumps({"event": "dashboard_started", "host": host, "port": port,
                       "source_commit": projection.source_commit,
                       "deployment_id": projection.deployment_id}), flush=True)

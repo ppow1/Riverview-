@@ -2799,7 +2799,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.58",
+      "graph_revision": "1.0.59",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -3076,9 +3076,9 @@
         },
         {
           "id": "rv:grace:operational-integration:objective-complete",
-          "node_revision": "1.0.2",
+          "node_revision": "1.0.3",
           "type": "exit",
-          "label": "A step or objective becomes reviewable only after persisted independent ACCEPTED verification; objective completion is separate from model-proposed same-objective continuation",
+          "label": "An objective is complete only when all persisted steps are independently verified; a single accepted step remains active when dependent steps are pending.",
           "source_references": [
             "src/riverview_core/resident_execution/pipeline.py",
             "src/riverview_core/resident_execution/service.py"
@@ -3643,9 +3643,9 @@
         },
         {
           "id": "rv:grace:operational-integration:dependency-ready-dispatch",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "decision",
-          "label": "Dispatch only the first pending step whose dependencies are independently verified; reuse current CME lease and grants",
+          "label": "After independent ACCEPTED, dispatch the first persisted pending step whose dependencies are verified; retain Steward approval, exact assignment.create recheck, CME idempotency and all-step completion.",
           "source_references": [
             "src/riverview_core/resident_execution/service.py",
             "src/riverview_core/resident_execution/pipeline.py"
@@ -3816,9 +3816,9 @@
         },
         {
           "id": "rv:grace:operational-integration:verified-result-review-decision",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "decision",
-          "label": "After independently verified work, the bound 80B reviews verifier evidence and only digest-checked artifact text; sanitized artifact unavailability is an accepted status, while unknown fields fail closed",
+          "label": "Optional nonblocking 80B summary of independently verified evidence; it cannot overturn verifier ACCEPTED, hold dependency-ready dispatch, or create new acceptance criteria.",
           "source_references": [
             "src/riverview_core/resident_execution/conversation.py",
             "src/riverview_core/resident_execution/pipeline.py",
@@ -3984,9 +3984,9 @@
         },
         {
           "id": "rv:grace:operational-integration:grace-rejection-review",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "decision",
-          "label": "The persistent owner cycle exposes the immutable verifier rejection and digest-checked artifact to Grace's bound 80B; Grace chooses substantive satisfaction, bounded rework, or Steward direction",
+          "label": "For latest independent REJECTED result, Grace may choose exact-criteria correction within three proposals or Steward direction; provider absence creates durable actionable escalation-pending state.",
           "source_references": [
             "src/riverview_core/resident_execution/service.py",
             "src/riverview_core/resident_execution/conversation.py",
@@ -4137,6 +4137,40 @@
           ],
           "verification_evidence": [
             "tests/test_grace_conversation_result.py",
+            "tests/test_grace_execution.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:rework-retry-escalation",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "If fewer than three scoped correction proposals exist and the authorized review provider is available, continue rejection review; otherwise persist escalation pending without dispatch or assignment mutation.",
+          "source_references": [
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_grace_execution.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:rework-escalation-pending",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Durable engineering.rework_escalation_pending preserves the rejection and exposes reason, attempt bound and Steward action; it never creates or dispatches work.",
+          "source_references": [
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/status_dashboard/projection.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
             "tests/test_grace_execution.py"
           ]
         }
@@ -4472,7 +4506,7 @@
           "from": "rv:grace:operational-integration:objective-complete",
           "to": "rv:grace:operational-integration:verified-result-chat-return",
           "type": "runtime_transition",
-          "label": "Only a durable independently accepted completion enters the result outbox"
+          "label": "A durable independently accepted step enters the optional result outbox; objective completion still requires all persisted steps."
         },
         {
           "from": "rv:grace:operational-integration:verified-result-chat-return",
@@ -4604,7 +4638,7 @@
           "from": "rv:grace:operational-integration:objective-complete",
           "to": "rv:grace:operational-integration:verified-result-review-decision",
           "type": "runtime_transition",
-          "label": "Only durable verifier-accepted evidence enters the bound 80B result review."
+          "label": "Optional nonblocking summary only; advancement remains driven by persisted dependencies and independent verification."
         },
         {
           "from": "rv:grace:operational-integration:verified-result-review-decision",
@@ -4616,7 +4650,7 @@
           "from": "rv:grace:operational-integration:verified-result-review-decision",
           "to": "rv:grace:operational-integration:objective-step-persistence",
           "type": "runtime_transition",
-          "label": "ENGINEERING_STEP_PROPOSED appends a dependent step only inside the original human-approved scope; assignment.create is rechecked at dispatch."
+          "label": "A separately valid typed continuation may add only a step inside original Steward scope; existing persisted dependent steps do not require this model decision, and CME rechecks assignment.create."
         },
         {
           "from": "rv:grace:operational-integration:verified-result-review-decision",
@@ -4791,6 +4825,36 @@
           "to": "rv:grace:operational-integration:verified-result-review-decision",
           "type": "recovery_route",
           "label": "Resume the same verified completion cycle with its next deterministic review generation; existing exact-step and dispatch gates remain separate"
+        },
+        {
+          "from": "rv:grace:operational-integration:objective-complete",
+          "to": "rv:grace:operational-integration:dependency-ready-dispatch",
+          "type": "runtime_transition",
+          "label": "Independent ACCEPTED and verified persisted dependencies make the next stored step eligible; ordinary CME authorization and idempotency checks remain mandatory."
+        },
+        {
+          "from": "rv:grace:operational-integration:latest-verifier-rejection",
+          "to": "rv:grace:operational-integration:rework-retry-escalation",
+          "type": "runtime_transition",
+          "label": "Count durable REWORK_PROPOSED events for this assignment and check whether the existing rejection-review provider is available."
+        },
+        {
+          "from": "rv:grace:operational-integration:rework-retry-escalation",
+          "to": "rv:grace:operational-integration:grace-rejection-review",
+          "type": "runtime_transition",
+          "label": "Below three correction proposals and provider available: review the latest immutable rejection and exact stored criteria."
+        },
+        {
+          "from": "rv:grace:operational-integration:rework-retry-escalation",
+          "to": "rv:grace:operational-integration:rework-escalation-pending",
+          "type": "escalation",
+          "label": "Retry limit exhausted or provider unavailable/uncommissioned: append actionable escalation-pending event; do not requeue or dispatch."
+        },
+        {
+          "from": "rv:grace:operational-integration:rework-escalation-pending",
+          "to": "rv:grace:operational-integration:grace-rejection-review",
+          "type": "recovery_route",
+          "label": "If the existing authorized provider was unavailable, resume normal rejection review after it is commissioned/restored; retry exhaustion remains a Steward decision boundary."
         }
       ]
     },
@@ -11644,12 +11708,13 @@
     },
     {
       "graph_id": "rv:steward-dashboard:status",
-      "graph_revision": "1.1.18",
+      "graph_revision": "1.1.22",
       "component_id": "STEWARD-DASHBOARD",
       "workflow_id": "status-projection.v1",
       "diagram_order": 1,
       "source_references": [
         "deploy/riverview-status-dashboard.service",
+        "deploy/systemd/riverview-status-dashboard-snapshot-archive.conf.example",
         "scripts/bootstrap_account_steward.py",
         "scripts/run_status_dashboard.py",
         "scripts/runtime_baseline.py",
@@ -11660,11 +11725,13 @@
         "src/riverview_core/status_dashboard/markdown.py",
         "src/riverview_core/status_dashboard/projection.py",
         "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/snapshot_archive.py",
         "src/riverview_core/status_dashboard/static/app.js",
         "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js",
         "src/riverview_core/status_dashboard/static/workflow.js",
         "tests/test_account_auth.py",
         "tests/test_account_auth_http.py",
+        "tests/test_snapshot_archive.py",
         "tests/test_status_dashboard.py"
       ],
       "documentation_references": [
@@ -11892,37 +11959,52 @@
         },
         {
           "id": "rv:steward-dashboard:status:export-snapshot",
-          "node_revision": "1.0.6",
+          "node_revision": "1.0.9",
           "type": "process",
-          "label": "Download self-describing offline website and workflow snapshot",
+          "label": "Generate and archive a bounded privacy-filtered dashboard snapshot with local fallback",
           "source_references": [
             "scripts/verify_diagnostic_snapshot_browser.py",
             "src/riverview_core/status_dashboard/projection.py",
             "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/status_dashboard/snapshot_archive.py",
             "src/riverview_core/status_dashboard/static/app.js",
             "src/riverview_core/status_dashboard/static/capabilities.json",
-            "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+            "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js",
+            "tests/test_snapshot_archive.py"
           ],
           "documentation_references": [
             "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/STATUS_DASHBOARD_API.schema.json",
             "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
             "docs/steward/WEBSITE_PUNCH_LIST_RECOVERED.md"
           ],
           "verification_evidence": [
-            "evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-actual-dashboard-final9/browser-acceptance.json",
+            "evidence/checkouts/STEWARD-DASHBOARD/20261020T-snapshot-github-archive/acceptance.json",
             "evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-actual-dashboard-final9/archive-inspection.json",
-            "evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final4/production-readiness.json"
+            "evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-actual-dashboard-final9/browser-acceptance.json",
+            "evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final4/production-readiness.json",
+            "scripts/verify_diagnostic_snapshot_browser.py",
+            "tests/test_snapshot_archive.py",
+            "tests/test_status_dashboard.py"
           ],
           "extension": {
             "snapshot_schema": "rv.website.diagnostic-snapshot.v1",
             "workflow_definitions": "version-controlled process_graphs/*/*.json",
             "runtime_status_source": "authenticated graph API execution_position projection",
             "global_combined_workflow_visualization": "deferred parking-lot initiative",
-            "verification_boundary": "Isolated Firefox used actual repository dashboard HTML/CSS/scripts and canonical graphs with synthetic read-only APIs; all pages and workflows complete at desktop and 720px. Production account/session acceptance remains unverified.",
+            "verification_boundary": "Isolated Firefox uses the actual checked-out dashboard DOM, capability registry and canonical process graphs with synthetic read-only APIs. Desktop normal capture is complete; an oversized raster fixture produces a valid under-limit ZIP with explicit visual omissions and all canonical JSON/SVG retained. This is not authenticated production acceptance.",
             "page_capture_limits": {
               "maximum_css_height": 50000,
               "detail_tile_css_height": 1800,
               "detail_tile_overlap_css_height": 80
+            },
+            "package_bounds": {
+              "max_uncompressed_bytes": 100663296,
+              "manifest_reserve_bytes": 4194304,
+              "overflow_policy": "omit PNG previews/detail tiles only; preserve canonical JSON, SVG, sanitized HTML, and diagnostics; mark capture incomplete and list omissions",
+              "mandatory_member_overflow": "fail with member path and attempted/cap bytes",
+              "raster_visual_bytes": 79691776,
+              "structured_reserve_bytes": 16777216
             }
           }
         },
@@ -12393,6 +12475,186 @@
             "docs/components/STATUS_DASHBOARD.md"
           ],
           "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:status:snapshot-raster-budget",
+          "node_revision": "1.0.1",
+          "type": "decision",
+          "label": "Will the next PNG preview fit within the 76 MiB raster and 96 MiB package limits?",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_diagnostic_snapshot_browser.py"
+          ]
+        },
+        {
+          "id": "rv:steward-dashboard:status:snapshot-preserve-vector-data",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Omit only over-budget raster previews and retain diagnostic records and vector representations",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_diagnostic_snapshot_browser.py"
+          ]
+        },
+        {
+          "id": "rv:steward-dashboard:status:snapshot-write-manifest",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Record component sizes, omitted paths, and truthful capture completeness",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_diagnostic_snapshot_browser.py"
+          ]
+        },
+        {
+          "id": "rv:steward-dashboard:status:snapshot-verify-archive",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Verify ZIP integrity, manifest hashes, and canonical offline references",
+          "source_references": [
+            "scripts/verify_diagnostic_snapshot_browser.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_diagnostic_snapshot_browser.py"
+          ]
+        },
+        {
+          "id": "rv:steward-dashboard:status:snapshot-required-member-bound",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Mandatory non-raster member exceeds the hard uncompressed package limit",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:status:snapshot-diagnose-and-retry",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Use the reported member path and byte counts to diagnose authorized source growth, then retry",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:status:archive-steward-gate",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Does the request have a CSRF-valid Steward account session and configured private repository credential?",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/status_dashboard/snapshot_archive.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_snapshot_archive.py",
+            "tests/test_status_dashboard.py"
+          ]
+        },
+        {
+          "id": "rv:steward-dashboard:status:archive-validate-package",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Validate stored ZIP integrity, 96 MiB uncompressed bound, manifest hashes, and redaction declaration",
+          "source_references": [
+            "src/riverview_core/status_dashboard/snapshot_archive.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_snapshot_archive.py",
+            "tests/test_status_dashboard.py"
+          ]
+        },
+        {
+          "id": "rv:steward-dashboard:status:archive-private-release",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Create a unique draft Release, upload the ZIP asset, publish it, and store lookup metadata",
+          "source_references": [
+            "src/riverview_core/status_dashboard/snapshot_archive.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_snapshot_archive.py",
+            "tests/test_status_dashboard.py"
+          ],
+          "extension": {
+            "retention": "permanent; no expiration",
+            "server_disk_staging": false
+          }
+        },
+        {
+          "id": "rv:steward-dashboard:status:archive-release-receipt",
+          "node_revision": "1.0.1",
+          "type": "verification",
+          "label": "Return timestamped Release URL, asset name, SHA-256, and size to the dashboard",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "evidence/checkouts/STEWARD-DASHBOARD/20261020T-snapshot-github-archive/acceptance.json",
+            "tests/test_snapshot_archive.py",
+            "tests/test_status_dashboard.py"
+          ]
+        },
+        {
+          "id": "rv:steward-dashboard:status:archive-local-fallback",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Report a safe archival error and preserve the generated ZIP through browser local download fallback",
+          "source_references": [
+            "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_snapshot_archive.py",
+            "tests/test_status_dashboard.py"
+          ]
         }
       ],
       "edges": [
@@ -12727,6 +12989,96 @@
           "to": "rv:steward-dashboard:status:deny-request",
           "type": "diagnostic_branch",
           "label": "Missing Steward role, account principal, owner match, or read grant"
+        },
+        {
+          "from": "rv:steward-dashboard:status:export-snapshot",
+          "to": "rv:steward-dashboard:status:snapshot-raster-budget",
+          "type": "runtime_transition",
+          "label": "Assemble bounded archive members"
+        },
+        {
+          "from": "rv:steward-dashboard:status:snapshot-raster-budget",
+          "to": "rv:steward-dashboard:status:snapshot-write-manifest",
+          "type": "runtime_transition",
+          "label": "Raster members fit or visual pass is complete"
+        },
+        {
+          "from": "rv:steward-dashboard:status:snapshot-preserve-vector-data",
+          "to": "rv:steward-dashboard:status:snapshot-write-manifest",
+          "type": "runtime_transition",
+          "label": "Retain HTML, JSON, SVG, and diagnostics; record omitted raster paths"
+        },
+        {
+          "from": "rv:steward-dashboard:status:snapshot-write-manifest",
+          "to": "rv:steward-dashboard:status:snapshot-verify-archive",
+          "type": "verification",
+          "label": "Finalize self-describing ZIP"
+        },
+        {
+          "from": "rv:steward-dashboard:status:export-snapshot",
+          "to": "rv:steward-dashboard:status:snapshot-required-member-bound",
+          "type": "diagnostic_branch",
+          "label": "A mandatory non-raster member would exceed the hard limit"
+        },
+        {
+          "from": "rv:steward-dashboard:status:snapshot-required-member-bound",
+          "to": "rv:steward-dashboard:status:snapshot-diagnose-and-retry",
+          "type": "recovery_route",
+          "label": "Inspect reported member and byte counts"
+        },
+        {
+          "from": "rv:steward-dashboard:status:snapshot-diagnose-and-retry",
+          "to": "rv:steward-dashboard:status:export-snapshot",
+          "type": "runtime_transition",
+          "label": "Retry after source correction"
+        },
+        {
+          "from": "rv:steward-dashboard:status:snapshot-raster-budget",
+          "to": "rv:steward-dashboard:status:snapshot-preserve-vector-data",
+          "type": "diagnostic_branch",
+          "label": "Next raster would exceed the 76 MiB raster ceiling or reserved package space"
+        },
+        {
+          "from": "rv:steward-dashboard:status:export-snapshot",
+          "to": "rv:steward-dashboard:status:archive-steward-gate",
+          "type": "runtime_transition",
+          "label": "ZIP finalized; attempt primary archive"
+        },
+        {
+          "from": "rv:steward-dashboard:status:archive-steward-gate",
+          "to": "rv:steward-dashboard:status:archive-validate-package",
+          "type": "runtime_transition",
+          "label": "Steward session, CSRF, private repo and systemd credential available"
+        },
+        {
+          "from": "rv:steward-dashboard:status:archive-steward-gate",
+          "to": "rv:steward-dashboard:status:archive-local-fallback",
+          "type": "diagnostic_branch",
+          "label": "Missing authority or archive configuration"
+        },
+        {
+          "from": "rv:steward-dashboard:status:archive-validate-package",
+          "to": "rv:steward-dashboard:status:archive-private-release",
+          "type": "runtime_transition",
+          "label": "ZIP, manifest and privacy checks pass"
+        },
+        {
+          "from": "rv:steward-dashboard:status:archive-validate-package",
+          "to": "rv:steward-dashboard:status:archive-local-fallback",
+          "type": "diagnostic_branch",
+          "label": "Invalid, oversized or privacy contract failure"
+        },
+        {
+          "from": "rv:steward-dashboard:status:archive-private-release",
+          "to": "rv:steward-dashboard:status:archive-release-receipt",
+          "type": "verification",
+          "label": "Asset upload and Release publication verified"
+        },
+        {
+          "from": "rv:steward-dashboard:status:archive-private-release",
+          "to": "rv:steward-dashboard:status:archive-local-fallback",
+          "type": "recovery_route",
+          "label": "GitHub upload or publication failed; clean draft/tag best effort"
         }
       ]
     },
@@ -14766,6 +15118,8 @@
     "rv:grace:operational-integration:reason-decompose",
     "rv:grace:operational-integration:replan",
     "rv:grace:operational-integration:rework-attempt-verification",
+    "rv:grace:operational-integration:rework-escalation-pending",
+    "rv:grace:operational-integration:rework-retry-escalation",
     "rv:grace:operational-integration:rework-steward-direction",
     "rv:grace:operational-integration:rework-worker-cycle",
     "rv:grace:operational-integration:router-backed-grace-proposal",
@@ -15080,6 +15434,11 @@
     "rv:steward-dashboard:status:account-login",
     "rv:steward-dashboard:status:account-management",
     "rv:steward-dashboard:status:account-session",
+    "rv:steward-dashboard:status:archive-local-fallback",
+    "rv:steward-dashboard:status:archive-private-release",
+    "rv:steward-dashboard:status:archive-release-receipt",
+    "rv:steward-dashboard:status:archive-steward-gate",
+    "rv:steward-dashboard:status:archive-validate-package",
     "rv:steward-dashboard:status:attention-relation-check",
     "rv:steward-dashboard:status:attention-uninitialized",
     "rv:steward-dashboard:status:authenticate",
@@ -15114,6 +15473,12 @@
     "rv:steward-dashboard:status:return-to-source-jump",
     "rv:steward-dashboard:status:select-cross-workflow-jump",
     "rv:steward-dashboard:status:service-start",
+    "rv:steward-dashboard:status:snapshot-diagnose-and-retry",
+    "rv:steward-dashboard:status:snapshot-preserve-vector-data",
+    "rv:steward-dashboard:status:snapshot-raster-budget",
+    "rv:steward-dashboard:status:snapshot-required-member-bound",
+    "rv:steward-dashboard:status:snapshot-verify-archive",
+    "rv:steward-dashboard:status:snapshot-write-manifest",
     "rv:steward-dashboard:status:source-available",
     "rv:steward-dashboard:status:source-failure",
     "rv:steward-dashboard:status:source-health",

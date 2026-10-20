@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.58
+# Revision: 1.0.59
+# Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Test authenticated Steward archive endpoint and absence of browser GitHub credentials.
 # Changed: 2026-10-20 UTC | RV-C4-ACTIVE-LINE-INTEGRATION-001 | Verify re-review route authentication, exact objective scope, bounded payload and request-only behavior.
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Cover Steward and conversation-owner objective access, redaction, and PostgreSQL scoping
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Verify institutional proposal dashboard actions remain distinct from Engineering intake.
@@ -451,7 +452,8 @@ class DashboardHTTPTests(unittest.TestCase):
         self.thread.join(timeout=2)
         self.temp.cleanup()
 
-    def request(self, method, path, *, token=None, host=None, cookie=None):
+    def request(self, method, path, *, token=None, host=None, cookie=None, csrf=None,
+                body=None, content_type=None):
         conn = HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
         headers = {}
         if token is not None:
@@ -460,12 +462,69 @@ class DashboardHTTPTests(unittest.TestCase):
             headers["Host"] = host
         if cookie:
             headers["Cookie"] = cookie
-        conn.request(method, path, headers=headers)
+        if csrf:
+            headers["X-Riverview-CSRF"] = csrf
+        if content_type:
+            headers["Content-Type"] = content_type
+        conn.request(method, path, body=body, headers=headers)
         response = conn.getresponse()
         body = response.read()
         result = (response.status, response.getheaders(), body)
         conn.close()
         return result
+
+    def test_snapshot_archive_requires_csrf_validated_steward_cookie_and_returns_only_release_metadata(self):
+        class Archive:
+            def __init__(self): self.payload = None
+            def archive(self, payload):
+                self.payload = payload
+                return {"status":"archived", "snapshot_id":"rvdiag-20261020T150000Z-0123456789abcdef0123456789abcdef",
+                    "release_url":"https://github.com/owner/private-repo/releases/tag/rvdiag-20261020T150000Z-0123456789abcdef0123456789abcdef",
+                    "asset_name":"rvdiag-20261020T150000Z-0123456789abcdef0123456789abcdef.zip",
+                    "archive_sha256":"a"*64,"archive_size_bytes":8,"retention":"permanent"}
+        class Auth:
+            def authenticate(self, credential, *, csrf_token, state_changing):
+                from riverview_core.account_auth import AuthDenied
+                if credential != "steward-session" or (state_changing and csrf_token != "csrf-ok"):
+                    raise AuthDenied("denied")
+                return {"account_id":"steward-1", "roles":["steward"]}
+        archive = Archive()
+        self.server._snapshot_archive = archive
+        self.server._account_auth_service = Auth()
+        payload = b"synthetic-bounded-zip"
+        self.assertEqual(self.request("POST", "/api/v1/snapshot/archive", token=self.token,
+            body=payload, content_type="application/zip")[0], 403)
+        cookie = "rv_account_session=steward-session"
+        self.assertEqual(self.request("POST", "/api/v1/snapshot/archive", cookie=cookie,
+            body=payload, content_type="application/zip")[0], 403)
+        status, _, body = self.request("POST", "/api/v1/snapshot/archive", cookie=cookie,
+            csrf="csrf-ok", body=payload, content_type="application/zip")
+        self.assertEqual(status, 201)
+        self.assertEqual(archive.payload, payload)
+        result = json.loads(body)
+        self.assertEqual(result["status"], "archived")
+        self.assertTrue(result["release_url"].startswith("https://github.com/owner/private-repo/"))
+        self.assertNotIn(self.token.encode(), body)
+
+    def test_snapshot_archive_is_unavailable_without_server_configuration(self):
+        class Auth:
+            def authenticate(self, credential, *, csrf_token, state_changing):
+                return {"account_id":"steward-1", "roles":["steward"]}
+        self.server._account_auth_service = Auth()
+        status, _, body = self.request("POST", "/api/v1/snapshot/archive",
+            cookie="rv_account_session=steward-session", csrf="csrf-ok",
+            body=b"zip", content_type="application/zip")
+        self.assertEqual(status, 503)
+        self.assertEqual(json.loads(body)["error"], "snapshot_archive_not_configured")
+
+    def test_browser_snapshot_archival_never_contains_github_authorization_material(self):
+        status, _, body = self.request("GET", "/assets/diagnostic-snapshot.js", token=self.token)
+        self.assertEqual(status, 200)
+        source = body.decode("utf-8")
+        self.assertIn("/api/v1/snapshot/archive", source)
+        self.assertIn("local ZIP downloaded", source)
+        self.assertNotIn("github_pat_", source)
+        self.assertNotIn("Authorization", source[source.index("async function archiveSnapshot"):source.index("async function download")])
 
     def test_authenticated_result_rereview_route_is_exact_scoped_bounded_and_request_only(self):
         from riverview_core.resident_execution import ObjectiveNotAuthorized

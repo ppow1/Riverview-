@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://riverview.invalid/contracts/dashboard/status-v1.1.schema.json",
-  "title": "Riverview Status Dashboard API v1.1",
-  "description": "Authenticated read-only status, canonical workflow projection, conversation-owner-scoped objective progress, and component documentation renderer.",
+  "$id": "https://riverview.invalid/contracts/dashboard/status-v1.2.schema.json",
+  "title": "Riverview Status Dashboard API v1.2",
+  "description": "Authenticated dashboard projections and bounded Steward operations, including private GitHub snapshot archival.",
   "$defs": {
     "timestamp": {
       "type": [
@@ -566,6 +566,20 @@
         }
       },
       "additionalProperties": false
+    },
+    "snapshotArchiveResult": {
+      "type": "object",
+      "required": ["status", "snapshot_id", "release_url", "asset_name", "archive_sha256", "archive_size_bytes", "retention"],
+      "properties": {
+        "status": {"const": "archived"},
+        "snapshot_id": {"type": "string", "pattern": "^rvdiag-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{32}$"},
+        "release_url": {"type": "string", "format": "uri", "pattern": "^https://github\\.com/[^/]+/[^/]+/releases/tag/rvdiag-"},
+        "asset_name": {"type": "string", "pattern": "^rvdiag-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{32}\\.zip$"},
+        "archive_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "archive_size_bytes": {"type": "integer", "minimum": 1, "maximum": 101711872},
+        "retention": {"const": "permanent"}
+      },
+      "additionalProperties": false
     }
   },
   "anyOf": [
@@ -589,6 +603,9 @@
     },
     {
       "$ref": "#/$defs/graphResponse"
+    },
+    {
+      "$ref": "#/$defs/snapshotArchiveResult"
     }
   ]
 }

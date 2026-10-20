@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.13
+**Document Revision:** 1.0.15
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -25,7 +25,7 @@ flowchart LR
     g_rv_steward_dashboard_status_navigate_9ce45297["Switch tabs without inference or full reconstruction"]
     g_rv_steward_dashboard_status_page_events_3087075e["Fetch bounded event and assignment pages"]
     g_rv_steward_dashboard_status_inspect_detail_fa591a4b["Lazy-load assignment attempts and verifier evidence"]
-    g_rv_steward_dashboard_status_export_snapshot_5d8d925e["Download self-describing offline website and workflow snapshot"]
+    g_rv_steward_dashboard_status_export_snapshot_5d8d925e["Generate and archive a bounded privacy-filtered dashboard snapshot with local fallback"]
     g_rv_steward_dashboard_status_database_failure_fa21a93b[["Database request failed or exceeded timeout"]]
     g_rv_steward_dashboard_status_reconnect_71d9d56c["Retry read after service or database recovery"]
     g_rv_steward_dashboard_status_jump_ledger_c6cfb39d["Authoritative assignment and event ledger"]
@@ -55,6 +55,17 @@ flowchart LR
     g_rv_steward_dashboard_status_navigate_to_jump_target_3b9bb3fe["Load destination workflow and focus the exact target node"]
     g_rv_steward_dashboard_status_jump_target_unavailable_a040d015[["Show target unavailable and retain the source return path"]]
     g_rv_steward_dashboard_status_return_to_source_jump_c0627ef6["Return to the source workflow and focus its originating jump node"]
+    g_rv_steward_dashboard_status_snapshot_raster_budget_1f5b4643{"Will the next PNG preview fit within the 76 MiB raster and 96 MiB package limits?"}
+    g_rv_steward_dashboard_status_snapshot_preserve_vector_data_525eaf5f["Omit only over-budget raster previews and retain diagnostic records and vector representations"]
+    g_rv_steward_dashboard_status_snapshot_write_manifest_be90d60d["Record component sizes, omitted paths, and truthful capture completeness"]
+    g_rv_steward_dashboard_status_snapshot_verify_archive_9ea35dfa["Verify ZIP integrity, manifest hashes, and canonical offline references"]
+    g_rv_steward_dashboard_status_snapshot_required_member_bound_6fff171f[["Mandatory non-raster member exceeds the hard uncompressed package limit"]]
+    g_rv_steward_dashboard_status_snapshot_diagnose_and_retry_3507664e["Use the reported member path and byte counts to diagnose authorized source growth, then retry"]
+    g_rv_steward_dashboard_status_archive_steward_gate_1124d9b0{"Does the request have a CSRF-valid Steward account session and configured private repository credential?"}
+    g_rv_steward_dashboard_status_archive_validate_package_c0f9e9d1["Validate stored ZIP integrity, 96 MiB uncompressed bound, manifest hashes, and redaction declaration"]
+    g_rv_steward_dashboard_status_archive_private_release_58971cd1["Create a unique draft Release, upload the ZIP asset, publish it, and store lookup metadata"]
+    g_rv_steward_dashboard_status_archive_release_receipt_f2a487fd["Return timestamped Release URL, asset name, SHA-256, and size to the dashboard"]
+    g_rv_steward_dashboard_status_archive_local_fallback_576863f0["Report a safe archival error and preserve the generated ZIP through browser local download fallback"]
   end
   g_rv_postgres_ledger_assignment_lifecycle_intake_c1d0abf1["Registered target<br/>rv:postgres-ledger:assignment-lifecycle"]
   g_rv_cme_progress_and_recovery_monitor_start_3c5b8496["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -118,6 +129,21 @@ flowchart LR
   g_rv_steward_dashboard_status_authenticate_64fc5881 -->|Objective projection request| g_rv_steward_dashboard_status_objective_scope_db1133cf
   g_rv_steward_dashboard_status_objective_scope_db1133cf -->|Steward global access or owner and exact read grant verified| g_rv_steward_dashboard_status_read_ledger_6f000d0e
   g_rv_steward_dashboard_status_objective_scope_db1133cf -->|diagnostic_branch: Missing Steward role, account principal, owner match, or read grant| g_rv_steward_dashboard_status_deny_request_776de47b
+  g_rv_steward_dashboard_status_export_snapshot_5d8d925e -->|Assemble bounded archive members| g_rv_steward_dashboard_status_snapshot_raster_budget_1f5b4643
+  g_rv_steward_dashboard_status_snapshot_raster_budget_1f5b4643 -->|Raster members fit or visual pass is complete| g_rv_steward_dashboard_status_snapshot_write_manifest_be90d60d
+  g_rv_steward_dashboard_status_snapshot_preserve_vector_data_525eaf5f -->|Retain HTML, JSON, SVG, and diagnostics; record omitted raster paths| g_rv_steward_dashboard_status_snapshot_write_manifest_be90d60d
+  g_rv_steward_dashboard_status_snapshot_write_manifest_be90d60d -->|verification: Finalize self-describing ZIP| g_rv_steward_dashboard_status_snapshot_verify_archive_9ea35dfa
+  g_rv_steward_dashboard_status_export_snapshot_5d8d925e -->|diagnostic_branch: A mandatory non-raster member would exceed the hard limit| g_rv_steward_dashboard_status_snapshot_required_member_bound_6fff171f
+  g_rv_steward_dashboard_status_snapshot_required_member_bound_6fff171f -->|recovery_route: Inspect reported member and byte counts| g_rv_steward_dashboard_status_snapshot_diagnose_and_retry_3507664e
+  g_rv_steward_dashboard_status_snapshot_diagnose_and_retry_3507664e -->|Retry after source correction| g_rv_steward_dashboard_status_export_snapshot_5d8d925e
+  g_rv_steward_dashboard_status_snapshot_raster_budget_1f5b4643 -->|diagnostic_branch: Next raster would exceed the 76 MiB raster ceiling or reserved package space| g_rv_steward_dashboard_status_snapshot_preserve_vector_data_525eaf5f
+  g_rv_steward_dashboard_status_export_snapshot_5d8d925e -->|ZIP finalized; attempt primary archive| g_rv_steward_dashboard_status_archive_steward_gate_1124d9b0
+  g_rv_steward_dashboard_status_archive_steward_gate_1124d9b0 -->|Steward session, CSRF, private repo and systemd credential available| g_rv_steward_dashboard_status_archive_validate_package_c0f9e9d1
+  g_rv_steward_dashboard_status_archive_steward_gate_1124d9b0 -->|diagnostic_branch: Missing authority or archive configuration| g_rv_steward_dashboard_status_archive_local_fallback_576863f0
+  g_rv_steward_dashboard_status_archive_validate_package_c0f9e9d1 -->|ZIP, manifest and privacy checks pass| g_rv_steward_dashboard_status_archive_private_release_58971cd1
+  g_rv_steward_dashboard_status_archive_validate_package_c0f9e9d1 -->|diagnostic_branch: Invalid, oversized or privacy contract failure| g_rv_steward_dashboard_status_archive_local_fallback_576863f0
+  g_rv_steward_dashboard_status_archive_private_release_58971cd1 -->|verification: Asset upload and Release publication verified| g_rv_steward_dashboard_status_archive_release_receipt_f2a487fd
+  g_rv_steward_dashboard_status_archive_private_release_58971cd1 -->|recovery_route: GitHub upload or publication failed; clean draft/tag best effort| g_rv_steward_dashboard_status_archive_local_fallback_576863f0
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 
