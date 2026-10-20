@@ -8,7 +8,7 @@
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.288",
+      "revision": "1.1.289",
       "sha256": "c6d1b9a00351f07229f2b0220e18542471b82b775dae9d4859d4fc547105133a",
       "size_bytes": 20273
     },
@@ -433,6 +433,6 @@
       "size_bytes": 26074
     }
   },
-  "manifest_revision": "1.1.288",
+  "manifest_revision": "1.1.289",
   "updated_at": "2026-10-20T12:55:37Z"
 }

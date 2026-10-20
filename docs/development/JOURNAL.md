@@ -1,6 +1,6 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.175
+**Document Revision:** 1.0.176
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
 **Changed:** 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Supersede historical fixed-output adapter with persisted dynamic multi-artifact contracts
@@ -2310,7 +2310,7 @@ pinned source/repository provenance, assignment binding, file mode, and size
 checks passed. The acceptance check failed because task instructions were tested
 as literal artifact prose, including the citation heading and its separately
 listed file paths. The stored result predates source-file inventory fields, but
-its exact registered capability has a fixed deliverable.md output contract and
+its exact registered capability had a fixed-name single-artifact output contract and
 persisted only after the pinned clone's changed-path check.
 
 The development correction adds strict structured checks for the known task
