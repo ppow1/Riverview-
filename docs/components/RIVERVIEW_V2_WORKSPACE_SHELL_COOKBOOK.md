@@ -2,38 +2,77 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.1
-Purpose: Diagnose and recover the local V2 shell preview
+File Revision: 1.0.2
+Purpose: Diagnose and recover the local or password-protected LAN V2 shell preview
 Authority: Read-only local diagnostics; no production recovery action
-Changed: 2026-10-20 UTC | RV-WEB-V2-SHELL-001 | Add browser test and revision/graph diagnostics
+Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-PREVIEW-001 | Add protected LAN access and recovery guidance
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
 
-This guide applies only to the local fixture preview in `RIVERVIEW-V2-WORKSPACE-SHELL.md`. It does not diagnose or restart the V1 Dashboard.
+This guide applies only to the fixture preview in `RIVERVIEW-V2-WORKSPACE-SHELL.md`. It does not diagnose or restart the V1 Dashboard. LAN mode is HTTP and must stay on the trusted Riverview LAN; it is not safe over public Wi-Fi or an untrusted network.
 
 ## Start, stop, and resume
 
-Start from the worktree root:
+The default loopback preview is:
 
 ```sh
 python3 scripts/serve_v2_workspace_preview.py --host 127.0.0.1 --port 8877
 ```
 
-Expected output identifies `http://127.0.0.1:8877/` and says loopback only. Open that URL on the same machine. To use a browser on a separate workstation, run an SSH local port forward to Camrui; retain the loopback listener on Camrui. Stop with Ctrl-C. Restart with the same command; all selection state is intentionally in memory and resets to Grace.
+Expected output identifies `http://127.0.0.1:8877/` and says loopback only. Open that URL on the checkout host. Stop with Ctrl-C. Restart with the same command; selection state is intentionally in memory and resets to Grace.
+
+### Start trusted-LAN access
+
+Confirm Camrui has `192.168.1.155/24` and the Windows development PC is on `192.168.1.0/24`. Do not widen the subnet to make an unreachable client work.
+
+The Steward chooses the password on Camrui through a hidden prompt:
+
+```sh
+python3 scripts/setup_v2_workspace_preview_auth.py
+```
+
+Expected output gives the hash-file path and confirms the plaintext was not saved. Do not display or publish this file. Check metadata only:
+
+```sh
+stat -c '%a %U:%G %n' /home/admin1/.config/riverview/v2-preview-auth.json
+```
+
+Expected file mode is `600`, owned by the preview operator. Start the foreground server on the explicit LAN interface:
+
+```sh
+python3 scripts/serve_v2_workspace_preview.py --host 192.168.1.155 --port 8877 --trusted-network 192.168.1.0/24 --auth-file /home/admin1/.config/riverview/v2-preview-auth.json
+```
+
+Expected output says `password protected` and `Trusted clients: 192.168.1.0/24`. The listener must be `192.168.1.155:8877`, never `0.0.0.0:8877`. It accepts only the configured subnet and expected Host. From Windows Chrome on that LAN, open `http://192.168.1.155:8877/` and enter the chosen password. The authenticated cookie lasts eight hours. Five failed attempts from one address in 15 minutes return 429 with Retry-After for 15 minutes. Restarting the process revokes cookies and clears temporary lockout state.
+
+The login page warns that HTTP does not encrypt the password or cookie in transit. Do not enter the password on an untrusted network. HTTPS reuse requires a V2 route in production Nginx and separate authorization; no such change is part of this preview increment.
 
 ## Symptoms and diagnostics
 
 | Symptom | Read-only check | Expected output | Recovery |
 | --- | --- | --- | --- |
-| Address already in use | `ss -ltnp '( sport = :8877 )'` | No listener before starting, or identify the existing local preview process | Stop only the preview process owned by this checkout, or choose another loopback port. Do not stop unrelated services. |
-| Browser cannot connect | `curl -i http://127.0.0.1:8877/` | HTTP 200 and HTML | Confirm the foreground server is running and URL/port match. Restart the preview process only. |
-| Page loads without content | `curl -i http://127.0.0.1:8877/assets/fixtures.js` and `/assets/workspace.js` | HTTP 200; browser console has no parse errors | Refresh, then inspect local checkout files. No server-side state needs recovery. |
-| A method is rejected | `curl -i -X POST http://127.0.0.1:8877/` | HTTP 405 `preview is read-only` | Expected safety behavior; use the visible read-only preview. |
+| Address already in use | `ss -ltnp '( sport = :8877 )'` | Identify the exact PID and bind address | Stop only the preview process owned by this checkout. Do not stop unrelated services. |
+| Windows cannot connect | On Camrui: `ip -4 -o addr show dev eno1`; `ss -ltnp '( sport = :8877 )'`; `curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.1.155:8877/` | Interface `192.168.1.155/24`; listener `192.168.1.155:8877`; login page HTTP 200 | Confirm Windows is on `192.168.1.0/24` and the numeric URL is used. Do not change firewall/Nginx or widen the subnet without authorization. |
+| Login page appears but asset gets 401 | Open the root URL and enter the password again | Static shell loads after successful form POST | Restart invalidates cookies; log in again. A cleartext secret is never needed in a URL. |
+| Password rejected | Check `stat -c '%a %U:%G %n' /home/admin1/.config/riverview/v2-preview-auth.json` only | Mode 600, owner is preview operator; never display contents | Steward chooses a new password through setup prompt with `--replace`, then restart only the preview. |
+| Login temporarily limited | Browser response status 429; inspect no request logs | `Retry-After` header, up to 900 seconds | Wait the indicated interval. Do not restart to bypass the lockout. |
+| Client denied with 403 | Confirm client IP is inside the configured /24; verify browser used `192.168.1.155:8877` Host | Trusted LAN and expected Host required | Correct the client network or URL. Any ACL change needs reviewed scope; do not allow all interfaces. |
+| Host rejected with 400 | Inspect browser address bar | Host header matches the explicit IP and port | Use the numeric URL, not an unconfigured alias. |
+| A method is rejected | `curl -i -X PUT http://127.0.0.1:8877/` on loopback preview | HTTP 405 `preview is read-only` | Expected safety behavior; only the password form accepts POST in LAN-auth mode. |
 | A file path is missing | `curl -i http://127.0.0.1:8877/../...` | 404 or safely rejected path | Expected boundary. Use only the root and `/assets/*` paths. |
 | Mobile menu does not close automatically | Tap the menu button again | Navigation rail returns off-canvas | This preview has no router or automatic navigation state. |
 
-No SQL, credentials, migrations, service manager, Nginx, firewall, or production API is involved. A preview failure has no production recovery step. Resume by restarting the local command and reloading the browser.
+No SQL, migrations, service manager, Nginx, firewall, or production API is involved. The password hash is a local credential file and is never copied into Git. A preview failure has no production recovery step.
+
+### Rollback and resume
+
+1. Stop only the foreground preview owned by this worktree with Ctrl-C.
+2. Confirm V1 remains active with `systemctl is-active riverview-status-dashboard.service`; expected output is `active`.
+3. To resume prior loopback-only behavior, run `python3 scripts/serve_v2_workspace_preview.py --host 127.0.0.1 --port 8877`. No LAN password file is needed.
+4. To resume LAN mode, verify the protected hash file metadata, explicit host and subnet, then restart the LAN command. The browser receives a new cookie after login.
+5. To rotate the LAN password, Steward runs the local hidden setup prompt with `--replace`; restart V2 to invalidate existing sessions.
+6. Never roll back V1 or Nginx for a V2 preview failure.
 
 ## Reproducible checkout checks
 
@@ -45,4 +84,4 @@ python3 scripts/process_graph.py validate
 python3 scripts/process_graph.py check
 ```
 
-The Firefox utility starts and stops its own local geckodriver. The Chrome utility starts and stops its own headless Chrome profile and uses a 390×844 CSS-pixel emulated viewport. Both connect only to the local preview. Required diagnostic outputs are browser error arrays empty, selected resident retained after switching view, and `overflow=false`. A failed local check is evidence about the preview branch, not a reason to restart V1.
+The Firefox utility starts and stops its own local geckodriver. The Chrome utility starts and stops its own headless Chrome profile and uses a 390×844 CSS-pixel emulated viewport. Both connect only to the loopback preview. LAN authentication tests use a disposable random password created in memory and a temporary hash; they never test with the Steward's real password. Required outputs include no browser errors, selected resident retained, `overflow=false`, unauthorized assets 401, successful login redirect 303, lockout 429, invalid Host/Origin and non-LAN rejection, and session expiry. Final acceptance also requires Windows Chrome from the actual dev PC. A failed local check is evidence about the preview branch, not a reason to restart V1.
