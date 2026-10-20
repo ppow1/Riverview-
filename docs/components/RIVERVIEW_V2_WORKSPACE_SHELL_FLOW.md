@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.7
+File Revision: 1.0.10
 Purpose: Show normal, decision, failure, and recovery paths for loopback and authenticated LAN preview
 Authority: Presentation-only process flow; edit canonical JSON graph only
 Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-PREVIEW-001 | Extend generated process view for authenticated LAN access
+Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-FINAL-001 | Regenerate flow for current V2 handoff/diagnostics and archive integration
 History: Git and revision/backup manifest
 -->
 # Riverview V2 workspace shell preview flow
@@ -38,16 +39,19 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_apply_theme_81b77d1d["Apply Light, Dark, or System theme; persist display preference only"]
     g_rv_riverview_v2_workspace_shell_cycle_sidebars_3ade16cc["Cycle left and right sidebars independently through expanded, compact, and hidden"]
     g_rv_riverview_v2_workspace_shell_restore_sidebars_f1b4862e["Restore a hidden sidebar using its accessible floating control"]
-    g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227["Keep live chat unavailable until an authorized V2 integration exists"]
+    g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227["Keep V2 chat disconnected and expose the authenticated Dashboard handoff plus unverified Comms5 state"]
     g_rv_riverview_v2_workspace_shell_snapshot_click_c7b14d94(["Click Snapshot in the active V2 view"])
-    g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b["Collect allowlisted V2 state; in dashboard mode read shared authenticated diagnostics"]
+    g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b["Collect allowlisted V2 view, fixture context, browser state, and redacted integration diagnostics"]
     g_rv_riverview_v2_workspace_shell_snapshot_manifest_bae7acec["Build bounded versioned package and manifest; integrated mode uses the shared archive contract"]
     g_rv_riverview_v2_workspace_shell_snapshot_download_2aeb1eaf["Integrated mode archives the same ZIP then downloads it; standalone mode downloads locally only"]
     g_rv_riverview_v2_workspace_shell_snapshot_verify_0d5c9c66["Inspect ZIP members and hashes against active V2 state"]
     g_rv_riverview_v2_workspace_shell_snapshot_failure_3be3aa13[["Show local capture or package-bound failure without upload"]]
     g_rv_riverview_v2_workspace_shell_snapshot_archive_2754d1e2["POST same-origin ZIP with dashboard session and CSRF; shared Steward endpoint validates and archives"]
     g_rv_riverview_v2_workspace_shell_snapshot_local_fallback_5782198a["Retain local ZIP download when archive request fails"]
+    g_rv_riverview_v2_workspace_shell_grace_chat_handoff_29224207["Open the deployed authenticated V1 Grace chat; do not transfer credentials or history across origins"]
+    g_rv_riverview_v2_workspace_shell_comms5_unverified_fbb092d5["Keep Comms5 send/receive counts and inspectable messages UNVERIFIED when no authorized event feed exists"]
   end
+  g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e --> g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
   g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409 --> g_rv_riverview_v2_workspace_shell_choose_view_161dc67b
@@ -59,7 +63,6 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_configure_password_23bdc8eb -->|prerequisite: Required before non-loopback startup| g_rv_riverview_v2_workspace_shell_open_preview_624fa602
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 -->|diagnostic_branch: LAN mode requested without a protected password hash| g_rv_riverview_v2_workspace_shell_missing_hash_9814e1ef
   g_rv_riverview_v2_workspace_shell_missing_hash_9814e1ef -->|recovery_route: Create hash locally; restart after verification| g_rv_riverview_v2_workspace_shell_stop_preview_9aec5773
-  g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e --> g_rv_riverview_v2_workspace_shell_check_client_4d1766d6
   g_rv_riverview_v2_workspace_shell_check_client_4d1766d6 -->|diagnostic_branch: Host or source subnet is outside policy| g_rv_riverview_v2_workspace_shell_reject_client_6ff3b5b5
   g_rv_riverview_v2_workspace_shell_reject_client_6ff3b5b5 -->|recovery_route: Correct URL/network or stop the preview| g_rv_riverview_v2_workspace_shell_stop_preview_9aec5773
@@ -80,7 +83,7 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|Cycle either sidebar without changing the other| g_rv_riverview_v2_workspace_shell_cycle_sidebars_3ade16cc
   g_rv_riverview_v2_workspace_shell_cycle_sidebars_3ade16cc -->|Hidden state exposes a keyboard-accessible restore button| g_rv_riverview_v2_workspace_shell_restore_sidebars_f1b4862e
   g_rv_riverview_v2_workspace_shell_restore_sidebars_f1b4862e --> g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d
-  g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|Live chat remains disconnected in this preview| g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227
+  g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|V2 has no shared Dashboard identity; show the separate secure handoff| g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227
   g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|User requests a V2-specific local ZIP| g_rv_riverview_v2_workspace_shell_snapshot_click_c7b14d94
   g_rv_riverview_v2_workspace_shell_snapshot_click_c7b14d94 --> g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b
   g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b -->|Allowlisted state is captured in memory| g_rv_riverview_v2_workspace_shell_snapshot_manifest_bae7acec
@@ -93,6 +96,9 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_snapshot_archive_2754d1e2 --> g_rv_riverview_v2_workspace_shell_snapshot_download_2aeb1eaf
   g_rv_riverview_v2_workspace_shell_snapshot_archive_2754d1e2 -->|diagnostic_branch| g_rv_riverview_v2_workspace_shell_snapshot_local_fallback_5782198a
   g_rv_riverview_v2_workspace_shell_snapshot_local_fallback_5782198a -->|recovery_route| g_rv_riverview_v2_workspace_shell_snapshot_download_2aeb1eaf
+  g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227 -->|Steward opens authenticated V1 Dashboard Grace chat in a separate tab| g_rv_riverview_v2_workspace_shell_grace_chat_handoff_29224207
+  g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227 -->|No authorized V2 Comms5 event feed is connected| g_rv_riverview_v2_workspace_shell_comms5_unverified_fbb092d5
+  g_rv_riverview_v2_workspace_shell_comms5_unverified_fbb092d5 -->|Snapshot includes status and null counts only; no messages, credentials, or fabricated zeros| g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

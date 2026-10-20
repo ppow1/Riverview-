@@ -3,10 +3,11 @@ Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Add integrated
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.6
+File Revision: 1.0.8
 Purpose: Diagnose and recover the local or password-protected LAN V2 shell preview
 Authority: Read-only local diagnostics; no production recovery action
 Changed: 2026-10-20 UTC | RV-WEB-V2-SNAPSHOT-001 | Add snapshot download validation, limits and recovery
+Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-FINAL-001 | Document integrated fallback verification and current V2 diagnostic boundaries
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
@@ -98,7 +99,7 @@ python3 scripts/process_graph.py check
 
 The Firefox utility starts and stops its own local geckodriver. The Chrome utility starts and stops its own headless Chrome profile and uses a 390×844 CSS-pixel emulated viewport. Both connect only to the loopback preview. LAN authentication tests use a disposable random password created in memory and a temporary hash; they never test with the Steward's real password. Required outputs include no browser errors, selected resident retained, `overflow=false`, unauthorized assets 401, successful login redirect 303, lockout 429, invalid Host/Origin and non-LAN rejection, null/absent Origin accepted only with a valid one-use CSRF token, replay/missing-token rejection, and session expiry. Final acceptance also requires Windows Chrome from the actual dev PC. A failed local check is evidence about the preview branch, not a reason to restart V1.
 
-The focused browser checks also exercise all three theme choices, persistence of the chosen display preference, all sidebar states and restoration controls, keyboard descriptions, mobile width, the exact Snapshot label, and a real ZIP download whose contents and manifest hashes match selected V2 state. Chat remains disabled. To roll back only the appearance refinement, revert its dedicated commit or restore the listed pre-change assets and docs from `.riverview-backups/manifest.jsonl`, then rerun the V2 browser checks. Never touch V1, Nginx, credentials or production during that rollback.
+The focused browser checks also exercise all three theme choices, persistence of the chosen display preference, all sidebar states and restoration controls, keyboard descriptions, mobile width, the exact Snapshot label, and a real ZIP whose contents and manifest hashes match selected V2 state. The authenticated V1 Grace handoff is a separate-tab link; Comms5 counts stay UNVERIFIED/null. For integrated `/v2/`, verify the archive receipt and local ZIP have the same SHA-256; test archive failure preserves local download, and local-download failure preserves the confirmed release link. To roll back this integration only, restore the exact pre-change files listed in `.riverview-backups/manifest.jsonl` and redeploy only under the separately approved dashboard procedure. Never touch V1, Nginx, credentials, or production as part of the V2 preview rollback.
 
 
 ## Integrated Snapshot recovery

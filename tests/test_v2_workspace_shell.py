@@ -1,7 +1,7 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.8
+# Revision: 1.0.9
 # Purpose: Verify fixture preview, authentication, LAN restrictions, rate limiting, and recovery boundaries
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
@@ -127,6 +127,16 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn('name: "workspace-state.json"', snapshot)
         self.assertIn('name: "rendered-view.txt"', snapshot)
         self.assertIn("live_backend_connected: false", snapshot)
+        self.assertIn('schema: "riverview-v2-browser-snapshot/2"', snapshot)
+        self.assertIn("communication_diagnostics", snapshot)
+        self.assertIn("history_owner: \"authenticated V1 Dashboard\"", snapshot)
+        self.assertIn("outbound_count: null, inbound_count: null", snapshot)
+        self.assertIn('data-state="unverified"', html)
+        self.assertIn('id="grace-chat-handoff"', html)
+        self.assertIn('href="assets/workspace.css"', html)
+        self.assertIn('src="assets/snapshot.js"', html)
+        self.assertIn("shared system diagnostics only on authenticated dashboard", html)
+        self.assertIn("archives and downloads the same V2 diagnostic ZIP", html)
         self.assertIn('fetch("/api/v1/snapshot/archive"', snapshot)
         self.assertIn('dashboard_version:"v2"', snapshot)
         self.assertIn('rv.website.diagnostic-snapshot.v1', snapshot)

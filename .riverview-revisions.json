@@ -2,15 +2,15 @@
   "files": {
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.23",
-      "sha256": "340e994a42bfa94e34d0d752c5a34cca880b54775a54a9d58293c9fd1bc58b14",
-      "size_bytes": 1290060
+      "revision": "1.0.24",
+      "sha256": "fd17dfc24a9884af12acff2a5c68b6472e97ff9f5f4cce198449855ad9d61463",
+      "size_bytes": 1296735
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.288",
-      "sha256": "8317f4f405ccd72221b391698098864d70d6f7da3e472a8a707540ec1c103daf",
-      "size_bytes": 20001
+      "revision": "1.1.291",
+      "sha256": "bc522c3f0365dc6fd21713391e97dced50830955956662e6b4af1548b0d3f55d",
+      "size_bytes": 23158
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -230,9 +230,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.204",
-      "sha256": "917fc6f0382af351e5cec62702af2ade3ec3a7cac36d36b283fc40b6fe7219c6",
-      "size_bytes": 728328
+      "revision": "1.0.206",
+      "sha256": "e38b686c21612b77d000bd7817c3c1b22e633edccf802fb5dfddcac5de491777",
+      "size_bytes": 730857
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -302,9 +302,9 @@
     },
     "process_graphs/riverview-v2/workspace-shell.json": {
       "path": "process_graphs/riverview-v2/workspace-shell.json",
-      "revision": "1.0.8",
-      "sha256": "c29b32e05135663c2d3ad6d813e85526c0d38de32d25848f4226f3a5aabc0aff",
-      "size_bytes": 27860
+      "revision": "1.0.10",
+      "sha256": "31b10c71744786d4c02de58b690f6d31dc9cfc3620c788760d42136e5abd8b0f",
+      "size_bytes": 30062
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -499,6 +499,6 @@
       "size_bytes": 26074
     }
   },
-  "manifest_revision": "1.1.288",
-  "updated_at": "2026-10-20T20:32:28Z"
+  "manifest_revision": "1.1.291",
+  "updated_at": "2026-10-20T22:21:33Z"
 }
