@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/recovery.py
 # Component: WORKER-ADAPTER
-# Revision: 1.2.10
+# Revision: 1.2.13
+# Changed: 2026-10-20 UTC | RV-GRACE-S3-RECOVERY-DISPOSITION-001 | Add an exact-grant, append-only single-use disposition for one exhausted no-artifact assignment retry.
 # Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Select no-artifact recovery through the exact durable objective-step assignment, dispatch event, and persisted proposal step rather than the latest objective assignment pointer.
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Reconcile assignment-defined artifact sets and detect partial output without fixed extensions
 # Purpose: Reconcile expired worker leases without losing or blindly repeating work
@@ -28,6 +29,7 @@
 """Recover expired leases and narrowly proven no-durable-artifact Codex failures."""
 
 import hashlib
+import hmac
 import json
 import os
 from pathlib import Path
@@ -35,6 +37,7 @@ import re
 import stat
 from uuid import uuid4
 
+from ..institutional_authority import ExactGrantAuthorizer, GrantCheckUnavailable, GrantDenied
 from ..ledger import TRANSITIONS
 from ..postgres_ledger import PostgresLedger, assignment_process_position
 from .knowledge import KnowledgeResult, KnowledgeStatus
@@ -64,15 +67,273 @@ def _codex_artifact_files(root, assignment_id):
 class PostgresRecoveryCoordinator:
     """Atomically reconcile expired leases and persist each recovery decision."""
 
-    def __init__(self, dsn, *, schema="public", max_retries=None):
+    def __init__(self, dsn, *, schema="public", authority_schema=None, max_retries=None):
         if max_retries is not None and (type(max_retries) is not int or not 0 <= max_retries <= 100):
             raise ValueError("max_retries must be None or an integer from 0 to 100")
         self.ledger = PostgresLedger(dsn, schema=schema)
         self.schema = schema
         self.max_retries = max_retries
+        self.authorizer = ExactGrantAuthorizer(authority_schema or schema)
 
     def close(self):
         self.ledger.close()
+
+    def authorize_one_no_artifact_retry(self, *, assignment_id, objective_id, step_id,
+            artifact_contract_sha256, worker_id, worker_credential,
+            recovery_credential, authorization_reference, idempotency_key,
+            artifact_root):
+        """Consume one exact service-recovery disposition and ready the same assignment.
+
+        This operation is an explicit, one-use exception to an exhausted retry
+        ceiling. It never alters prior recovery rows or the configured ceiling.
+        A service.recover exact grant authorizes this disposition; ordinary worker
+        assignment.execute authorization is independently rechecked here and again
+        by the normal lease claim. The disposition insert and transition are atomic.
+        """
+        if (not isinstance(assignment_id, str) or not assignment_id or
+                not isinstance(objective_id, str) or not objective_id or
+                not isinstance(step_id, str) or not re.fullmatch(r"s[1-9][0-9]?", step_id) or
+                not isinstance(artifact_contract_sha256, str) or
+                not re.fullmatch(r"[0-9a-f]{64}", artifact_contract_sha256) or
+                not isinstance(worker_id, str) or not worker_id or
+                not isinstance(worker_credential, str) or len(worker_credential) < 32 or
+                not isinstance(recovery_credential, str) or len(recovery_credential) < 32 or
+                not isinstance(authorization_reference, str) or
+                not re.fullmatch(r"https://github\.com/ppow1/Riverview-/issues/120#issuecomment-[0-9]{8,20}", authorization_reference) or
+                not isinstance(idempotency_key, str) or
+                not re.fullmatch(r"[A-Za-z0-9._:-]{16,200}", idempotency_key)):
+            raise ValueError("exact assignment, contract digest, authorization reference, and idempotency key are required")
+        if type(self.max_retries) is not int or self.max_retries < 1:
+            raise ValueError("a configured finite retry ceiling is required")
+
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                try:
+                    recovery_grant = self.authorizer.require(
+                        cur, recovery_credential, "service.recover", "service-recovery.v1")
+                except GrantDenied as exc:
+                    raise PermissionError("exact service recovery grant is required") from exc
+                except GrantCheckUnavailable:
+                    raise RuntimeError("institutional recovery authority is unavailable") from None
+
+                cur.execute("SELECT * FROM assignments WHERE id=%s FOR UPDATE",
+                            (assignment_id,))
+                assignment = cur.fetchone()
+                if assignment is None:
+                    raise ValueError("target assignment is unavailable")
+
+                cur.execute("""SELECT disposition_id,objective_id,step_id,artifact_contract_sha256,
+                        worker_id,authorization_reference,idempotency_key,authorized_generation,
+                        authorization_principal_id,authorization_grant_id
+                    FROM worker_recovery_dispositions WHERE assignment_id=%s""",
+                    (assignment_id,))
+                prior = cur.fetchone()
+                if prior is not None:
+                    requested = (objective_id, step_id, artifact_contract_sha256, worker_id,
+                                 authorization_reference, idempotency_key,
+                                 recovery_grant["principal_id"], recovery_grant["grant_id"])
+                    recorded = (prior["objective_id"], prior["step_id"],
+                                prior["artifact_contract_sha256"], prior["worker_id"],
+                                prior["authorization_reference"], prior["idempotency_key"],
+                                prior["authorization_principal_id"], prior["authorization_grant_id"])
+                    if requested != recorded:
+                        raise ValueError("a different recovery disposition already consumed this assignment")
+                    return {"assignment_id": assignment_id,
+                            "disposition_id": str(prior["disposition_id"]),
+                            "authorized_generation": prior["authorized_generation"],
+                            "replayed": True}
+
+                root = Path(artifact_root)
+                try:
+                    root_info = root.lstat()
+                    safe_root = (root.is_absolute() and stat.S_ISDIR(root_info.st_mode) and
+                                 not root.is_symlink() and root_info.st_uid == os.geteuid() and
+                                 stat.S_IMODE(root_info.st_mode) == 0o700 and
+                                 root.resolve() == root.absolute())
+                except OSError:
+                    safe_root = False
+                if not safe_root or _codex_artifact_files(root, assignment_id):
+                    raise ValueError("private artifact root required and no prior assignment artifact may exist")
+
+                if (assignment["state"] != "blocked" or
+                        assignment["workflow_step"] != "WORKER_RETRYABLE_NO_ARTIFACT" or
+                        assignment["objective_ref"] != objective_id or
+                        assignment["authority_ref"] != "work-order:engineering"):
+                    raise ValueError("assignment is outside the bounded no-artifact recovery state")
+
+                cur.execute("""SELECT credential_sha256,capabilities,scope_ref,active
+                    FROM worker_registry WHERE worker_id=%s FOR SHARE""", (worker_id,))
+                worker = cur.fetchone()
+                if (worker is None or not worker["active"] or
+                        "engineering.codex-cli-artifact.v1" not in worker["capabilities"] or
+                        worker["scope_ref"] != assignment["authority_ref"] or
+                        not hmac.compare_digest(bytes(worker["credential_sha256"]),
+                            hashlib.sha256(worker_credential.encode("utf-8")).digest())):
+                    raise PermissionError("registered exact-scope Codex worker is required")
+                try:
+                    worker_grant = self.authorizer.require(cur, worker_credential,
+                        "assignment.execute", assignment["authority_ref"])
+                except GrantDenied as exc:
+                    raise PermissionError("active assignment.execute grant is required") from exc
+                except GrantCheckUnavailable:
+                    raise RuntimeError("institutional worker authority is unavailable") from None
+
+                cur.execute("""SELECT o.status,o.scope_ref,o.evidence,o.proposal,
+                        o.source_revision,o.source_sha256,
+                        s.step_id,s.step_objective,s.acceptance_criteria,s.depends_on,
+                        s.status AS step_status,s.assignment_id AS step_assignment_id,
+                        s.dispatch_count,d.payload AS dispatch_payload
+                    FROM grace_objectives o
+                    JOIN grace_objective_steps s ON s.objective_id=o.objective_id
+                    LEFT JOIN LATERAL (
+                        SELECT payload FROM grace_objective_events e
+                        WHERE e.objective_id=o.objective_id
+                          AND e.event_type='work_order.dispatched'
+                          AND e.payload->>'assignment_id'=s.assignment_id
+                          AND e.payload->>'workflow_step'=s.step_id
+                        ORDER BY e.sequence DESC LIMIT 1
+                    ) d ON true
+                    WHERE o.objective_id=%s AND s.assignment_id=%s AND s.step_id=%s
+                    FOR UPDATE OF o,s""", (objective_id, assignment_id, step_id))
+                objective_step = cur.fetchone()
+                if (objective_step is None or objective_step["status"] != "WORK_ORDER_CREATED" or
+                        objective_step["scope_ref"] != "work-order:engineering" or
+                        not isinstance(objective_step["evidence"], dict) or
+                        objective_step["evidence"].get("status") != "VERIFIED" or
+                        objective_step["evidence"].get("retrieval_complete") is not True or
+                        not objective_step["source_revision"] or not objective_step["source_sha256"] or
+                        objective_step["evidence"].get("source_revision") != objective_step["source_revision"] or
+                        objective_step["evidence"].get("source_sha256") != objective_step["source_sha256"] or
+                        objective_step["step_status"] != "assigned" or
+                        objective_step["dispatch_count"] != 1 or
+                        not isinstance(objective_step["dispatch_payload"], dict)):
+                    raise ValueError("durable verified objective-step assignment link is required")
+
+                proposal = objective_step["proposal"] if isinstance(objective_step["proposal"], dict) else {}
+                proposal_steps = proposal.get("steps", [])
+                proposal_step = next((item for item in proposal_steps if isinstance(item, dict)
+                                      and item.get("step_id") == step_id), None)
+                contract = (proposal_step or {}).get("artifact_requirements")
+                if (proposal_step is None or
+                        proposal_step.get("objective") != objective_step["step_objective"] or
+                        proposal_step.get("acceptance_criteria") != objective_step["acceptance_criteria"] or
+                        proposal_step.get("depends_on") != objective_step["depends_on"] or
+                        proposal_step.get("execution_capability") != "engineering.codex-cli-artifact.v1" or
+                        not isinstance(contract, list) or not contract or
+                        objective_step["dispatch_payload"].get("artifact_contract") != contract):
+                    raise ValueError("persisted dispatched artifact contract is inconsistent")
+                contract_bytes = json.dumps(contract, ensure_ascii=False, sort_keys=True,
+                    separators=(",", ":"), allow_nan=False).encode("utf-8")
+                if not hmac.compare_digest(hashlib.sha256(contract_bytes).hexdigest(),
+                                           artifact_contract_sha256):
+                    raise ValueError("persisted artifact contract digest changed")
+
+                cur.execute("""SELECT count(*) AS n FROM grace_objective_steps dep
+                    WHERE dep.objective_id=%s AND dep.step_id=ANY(%s)
+                      AND dep.status='verified'""",
+                    (objective_id, objective_step["depends_on"]))
+                if int(cur.fetchone()["n"]) != len(objective_step["depends_on"]):
+                    raise ValueError("all persisted step dependencies must remain verified")
+
+                cur.execute("SELECT generation,expires_at FROM assignment_leases WHERE assignment_id=%s FOR UPDATE",
+                            (assignment_id,))
+                lease = cur.fetchone()
+                cur.execute("SELECT clock_timestamp() AS now")
+                now = cur.fetchone()["now"]
+                if lease is None or lease["expires_at"] > now:
+                    raise ValueError("a prior expired lease is required; active work cannot be recovered")
+                authorized_generation = int(lease["generation"]) + 1
+
+                cur.execute("""SELECT count(*) AS n FROM worker_recovery_records
+                    WHERE assignment_id=%s AND decision='retry_safe'""", (assignment_id,))
+                retry_count = int(cur.fetchone()["n"])
+                if retry_count != self.max_retries:
+                    raise ValueError("single-use disposition applies only at the exact configured retry ceiling")
+                # Ordinary recovery preserves previous decisions and marks their
+                # intents retry_scheduled. The exhausted current generation has
+                # one completed failure and no recovery record yet.
+                cur.execute("""SELECT i.*,r.decision AS recovery_decision,
+                        r.intent_id AS recovery_intent_id
+                    FROM worker_execution_intents i
+                    LEFT JOIN worker_recovery_records r
+                      ON r.assignment_id=i.assignment_id
+                     AND r.lease_generation=i.lease_generation
+                    WHERE i.assignment_id=%s ORDER BY i.lease_generation
+                    FOR UPDATE OF i""", (assignment_id,))
+                intents = cur.fetchall()
+                if len(intents) != retry_count + 1:
+                    raise ValueError("prior recovered intents and one current failure are required")
+                for intent in intents:
+                    current = intent["lease_generation"] == lease["generation"]
+                    common_valid = (
+                        intent["worker_id"] == worker_id and
+                        intent["capability"] == "engineering.codex-cli-artifact.v1" and
+                        intent["effect_class"] == "external_uncertain" and
+                        intent["attempt_id"] is None and intent["finished_at"] is not None)
+                    if current:
+                        valid = (intent["status"] == "failed" and
+                            intent["failure_class"] == "CodexActionFailure:deliverable_metadata_invalid" and
+                            intent["recovery_decision"] is None)
+                    else:
+                        valid = (intent["lease_generation"] < lease["generation"] and
+                            intent["status"] == "retry_scheduled" and
+                            intent["recovery_decision"] == "retry_safe" and
+                            intent["recovery_intent_id"] == intent["intent_id"])
+                    if not common_valid or not valid:
+                        raise ValueError("exact prior recovery history and current typed failure are required")
+                if not any(i["lease_generation"] == lease["generation"] for i in intents):
+                    raise ValueError("current expired lease must have its own completed failure")
+                cur.execute("SELECT count(*) AS n FROM worker_attempts WHERE assignment_id=%s",
+                            (assignment_id,))
+                if int(cur.fetchone()["n"]) != 0:
+                    raise ValueError("attempt, result, or verification evidence forbids replay")
+                cur.execute("""SELECT count(*) AS n FROM worker_results r
+                    JOIN worker_attempts a USING (attempt_id) WHERE a.assignment_id=%s""",
+                    (assignment_id,))
+                if int(cur.fetchone()["n"]) != 0:
+                    raise ValueError("attempt, result, or verification evidence forbids replay")
+                for table in ("verification_records",):
+                    cur.execute(f"SELECT count(*) AS n FROM {table} WHERE assignment_id=%s",
+                                (assignment_id,))
+                    if int(cur.fetchone()["n"]) != 0:
+                        raise ValueError("attempt, result, or verification evidence forbids replay")
+
+                cur.execute("""INSERT INTO worker_recovery_dispositions
+                    (assignment_id,objective_id,step_id,artifact_contract_sha256,
+                     prior_retry_count,authorized_generation,worker_id,
+                     authorization_reference,authorization_principal_id,
+                     authorization_grant_id,idempotency_key)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    RETURNING disposition_id""",
+                    (assignment_id, objective_id, step_id, artifact_contract_sha256,
+                     retry_count, authorized_generation, worker_id, authorization_reference,
+                     recovery_grant["principal_id"], recovery_grant["grant_id"],
+                     idempotency_key))
+                disposition_id = cur.fetchone()["disposition_id"]
+                self.ledger._append_event(cur, assignment_id=assignment_id,
+                    event_type="assignment.recovery_dispositioned",
+                    idempotency_key=f"recovery-disposition:{idempotency_key}",
+                    actor_id=recovery_grant["principal_id"],
+                    authority_ref=assignment["authority_ref"],
+                    correlation_id=assignment["correlation_id"],
+                    causation_id=None, payload_schema="rv.assignment.recovery-disposition.v1",
+                    payload={"disposition_id": str(disposition_id), "objective_id": objective_id,
+                        "step_id": step_id, "artifact_contract_sha256": artifact_contract_sha256,
+                        "prior_retry_count": retry_count,
+                        "authorized_generation": authorized_generation,
+                        "authorization_grant_id": recovery_grant["grant_id"],
+                        "worker_grant_id": worker_grant["grant_id"]})
+                self._transition_locked(cur, assignment, "ready", "STEWARD_DISPOSITIONED_ONCE",
+                    f"recovery-disposition-ready:{idempotency_key}", evidence={
+                        "disposition_id": str(disposition_id),
+                        "authorization_reference": authorization_reference,
+                        "authorized_generation": authorized_generation,
+                        "retry_history_preserved": retry_count})
+                return {"assignment_id": assignment_id,
+                        "disposition_id": str(disposition_id),
+                        "authorized_generation": authorized_generation,
+                        "replayed": False}
 
     def resume_verified_waiting_for_evidence(self, assignment_id, result, preflight_result, *,
                                               worker_id, worker_scope, artifact_root):

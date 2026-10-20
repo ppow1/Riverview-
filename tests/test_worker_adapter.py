@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.2.9
+# Revision: 1.2.17
+# Changed: 2026-10-20 UTC | RV-GRACE-S3-RECOVERY-DISPOSITION-001 | Cover exact-grant single-use exhausted-retry disposition, preserved history, and one new lease generation.
 # Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Verify bounded no-artifact recovery retries the exact failed step when a concurrently dispatched sibling owns the objective pointer, without creating dispatch duplicates.
 # Purpose: Verify scoped deterministic and structured worker artifacts
 # Execution Model: PostgreSQL integration tests using isolated schemas
@@ -40,6 +41,8 @@
 import hashlib
 import json
 import os
+import shutil
+import tempfile
 import threading
 import time
 import unittest
@@ -199,6 +202,125 @@ class WorkerAdapterTests(unittest.TestCase):
         return self.worker.register_worker(worker_id, capabilities, scope,
                                            credential=token)
 
+    def prepare_exhausted_grace_assignment(self):
+        """Seed one durable five-step S3 assignment with three old recovery rows."""
+        from datetime import datetime, timedelta, timezone
+
+        objective_id = "objective:grace-recovery-test:" + uuid4().hex
+        assignment_id = "assignment:grace:fixture:step:s3:" + uuid4().hex
+        worker_id = "worker-grace-codex:" + uuid4().hex
+        worker_scope = "work-order:engineering"
+        worker_token = self.register_as(worker_id,
+            ["engineering.codex-cli-artifact.v1"], worker_scope)
+        contract = [{"name": "review", "path": "reports/review.txt",
+            "media_type": "text/plain", "acceptance_criteria": ["Contains the requested analysis"],
+            "max_bytes": 32768}]
+        contract_sha256 = hashlib.sha256(json.dumps(contract, sort_keys=True,
+            separators=(",", ":"), ensure_ascii=False).encode("utf-8")).hexdigest()
+        steps = [
+            {"step_id": "s1", "objective": "first verified step", "acceptance_criteria": ["s1"],
+             "depends_on": [], "artifact_requirements": []},
+            {"step_id": "s2", "objective": "second verified step", "acceptance_criteria": ["s2"],
+             "depends_on": ["s1"], "artifact_requirements": []},
+            {"step_id": "s3", "objective": "recover the existing failed step", "acceptance_criteria": ["s3"],
+             "depends_on": ["s1", "s2"], "execution_capability": "engineering.codex-cli-artifact.v1",
+             "artifact_requirements": contract},
+            {"step_id": "s4", "objective": "parallel verified step", "acceptance_criteria": ["s4"],
+             "depends_on": ["s1", "s2"], "artifact_requirements": []},
+            {"step_id": "s5", "objective": "final dependent step", "acceptance_criteria": ["s5"],
+             "depends_on": ["s3", "s4"], "artifact_requirements": []},
+        ]
+        proposal = {"summary": "fixture", "steps": steps}
+        evidence = {"status": "VERIFIED", "source_references": ["repo://test/contract"],
+                    "source_revision": "a" * 40, "source_sha256": "b" * 64,
+                    "retrieval_complete": True}
+        self.admin.execute("""INSERT INTO grace_objectives
+            (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,evidence,
+             proposal,assignment_id,source_revision,source_sha256)
+            VALUES (%s,'fixture request',%s,'steward:test','[\"s1\",\"s2\",\"s3\",\"s4\",\"s5\"]'::jsonb,
+             'WORK_ORDER_CREATED',%s::jsonb,%s::jsonb,%s,%s,%s)""",
+            (objective_id, worker_scope, json.dumps(evidence), json.dumps(proposal),
+             "assignment:grace:fixture:step:s4", "a" * 40, "b" * 64))
+        for order, (step_id, state, linked_assignment, count, dependencies) in enumerate([
+                ("s1", "verified", "assignment:grace:fixture:s1", 1, []),
+                ("s2", "verified", "assignment:grace:fixture:s2", 1, ["s1"]),
+                ("s3", "assigned", assignment_id, 1, ["s1", "s2"]),
+                ("s4", "verified", "assignment:grace:fixture:s4", 1, ["s1", "s2"]),
+                ("s5", "pending", None, 0, ["s3", "s4"])] , start=1):
+            step = steps[order - 1]
+            self.admin.execute("""INSERT INTO grace_objective_steps
+                (objective_id,step_id,step_order,step_objective,acceptance_criteria,
+                 depends_on,status,assignment_id,dispatch_count)
+                VALUES (%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s,%s,%s)""",
+                (objective_id, step_id, order, step["objective"],
+                 json.dumps(step["acceptance_criteria"]), json.dumps(dependencies),
+                 state, linked_assignment, count))
+
+        self.ledger.create(assignment_id, "engineering", f"create:{assignment_id}",
+            authority_ref=worker_scope, objective_ref=objective_id,
+            actor_id="office:grace", workflow_id="grace.objective-work-order.v1",
+            workflow_step="s3", correlation_id=objective_id)
+        self.ledger.transition(assignment_id, "ready", "s3", f"ready:{assignment_id}",
+            actor_id="service:event-processor")
+        self.ledger.transition(assignment_id, "running", "s3", f"running:{assignment_id}",
+            actor_id=worker_id)
+        self.ledger.transition(assignment_id, "blocked", "WORKER_RETRYABLE_NO_ARTIFACT",
+            f"blocked:{assignment_id}", actor_id="worker:" + worker_id)
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("""INSERT INTO grace_objective_events
+                    (objective_id,event_type,idempotency_key,actor_id,payload)
+                    VALUES (%s,'work_order.dispatched',%s,'service:grace-engineering-dispatch',%s::jsonb)""",
+                    (objective_id, f"dispatch:{assignment_id}", json.dumps({
+                        "assignment_id": assignment_id, "workflow_step": "s3",
+                        "artifact_contract": contract})))
+
+        now = datetime.now(timezone.utc)
+        self.admin.execute("""INSERT INTO assignment_leases
+            (assignment_id,worker_id,generation,acquired_at,heartbeat_at,expires_at)
+            VALUES (%s,%s,4,%s,%s,%s)""",
+            (assignment_id, worker_id, now - timedelta(hours=1),
+             now - timedelta(hours=1), now - timedelta(minutes=5)))
+        for generation in range(1, 5):
+            cur_intent = uuid4()
+            self.admin.execute("""INSERT INTO worker_execution_intents
+                (intent_id,assignment_id,worker_id,lease_generation,capability,effect_class,
+                 idempotency_key,status,started_at,finished_at,failure_class)
+                VALUES (%s,%s,%s,%s,'engineering.codex-cli-artifact.v1','external_uncertain',
+                    %s,%s,%s,%s,'CodexActionFailure:deliverable_metadata_invalid')""",
+                (cur_intent, assignment_id, worker_id, generation,
+                 f"intent:{assignment_id}:{generation}",
+                 "retry_scheduled" if generation < 4 else "failed",
+                 now - timedelta(hours=1), now))
+            if generation == 4:
+                continue
+            self.admin.execute("""INSERT INTO worker_recovery_records
+                (assignment_id,lease_generation,intent_id,decision,previous_state,
+                 resulting_state,observed_expiry)
+                VALUES (%s,%s,%s,'retry_safe','running','ready',%s)""",
+                (assignment_id, generation, cur_intent, now - timedelta(minutes=10)))
+
+        recovery_token = __import__("secrets").token_urlsafe(32)
+        recovery_principal = "service:recovery-fixture:" + uuid4().hex
+        self.admin.execute("INSERT INTO institutional_principals(principal_id,principal_kind) VALUES (%s,'service')",
+                           (recovery_principal,))
+        self.admin.execute("""INSERT INTO principal_credentials
+            (credential_id,principal_id,credential_sha256) VALUES (%s,%s,%s)""",
+            (uuid4(), recovery_principal, hashlib.sha256(recovery_token.encode()).digest()))
+        self.admin.execute("""INSERT INTO authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES (%s,%s,'service.recover','service-recovery.v1','steward:test',
+                    'rv.policy:recovery-fixture.v1')""",
+            ("test:service-recover:" + recovery_principal, recovery_principal))
+        temp = tempfile.TemporaryDirectory(prefix="rv-s3-disposition-artifacts-")
+        artifact_root = Path(temp.name)
+        artifact_root.chmod(0o700)
+        return {"objective_id": objective_id, "assignment_id": assignment_id,
+                "worker_id": worker_id, "worker_token": worker_token,
+                "recovery_token": recovery_token, "contract_sha256": contract_sha256,
+                "artifact_root": artifact_root, "temp": temp}
+
     def ready_assignment(self, *, scope=None, objective="objective:sha256"):
         assignment_id = "worker-cycle-" + uuid4().hex
         authority = scope or self.scope
@@ -354,6 +476,162 @@ class WorkerAdapterTests(unittest.TestCase):
         scoped_claim = self.worker.claim_next(other_id, other_token, lease_seconds=30)
         self.assertEqual(scoped_claim["assignment"]["id"], other_assignment)
 
+    def _single_use_disposition(self, fixture, *, recovery_token=None,
+                                worker_token=None, contract_sha256=None,
+                                idempotency_key=None):
+        from riverview_core.worker_adapter.recovery import PostgresRecoveryCoordinator
+        coordinator = PostgresRecoveryCoordinator(
+            DSN, schema=self.schema, authority_schema=self.schema, max_retries=3)
+        self.addCleanup(coordinator.close)
+        return coordinator.authorize_one_no_artifact_retry(
+            assignment_id=fixture["assignment_id"], objective_id=fixture["objective_id"],
+            step_id="s3", artifact_contract_sha256=contract_sha256 or fixture["contract_sha256"],
+            worker_id=fixture["worker_id"], worker_credential=worker_token or fixture["worker_token"],
+            recovery_credential=recovery_token or fixture["recovery_token"],
+            authorization_reference=("https://github.com/ppow1/Riverview-/issues/120"
+                                     "#issuecomment-6303018810"),
+            idempotency_key=idempotency_key or "s3-single-use:" + uuid4().hex,
+            artifact_root=fixture["artifact_root"])
+
+    def test_s3_disposition_denies_missing_recovery_authority_without_writes(self):
+        from riverview_core.worker_adapter.recovery import PostgresRecoveryCoordinator
+        fixture = self.prepare_exhausted_grace_assignment()
+        try:
+            with self.assertRaises(PermissionError):
+                self._single_use_disposition(fixture, recovery_token="x" * 48)
+            self.assertEqual(self.ledger.get(fixture["assignment_id"])["state"], "blocked")
+            self.assertEqual(self.admin.execute(
+                "SELECT count(*) FROM worker_recovery_dispositions WHERE assignment_id=%s",
+                (fixture["assignment_id"],)).fetchone()[0], 0)
+            self.assertEqual(self.admin.execute(
+                "SELECT count(*) FROM worker_recovery_records WHERE assignment_id=%s",
+                (fixture["assignment_id"],)).fetchone()[0], 3)
+        finally:
+            fixture["temp"].cleanup()
+
+    def test_s3_disposition_is_single_use_idempotent_and_allows_one_claim(self):
+        fixture = self.prepare_exhausted_grace_assignment()
+        try:
+            before_records = self.admin.execute(
+                "SELECT * FROM worker_recovery_records WHERE assignment_id=%s ORDER BY lease_generation",
+                (fixture["assignment_id"],)).fetchall()
+            before_intents = self.admin.execute(
+                "SELECT * FROM worker_execution_intents WHERE assignment_id=%s ORDER BY lease_generation",
+                (fixture["assignment_id"],)).fetchall()
+            key = "s3-single-use:" + uuid4().hex
+            result = self._single_use_disposition(fixture, idempotency_key=key)
+            self.assertFalse(result["replayed"])
+            self.assertEqual(result["authorized_generation"], 5)
+            self.assertEqual(self.ledger.get(fixture["assignment_id"])["state"], "ready")
+
+            replay = self._single_use_disposition(fixture, idempotency_key=key)
+            self.assertTrue(replay["replayed"])
+            self.assertEqual(replay["disposition_id"], result["disposition_id"])
+            self.assertEqual(replay["authorized_generation"], 5)
+
+            claim = self.worker.claim_next(
+                fixture["worker_id"], fixture["worker_token"],
+                capability="engineering.codex-cli-artifact.v1",
+                assignment_id=fixture["assignment_id"], lease_seconds=60)
+            self.assertIsNotNone(claim)
+            self.assertEqual(claim["lease"]["generation"], 5)
+            self.worker.start_assignment(fixture["assignment_id"], fixture["worker_id"],
+                fixture["worker_token"], claim["lease"]["generation"],
+                capability="engineering.codex-cli-artifact.v1")
+            self.assertEqual(self.ledger.get(fixture["assignment_id"])["state"], "running")
+
+            artifact_dir = fixture["artifact_root"] / (
+                "codex-" + hashlib.sha256(fixture["assignment_id"].encode()).hexdigest())
+            artifact_dir.mkdir(mode=0o700)
+            artifact_path = artifact_dir / hashlib.sha256(b"review").hexdigest()[:12]
+            artifact_path.write_text("test output", encoding="utf-8")
+            artifact_path.chmod(0o600)
+            # The durable receipt remains replayable even after the worker claims
+            # the one newly authorized generation and writes an assignment artifact.
+            replay_after_claim = self._single_use_disposition(fixture, idempotency_key=key)
+            self.assertTrue(replay_after_claim["replayed"])
+            self.assertEqual(replay_after_claim["disposition_id"], result["disposition_id"])
+            with self.assertRaises(ValueError):
+                self._single_use_disposition(fixture, idempotency_key="s3-second-use:" + uuid4().hex)
+
+            self.assertEqual(self.admin.execute(
+                "SELECT count(*) FROM worker_recovery_records WHERE assignment_id=%s",
+                (fixture["assignment_id"],)).fetchone()[0], 3)
+            self.assertEqual(self.admin.execute(
+                "SELECT * FROM worker_recovery_records WHERE assignment_id=%s ORDER BY lease_generation",
+                (fixture["assignment_id"],)).fetchall(), before_records)
+            self.assertEqual(self.admin.execute(
+                "SELECT * FROM worker_execution_intents WHERE assignment_id=%s ORDER BY lease_generation",
+                (fixture["assignment_id"],)).fetchall(), before_intents)
+            disposition = self.admin.execute(
+                "SELECT prior_retry_count,authorized_generation,artifact_contract_sha256 "
+                "FROM worker_recovery_dispositions WHERE assignment_id=%s",
+                (fixture["assignment_id"],)).fetchone()
+            self.assertEqual((disposition[0], disposition[1]), (3, 5))
+            self.assertEqual(disposition[2].strip(), fixture["contract_sha256"])
+            self.assertEqual(self.admin.execute(
+                "SELECT dispatch_count FROM grace_objective_steps "
+                "WHERE objective_id=%s AND step_id='s3'",
+                (fixture["objective_id"],)).fetchone()[0], 1)
+            self.assertEqual(self.admin.execute(
+                "SELECT step_id,status FROM grace_objective_steps WHERE objective_id=%s "
+                "ORDER BY step_order", (fixture["objective_id"],)).fetchall(),
+                [("s1", "verified"), ("s2", "verified"), ("s3", "assigned"),
+                 ("s4", "verified"), ("s5", "pending")])
+            self.assertEqual(self.admin.execute(
+                "SELECT count(*) FROM grace_objective_events "
+                "WHERE objective_id=%s AND event_type='work_order.dispatched'",
+                (fixture["objective_id"],)).fetchone()[0], 1)
+            from psycopg.errors import RaiseException
+            with self.assertRaises(RaiseException):
+                self.admin.execute("DELETE FROM worker_recovery_dispositions WHERE assignment_id=%s",
+                                   (fixture["assignment_id"],))
+            self.assertEqual(self.admin.execute(
+                "SELECT count(*) FROM worker_recovery_dispositions WHERE assignment_id=%s",
+                (fixture["assignment_id"],)).fetchone()[0], 1)
+        finally:
+            fixture["temp"].cleanup()
+
+    def test_s3_disposition_rejects_changed_persisted_contract_and_worker_credential(self):
+        fixture = self.prepare_exhausted_grace_assignment()
+        try:
+            with self.assertRaises(PermissionError):
+                self._single_use_disposition(fixture, worker_token="y" * 48)
+            with self.assertRaises(ValueError):
+                self._single_use_disposition(fixture, contract_sha256="0" * 64)
+            self.assertEqual(self.ledger.get(fixture["assignment_id"])["state"], "blocked")
+            self.assertEqual(self.admin.execute(
+                "SELECT count(*) FROM worker_recovery_dispositions WHERE assignment_id=%s",
+                (fixture["assignment_id"],)).fetchone()[0], 0)
+            self.assertEqual(self.admin.execute(
+                "SELECT count(*) FROM worker_recovery_records WHERE assignment_id=%s",
+                (fixture["assignment_id"],)).fetchone()[0], 3)
+        finally:
+            fixture["temp"].cleanup()
+
+    def test_s3_disposition_requires_exact_current_failed_generation_and_verified_dependencies(self):
+        fixture = self.prepare_exhausted_grace_assignment()
+        try:
+            intent = self.admin.execute(
+                "SELECT intent_id FROM worker_execution_intents WHERE assignment_id=%s AND lease_generation=4",
+                (fixture["assignment_id"],)).fetchone()[0]
+            self.admin.execute("UPDATE worker_execution_intents SET failure_class=%s WHERE intent_id=%s",
+                ("CodexActionFailure:other", intent))
+            with self.assertRaises(ValueError):
+                self._single_use_disposition(fixture)
+            self.admin.execute("UPDATE worker_execution_intents SET failure_class=%s WHERE intent_id=%s",
+                ("CodexActionFailure:deliverable_metadata_invalid", intent))
+            self.admin.execute("UPDATE grace_objective_steps SET status='pending' "
+                "WHERE objective_id=%s AND step_id='s2'", (fixture["objective_id"],))
+            with self.assertRaises(ValueError):
+                self._single_use_disposition(fixture)
+            self.assertEqual(self.ledger.get(fixture["assignment_id"])["state"], "blocked")
+            self.assertEqual(self.admin.execute(
+                "SELECT count(*) FROM worker_recovery_dispositions WHERE assignment_id=%s",
+                (fixture["assignment_id"],)).fetchone()[0], 0)
+        finally:
+            fixture["temp"].cleanup()
+
     def test_codex_source_change_capability_is_separately_registered_and_exact_granted(self):
         capability = self.worker.CODEX_SOURCE_CHANGE_CAPABILITY
         assignment = self.ready_assignment(objective="objective:source-change")
@@ -363,7 +641,8 @@ class WorkerAdapterTests(unittest.TestCase):
                                        assignment_id=assignment, lease_seconds=60)
         self.assertEqual(claim["assignment"]["id"], assignment)
         self.assertEqual(claim["assignment"]["authority_ref"], self.scope)
-        with self.assertRaises(Exception):
+        from riverview_core.worker_adapter import WorkerAuthorizationError
+        with self.assertRaises(WorkerAuthorizationError):
             self.worker.claim_next(worker_id, token,
                 capability=self.worker.CODEX_CLI_CAPABILITY,
                 assignment_id=assignment, lease_seconds=60)

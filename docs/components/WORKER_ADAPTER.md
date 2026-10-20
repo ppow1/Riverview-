@@ -1,6 +1,6 @@
 # Riverview~ worker adapter contract
 
-**Document Revision:** 1.0.21
+**Document Revision:** 1.0.24
 **Component:** WORKER-ADAPTER
 **Milestone:** M2.1–M2.3
 **Status:** M3.3 scoped technical acceptance criteria PASS and ready for Steward review; no simultaneous executor-process throughput claim. Formal acceptance and full Component DoD remain open; M4.3 local-inference execution remains isolated.
@@ -18,6 +18,7 @@
 **Changed:** 2026-10-16 UTC | RV-GRACE-SOURCE-CHANGE-001 | Specify separately registered Codex multi-file patch capability and exact execution grant
 **Changed:** 2026-10-16 UTC | RV-GRACE-VERIFIED-GROUNDING-RESUME-001-GUARD-DOCS | Specify same-assignment resume after fresh grounding/preflight and remaining-retry checks
 **Changed:** 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Authenticate recovery identity/scope, heartbeat long actions, and preserve validated late Codex artifacts for independent verification
+**Changed:** 2026-10-20 UTC | RV-GRACE-S3-RECOVERY-DISPOSITION-001 | Specify the exact-grant, append-only, single-use disposition for one exhausted no-artifact assignment
 
 ## Scope and trust boundaries
 
@@ -114,6 +115,48 @@ the M4.3 record before asserting environment state. Learning capture records
 outcomes but does not auto-promote knowledge.
 The provider interface is injectable and the scheduler does not depend on its
 implementation.
+
+### Single-use disposition for an exhausted no-artifact assignment
+
+`PostgresRecoveryCoordinator.authorize_one_no_artifact_retry` is a narrowly
+scoped, authenticated recovery operation for one existing assignment. It does
+not change `RIVERVIEW_GRACE_MAX_WORKER_RECOVERIES`, edit existing recovery
+rows, alter a proposal, or create an assignment. The caller must present the
+existing `service.recover` grant in `service-recovery.v1`, the active worker's
+exact `assignment.execute` grant for the assignment scope, an auditable issue
+authorization reference, and a unique idempotency key. The operation is not
+invoked automatically by polling.
+
+Before any state change, it locks the assignment and linked objective step and
+requires the same objective/step/assignment link, one original dispatch event,
+verified objective grounding and dependencies, an expired lease, exactly the
+configured number of prior `retry_safe` decisions, and matching prior `retry_scheduled` intents plus the current expired
+generation's completed typed metadata failure with no recovery decision yet. It rejects any attempt, result, verifier record, or
+adapter artifact. The caller supplies the SHA-256 of the canonical JSON
+`artifact_requirements`; the code compares it with both the persisted proposal
+step and original dispatch event. This binds the disposition to the assignment's
+unchanged artifact contract without hard-coding file names or weakening artifact
+validation. The digest is SHA-256 over UTF-8 JSON serialized with sorted keys,
+compact `(',', ':')` separators, `ensure_ascii=False`, and `allow_nan=False`.
+
+One transaction appends `worker_recovery_dispositions`, appends a causal
+assignment event, and returns the same assignment from `blocked` to `ready`.
+The unique assignment constraint makes the disposition single-use. Its table
+rejects update/delete; the three previous recovery decisions remain intact.
+An identical authorized call returns the original receipt, including after
+normal worker claim. Any changed idempotency key or request is rejected. The
+ordinary worker claim then creates only the next lease generation and repeats
+the registered worker, capability, scope, and exact-grant checks. A later failure
+is subject to the unchanged global retry ceiling; this exception authorizes no
+second disposition or automatic requeue.
+
+Operationally, obtain the artifact-contract digest and metadata from the
+read-only persisted assignment/proposal record, compare it with the dispatch
+event, and inspect the exact assignment/recovery state before requesting a
+separately authorized invocation. Keep artifact contents out of approval
+records. If any predicate differs, leave the assignment blocked and preserve
+its history. See the matching diagnostic and stop conditions in the worker
+adapter cookbook.
 
 `RepositoryKnowledgeProvider` is the first real repository-backed provider. It
 is read-only and retrieves only a small allowlist of committed worker contract
