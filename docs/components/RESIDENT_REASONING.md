@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.12
+File Revision: 1.0.13
 Purpose: Define resident context regrounding and bounded reasoning-provider routing
 Authority: Exact office-state grant required; provider output is a proposal, never permission
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Establish isolated resident reasoning contract
@@ -19,11 +19,12 @@ Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Allow bounded 1–20 ste
 Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Specify candidate non-finality, immutable external review subjects, and bounded Grace revise-or-finish evaluation
 Changed: 2026-10-18 UTC | RV-REASONING-ADAPTER-COMPAT-001 | Document safe provider-specific local chat response normalization
 History: Git and .riverview-backups/manifest.jsonl
+Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Preserve negative criteria when correcting an incomplete prior proposal and classify safe rejection diagnostics
 -->
 # Resident regrounding and reasoning routing
 
 - **Milestone:** M4.2 — Resident regrounding and reasoning routing
-- **Status:** Isolated engineering in progress; local provider contract tests pass, but actual model plan call and resident service are not operationally commissioned
+- **Status:** Live resident reasoning and the bound 80B provider are commissioned on Camrui; the current acceptance objective is blocked at strict proposal validation until a complete model-generated plan is produced
 - **Implementation:** `src/riverview_core/resident_reasoning.py`; `src/riverview_core/local_reasoning_provider.py`
 - **Process graph:** `rv:resident-reasoning:runtime`
 **Owner:** Resident runtime / CME integration
@@ -214,7 +215,12 @@ Invalid schema, over-budget output, provider identity mismatch, changed office
 binding, or changed assignment revision stops the route. `UNAVAILABLE` is never
 treated as verified. A new `ResidentReasoner` reads the previous plan from
 office state; the new context is grounded again before it is supplied to a
-provider.
+provider. A persisted prior plan is an unaccepted attempt, not approval. The
+provider must compare it with the complete objective criteria and repeat every
+criterion verbatim, including negative constraints and prohibitions. The
+proposal persistence guard independently verifies that all original criteria
+are present; an incomplete proposal remains unpersisted and the objective stays
+`GROUNDED`.
 
 | `ReasoningStatus` | Meaning |
 |---|---|
@@ -249,6 +255,17 @@ revision. The authority registry appends its normal office-state revision event.
 8. On restart, instantiate a new runtime, reload authoritative office/assignment
    state, reground, then provide the persisted prior plan to the selected
    implementation.
+
+If `GraceExecutionPipeline.record_proposal` rejects a candidate because it
+omits one or more original acceptance criteria, no proposal or objective step
+is written. The service appends `execution.reasoning_failed` and maps this
+known failure to the fixed `PROPOSAL_OMITS_ACCEPTANCE_CRITERIA` detail code.
+Logs and event payloads contain only that code and the exception class, never
+the criteria text, model prompt, or raw response. The next normal persistent
+reasoning cycle sees the prior plan as an unaccepted attempt and receives an
+explicit correction instruction. A valid model-generated proposal still
+requires the existing objective proposal/approval and exact assignment.create
+gates before work can proceed.
 
 When a local provider returns `external_escalation`, its candidate is not
 written to the office-state `plans` map as final. Grace persists the exact

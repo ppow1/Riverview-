@@ -2799,7 +2799,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.59",
+      "graph_revision": "1.0.60",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -2920,9 +2920,9 @@
         },
         {
           "id": "rv:grace:operational-integration:reason-decompose",
-          "node_revision": "1.0.2",
+          "node_revision": "1.0.3",
           "type": "process",
-          "label": "ISOLATED PERSISTENT INTEGRATION TESTED — existing ResidentReasoner handles grounded objectives and stores office-keyed plans; live model and supervised resident commissioning remain unverified",
+          "label": "PERSISTENT GROUNDED REASONING — use the exact active office-bound provider; on retry, treat the saved plan as an unaccepted attempt and correct omissions without changing original criteria; proposal has no authority",
           "source_references": [
             "src/riverview_core/resident_reasoning.py",
             "src/riverview_core/resident_execution/pipeline.py",
@@ -3108,18 +3108,25 @@
         },
         {
           "id": "rv:grace:operational-integration:proposal-validation",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "verification",
-          "label": "IMPLEMENTED — persist only typed proposals after complete VERIFIED grounding",
+          "label": "STRICT PROPOSAL VALIDATION — persist only a typed proposal after complete VERIFIED grounding and exact coverage of every original criterion; an omission leaves objective GROUNDED and records PROPOSAL_OMITS_ACCEPTANCE_CRITERIA",
           "source_references": [
             "src/riverview_core/resident_execution/pipeline.py",
-            "src/riverview_core/resident_reasoning.py"
+            "src/riverview_core/resident_reasoning.py",
+            "src/riverview_core/local_reasoning_provider.py",
+            "src/riverview_core/resident_execution/service.py"
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_PIPELINE.md",
-            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+            "docs/components/RESIDENT_REASONING.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
           ],
-          "verification_evidence": []
+          "verification_evidence": [
+            "tests/test_local_reasoning_provider.py",
+            "tests/test_grace_execution.py"
+          ]
         },
         {
           "id": "rv:grace:operational-integration:work-order-authorization",
@@ -3152,12 +3159,13 @@
         },
         {
           "id": "rv:grace:operational-integration:waiting-and-failure",
-          "node_revision": "1.0.2",
+          "node_revision": "1.0.3",
           "type": "failure",
-          "label": "IMPLEMENTED — incomplete evidence remains pending; an authenticated retry after source correction either atomically advances the same objective to GROUNDED or records another pending revision",
+          "label": "IMPLEMENTED — evidence failures remain pending; incomplete typed proposals remain GROUNDED with a sanitized detail code and resume through the persistent reasoning cycle after the prior plan is explicitly corrected; never bypass proposal or assignment authorization",
           "source_references": [
             "src/riverview_core/status_dashboard/server.py",
-            "src/riverview_core/resident_execution/pipeline.py"
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/service.py"
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_COOKBOOK.md"
@@ -4855,6 +4863,18 @@
           "to": "rv:grace:operational-integration:grace-rejection-review",
           "type": "recovery_route",
           "label": "If the existing authorized provider was unavailable, resume normal rejection review after it is commissioned/restored; retry exhaustion remains a Steward decision boundary."
+        },
+        {
+          "from": "rv:grace:operational-integration:proposal-validation",
+          "to": "rv:grace:operational-integration:waiting-and-failure",
+          "type": "diagnostic_branch",
+          "label": "Original criterion omitted: do not persist proposal or steps; keep objective GROUNDED and append PROPOSAL_OMITS_ACCEPTANCE_CRITERIA"
+        },
+        {
+          "from": "rv:grace:operational-integration:waiting-and-failure",
+          "to": "rv:grace:operational-integration:reason-decompose",
+          "type": "recovery_route",
+          "label": "Normal persistent cycle regrounds the same objective and gives the saved rejected plan to the bound provider as correction context; all original criteria and authority checks remain in force"
         }
       ]
     },

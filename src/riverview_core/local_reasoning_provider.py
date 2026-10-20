@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.13
+# Revision: 1.3.14
+# Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Make prior rejected plans explicitly preserve every criterion, including prohibitions
 # Purpose: Adapt bounded resident proposals and conversation turns to local inference
 # Execution Model: Bounded loopback OpenAI-compatible request
 # Observability: Sanitized provider failures; no prompts or raw model output logged
@@ -231,7 +232,8 @@ class LocalReasoningProvider:
             "contains objects with step_id (short string), objective "
             "(at most eight words), acceptance_criteria as a list of 1 to 12 strings, "
             "and depends_on containing only earlier step_id values. Repeat every supplied acceptance criterion exactly, "
-            "without dropping or rewriting any. Optional execution_capability may be "
+            "without dropping or rewriting any, including negative constraints or prohibitions (for example, criteria "
+            "beginning with 'Do not'). Put every such constraint verbatim on at least one applicable step. Optional execution_capability may be "
             "engineering.codex-cli-artifact.v1 or engineering.codex-cli-source-change.v1. "
             "Use source-change capability only when the original Steward request or accepted "
             "criteria explicitly names every exact file path. If you select source-change, you "
@@ -246,6 +248,11 @@ class LocalReasoningProvider:
             "institutional facts. This is an unapproved proposal; "
             "do not claim execution, verification, or authority. Do not "
             "include commands or credentials.")
+        if request.prior_plan is not None:
+            system_instruction += (
+                " The supplied prior_plan is an unaccepted earlier attempt, not approval. Compare it against every "
+                "supplied criterion and correct any omission; do not repeat an earlier omission of a negative "
+                "constraint or prohibition.")
         if request.external_reasoning_targets:
             system_instruction += (
                 " You may additionally set external_escalation only when a specific second opinion is needed "

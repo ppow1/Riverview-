@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.42
+# Revision: 1.0.43
+# Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Assert incomplete-proposal exceptions map to a fixed safe diagnostic code
 # Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Cover verifier-accepted dependent dispatch without second-model gating and bounded durable rejection escalation.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Verify generation-two evidence preserves the active digest-checked artifact-review contract.
@@ -299,6 +300,17 @@ class CodingWorkOrderContractTests(unittest.TestCase):
             CodingWorkOrder(**common, timeout_seconds=91)
         with self.assertRaises(ValueError):
             CodingWorkOrder(**{**common, "repository_revision": "not-a-commit"})
+
+
+class GraceReasoningFailureDiagnosticTests(unittest.TestCase):
+    def test_incomplete_acceptance_proposal_has_safe_detail_code(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+
+        error = ObjectiveStateError("proposal omits one or more human acceptance criteria")
+        self.assertEqual(GraceExecutionService._reasoning_failure_detail_code(error),
+                         "PROPOSAL_OMITS_ACCEPTANCE_CRITERIA")
+        self.assertEqual(GraceExecutionService._reasoning_failure_detail_code(
+            RuntimeError("untrusted provider message")), "REASONING_CYCLE_FAILED")
 
 
 @unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")
