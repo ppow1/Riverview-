@@ -1,14 +1,14 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Verify fixture preview, authentication, LAN restrictions, rate limiting, and recovery boundaries
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
 # Dependencies: Python 3.10+ standard library; local V2 preview source
 # Inputs/Outputs: Starts/stops isolated loopback test servers and temporary hash files
 # Authority: Local fixture preview only; no production data or credentials
-# Changed: 2026-10-20 UTC | RV-WEB-V2-SNAPSHOT-001 | Assert bounded V2 snapshot package contract
+# Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-001 | Assert authenticated handoff, truthful Comms5 state, and snapshot diagnostics
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: tests/test_v2_workspace_shell.py
 # History: Git and revision/backup manifest
@@ -107,6 +107,12 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn("Persistent context", html)
         self.assertIn("ChatGPT", html)
         self.assertIn("Comms5", html)
+        self.assertIn('id="grace-chat-handoff"', html)
+        self.assertIn('href="https://192.168.1.155/#grace-chat"', html)
+        self.assertIn("authenticated Dashboard", html)
+        self.assertIn('id="comms5-status" data-state="unverified"', html)
+        self.assertIn("Traffic counts: UNVERIFIED", html)
+        self.assertIn("not reported as zero", html)
         self.assertIn("fixtures[view]", js)
         self.assertIn("fixture-resident-02", fixtures)
         self.assertNotIn("/api/v1/", html + js + fixtures)
@@ -128,6 +134,10 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn('name: "rendered-view.txt"', snapshot)
         self.assertIn('name: "manifest.json"', snapshot)
         self.assertIn("live_backend_connected: false", snapshot)
+        self.assertIn('schema: "riverview-v2-browser-snapshot/2"', snapshot)
+        self.assertIn('status: "not_connected"', snapshot)
+        self.assertIn('outbound_count: null, inbound_count: null', snapshot)
+        self.assertIn('inspectable_messages: false', snapshot)
         self.assertNotIn("fetch(", snapshot)
         self.assertNotIn("/api/v1/", html + js + snapshot)
         self.assertIn("credentials: \"excluded\"", snapshot)

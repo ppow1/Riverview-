@@ -2,14 +2,14 @@
 # Riverview~ Controlled Source
 # File: scripts/verify_v2_workspace_browser.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Exercise V2 theme, sidebars, tooltips, navigation, and responsive layout
 # Execution Model: Request-driven acceptance utility; starts/stops only its own geckodriver
 # Observability: Sanitized JSON stdout; no credentials or write operations
 # Dependencies: Python 3.10+, Firefox, geckodriver, local V2 preview
 # Inputs/Outputs: Loopback preview URL; navigation timings and viewport-fit metrics
 # Authority: Browser-only interaction with local fixture preview; no API or writes
-# Changed: 2026-10-20 UTC | RV-WEB-V2-SNAPSHOT-001 | Assert V2 snapshot is enabled and truthful about local fixture scope
+# Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-001 | Verify secure Grace handoff and explicitly unverified Comms5 state in Firefox
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: scripts/verify_v2_workspace_browser.py
 # History: Git and revision/backup manifest
@@ -93,7 +93,7 @@ def main():
         js(session, "window.__errors=[];addEventListener('error',e=>window.__errors.push(String(e.message||'error')));addEventListener('unhandledrejection',e=>window.__errors.push('rejection'))")
         theme["reload_restored"] = js(session, "return {theme:document.querySelector('#theme-select').value,effective:document.documentElement.dataset.theme}")
         sidebars = js(session, "const shell=document.querySelector('.app-shell');const cycle=id=>{const b=document.getElementById(id);const values=[];for(let i=0;i<3;i++){b.click();values.push(shell.dataset[id==='left-state'?'leftState':'rightState']);}return values};const left=cycle('left-state'),right=cycle('right-state');document.querySelector('#left-restore').click();document.querySelector('#right-restore').click();return {left,right,leftRestored:shell.dataset.leftState==='expanded',rightRestored:shell.dataset.rightState==='expanded'}")
-        integration = js(session, "const s=document.querySelector('#snapshot-action');const nav=document.querySelector('[data-view=overview]');return {tooltip:nav.getAttribute('aria-description'),navName:nav.getAttribute('aria-label'),snapshotLabel:s.textContent.trim(),snapshotDisabled:s.disabled,snapshotExplanation:document.querySelector('#snapshot-status').textContent.trim(),chatDisabled:document.querySelector('.new-chat').disabled}")
+        integration = js(session, "const s=document.querySelector('#snapshot-action');const nav=document.querySelector('[data-view=overview]');const handoff=document.querySelector('#grace-chat-handoff');return {tooltip:nav.getAttribute('aria-description'),navName:nav.getAttribute('aria-label'),snapshotLabel:s.textContent.trim(),snapshotDisabled:s.disabled,snapshotExplanation:document.querySelector('#snapshot-status').textContent.trim(),chatDisabled:document.querySelector('.new-chat').disabled,handoff:{href:handoff.href,target:handoff.target,rel:handoff.rel,label:handoff.querySelector('b').textContent.trim()},commsState:document.querySelector('#comms5-status').dataset.state,commsText:document.querySelector('#comms5-diagnostics').innerText}")
         desktop = js(session, "return {width:innerWidth,scrollWidth:document.documentElement.scrollWidth,overflow:document.documentElement.scrollWidth>innerWidth}")
         request("POST", f"/session/{session}/window/rect", {"x": 0, "y": 0, "width": 390, "height": 844})
         mobile = js(session, "return {width:innerWidth,scrollWidth:document.documentElement.scrollWidth,overflow:document.documentElement.scrollWidth>innerWidth,navButton:getComputedStyle(document.querySelector('#mobile-menu')).display}")
@@ -108,7 +108,7 @@ def main():
                   "disabled_mutation_controls_present": disabled, "fixture_banner": fixture_banner,
                   "browser_errors": js(session, "return window.__errors"), "document_time_origin": reloads}
         print(json.dumps(report, sort_keys=True))
-        if selected_after != "Resident fixture 02" or context_retained != selected_after or not note_open or theme["dark"] != "dark" or theme["light"] != "light" or theme["saved"] != "light" or theme["systemEffective"] != theme["systemOS"] or theme["storedBeforeReload"] != "dark" or theme["reload_restored"]["theme"] != "dark" or theme["reload_restored"]["effective"] != "dark" or len(sidebars["left"]) != 3 or len(sidebars["right"]) != 3 or not sidebars["leftRestored"] or not sidebars["rightRestored"] or not integration["tooltip"] or integration["navName"] != "Overview" or integration["snapshotLabel"] != "Snapshot" or integration["snapshotDisabled"] or "fixture view" not in integration["snapshotExplanation"] or not integration["chatDisabled"] or desktop["overflow"] or mobile["overflow"] or mobile["navButton"] == "none" or not disabled or report["browser_errors"]:
+        if selected_after != "Resident fixture 02" or context_retained != selected_after or not note_open or theme["dark"] != "dark" or theme["light"] != "light" or theme["saved"] != "light" or theme["systemEffective"] != theme["systemOS"] or theme["storedBeforeReload"] != "dark" or theme["reload_restored"]["theme"] != "dark" or theme["reload_restored"]["effective"] != "dark" or len(sidebars["left"]) != 3 or len(sidebars["right"]) != 3 or not sidebars["leftRestored"] or not sidebars["rightRestored"] or not integration["tooltip"] or integration["navName"] != "Overview" or integration["snapshotLabel"] != "Snapshot" or integration["snapshotDisabled"] or "fixture view" not in integration["snapshotExplanation"] or not integration["chatDisabled"] or integration["handoff"] != {"href":"https://192.168.1.155/#grace-chat","target":"_blank","rel":"noopener noreferrer","label":"Talk with Grace"} or integration["commsState"] != "unverified" or "Traffic counts: UNVERIFIED" not in integration["commsText"] or "not reported as zero" not in integration["commsText"] or desktop["overflow"] or mobile["overflow"] or mobile["navButton"] == "none" or not disabled or report["browser_errors"]:
             raise RuntimeError("v2_browser_check_failed")
     finally:
         if session:

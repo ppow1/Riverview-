@@ -2,14 +2,14 @@
 # Riverview~ Controlled Source
 # File: scripts/verify_v2_workspace_snapshot_chrome.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.4
+# Revision: 1.0.9
 # Purpose: Verify authenticated Chrome Snapshot download and ZIP content on the LAN preview
 # Execution Model: Request-driven Chrome DevTools Protocol acceptance runner
 # Observability: Sanitized JSON report, downloaded package, and screenshot
 # Dependencies: Python 3.10+, Node.js ws module, Google Chrome, local V2 preview
 # Inputs/Outputs: Preview URL and hidden password prompt; local evidence directory
 # Authority: Browser-only read access to V2 preview; no upload or server mutation
-# Changed: 2026-10-20 UTC | RV-WEB-V2-SNAPSHOT-001 | Use physical Chrome mouse input for the Snapshot action
+# Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-001 | Capture visible handoff and Comms5 state in authenticated Chrome evidence
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: scripts/verify_v2_workspace_snapshot_chrome.py
 # History: Git and revision/backup manifest
@@ -56,8 +56,8 @@ async function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
  stage='verify authenticated page';const title=await evaluate('document.title');if(title!=='Riverview V2 Workspace Preview')throw Error('preview_login_or_page_failed');
  stage='select representative V2 state';
  await evaluate('(()=>{document.querySelector("[data-resident-id=fixture-resident-02]").click();document.querySelector("[data-view=work]").click();document.querySelector("#theme-select").value="dark";document.querySelector("#theme-select").dispatchEvent(new Event("change"));document.querySelector("#right-state").click();return true})()');
- const expected=await evaluate('({view:document.querySelector("#primary-nav [aria-current=page]").dataset.view,resident:document.querySelector("#selected-resident b").textContent,theme:document.querySelector("#theme-select").value,right:document.querySelector(".app-shell").dataset.rightState,button:document.querySelector("#snapshot-action").disabled})');
- if(expected.view!=='work'||expected.resident!=='Resident fixture 02'||expected.theme!=='dark'||expected.right!=='compact'||expected.button)throw Error('prepared_v2_state_mismatch');
+ const expected=await evaluate('(()=>{const link=document.querySelector("#grace-chat-handoff"),status=document.querySelector("#comms5-status"),details=document.querySelector("#comms5-diagnostics");return {view:document.querySelector("#primary-nav [aria-current=page]").dataset.view,resident:document.querySelector("#selected-resident b").textContent,theme:document.querySelector("#theme-select").value,right:document.querySelector(".app-shell").dataset.rightState,button:document.querySelector("#snapshot-action").disabled,handoff:{href:link.href,target:link.target,rel:link.rel,label:link.querySelector("b").textContent.trim()},commsState:status.dataset.state,commsText:details.textContent.trim(),commsVisible:details.getClientRects().length>0&&getComputedStyle(details).display!=="none"}})()');
+ const mismatches=[];if(expected.view!=='work')mismatches.push('view');if(expected.resident!=='Resident fixture 02')mismatches.push('resident');if(expected.theme!=='dark')mismatches.push('theme');if(expected.right!=='compact')mismatches.push('sidebar');if(expected.button)mismatches.push('snapshot_disabled');if(expected.handoff.href!=='https://192.168.1.155/#grace-chat')mismatches.push('handoff_href');if(expected.handoff.target!=='_blank')mismatches.push('handoff_target');if(expected.handoff.rel!=='noopener noreferrer')mismatches.push('handoff_rel');if(expected.handoff.label!=='Talk with Grace')mismatches.push('handoff_label');if(expected.commsState!=='unverified')mismatches.push('comms_state');if(!expected.commsVisible)mismatches.push('comms_not_visible');if(!expected.commsText.includes('Traffic counts: UNVERIFIED'))mismatches.push('comms_unverified_label');if(!expected.commsText.includes('not reported as zero'))mismatches.push('unknown_count_copy');if(mismatches.length)throw Error('prepared_v2_state_mismatch:'+mismatches.join(','));
  stage='click Snapshot';const before=events.length,rect=await evaluate('(()=>{const r=document.querySelector("#snapshot-action").getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2}})()');
  await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:rect.x,y:rect.y});await call('Input.dispatchMouseEvent',{type:'mousePressed',x:rect.x,y:rect.y,button:'left',clickCount:1});await call('Input.dispatchMouseEvent',{type:'mouseReleased',x:rect.x,y:rect.y,button:'left',clickCount:1});let event;
  for(let i=0;i<100&&!event;i++){await sleep(100);event=events.slice(before).find(x=>x.method==='Page.downloadWillBegin');}
@@ -66,8 +66,9 @@ async function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
  for(let i=0;i<100;i++){await sleep(100);if(fs.existsSync(downloadFile)&&!fs.existsSync(downloadFile+'.crdownload'))break;}
  if(!fs.existsSync(downloadFile)||fs.existsSync(downloadFile+'.crdownload'))throw Error('chrome_download_file_not_complete');
  const download=await evaluate('({status:document.querySelector("#snapshot-status").textContent,filename:document.querySelector("#snapshot-status").textContent})');
+ stage='prepare visible integration evidence';const visible=await evaluate('(()=>{const button=document.querySelector("#right-state");button.click();button.click();const handoff=document.querySelector("#grace-chat-handoff"),diagnostics=document.querySelector("#comms5-diagnostics");return {rightState:document.querySelector(".app-shell").dataset.rightState,handoffVisible:handoff.getClientRects().length>0,commsVisible:diagnostics.getClientRects().length>0}})()');if(visible.rightState!=='expanded'||!visible.handoffVisible||!visible.commsVisible)throw Error('integration_evidence_not_visible');
  const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});fs.writeFileSync(process.env.RV_CHROME_SCREENSHOT,Buffer.from(shot.data,'base64'));
- const report={browser:version.Browser,preview_url:process.env.RV_V2_BASE_URL,authenticated:auth,active_state:expected,download_completed:true,download_name:event.params.suggestedFilename,download_status:download.status};
+ const report={browser:version.Browser,preview_url:process.env.RV_V2_BASE_URL,authenticated:auth,active_state:expected,visible_integration_evidence:visible,download_completed:true,download_name:event.params.suggestedFilename,download_status:download.status};
  fs.writeFileSync(process.env.RV_CHROME_REPORT,JSON.stringify(report,null,2)+'\n');
  socket.close();child.kill('SIGTERM');process.exit(0);
 }catch(e){console.error(stage+': '+String(e.message||e).replace(/password|token|cookie/ig,'[redacted]'));if(socket)socket.close();child.kill('SIGTERM');process.exit(2);}})();'''
@@ -128,6 +129,16 @@ def main():
             raise SystemExit("ZIP state does not match the selected Chrome workspace view")
         if state["data_connection"]["live_backend_connected"] is not False or state["server_diagnostics"]["status"] != "not available":
             raise SystemExit("ZIP overstates live/server data")
+        diagnostics = state.get("communication_diagnostics", {})
+        grace = diagnostics.get("grace_chat", {})
+        comms5 = diagnostics.get("comms5", {})
+        if grace != {"status": "not_connected", "handoff_available": True,
+                     "history_owner": "authenticated V1 Dashboard", "messages_captured": False}:
+            raise SystemExit("ZIP Grace connection diagnostics are missing or overstate V2 access")
+        if (comms5.get("status") != "unverified" or comms5.get("outbound_count") is not None
+                or comms5.get("inbound_count") is not None or comms5.get("inspectable_messages") is not False
+                or comms5.get("correlation_ids") != "unavailable"):
+            raise SystemExit("ZIP Comms5 diagnostics invent counts or message access")
         if any(word in package.read("workspace-state.json").decode().lower() for word in ("authorization:", "cookie=", "sessionid")):
             raise SystemExit("credential-like field appeared in package")
     report_path = evidence / "browser-report.json"
@@ -135,6 +146,7 @@ def main():
     report.update({"zip_name": archive.name, "zip_size_bytes": archive.stat().st_size,
                    "zip_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(), "zip_members": sorted(expected),
                    "manifest_member_checks": "PASS", "state_matches_selected_view": True,
+                   "communication_diagnostics": "PASS: Grace handoff only; Comms5 counts null and UNVERIFIED; no messages captured",
                    "chrome_version": report.get("browser"), "elapsed_seconds": round(time.time() - started, 3)})
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     print(json.dumps(report, sort_keys=True))

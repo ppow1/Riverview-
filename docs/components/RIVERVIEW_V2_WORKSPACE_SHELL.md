@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.10
+File Revision: 1.0.12
 Purpose: Specify the isolated V2 browser shell and password-protected LAN preview
 Authority: Fixture presentation only; no institutional or production authority
-Changed: 2026-10-20 UTC | RV-WEB-V2-SNAPSHOT-001 | Record actual Chrome ZIP acceptance and runtime source identity limits
+Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-001 | Record live interface findings, exact-head Chrome handoff evidence, and remaining Windows check
 History: Git and revision/backup manifest
 -->
 # Riverview V2 workspace shell
@@ -26,7 +26,9 @@ The shell has no network-data path. By default its preview server binds only to 
 
 The current V1 dashboard remains authoritative for live system status, Grace/CME projections, authenticated account/session behavior, diagnostic snapshot packaging, and private GitHub archival. The V2 preview preserves the workspace navigation and presentation intent but currently has fixture-only residents, work, resource and knowledge cards. It does not consume V1 endpoints or share V1 credentials. The V1 archive worker's draft (PR #168) uses the authenticated V1 API and V1 page diagnostics, so its capture and archive endpoint are not called by V2. V2 independently reuses the ZIP store format, hard-bound discipline, explicit structured-member checksums, and allowlist redaction pattern. GitHub archive upload remains a later integration requiring an approved V2 identity/authorization contract and server endpoint; no credential or V1 data is borrowed.
 
-Chat gap: V1's status dashboard contract documents resident conversation as not implemented; the V2 shell therefore has no supported resident-chat endpoint to reuse. A real V2 composer needs a separately reviewed authenticated conversation API, resident identity/session binding, authorization, persistence/retention, privacy, failure, and event/observability contracts. The current ChatGPT link only opens chatgpt.com; it does not transfer Riverview resident context or connect Grace. Comms5 remains informational and disconnected.
+Chat boundary: the deployed V1 Dashboard release `cf4a97e2a712e05e5c5d0a4a82d1016df5ed2ba1` includes the authenticated persistent Grace conversation API and UI. Its contract is `rv.resident.conversation.v1`: Dashboard bearer/account authentication establishes a resident conversation session, exact `resident.conversation.read/send` grants are rechecked, and history/messages are stored as durable events. The API is same-origin, has no CORS, and issues a `Secure; HttpOnly; SameSite=Strict` path-scoped cookie. V2 remains `http://192.168.1.155:8877` under a separate preview password and `connect-src 'none'`; it cannot safely reuse that identity. A server-side proxy holding the Dashboard bearer would give every LAN preview login the bearer principal's authority. Therefore V2 offers a direct link to the authenticated V1 Grace chat, without carrying credentials, messages, or history. Actual in-V2 chat remains blocked until a reviewed same-origin deployment/authentication path is separately authorized.
+
+Comms5 boundary: the authenticated Comms5 v5 capability contract on Camrui exposes bounded governed operations and a read-only `transport_probe`; it does not expose V2 a general outbound/inbound message ledger with inspectable payloads and correlated lifecycle stages. V2 reports traffic counts as **UNVERIFIED** and uses `null` for unknown counts; it does not infer zero or claim external ChatGPT escalation. Snapshot metadata records only this integration status and does not capture conversation text, Comms5 payloads, credentials, or correlation IDs.
 
 The LAN login stores no cleartext password. A one-time hidden prompt writes a random-salt PBKDF2-HMAC-SHA256 verifier (600,000 iterations) in an owner-only file with mode 0600. The process creates an eight-hour HMAC-signed, HttpOnly, SameSite=Strict session cookie; its signing key is ephemeral and held only in memory, so restarting the preview invalidates sessions. Five failed password attempts from one client in a 15-minute window trigger a 15-minute in-memory lockout. Requests and form contents are not logged. The direct LAN URL uses HTTP: the password and cookie are not encrypted in transit. Use it only on the trusted Riverview LAN, never on public or untrusted networks.
 
@@ -72,7 +74,7 @@ Future authoritative residents, assignments, work, model/resource controls, and 
 4. Password storage contains only algorithm/work factor, random salt, and derived hash in an owner-only file; failures are rate-limited and authenticated responses are non-cacheable.
 5. Authentication uses an eight-hour signed HttpOnly/SameSite cookie with in-memory key; no secret appears in source, browser storage, command arguments, or request logs.
 6. Navigation and resident selection work in browser memory; view switching retains selected context.
-7. No production API reference or browser network connection exists; desktop and phone layouts fit their viewport.
+7. No production API call or credential flow exists in V2; the explicit user-initiated link opens the authenticated V1 Dashboard in a separate tab. Desktop and phone layouts fit their viewport.
 8. Recovery is local: stop and restart only the preview command. No migration or rollback of V1 is involved.
 
 Run the offline and browser checks from the checkout root:
@@ -99,7 +101,7 @@ See [troubleshooting and recovery](RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md) and
 | Design | Fixture-only shell; default loopback mode; explicit-IP LAN mode; salted password hash; Origin/Host/subnet checks; bounded sessions, rate-limits and request concurrency; HTTP privacy boundary; local recovery. | PASS |
 | Pre-change preservation | Exact prior bytes and SHA-256 are recorded per controlled file in `.riverview-backups/manifest.jsonl`; changed existing files have revision-specific restoration copies. Initial files have no predecessor on the clean base and start at 1.0.0. | PASS; check with `scripts/revision_control.py` |
 | Implementation | Shell, loopback/LAN preview, local password setup, authentication and subnet checks, tests, cookbook, graph, and generated views are implemented together. | PASS for isolated preview code |
-| Automated checkout | Offline auth/security tests, syntax, browser layouts, graph consistency, revision/backup audit, and V1 isolation smoke are recorded per source commit. | PASS for local code checkout; actual Windows-client acceptance pending for the Windows-specific UI refinements; V2 Snapshot has local Chrome LAN evidence |
+| Automated checkout | Offline auth/security tests, syntax, browser layout, graph consistency, revision/backup audit, and V1 isolation smoke are recorded per source commit. | PASS for this local checkout; headless Chrome on Camrui authenticated to LAN V2 and verified the handoff/telemetry UI and ZIP. Windows Chrome verification of this delta remains pending. |
 | Code review | Author self-review covers browser authority, network, method, path, and production isolation boundaries. | PARTIAL; independent review requested through the draft PR if an authorized reviewer is available |
 | Deployment / acceptance | Steward authorized this isolated LAN preview. No V1, Nginx, firewall, systemd, traffic, production API, or live data change is included. Actual Windows browser acceptance requires local password setup and a user-side test. | PARTIAL pending the Windows test |
 | Operations / maintenance | The foreground preview can be stopped/restarted locally; sessions and lockouts reset on restart. No durable queue or autonomous work exists. | N/A for the static preview; document explicit resume/rollback in the cookbook |
@@ -111,7 +113,7 @@ The Rev 1.6 eight-deliverable table below is the component applicability matrix.
 | Deliverable | State | Evidence / remaining work |
 | --- | --- | --- |
 | 1. Code and contracts | PARTIAL | Password verifier, owner-only configuration, LAN bind/subnet/Host/Origin/CSRF rules, session, lockout and read-only static interface are versioned. Independent reviewer evidence remains pending. |
-| 2. Functionality demonstrated | PARTIAL | Offline auth/security tests plus actual Firefox and Chrome browser tests cover the local preview and current UI. The Steward's Windows Chrome login/navigation was accepted on earlier commit `d1cd6f3`; Windows-client acceptance of this latest usability delta remains pending. |
+| 2. Functionality demonstrated | PARTIAL | Offline auth/security tests plus authenticated Chrome on Camrui verify the current handoff and ZIP. The Steward previously accepted Windows Chrome login/navigation on `d1cd6f3`; Windows Chrome verification of this handoff/telemetry delta remains pending. No V2 chat turn was sent. |
 | 3. Complete versioned documentation | PASS for this slice | This specification records execution, interface, authority, dependencies, limitations, preview operation and rollback. |
 | 4. Troubleshooting and recovery cookbook | PASS for code checkout | Cookbook records password setup, read-only diagnostics, expected results, failure cases, session/lockout behavior, rollback and resume procedure. |
 | 5. Versioned visualization flowcharts | PASS for code paths | Generated focused Mermaid view includes local setup, network admission, authentication, rate-limit, reject, and recovery paths. |
@@ -119,15 +121,15 @@ The Rev 1.6 eight-deliverable table below is the component applicability matrix.
 | 7. Operational autonomy and blocker clearance | N/A for an interactive static preview | It performs no recurring institutional work and owns no durable queue, worker, heartbeat, or escalation. Manual local startup is only for the preview. Integration/acceptance blockers are recorded in issue #164. |
 | 8. Registered canonical process graph | PASS | `process_graphs/riverview-v2/workspace-shell.json` validates with globally unique IDs and typed runtime/diagnostic/recovery edges; generated views pass `process_graph.py check`. |
 
-This increment adds the V2-only local ZIP flow. Snapshot download is demonstrated in Chrome against the authenticated LAN preview and the ZIP contents are inspected and matched to a selected V2 view. GitHub archival, live backend diagnostics, a pixel screenshot inside the ZIP, and resident chat remain disconnected; the package states these omissions explicitly.
+The prior Snapshot increment adds the V2-only local ZIP flow. This communication increment adds a direct Dashboard handoff and truthful V2 integration metadata in the ZIP. It does not connect V2 to the Dashboard API or Comms5. Real Grace messages/history remain available in V1; direct V2 chat and Comms5 counters/payload inspection remain blocked at the authentication and telemetry boundaries above.
 
-**Overall:** the preview remains **PARTIAL / not a production release**. LAN login and basic navigation were previously accepted by the Steward on `d1cd6f3`; the V2 Snapshot passes authenticated local Chrome LAN acceptance; Windows Chrome confirmation of this new Snapshot control and independent code review remain pending. This does not authorize live V2 data, merge, Nginx changes, firewall changes, or deployment as a production service.
+**Overall:** the preview remains **PARTIAL / not a production release**. LAN login and basic navigation were previously accepted by the Steward on `d1cd6f3`; Snapshot ZIP acceptance is complete; this increment's handoff and truthful Comms5 state pass authenticated Chrome on Camrui. Windows Chrome confirmation of this new handoff/telemetry UI and independent code review remain pending. No V2 Grace message was sent.
 
 ### Cross-cutting gates
 
 - **Execution model:** interactive browser shell plus request-driven foreground static preview. Session and failed-login state are in memory and reset on restart; the password hash remains in the owner-only local config file. No recurring work source or autonomous task is represented.
 - **External observability:** N/A for an independently operated service because there is no service lifecycle or authoritative V2 status. The local startup URL and HTTP status are diagnostic only and are not health/heartbeat claims. V1 retains its own observability contract.
-- **Blockers:** Windows Chrome confirmation of this new Snapshot control; independent code review; future V2 resident/resource data contract, governed account identity, GitHub archive authorization, and live diagnostics contract. The preview password was already commissioned; no production action is pending or performed here.
+- **Blockers:** Windows Chrome confirmation of this new handoff/telemetry UI; independent code review; V2 principal-bound chat session; authorized Comms5 event projection; future V2 resident/resource data contract and GitHub archive authorization. The preview password was already commissioned; no production action is pending or performed here.
 
 ## V2 preview usability increment and feature-parity register
 
@@ -136,12 +138,29 @@ This increment adds the V2-only local ZIP flow. Snapshot download is demonstrate
 | Live Dashboard / Grace / CME status and freshness | Not integrated | V1 remains authoritative; V2 fixtures are not live status. Needs an approved read-only projection, identity and authorization contract. |
 | Account login and Steward authorization | Preview-only LAN password | Separate local preview auth; no V1 session reuse or production identity integration. |
 | Diagnostic Snapshot | Enabled `Snapshot` control creates a local ZIP | Bounded V2 fixture/browser state and manifest are included; no upload or live data. GitHub archive needs a separately reviewed V2 auth/API contract. |
-| Resident conversation / Grace chat | Not connected | V1 API contract states conversation routes are not implemented. Needs authenticated resident-bound API, persistence, privacy/retention, authorization and failure/event contracts. |
+| Resident conversation / Grace chat | V2 handoff to authenticated V1 Dashboard | The deployed V1 API supports durable authenticated Grace history and message exchange. V2 itself stays disconnected because its LAN password is not a Steward identity and its HTTP origin cannot share the V1 secure cookie. |
 | ChatGPT external client | External link only | Opens chatgpt.com; no Riverview context transfer or Grace connection. |
-| Comms5 communication channel | Disconnected status only | No endpoint or credentials are integrated. |
+| Comms5 communication channel | **UNVERIFIED** in V2 | The Comms5 contract is available on Camrui, but V2 has no authorized general message-event feed for independent send/receive counters, payload inspection, and correlation stages. Unknown counts remain null. |
 | Fixture navigation/resources/knowledge | Implemented locally | Synthetic/read-only fixture content only; selection stays in memory. |
 | Theme and sidebars | Implemented in V2 preview | Light/Dark/System; left and right independently cycle expanded/compact/hidden; theme choice alone persists locally. |
 
-The local Snapshot feature is implemented and tested. Archive-to-GitHub, live server diagnostics, pixel screenshot capture, resident conversations, V1 endpoint use, dashboard projection, and V2 account identity remain unconnected. No V1 endpoint, credential, or archive implementation was changed.
+The local Snapshot feature is implemented and tested. It now includes truthful V2 chat/Comms5 connection diagnostics but no message contents or fabricated counters. Archive-to-GitHub, live server diagnostics, pixel screenshot capture, direct V2 resident conversations, V1 API use, dashboard projection, and V2 account identity remain unconnected. The Dashboard and Comms5 services were inspected read-only; no V1 endpoint, credential, or production configuration was changed.
 
 This is not a claim that issue #164 or a deployed V2 component is fully accepted.
+
+### RV-WEB-V2-GRACE-CHAT-001 lifecycle and acceptance
+
+**Owner:** Windows C1 · **Component:** `RIVERVIEW-V2-WORKSPACE-SHELL` · **Classification:** enhancement with an integration blocker · **Execution:** interactive browser shell; request-driven preview server. **Scope:** inspect existing interfaces; add a secure link to the deployed authenticated Grace chat; expose truthful Comms5 status in V2 and its local Snapshot; update tests, recovery guidance, graph, and evidence. V1 and production services/configuration remain read-only. **Dependencies:** deployed Dashboard release `cf4a97e2`; V2 LAN password session; Comms5 v5 capabilities. **Acceptance:** no browser API or credential transfer; handoff opens the actual Dashboard Grace view; unknown Comms5 counts remain explicitly unverified; Snapshot contains redacted integration status; current browser preview and offline/security checks pass. The requested in-V2 send/receive round trip is blocked until a separately authorized same-origin identity/session path exists.
+
+| DoD 1.6 deliverable | Status for this increment | Evidence / limitation |
+| --- | --- | --- |
+| 1. Code and contracts | PARTIAL | V2 handoff and unverified diagnostic contract added; no V2 authenticated conversation adapter exists. |
+| 2. Functionality demonstrated | PARTIAL | Browser verifies link, unavailable state, redaction, and snapshot. No Grace message was sent from V2, and no V2 durable history is claimed. |
+| 3. Versioned documentation | PASS for implemented scope | Live V1 contract/version and V2 origin/auth boundary recorded above. |
+| 4. Troubleshooting/recovery | PASS for implemented scope | Cookbook identifies handoff, expected state, and resume/rollback. |
+| 5. Versioned visualization | PASS for implemented scope | Canonical graph includes handoff, unverified Comms5 state, snapshot diagnostics, and recovery. |
+| 6. Steward live view | N/A for static preview | V1 remains the authoritative live view. |
+| 7. Operational autonomy | N/A for interactive preview | V2 has no recurring work or worker. The authentication decision is recorded as an external blocker. |
+| 8. Registered canonical graph | PASS after validation | `workspace-shell.json` and generated flow are synchronized. |
+
+**Blocker register:** `RV-V2-AUTH-ORIGIN-001` (authorization/security dependency). Detection: V2 runs on HTTP `192.168.1.155:8877`; V1 chat is HTTPS same-origin, no-CORS, bearer/account authenticated, exact-grant gated, and cookie protected. Owner/decision: Steward plus Dashboard owner. Required authority: separately approve a reviewed same-origin identity/session integration or V2 deployment/auth design that preserves exact grants and V1. Timeout/durable state: pending, recorded in issue #164; no automatic retry or bypass. Resume: implement only after a reviewed contract grants V2 a principal-bound session. `RV-V2-COMMS5-TELEMETRY-001` (capability dependency): no general message event feed/counter operation exists in Comms5 v5 capabilities; owner: Comms5 contract owner; resume after an independently auditable transport projection is authorized and available. No number, payload, or external escalation is inferred.

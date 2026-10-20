@@ -2,14 +2,14 @@
 Riverview~ Controlled Source
 File: website/v2/assets/snapshot.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.2
+Revision: 1.0.3
 Purpose: Create a bounded, redacted ZIP of the active V2 preview state
 Execution Model: Explicit browser click; in-memory collection and local download
 Observability: Visible completion/error message and package manifest
 Dependencies: Browser DOM, Web Crypto, Blob, TextEncoder, URL
 Inputs/Outputs: Current V2 view and fixture context; local ZIP download
 Authority: Read-only presentation snapshot; no APIs, credentials, or persistent writes
-Changed: 2026-10-20 UTC | RV-WEB-V2-SNAPSHOT-001 | Mark source commit unavailable instead of guessing
+Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-001 | Capture truthful chat handoff and unverified Comms5 diagnostics without message data
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_snapshot_chrome.py
 History: Git and revision/backup manifest
@@ -113,10 +113,10 @@ History: Git and revision/backup manifest
     const view = document.querySelector("#primary-nav [aria-current='page']")?.dataset.view || "unknown";
     const viewText = (document.querySelector("#view-content")?.innerText || "").slice(0, CONTENT_LIMIT);
     return {
-      schema: "riverview-v2-browser-snapshot/1",
+      schema: "riverview-v2-browser-snapshot/2",
       captured_at: new Date().toISOString(),
       product: "Riverview V2 workspace preview",
-      build_version: "v2-workspace-shell/1.1",
+      build_version: "v2-workspace-shell/1.2",
       source_commit: null,
       source_commit_status: "not supplied by the preview server",
       route: location.pathname,
@@ -127,6 +127,10 @@ History: Git and revision/backup manifest
       browser: { user_agent: navigator.userAgent.slice(0, 240), language: navigator.language.slice(0, 32),
         viewport_css_px: { width: innerWidth, height: innerHeight }, device_pixel_ratio: Math.min(4, devicePixelRatio || 1) },
       data_connection: { mode: "fixture-only", live_backend_connected: false, details: "V2 preview reads local fixture data; no Riverview API is connected." },
+      communication_diagnostics: {
+        grace_chat: { status: "not_connected", handoff_available: Boolean(document.getElementById("grace-chat-handoff")), history_owner: "authenticated V1 Dashboard", messages_captured: false },
+        comms5: { status: "unverified", outbound_count: null, inbound_count: null, inspectable_messages: false, correlation_ids: "unavailable", reason: "No authorized Comms5 event feed is connected to V2." }
+      },
       rendered_view_text: viewText,
       browser_errors: errors.slice(-20),
       network_diagnostics: { status: "not instrumented", detail: "The fixture-only V2 preview makes no API requests. Resource timing is not a network-success/failure signal." },
