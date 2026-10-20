@@ -1,7 +1,8 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.31
+File Revision: 1.1.32
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Document archive-plus-download results, digest checks, and independent recovery paths.
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
@@ -115,7 +116,7 @@ is available and retain its redacted report and screenshots.
 
 ## Download Snapshot and offline diagnostics (PL-NEW-041)
 
-**Download Snapshot** creates one ZIP in the current browser session. It uses the
+**Archive + Download ZIP** creates one ZIP in the current browser session. It uses the
 versioned authenticated capability registry at `GET /api/v1/capabilities`, the
 existing read-only `GET /api/v1/snapshot` projection, and the current workflow
 registry exposed by `GET /api/v1/snapshot/workflow-index` plus authenticated
@@ -143,6 +144,18 @@ oversized page is identified in the manifest. The capability registry describes
 features; it does not assert that actions work. Coverage reports controls as
 rendered, available, disabled, unavailable, or not observed, and lists rendered
 controls with no registry entry. Current account permissions are respected.
+
+The same in-memory ZIP Blob is submitted to the configured private GitHub
+Release endpoint and passed to the browser's normal download manager. The
+ dashboard reports archival only after an authenticated successful response whose
+snapshot ID, release URL, byte count, and SHA-256 are valid; the response digest
+must match the locally computed ZIP digest. The result offers **Open private
+GitHub release**, **Copy GitHub Link**, and **Download ZIP**. Keep the retry link
+available. If archive upload fails, the UI reports the safe error and still
+requests the local download. If the browser throws while starting that download
+after archive success, the GitHub link remains available and **Download ZIP**
+can retry. Browser APIs cannot confirm that a download reached disk, so the UI
+says it was requested. No ZIP is retained on the dashboard server.
 
 ### Private GitHub snapshot archive
 
@@ -612,7 +625,7 @@ existing PostgreSQL credential.
 | Detect initialization | relation and migration inventory | `not_initialized` | status `relations` and source schema | Correct service configuration or separately authorized migration; restart is not a migration. |
 | Project lifecycle/events | bounded page, institution privacy filter, event cursor | empty/not found or page source error | assignment ID, event sequence and correlation ID | Inspect ledger contract; use next keyset/sequence cursor; no full history rebuild. |
 | Render/update | local tab switch and localized view update | browser-local sanitized error entry | snapshot browser error ring and request ID | Refresh affected panel only; slow/unavailable DB must not hold navigation. |
-| Download Snapshot | one bounded ZIP with page inventories/visuals, workflow JSON/SVG/PNG/status, and safe browser diagnostics | unavailable page/graph, incomplete visual, package bound, or download failure | ZIP manifest omissions, per-page/per-workflow outcomes, and browser-local safe error class | verify the current account can access the page; retry after the projection/API issue is understood. Do not treat missing output as a complete capture; no cookies, credentials, form values, or conversation bodies are exported. |
+| Archive + Download ZIP | one bounded ZIP with page inventories/visuals, workflow JSON/SVG/PNG/status, and safe browser diagnostics; same bytes sent to archive and browser download | unavailable page/graph, incomplete visual, package bound, archive failure, or browser download start failure | ZIP manifest omissions, per-page/per-workflow outcomes, archive error class, matching server/client digest on confirmed receipt, and visible retry link | use the GitHub link only after a confirmed response; retry local download with Download ZIP if needed; investigate archive configuration on upload error. Do not treat missing output as complete; no cookies, credentials, form values, or conversation bodies are exported. |
 | Restart/reconnect | same release/port; current state re-read from PostgreSQL | systemd failed/inactive or authentication lost | `systemctl status` and `journalctl -u ... -n 50 --no-pager` | restart only the dashboard unit; reauthenticate; CME and assignments continue independently. |
 
 ## Deployment and rollback

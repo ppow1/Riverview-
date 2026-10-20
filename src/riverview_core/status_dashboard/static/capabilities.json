@@ -340,7 +340,7 @@
     {
       "id": "snapshot.download",
       "selector": "#snapshot",
-      "action": "Build and download this bounded offline diagnostic ZIP",
+      "action": "Archive and download the same bounded offline diagnostic ZIP",
       "component": "diagnostic snapshot",
       "capability_version": "1.0.0"
     },

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.59
+# Revision: 1.0.61
+# Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Assert matching receipt digest and persistent archive-plus-download browser result.
 # Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Test authenticated Steward archive endpoint and absence of browser GitHub credentials.
 # Changed: 2026-10-20 UTC | RV-C4-ACTIVE-LINE-INTEGRATION-001 | Verify re-review route authentication, exact objective scope, bounded payload and request-only behavior.
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Cover Steward and conversation-owner objective access, redaction, and PostgreSQL scoping
@@ -232,7 +233,7 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         css = (ROOT / "src/riverview_core/status_dashboard/static/app.css").read_text(encoding="utf-8")
         self.assertIn('id="rail-toggle"', html)
         self.assertIn('aria-controls="primary-navigation"', html)
-        self.assertIn('aria-label="Download comprehensive offline diagnostic snapshot"', html)
+        self.assertIn('aria-label="Archive diagnostic snapshot and download the same ZIP"', html)
         self.assertIn('role="img" aria-label="Source health: connecting"', html)
         self.assertIn('rv.dashboard.rail-collapsed', app)
         self.assertIn('setAttribute("aria-expanded"', app)
@@ -522,7 +523,11 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(status, 200)
         source = body.decode("utf-8")
         self.assertIn("/api/v1/snapshot/archive", source)
-        self.assertIn("local ZIP downloaded", source)
+        self.assertIn("browser download", source)
+        self.assertIn('"requested"', source)
+        self.assertIn("Download ZIP", source)
+        self.assertIn("Copy GitHub Link", source)
+        self.assertIn("payload.archive_sha256!==localDigest", source)
         self.assertNotIn("github_pat_", source)
         self.assertNotIn("Authorization", source[source.index("async function archiveSnapshot"):source.index("async function download")])
 

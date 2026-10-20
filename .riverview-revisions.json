@@ -8,7 +8,7 @@
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.282",
+      "revision": "1.1.285",
       "sha256": "8317f4f405ccd72221b391698098864d70d6f7da3e472a8a707540ec1c103daf",
       "size_bytes": 20001
     },
@@ -212,9 +212,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.199",
-      "sha256": "22cc51cfee9650c638dbccee3fe2ab587f46383a4c20fc23a4a367f4c9a246ab",
-      "size_bytes": 690333
+      "revision": "1.0.202",
+      "sha256": "5bea5d66552083b22c6abdd611d4e68a88b236575f0709fc711e5ccf584855d5",
+      "size_bytes": 695516
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -296,9 +296,9 @@
     },
     "process_graphs/steward-dashboard/status.json": {
       "path": "process_graphs/steward-dashboard/status.json",
-      "revision": "1.0.33",
-      "sha256": "439c9039bd15537bed79c6aee5bfc51a3d8150878c85df9936e3fa45574e4889",
-      "size_bytes": 52923
+      "revision": "1.0.36",
+      "sha256": "55b67858caddd3de92ed9eb726b807b1f1a0d361046e4e9e5fb0fd03b3725b51",
+      "size_bytes": 57428
     },
     "process_graphs/worker-adapter/deterministic-attempt.json": {
       "path": "process_graphs/worker-adapter/deterministic-attempt.json",
@@ -374,9 +374,9 @@
     },
     "src/riverview_core/status_dashboard/static/capabilities.json": {
       "path": "src/riverview_core/status_dashboard/static/capabilities.json",
-      "revision": "1.0.1",
-      "sha256": "fbe0fb6d53ca6e7fd3ff72073d6dbec49f6b36fd840dbc643cfd1fbc6dcc70f2",
-      "size_bytes": 23138
+      "revision": "1.0.2",
+      "sha256": "3baed637a07615907880096974c97931957fd29c939ee0404eac33fb65ae265e",
+      "size_bytes": 23144
     },
     "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json": {
       "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json",
@@ -433,6 +433,6 @@
       "size_bytes": 26074
     }
   },
-  "manifest_revision": "1.1.282",
+  "manifest_revision": "1.1.285",
   "updated_at": "2026-10-20T12:55:37Z"
 }
