@@ -1,0 +1,136 @@
+{
+  "record_type": "checkout_acceptance_evidence",
+  "record_revision": "1.0.0",
+  "task_id": "RV-WEB-V2-LAN-PREVIEW-001",
+  "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
+  "owner": "Windows C1",
+  "classification": "isolated static frontend preview with optional authenticated trusted-LAN access",
+  "timestamp_utc": "2026-10-20T18:45:48Z",
+  "repository": "ppow1/Riverview-",
+  "branch": "codex/riverview-v2-workspace-shell-20261020",
+  "source_commit": "2b4a6cdc5b1d9373f50749dfa51f1c8ffa480523",
+  "scope": "V2 fixture preview only. No V1, Nginx, firewall, service-manager, database, CME, Grace, Comms5, credentials, or production-data change. Existing loopback preview was left running.",
+  "acceptance": {
+    "offline_tests": {
+      "command": "python3 -m unittest tests.test_v2_workspace_shell -v",
+      "exit_code": 0,
+      "passed": 10,
+      "failed": 0,
+      "coverage": [
+        "authenticated asset denial and successful session cookie",
+        "LAN bind requires hash and narrow subnet",
+        "non-LAN rejection",
+        "Host and Origin checks",
+        "five-failure rate limit",
+        "session signature and expiry",
+        "salted hash file and private permissions",
+        "read-only methods and path traversal",
+        "static fixture shell and no-network policy",
+        "fixture-only shell contract"
+      ]
+    },
+    "syntax_and_graph": {
+      "commands": [
+        "python3 -m py_compile scripts/serve_v2_workspace_preview.py scripts/setup_v2_workspace_preview_auth.py",
+        "python3 scripts/process_graph.py validate",
+        "python3 scripts/process_graph.py check"
+      ],
+      "exit_code": 0,
+      "graphs": 14,
+      "nodes": 271,
+      "status": "PASS"
+    },
+    "revision_and_backup_audit": {
+      "command": "python3 scripts/revision_control.py check --baseline /tmp/rv-v2-lan-prechange-20261020.json",
+      "exit_code": 0,
+      "status": "PASS",
+      "issues": 0,
+      "task_predecessor_records": 11,
+      "predecessor_bytes_and_sha256": "verified from .riverview-backups/manifest.jsonl; restore exact bytes from each named backup and retain the current revision/restore record"
+    },
+    "diff_check": {
+      "command": "git diff --cached --check excluding protected predecessor-copy files",
+      "exit_code": 0,
+      "status": "PASS",
+      "note": "Protected predecessor copies retain exact original Markdown bytes, including intentional Markdown hard-break spaces."
+    },
+    "lan_http_auth_smoke": {
+      "target_environment": "Camrui host, isolated temporary process on 192.168.1.155 and ephemeral high port; not port 8877",
+      "credential": "random disposable test password and temporary owner-only salted hash; removed after test; never printed or persisted",
+      "results": {
+        "unauthenticated_root": 200,
+        "unauthenticated_static_asset": 401,
+        "same_origin_password_login": "303 session redirect followed by root 200",
+        "authenticated_static_asset": 200,
+        "cache_control": "no-store",
+        "server_access_log": "suppressed"
+      },
+      "exit_code": 0
+    },
+    "browser_layout_and_navigation": {
+      "firefox": {
+        "browser": "Mozilla Firefox 156.0.1",
+        "url": "http://127.0.0.1:8877/",
+        "desktop_viewport_css_px": 1366,
+        "desktop_document_width_css_px": 1354,
+        "desktop_horizontal_overflow": false,
+        "navigation_switches": 25,
+        "median_call_ms": 1,
+        "max_call_ms": 5,
+        "resident_context_retained": true,
+        "browser_errors": []
+      },
+      "chrome_mobile_emulation": {
+        "browser": "Chrome 155.0.8059.84",
+        "viewport_css_px": [390, 844],
+        "document_scroll_width_css_px": 390,
+        "horizontal_overflow": false,
+        "mobile_menu_visible": true,
+        "resident_context_retained": true,
+        "navigation_switches": 5,
+        "median_call_ms": 1,
+        "max_call_ms": 3,
+        "browser_errors": []
+      },
+      "firefox_small_viewport_note": "Firefox headless reports a 500px minimum content width; exact 390px fit is established by Chrome emulation."
+    },
+    "v1_isolation_smoke": {
+      "dashboard_unit": "riverview-status-dashboard.service active",
+      "v1_https_root": "https://192.168.1.155/ HTTP 200",
+      "v2_loopback_root": "http://127.0.0.1:8877/ HTTP 200 before and after checks",
+      "service_restart_or_production_change": false
+    },
+    "windows_chrome_acceptance": {
+      "status": "NOT TESTED",
+      "reason": "Windows development-PC browser is not available in this execution environment; the current 8877 listener remains loopback-only."
+    }
+  },
+  "deployment_boundary": {
+    "verified_host_address": "192.168.1.155/24 on Camrui eno1 at check time; confirm again because address may be dynamic",
+    "current_8877_listener": "127.0.0.1 only; target LAN URL is not yet reachable there",
+    "firewall": "UFW inactive; lower-level host rules were not readable without root and were not changed",
+    "nginx": "existing HTTPS route still serves V1; no /v2 route was added",
+    "pending_operator_action": "Choose the password through the protected local setup prompt, then explicitly authorize replacement of the current loopback preview process with the LAN-bound foreground preview on 192.168.1.155:8877. Do not add firewall rules or change Nginx.",
+    "recovery": "Stop only the V2 preview process; resume prior loopback command on 127.0.0.1:8877. V1 is unaffected."
+  },
+  "definition_of_done_rev_1_6": {
+    "1_code_and_contracts": "PARTIAL: implementation and security boundaries are versioned; independent review pending",
+    "2_functionality": "PARTIAL: local browser and temporary LAN authentication smoke pass; actual Windows Chrome target acceptance pending",
+    "3_versioned_documentation": "PASS for this isolated preview increment",
+    "4_troubleshooting_and_recovery": "PASS; local setup, diagnostics, rollback, and resume are recorded",
+    "5_versioned_flowchart": "PASS; generated LAN authentication and recovery paths synchronized",
+    "6_live_operational_visualization": "N/A: fixture-only interface has no authoritative operational state",
+    "7_operational_autonomy": "N/A: no recurring work, durable queue, worker, heartbeat, or escalation",
+    "8_canonical_process_graph": "PASS: 14 graphs, 271 nodes, generated views synchronized",
+    "overall": "NOT DONE for user-accepted Windows LAN access; setup/activation approval and actual Windows Chrome test remain."
+  },
+  "hosted_ci_at_capture": {
+    "pull_request": 166,
+    "source_head": "2b4a6cdc5b1d9373f50749dfa51f1c8ffa480523",
+    "controlled_checkout_runs": [
+      "39477551948 QUEUED",
+      "39477540352 IN_PROGRESS"
+    ],
+    "status": "PENDING at one status check"
+  }
+}
