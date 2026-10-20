@@ -1,0 +1,193 @@
+{
+  "graph_id": "rv:riverview-v2:workspace-shell",
+  "graph_revision": "1.0.1",
+  "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
+  "workflow_id": "local-static-preview",
+  "diagram_order": 80,
+  "source_references": [
+    "website/v2/index.html",
+    "website/v2/assets/fixtures.js",
+    "website/v2/assets/workspace.js",
+    "scripts/serve_v2_workspace_preview.py"
+  ],
+  "documentation_references": [
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md"
+  ],
+  "verification_evidence": [
+    "tests/test_v2_workspace_shell.py",
+    "scripts/verify_v2_workspace_browser.py",
+    "scripts/verify_v2_workspace_mobile.cjs"
+  ],
+  "nodes": [
+    {
+      "id": "rv:riverview-v2:workspace-shell:open-preview",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Start local loopback preview",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:serve-static",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Serve same-origin static shell with network connections denied",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render clearly labeled local preview fixtures",
+      "source_references": [
+        "website/v2/assets/fixtures.js",
+        "website/v2/assets/workspace.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:choose-view",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Choose shell view or resident",
+      "source_references": [
+        "website/v2/assets/workspace.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:retain-context",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Retain selected resident in browser memory across views",
+      "source_references": [
+        "website/v2/assets/workspace.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:unsafe-method",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject mutating preview methods and out-of-root paths",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:restart-preview",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Restart local preview and reload; state resets to default",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:stop-preview",
+      "node_revision": "1.0.0",
+      "type": "exit",
+      "label": "Stop preview process without affecting V1",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:riverview-v2:workspace-shell:open-preview",
+      "to": "rv:riverview-v2:workspace-shell:serve-static",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:serve-static",
+      "to": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "to": "rv:riverview-v2:workspace-shell:choose-view",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:retain-context",
+      "type": "runtime_transition",
+      "label": "Select resident; context remains across views"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:unsafe-method",
+      "type": "diagnostic_branch",
+      "label": "Unsafe method or path is attempted"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:unsafe-method",
+      "to": "rv:riverview-v2:workspace-shell:restart-preview",
+      "type": "recovery_route",
+      "label": "Resume by restarting local preview if needed"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:retain-context",
+      "to": "rv:riverview-v2:workspace-shell:choose-view",
+      "type": "runtime_transition",
+      "label": "Navigate while selected resident remains in memory"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:stop-preview",
+      "type": "runtime_transition",
+      "label": "Stop foreground preview"
+    }
+  ]
+}

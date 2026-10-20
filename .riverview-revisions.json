@@ -1,11 +1,11 @@
 {
-  "manifest_revision": "1.1.64",
+  "manifest_revision": "1.1.71",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
-      "revision": "1.0.41",
+      "revision": "1.0.43",
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "sha256": "9c8408aa1c4fae7f26b7b9eac67c15b27e6071f660ffff634f787f391262acb8",
-      "size_bytes": 247565
+      "sha256": "74b2105bc8676f5e7c5ff4a8934f88b1aff8f851499534577d82bf419452c669",
+      "size_bytes": 255021
     },
     "process_graphs/schema/riverview-process-graph.schema.json": {
       "revision": "1.0.1",
@@ -38,7 +38,7 @@
       "size_bytes": 27724
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.64"
+      "revision": "1.1.71"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -195,6 +195,18 @@
       "path": "docs/components/CHATGPT_DOORBELL_STATUS.schema.json",
       "sha256": "17f1d1db5fec74663cb89c425c37781a3fce23bb7751db8cb4683742976a427e",
       "size_bytes": 6987
+    },
+    "process_graphs/riverview-v2/workspace-shell.json": {
+      "revision": "1.0.1",
+      "path": "process_graphs/riverview-v2/workspace-shell.json",
+      "sha256": "ef2e863cc9b31e4225ee4eeaf27c9feec0dcb8ed79e7f5f9f47cc01149dddd8d",
+      "size_bytes": 6259
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T180911Z-210cef1/acceptance.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T180911Z-210cef1/acceptance.json",
+      "sha256": "409e5d5deec35219fe42eae44266b8d1883e62e314d86e08a942f5e654057930",
+      "size_bytes": 10136
     }
   }
 }

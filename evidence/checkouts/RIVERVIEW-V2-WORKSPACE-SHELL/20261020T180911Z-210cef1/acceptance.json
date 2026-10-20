@@ -1,0 +1,192 @@
+{
+  "record_type": "checkout_acceptance_evidence",
+  "record_revision": "1.0.0",
+  "task_id": "RV-WEB-V2-SHELL-001",
+  "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
+  "owner": "Windows C1",
+  "classification": "isolated interactive frontend/workspace shell implementation and local preview",
+  "timestamp_utc": "2026-10-20T18:09:11Z",
+  "repository": "ppow1/Riverview-",
+  "branch": "codex/riverview-v2-workspace-shell-20261020",
+  "source_commit": "210cef128618da5eea959196018e4a3947a4d8b7",
+  "worktree": "/home/admin1/projects/Riverview-V2-Issue164",
+  "source_state": "uncommitted isolated worktree; no push/deployment",
+  "target_environment": {
+    "host_address": "192.168.1.155",
+    "host_role": "Camrui LAN host, verified from local interface",
+    "preview_bind": "127.0.0.1:8877",
+    "public_or_LAN_exposure": "none"
+  },
+  "scope": "Parallel V2 static shell only. V1 source, Nginx, production services, databases, CME, Grace, and Comms5 were not modified. No service installation, traffic switch, database/API call from V2, credential, or live mutation.",
+  "dependencies": {
+    "runtime": "Python 3.12.3 standard library; browser static assets",
+    "verification": "Python unittest, Firefox 156.0.1/geckodriver, Google Chrome 155.0.8059.84, Node.js v18 with system ws module",
+    "external_runtime_dependencies": []
+  },
+  "acceptance": {
+    "offline_tests": {
+      "command": "python3 -m unittest tests.test_v2_workspace_shell -v",
+      "exit_code": 0,
+      "passed": 3,
+      "failed": 0,
+      "cases": [
+        "serves shell/assets with CSP connect-src none",
+        "rejects POST/PUT/PATCH/DELETE and traversal path",
+        "fixture-only shell contains required context/tools and no production API/fetch/storage"
+      ]
+    },
+    "syntax_checks": {
+      "commands": [
+        "python3 -m py_compile scripts/serve_v2_workspace_preview.py scripts/verify_v2_workspace_browser.py tests/test_v2_workspace_shell.py",
+        "node --check website/v2/assets/fixtures.js",
+        "node --check website/v2/assets/workspace.js",
+        "node --check scripts/verify_v2_workspace_mobile.cjs"
+      ],
+      "exit_code": 0
+    },
+    "process_graph": {
+      "commands": [
+        "python3 scripts/process_graph.py validate",
+        "python3 scripts/process_graph.py check"
+      ],
+      "exit_code": 0,
+      "graphs": 14,
+      "nodes": 262,
+      "status": "PASS"
+    },
+    "revision_audit": {
+      "command": "python3 scripts/revision_control.py check --baseline /tmp/rv-v2-issue164-baseline.json",
+      "exit_code": 0,
+      "status": "PASS",
+      "issues": 0,
+      "baseline_path": "/tmp/rv-v2-issue164-baseline.json",
+      "baseline_sha256": "2087a25c1858a3ce720181f1c9913faac2a7364030308efda03af69a282013ef"
+    },
+    "whitespace": {
+      "command": "git diff --check plus controlled-source whitespace scan (allowing two-space Markdown hard breaks)",
+      "exit_code": 0,
+      "scanned_files": 13,
+      "violations": 0
+    },
+    "browser_firefox": {
+      "command": "python3 scripts/verify_v2_workspace_browser.py --base-url http://127.0.0.1:8877",
+      "exit_code": 0,
+      "browser": "Mozilla Firefox 156.0.1",
+      "desktop_horizontal_overflow": false,
+      "Firefox_small_viewport_css_width": 500,
+      "Firefox_width_clamp_note": "Firefox headless enforces 500px minimum content width; exact 390px fit is verified separately in Chrome.",
+      "navigation_clicks": 25,
+      "median_synchronous_navigation_call_ms": 1,
+      "max_synchronous_navigation_call_ms": 7,
+      "resident_context_retained": true,
+      "conversation_context_expand": true,
+      "disabled_mutation_controls": true,
+      "browser_errors": [],
+      "desktop_viewport_width_css_px": 1366
+    },
+    "browser_chrome_mobile": {
+      "command": "node scripts/verify_v2_workspace_mobile.cjs --url http://127.0.0.1:8877/",
+      "exit_code": 0,
+      "browser": "Chrome 155.0.8059.84",
+      "viewport_css_px": [
+        390,
+        844
+      ],
+      "document_scroll_width_css_px": 390,
+      "horizontal_overflow": false,
+      "mobile_menu_visible": true,
+      "resident_context_retained": true,
+      "navigation_views": 5,
+      "median_synchronous_navigation_call_ms": 1.2,
+      "max_synchronous_navigation_call_ms": 3.7,
+      "disabled_mutation_controls": 2,
+      "browser_errors": []
+    },
+    "v1_isolation_smoke": {
+      "systemd_unit": "riverview-status-dashboard.service",
+      "active_state": "active",
+      "sub_state": "running",
+      "main_pid": 1624314,
+      "restart_count": 0,
+      "v1_root": "https://192.168.1.155/ HTTP 200; 36,593 bytes; observed TTFB 0.026551s",
+      "v1_unauthenticated_api": "/api/v1/status HTTP 401 as expected",
+      "v1_listeners": [
+        "0.0.0.0:8766 (Nginx)",
+        "127.0.0.1:8767 (Dashboard)"
+      ],
+      "v2_preview": "http://127.0.0.1:8877/ HTTP 200",
+      "v2_api_shaped_path": "/api/v1/status HTTP 404",
+      "v2_listener": "127.0.0.1:8877 only"
+    },
+    "code_review": {
+      "result": "self-review completed",
+      "checks": [
+        "read-only static source; no fetch/XHR/storage or production API reference in browser runtime",
+        "CSP denies network connections; unsafe HTTP methods return 405; resolved asset paths are constrained to website/v2",
+        "loopback-only bind is enforced; preview request logs are suppressed",
+        "no service/deployment/database/migration/CME/Grace/Comms5 production file change"
+      ],
+      "independent_reviewer": "not assigned; requires review before component release"
+    }
+  },
+  "predecessor_preservation": {
+    "mechanism": ".riverview-backups/manifest.jsonl plus exact revision-keyed copies",
+    "manifest_revision": "1.1.70 at evidence capture",
+    "restoration": "verify predecessor SHA-256 from manifest, copy named backup bytes to original path, retain current revision and document restoration",
+    "new_files": "No predecessor existed on the clean base branch; subsequent modifications to controlled files have revision-keyed exact-byte backups."
+  },
+  "definition_of_done": {
+    "1_code_contracts": "PARTIAL: implementation and boundaries documented/reviewed; no commit/PR or independent review yet",
+    "2_functionality": "PASS for local declared preview; production deployment intentionally not performed",
+    "3_versioned_documentation": "PASS for isolated shell slice",
+    "4_troubleshooting_recovery_cookbook": "PASS for local preview operation and recovery",
+    "5_versioned_visualization_flowcharts": "PASS; generated focused Mermaid reflects canonical workflow",
+    "6_steward_live_operational_visualization": "N/A for this shell slice; V1 remains live view and no authoritative V2 state is present",
+    "7_operational_autonomy_blockers": "N/A for interactive static frontend; no recurring work, worker, queue, heartbeat, or escalation is owned",
+    "8_registered_canonical_process_graph": "PASS; 14 graph registry entries and synchronized generated views validate",
+    "overall": "V2 component release NOT DONE; scope delivers the isolated preview and leaves live integration, independent review, and Steward acceptance open"
+  },
+  "blockers": [
+    {
+      "id": "RVV2-B1",
+      "type": "dependency",
+      "owner": "V2 component owner / Steward architecture review",
+      "trigger": "Before authoritative resident/workspace data is added",
+      "authority_required": "Approved read-only API contract, governed identity/authorization and privacy review",
+      "durable_state": "Issue #164 remains open; no V2 live source is configured",
+      "timeout": "N/A for local shell",
+      "alert_destination": "GitHub issue #164",
+      "resume_trigger": "Approved source contract and acceptance scope",
+      "impact": "Residents other than the shell label, work, Comms5, and context are fixtures or disconnected."
+    },
+    {
+      "id": "RVV2-B2",
+      "type": "approval",
+      "owner": "Steward",
+      "trigger": "Before merge/release/deployment or traffic change",
+      "authority_required": "Independent code review, explicit acceptance and separately authorized deployment",
+      "durable_state": "No production change made",
+      "timeout": "N/A; no autonomous pending action",
+      "alert_destination": "GitHub issue #164",
+      "resume_trigger": "Explicit Steward approval",
+      "impact": "V1 remains default; V2 preview is loopback only."
+    }
+  ],
+  "artifact_sha256": {
+    "website/v2/index.html": "aeefb4820f511c324b81c7cf7c5ea50be080d7b8d503327792e821ef8e771e64",
+    "website/v2/assets/favicon.svg": "cdc2e97c519c2695a30f49e2ec7c59bea4dfac75a7128a8de8da0173a9503ed0",
+    "website/v2/assets/fixtures.js": "e8837fa8bf8a5f9e246832ec2d78c17fb8e7e99b4205f22e66b7d0fd18fc8625",
+    "website/v2/assets/workspace.js": "ff1e26e8d5a730687fd392fb447f109ca7a1893dc93b9552cdc87e35d63f78f2",
+    "website/v2/assets/workspace.css": "d6d1dcd719d87422e7817d559b037d070f4f53df1a810dd8d79064cc65bcbd38",
+    "scripts/serve_v2_workspace_preview.py": "d1d67aa254f388565edd0a8b67d0c6831274d33786689309193762a1d0b644df",
+    "scripts/verify_v2_workspace_browser.py": "9eb9a482e8a66fbc1c87e96972db48e1034dbd1c9f80b18560eea9c7c397817d",
+    "scripts/verify_v2_workspace_mobile.cjs": "541ddd1e734cc324ad4bada40aa9fa48658997947eea38cfd80b7628ef192f7a",
+    "tests/test_v2_workspace_shell.py": "27d0d849ea0f64cad148bcb1a9998e58508ee2adadbf59c6357a086e02566959",
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md": "13ac1f5729fc5952690b7adc2de337f7def0d2c0f55c6d06ef5e72b47587d8ed",
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md": "94f5973e53d8c917c92515f47c4b8fbc7aa7cc8cbd6b05c07c40f8feb6989b35",
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md": "02c63271e6bb00c7a884a1b9e10b500e44a95308f58eb41c1d5220cb4d2623c1",
+    "process_graphs/riverview-v2/workspace-shell.json": "ef2e863cc9b31e4225ee4eeaf27c9feec0dcb8ed79e7f5f9f47cc01149dddd8d",
+    "process_graphs/generated/riverview-process-graph.json": "74b2105bc8676f5e7c5ff4a8934f88b1aff8f851499534577d82bf419452c669",
+    "process_graphs/generated/RIVERVIEW_PROCESS_GRAPH.md": "a638c47211dc4b9c76f15eb772e2048d79ae314dc6e46a01e0806bda78202bbb"
+  }
+}
