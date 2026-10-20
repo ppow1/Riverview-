@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/projection.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.9
+# Revision: 1.0.10
+# Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Project durable rework escalation-pending events as actionable Steward holds.
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Add principal-scoped, minimized Engineering progress projections
 # Purpose: Project authoritative PostgreSQL/CME state into bounded safe views
 # Execution Model: Request-driven read-only API dependency
@@ -571,7 +572,7 @@ class DashboardProjection:
                     FROM verification_records x WHERE x.assignment_id=a.id AND x.decision='REJECTED') rejections ON true
                 LEFT JOIN LATERAL (SELECT e.payload,e.occurred_at FROM grace_objective_events e
                     WHERE e.objective_id=o.objective_id
-                      AND e.event_type IN ('engineering.rework_decided','engineering.rejection_reviewed')
+                      AND e.event_type IN ('engineering.rework_decided','engineering.rejection_reviewed','engineering.rework_escalation_pending')
                       AND e.payload->>'assignment_id'=a.id
                     ORDER BY e.sequence DESC LIMIT 1) rework ON true
                 LEFT JOIN LATERAL (SELECT count(*) AS failure_count,max(occurred_at) AS last_failure_at
@@ -595,12 +596,15 @@ class DashboardProjection:
                 verification_id = str(row["verification_id"]) if row["verification_id"] else None
                 rework_is_current = bool(rework and rework.get("verification_id") == verification_id)
                 action_needed = bool(rework_is_current and
-                    rework.get("decision") == "STEWARD_AUTHORIZATION_REQUIRED")
+                    rework.get("decision") in {"STEWARD_AUTHORIZATION_REQUIRED", "ESCALATION_PENDING"})
                 assignment_state = row["assignment_state"]
                 if row["status"] == "COMPLETED":
                     lifecycle_status, lifecycle_stage = "completed", "Objective completed"
                 elif action_needed:
-                    lifecycle_status, lifecycle_stage = "blocked", "Steward action required"
+                    lifecycle_status, lifecycle_stage = "blocked", (
+                        "Rework escalation pending: Steward action required"
+                        if rework.get("decision") == "ESCALATION_PENDING"
+                        else "Steward action required")
                 elif rework_is_current and rework.get("decision") == "OBJECTIVE_SATISFIED":
                     lifecycle_status, lifecycle_stage = "waiting", "Grace review complete; verifier recheck pending"
                 elif assignment_state == "rework_required":

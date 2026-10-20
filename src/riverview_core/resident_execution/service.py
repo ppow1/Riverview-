@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.29
+# Revision: 1.0.30
+# Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Persist actionable rejection-review escalation when the provider is unavailable or bounded corrections are exhausted.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Reconcile bounded review generations with active production behavior and exact-scope authorization.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-DIAGNOSTICS | Record sanitized failing return stage and code location for bounded live remediation
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-RESULT-RECEIPT-001 | Derive publication acknowledgement cycle from the durable outbox and reject mismatched receipt cycles
@@ -626,11 +627,17 @@ class GraceExecutionService:
         return published
 
     def publish_rejected_work_order_reviews(self, limit=10):
-        """Resume rejected work only after Grace's durable decision and chat receipt."""
-        if self.rejected_work_order_publisher is None:
-            return 0
+        """Review rejected work within retry bounds or persist a Steward-action hold."""
         published = 0
         for context in self.pipeline.pending_rejected_work_order_reviews(limit=limit):
+            attempts = context.get("rework_attempt_count", 0)
+            if attempts >= self.pipeline.MAX_GOVERNED_REWORK_ATTEMPTS:
+                self.pipeline.record_rework_escalation_pending(context, "retry_limit_exhausted")
+                continue
+            if self.rejected_work_order_publisher is None:
+                self.pipeline.record_rework_escalation_pending(
+                    context, "review_provider_uncommissioned")
+                continue
             try:
                 review_context = self._with_grace_artifact_review(context)
                 receipt = self.rejected_work_order_publisher(review_context)
@@ -643,6 +650,8 @@ class GraceExecutionService:
                     context["completion"]["verification_id"], receipt["request_id"])
                 published += 1
             except Exception as exc:
+                self.pipeline.record_rework_escalation_pending(
+                    context, "review_provider_unavailable")
                 LOG.warning(json.dumps({"event": "grace_rejected_result_review_failed",
                     "objective_id": context.get("objective_id"),
                     "assignment_id": context.get("assignment_id"),

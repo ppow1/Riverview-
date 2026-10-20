@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.21
+File Revision: 1.1.22
+Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Add diagnostics and safe recovery for accepted-step dispatch and bounded durable rejection escalation.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Document cross-objective key collision handling and fair pending-review selection.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-DIAGNOSTICS | Document sanitized response-shape diagnostics for invalid 80B result reviews.
@@ -81,10 +82,11 @@ Expected success is HTTP `202` with schema
 mean Grace published a typed review or created s2. Confirm exactly one
 `conversation.result_review_requested` event with the expected actor, scope,
 completion cycle, revision, digest, and idempotency key. Then observe the
-persistent Grace service consume and acknowledge the same generation. A later
-continuation is valid only if the typed decision names the exact proposed s2
-step and the unchanged verification, scope, binding, and `assignment.create`
-checks pass; the API itself never dispatches.
+persistent Grace service consume and acknowledge the same generation. A
+persisted dependent s2 is eligible after its dependencies are independently
+accepted; a typed result-review decision is not an additional prerequisite.
+Dispatch still passes unchanged verification, original scope, binding, and exact
+`assignment.create` checks through CME; the API itself never dispatches.
 
 | Outcome | Meaning | Safe next action |
 | --- | --- | --- |
@@ -274,3 +276,26 @@ sudo -u postgres psql -X -d riverview -v objective_id='objective:<id>' \
 ```
 
 A current independent rejection is retained and reviewed by Grace on the persistent owner-session cycle. A decision of `REWORK_PROPOSED` must remain within the original step criteria and pass the existing exact `assignment.create` grant check. The service fences the completed lease and requeues the same assignment with a new generation; it does not create a second assignment or edit criteria. The next successful attempt must receive a new independent verifier record. If the latest Grace decision is `STEWARD_AUTHORIZATION_REQUIRED`, the objective stays incomplete and the panel marks Steward action required. Never change assignment or objective state manually. If the panel does not refresh, reconnect the authorized conversation and use its Refresh button; the API filter is `GET /api/v1/objectives?conversation_id=<uuid>` and returns no transcript bodies.
+
+### Accepted dependency and rework escalation
+
+After independent `ACCEPTED`, inspect the objective's persisted step list and
+confirm the next step's `depends_on` entries are verified. The persistent owner
+loop dispatches that step through the normal CME intake on its next cycle. A
+pending 80B summary or `ADDITIONAL_EVIDENCE_REQUIRED` summary is not a dispatch
+gate. Expect the objective to remain `WORK_ORDER_CREATED` until every persisted
+step has independently passed; never mark it complete manually.
+
+For `REJECTED`, the Dashboard exposes the current verifier reason and only the
+original step criteria may be named in a correction. The service permits three
+correction proposals for one assignment. After three rejected correction
+attempts, or when the rejection-review provider is unavailable, expect one
+idempotent `engineering.rework_escalation_pending` event and a blocked,
+actionable Dashboard item. Read its reason code, step ID, verification ID,
+attempt count and `required_action`; do not manually queue work. For
+`review_provider_uncommissioned` or `review_provider_unavailable`, restore or
+commission the already authorized provider through its approved process and
+allow the owner loop to resume review. For `retry_limit_exhausted`, a Steward
+must decide the next scoped action; do not silently raise the bound or assume
+an external reasoning provider is commissioned. Assignment, verification and
+rejection history remains intact.

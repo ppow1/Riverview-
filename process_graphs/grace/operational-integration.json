@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:grace:operational-integration",
-  "graph_revision": "1.0.58",
+  "graph_revision": "1.0.59",
   "component_id": "RESIDENT-ORCHESTRATION",
   "workflow_id": "grace-engineering-objective.v1",
   "diagram_order": 9,
@@ -277,9 +277,9 @@
     },
     {
       "id": "rv:grace:operational-integration:objective-complete",
-      "node_revision": "1.0.2",
+      "node_revision": "1.0.3",
       "type": "exit",
-      "label": "A step or objective becomes reviewable only after persisted independent ACCEPTED verification; objective completion is separate from model-proposed same-objective continuation",
+      "label": "An objective is complete only when all persisted steps are independently verified; a single accepted step remains active when dependent steps are pending.",
       "source_references": [
         "src/riverview_core/resident_execution/pipeline.py",
         "src/riverview_core/resident_execution/service.py"
@@ -844,9 +844,9 @@
     },
     {
       "id": "rv:grace:operational-integration:dependency-ready-dispatch",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "decision",
-      "label": "Dispatch only the first pending step whose dependencies are independently verified; reuse current CME lease and grants",
+      "label": "After independent ACCEPTED, dispatch the first persisted pending step whose dependencies are verified; retain Steward approval, exact assignment.create recheck, CME idempotency and all-step completion.",
       "source_references": [
         "src/riverview_core/resident_execution/service.py",
         "src/riverview_core/resident_execution/pipeline.py"
@@ -1017,9 +1017,9 @@
     },
     {
       "id": "rv:grace:operational-integration:verified-result-review-decision",
-      "node_revision": "1.0.1",
+      "node_revision": "1.0.2",
       "type": "decision",
-      "label": "After independently verified work, the bound 80B reviews verifier evidence and only digest-checked artifact text; sanitized artifact unavailability is an accepted status, while unknown fields fail closed",
+      "label": "Optional nonblocking 80B summary of independently verified evidence; it cannot overturn verifier ACCEPTED, hold dependency-ready dispatch, or create new acceptance criteria.",
       "source_references": [
         "src/riverview_core/resident_execution/conversation.py",
         "src/riverview_core/resident_execution/pipeline.py",
@@ -1185,9 +1185,9 @@
     },
     {
       "id": "rv:grace:operational-integration:grace-rejection-review",
-      "node_revision": "1.0.1",
+      "node_revision": "1.0.2",
       "type": "decision",
-      "label": "The persistent owner cycle exposes the immutable verifier rejection and digest-checked artifact to Grace's bound 80B; Grace chooses substantive satisfaction, bounded rework, or Steward direction",
+      "label": "For latest independent REJECTED result, Grace may choose exact-criteria correction within three proposals or Steward direction; provider absence creates durable actionable escalation-pending state.",
       "source_references": [
         "src/riverview_core/resident_execution/service.py",
         "src/riverview_core/resident_execution/conversation.py",
@@ -1338,6 +1338,40 @@
       ],
       "verification_evidence": [
         "tests/test_grace_conversation_result.py",
+        "tests/test_grace_execution.py"
+      ]
+    },
+    {
+      "id": "rv:grace:operational-integration:rework-retry-escalation",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "If fewer than three scoped correction proposals exist and the authorized review provider is available, continue rejection review; otherwise persist escalation pending without dispatch or assignment mutation.",
+      "source_references": [
+        "src/riverview_core/resident_execution/pipeline.py",
+        "src/riverview_core/resident_execution/service.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_EXECUTION_PIPELINE.md",
+        "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_grace_execution.py"
+      ]
+    },
+    {
+      "id": "rv:grace:operational-integration:rework-escalation-pending",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Durable engineering.rework_escalation_pending preserves the rejection and exposes reason, attempt bound and Steward action; it never creates or dispatches work.",
+      "source_references": [
+        "src/riverview_core/resident_execution/pipeline.py",
+        "src/riverview_core/status_dashboard/projection.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_EXECUTION_PIPELINE.md",
+        "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+      ],
+      "verification_evidence": [
         "tests/test_grace_execution.py"
       ]
     }
@@ -1673,7 +1707,7 @@
       "from": "rv:grace:operational-integration:objective-complete",
       "to": "rv:grace:operational-integration:verified-result-chat-return",
       "type": "runtime_transition",
-      "label": "Only a durable independently accepted completion enters the result outbox"
+      "label": "A durable independently accepted step enters the optional result outbox; objective completion still requires all persisted steps."
     },
     {
       "from": "rv:grace:operational-integration:verified-result-chat-return",
@@ -1805,7 +1839,7 @@
       "from": "rv:grace:operational-integration:objective-complete",
       "to": "rv:grace:operational-integration:verified-result-review-decision",
       "type": "runtime_transition",
-      "label": "Only durable verifier-accepted evidence enters the bound 80B result review."
+      "label": "Optional nonblocking summary only; advancement remains driven by persisted dependencies and independent verification."
     },
     {
       "from": "rv:grace:operational-integration:verified-result-review-decision",
@@ -1817,7 +1851,7 @@
       "from": "rv:grace:operational-integration:verified-result-review-decision",
       "to": "rv:grace:operational-integration:objective-step-persistence",
       "type": "runtime_transition",
-      "label": "ENGINEERING_STEP_PROPOSED appends a dependent step only inside the original human-approved scope; assignment.create is rechecked at dispatch."
+      "label": "A separately valid typed continuation may add only a step inside original Steward scope; existing persisted dependent steps do not require this model decision, and CME rechecks assignment.create."
     },
     {
       "from": "rv:grace:operational-integration:verified-result-review-decision",
@@ -1992,6 +2026,36 @@
       "to": "rv:grace:operational-integration:verified-result-review-decision",
       "type": "recovery_route",
       "label": "Resume the same verified completion cycle with its next deterministic review generation; existing exact-step and dispatch gates remain separate"
+    },
+    {
+      "from": "rv:grace:operational-integration:objective-complete",
+      "to": "rv:grace:operational-integration:dependency-ready-dispatch",
+      "type": "runtime_transition",
+      "label": "Independent ACCEPTED and verified persisted dependencies make the next stored step eligible; ordinary CME authorization and idempotency checks remain mandatory."
+    },
+    {
+      "from": "rv:grace:operational-integration:latest-verifier-rejection",
+      "to": "rv:grace:operational-integration:rework-retry-escalation",
+      "type": "runtime_transition",
+      "label": "Count durable REWORK_PROPOSED events for this assignment and check whether the existing rejection-review provider is available."
+    },
+    {
+      "from": "rv:grace:operational-integration:rework-retry-escalation",
+      "to": "rv:grace:operational-integration:grace-rejection-review",
+      "type": "runtime_transition",
+      "label": "Below three correction proposals and provider available: review the latest immutable rejection and exact stored criteria."
+    },
+    {
+      "from": "rv:grace:operational-integration:rework-retry-escalation",
+      "to": "rv:grace:operational-integration:rework-escalation-pending",
+      "type": "escalation",
+      "label": "Retry limit exhausted or provider unavailable/uncommissioned: append actionable escalation-pending event; do not requeue or dispatch."
+    },
+    {
+      "from": "rv:grace:operational-integration:rework-escalation-pending",
+      "to": "rv:grace:operational-integration:grace-rejection-review",
+      "type": "recovery_route",
+      "label": "If the existing authorized provider was unavailable, resume normal rejection review after it is commissioned/restored; retry exhaustion remains a Steward decision boundary."
     }
   ]
 }
