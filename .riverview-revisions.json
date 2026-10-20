@@ -1,5 +1,5 @@
 {
-  "manifest_revision": "1.1.74",
+  "manifest_revision": "1.1.75",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
       "revision": "1.0.44",
@@ -38,7 +38,7 @@
       "size_bytes": 27724
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.74"
+      "revision": "1.1.75"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -213,6 +213,12 @@
       "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T184548Z-2b4a6cd/acceptance.json",
       "sha256": "9de5e7d3ccfef52555e5d6c395044eb2fa4685c8c0638282b166c029d5e15f74",
       "size_bytes": 6738
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T190737Z-c015cd1/acceptance.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T190737Z-c015cd1/acceptance.json",
+      "sha256": "a8cfa43d8b0dcd37bcebdba6bc01b2ceacc20af923cc0637da661cbcd12951a7",
+      "size_bytes": 7439
     }
   }
 }

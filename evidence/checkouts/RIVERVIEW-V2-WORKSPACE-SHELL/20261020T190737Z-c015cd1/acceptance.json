@@ -1,0 +1,136 @@
+{
+  "record_type": "deployment_acceptance_evidence",
+  "record_revision": "1.0.0",
+  "task_id": "RV-WEB-V2-LAN-PREVIEW-001",
+  "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
+  "owner": "Windows C1",
+  "timestamp_utc": "2026-10-20T19:07:37Z",
+  "repository": "ppow1/Riverview-",
+  "branch": "codex/riverview-v2-workspace-shell-20261020",
+  "source_commit": "c015cd1af0974a27ce1d797c219e3e151362a4df",
+  "deployment_id": "RV-WEB-V2-LAN-PREVIEW-001-camrui-20261020",
+  "target_environment": {
+    "host_role": "Camrui LAN host",
+    "interface": "eno1",
+    "address": "192.168.1.155/24 (dynamic; verified at commissioning)",
+    "url": "http://192.168.1.155:8877/",
+    "process_model": "foreground Python preview process, not systemd",
+    "process_id_at_evidence_capture": 1786194,
+    "listener": "192.168.1.155:8877 only; not 0.0.0.0",
+    "trusted_client_network": "192.168.1.0/24"
+  },
+  "scope": "Replaced only the existing loopback V2 preview process. No V1, Nginx, host firewall, router forwarding, systemd service, production API, database, CME, Grace, or Comms5 changes.",
+  "pre_change_state": {
+    "old_process": "PID 1665701, python3 scripts/serve_v2_workspace_preview.py --host 127.0.0.1 --port 8877",
+    "old_listener": "127.0.0.1:8877",
+    "old_preview_http": 200,
+    "V1_unit": "riverview-status-dashboard.service active; PID 1624314; NRestarts 0",
+    "V1_https": 200
+  },
+  "credential_handling": {
+    "owner_choice": "Steward-selected temporary value entered twice in a hidden local prompt",
+    "plaintext_persisted_or_logged": false,
+    "file": "/home/admin1/.config/riverview/v2-preview-auth.json",
+    "directory_mode_owner_group": "0700 admin1:admin1",
+    "file_mode_owner_group": "0600 admin1:admin1",
+    "stored_format": "format 1, PBKDF2-HMAC-SHA256, 600000 iterations, 16-byte random salt, 32-byte derived hash",
+    "secret_values_in_record": false,
+    "setup_note": "The existing convenience setup script requires 12 characters and rejected the selected temporary value. A one-time hidden local setup wrote the identical accepted hash-record format and owner-only permissions; no setup code or authentication infrastructure was changed."
+  },
+  "network_exposure_verification": {
+    "listener_scope": "explicit RFC1918 LAN address only",
+    "application_admission": "Host and client source are checked before login; source must belong to 192.168.1.0/24",
+    "host_firewall": "UFW inactive. Read-only nftables inspection showed input policy accept and rules for LAN-only 443/8766; no rule for 8877. No firewall change was made. For 8877, the explicit private bind and application source-subnet check are the active restrictions.",
+    "router_forwarding": "No router configuration or UPnP port-mapping query interface was available; no forwarding change was made. WAN forwarding state was not independently inspected.",
+    "ipv6": "No IPv6 listener on port 8877",
+    "external_client_test": "Not available. Unit tests reject clients outside the configured subnet; no external route was created or tested."
+  },
+  "acceptance": {
+    "listener_start": {
+      "command": "python3 scripts/serve_v2_workspace_preview.py --host 192.168.1.155 --port 8877 --trusted-network 192.168.1.0/24 --auth-file /home/admin1/.config/riverview/v2-preview-auth.json",
+      "startup": "password protected; Trusted clients: 192.168.1.0/24",
+      "exit_code": 0
+    },
+    "unauthenticated_http": {
+      "root_status": 200,
+      "root_contains_only_password_form": true,
+      "fixture_shell_exposed_before_login": false,
+      "static_asset_status": 401,
+      "response_cache_control": "no-store"
+    },
+    "real_password_session": {
+      "method": "same-origin form submission over LAN-bound HTTP using the hidden prompt",
+      "authenticated_shell_loaded": true,
+      "authenticated_asset_status": 200,
+      "session_cookie_present": true,
+      "http_only": true,
+      "same_site": "Strict",
+      "secure_attribute": false,
+      "secure_attribute_note": "HTTP-only preview transport; server warns that password and cookie are cleartext on the trusted LAN",
+      "plaintext_output": false
+    },
+    "prior_offline_auth_suite": {
+      "source_commit": "2b4a6cdc5b1d9373f50749dfa51f1c8ffa480523",
+      "command": "python3 -m unittest tests.test_v2_workspace_shell -v",
+      "exit_code": 0,
+      "passed": 10,
+      "failed": 0,
+      "coverage": [
+        "unauthenticated asset denial and session login",
+        "LAN bind requires hash and narrow subnet",
+        "non-LAN rejection",
+        "Host and Origin checks",
+        "five-failure lockout",
+        "session signature and expiry",
+        "private salted-hash configuration permissions",
+        "method and traversal rejection"
+      ]
+    },
+    "browser_auth_automation_attempt": {
+      "status": "FAILED_TOOLING",
+      "tool": "Firefox WebDriver",
+      "result": "WebDriver execute/sync returned HTTP 500 during scripted form interaction; no product acceptance claimed from this run",
+      "independent_auth_http_test": "PASS using same-origin form submission and cookie jar"
+    },
+    "windows_development_pc": {
+      "recorded_address": "192.168.1.88",
+      "neighbor_entry": "REACHABLE",
+      "icmp_echo": "no reply to one probe",
+      "chrome_access": "NOT TESTED; Windows browser control unavailable in this environment"
+    },
+    "v1_isolation_after_commissioning": {
+      "unit_active": true,
+      "main_pid": 1624314,
+      "restart_count": 0,
+      "https_root_status": 200,
+      "nginx_changed": false,
+      "router_changed": false,
+      "firewall_changed": false
+    },
+    "hosted_ci": {
+      "pull_request": 166,
+      "exact_head": "c015cd1af0974a27ce1d797c219e3e151362a4df",
+      "runs": [
+        {"id": "39477655070", "name": "controlled-checkout", "conclusion": "SUCCESS"},
+        {"id": "39477662465", "name": "controlled-checkout", "conclusion": "SUCCESS"}
+      ]
+    }
+  },
+  "rollback_and_resume": {
+    "stop": "Terminate only the current Riverview V2 preview process (confirm command line and listener first).",
+    "resume_loopback": "python3 scripts/serve_v2_workspace_preview.py --host 127.0.0.1 --port 8877",
+    "credential_cleanup": "If retiring LAN access, remove /home/admin1/.config/riverview/v2-preview-auth.json after stopping the LAN preview; retain no copy in Git.",
+    "v1_rollback": "Not applicable; V1 was not changed."
+  },
+  "definition_of_done_rev_1_6": {
+    "1_code_and_contracts": "PARTIAL: versioned implementation is deployed for preview; independent code review remains pending",
+    "2_functionality": "PARTIAL: actual password session and local LAN-bind checks pass; Windows Chrome test and external network check remain unavailable",
+    "3_versioned_documentation": "PASS for this isolated preview scope",
+    "4_troubleshooting_and_recovery": "PASS; documented rollback and loopback resume",
+    "5_versioned_flowchart": "PASS; LAN admission/auth/retry/recovery paths are versioned",
+    "6_live_operational_visualization": "N/A: fixture-only interface contains no authoritative operational state",
+    "7_operational_autonomy": "N/A: no recurring work, durable queue, worker, heartbeat, or escalation",
+    "8_canonical_process_graph": "PASS: 14 graphs and 271 nodes; generated view checks passed",
+    "overall": "PARTIAL pending actual Windows Chrome acceptance, independently inspectable router WAN-forwarding state, and independent code review."
+  }
+}
