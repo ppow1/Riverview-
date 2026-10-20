@@ -1,6 +1,6 @@
 // RIVERVIEW~ CONTROLLED SOURCE
 // File: tools/riverview_doorbell_bridge.cjs
-// File Revision: 1.0.1
+// File Revision: 1.0.2
 // Component: CHATGPT-DOORBELL | Revision: 1.0.2
 // Purpose: Submit one fixed wake, persist safe attempt metadata, and report local status
 // Inputs/Outputs: Fixed operation with request/correlation UUIDs / status contract and submission metadata
@@ -9,6 +9,7 @@
 // Dependencies: Node.js; Chrome/Chromium; native WebSocket or system node-ws package
 // Authority: Localhost CDP only; fixed text/action; auth uses route/control selectors, never response text
 // Changed: 2026-10-18 UTC | RV-C3-DOORBELL-DOD-001 | Add machine-readable status and durable failure metadata
+// Changed: 2026-10-19 UTC | RV-C2-DOORBELL-SELECTOR-20261019 | Recognize current Ask ChatGPT composer selector; predecessor SHA-256 75da3b47937776addb01912e1de1f11dd1b5cf859a4df55850958172cfa3e5c3
 // Contracts: docs/components/CHATGPT_DOORBELL.md
 // Tests: tests/test_riverview_doorbell_bridge_node.cjs
 // History: Git and .riverview-revisions.json
@@ -84,8 +85,8 @@ function connect(target, timeout) {
   return { socket, opened, call };
 }
 
-const READINESS = `(()=>{const route=location.hostname==='chatgpt.com'&&location.pathname.includes('/c/');const blocked=/\/auth\//i.test(location.pathname)||!!document.querySelector('input[type="password"],input[name="username"],[data-testid*="captcha"],iframe[src*="recaptcha"]');const e=document.querySelector('#prompt-textarea[contenteditable="true"],div[contenteditable="true"][aria-label="Chat with ChatGPT"]');const r=e?.getBoundingClientRect?.();return {authenticated:route&&!blocked,composer:!!e&&!!r&&r.width>0&&r.height>0&&!e.disabled};})()`;
-const FIXED_ACTION = `(async()=>{const e=document.querySelector('#prompt-textarea[contenteditable="true"],div[contenteditable="true"][aria-label="Chat with ChatGPT"]');if(!e)return {failure_class:'RIV-PLY-0007'};e.focus();e.replaceChildren();const p=document.createElement('p');p.textContent=${JSON.stringify(WAKE_TEXT)};e.appendChild(p);e.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:${JSON.stringify(WAKE_TEXT)}}));const b=document.querySelector('button[data-testid="send-button"],button[aria-label="Send prompt"],button[aria-label="Send message"]');const enabled=!!b&&!b.disabled&&b.getAttribute('aria-disabled')!=='true';if(!enabled)return {failure_class:'RIV-PLY-0008',composer_populated:true,send_control_found:!!b,send_control_enabled:false};b.click();await new Promise(resolve=>setTimeout(resolve,750));const remaining=(e.innerText||e.textContent||'').trim().length;return {submitted:true,composer_populated:true,send_control_found:true,send_control_enabled:true,click_invoked:true,composer_cleared:remaining===0};})()`;
+const READINESS = `(()=>{const route=location.hostname==='chatgpt.com'&&location.pathname.includes('/c/');const blocked=/\\/auth\\//i.test(location.pathname)||!!document.querySelector('input[type="password"],input[name="username"],[data-testid*="captcha"],iframe[src*="recaptcha"]');const e=document.querySelector('#prompt-textarea[contenteditable="true"],div[contenteditable="true"][aria-label="Chat with ChatGPT"],div[contenteditable="true"][aria-label="Ask ChatGPT"]');const r=e?.getBoundingClientRect?.();return {authenticated:route&&!blocked,composer:!!e&&!!r&&r.width>0&&r.height>0&&!e.disabled};})()`;
+const FIXED_ACTION = `(async()=>{const e=document.querySelector('#prompt-textarea[contenteditable="true"],div[contenteditable="true"][aria-label="Chat with ChatGPT"],div[contenteditable="true"][aria-label="Ask ChatGPT"]');if(!e)return {failure_class:'RIV-PLY-0007'};e.focus();e.replaceChildren();const p=document.createElement('p');p.textContent=${JSON.stringify(WAKE_TEXT)};e.appendChild(p);e.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:${JSON.stringify(WAKE_TEXT)}}));const b=document.querySelector('button[data-testid="send-button"],button[aria-label="Send prompt"],button[aria-label="Send message"]');const enabled=!!b&&!b.disabled&&b.getAttribute('aria-disabled')!=='true';if(!enabled)return {failure_class:'RIV-PLY-0008',composer_populated:true,send_control_found:!!b,send_control_enabled:false};b.click();await new Promise(resolve=>setTimeout(resolve,750));const remaining=(e.innerText||e.textContent||'').trim().length;return {submitted:true,composer_populated:true,send_control_found:true,send_control_enabled:true,click_invoked:true,composer_cleared:remaining===0};})()`;
 function readJournal() { try { return JSON.parse(fs.readFileSync(JOURNAL, 'utf8')); } catch { return {}; } }
 function writeJournal(value) {
   fs.mkdirSync(path.dirname(JOURNAL), { recursive: true, mode: 0o700 });
