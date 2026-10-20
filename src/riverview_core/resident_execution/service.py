@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.30
+# Revision: 1.0.31
+# Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Persist a safe detail code for rejected incomplete proposals
 # Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Persist actionable rejection-review escalation when the provider is unavailable or bounded corrections are exhausted.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Reconcile bounded review generations with active production behavior and exact-scope authorization.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-DIAGNOSTICS | Record sanitized failing return stage and code location for bounded live remediation
@@ -276,11 +277,22 @@ class GraceExecutionService:
                 return True
             self._record_reasoning_failure(objective_id, result=result)
         except Exception as exc:
-            self._record_reasoning_failure(objective_id, failure_type=type(exc).__name__)
+            detail_code = self._reasoning_failure_detail_code(exc)
+            self._record_reasoning_failure(objective_id, failure_type=type(exc).__name__,
+                                           detail_code=detail_code)
             LOG.warning(json.dumps({"event": "resident_reasoning_cycle_failed",
                 "objective_id": objective_id,
-                "failure_type": type(exc).__name__}, sort_keys=True))
+                "failure_type": type(exc).__name__,
+                "detail_code": detail_code}, sort_keys=True))
         return False
+
+    @staticmethod
+    def _reasoning_failure_detail_code(exc):
+        """Expose only a fixed diagnostic code; never log exception or prompt text."""
+        if (type(exc).__name__ == "ObjectiveStateError" and
+                str(exc) == "proposal omits one or more human acceptance criteria"):
+            return "PROPOSAL_OMITS_ACCEPTANCE_CRITERIA"
+        return "REASONING_CYCLE_FAILED"
 
     def _reasoning_failure_count(self, objective_id):
         with self.pipeline.ledger.db.cursor() as cur:
@@ -291,9 +303,10 @@ class GraceExecutionService:
                 (objective_id, self.REASONING_FAILURE_WINDOW_SECONDS))
             return int(cur.fetchone()["failures"])
 
-    def _record_reasoning_failure(self, objective_id, *, result=None, failure_type=None):
+    def _record_reasoning_failure(self, objective_id, *, result=None, failure_type=None,
+                                  detail_code=None):
         status = getattr(getattr(result, "status", None), "value", None)
-        detail_code = getattr(result, "detail_code", None)
+        detail_code = detail_code or getattr(result, "detail_code", None)
         request_id = getattr(result, "request_id", None)
         if not isinstance(request_id, str) or not request_id:
             request_id = str(uuid4())

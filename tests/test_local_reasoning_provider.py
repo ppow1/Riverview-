@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.14
+# Revision: 1.1.15
+# Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Cover retry prompt and verbatim negative criteria
 # Purpose: Verify local reasoning provider contract and fail-closed response handling
 # Execution Model: Bounded HTTP contract double; no credentials, database or model required
 # Observability: Typed proposals and sanitized unavailable/schema outcomes
@@ -133,6 +134,27 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertIn("Director of Operations", sent["messages"][0]["content"])
         self.assertIn("Alfred", sent["messages"][0]["content"])
         self.assertIn("grants no permission", sent["messages"][0]["content"])
+
+    def test_retry_prompt_repairs_prior_plan_omitting_negative_criterion(self):
+        required = "Do not modify source files, repository contents, services, production configuration, or credentials."
+        prior_plan = {"summary": "Document workflow", "steps": [{
+            "step_id": "s1", "objective": "Map workflow", "acceptance_criteria": [
+                "Produce the Markdown deliverable."], "depends_on": []}]}
+        assignment = {"id": "assignment-1", "objective": "document workflow",
+                      "acceptance_criteria": ["Produce the Markdown deliverable.", required]}
+        self.request = replace(self.request, assignment=assignment, prior_plan=prior_plan)
+
+        self.provider.propose(self.request)
+
+        sent = self.requests[0]
+        prompt = sent["messages"][0]["content"]
+        context = json.loads(sent["messages"][1]["content"])
+        self.assertIn("negative constraints or prohibitions", prompt)
+        self.assertIn("beginning with 'Do not'", prompt)
+        self.assertIn("prior_plan is an unaccepted earlier attempt, not approval", prompt)
+        self.assertEqual(context["prior_plan"], prior_plan)
+        self.assertEqual(context["assignment"]["acceptance_criteria"],
+                         ["Produce the Markdown deliverable.", required])
 
     def test_external_advisory_is_separate_and_explicitly_unverified(self):
         advisory = {

@@ -2,13 +2,13 @@
   "files": {
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.21",
-      "sha256": "af313bd4dffaf23f73fc0acf7d77b40a0e06eb059cc5453bac19289737a003d9",
-      "size_bytes": 1253229
+      "revision": "1.0.22",
+      "sha256": "deb5dc9122a57066d06a0d4421673fa060a8e6bc6e61404ac05b370b3cc5d218",
+      "size_bytes": 1261235
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.281",
+      "revision": "1.1.284",
       "sha256": "c6d1b9a00351f07229f2b0220e18542471b82b775dae9d4859d4fc547105133a",
       "size_bytes": 20273
     },
@@ -212,9 +212,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.197",
-      "sha256": "1c9d54024d8a95bca57780229812381b506a241c32a645c59bc782f29cc0a9ca",
-      "size_bytes": 677041
+      "revision": "1.0.198",
+      "sha256": "ef7266cc9a5a25bbc810cab96f3962175b8442e2aa5f1b64d59529c35975a983",
+      "size_bytes": 678469
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -224,9 +224,9 @@
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
-      "revision": "1.0.60",
-      "sha256": "21b18ca00a67a231f7ddb61a3a193249b3dcd87daf46b53d70d550cd0a8b51bb",
-      "size_bytes": 93886
+      "revision": "1.0.61",
+      "sha256": "7fedaef8b61685a9d6091f6737afabf6409dc9a38825a601ec8fb78e53c86585",
+      "size_bytes": 95234
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
@@ -433,6 +433,6 @@
       "size_bytes": 26074
     }
   },
-  "manifest_revision": "1.1.281",
+  "manifest_revision": "1.1.284",
   "updated_at": "2026-10-20T12:55:37Z"
 }

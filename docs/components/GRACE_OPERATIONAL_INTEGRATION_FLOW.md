@@ -1,6 +1,7 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.60
+**Document Revision:** 1.0.61
+Changed: 2026-10-20 UTC | RV-C4-GRACE-REASONING-INTEGRATION-20261020 | Combine active Dashboard intake behavior with grounded reasoning retry correction.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
 **Canonical source:** `process_graphs/grace/operational-integration.json` and `process_graphs/cme/progress-and-recovery.json`.
@@ -76,7 +77,7 @@ flowchart LR
     g_rv_grace_operational_integration_objective_intake_55567c14(["IMPLEMENTED — exact objective.submit persists one objective per authenticated conversation message origin; retries revalidate the grant and retain original criteria"])
     g_rv_grace_operational_integration_objective_intake_retry_fdc5836e["SAME-SOURCE RETRY — revalidate objective.submit, retain immutable criteria, and rerun grounding for the existing durable objective"]
     g_rv_grace_operational_integration_authority_check_71ce44bf["IMPLEMENTED — objective.submit and assignment.create use exact active grants; no proposal grants authority"]
-    g_rv_grace_operational_integration_reason_decompose_d48619ca["ISOLATED PERSISTENT INTEGRATION TESTED — existing ResidentReasoner handles grounded objectives and stores office-keyed plans; live model and supervised resident commissioning remain unverified"]
+    g_rv_grace_operational_integration_reason_decompose_d48619ca["PERSISTENT GROUNDED REASONING — use the exact active office-bound provider; on retry, treat the saved plan as an unaccepted attempt and correct omissions without changing original criteria; proposal has no authority"]
     g_rv_grace_operational_integration_durable_plan_26bc431c["IMPLEMENTED — objective, complete evidence provenance, and unapproved plan persist in PostgreSQL"]
     g_rv_grace_operational_integration_assignment_fanout_81ca8043["IMPLEMENTED MULTI-STEP — persist one assignment per ordered proposal step; dispatch only when all dependency steps have independent verification"]
     g_rv_grace_operational_integration_worker_dispatch_20506b72["DETERMINISTIC ADAPTER TESTED — lease-dispatched worker writes one bounded artifact; live executor remains outstanding"]
@@ -88,10 +89,10 @@ flowchart LR
     g_rv_grace_operational_integration_steward_escalation_ca57acbb[["PLANNED — request only genuine Steward decision or authority"]]
     g_rv_grace_operational_integration_objective_complete_a6f22d23(["An objective is complete only when all persisted steps are independently verified; a single accepted step remains active when dependent steps are pending."])
     g_rv_grace_operational_integration_bounded_evidence_selection_eb29b3f5["IMPLEMENTED — verify the full pinned source set and deterministically select ranked complete passages within the evidence bound; retain source provenance and coverage metadata"]
-    g_rv_grace_operational_integration_proposal_validation_90e4c0ca["IMPLEMENTED — persist only typed proposals after complete VERIFIED grounding"]
+    g_rv_grace_operational_integration_proposal_validation_90e4c0ca["STRICT PROPOSAL VALIDATION — persist only a typed proposal after complete VERIFIED grounding and exact coverage of every original criterion; an omission leaves objective GROUNDED and records PROPOSAL_OMITS_ACCEPTANCE_CRITERIA"]
     g_rv_grace_operational_integration_work_order_authorization_829196dd["IMPLEMENTED — assignment.create exact grant precedes durable CME handoff"]
     g_rv_grace_operational_integration_independent_artifact_check_2502f001["IMPLEMENTED TEST ADAPTER — reopen artifact and verify digest, task identity, criteria, and provenance"]
-    g_rv_grace_operational_integration_waiting_and_failure_0a7985d4[["IMPLEMENTED — incomplete evidence remains pending; an authenticated retry after source correction either atomically advances the same objective to GROUNDED or records another pending revision"]]
+    g_rv_grace_operational_integration_waiting_and_failure_0a7985d4[["IMPLEMENTED — evidence failures remain pending; incomplete typed proposals remain GROUNDED with a sanitized detail code and resume through the persistent reasoning cycle after the prior plan is explicitly corrected; never bypass proposal or assignment authorization"]]
     g_rv_grace_operational_integration_governed_objective_api_39b3aa23["Authenticated exact-grant request persists one receipt; VERIFIED grounding advances RECEIVED or WAITING_FOR_EVIDENCE to GROUNDED atomically, while incomplete evidence stays pending"]
     g_rv_grace_operational_integration_typed_proposal_api_9e97178a["Typed PlanProposal is persisted only after verified grounding and complete acceptance criteria; proposal does not grant authority"]
     g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8["Persistent loop reads and records authorized Grace objectives/events, dispatches eligible proposals, polls the existing leased worker, verifies outcomes, and persists heartbeat through the narrowly scoped runtime ACL; missing privileges remain a visible failure"]
@@ -268,6 +269,8 @@ flowchart LR
   g_rv_grace_operational_integration_rework_retry_escalation_ac60a32c -->|Below three correction proposals and provider available: review the latest immutable rejection and exact stored criteria.| g_rv_grace_operational_integration_grace_rejection_review_9f70861f
   g_rv_grace_operational_integration_rework_retry_escalation_ac60a32c -->|escalation: Retry limit exhausted or provider unavailable/uncommissioned: append actionable escalation-pending event; do not requeue or dispatch.| g_rv_grace_operational_integration_rework_escalation_pending_1333c9c5
   g_rv_grace_operational_integration_rework_escalation_pending_1333c9c5 -->|recovery_route: If the existing authorized provider was unavailable, resume normal rejection review after it is commissioned/restored; retry exhaustion remains a Steward decision boundary.| g_rv_grace_operational_integration_grace_rejection_review_9f70861f
+  g_rv_grace_operational_integration_proposal_validation_90e4c0ca -->|diagnostic_branch: Original criterion omitted: do not persist proposal or steps; keep objective GROUNDED and append PROPOSAL_OMITS_ACCEPTANCE_CRITERIA| g_rv_grace_operational_integration_waiting_and_failure_0a7985d4
+  g_rv_grace_operational_integration_waiting_and_failure_0a7985d4 -->|recovery_route: Normal persistent cycle regrounds the same objective and gives the saved rejected plan to the bound provider as correction context; all original criteria and authority checks remain in force| g_rv_grace_operational_integration_reason_decompose_d48619ca
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 
