@@ -3,7 +3,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.7
+# Revision: 1.2.8
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Bind bounded verifier to the persisted objective pipeline
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Wire persisted assignment-defined artifacts to the independent set verifier
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
@@ -460,7 +461,7 @@ def main() -> int:
             recovery_max_retries=int(os.environ.get("RIVERVIEW_GRACE_MAX_WORKER_RECOVERIES", "3")))
         execution_workers = {execution_capability: engine}
         outcome_verifiers = {execution_capability: outcome_verifier or
-                             BoundedArtifactVerifier(artifact_root)}
+                             BoundedArtifactVerifier(artifact_root, pipeline)}
         if (os.environ.get("RIVERVIEW_SOURCE_WORKER_ENABLED", "0") == "1" and
                 adapter_mode == "codex-cli"):
             try:
