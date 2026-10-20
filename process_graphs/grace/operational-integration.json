@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:grace:operational-integration",
-  "graph_revision": "1.0.61",
+  "graph_revision": "1.0.62",
   "component_id": "RESIDENT-ORCHESTRATION",
   "workflow_id": "grace-engineering-objective.v1",
   "diagram_order": 9,
@@ -647,9 +647,9 @@
     },
     {
       "id": "rv:grace:operational-integration:codex-cli-run",
-      "node_revision": "1.0.8",
+      "node_revision": "1.0.9",
       "type": "process",
-      "label": "INTEGRATED LEGACY ARTIFACT CAPABILITY — only deliverable.md may change; a separate exact-scope source-change capability produces a pinned patch and never applies it to production",
+      "label": "INTEGRATED LEGACY ARTIFACT CAPABILITY — only deliverable.md may change; each concurrent assignment resolves objective provenance and criteria through its durable proposal-step assignment link, independently of the objective latest-assignment pointer; a separate exact-scope source-change capability produces a pinned patch and never applies it to production",
       "source_references": [
         "src/riverview_core/resident_execution/codex_cli.py",
         "src/riverview_core/resident_execution/codex_workflow.py",
@@ -718,9 +718,9 @@
     },
     {
       "id": "rv:grace:operational-integration:codex-execution-recovery",
-      "node_revision": "1.0.7",
+      "node_revision": "1.0.8",
       "type": "recovery",
-      "label": "Persisted CME recovery requeues typed Codex no-artifact failures only after lease expiry, verified objective provenance, remaining retry budget, and no attempt/result/verifier/artifact; a same-assignment WAITING_FOR_EVIDENCE recovery requires fresh VERIFIED grounding and action preflight, eligible typed intents, absent effects, and an atomic transition; claim rechecks exact grants",
+      "label": "Persisted CME recovery requeues typed Codex no-artifact failures only after lease expiry, verified objective provenance, exact objective_ref-to-step assignment plus matching dispatch-event/proposal linkage, remaining retry budget, and no attempt/result/verifier/artifact; same-assignment WAITING_FOR_EVIDENCE recovery still requires fresh VERIFIED grounding and action preflight, eligible typed intents, absent effects, and an atomic transition; claim rechecks exact grants",
       "source_references": [
         "src/riverview_core/resident_execution/codex_cli.py",
         "src/riverview_core/resident_execution/codex_workflow.py",
@@ -1687,7 +1687,7 @@
       "from": "rv:grace:operational-integration:codex-execution-failed",
       "to": "rv:grace:operational-integration:codex-execution-recovery",
       "type": "recovery_route",
-      "label": "Proven pre-execution no-effect uses one durable retry-safe recovery record; uncertain post-launch outcomes remain held for Steward decision"
+      "label": "After lease expiry, recover the same failed assignment only through its durable objective-step assignment, matching work_order.dispatched event and proposal step; require verified provenance, remaining retry budget, and absent durable effects."
     },
     {
       "from": "rv:grace:operational-integration:codex-execution-recovery",

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.13
+# Revision: 1.2.14
+# Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Resolve Codex assignment provenance through the durable proposal-step link when sibling steps are dispatched concurrently.
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Separate independent artifact integrity/provenance checks from Grace's substantive acceptance review and expose only a digest-verified bounded artifact snapshot.
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Validate source execution against dispatch-time target snapshot, checkout HEAD, and verifier result provenance.
 # Purpose: Adapt bounded Codex production and independent Markdown verification to CME
@@ -94,7 +95,6 @@ class CodexWorkAction:
         objective = self.pipeline.get_objective(objective_id)
         evidence = objective.get("evidence") if isinstance(objective, Mapping) else None
         if (not objective or objective["status"] != "WORK_ORDER_CREATED" or
-                objective["assignment_id"] != assignment.get("id") or
                 not isinstance(evidence, Mapping) or
                 evidence.get("status") != KnowledgeStatus.VERIFIED.value or
                 objective.get("source_revision") != evidence.get("source_revision") or

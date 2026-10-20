@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.2.8
+# Revision: 1.2.9
+# Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Verify bounded no-artifact recovery retries the exact failed step when a concurrently dispatched sibling owns the objective pointer, without creating dispatch duplicates.
 # Purpose: Verify scoped deterministic and structured worker artifacts
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
@@ -659,41 +660,61 @@ class WorkerAdapterTests(unittest.TestCase):
             (assignment_id,)).fetchone()[0]
         self.assertEqual(attempts, 0)
 
-    def test_codex_failure_without_durable_artifact_requeues_once(self):
+    def test_concurrent_multistep_codex_failure_recovers_exact_assignment_once(self):
         import tempfile
-        from riverview_core.worker_adapter import PostgresRecoveryCoordinator
+        from riverview_core.resident_execution.codex_workflow import CodexActionFailure
+        from riverview_core.worker_adapter import ContinuousWorker, PostgresRecoveryCoordinator
 
         objective_id = "objective:codex-no-artifact:" + uuid4().hex
-        assignment_id = self.ready_assignment(objective=objective_id)
+        assignment_id = self.ready_assignment(scope=self.scope, objective=objective_id)
+        sibling_assignment_id = self.ready_assignment(scope=self.scope, objective=objective_id)
         source_revision, source_digest = "a" * 40, "b" * 64
+        proposal = {"steps": [
+            {"step_id": "s3", "objective": "Complete S3", "acceptance_criteria": ["S3 passes"]},
+            {"step_id": "s4", "objective": "Complete S4", "acceptance_criteria": ["S4 passes"]},
+        ]}
         self.admin.execute("""INSERT INTO grace_objectives
             (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,
-             evidence,assignment_id,source_revision,source_sha256)
+             evidence,proposal,assignment_id,source_revision,source_sha256)
             VALUES (%s,'synthetic bounded fixture',%s,'steward:test','[]'::jsonb,
-                    'WORK_ORDER_CREATED',%s::jsonb,%s,%s,%s)""",
+                    'WORK_ORDER_CREATED',%s::jsonb,%s::jsonb,%s,%s,%s)""",
             (objective_id, self.scope,
              json.dumps({"status": "VERIFIED", "source_revision": source_revision,
-                         "source_sha256": source_digest}), assignment_id,
+                         "source_sha256": source_digest}), json.dumps(proposal),
+             sibling_assignment_id,
              source_revision, source_digest))
+        self.admin.execute("""INSERT INTO grace_objective_steps
+            (objective_id,step_id,step_order,step_objective,acceptance_criteria,
+             depends_on,status,assignment_id,dispatch_count)
+            VALUES (%s,'s3',3,'Complete S3','["S3 passes"]'::jsonb,'["s1","s2"]'::jsonb,
+                    'assigned',%s,1),
+                   (%s,'s4',4,'Complete S4','["S4 passes"]'::jsonb,'["s1","s2"]'::jsonb,
+                    'assigned',%s,1)""",
+            (objective_id, assignment_id, objective_id, sibling_assignment_id))
+        for step_id, dispatched_assignment in (
+                ("s3", assignment_id), ("s4", sibling_assignment_id)):
+            self.admin.execute("""INSERT INTO grace_objective_events
+                (objective_id,event_type,idempotency_key,actor_id,payload)
+                VALUES (%s,'work_order.dispatched',%s,'steward:test',%s::jsonb)""",
+                (objective_id, f"dispatch:{objective_id}:{step_id}",
+                 json.dumps({"assignment_id": dispatched_assignment,
+                             "workflow_step": step_id})))
         worker_id = "worker-codex-no-artifact-" + uuid4().hex
         credential = self.register_as(
             worker_id, ["engineering.codex-cli-artifact.v1"], self.scope)
-        claim = self.worker.claim_next(worker_id, credential,
-            assignment_id=assignment_id, lease_seconds=60,
-            capability="engineering.codex-cli-artifact.v1")
-        generation = claim["lease"]["generation"]
-        self.worker.start_assignment(assignment_id, worker_id, credential,
-            generation, capability="engineering.codex-cli-artifact.v1")
-        intent_id = self.worker.begin_execution_intent(
-            assignment_id, worker_id, credential, generation,
-            f"continuous:{assignment_id}:{generation}",
-            effect_class="external_uncertain",
-            capability="engineering.codex-cli-artifact.v1")
-        self.worker.mark_execution_intent(intent_id, "outcome_unknown",
-                                          failure_class="CodexActionFailure")
-        self.worker.scheduler.transition_with_lease(assignment_id, "awaiting_steward",
-            "ACTION_OUTCOME_UNKNOWN", f"unknown:{assignment_id}:{generation}",
-            worker_id, generation)
+        def fail_before_durable_artifact(_assignment, _grounded):
+            raise CodexActionFailure("persisted_work_order_provenance_required",
+                                     execution_started=False)
+        engine = ContinuousWorker(self.worker, worker_id, credential,
+            knowledge=self.VerifiedProvider(), action=fail_before_durable_artifact,
+            action_effect_class="external_uncertain",
+            action_capability="engineering.codex-cli-artifact.v1")
+        self.assertEqual(engine.run_once(assignment_id=assignment_id)["status"], "FAILED")
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "blocked")
+        self.assertEqual(self.ledger.get(assignment_id)["workflow_step"],
+                         "WORKER_RETRYABLE_NO_ARTIFACT")
+        intent_id, generation = self.admin.execute("""SELECT intent_id,lease_generation
+            FROM worker_execution_intents WHERE assignment_id=%s""", (assignment_id,)).fetchone()
         self.admin.execute("""UPDATE assignment_leases
             SET acquired_at=clock_timestamp()-interval '2 seconds',
                 expires_at=clock_timestamp()-interval '1 second'
@@ -729,6 +750,21 @@ class WorkerAdapterTests(unittest.TestCase):
             finally:
                 recovery.close()
         self.assertEqual(self.ledger.get(assignment_id)["state"], "ready")
+        self.assertEqual(self.ledger.get(sibling_assignment_id)["state"], "ready")
+        objective = self.admin.execute("""SELECT assignment_id,revision FROM grace_objectives
+            WHERE objective_id=%s""", (objective_id,)).fetchone()
+        self.assertEqual(objective[0], sibling_assignment_id,
+                         "recovery must not depend on or rewrite the latest sibling pointer")
+        steps = self.admin.execute("""SELECT step_id,assignment_id,dispatch_count
+            FROM grace_objective_steps WHERE objective_id=%s ORDER BY step_order""",
+            (objective_id,)).fetchall()
+        self.assertEqual(steps, [("s3", assignment_id, 1),
+                                 ("s4", sibling_assignment_id, 1)])
+        self.assertEqual(self.admin.execute("""SELECT count(*) FROM grace_objective_events
+            WHERE objective_id=%s AND event_type='work_order.dispatched'""",
+            (objective_id,)).fetchone()[0], 2)
+        self.assertEqual(self.admin.execute("""SELECT count(*) FROM worker_recovery_records
+            WHERE assignment_id=%s AND decision='retry_safe'""", (assignment_id,)).fetchone()[0], 1)
 
     def test_codex_failure_is_not_requeued_when_assignment_artifact_exists(self):
         import hashlib

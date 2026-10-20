@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/WORKER_ADAPTER_COOKBOOK.md
 Component: WORKER-ADAPTER
-File Revision: 1.0.21
+File Revision: 1.0.22
+Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Document durable per-step provenance selection for concurrent Codex execution and no-artifact recovery.
 Purpose: Diagnose worker identity, attempts, verification and recovery; retire the exact M33 registrations safely
 Authority: Read-only diagnosis; retirement only through the fixed Steward-authorized M33 operation. Credential delivery and enrollment remain trusted control-plane operations.
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Add redacted worker and verification record queries with failure interpretation
@@ -159,6 +160,30 @@ failure provenance and a `retry_safe` recovery record. The configured retry
 ceiling applies. The event retains both source revisions, digests, references,
 and canonical ready-node identity. The normal claim checks the grant again
 before execution.
+
+### Concurrent multi-step Codex no-artifact recovery
+
+The objective's latest `grace_objectives.assignment_id` may identify a sibling
+step that was dispatched later. Codex action authorization resolves each
+assignment through `grace_objective_steps.assignment_id` and the durable
+proposal-step record. No-artifact recovery selects the exact objective from the
+assignment's `objective_ref` and requires that unique step assignment, its
+matching `work_order.dispatched` event and the matching objective/criteria in
+the persisted proposal. The singleton latest-assignment pointer is not used as
+the assignment provenance.
+
+After the original lease expires, recovery still requires the typed
+`CodexActionFailure`, exact scope/worker/capability/effect, verified immutable
+objective evidence, the configured retry budget, and no artifact, attempt,
+result or verifier record. It writes one recovery record for the lease
+generation and returns the same assignment to `ready`; it does not increment
+the step's dispatch count or create another assignment. Claim-time worker
+grants and subsequent independent verification remain mandatory. For read-only
+diagnosis, compare only the assignment `objective_ref` with the objective ID,
+the step's assignment link, the metadata-only dispatch-event identity and the
+bounded intent/recovery/artifact counts. A missing or mismatched step/event
+link stays blocked for diagnosis; do not edit the objective pointer or create a
+replacement assignment.
 
 Read-only diagnosis for one known assignment (replace only the literal
 assignment ID with an already authorized ID): inspect `assignments.state`,

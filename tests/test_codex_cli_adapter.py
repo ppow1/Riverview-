@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.7
+# Revision: 1.2.8
+# Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Cover concurrent sibling-step execution when the objective's latest assignment pointer names the other step.
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Verify paraphrased substantive content passes integrity checks and Grace receives only digest-verified bounded artifact text.
 # Purpose: Verify bounded subscription-authenticated Codex adapter contracts
 # Execution Model: Isolated temporary Git repository and synthetic executable
@@ -268,14 +269,14 @@ class CodexCLIAdapterTests(unittest.TestCase):
                 repository_reference="repo://example/test", codex_home=Path.home() / ".codex",
                 workspace_root=self.workspace, artifact_root=self.artifacts)
 
-    def test_persistent_action_and_separate_verifier_accept_real_file_contract(self):
+    def test_concurrent_multistep_action_uses_exact_durable_step_link(self):
         knowledge_revision = "a" * 40
         objective_revision = "c" * 40
         objective_digest = "d" * 64
         class Pipeline:
             def get_objective(self, _objective_id):
                 return {"objective_id": "objective:test-1", "status": "WORK_ORDER_CREATED",
-                    "assignment_id": "assignment:test-1", "source_revision": objective_revision,
+                    "assignment_id": "assignment:test-s4", "source_revision": objective_revision,
                     "source_sha256": objective_digest,
                     "evidence": {"status": "VERIFIED", "source_revision": objective_revision,
                                  "source_sha256": objective_digest},
