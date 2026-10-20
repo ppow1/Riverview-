@@ -1,14 +1,14 @@
 {
-  "manifest_revision": "1.0.0",
+  "manifest_revision": "1.0.1",
   "task_id": "RV-WEB-V2-GRACE-WORKSPACE-003",
   "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
   "source_commit": "bc4cbd4c0133fde9b33b50c51066ec6bd99d1214",
   "artifacts": {
     "acceptance-report.json": {
       "path": "acceptance-report.json",
-      "revision": "1.0.0",
-      "size_bytes": 6584,
-      "sha256": "0100e562bb9cb87aa2a209762bdc7bd0058c160d20312a6ea7b074ec57ad054c"
+      "revision": "1.0.1",
+      "size_bytes": 7007,
+      "sha256": "34a74ba8da65dc3d87cf5579a3109a54a610e4fe9e38df3e519b9c584b29fae3"
     },
     "baseline-inventory.json": {
       "path": "baseline-inventory.json",
