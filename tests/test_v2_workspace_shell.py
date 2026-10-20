@@ -1,14 +1,14 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.4
+# Revision: 1.0.6
 # Purpose: Verify fixture preview, authentication, LAN restrictions, rate limiting, and recovery boundaries
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
 # Dependencies: Python 3.10+ standard library; local V2 preview source
 # Inputs/Outputs: Starts/stops isolated loopback test servers and temporary hash files
 # Authority: Local fixture preview only; no production data or credentials
-# Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-ORIGIN-001 | Verify atomic concurrent one-use CSRF consumption
+# Changed: 2026-10-20 UTC | RV-WEB-V2-USABILITY-001 | Verify icon-only nav items keep accessible names
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: tests/test_v2_workspace_shell.py
 # History: Git and revision/backup manifest
@@ -111,8 +111,17 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn("fixture-resident-02", fixtures)
         self.assertNotIn("/api/v1/", html + js + fixtures)
         self.assertNotIn("fetch(", js)
-        self.assertNotIn("localStorage", js)
+        self.assertIn('localStorage.getItem("rv.v2.theme")', js)
+        self.assertIn('localStorage.setItem("rv.v2.theme", choice)', js)
         self.assertNotIn("sessionStorage", js)
+        self.assertIn('id="theme-select"', html)
+        self.assertIn('id="left-state"', html)
+        self.assertIn('id="right-state"', html)
+        self.assertIn('data-view="overview" aria-label="Overview"', html)
+        self.assertIn('data-tooltip=', html)
+        self.assertIn('id="snapshot-action"', html)
+        self.assertIn('disabled aria-describedby="snapshot-status"', html)
+        self.assertIn("not connected yet", html)
 
 
 class AuthenticatedPreviewTests(unittest.TestCase):

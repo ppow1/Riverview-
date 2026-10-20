@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.5
+File Revision: 1.0.7
 Purpose: Specify the isolated V2 browser shell and password-protected LAN preview
 Authority: Fixture presentation only; no institutional or production authority
-Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-ORIGIN-001 | Specify one-use CSRF protection for browser login Origin handling
+Changed: 2026-10-20 UTC | RV-WEB-V2-USABILITY-001 | Reconcile current UI acceptance with the previously completed LAN login acceptance
 History: Git and revision/backup manifest
 -->
 # Riverview V2 workspace shell
@@ -20,7 +20,13 @@ History: Git and revision/backup manifest
 
 Issue #164 requests a parallel workspace-first interface while V1 remains the default. This task provides the first shell slice: compact navigation; resident directory selection; persistent resident/conversation context; and overview, work, resources, knowledge, ChatGPT, and Comms5 surfaces. A session-scoped in-memory selection survives view changes. All content is visibly identified as fixture or preview data. Grace is represented only by a verified name from the requested shell context; this does not assert a live resident profile or expose Grace data. Other residents and work items are synthetic.
 
-The shell has no network-data path. By default its preview server binds only to loopback and serves only `website/v2`. The optional LAN mode binds to one explicit IPv4 address, requires a narrow client subnet and a local password hash file, and checks the Host header, client address, Origin, and a one-use server-side CSRF token. The login page issues a random, five-minute token bound to the client address; each POST must present a valid unused token. An explicit non-null Origin must match the exact HTTP Host authority. Missing or `null` Origin is accepted only with that token, covering browsers that serialize a form submission with an opaque Origin. Foreign scheme, host, or port is still rejected. Tokens are bounded in memory and discarded on restart. It serves only this static shell and rejects mutating methods other than the password form. The shell retains a `connect-src 'none'` policy. ChatGPT is an explicit external link; Comms5 is a noninteractive disconnected status. Message, dispatch, and other state-changing controls are disabled. No bearer token, production API, browser storage, or browser-held password is used.
+The shell has no network-data path. By default its preview server binds only to loopback and serves only `website/v2`. The optional LAN mode binds to one explicit IPv4 address, requires a narrow client subnet and a local password hash file, and checks the Host header, client address, Origin, and a one-use server-side CSRF token. The login page issues a random, five-minute token bound to the client address; each POST must present a valid unused token. An explicit non-null Origin must match the exact HTTP Host authority. Missing or `null` Origin is accepted only with that token, covering browsers that serialize a form submission with an opaque Origin. Foreign scheme, host, or port is still rejected. Tokens are bounded in memory and discarded on restart. It serves only this static shell and rejects mutating methods other than the password form. The shell retains a `connect-src 'none'` policy. Theme selection (`Light`, `Dark`, `System`) is the only browser preference persisted, under `rv.v2.theme`; resident selection and sidebar state remain in memory. Sidebars independently cycle through expanded, icon-only/compact, and hidden states. Controls expose keyboard-visible descriptions and focus outlines. ChatGPT remains an external client link, Comms5 remains disconnected, and the chat composer is disabled because no authenticated conversation contract exists. A visible `Snapshot` button is disabled and says that V2 capture is not connected; it creates no ZIP and does not claim archive success. No bearer token, production API, or browser-held password is used.
+
+## V1 parity and integration boundary
+
+The current V1 dashboard remains authoritative for live system status, Grace/CME projections, authenticated account/session behavior, diagnostic snapshot packaging, and private GitHub archival. The V2 preview preserves the workspace navigation and presentation intent but currently has fixture-only residents, work, resource and knowledge cards. It does not consume V1 endpoints or share V1 credentials. The V1 archive worker's changes are outside this worktree; V2 capture must eventually reuse its bounded/redacted ZIP machinery while capturing V2 page/build/browser/console state, with archive success only after a confirmed authenticated receipt. No archive code is changed here.
+
+Chat gap: V1's status dashboard contract documents resident conversation as not implemented; the V2 shell therefore has no supported resident-chat endpoint to reuse. A real V2 composer needs a separately reviewed authenticated conversation API, resident identity/session binding, authorization, persistence/retention, privacy, failure, and event/observability contracts. The current ChatGPT link only opens chatgpt.com; it does not transfer Riverview resident context or connect Grace. Comms5 remains informational and disconnected.
 
 The LAN login stores no cleartext password. A one-time hidden prompt writes a random-salt PBKDF2-HMAC-SHA256 verifier (600,000 iterations) in an owner-only file with mode 0600. The process creates an eight-hour HMAC-signed, HttpOnly, SameSite=Strict session cookie; its signing key is ephemeral and held only in memory, so restarting the preview invalidates sessions. Five failed password attempts from one client in a 15-minute window trigger a 15-minute in-memory lockout. Requests and form contents are not logged. The direct LAN URL uses HTTP: the password and cookie are not encrypted in transit. Use it only on the trusted Riverview LAN, never on public or untrusted networks.
 
@@ -105,7 +111,7 @@ The Rev 1.6 eight-deliverable table below is the component applicability matrix.
 | Deliverable | State | Evidence / remaining work |
 | --- | --- | --- |
 | 1. Code and contracts | PARTIAL | Password verifier, owner-only configuration, LAN bind/subnet/Host/Origin/CSRF rules, session, lockout and read-only static interface are versioned. Independent reviewer evidence remains pending. |
-| 2. Functionality demonstrated | PARTIAL | Offline tests cover normal login, unauthorized assets, bad password, session signature/expiry, lockout, configuration permissions, Host/Origin/CSRF/subnet and method/path rejection. Actual Windows development-PC browser acceptance is not yet available. |
+| 2. Functionality demonstrated | PARTIAL | Offline auth/security tests plus actual Firefox and Chrome browser tests cover the local preview and current UI. The Steward's Windows Chrome login/navigation was accepted on earlier commit `d1cd6f3`; Windows-client acceptance of this latest usability delta remains pending. |
 | 3. Complete versioned documentation | PASS for this slice | This specification records execution, interface, authority, dependencies, limitations, preview operation and rollback. |
 | 4. Troubleshooting and recovery cookbook | PASS for code checkout | Cookbook records password setup, read-only diagnostics, expected results, failure cases, session/lockout behavior, rollback and resume procedure. |
 | 5. Versioned visualization flowcharts | PASS for code paths | Generated focused Mermaid view includes local setup, network admission, authentication, rate-limit, reject, and recovery paths. |
@@ -113,12 +119,29 @@ The Rev 1.6 eight-deliverable table below is the component applicability matrix.
 | 7. Operational autonomy and blocker clearance | N/A for an interactive static preview | It performs no recurring institutional work and owns no durable queue, worker, heartbeat, or escalation. Manual local startup is only for the preview. Integration/acceptance blockers are recorded in issue #164. |
 | 8. Registered canonical process graph | PASS | `process_graphs/riverview-v2/workspace-shell.json` validates with globally unique IDs and typed runtime/diagnostic/recovery edges; generated views pass `process_graph.py check`. |
 
-**Overall:** the isolated preview and password-auth implementation are **NOT DONE as user-accepted LAN access** until the Steward sets the local password and verifies Chrome from Windows. Independent review is pending. This does not authorize live V2 data, merge, Nginx changes, firewall changes, or deployment as a production service.
+This usability increment adds browser-verifiable theme persistence, independently cycled sidebar modes, accessible descriptions, and truthful disabled integration controls. The persistent theme value is a display preference only; no auth or resident content is stored. Snapshot packaging/archival and live resident chat remain explicit integration dependencies, not accepted features.
+
+**Overall:** the preview remains **PARTIAL / not a production release**. LAN login and basic navigation were previously accepted by the Steward on `d1cd6f3`; the current theme/sidebar/tooltip delta passes local real-browser tests but still needs focused Windows Chrome confirmation and independent review. This does not authorize live V2 data, merge, Nginx changes, firewall changes, or deployment as a production service.
 
 ### Cross-cutting gates
 
 - **Execution model:** interactive browser shell plus request-driven foreground static preview. Session and failed-login state are in memory and reset on restart; the password hash remains in the owner-only local config file. No recurring work source or autonomous task is represented.
 - **External observability:** N/A for an independently operated service because there is no service lifecycle or authoritative V2 status. The local startup URL and HTTP status are diagnostic only and are not health/heartbeat claims. V1 retains its own observability contract.
-- **Blockers:** Steward local password setup and Windows Chrome acceptance; independent code review; future V2 resident/resource data contract and governed auth decision. No production action is pending or performed by this preview.
+- **Blockers:** Focused Windows Chrome acceptance of this UI delta; independent code review; future V2 resident/resource data contract and governed auth decision. The preview password was already commissioned; no production action is pending or performed here.
+
+## V2 preview usability increment and feature-parity register
+
+| V1 capability | V2 preview status | Truthful state / next dependency |
+| --- | --- | --- |
+| Live Dashboard / Grace / CME status and freshness | Not integrated | V1 remains authoritative; V2 fixtures are not live status. Needs an approved read-only projection, identity and authorization contract. |
+| Account login and Steward authorization | Preview-only LAN password | Separate local preview auth; no V1 session reuse or production identity integration. |
+| Diagnostic Snapshot | Visible, disabled control labeled `Snapshot` | No ZIP or archive request is made. Needs V2-specific bounded capture + approved reuse of V1 packager and authenticated archive worker (owned elsewhere). |
+| Resident conversation / Grace chat | Not connected | V1 API contract states conversation routes are not implemented. Needs authenticated resident-bound API, persistence, privacy/retention, authorization and failure/event contracts. |
+| ChatGPT external client | External link only | Opens chatgpt.com; no Riverview context transfer or Grace connection. |
+| Comms5 communication channel | Disconnected status only | No endpoint or credentials are integrated. |
+| Fixture navigation/resources/knowledge | Implemented locally | Synthetic/read-only fixture content only; selection stays in memory. |
+| Theme and sidebars | Implemented in V2 preview | Light/Dark/System; left and right independently cycle expanded/compact/hidden; theme choice alone persists locally. |
+
+The current presentation acceptance does not mark these integration gaps complete. It makes the existing boundary visible and testable. No V1 endpoint, dashboard projection, credential, or archive implementation was changed.
 
 This is not a claim that issue #164 or a deployed V2 component is fully accepted.

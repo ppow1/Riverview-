@@ -2,14 +2,14 @@
 # Riverview~ Controlled Source
 # File: scripts/verify_v2_workspace_browser.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.1
-# Purpose: Exercise local V2 preview and measure navigation and responsive layout
+# Revision: 1.0.5
+# Purpose: Exercise V2 theme, sidebars, tooltips, navigation, and responsive layout
 # Execution Model: Request-driven acceptance utility; starts/stops only its own geckodriver
 # Observability: Sanitized JSON stdout; no credentials or write operations
 # Dependencies: Python 3.10+, Firefox, geckodriver, local V2 preview
 # Inputs/Outputs: Loopback preview URL; navigation timings and viewport-fit metrics
 # Authority: Browser-only interaction with local fixture preview; no API or writes
-# Changed: 2026-10-20 UTC | RV-WEB-V2-SHELL-001 | Initial preview browser check
+# Changed: 2026-10-20 UTC | RV-WEB-V2-USABILITY-001 | Assert icon-only navigation retains accessible names
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: scripts/verify_v2_workspace_browser.py
 # History: Git and revision/backup manifest
@@ -72,6 +72,16 @@ def main():
         context_retained = js(session, "return document.querySelector('#selected-resident b').textContent")
         js(session, "document.querySelector('#conversation-toggle').click()")
         note_open = js(session, "return !document.querySelector('#conversation-note').hidden")
+        theme = js(session, "const s=document.querySelector('#theme-select');s.value='dark';s.dispatchEvent(new Event('change'));const dark=document.documentElement.dataset.theme;s.value='light';s.dispatchEvent(new Event('change'));const light=document.documentElement.dataset.theme;const saved=localStorage.getItem('rv.v2.theme');s.value='system';s.dispatchEvent(new Event('change'));const systemEffective=document.documentElement.dataset.theme;const systemOS=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';s.value='dark';s.dispatchEvent(new Event('change'));return {dark,light,saved,systemEffective,systemOS,storedBeforeReload:localStorage.getItem('rv.v2.theme')}")
+        request("POST", f"/session/{session}/refresh", {})
+        for _ in range(50):
+            ready = js(session, "return document.readyState === 'complete' && !!document.querySelector('#theme-select')")
+            if ready: break
+            time.sleep(.1)
+        js(session, "window.__errors=[];addEventListener('error',e=>window.__errors.push(String(e.message||'error')));addEventListener('unhandledrejection',e=>window.__errors.push('rejection'))")
+        theme["reload_restored"] = js(session, "return {theme:document.querySelector('#theme-select').value,effective:document.documentElement.dataset.theme}")
+        sidebars = js(session, "const shell=document.querySelector('.app-shell');const cycle=id=>{const b=document.getElementById(id);const values=[];for(let i=0;i<3;i++){b.click();values.push(shell.dataset[id==='left-state'?'leftState':'rightState']);}return values};const left=cycle('left-state'),right=cycle('right-state');document.querySelector('#left-restore').click();document.querySelector('#right-restore').click();return {left,right,leftRestored:shell.dataset.leftState==='expanded',rightRestored:shell.dataset.rightState==='expanded'}")
+        integration = js(session, "const s=document.querySelector('#snapshot-action');const nav=document.querySelector('[data-view=overview]');return {tooltip:nav.getAttribute('aria-description'),navName:nav.getAttribute('aria-label'),snapshotLabel:s.textContent.trim(),snapshotDisabled:s.disabled,snapshotExplanation:document.querySelector('#snapshot-status').textContent.trim(),chatDisabled:document.querySelector('.new-chat').disabled}")
         desktop = js(session, "return {width:innerWidth,scrollWidth:document.documentElement.scrollWidth,overflow:document.documentElement.scrollWidth>innerWidth}")
         request("POST", f"/session/{session}/window/rect", {"x": 0, "y": 0, "width": 390, "height": 844})
         mobile = js(session, "return {width:innerWidth,scrollWidth:document.documentElement.scrollWidth,overflow:document.documentElement.scrollWidth>innerWidth,navButton:getComputedStyle(document.querySelector('#mobile-menu')).display}")
@@ -81,11 +91,12 @@ def main():
         report = {"browser": subprocess.check_output(["firefox", "--version"], text=True).strip(), "url": args.base_url,
                   "navigation_calls_ms": {"count": len(samples), "median": sorted(samples)[len(samples)//2], "max": max(samples)},
                   "resident_selection": {"before": selected_before, "selected": selected_after, "retained_after_view_switch": context_retained},
-                  "conversation_context_expand": note_open, "desktop": desktop, "mobile": mobile,
+                  "conversation_context_expand": note_open, "theme": theme, "sidebars": sidebars,
+                  "integration_boundaries": integration, "desktop": desktop, "mobile": mobile,
                   "disabled_mutation_controls_present": disabled, "fixture_banner": fixture_banner,
                   "browser_errors": js(session, "return window.__errors"), "document_time_origin": reloads}
         print(json.dumps(report, sort_keys=True))
-        if selected_after != "Resident fixture 02" or context_retained != selected_after or not note_open or desktop["overflow"] or mobile["overflow"] or mobile["navButton"] == "none" or not disabled or report["browser_errors"]:
+        if selected_after != "Resident fixture 02" or context_retained != selected_after or not note_open or theme["dark"] != "dark" or theme["light"] != "light" or theme["saved"] != "light" or theme["systemEffective"] != theme["systemOS"] or theme["storedBeforeReload"] != "dark" or theme["reload_restored"]["theme"] != "dark" or theme["reload_restored"]["effective"] != "dark" or len(sidebars["left"]) != 3 or len(sidebars["right"]) != 3 or not sidebars["leftRestored"] or not sidebars["rightRestored"] or not integration["tooltip"] or integration["navName"] != "Overview" or integration["snapshotLabel"] != "Snapshot" or not integration["snapshotDisabled"] or not integration["chatDisabled"] or desktop["overflow"] or mobile["overflow"] or mobile["navButton"] == "none" or not disabled or report["browser_errors"]:
             raise RuntimeError("v2_browser_check_failed")
     finally:
         if session:

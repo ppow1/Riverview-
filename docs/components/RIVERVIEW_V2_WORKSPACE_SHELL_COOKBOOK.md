@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.3
+File Revision: 1.0.4
 Purpose: Diagnose and recover the local or password-protected LAN V2 shell preview
 Authority: Read-only local diagnostics; no production recovery action
-Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-ORIGIN-001 | Add browser Origin and one-use CSRF diagnostics
+Changed: 2026-10-20 UTC | RV-WEB-V2-USABILITY-001 | Document theme/sidebar controls and truthful Snapshot/chat integration limits
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
@@ -63,6 +63,12 @@ The login page warns that HTTP does not encrypt the password or cookie in transi
 | Host rejected with 400 | Inspect browser address bar | Host header matches the explicit IP and port | Use the numeric URL, not an unconfigured alias. |
 | A method is rejected | `curl -i -X PUT http://127.0.0.1:8877/` on loopback preview | HTTP 405 `preview is read-only` | Expected safety behavior; only the password form accepts POST in LAN-auth mode. |
 | A file path is missing | `curl -i http://127.0.0.1:8877/../...` | 404 or safely rejected path | Expected boundary. Use only the root and `/assets/*` paths. |
+| Theme selection does not persist | Read `localStorage.getItem('rv.v2.theme')` in the browser console | `light`, `dark`, or `system`; an unavailable storage API falls back to System for that page | Choose the theme again; no account data is stored in this preference. |
+| Theme does not follow OS changes | Inspect the Theme selector | `System` is selected; explicit Light/Dark does not follow OS changes | Select `System`; while System is selected, the page follows `prefers-color-scheme`. |
+| Sidebar is compact or missing | Activate the corresponding sidebar state button; inspect `data-left-state` / `data-right-state` on `.app-shell` | `expanded`, `compact`, or `hidden`; each side changes independently | Use the small floating restore button when hidden. Focus it with Tab and press Enter/Space. |
+| Tooltip is not visible | Tab to the control or hover it; inspect `aria-description` | Description appears on keyboard focus/hover and is available as an accessible description | Use the visible control label or its accessible name; browser zoom/reduced motion are supported. |
+| Snapshot is disabled | Inspect the visible Snapshot control and its explanation | `Snapshot` is disabled and states that V2 capture is not connected | No V2 archive, ZIP or success claim exists yet. Do not infer this from V1's snapshot feature. |
+| Chat composer is disabled | Inspect the New conversation control and ChatGPT link | V2 has no resident conversation API; ChatGPT opens an unrelated external client | No resident context is transferred. Enable only after a reviewed authenticated conversation contract exists. |
 | Mobile menu does not close automatically | Tap the menu button again | Navigation rail returns off-canvas | This preview has no router or automatic navigation state. |
 
 No SQL, migrations, service manager, Nginx, firewall, or production API is involved. The password hash is a local credential file and is never copied into Git. A preview failure has no production recovery step.
@@ -87,3 +93,5 @@ python3 scripts/process_graph.py check
 ```
 
 The Firefox utility starts and stops its own local geckodriver. The Chrome utility starts and stops its own headless Chrome profile and uses a 390×844 CSS-pixel emulated viewport. Both connect only to the loopback preview. LAN authentication tests use a disposable random password created in memory and a temporary hash; they never test with the Steward's real password. Required outputs include no browser errors, selected resident retained, `overflow=false`, unauthorized assets 401, successful login redirect 303, lockout 429, invalid Host/Origin and non-LAN rejection, null/absent Origin accepted only with a valid one-use CSRF token, replay/missing-token rejection, and session expiry. Final acceptance also requires Windows Chrome from the actual dev PC. A failed local check is evidence about the preview branch, not a reason to restart V1.
+
+The focused UI browser checks also exercise all three theme choices, persistence of the chosen display preference, all sidebar states and restoration controls, keyboard descriptions, mobile width, the exact Snapshot label, and disabled/unavailable snapshot and chat controls. To roll back only the appearance refinement, revert its dedicated commit or restore the listed pre-change assets and docs from `.riverview-backups/manifest.jsonl`, then rerun the V2 browser checks. Never touch V1, Nginx, credentials or production during that rollback.

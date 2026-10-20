@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.3
+File Revision: 1.0.4
 Purpose: Show normal, decision, failure, and recovery paths for loopback and authenticated LAN preview
 Authority: Presentation-only process flow; edit canonical JSON graph only
 Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-PREVIEW-001 | Extend generated process view for authenticated LAN access
@@ -34,6 +34,11 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_reject_login_csrf_58167d85[["Reject foreign Origin or missing, expired, replayed, or wrong-client CSRF token"]]
     g_rv_riverview_v2_workspace_shell_rate_limited_36c38b3d[["After five failures, return 429 and 15-minute Retry-After"]]
     g_rv_riverview_v2_workspace_shell_issue_session_29d7e2fd["Issue HttpOnly SameSite cookie signed by in-memory key"]
+    g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d{"Choose theme or independent sidebar state"}
+    g_rv_riverview_v2_workspace_shell_apply_theme_81b77d1d["Apply Light, Dark, or System theme; persist display preference only"]
+    g_rv_riverview_v2_workspace_shell_cycle_sidebars_3ade16cc["Cycle left and right sidebars independently through expanded, compact, and hidden"]
+    g_rv_riverview_v2_workspace_shell_restore_sidebars_f1b4862e["Restore a hidden sidebar using its accessible floating control"]
+    g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227["Show Snapshot and chat as unavailable until authorized integrations exist"]
   end
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e --> g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
@@ -61,6 +66,13 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_verify_password_8b9303e1 -->|diagnostic_branch: Bad password; fifth failure in 15 minutes| g_rv_riverview_v2_workspace_shell_rate_limited_36c38b3d
   g_rv_riverview_v2_workspace_shell_rate_limited_36c38b3d -->|recovery_route: Wait Retry-After before trying again| g_rv_riverview_v2_workspace_shell_password_form_cbec0a84
   g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409 -->|recovery_route: Restart invalidates signed cookies and in-memory lockout| g_rv_riverview_v2_workspace_shell_restart_preview_b905f3f1
+  g_rv_riverview_v2_workspace_shell_choose_view_161dc67b -->|Change appearance or sidebar layout| g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d
+  g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|Light, Dark, or System selection| g_rv_riverview_v2_workspace_shell_apply_theme_81b77d1d
+  g_rv_riverview_v2_workspace_shell_apply_theme_81b77d1d -->|Preference survives reload; system follows OS preference| g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d
+  g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|Cycle either sidebar without changing the other| g_rv_riverview_v2_workspace_shell_cycle_sidebars_3ade16cc
+  g_rv_riverview_v2_workspace_shell_cycle_sidebars_3ade16cc -->|Hidden state exposes a keyboard-accessible restore button| g_rv_riverview_v2_workspace_shell_restore_sidebars_f1b4862e
+  g_rv_riverview_v2_workspace_shell_restore_sidebars_f1b4862e --> g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d
+  g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|No V2 snapshot archive or live chat endpoint is connected| g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 
