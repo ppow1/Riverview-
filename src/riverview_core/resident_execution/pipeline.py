@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.16
+# Revision: 1.1.17
+# Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Advance independently accepted steps through persisted dependencies and bound rejected-step retries with durable escalation pending.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Integrate PostgreSQL qualification and active production regression coverage.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Fail closed on globally reused event keys and select due review generations before applying the batch limit.
 # Purpose: Persist objectives, require verified grounding, and hand proposals to CME intake
@@ -93,6 +94,7 @@ class GraceExecutionPipeline:
     MAX_EVIDENCE_BYTES = 8 * 1024
     WORKFLOW_ID = "grace.objective-work-order.v1"
     CONTRACT_REF = "repo://riverview/resident-engineering.v1"
+    MAX_GOVERNED_REWORK_ATTEMPTS = 3
 
     def __init__(self, ledger, authorizer, assignment_intake, knowledge):
         if (not isinstance(assignment_intake, AuthorizedAssignmentIntake) or
@@ -398,21 +400,16 @@ class GraceExecutionPipeline:
                     actor_id, {"request_id": request_id, "correlation_id": correlation_id, **safe})
 
     def dispatchable_step(self, objective_id):
-        """Return the next pending step after verified dependencies and Grace review."""
+        """Return the first pending step whose persisted dependencies are verified."""
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
             cur.execute("""SELECT step_id,step_order,step_objective,acceptance_criteria,
                     depends_on,status,assignment_id FROM grace_objective_steps
                 WHERE objective_id=%s ORDER BY step_order""", (objective_id,))
             rows = cur.fetchall()
-            cur.execute("""SELECT payload->>'step_id' AS step_id
-                FROM grace_objective_events WHERE objective_id=%s
-                  AND event_type='work_order.continuation_proposed'""", (objective_id,))
-            reviewed = {row["step_id"] for row in cur.fetchall()}
         verified = {row["step_id"] for row in rows if row["status"] == "verified"}
         for row in rows:
-            if (row["status"] == "pending" and set(row["depends_on"]) <= verified and
-                    (row["step_order"] == 1 or row["step_id"] in reviewed)):
+            if row["status"] == "pending" and set(row["depends_on"]) <= verified:
                 return row
         return None
 
@@ -1144,6 +1141,10 @@ class GraceExecutionPipeline:
                 "completion": completion}
             if decision_event:
                 item["persisted_decision"] = decision_event["payload"]
+            item["rework_attempt_count"] = sum(1 for event in events
+                if event["event_type"] == "engineering.rework_decided" and
+                event["payload"].get("assignment_id") == assignment_id and
+                event["payload"].get("decision") == "REWORK_PROPOSED")
             pending.append(item)
             if len(pending) >= limit:
                 break
@@ -1214,6 +1215,13 @@ class GraceExecutionPipeline:
                 if (objective["status"] != "WORK_ORDER_CREATED" or
                         assignment["state"] not in {"rework_required", "ready"}):
                     raise ObjectiveStateError("same objective assignment is not eligible for rework")
+                if decision["decision"] == "REWORK_PROPOSED":
+                    cur.execute("""SELECT count(*) AS attempt_count FROM grace_objective_events
+                        WHERE objective_id=%s AND event_type='engineering.rework_decided'
+                          AND payload->>'assignment_id'=%s AND payload->>'decision'='REWORK_PROPOSED'""",
+                        (objective_id, assignment_id))
+                    if cur.fetchone()["attempt_count"] >= self.MAX_GOVERNED_REWORK_ATTEMPTS:
+                        raise ObjectiveStateError("governed rework retry limit is exhausted")
                 cur.execute("""SELECT vr.decision,vr.attempt_id,wa.status
                     FROM verification_records vr JOIN worker_attempts wa
                       ON wa.attempt_id=vr.attempt_id
@@ -1256,6 +1264,55 @@ class GraceExecutionPipeline:
                 recorded = cur.fetchone()
                 if not recorded or recorded["payload"] != payload:
                     raise ObjectiveStateError("rework decision event could not be confirmed")
+        return payload
+
+    def record_rework_escalation_pending(self, context, reason_code):
+        """Persist an actionable escalation hold without dispatching or inventing a provider."""
+        allowed = {"review_provider_uncommissioned", "review_provider_unavailable",
+                   "retry_limit_exhausted"}
+        if (not isinstance(context, dict) or reason_code not in allowed or
+                not isinstance(context.get("objective_id"), str) or
+                not isinstance(context.get("assignment_id"), str) or
+                not isinstance(context.get("completion"), dict) or
+                not isinstance(context["completion"].get("verification_id"), str)):
+            raise ObjectiveStateError("rework escalation context is invalid")
+        objective_id = context["objective_id"]
+        assignment_id = context["assignment_id"]
+        verification_id = context["completion"]["verification_id"]
+        payload = {"decision": "ESCALATION_PENDING", "reason_code": reason_code,
+            "assignment_id": assignment_id, "verification_id": verification_id,
+            "step_id": context.get("step_id"),
+            "rework_attempt_count": context.get("rework_attempt_count", 0),
+            "retry_limit": self.MAX_GOVERNED_REWORK_ATTEMPTS,
+            "required_action": "Steward to commission or restore the authorized rejection-review provider, or direct the next scoped correction."}
+        idem = f"grace-rework-escalation-pending:{verification_id}:{reason_code}"
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("SELECT status,assignment_id FROM grace_objectives WHERE objective_id=%s FOR UPDATE",
+                            (objective_id,))
+                objective = cur.fetchone()
+                cur.execute("SELECT state,objective_ref FROM assignments WHERE id=%s FOR UPDATE",
+                            (assignment_id,))
+                assignment = cur.fetchone()
+                cur.execute("""SELECT vr.verification_id,vr.decision
+                    FROM verification_records vr WHERE vr.assignment_id=%s
+                    ORDER BY vr.recorded_at DESC,vr.verification_id DESC LIMIT 1""", (assignment_id,))
+                latest = cur.fetchone()
+                if (not objective or objective["status"] != "WORK_ORDER_CREATED" or
+                        objective["assignment_id"] != assignment_id or not assignment or
+                        assignment["objective_ref"] != objective_id or
+                        assignment["state"] != "rework_required" or not latest or
+                        latest["decision"] != "REJECTED" or
+                        str(latest["verification_id"]) != verification_id):
+                    raise ObjectiveStateError("current independently rejected assignment is required")
+                cur.execute("SELECT payload FROM grace_objective_events WHERE objective_id=%s AND idempotency_key=%s",
+                            (objective_id, idem))
+                existing = cur.fetchone()
+                if existing and dict(existing["payload"]) != payload:
+                    raise ObjectiveStateError("rework escalation idempotency conflict")
+                self._event(cur, objective_id, "engineering.rework_escalation_pending", idem,
+                            "office:grace", payload)
         return payload
 
     def latest_rework_instruction(self, assignment_id):
