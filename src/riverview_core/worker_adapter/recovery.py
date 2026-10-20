@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/recovery.py
 # Component: WORKER-ADAPTER
-# Revision: 1.2.8
+# Revision: 1.2.9
+# Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Select no-artifact recovery through the exact durable objective-step assignment, dispatch event, and persisted proposal step rather than the latest objective assignment pointer.
 # Purpose: Reconcile expired worker leases without losing or blindly repeating work
 # Execution Model: Explicit PostgreSQL recovery pass at worker startup or polling
 # Observability: Recovery records and causal assignment transition events
@@ -676,8 +677,15 @@ class PostgresRecoveryCoordinator:
                     JOIN assignment_leases l ON l.assignment_id=a.id
                     JOIN worker_execution_intents i ON i.assignment_id=a.id
                         AND i.lease_generation=l.generation
-                    JOIN grace_objectives o ON o.assignment_id=a.id
-                        AND o.objective_id=a.objective_ref
+                    JOIN grace_objectives o ON o.objective_id=a.objective_ref
+                    JOIN grace_objective_steps s ON s.objective_id=o.objective_id
+                        AND s.assignment_id=a.id
+                        AND EXISTS (
+                            SELECT 1 FROM grace_objective_events dispatched
+                            WHERE dispatched.objective_id=s.objective_id
+                              AND dispatched.event_type='work_order.dispatched'
+                              AND dispatched.payload->>'assignment_id'=a.id
+                              AND dispatched.payload->>'workflow_step'=s.step_id)
                     WHERE a.authority_ref=%s AND i.worker_id=%s AND ((a.state='awaiting_steward'
                             AND a.workflow_step='ACTION_OUTCOME_UNKNOWN'
                             AND i.status='outcome_unknown')
@@ -691,12 +699,17 @@ class PostgresRecoveryCoordinator:
                            OR i.failure_class LIKE 'CodexActionFailure:%%')
                       AND i.finished_at IS NOT NULL
                       AND o.status='WORK_ORDER_CREATED'
-                      AND o.assignment_id=a.id
                       AND o.evidence->>'status'='VERIFIED'
                       AND o.source_revision IS NOT NULL
                       AND o.source_sha256 IS NOT NULL
                       AND o.evidence->>'source_revision'=o.source_revision
                       AND o.evidence->>'source_sha256'=o.source_sha256
+                      AND EXISTS (
+                          SELECT 1 FROM jsonb_array_elements(o.proposal->'steps')
+                              AS proposal_step(value)
+                          WHERE proposal_step.value->>'step_id'=s.step_id
+                            AND proposal_step.value->>'objective'=s.step_objective
+                            AND proposal_step.value->'acceptance_criteria'=s.acceptance_criteria)
                     ORDER BY i.started_at,a.id
                     FOR UPDATE OF a,l,i SKIP LOCKED LIMIT %s""",
                     (scope_ref, worker_id, capability,

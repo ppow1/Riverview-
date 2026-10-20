@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.25
+File Revision: 1.1.26
+Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Specify durable per-step assignment provenance for concurrent Codex execution and same-assignment no-artifact recovery.
 Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Make independent verifier acceptance advance persisted dependent steps and specify bounded rejection correction/escalation.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Clarify globally unique review idempotency keys and due-generation selection before batching.
@@ -172,6 +173,30 @@ flowchart TD
 This source increment is not proof of the live demonstration: no production deployment or migration occurred and no new production Codex artifact was produced here. Multi-step persistence requires additive migration `0009_durable_objective_steps.sql`, not applied to production.
 
 Cancellation is supported only before execution for queued/ready assignments and requires exact assignment.cancel. Running work cannot be force-cancelled by this slice; CME lease/recovery behavior remains authoritative.
+
+### Concurrent step assignment provenance and recovery
+
+An objective's `assignment_id` is a single latest-dispatch projection. It is
+not the identity of every concurrent step assignment: dispatching a sibling
+step may replace that pointer while an earlier step remains leased or waiting
+for recovery. Codex execution therefore resolves each assignment through
+`grace_objective_steps.assignment_id` and its persisted `work_order.dispatched`
+event, then uses that exact proposal step's objective and acceptance criteria.
+The objective must still be `WORK_ORDER_CREATED` with the same immutable,
+verified evidence and persisted proposal. A missing or ambiguous step link
+fails closed.
+
+Bounded Codex no-artifact recovery selects by the assignment's exact
+`objective_ref`, then requires its unique persisted step assignment link, a
+matching `work_order.dispatched` event and a matching step in the persisted
+proposal. The objective's latest `assignment_id` is not a recovery selector.
+Lease expiry, exact worker/scope/capability/effect checks, verified objective
+provenance, absence of artifacts, attempts, results and verifier records, the
+existing retry ceiling, one recovery record per generation, and ordinary
+claim-time exact grants remain required. Recovery transitions the same
+assignment to `ready`; it does not create a work order or increment the step's
+dispatch count. Independent verification and the usual CME dependency checks
+remain unchanged.
 
 ## Interfaces and bounds
 
